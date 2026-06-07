@@ -62,8 +62,8 @@ type MFAService interface {
 	GetMFAStatus(ctx context.Context, userID int64) (*MFAStatusResponseDTO, error)
 
 	// Policy
-	GetMFAPolicy(ctx context.Context, userPoolID int64) (*MFAPolicyDTO, error)
-	IsMFARequired(ctx context.Context, userPoolID int64) (bool, error)
+	GetMFAPolicy(ctx context.Context, tenantID int64) (*MFAPolicyDTO, error)
+	IsMFARequired(ctx context.Context, tenantID int64) (bool, error)
 	UserHasMFA(ctx context.Context, userID int64) (bool, error)
 
 	// Admin
@@ -434,8 +434,8 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 // ──────────────────────────────────────────────────────────────────────────────
 
 // GetMFAPolicy reads the per-pool MFA policy from secpolicy.SecuritySetting.MFAConfig.
-func (s *mfaService) GetMFAPolicy(ctx context.Context, userPoolID int64) (*MFAPolicyDTO, error) {
-	setting, err := s.secSettingRepo.FindByUserPoolID(userPoolID)
+func (s *mfaService) GetMFAPolicy(ctx context.Context, tenantID int64) (*MFAPolicyDTO, error) {
+	setting, err := s.secSettingRepo.FindByTenantID(tenantID)
 	if err != nil || setting == nil {
 		return &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}}, nil
 	}
@@ -447,8 +447,8 @@ func (s *mfaService) GetMFAPolicy(ctx context.Context, userPoolID int64) (*MFAPo
 }
 
 // IsMFARequired returns true when the pool policy requires MFA.
-func (s *mfaService) IsMFARequired(ctx context.Context, userPoolID int64) (bool, error) {
-	policy, _ := s.GetMFAPolicy(ctx, userPoolID)
+func (s *mfaService) IsMFARequired(ctx context.Context, tenantID int64) (bool, error) {
+	policy, _ := s.GetMFAPolicy(ctx, tenantID)
 	return policy.Required, nil
 }
 

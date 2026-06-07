@@ -60,7 +60,6 @@ type UserServiceGetFilter struct {
 	Status       []string
 	TenantID     int64
 	RoleUUID     *string
-	UserPoolUUID *string
 	ClientUUID   *string
 	Page         int
 	Limit        int
@@ -106,7 +105,6 @@ type userService struct {
 	tenantRepo           TenantRepository
 	identityProviderRepo IdentityProviderRepository
 	clientRepo           ClientRepository
-	userPoolRepo         UserPoolRepository
 	cacheInvalidator     cache.Invalidator
 	userTokenRepo        UserTokenRepository
 	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → use defaults
@@ -124,7 +122,6 @@ func NewUserService(
 	tenantRepo TenantRepository,
 	identityProviderRepo IdentityProviderRepository,
 	clientRepo ClientRepository,
-	userPoolRepo UserPoolRepository,
 	cacheInvalidator cache.Invalidator,
 	userTokenRepo UserTokenRepository,
 	securitySettingRepo secpolicy.SecuritySettingRepository,
@@ -141,7 +138,6 @@ func NewUserService(
 		tenantRepo:           tenantRepo,
 		identityProviderRepo: identityProviderRepo,
 		clientRepo:           clientRepo,
-		userPoolRepo:         userPoolRepo,
 		cacheInvalidator:     cacheInvalidator,
 		userTokenRepo:        userTokenRepo,
 		securitySettingRepo:  securitySettingRepo,
@@ -229,34 +225,19 @@ func (s *userService) Get(ctx context.Context, filter UserServiceGetFilter) (*Us
 		clientID = &client.ClientID
 	}
 
-	// Convert user pool UUID to ID if provided
-	var userPoolID *int64
-	if filter.UserPoolUUID != nil {
-		poolUUIDParsed, err := uuid.Parse(*filter.UserPoolUUID)
-		if err != nil {
-			return nil, apperror.NewValidation("invalid user pool UUID")
-		}
-		pool, err := s.userPoolRepo.FindByUUID(poolUUIDParsed)
-		if err != nil || pool == nil {
-			return nil, apperror.NewNotFound("user pool not found")
-		}
-		userPoolID = &pool.UserPoolID
-	}
-
 	// Build query filter
 	queryFilter := UserRepositoryGetFilter{
-		Username:   filter.Username,
-		Email:      filter.Email,
-		Phone:      filter.Phone,
-		Status:     filter.Status,
-		TenantID:   &filter.TenantID,
-		RoleID:     roleID,
-		ClientID:   clientID,
-		UserPoolID: userPoolID,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		SortBy:     filter.SortBy,
-		SortOrder:  filter.SortOrder,
+		Username:  filter.Username,
+		Email:     filter.Email,
+		Phone:     filter.Phone,
+		Status:    filter.Status,
+		TenantID:  &filter.TenantID,
+		RoleID:    roleID,
+		ClientID:  clientID,
+		Page:      filter.Page,
+		Limit:     filter.Limit,
+		SortBy:    filter.SortBy,
+		SortOrder: filter.SortOrder,
 	}
 
 	result, err := s.userRepo.FindPaginated(queryFilter)

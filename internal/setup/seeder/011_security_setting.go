@@ -8,19 +8,19 @@ import (
 	"gorm.io/gorm"
 )
 
-// SeedSecuritySettings creates default security settings for a tenant
-func SeedSecuritySettings(db *gorm.DB, userPoolID int64) error {
+// SeedSecuritySettings creates default security settings for a tenant.
+func SeedSecuritySettings(db *gorm.DB, tenantID int64) error {
 	// Check if security settings already exist for this tenant
 	var existing model.SecuritySetting
-	err := db.Where("user_pool_id = ?", userPoolID).First(&existing).Error
+	err := db.Where("tenant_id = ?", tenantID).First(&existing).Error
 	if err == nil {
-		slog.Info("Security settings already exist, skipping", "user_pool_id", userPoolID)
+		slog.Info("Security settings already exist, skipping", "tenant_id", tenantID)
 		return nil
 	}
 
 	// Create default security settings with empty JSONB configs
 	securitySetting := model.SecuritySetting{
-		UserPoolID:         userPoolID,
+		TenantID:           tenantID,
 		MFAConfig:          datatypes.JSON([]byte("{}")),
 		PasswordConfig:     datatypes.JSON([]byte("{}")),
 		SessionConfig:      datatypes.JSON([]byte("{}")),
@@ -32,10 +32,10 @@ func SeedSecuritySettings(db *gorm.DB, userPoolID int64) error {
 	}
 
 	if err := db.Create(&securitySetting).Error; err != nil {
-		slog.Error("Failed to create security settings", "user_pool_id", userPoolID, "error", err)
+		slog.Error("Failed to create security settings", "tenant_id", tenantID, "error", err)
 		return err
 	}
 
-	slog.Info("Security settings seeded", "user_pool_id", userPoolID)
+	slog.Info("Security settings seeded", "tenant_id", tenantID)
 	return nil
 }

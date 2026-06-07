@@ -49,7 +49,6 @@ func (f UserFilterDTO) Validate() error {
 		),
 		validation.Field(&f.TenantUUID, validation.When(f.TenantUUID != nil, is.UUID.Error("Tenant ID must be a valid UUID"))),
 		validation.Field(&f.RoleUUID, validation.When(f.RoleUUID != nil, is.UUID.Error("Role ID must be a valid UUID"))),
-		validation.Field(&f.UserPoolUUID, validation.When(f.UserPoolUUID != nil, is.UUID.Error("User pool ID must be a valid UUID"))),
 		validation.Field(&f.ClientUUID, validation.When(f.ClientUUID != nil, is.UUID.Error("Client ID must be a valid UUID"))),
 		validation.Field(&f.PaginationRequestDTO),
 	)

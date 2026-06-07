@@ -27,11 +27,10 @@ func fullUserSvc(
 	tenantRepo *mockTenantRepo,
 	idpRepo *mockIdentityProviderRepo,
 	clientRepo *mockClientRepo,
-	upRepo *mockUserPoolRepo,
 ) (*gorm.DB, UserService) {
 	t.Helper()
 	db, _ := newMockGormDB(t)
-	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, upRepo, cache.NopInvalidator{}, nil, nil, nil, nil, nil)
+	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, cache.NopInvalidator{}, nil, nil, nil, nil, nil)
 	return db, svc
 }
 
@@ -44,17 +43,16 @@ func fullUserSvcWithMock(
 	tenantRepo *mockTenantRepo,
 	idpRepo *mockIdentityProviderRepo,
 	clientRepo *mockClientRepo,
-	upRepo *mockUserPoolRepo,
 ) (*gorm.DB, sqlmock.Sqlmock, UserService) {
 	t.Helper()
 	db, mock := newMockGormDB(t)
-	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, upRepo, cache.NopInvalidator{}, nil, nil, nil, nil, nil)
+	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, cache.NopInvalidator{}, nil, nil, nil, nil, nil)
 	return db, mock, svc
 }
 
-func defaultMocks() (*mockUserRepo, *mockUserIdentityRepo, *mockUserRoleRepo, *mockRoleRepo, *mockTenantRepo, *mockIdentityProviderRepo, *mockClientRepo, *mockUserPoolRepo) {
+func defaultMocks() (*mockUserRepo, *mockUserIdentityRepo, *mockUserRoleRepo, *mockRoleRepo, *mockTenantRepo, *mockIdentityProviderRepo, *mockClientRepo) {
 	return &mockUserRepo{}, &mockUserIdentityRepo{}, &mockUserRoleRepo{}, &mockRoleRepo{},
-		&mockTenantRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, &mockUserPoolRepo{}
+		&mockTenantRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}
 }
 
 // User with tenant access (tenantID=1) and default-tenant identity for ValidateTenantAccess
@@ -75,8 +73,8 @@ func userWithAccess(userID int64, tenantID int64) *User {
 
 func TestUserService_Get(t *testing.T) {
 	t.Run("invalid role UUID", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		bad := "not-a-uuid"
 		_, err := svc.Get(context.Background(), UserServiceGetFilter{RoleUUID: &bad, TenantID: 1})
 		require.Error(t, err)
@@ -84,9 +82,9 @@ func TestUserService_Get(t *testing.T) {
 	})
 
 	t.Run("role not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		rid := uuid.New().String()
 		_, err := svc.Get(context.Background(), UserServiceGetFilter{RoleUUID: &rid, TenantID: 1})
 		require.Error(t, err)
@@ -94,17 +92,17 @@ func TestUserService_Get(t *testing.T) {
 	})
 
 	t.Run("FindPaginated error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findPaginatedFn = func(_ UserRepositoryGetFilter) (*PaginationResult[User], error) {
 			return nil, errors.New("db error")
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.Get(context.Background(), UserServiceGetFilter{TenantID: 1})
 		require.Error(t, err)
 	})
 
 	t.Run("success with role filter", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) {
 			return &Role{RoleID: 5}, nil
 		}
@@ -112,7 +110,7 @@ func TestUserService_Get(t *testing.T) {
 			assert.NotNil(t, f.RoleID)
 			return &PaginationResult[User]{Data: []User{{UserUUID: uuid.New()}}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		rid := uuid.New().String()
 		res, err := svc.Get(context.Background(), UserServiceGetFilter{RoleUUID: &rid, TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
@@ -120,16 +118,16 @@ func TestUserService_Get(t *testing.T) {
 	})
 
 	t.Run("success without role filter", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, err := svc.Get(context.Background(), UserServiceGetFilter{TenantID: 1})
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
 
 	t.Run("invalid client UUID", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		bad := "not-a-uuid"
 		_, err := svc.Get(context.Background(), UserServiceGetFilter{ClientUUID: &bad, TenantID: 1})
 		require.Error(t, err)
@@ -137,9 +135,9 @@ func TestUserService_Get(t *testing.T) {
 	})
 
 	t.Run("client not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		cr.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Client, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		cid := uuid.New().String()
 		_, err := svc.Get(context.Background(), UserServiceGetFilter{ClientUUID: &cid, TenantID: 1})
 		require.Error(t, err)
@@ -147,7 +145,7 @@ func TestUserService_Get(t *testing.T) {
 	})
 
 	t.Run("with client filter success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		cr.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Client, error) {
 			return &Client{ClientID: 5}, nil
 		}
@@ -155,45 +153,9 @@ func TestUserService_Get(t *testing.T) {
 			assert.NotNil(t, f.ClientID)
 			return &PaginationResult[User]{Data: []User{}, Total: 0, Page: 1, Limit: 10, TotalPages: 0}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		cid := uuid.New().String()
 		res, err := svc.Get(context.Background(), UserServiceGetFilter{ClientUUID: &cid, TenantID: 1})
-		require.NoError(t, err)
-		assert.NotNil(t, res)
-	})
-
-	t.Run("invalid user pool UUID", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		bad := "not-a-uuid"
-		_, err := svc.Get(context.Background(), UserServiceGetFilter{UserPoolUUID: &bad, TenantID: 1})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid user pool UUID")
-	})
-
-	t.Run("user pool not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		up.findByUUIDFn = func(_ any, _ ...string) (*UserPool, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		pid := uuid.New().String()
-		_, err := svc.Get(context.Background(), UserServiceGetFilter{UserPoolUUID: &pid, TenantID: 1})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "user pool not found")
-	})
-
-	t.Run("with user pool filter success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		up.findByUUIDFn = func(_ any, _ ...string) (*UserPool, error) {
-			return &UserPool{UserPoolID: 3}, nil
-		}
-		ur.findPaginatedFn = func(f UserRepositoryGetFilter) (*PaginationResult[User], error) {
-			assert.NotNil(t, f.UserPoolID)
-			return &PaginationResult[User]{Data: []User{}, Total: 0, Page: 1, Limit: 10, TotalPages: 0}, nil
-		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		pid := uuid.New().String()
-		res, err := svc.Get(context.Background(), UserServiceGetFilter{UserPoolUUID: &pid, TenantID: 1})
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -207,40 +169,40 @@ func TestUserService_GetByUUID(t *testing.T) {
 	uid := uuid.New()
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.GetByUUID(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("FindByUUID db error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, errors.New("db error") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.GetByUUID(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.GetByUUID(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, err := svc.GetByUUID(context.Background(), uid, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
@@ -257,8 +219,8 @@ func TestUserService_Create(t *testing.T) {
 	email := "test@test.com"
 
 	t.Run("invalid tenant UUID", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, "bad-uuid", creatorUUID)
@@ -267,9 +229,9 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("tenant not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return nil, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -278,7 +240,7 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("creator user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
@@ -288,7 +250,7 @@ func TestUserService_Create(t *testing.T) {
 			}
 			return nil, nil
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -297,12 +259,12 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("ValidateTenantAccess error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 2, UserIdentities: []UserIdentity{}}, nil // no identities → error
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -311,11 +273,11 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("FindByUsername error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		ur.findByUsernameFn = func(_ string) (*User, error) { return nil, errors.New("username err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -324,11 +286,11 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("username already exists", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		ur.findByUsernameFn = func(_ string) (*User, error) { return &User{}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -337,11 +299,11 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("FindByEmail error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		ur.findByEmailFn = func(_ string) (*User, error) { return nil, errors.New("email err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", &email, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -350,11 +312,11 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("email already exists", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		ur.findByEmailFn = func(_ string) (*User, error) { return &User{}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", &email, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -363,11 +325,11 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("Create user error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		ur.createFn = func(_ *User) (*User, error) { return nil, errors.New("create user err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -376,11 +338,11 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("FindDefaultByTenantID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		cr.findDefaultByTenantIDFn = func(_ int64) (*Client, error) { return nil, errors.New("no client") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -389,12 +351,12 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("Create identity error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		cr.findDefaultByTenantIDFn = func(_ int64) (*Client, error) { return &Client{ClientID: 1}, nil }
 		ui.createFn = func(_ *UserIdentity) (*UserIdentity, error) { return nil, errors.New("ident err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -402,14 +364,14 @@ func TestUserService_Create(t *testing.T) {
 		assert.Contains(t, err.Error(), "ident err")
 	})
 	t.Run("findDefaultRole error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		cr.findDefaultByTenantIDFn = func(_ int64) (*Client, error) { return &Client{ClientID: 1}, nil }
 		rr.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 			return nil, errors.New("role paginate err")
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -418,7 +380,7 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("findDefaultRole fallback — no default or registered", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		cr.findDefaultByTenantIDFn = func(_ int64) (*Client, error) { return &Client{ClientID: 1}, nil }
@@ -426,7 +388,7 @@ func TestUserService_Create(t *testing.T) {
 			return &PaginationResult[Role]{Data: []Role{}}, nil
 		}
 		// FindByNameAndTenantID returns nil → no default role found
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -435,7 +397,7 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("findDefaultRole fallback — FindByNameAndTenantID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		cr.findDefaultByTenantIDFn = func(_ int64) (*Client, error) { return &Client{ClientID: 1}, nil }
@@ -443,7 +405,7 @@ func TestUserService_Create(t *testing.T) {
 			return &PaginationResult[Role]{Data: []Role{}}, nil
 		}
 		rr.findByNameAndTenantIDFn = func(_ string, _ int64) (*Role, error) { return nil, errors.New("name err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -452,10 +414,10 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("password validation failure", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "short", "active", nil, tenantUUID, creatorUUID)
@@ -469,10 +431,10 @@ func TestUserService_Create(t *testing.T) {
 			return nil, errors.New("hash error")
 		}
 		t.Cleanup(func() { userHashPassword = original })
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 
@@ -483,7 +445,7 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("Create user role error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
 		cr.findDefaultByTenantIDFn = func(_ int64) (*Client, error) { return &Client{ClientID: 1}, nil }
@@ -491,7 +453,7 @@ func TestUserService_Create(t *testing.T) {
 			return &PaginationResult[Role]{Data: []Role{{RoleID: 1}}}, nil
 		}
 		urr.createFn = func(_ *UserRole) (*UserRole, error) { return nil, errors.New("ur create err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -500,7 +462,7 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("final fetch error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
@@ -514,7 +476,7 @@ func TestUserService_Create(t *testing.T) {
 		rr.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 			return &PaginationResult[Role]{Data: []Role{{RoleID: 1}}}, nil
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -523,7 +485,7 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("success with email and phone", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		phone := "555"
 		callCount := 0
@@ -538,7 +500,7 @@ func TestUserService_Create(t *testing.T) {
 		rr.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 			return &PaginationResult[Role]{Data: []Role{{RoleID: 1}}}, nil
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.Create(context.Background(), "user", "name", &email, &phone, "P@ssW0rd1!", "active", datatypes.JSON([]byte("{}")), tenantUUID, creatorUUID)
@@ -547,7 +509,7 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("findDefaultRole — fallback to registered role success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
@@ -564,7 +526,7 @@ func TestUserService_Create(t *testing.T) {
 		rr.findByNameAndTenantIDFn = func(_ string, _ int64) (*Role, error) {
 			return &Role{RoleID: 5}, nil // fallback registered
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
@@ -584,9 +546,9 @@ func TestUserService_Update(t *testing.T) {
 	tenantID := int64(1)
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
@@ -595,11 +557,11 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
@@ -608,7 +570,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("updater user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -617,7 +579,7 @@ func TestUserService_Update(t *testing.T) {
 			}
 			return nil, nil // updater not found
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "old", "f", nil, nil, "active", nil, updaterUUID)
@@ -626,7 +588,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("ValidateTenantAccess error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -635,7 +597,7 @@ func TestUserService_Update(t *testing.T) {
 			}
 			return &User{UserID: 2, UserIdentities: []UserIdentity{}}, nil // updater with no identities
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "old", "f", nil, nil, "active", nil, updaterUUID)
@@ -644,7 +606,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("username change → FindByUsername error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -654,7 +616,7 @@ func TestUserService_Update(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		ur.findByUsernameFn = func(_ string) (*User, error) { return nil, errors.New("uname err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "new-name", "f", nil, nil, "active", nil, updaterUUID)
@@ -663,7 +625,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("username conflict", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -673,7 +635,7 @@ func TestUserService_Update(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		ur.findByUsernameFn = func(_ string) (*User, error) { return &User{UserID: 999}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "new-name", "f", nil, nil, "active", nil, updaterUUID)
@@ -682,7 +644,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("email change → FindByEmail error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -693,7 +655,7 @@ func TestUserService_Update(t *testing.T) {
 		}
 		newEmail := "new@t.com"
 		ur.findByEmailFn = func(_ string) (*User, error) { return nil, errors.New("email err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", &newEmail, nil, "active", nil, updaterUUID)
@@ -702,7 +664,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("email conflict", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -713,7 +675,7 @@ func TestUserService_Update(t *testing.T) {
 		}
 		newEmail := "new@t.com"
 		ur.findByEmailFn = func(_ string) (*User, error) { return &User{UserID: 999}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", &newEmail, nil, "active", nil, updaterUUID)
@@ -722,7 +684,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("UpdateByUUID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -732,7 +694,7 @@ func TestUserService_Update(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		ur.updateByUUIDFn = func(_, _ any) (*User, error) { return nil, errors.New("update err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
@@ -741,7 +703,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("final fetch error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -753,7 +715,7 @@ func TestUserService_Update(t *testing.T) {
 			}
 			return nil, errors.New("fetch err")
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
@@ -762,7 +724,7 @@ func TestUserService_Update(t *testing.T) {
 	})
 
 	t.Run("success with all fields", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -776,7 +738,7 @@ func TestUserService_Update(t *testing.T) {
 		}
 		newEmail := "new@t.com"
 		phone := "555"
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.Update(context.Background(), uid, tenantID, "u", "f", &newEmail, &phone, "active", datatypes.JSON([]byte("{}")), updaterUUID)
@@ -795,27 +757,27 @@ func TestUserService_SetStatus(t *testing.T) {
 	tenantID := int64(1)
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("updater not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -824,14 +786,14 @@ func TestUserService_SetStatus(t *testing.T) {
 			}
 			return nil, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "updater user not found")
 	})
 
 	t.Run("ValidateTenantAccess error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -840,14 +802,14 @@ func TestUserService_SetStatus(t *testing.T) {
 			}
 			return &User{UserID: 2, UserIdentities: []UserIdentity{}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user has no identities")
 	})
 
 	t.Run("SetStatus error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -857,7 +819,7 @@ func TestUserService_SetStatus(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		ur.setStatusFn = func(_ uuid.UUID, _ string) error { return errors.New("status err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
@@ -866,7 +828,7 @@ func TestUserService_SetStatus(t *testing.T) {
 	})
 
 	t.Run("final fetch error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -878,7 +840,7 @@ func TestUserService_SetStatus(t *testing.T) {
 			}
 			return nil, errors.New("fetch err")
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
@@ -887,7 +849,7 @@ func TestUserService_SetStatus(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -899,7 +861,7 @@ func TestUserService_SetStatus(t *testing.T) {
 			}
 			return &User{UserUUID: uid, Status: "inactive"}, nil
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
@@ -916,39 +878,39 @@ func TestUserService_VerifyEmail(t *testing.T) {
 	uid := uuid.New()
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("UpdateByUUID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		ur.updateByUUIDFn = func(_, _ any) (*User, error) { return nil, errors.New("upd err") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "upd err")
 	})
 
 	t.Run("final fetch error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -957,14 +919,14 @@ func TestUserService_VerifyEmail(t *testing.T) {
 			}
 			return nil, errors.New("fetch err")
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -973,7 +935,7 @@ func TestUserService_VerifyEmail(t *testing.T) {
 			}
 			return &User{UserUUID: uid, IsEmailVerified: true}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
@@ -988,39 +950,39 @@ func TestUserService_VerifyPhone(t *testing.T) {
 	uid := uuid.New()
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("UpdateByUUID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		ur.updateByUUIDFn = func(_, _ any) (*User, error) { return nil, errors.New("upd err") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "upd err")
 	})
 
 	t.Run("final fetch error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1029,14 +991,14 @@ func TestUserService_VerifyPhone(t *testing.T) {
 			}
 			return nil, errors.New("fetch err")
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1045,7 +1007,7 @@ func TestUserService_VerifyPhone(t *testing.T) {
 			}
 			return &User{UserUUID: uid}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
@@ -1060,39 +1022,39 @@ func TestUserService_CompleteAccount(t *testing.T) {
 	uid := uuid.New()
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("UpdateByUUID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		ur.updateByUUIDFn = func(_, _ any) (*User, error) { return nil, errors.New("upd err") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "upd err")
 	})
 
 	t.Run("final fetch error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1101,14 +1063,14 @@ func TestUserService_CompleteAccount(t *testing.T) {
 			}
 			return nil, errors.New("fetch err")
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1117,7 +1079,7 @@ func TestUserService_CompleteAccount(t *testing.T) {
 			}
 			return &User{UserUUID: uid}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
@@ -1133,27 +1095,27 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 	deleterUUID := uuid.New()
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("deleter not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1162,14 +1124,14 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			}
 			return nil, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "deleter user not found")
 	})
 
 	t.Run("ValidateTenantAccess error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1178,14 +1140,14 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			}
 			return &User{UserID: 2, UserIdentities: []UserIdentity{}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user has no identities")
 	})
 
 	t.Run("DeleteByUUID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1195,7 +1157,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		ur.deleteByUUIDFn = func(_ any) error { return errors.New("del err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
@@ -1204,7 +1166,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1213,7 +1175,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			}
 			return userWithAccess(2, 1), nil
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
@@ -1231,9 +1193,9 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	roleUUID := uuid.New()
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1242,11 +1204,11 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1255,12 +1217,12 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("authevent.FindByUUID role error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return nil, errors.New("role err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1269,12 +1231,12 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("role not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return nil, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1283,13 +1245,13 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("FindByUserIDAndRoleID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
 		urr.findByUserIDAndRoleIDFn = func(_, _ int64) (*UserRole, error) { return nil, errors.New("ur find err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1298,7 +1260,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("final fetch error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1308,7 +1270,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 			return nil, errors.New("fetch err")
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1317,7 +1279,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("role already assigned → skip", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1328,7 +1290,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
 		urr.findByUserIDAndRoleIDFn = func(_, _ int64) (*UserRole, error) { return &UserRole{}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1337,7 +1299,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("with token repo revocation", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		mockTokenRepo := &mockUserTokenRepo{}
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
@@ -1348,7 +1310,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 			return &User{UserUUID: uid}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		// Inject token repo manually since fullUserSvc passes nil
 		svcImpl := svc.(*userService)
 		svcImpl.userTokenRepo = mockTokenRepo
@@ -1360,13 +1322,13 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("Create user role error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
 		urr.createFn = func(_ *UserRole) (*UserRole, error) { return nil, errors.New("ur create err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1375,7 +1337,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 	})
 
 	t.Run("success with dedup identities", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1388,7 +1350,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 			}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
@@ -1406,9 +1368,9 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 	roleUUID := uuid.New()
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
@@ -1417,11 +1379,11 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
@@ -1430,12 +1392,12 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 	})
 
 	t.Run("authevent.FindByUUID role error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return nil, errors.New("role err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
@@ -1444,12 +1406,12 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 	})
 
 	t.Run("role not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return nil, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
@@ -1458,7 +1420,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 	})
 
 	t.Run("final fetch error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1468,7 +1430,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 			return nil, errors.New("fetch err")
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
@@ -1477,13 +1439,13 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 	})
 
 	t.Run("DeleteByUserIDAndRoleID error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
 		urr.deleteByUserIDAndRoleIDFn = func(_, _ int64) error { return errors.New("del ur err") }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
@@ -1492,7 +1454,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -1502,7 +1464,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 			return &User{UserUUID: uid}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
@@ -1511,7 +1473,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 	})
 
 	t.Run("with token repo revocation", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		mockTokenRepo := &mockUserTokenRepo{}
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
@@ -1522,7 +1484,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 			return &User{UserUUID: uid}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		svcImpl := svc.(*userService)
 		svcImpl.userTokenRepo = mockTokenRepo
 		mock.ExpectBegin()
@@ -1543,46 +1505,46 @@ func TestUserService_GetUserRoles(t *testing.T) {
 	filter := GetUserRolesFilter{Page: 1, Limit: 10}
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("FindByUUID db error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, errors.New("db error") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("FindRolesPaginated error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ur.findRolesPaginatedFn = func(_ GetUserRolesFilter) (*PaginationResult[Role], error) { return nil, errors.New("roles err") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "roles err")
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ur.findRolesPaginatedFn = func(_ GetUserRolesFilter) (*PaginationResult[Role], error) {
 			return &PaginationResult[Role]{
@@ -1590,7 +1552,7 @@ func TestUserService_GetUserRoles(t *testing.T) {
 				Total: 1,
 			}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, total, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
@@ -1608,48 +1570,48 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 	filter := GetUserIdentitiesFilter{Page: 1, Limit: 10}
 
 	t.Run("user not found", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("FindByUUID db error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, errors.New("db error") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("no tenant access", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("FindUserIdentitiesPaginated error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return nil, errors.New("ident err")
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ident err")
 	})
 
 	t.Run("success with client loaded", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
@@ -1660,7 +1622,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 		cr.findByIDFn = func(_ any, _ ...string) (*Client, error) {
 			return &Client{ClientUUID: uuid.New(), Name: "main"}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
@@ -1668,7 +1630,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 	})
 
 	t.Run("success with client ID zero", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
@@ -1676,7 +1638,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 				Total: 1,
 			}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
@@ -1684,7 +1646,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 	})
 
 	t.Run("FindByID error → client nil", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
@@ -1693,7 +1655,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 			}, nil
 		}
 		cr.findByIDFn = func(_ any, _ ...string) (*Client, error) { return nil, errors.New("find err") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Nil(t, res[0].Client)
@@ -1780,17 +1742,17 @@ func TestToUserServiceDataResult(t *testing.T) {
 
 func TestUserService_ForcePasswordChange(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.setForcePasswordChangeFn = func(uuid.UUID, bool) error { return nil }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		err := svc.ForcePasswordChange(context.Background(), uuid.New(), true)
 		require.NoError(t, err)
 	})
 
 	t.Run("repo error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.setForcePasswordChangeFn = func(uuid.UUID, bool) error { return errors.New("db error") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		err := svc.ForcePasswordChange(context.Background(), uuid.New(), true)
 		require.Error(t, err)
 	})
@@ -1798,22 +1760,22 @@ func TestUserService_ForcePasswordChange(t *testing.T) {
 
 func TestUserService_FindBySubAndClientID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findBySubAndClientIDFn = func(string, string) (*User, error) {
 			return &User{UserUUID: uuid.New()}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		user, err := svc.FindBySubAndClientID(context.Background(), "sub1", "client1")
 		require.NoError(t, err)
 		assert.NotNil(t, user)
 	})
 
 	t.Run("repo error", func(t *testing.T) {
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findBySubAndClientIDFn = func(string, string) (*User, error) {
 			return nil, errors.New("db error")
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		user, err := svc.FindBySubAndClientID(context.Background(), "sub1", "client1")
 		require.Error(t, err)
 		assert.Nil(t, user)

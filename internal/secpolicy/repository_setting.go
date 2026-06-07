@@ -8,7 +8,7 @@ import (
 )
 
 type SecuritySettingRepositoryGetFilter struct {
-	UserPoolID *int64
+	TenantID *int64
 	Version    *int
 	CreatedBy  *int64
 	UpdatedBy  *int64
@@ -21,10 +21,8 @@ type SecuritySettingRepositoryGetFilter struct {
 type SecuritySettingRepository interface {
 	BaseRepositoryMethods[SecuritySetting]
 	WithTx(tx *gorm.DB) SecuritySettingRepository
-	FindByUserPoolID(tenantID int64) (*SecuritySetting, error)
-	// FindDefaultByTenantID returns the security setting for a tenant's default
-	// user pool, joining user_pools internally. Returns nil when not found.
-	FindDefaultByTenantID(tenantID int64) (*SecuritySetting, error)
+	// FindByTenantID returns the tenant's security setting, or nil when not found.
+	FindByTenantID(tenantID int64) (*SecuritySetting, error)
 	FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[SecuritySetting], error)
 	IncrementVersion(securitySettingID int64) error
 }
@@ -45,24 +43,9 @@ func (r *securitySettingRepository) WithTx(tx *gorm.DB) SecuritySettingRepositor
 	}
 }
 
-func (r *securitySettingRepository) FindDefaultByTenantID(tenantID int64) (*SecuritySetting, error) {
-	var ss SecuritySetting
-	err := r.DB().
-		Joins("JOIN user_pools ON user_pools.user_pool_id = security_settings.user_pool_id").
-		Where("user_pools.tenant_id = ? AND user_pools.is_system = true AND user_pools.deleted_at IS NULL", tenantID).
-		First(&ss).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &ss, nil
-}
-
-func (r *securitySettingRepository) FindByUserPoolID(tenantID int64) (*SecuritySetting, error) {
+func (r *securitySettingRepository) FindByTenantID(tenantID int64) (*SecuritySetting, error) {
 	var securitySetting SecuritySetting
-	err := r.DB().Where("user_pool_id = ?", tenantID).First(&securitySetting).Error
+	err := r.DB().Where("tenant_id = ?", tenantID).First(&securitySetting).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -75,8 +58,8 @@ func (r *securitySettingRepository) FindByUserPoolID(tenantID int64) (*SecurityS
 func (r *securitySettingRepository) FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[SecuritySetting], error) {
 	query := r.DB().Model(&SecuritySetting{})
 
-	if filter.UserPoolID != nil {
-		query = query.Where("user_pool_id = ?", *filter.UserPoolID)
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
 	if filter.Version != nil {
 		query = query.Where("version = ?", *filter.Version)

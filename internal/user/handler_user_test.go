@@ -168,15 +168,14 @@ func TestUserHandler_GetUsers_WithFiltersAndRows(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestUserHandler_GetUsers_WithUserPoolAndClient(t *testing.T) {
+func TestUserHandler_GetUsers_WithClientFilter(t *testing.T) {
 	svc := &mockUserService{
 		getFn: func(UserServiceGetFilter) (*UserServiceGetResult, error) {
 			return &UserServiceGetResult{Total: 0, Page: 1, Limit: 10}, nil
 		},
 	}
-	poolID := uuid.New()
 	clientID := uuid.New()
-	url := "/users?page=1&limit=10&user_pool_id=" + poolID.String() + "&client_id=" + clientID.String()
+	url := "/users?page=1&limit=10&client_id=" + clientID.String()
 	r := withTenant(httptest.NewRequest(http.MethodGet, url, nil))
 	w := httptest.NewRecorder()
 	NewUserHandler(svc).GetUsers(w, r)

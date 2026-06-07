@@ -34,7 +34,6 @@ type migrationEntry struct {
 var migrations = []migrationEntry{
 	// Block 1: Tenant core
 	{"001_create_tenants_table", migration.CreateTenantTable},
-	{"002_create_user_pools_table", migration.CreateUserPoolTable},
 	{"003_create_branding_table", migration.CreateBrandingTable},
 	{"004_create_tenant_settings_table", migration.CreateTenantSettingsTable},
 	{"005_create_email_config_table", migration.CreateEmailConfigTable},

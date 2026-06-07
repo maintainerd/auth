@@ -54,7 +54,7 @@ DO $$
 DECLARE
     t TEXT;
     tables TEXT[] := ARRAY[
-        'tenants', 'user_pools', 'branding', 'email_config', 'sms_config',
+        'tenants', 'branding', 'email_config', 'sms_config',
         'services', 'policies', 'apis', 'permissions',
         'identity_providers', 'clients', 'api_keys', 'roles'
         -- webhook_endpoints is created AFTER users (migration 056, grouped with
