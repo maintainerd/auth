@@ -55,26 +55,15 @@ func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int) 
 	})
 }
 
-func accessTokenCookieName() string {
-	if cookieSecure() {
-		return "__Host-access_token"
-	}
-	return "access_token"
-}
+// Auth cookies always use the __Host-/__Secure- prefixes. These prefixes are a
+// browser-enforced hardening (host-only, Secure-required) and are honored on
+// localhost, which browsers treat as a secure context. secureForCookieName
+// forces Secure=true for any prefixed name regardless of COOKIE_SECURE.
+func accessTokenCookieName() string { return "__Host-access_token" }
 
-func idTokenCookieName() string {
-	if cookieSecure() {
-		return "__Host-id_token"
-	}
-	return "id_token"
-}
+func idTokenCookieName() string { return "__Host-id_token" }
 
-func refreshTokenCookieName() string {
-	if cookieSecure() {
-		return "__Secure-refresh_token"
-	}
-	return "refresh_token"
-}
+func refreshTokenCookieName() string { return "__Secure-refresh_token" }
 
 // refreshTokenCookiePath scopes the refresh-token cookie to the refresh
 // endpoint only, so it is never sent on ordinary API requests. It must match the

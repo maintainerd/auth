@@ -1,6 +1,6 @@
 # Session Configuration
 
-> **Scope**: User Pool · **API Prefix**: `/security-settings/session` · **Storage**: `security_settings.session_config` (JSONB)
+> **Scope**: Tenant · **API Prefix**: `/security-settings/session` · **Storage**: `security_settings.session_config` (JSONB)
 
 ## Overview
 
@@ -175,11 +175,11 @@ Stored in `security_settings.session_config` (JSONB column). The config is schem
 
 ### Service Layer
 
-- **`GetSessionConfig(ctx, userPoolID)`** — Lazy-creates the security setting row, then returns the `session_config` JSONB.
-- **`UpdateSessionConfig(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)`** — Calls `updateConfig` with `"session"` config type.
+- **`GetSessionConfig(ctx, tenantID)`** — Lazy-creates the security setting row, then returns the `session_config` JSONB.
+- **`UpdateSessionConfig(ctx, tenantID, config, updatedBy, ipAddress, userAgent)`** — Calls `updateConfig` with `"session"` config type.
 
 The update runs in a transaction:
-1. Find or create `security_settings` row for the user pool
+1. Find or create `security_settings` row for the tenant
 2. Replace the `session_config` JSONB column
 3. Increment `version`
 4. Create a `security_settings_audit` row with `change_type: "update_session_config"`
@@ -224,7 +224,7 @@ Currently minimal — only validates the config map is non-empty. No schema vali
 ### Token Lifecycle
 - [x] Access token TTL is configurable
 - [x] Refresh token TTL is configurable
-- [x] Configuration is stored per user pool
+- [x] Configuration is stored per tenant
 - [x] Version tracking (auto-incremented on each update)
 - [x] Audit trail (old/new config, who changed, IP, user agent)
 - [ ] Validation: `access_token_ttl_minutes` must be 1–60

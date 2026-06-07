@@ -25,7 +25,7 @@ const (
 
 type GetMFAConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -60,9 +60,9 @@ func (*GetMFAConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetMFAConfigRequest) GetUserPoolId() int64 {
+func (x *GetMFAConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -113,7 +113,7 @@ func (x *GetMFAConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateMFAConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -152,9 +152,9 @@ func (*UpdateMFAConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *UpdateMFAConfigRequest) GetUserPoolId() int64 {
+func (x *UpdateMFAConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -233,7 +233,7 @@ func (x *UpdateMFAConfigResponse) GetConfig() *structpb.Struct {
 
 type GetPasswordConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -268,9 +268,9 @@ func (*GetPasswordConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetPasswordConfigRequest) GetUserPoolId() int64 {
+func (x *GetPasswordConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -321,7 +321,7 @@ func (x *GetPasswordConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdatePasswordConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -360,9 +360,9 @@ func (*UpdatePasswordConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *UpdatePasswordConfigRequest) GetUserPoolId() int64 {
+func (x *UpdatePasswordConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -441,7 +441,7 @@ func (x *UpdatePasswordConfigResponse) GetConfig() *structpb.Struct {
 
 type GetSessionConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -476,9 +476,9 @@ func (*GetSessionConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *GetSessionConfigRequest) GetUserPoolId() int64 {
+func (x *GetSessionConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -529,7 +529,7 @@ func (x *GetSessionConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateSessionConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -568,9 +568,9 @@ func (*UpdateSessionConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *UpdateSessionConfigRequest) GetUserPoolId() int64 {
+func (x *UpdateSessionConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -649,7 +649,7 @@ func (x *UpdateSessionConfigResponse) GetConfig() *structpb.Struct {
 
 type GetThreatConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -684,9 +684,9 @@ func (*GetThreatConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *GetThreatConfigRequest) GetUserPoolId() int64 {
+func (x *GetThreatConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -737,7 +737,7 @@ func (x *GetThreatConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateThreatConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -776,9 +776,9 @@ func (*UpdateThreatConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *UpdateThreatConfigRequest) GetUserPoolId() int64 {
+func (x *UpdateThreatConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -857,7 +857,7 @@ func (x *UpdateThreatConfigResponse) GetConfig() *structpb.Struct {
 
 type GetLockoutConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -892,9 +892,9 @@ func (*GetLockoutConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *GetLockoutConfigRequest) GetUserPoolId() int64 {
+func (x *GetLockoutConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -945,7 +945,7 @@ func (x *GetLockoutConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateLockoutConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -984,9 +984,9 @@ func (*UpdateLockoutConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *UpdateLockoutConfigRequest) GetUserPoolId() int64 {
+func (x *UpdateLockoutConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -1065,7 +1065,7 @@ func (x *UpdateLockoutConfigResponse) GetConfig() *structpb.Struct {
 
 type GetRegistrationConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1100,9 +1100,9 @@ func (*GetRegistrationConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *GetRegistrationConfigRequest) GetUserPoolId() int64 {
+func (x *GetRegistrationConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -1153,7 +1153,7 @@ func (x *GetRegistrationConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateRegistrationConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -1192,9 +1192,9 @@ func (*UpdateRegistrationConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *UpdateRegistrationConfigRequest) GetUserPoolId() int64 {
+func (x *UpdateRegistrationConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -1273,7 +1273,7 @@ func (x *UpdateRegistrationConfigResponse) GetConfig() *structpb.Struct {
 
 type GetTokenConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1308,9 +1308,9 @@ func (*GetTokenConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *GetTokenConfigRequest) GetUserPoolId() int64 {
+func (x *GetTokenConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -1361,7 +1361,7 @@ func (x *GetTokenConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateTokenConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserPoolId    int64                  `protobuf:"varint,1,opt,name=user_pool_id,json=userPoolId,proto3" json:"user_pool_id,omitempty"`
+	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -1400,9 +1400,9 @@ func (*UpdateTokenConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *UpdateTokenConfigRequest) GetUserPoolId() int64 {
+func (x *UpdateTokenConfigRequest) GetTenantId() int64 {
 	if x != nil {
-		return x.UserPoolId
+		return x.TenantId
 	}
 	return 0
 }
@@ -2279,15 +2279,13 @@ var File_maintainerd_auth_v1_security_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
-	"\"maintainerd/auth/v1/security.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"7\n" +
-	"\x13GetMFAConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\"G\n" +
+	"\"maintainerd/auth/v1/security.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"2\n" +
+	"\x13GetMFAConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"G\n" +
 	"\x14GetMFAConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc8\x01\n" +
-	"\x16UpdateMFAConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc3\x01\n" +
+	"\x16UpdateMFAConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2296,15 +2294,13 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\"J\n" +
 	"\x17UpdateMFAConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"<\n" +
-	"\x18GetPasswordConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\"L\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"7\n" +
+	"\x18GetPasswordConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"L\n" +
 	"\x19GetPasswordConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xcd\x01\n" +
-	"\x1bUpdatePasswordConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc8\x01\n" +
+	"\x1bUpdatePasswordConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2313,15 +2309,13 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\"O\n" +
 	"\x1cUpdatePasswordConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\";\n" +
-	"\x17GetSessionConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\"K\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"6\n" +
+	"\x17GetSessionConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"K\n" +
 	"\x18GetSessionConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xcc\x01\n" +
-	"\x1aUpdateSessionConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc7\x01\n" +
+	"\x1aUpdateSessionConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2330,15 +2324,13 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\"N\n" +
 	"\x1bUpdateSessionConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\":\n" +
-	"\x16GetThreatConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\"J\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"5\n" +
+	"\x16GetThreatConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"J\n" +
 	"\x17GetThreatConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xcb\x01\n" +
-	"\x19UpdateThreatConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc6\x01\n" +
+	"\x19UpdateThreatConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2347,15 +2339,13 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\"M\n" +
 	"\x1aUpdateThreatConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\";\n" +
-	"\x17GetLockoutConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\"K\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"6\n" +
+	"\x17GetLockoutConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"K\n" +
 	"\x18GetLockoutConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xcc\x01\n" +
-	"\x1aUpdateLockoutConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc7\x01\n" +
+	"\x1aUpdateLockoutConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2364,15 +2354,13 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\"N\n" +
 	"\x1bUpdateLockoutConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"@\n" +
-	"\x1cGetRegistrationConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\"P\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\";\n" +
+	"\x1cGetRegistrationConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"P\n" +
 	"\x1dGetRegistrationConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xd1\x01\n" +
-	"\x1fUpdateRegistrationConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xcc\x01\n" +
+	"\x1fUpdateRegistrationConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2381,15 +2369,13 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\"S\n" +
 	" UpdateRegistrationConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"9\n" +
-	"\x15GetTokenConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\"I\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"4\n" +
+	"\x15GetTokenConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"I\n" +
 	"\x16GetTokenConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xca\x01\n" +
-	"\x18UpdateTokenConfigRequest\x12 \n" +
-	"\fuser_pool_id\x18\x01 \x01(\x03R\n" +
-	"userPoolId\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc5\x01\n" +
+	"\x18UpdateTokenConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +

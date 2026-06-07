@@ -33,107 +33,107 @@ func configProto(cfg map[string]any) *structpb.Struct {
 }
 
 func (h *SecuritySettingGRPCHandler) GetMFAConfig(ctx context.Context, req *authv1.GetMFAConfigRequest) (*authv1.GetMFAConfigResponse, error) {
-	cfg, err := h.svc.GetMFAConfig(ctx, req.GetUserPoolId())
+	cfg, err := h.svc.GetMFAConfig(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.GetMFAConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) UpdateMFAConfig(ctx context.Context, req *authv1.UpdateMFAConfigRequest) (*authv1.UpdateMFAConfigResponse, error) {
-	_, err := h.svc.UpdateMFAConfig(ctx, req.GetUserPoolId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
+	_, err := h.svc.UpdateMFAConfig(ctx, req.GetTenantId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
-	cfg, _ := h.svc.GetMFAConfig(ctx, req.GetUserPoolId())
+	cfg, _ := h.svc.GetMFAConfig(ctx, req.GetTenantId())
 	return &authv1.UpdateMFAConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) GetPasswordConfig(ctx context.Context, req *authv1.GetPasswordConfigRequest) (*authv1.GetPasswordConfigResponse, error) {
-	cfg, err := h.svc.GetPasswordConfig(ctx, req.GetUserPoolId())
+	cfg, err := h.svc.GetPasswordConfig(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.GetPasswordConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) UpdatePasswordConfig(ctx context.Context, req *authv1.UpdatePasswordConfigRequest) (*authv1.UpdatePasswordConfigResponse, error) {
-	_, err := h.svc.UpdatePasswordConfig(ctx, req.GetUserPoolId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
+	_, err := h.svc.UpdatePasswordConfig(ctx, req.GetTenantId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
-	cfg, _ := h.svc.GetPasswordConfig(ctx, req.GetUserPoolId())
+	cfg, _ := h.svc.GetPasswordConfig(ctx, req.GetTenantId())
 	return &authv1.UpdatePasswordConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) GetSessionConfig(ctx context.Context, req *authv1.GetSessionConfigRequest) (*authv1.GetSessionConfigResponse, error) {
-	cfg, err := h.svc.GetSessionConfig(ctx, req.GetUserPoolId())
+	cfg, err := h.svc.GetSessionConfig(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.GetSessionConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) UpdateSessionConfig(ctx context.Context, req *authv1.UpdateSessionConfigRequest) (*authv1.UpdateSessionConfigResponse, error) {
-	_, err := h.svc.UpdateSessionConfig(ctx, req.GetUserPoolId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
+	_, err := h.svc.UpdateSessionConfig(ctx, req.GetTenantId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
-	cfg, _ := h.svc.GetSessionConfig(ctx, req.GetUserPoolId())
+	cfg, _ := h.svc.GetSessionConfig(ctx, req.GetTenantId())
 	return &authv1.UpdateSessionConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) GetThreatConfig(ctx context.Context, req *authv1.GetThreatConfigRequest) (*authv1.GetThreatConfigResponse, error) {
-	cfg, err := h.svc.GetThreatConfig(ctx, req.GetUserPoolId())
+	cfg, err := h.svc.GetThreatConfig(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.GetThreatConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) UpdateThreatConfig(ctx context.Context, req *authv1.UpdateThreatConfigRequest) (*authv1.UpdateThreatConfigResponse, error) {
-	_, err := h.svc.UpdateThreatConfig(ctx, req.GetUserPoolId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
+	_, err := h.svc.UpdateThreatConfig(ctx, req.GetTenantId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
-	cfg, _ := h.svc.GetThreatConfig(ctx, req.GetUserPoolId())
+	cfg, _ := h.svc.GetThreatConfig(ctx, req.GetTenantId())
 	return &authv1.UpdateThreatConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) GetLockoutConfig(ctx context.Context, req *authv1.GetLockoutConfigRequest) (*authv1.GetLockoutConfigResponse, error) {
-	cfg, err := h.svc.GetLockoutConfig(ctx, req.GetUserPoolId())
+	cfg, err := h.svc.GetLockoutConfig(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.GetLockoutConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) UpdateLockoutConfig(ctx context.Context, req *authv1.UpdateLockoutConfigRequest) (*authv1.UpdateLockoutConfigResponse, error) {
-	_, err := h.svc.UpdateLockoutConfig(ctx, req.GetUserPoolId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
+	_, err := h.svc.UpdateLockoutConfig(ctx, req.GetTenantId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
-	cfg, _ := h.svc.GetLockoutConfig(ctx, req.GetUserPoolId())
+	cfg, _ := h.svc.GetLockoutConfig(ctx, req.GetTenantId())
 	return &authv1.UpdateLockoutConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) GetRegistrationConfig(ctx context.Context, req *authv1.GetRegistrationConfigRequest) (*authv1.GetRegistrationConfigResponse, error) {
-	cfg, err := h.svc.GetRegistrationConfig(ctx, req.GetUserPoolId())
+	cfg, err := h.svc.GetRegistrationConfig(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.GetRegistrationConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) UpdateRegistrationConfig(ctx context.Context, req *authv1.UpdateRegistrationConfigRequest) (*authv1.UpdateRegistrationConfigResponse, error) {
-	_, err := h.svc.UpdateRegistrationConfig(ctx, req.GetUserPoolId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
+	_, err := h.svc.UpdateRegistrationConfig(ctx, req.GetTenantId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
-	cfg, _ := h.svc.GetRegistrationConfig(ctx, req.GetUserPoolId())
+	cfg, _ := h.svc.GetRegistrationConfig(ctx, req.GetTenantId())
 	return &authv1.UpdateRegistrationConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) GetTokenConfig(ctx context.Context, req *authv1.GetTokenConfigRequest) (*authv1.GetTokenConfigResponse, error) {
-	cfg, err := h.svc.GetTokenConfig(ctx, req.GetUserPoolId())
+	cfg, err := h.svc.GetTokenConfig(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.GetTokenConfigResponse{Config: configProto(cfg)}, nil
 }
 func (h *SecuritySettingGRPCHandler) UpdateTokenConfig(ctx context.Context, req *authv1.UpdateTokenConfigRequest) (*authv1.UpdateTokenConfigResponse, error) {
-	_, err := h.svc.UpdateTokenConfig(ctx, req.GetUserPoolId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
+	_, err := h.svc.UpdateTokenConfig(ctx, req.GetTenantId(), structMap(req.GetConfig()), 0, req.GetIpAddress(), req.GetUserAgent())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
-	cfg, _ := h.svc.GetTokenConfig(ctx, req.GetUserPoolId())
+	cfg, _ := h.svc.GetTokenConfig(ctx, req.GetTenantId())
 	return &authv1.UpdateTokenConfigResponse{Config: configProto(cfg)}, nil
 }

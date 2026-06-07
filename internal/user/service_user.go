@@ -54,17 +54,17 @@ type UserIdentityServiceDataResult struct {
 }
 
 type UserServiceGetFilter struct {
-	Username     *string
-	Email        *string
-	Phone        *string
-	Status       []string
-	TenantID     int64
-	RoleUUID     *string
-	ClientUUID   *string
-	Page         int
-	Limit        int
-	SortBy       string
-	SortOrder    string
+	Username   *string
+	Email      *string
+	Phone      *string
+	Status     []string
+	TenantID   int64
+	RoleUUID   *string
+	ClientUUID *string
+	Page       int
+	Limit      int
+	SortBy     string
+	SortOrder  string
 }
 
 type UserServiceGetResult struct {

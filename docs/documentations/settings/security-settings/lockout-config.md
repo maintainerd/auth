@@ -1,6 +1,6 @@
 # Account Lockout Configuration
 
-> **Scope**: User Pool · **API Prefix**: `/security-settings/lockout` · **Storage**: `security_settings.lockout_config` (JSONB)
+> **Scope**: Tenant · **API Prefix**: `/security-settings/lockout` · **Storage**: `security_settings.lockout_config` (JSONB)
 
 ## Overview
 
@@ -155,11 +155,11 @@ Stored in `security_settings.lockout_config` (JSONB column). The config is schem
 
 ### Service Layer
 
-- **`GetLockoutConfig(ctx, userPoolID)`** — Lazy-creates the security setting row, then returns the `lockout_config` JSONB.
-- **`UpdateLockoutConfig(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)`** — Calls `updateConfig` with `"lockout"` config type.
+- **`GetLockoutConfig(ctx, tenantID)`** — Lazy-creates the security setting row, then returns the `lockout_config` JSONB.
+- **`UpdateLockoutConfig(ctx, tenantID, config, updatedBy, ipAddress, userAgent)`** — Calls `updateConfig` with `"lockout"` config type.
 
 The update runs in a transaction:
-1. Find or create `security_settings` row for the user pool
+1. Find or create `security_settings` row for the tenant
 2. Replace the `lockout_config` JSONB column
 3. Increment `version`
 4. Create a `security_settings_audit` row with `change_type: "update_lockout_config"`

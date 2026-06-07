@@ -20,7 +20,7 @@ Use these docs to understand what's built, what's missing, and where to contribu
 | [Webhook Endpoints](webhook-endpoints.md) | Tenant | Many per tenant | Full CRUD |
 | [Branding](branding.md) | Tenant | Singleton | Get / Update |
 | [Tenant Settings](tenant-settings.md) | Tenant | Singleton (4 JSONB sub-configs) | Get / Update per sub-config |
-| [Security Settings](security-settings/README.md) | User Pool | Singleton (7 JSONB sub-configs) | Get / Update per sub-config |
+| [Security Settings](security-settings/README.md) | Tenant | Singleton (7 JSONB sub-configs) | Get / Update per sub-config |
 
 ### Cross-Cutting Concerns
 

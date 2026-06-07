@@ -1,10 +1,10 @@
 # Password Configuration
 
-> **Scope**: User Pool · **API Prefix**: `/security-settings/password` · **Storage**: `security_settings.password_config` (JSONB)
+> **Scope**: Tenant · **API Prefix**: `/security-settings/password` · **Storage**: `security_settings.password_config` (JSONB)
 
 ## Overview
 
-Password configuration defines the rules that govern how passwords are created, stored, validated, and rotated across the user pool. As the most common authenticator, the password policy directly determines the baseline security posture of every user account.
+Password configuration defines the rules that govern how passwords are created, stored, validated, and rotated across the tenant. As the most common authenticator, the password policy directly determines the baseline security posture of every user account.
 
 A well-designed password policy balances **security** (resist brute-force, credential stuffing, and password spraying) against **usability** (users should be able to create and remember strong passwords without excessive friction).
 
@@ -138,13 +138,13 @@ Temporary passwords (admin-generated, invite-based, or first-login) should:
 
 ### Data Model
 
-The password configuration is stored as a JSONB column in the `security_settings` table, scoped to a user pool.
+The password configuration is stored as a JSONB column in the `security_settings` table, scoped to a tenant.
 
 ```
 security_settings
 ├── security_setting_id (PK, SERIAL)
 ├── security_setting_uuid (UUID, UNIQUE)
-├── user_pool_id (FK → user_pools)
+├── tenant_id (FK → tenants)
 ├── password_config (JSONB, default '{}')  ← THIS CONFIG
 ├── ... (other configs)
 ├── version (INTEGER, auto-incremented on change)
@@ -196,8 +196,8 @@ security_settings
 
 ### Service Layer
 
-- **`GetPasswordConfig(ctx, userPoolID)`** — Calls `getOrCreateSecuritySetting` (lazy-creates the row if it doesn't exist), then unmarshals the `password_config` JSONB column into `map[string]any`.
-- **`UpdatePasswordConfig(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)`** — Calls the shared `updateConfig` helper with `configType = "password"`. Inside a transaction, it:
+- **`GetPasswordConfig(ctx, tenantID)`** — Calls `getOrCreateSecuritySetting` (lazy-creates the row if it doesn't exist), then unmarshals the `password_config` JSONB column into `map[string]any`.
+- **`UpdatePasswordConfig(ctx, tenantID, config, updatedBy, ipAddress, userAgent)`** — Calls the shared `updateConfig` helper with `configType = "password"`. Inside a transaction, it:
   1. Finds or creates the security setting row
   2. Sets the `password_config` column
   3. Increments the `version` counter

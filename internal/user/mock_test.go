@@ -615,6 +615,7 @@ func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
 	}
 	return nil
 }
+
 type mockUserService struct {
 	getFn                  func(UserServiceGetFilter) (*UserServiceGetResult, error)
 	getByUUIDFn            func(uuid.UUID, int64) (*UserServiceDataResult, error)
@@ -820,6 +821,7 @@ func (m *mockUserSettingService) DeleteByUUID(_ context.Context, userSettingUUID
 	}
 	return &UserSettingServiceDataResult{}, nil
 }
+
 type mockUserTokenRepo struct {
 	mockBaseRepo[UserToken]
 	findByUserIDFn              func(int64) ([]UserToken, error)

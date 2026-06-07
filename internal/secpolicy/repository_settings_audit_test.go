@@ -79,8 +79,8 @@ func TestSecuritySettingsAuditRepository_FindPaginated(t *testing.T) {
 
 		result, err := NewSecuritySettingsAuditRepository(db).FindPaginated(SecuritySettingsAuditRepositoryGetFilter{
 			TenantID: &tenantID,
-			Page:       1,
-			Limit:      10,
+			Page:     1,
+			Limit:    10,
 		})
 		require.NoError(t, err)
 		require.Len(t, result.Data, 1)
@@ -104,7 +104,7 @@ func TestSecuritySettingsAuditRepository_FindPaginated(t *testing.T) {
 				AddRow(1, testResourceUUID, tenantID, securitySettingID, changeType))
 
 		result, err := NewSecuritySettingsAuditRepository(db).FindPaginated(SecuritySettingsAuditRepositoryGetFilter{
-			TenantID:        &tenantID,
+			TenantID:          &tenantID,
 			SecuritySettingID: &securitySettingID,
 			ChangeType:        &changeType,
 			CreatedBy:         &createdBy,

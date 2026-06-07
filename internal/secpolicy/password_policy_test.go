@@ -35,7 +35,7 @@ func TestLoadPasswordPolicy(t *testing.T) {
 
 	t.Run("repo error returns default", func(t *testing.T) {
 		repo := &mockSecuritySettingRepo{
-			findDefaultByTenantIDFn: func(tenantID int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(tenantID int64) (*SecuritySetting, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -45,7 +45,7 @@ func TestLoadPasswordPolicy(t *testing.T) {
 
 	t.Run("nil setting returns default", func(t *testing.T) {
 		repo := &mockSecuritySettingRepo{
-			findDefaultByTenantIDFn: func(tenantID int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(tenantID int64) (*SecuritySetting, error) {
 				return nil, nil
 			},
 		}
@@ -55,7 +55,7 @@ func TestLoadPasswordPolicy(t *testing.T) {
 
 	t.Run("success merged policy", func(t *testing.T) {
 		repo := &mockSecuritySettingRepo{
-			findDefaultByTenantIDFn: func(tenantID int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(tenantID int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					PasswordConfig: []byte(`{"min_length":16}`),
 				}, nil
@@ -67,7 +67,7 @@ func TestLoadPasswordPolicy(t *testing.T) {
 
 	t.Run("empty config returns default", func(t *testing.T) {
 		repo := &mockSecuritySettingRepo{
-			findDefaultByTenantIDFn: func(tenantID int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(tenantID int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					PasswordConfig: []byte(`{}`),
 				}, nil

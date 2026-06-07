@@ -13,7 +13,7 @@ import (
 type SecuritySettingsAudit struct {
 	SecuritySettingsAuditID   int64          `gorm:"column:security_settings_audit_id;primaryKey;autoIncrement" json:"security_settings_audit_id"`
 	SecuritySettingsAuditUUID uuid.UUID      `gorm:"column:security_settings_audit_uuid;type:uuid;uniqueIndex;not null" json:"security_settings_audit_uuid"`
-	TenantID                int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
+	TenantID                  int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	SecuritySettingID         int64          `gorm:"column:security_setting_id;not null" json:"security_setting_id"`
 	ChangeType                string         `gorm:"column:change_type;type:varchar(50);not null" json:"change_type"`
 	OldConfig                 datatypes.JSON `gorm:"column:old_config;type:jsonb" json:"old_config"`

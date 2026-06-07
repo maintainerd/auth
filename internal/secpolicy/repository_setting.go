@@ -8,14 +8,14 @@ import (
 )
 
 type SecuritySettingRepositoryGetFilter struct {
-	TenantID *int64
-	Version    *int
-	CreatedBy  *int64
-	UpdatedBy  *int64
-	Page       int
-	Limit      int
-	SortBy     string
-	SortOrder  string
+	TenantID  *int64
+	Version   *int
+	CreatedBy *int64
+	UpdatedBy *int64
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
 }
 
 type SecuritySettingRepository interface {

@@ -17,7 +17,7 @@ import (
 
 type SecuritySettingServiceDataResult struct {
 	SecuritySettingUUID uuid.UUID
-	TenantID          int64
+	TenantID            int64
 	MFAConfig           map[string]any
 	PasswordConfig      map[string]any
 	SessionConfig       map[string]any
@@ -126,7 +126,7 @@ func NewSecuritySettingService(
 func toSecuritySettingServiceDataResult(ss *SecuritySetting) *SecuritySettingServiceDataResult {
 	return &SecuritySettingServiceDataResult{
 		SecuritySettingUUID: ss.SecuritySettingUUID,
-		TenantID:          ss.TenantID,
+		TenantID:            ss.TenantID,
 		MFAConfig:           jsonutil.JSONToMap(ss.MFAConfig),
 		PasswordConfig:      jsonutil.JSONToMap(ss.PasswordConfig),
 		SessionConfig:       jsonutil.JSONToMap(ss.SessionConfig),
@@ -266,7 +266,7 @@ func (s *securitySettingService) getOrCreateSecuritySetting(tenantID int64) (*Se
 	if setting == nil {
 		// Create default security setting
 		setting = &SecuritySetting{
-			TenantID:         tenantID,
+			TenantID:           tenantID,
 			MFAConfig:          datatypes.JSON([]byte("{}")),
 			PasswordConfig:     datatypes.JSON([]byte("{}")),
 			SessionConfig:      datatypes.JSON([]byte("{}")),
@@ -306,7 +306,7 @@ func (s *securitySettingService) updateConfig(tenantID int64, def securityConfig
 			// Create new security setting
 			isNew = true
 			setting = &SecuritySetting{
-				TenantID:         tenantID,
+				TenantID:           tenantID,
 				MFAConfig:          datatypes.JSON([]byte("{}")),
 				PasswordConfig:     datatypes.JSON([]byte("{}")),
 				SessionConfig:      datatypes.JSON([]byte("{}")),
@@ -349,7 +349,7 @@ func (s *securitySettingService) updateConfig(tenantID int64, def securityConfig
 
 		// Create audit record
 		audit := &SecuritySettingsAudit{
-			TenantID:        tenantID,
+			TenantID:          tenantID,
 			SecuritySettingID: saved.SecuritySettingID,
 			ChangeType:        "update_" + def.key + "_config",
 			OldConfig:         oldConfigJSON,
