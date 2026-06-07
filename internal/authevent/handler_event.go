@@ -52,6 +52,7 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	repoFilter := AuthEventRepositoryGetFilter{
 		TenantID:  &tenant.TenantID,
+		UserUUID:  ptr.PtrOrNil(q.Get("user")),
 		Category:  filter.Category,
 		EventType: filter.EventType,
 		Severity:  filter.Severity,

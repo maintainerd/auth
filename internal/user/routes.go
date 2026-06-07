@@ -170,6 +170,15 @@ func UserRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 			Get("/{user_uuid}/identities", userHandler.GetUserIdentities)
 
+		// Session management
+		// Get user active sessions
+		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
+			Get("/{user_uuid}/sessions", userHandler.GetUserSessions)
+
+		// Revoke a single user session
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
+			Delete("/{user_uuid}/sessions/{session_uuid}", userHandler.RevokeUserSession)
+
 		// Assign roles to user
 		r.With(middleware.PermissionMiddleware([]string{"user:create"}), middleware.RequireStepUp).
 			Post("/{user_uuid}/roles", userHandler.AssignRoles)

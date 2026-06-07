@@ -89,6 +89,8 @@ type UserService interface {
 	RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	GetUserRoles(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserRolesFilter) ([]RoleServiceDataResult, int64, error)
 	GetUserIdentities(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
+	GetUserSessions(ctx context.Context, userUUID uuid.UUID, tenantID int64) ([]*SessionDataResult, error)
+	RevokeUserSession(ctx context.Context, userUUID uuid.UUID, tenantID int64, sessionUUID uuid.UUID) error
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
 	// Used by UserContextMiddleware to populate the request context.
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error)
@@ -1147,6 +1149,75 @@ func (s *userService) GetUserRoles(ctx context.Context, userUUID uuid.UUID, tena
 
 	span.SetStatus(codes.Ok, "")
 	return roles, result.Total, nil
+}
+
+// GetUserSessions returns the active sessions for a user (admin view). The user
+// must belong to the requesting tenant.
+func (s *userService) GetUserSessions(ctx context.Context, userUUID uuid.UUID, tenantID int64) ([]*SessionDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.getUserSessions")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
+	if err != nil || user == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		return nil, apperror.NewNotFound("user not found")
+	}
+	if !userHasTenantAccess(user, tenantID) {
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
+	}
+
+	tokens, err := s.userTokenRepo.FindActiveSessions(user.UserID)
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	sessions := make([]*SessionDataResult, len(tokens))
+	for i := range tokens {
+		t := tokens[i]
+		sessions[i] = &SessionDataResult{
+			SessionID:         t.UserTokenUUID.String(),
+			IPAddress:         t.IPAddress,
+			UserAgent:         t.UserAgent,
+			LastUsedAt:        t.LastUsedAt,
+			ExpiresAt:         t.ExpiresAt,
+			AbsoluteExpiresAt: t.AbsoluteExpiresAt,
+			CreatedAt:         t.CreatedAt,
+		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return sessions, nil
+}
+
+// RevokeUserSession revokes a single active session for a user (admin action).
+// The user must belong to the requesting tenant; revoke is idempotent.
+func (s *userService) RevokeUserSession(ctx context.Context, userUUID uuid.UUID, tenantID int64, sessionUUID uuid.UUID) error {
+	_, span := otel.Tracer("service").Start(ctx, "user.revokeUserSession")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
+	if err != nil || user == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		return apperror.NewNotFound("user not found")
+	}
+	if !userHasTenantAccess(user, tenantID) {
+		return apperror.NewNotFoundWithReason("user not found or access denied")
+	}
+
+	if err := s.userTokenRepo.RevokeSessionByUUID(user.UserID, sessionUUID); err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
 func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error) {

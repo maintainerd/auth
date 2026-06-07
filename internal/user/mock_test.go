@@ -716,6 +716,12 @@ func (m *mockUserService) GetUserIdentities(_ context.Context, userUUID uuid.UUI
 	}
 	return nil, 0, nil
 }
+func (m *mockUserService) GetUserSessions(_ context.Context, _ uuid.UUID, _ int64) ([]*SessionDataResult, error) {
+	return nil, nil
+}
+func (m *mockUserService) RevokeUserSession(_ context.Context, _ uuid.UUID, _ int64, _ uuid.UUID) error {
+	return nil
+}
 func (m *mockUserService) FindBySubAndClientID(_ context.Context, sub string, clientID string) (*User, error) {
 	if m.findBySubAndClientIDFn != nil {
 		return m.findBySubAndClientIDFn(sub, clientID)

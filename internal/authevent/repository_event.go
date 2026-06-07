@@ -14,6 +14,9 @@ type AuthEventRepositoryGetFilter struct {
 	TenantID     *int64
 	ActorUserID  *int64
 	TargetUserID *int64
+	// UserUUID scopes results to events involving this user (as actor or target),
+	// resolved against the users table. Used by the per-user activity view.
+	UserUUID     *string
 	Category     *string
 	EventType    *string
 	Severity     *string
@@ -67,6 +70,13 @@ func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter)
 	}
 	if filter.TargetUserID != nil {
 		query = query.Where("target_user_id = ?", *filter.TargetUserID)
+	}
+	if filter.UserUUID != nil && *filter.UserUUID != "" {
+		// Events where this user is either the actor or the subject.
+		query = query.Where(
+			"actor_user_id = (SELECT user_id FROM users WHERE user_uuid = ?) OR target_user_id = (SELECT user_id FROM users WHERE user_uuid = ?)",
+			*filter.UserUUID, *filter.UserUUID,
+		)
 	}
 	if filter.Category != nil && *filter.Category != "" {
 		query = query.Where("category = ?", *filter.Category)
