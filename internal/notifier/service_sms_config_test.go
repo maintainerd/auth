@@ -39,13 +39,14 @@ func TestSMSConfigService_Get(t *testing.T) {
 		assert.Equal(t, "twilio", res.Provider)
 	})
 
-	t.Run("not found when nil", func(t *testing.T) {
+	t.Run("not found returns defaults", func(t *testing.T) {
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
 			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, nil },
 		})
-		_, err := svc.Get(context.Background(), 1)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not found")
+		res, err := svc.Get(context.Background(), 1)
+		require.NoError(t, err)
+		assert.Equal(t, 1000, res.DailySendLimit)
+		assert.Equal(t, shared.StatusActive, res.Status)
 	})
 
 	t.Run("repo error", func(t *testing.T) {
@@ -73,7 +74,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 			},
 		})
 		res, err := svc.Update(context.Background(), 1,
-			"twilio", "AC123", "token123", "+15551234567", "", boolPtr(false),
+			"twilio", "AC123", "token123", "+15551234567", "", nil, boolPtr(false),
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "twilio", res.Provider)
@@ -92,7 +93,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 			createOrUpdateFn: func(e *SMSConfig) (*SMSConfig, error) { return e, nil },
 		})
 		_, err := svc.Update(context.Background(), 1,
-			"vonage", "AC456", "", "+15559876543", "MySender", nil,
+			"vonage", "AC456", "", "+15559876543", "MySender", nil, nil,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "old-token", existing.AuthTokenEncrypted)
@@ -110,7 +111,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 			createOrUpdateFn: func(e *SMSConfig) (*SMSConfig, error) { return e, nil },
 		})
 		_, err := svc.Update(context.Background(), 1,
-			"twilio", "AC123", "new-token", "+15551234567", "", boolPtr(true),
+			"twilio", "AC123", "new-token", "+15551234567", "", nil, boolPtr(true),
 		)
 		require.NoError(t, err)
 		assert.NotEmpty(t, existing.AuthTokenEncrypted)
@@ -130,7 +131,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 		})
 
 		_, err := svc.Update(context.Background(), 1,
-			"twilio", "AC123", "token123", "+15551234567", "", boolPtr(false),
+			"twilio", "AC123", "token123", "+15551234567", "", nil, boolPtr(false),
 		)
 
 		require.Error(t, err)
@@ -141,7 +142,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
 			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, errors.New("db") },
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", "", "", "", nil)
+		_, err := svc.Update(context.Background(), 1, "", "", "", "", "", nil, nil)
 		require.Error(t, err)
 	})
 
@@ -152,7 +153,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 				return nil, errors.New("save err")
 			},
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", "", "", "", nil)
+		_, err := svc.Update(context.Background(), 1, "", "", "", "", "", nil, nil)
 		require.Error(t, err)
 	})
 }

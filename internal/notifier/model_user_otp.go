@@ -7,11 +7,12 @@ import (
 	"gorm.io/gorm"
 )
 
-type SMSOtp struct {
-	SMSOtpID       int64     `gorm:"column:sms_otp_id;primaryKey"`
-	SMSOtpUUID     uuid.UUID `gorm:"column:sms_otp_uuid;unique"`
+type UserOTP struct {
+	UserOTPID      int64     `gorm:"column:user_otp_id;primaryKey"`
+	UserOTPUUID    uuid.UUID `gorm:"column:user_otp_uuid;unique"`
 	UserID         int64     `gorm:"column:user_id"`
-	Phone          string    `gorm:"column:phone"`
+	Channel        string    `gorm:"column:channel"`
+	Recipient      string    `gorm:"column:recipient"`
 	OTPHash        string    `gorm:"column:otp_hash"`
 	ExpiresAt      time.Time `gorm:"column:expires_at"`
 	Used           bool      `gorm:"column:used;default:false"`
@@ -19,11 +20,11 @@ type SMSOtp struct {
 	CreatedAt      time.Time `gorm:"column:created_at;autoCreateTime"`
 }
 
-func (SMSOtp) TableName() string { return "sms_otps" }
+func (UserOTP) TableName() string { return "user_otps" }
 
-func (s *SMSOtp) BeforeCreate(tx *gorm.DB) error {
-	if s.SMSOtpUUID == uuid.Nil {
-		s.SMSOtpUUID = uuid.New()
+func (u *UserOTP) BeforeCreate(tx *gorm.DB) error {
+	if u.UserOTPUUID == uuid.Nil {
+		u.UserOTPUUID = uuid.New()
 	}
 	return nil
 }

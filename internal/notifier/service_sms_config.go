@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -16,22 +15,23 @@ import (
 // SMSConfigServiceDataResult is the service-layer representation of an
 // sms_config record.
 type SMSConfigServiceDataResult struct {
-	SMSConfigUUID uuid.UUID
-	Provider      string
-	AccountSID    string
-	FromNumber    string
-	SenderID      string
-	TestMode      bool
-	Status        string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	SMSConfigUUID  uuid.UUID
+	Provider       string
+	AccountSID     string
+	FromNumber     string
+	SenderID       string
+	TestMode       bool
+	DailySendLimit int
+	Status         string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // SMSConfigService defines business operations on the tenant SMS delivery
 // configuration.
 type SMSConfigService interface {
 	Get(ctx context.Context, tenantID int64) (*SMSConfigServiceDataResult, error)
-	Update(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, testMode *bool) (*SMSConfigServiceDataResult, error)
+	Update(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, dailySendLimit *int, testMode *bool) (*SMSConfigServiceDataResult, error)
 }
 
 type smsConfigService struct {
@@ -50,8 +50,9 @@ func toSMSConfigServiceDataResult(sc *SMSConfig) *SMSConfigServiceDataResult {
 		AccountSID:    sc.AccountSID,
 		FromNumber:    sc.FromNumber,
 		SenderID:      sc.SenderID,
-		TestMode:      sc.TestMode,
-		Status:        sc.Status,
+		TestMode:       sc.TestMode,
+		DailySendLimit: sc.DailySendLimit,
+		Status:         sc.Status,
 		CreatedAt:     sc.CreatedAt,
 		UpdatedAt:     sc.UpdatedAt,
 	}
@@ -71,8 +72,11 @@ func (s *smsConfigService) Get(ctx context.Context, tenantID int64) (*SMSConfigS
 		return nil, err
 	}
 	if config == nil {
-		span.SetStatus(codes.Error, "sms config not found")
-		return nil, apperror.NewNotFoundWithReason("sms configuration not found")
+		span.SetStatus(codes.Ok, "")
+		return &SMSConfigServiceDataResult{
+			DailySendLimit: 1000,
+			Status:         shared.StatusActive,
+		}, nil
 	}
 	span.SetStatus(codes.Ok, "")
 	return toSMSConfigServiceDataResult(config), nil
@@ -80,7 +84,7 @@ func (s *smsConfigService) Get(ctx context.Context, tenantID int64) (*SMSConfigS
 
 // Update upserts the SMS config for a tenant. The auth token is only written
 // when a non-empty value is provided (preserves existing on blank).
-func (s *smsConfigService) Update(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, testMode *bool) (*SMSConfigServiceDataResult, error) {
+func (s *smsConfigService) Update(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, dailySendLimit *int, testMode *bool) (*SMSConfigServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "smsConfig.update")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
@@ -100,6 +104,9 @@ func (s *smsConfigService) Update(ctx context.Context, tenantID int64, provider,
 	config.AccountSID = accountSID
 	config.FromNumber = fromNumber
 	config.SenderID = senderID
+	if dailySendLimit != nil {
+		config.DailySendLimit = *dailySendLimit
+	}
 
 	if authToken != "" {
 		enc, encErr := crypto.EncryptAtRest(authToken)

@@ -15,6 +15,7 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestForgotPasswordService_SendPasswordResetEmail(t *testing.T) {
@@ -120,19 +121,16 @@ func TestForgotPasswordService_SendPasswordResetEmail_UserInactive(t *testing.T)
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -246,23 +244,20 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
 	origAccountHostname := config.AccountHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
 		config.AccountHostname = origAccountHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
 	config.AccountHostname = "https://account.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	// Mock SendEmail to capture the call
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
 	var emailSent bool
-	email.SendEmail = func(_ context.Context, p email.SendEmailParams) error {
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, p email.SendEmailParams) error {
 		emailSent = true
 		assert.Equal(t, "user@example.com", p.To)
 		assert.Contains(t, p.BodyHTML, "https://auth.example.com/reset-password")
@@ -312,19 +307,16 @@ func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) 
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAccountHostname := config.AccountHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AccountHostname = origAccountHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ context.Context, p email.SendEmailParams) error {
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, p email.SendEmailParams) error {
 		assert.Contains(t, p.BodyHTML, "https://account.example.com/reset-password")
 		return nil
 	}
@@ -367,19 +359,16 @@ func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error {
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error {
 		return errors.New("smtp failure")
 	}
 
@@ -421,19 +410,16 @@ func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -469,15 +455,12 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -519,15 +502,12 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -571,15 +551,12 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testin
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -621,15 +598,12 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainExecuteError(t *testi
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -681,19 +655,16 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -747,15 +718,12 @@ func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origGenerateSignedURL := signedurl.GenerateSignedURL
 	defer func() { signedurl.GenerateSignedURL = origGenerateSignedURL }()
@@ -800,15 +768,12 @@ func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
-	origEmailLogo := config.EmailLogo
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
 		config.AuthHostname = origAuthHostname
-		config.EmailLogo = origEmailLogo
 	}()
 	config.AppPublicHostname = "https://api.example.com"
 	config.AuthHostname = "https://auth.example.com"
-	config.EmailLogo = "https://example.com/logo.png"
 
 	origConvertToFrontendURL := signedurl.ConvertToFrontendURL
 	defer func() { signedurl.ConvertToFrontendURL = origConvertToFrontendURL }()
@@ -818,7 +783,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()

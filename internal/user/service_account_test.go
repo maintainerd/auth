@@ -15,11 +15,13 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func newAccountSvc(repos ...interface{}) *accountService {
@@ -60,6 +62,10 @@ func TestNewAccountService(t *testing.T) {
 }
 
 func TestAccountService_InitiateEmailChange(t *testing.T) {
+	origSend := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
+	t.Cleanup(func() { email.SendEmail = origSend })
+
 	userID := int64(42)
 	userUUID := uuid.New()
 	hashedPassBytes, _ := security.HashPassword(context.Background(), []byte("correctpass"))

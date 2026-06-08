@@ -46,6 +46,7 @@ type BackupCodeVerifyRequestDTO struct {
 type MFAStatusResponseDTO struct {
 	IsTOTPEnabled     bool                           `json:"is_totp_enabled"`
 	IsWebAuthnEnabled bool                           `json:"is_webauthn_enabled"`
+	IsSMSEnabled      bool                           `json:"is_sms_available"`
 	BackupCodesCount  int                            `json:"backup_codes_count"`
 	WebAuthnKeys      []WebAuthnCredentialSummaryDTO `json:"webauthn_keys,omitempty"`
 	MFAEnabledAt      *string                        `json:"mfa_enabled_at,omitempty"`
@@ -102,6 +103,35 @@ type StepUpVerifyRequestDTO struct {
 type StepUpVerifyResponseDTO struct {
 	AccessToken string `json:"access_token"` // New token with elevated acr
 	ExpiresIn   int64  `json:"expires_in"`
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// SMS MFA enrollment
+// ──────────────────────────────────────────────────────────────────────────────
+
+type SMSEnrollRequestDTO struct {
+	Phone string `json:"phone"`
+}
+
+type SMSVerifyRequestDTO struct {
+	Phone string `json:"phone"`
+	Code  string `json:"code"`
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// WebAuthn Download
+// ──────────────────────────────────────────────────────────────────────────────
+
+type WebAuthnCredentialDownloadDTO struct {
+	CredentialUUID   string `json:"credential_uuid"`
+	Name             string `json:"name"`
+	CredentialKeyID  string `json:"credential_key_id"`
+	PublicKeyBase64  string `json:"public_key_base64"`
+	AAGUID           string `json:"aaguid,omitempty"`
+	Transport        string `json:"transport,omitempty"`
+	IsBackupEligible bool   `json:"is_backup_eligible"`
+	IsBackupState    bool   `json:"is_backup_state"`
+	CreatedAt        string `json:"created_at"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

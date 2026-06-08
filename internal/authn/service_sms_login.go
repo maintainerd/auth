@@ -10,7 +10,6 @@ import (
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -27,7 +26,7 @@ const smsOTPTTL = 10 * time.Minute
 const smsOTPMaxFailedAttempts = 3
 
 var generateSMSOTP = crypto.GenerateOTP
-var newSMSProvider = sms.NewSystemProvider
+var newSMSProvider = sms.NewProviderFromDB
 
 // SMSLoginService handles SMS one-time-code login flows.
 type SMSLoginService interface {
@@ -38,7 +37,7 @@ type SMSLoginService interface {
 type smsLoginService struct {
 	db                   *gorm.DB
 	userRepo             UserRepository
-	smsOtpRepo           notifier.SMSOtpRepository
+	smsOtpRepo           notifier.UserOTPRepository
 	clientRepo           ClientRepository
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
@@ -49,7 +48,7 @@ type smsLoginService struct {
 func NewSMSLoginService(
 	db *gorm.DB,
 	userRepo UserRepository,
-	smsOtpRepo notifier.SMSOtpRepository,
+	smsOtpRepo notifier.UserOTPRepository,
 	clientRepo ClientRepository,
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
@@ -98,7 +97,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 		span.SetStatus(codes.Ok, "")
 		return nil
 	}
-	if err := security.CheckAndRecordSMSDailyBudget(ctx, "global", config.SMSDailySendLimit); err != nil {
+	if err := security.CheckAndRecordSMSDailyBudget(ctx, "global", smsDailySendLimit(s.db, 0)); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "sms_otp_budget_exceeded",
 			UserID:    req.Phone,
@@ -116,9 +115,10 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	otpHash := crypto.HashAuthorizationCode(otp)
 
 	expiresAt := time.Now().Add(smsOTPTTL)
-	record := &notifier.SMSOtp{
+	record := &notifier.UserOTP{
 		UserID:    user.UserID,
-		Phone:     req.Phone,
+		Channel:   "sms",
+		Recipient: req.Phone,
 		OTPHash:   otpHash,
 		ExpiresAt: expiresAt,
 	}
@@ -126,15 +126,14 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 		return apperror.NewInternal("failed to store SMS OTP", err)
 	}
 
-	if config.SMSProvider != "" {
-		provider, smsErr := newSMSProvider(ctx)
-		if smsErr != nil {
-			slog.Error("SMS provider init failed", "err", smsErr)
-		} else if smsErr = provider.Send(ctx, req.Phone, fmt.Sprintf("Your verification code is: %s", otp)); smsErr != nil {
-			slog.Error("SMS send failed", "err", smsErr)
+	tenantID := userTenantID(ctx, s.db, user.UserID)
+	provider, smsErr := newSMSProvider(ctx, s.db, tenantID)
+	if smsErr != nil {
+		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", req.Phone, "otp", otp)
+	} else if provider != nil {
+		if sendErr := provider.Send(ctx, req.Phone, fmt.Sprintf("Your verification code is: %s", otp)); sendErr != nil {
+			slog.Error("SMS send failed", "err", sendErr)
 		}
-	} else {
-		slog.Info("SMS OTP (no provider configured)", "phone", req.Phone, "otp", otp)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -190,7 +189,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 		}
 
 		// Find a valid (unused, not expired) OTP for this phone.
-		otpRecord, txErr := txSmsOtpRepo.FindValidByPhone(req.Phone)
+		otpRecord, txErr := txSmsOtpRepo.FindValid("sms", req.Phone)
 		if txErr != nil {
 			return apperror.NewInternal("failed to look up OTP", txErr)
 		}
@@ -201,14 +200,14 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 		// Verify hash.
 		expectedHash := crypto.HashAuthorizationCode(req.OTP)
 		if subtle.ConstantTimeCompare([]byte(otpRecord.OTPHash), []byte(expectedHash)) != 1 {
-			if txErr := txSmsOtpRepo.RecordFailure(otpRecord.SMSOtpID, smsOTPMaxFailedAttempts); txErr != nil {
+			if txErr := txSmsOtpRepo.RecordFailure(otpRecord.UserOTPID, smsOTPMaxFailedAttempts); txErr != nil {
 				return apperror.NewInternal("failed to record OTP attempt", txErr)
 			}
 			return apperror.NewUnauthorized("invalid or expired OTP")
 		}
 
 		// Mark OTP as used (single-use).
-		if txErr := txSmsOtpRepo.MarkUsed(otpRecord.SMSOtpID); txErr != nil {
+		if txErr := txSmsOtpRepo.MarkUsed(otpRecord.UserOTPID); txErr != nil {
 			return apperror.NewInternal("failed to invalidate OTP", txErr)
 		}
 
@@ -257,4 +256,37 @@ func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub stri
 		resp.SessionID = &sessionID
 	}
 	return resp, nil
+}
+
+func userTenantID(ctx context.Context, db *gorm.DB, userID int64) int64 {
+	if db == nil {
+		return 0
+	}
+	var tenantID int64
+	if err := db.WithContext(ctx).
+		Table("user_identities").
+		Select("tenant_id").
+		Where("user_id = ?", userID).
+		Order("tenant_id ASC").
+		Limit(1).
+		Scan(&tenantID).Error; err != nil || tenantID == 0 {
+		return 0
+	}
+	return tenantID
+}
+
+var smsDailySendLimit = smsDailySendLimitFromDB
+
+func smsDailySendLimitFromDB(db *gorm.DB, tenantID int64) int {
+	if db == nil {
+		return 1000
+	}
+	var limit int
+	if err := db.Table("sms_config").
+		Select("daily_send_limit").
+		Where("tenant_id = ? AND status = 'active' AND deleted_at IS NULL", tenantID).
+		Scan(&limit).Error; err != nil || limit == 0 {
+		return 0
+	}
+	return limit
 }

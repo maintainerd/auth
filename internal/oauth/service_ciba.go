@@ -370,7 +370,7 @@ func (s *oauthCIBAService) sendCIBANotificationEmail(ctx context.Context, user *
 		strings.ReplaceAll(clientName, "<", "&lt;"),
 		msg,
 	)
-	return email.SendEmail(ctx, email.SendEmailParams{
+	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:        user.Email,
 		Subject:   "Authentication Request",
 		BodyHTML:  bodyHTML,

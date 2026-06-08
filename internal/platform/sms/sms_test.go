@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,45 +56,9 @@ func TestNewProvider_Unknown(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown provider")
 }
 
-func TestNewProvider_Empty(t *testing.T) {
+func TestNewProvider_EmptyDefaultsToLog(t *testing.T) {
 	cfg := ProviderConfig{Provider: ""}
-	_, err := NewProvider(context.Background(), cfg)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown provider")
-}
-
-// ---------------------------------------------------------------------------
-// NewSystemProvider
-// ---------------------------------------------------------------------------
-
-func TestNewSystemProvider_UnknownProvider(t *testing.T) {
-	orig := config.SMSProvider
-	t.Cleanup(func() { config.SMSProvider = orig })
-	config.SMSProvider = "unknown"
-
-	_, err := NewSystemProvider(context.Background())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown provider")
-}
-
-func TestNewSystemProvider_TwilioFromConfig(t *testing.T) {
-	orig := config.SMSProvider
-	origSID := config.TwilioAccountSID
-	origToken := config.TwilioAuthToken
-	origFrom := config.TwilioFromNumber
-	t.Cleanup(func() {
-		config.SMSProvider = orig
-		config.TwilioAccountSID = origSID
-		config.TwilioAuthToken = origToken
-		config.TwilioFromNumber = origFrom
-	})
-
-	config.SMSProvider = "twilio"
-	config.TwilioAccountSID = "sid"
-	config.TwilioAuthToken = "token"
-	config.TwilioFromNumber = "+1234"
-
-	p, err := NewSystemProvider(context.Background())
+	p, err := NewProvider(context.Background(), cfg)
 	require.NoError(t, err)
 	assert.NotNil(t, p)
 }

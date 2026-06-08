@@ -61,7 +61,7 @@ func (h *SMSConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 	result, err := h.smsConfigService.Update(
 		r.Context(), tenant.TenantID,
 		req.Provider, req.AccountSID, req.AuthToken,
-		req.FromNumber, req.SenderID, req.TestMode,
+		req.FromNumber, req.SenderID, req.DailySendLimit, req.TestMode,
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update SMS config", err)
@@ -78,8 +78,9 @@ func toSMSConfigResponseDTO(sc *SMSConfigServiceDataResult) SMSConfigResponseDTO
 		AccountSID:  sc.AccountSID,
 		FromNumber:  sc.FromNumber,
 		SenderID:    sc.SenderID,
-		TestMode:    sc.TestMode,
-		Status:      sc.Status,
+		TestMode:       sc.TestMode,
+		DailySendLimit: sc.DailySendLimit,
+		Status:         sc.Status,
 		CreatedAt:   sc.CreatedAt,
 		UpdatedAt:   sc.UpdatedAt,
 	}

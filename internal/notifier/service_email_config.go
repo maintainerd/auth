@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -25,6 +24,7 @@ type EmailConfigServiceDataResult struct {
 	FromName        string
 	ReplyTo         string
 	Encryption      string
+	LogoURL         string
 	TestMode        bool
 	Status          string
 	CreatedAt       time.Time
@@ -35,7 +35,7 @@ type EmailConfigServiceDataResult struct {
 // configuration.
 type EmailConfigService interface {
 	Get(ctx context.Context, tenantID int64) (*EmailConfigServiceDataResult, error)
-	Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*EmailConfigServiceDataResult, error)
+	Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error)
 }
 
 type emailConfigService struct {
@@ -58,6 +58,7 @@ func toEmailConfigServiceDataResult(ec *EmailConfig) *EmailConfigServiceDataResu
 		FromName:        ec.FromName,
 		ReplyTo:         ec.ReplyTo,
 		Encryption:      ec.Encryption,
+		LogoURL:         ec.LogoURL,
 		TestMode:        ec.TestMode,
 		Status:          ec.Status,
 		CreatedAt:       ec.CreatedAt,
@@ -79,8 +80,11 @@ func (s *emailConfigService) Get(ctx context.Context, tenantID int64) (*EmailCon
 		return nil, err
 	}
 	if config == nil {
-		span.SetStatus(codes.Error, "email config not found")
-		return nil, apperror.NewNotFoundWithReason("email configuration not found")
+		span.SetStatus(codes.Ok, "")
+		return &EmailConfigServiceDataResult{
+			Provider: "smtp",
+			Status:   shared.StatusActive,
+		}, nil
 	}
 	span.SetStatus(codes.Ok, "")
 	return toEmailConfigServiceDataResult(config), nil
@@ -88,7 +92,7 @@ func (s *emailConfigService) Get(ctx context.Context, tenantID int64) (*EmailCon
 
 // Update upserts the email config for a tenant. The password field is only
 // written when a non-empty value is provided (preserves existing on blank).
-func (s *emailConfigService) Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*EmailConfigServiceDataResult, error) {
+func (s *emailConfigService) Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "emailConfig.update")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
@@ -112,6 +116,7 @@ func (s *emailConfigService) Update(ctx context.Context, tenantID int64, provide
 	config.FromName = fromName
 	config.ReplyTo = replyTo
 	config.Encryption = encryption
+	config.LogoURL = logoURL
 
 	if password != "" {
 		enc, encErr := crypto.EncryptAtRest(password)

@@ -24,11 +24,12 @@ type Tenant struct {
 func (Tenant) TableName() string { return "tenants" }
 
 type UserIdentity struct {
-	UserIdentityID uuid.UUID
-	TenantID       int64
-	UserID         int64
-	Sub            string
-	Tenant         *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
+	UserIdentityID   int64     `gorm:"column:user_identity_id;primaryKey"`
+	UserIdentityUUID uuid.UUID `gorm:"column:user_identity_uuid;unique"`
+	TenantID         int64     `gorm:"column:tenant_id"`
+	UserID           int64     `gorm:"column:user_id"`
+	Sub              string    `gorm:"column:sub"`
+	Tenant           *Tenant   `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
 func (UserIdentity) TableName() string { return "user_identities" }

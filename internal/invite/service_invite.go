@@ -207,7 +207,7 @@ func (s *inviteService) sendInviteEmail(ctx context.Context, to, inviteURL strin
 	}
 
 	// Send email
-	return email.SendEmail(ctx, email.SendEmailParams{
+	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

@@ -42,13 +42,14 @@ func TestEmailConfigService_Get(t *testing.T) {
 		assert.Equal(t, "smtp", res.Provider)
 	})
 
-	t.Run("not found when nil", func(t *testing.T) {
+	t.Run("not found returns defaults", func(t *testing.T) {
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
 			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, nil },
 		})
-		_, err := svc.Get(context.Background(), 1)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not found")
+		res, err := svc.Get(context.Background(), 1)
+		require.NoError(t, err)
+		assert.Equal(t, "smtp", res.Provider)
+		assert.Equal(t, shared.StatusActive, res.Status)
 	})
 
 	t.Run("repo error", func(t *testing.T) {
@@ -80,7 +81,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 			"ses", "smtp.ses.amazonaws.com", 587,
 			"key", "secret",
 			"noreply@example.com", "Acme", "support@example.com",
-			"tls", boolPtr(true),
+			"tls", "", boolPtr(true),
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "ses", res.Provider)
@@ -103,7 +104,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 			"smtp", "mail.example.com", 465,
 			"user", "", // blank password — should be preserved
 			"noreply@example.com", "Acme", "",
-			"ssl", nil,
+			"ssl", "", nil,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "smtp", res.Provider)
@@ -126,7 +127,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 			"smtp", "mail.example.com", 465,
 			"user", "new-secret",
 			"noreply@example.com", "Acme", "",
-			"ssl", boolPtr(false),
+			"ssl", "", boolPtr(false),
 		)
 		require.NoError(t, err)
 		assert.NotEmpty(t, existing.PasswordEncrypted)
@@ -148,7 +149,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 			"smtp", "mail.example.com", 465,
 			"user", "new-secret",
 			"noreply@example.com", "Acme", "",
-			"ssl", boolPtr(false),
+			"ssl", "", boolPtr(false),
 		)
 
 		require.Error(t, err)
@@ -159,7 +160,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
 			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, errors.New("db") },
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", 0, "", "", "", "", "", "", nil)
+		_, err := svc.Update(context.Background(), 1, "", "", 0, "", "", "", "", "", "", "", nil)
 		require.Error(t, err)
 	})
 
@@ -170,7 +171,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 				return nil, errors.New("save err")
 			},
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", 0, "", "", "", "", "", "", nil)
+		_, err := svc.Update(context.Background(), 1, "", "", 0, "", "", "", "", "", "", "", nil)
 		require.Error(t, err)
 	})
 }

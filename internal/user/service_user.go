@@ -96,6 +96,7 @@ type UserService interface {
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error)
 	// ForcePasswordChange sets or clears the force_password_change flag for a user.
 	ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, force bool) error
+	GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error)
 }
 
 type userService struct {
@@ -402,12 +403,13 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 
 		// Create default user identity
 		userIdentity := &UserIdentity{
-			TenantID: targetTenant.TenantID,
-			UserID:   newUser.UserID,
-			ClientID: defaultClient.ClientID,
-			Provider: shared.ProviderDefault,
-			Sub:      newUser.UserUUID.String(), // Use user UUID as sub for default provider
-			Metadata: datatypes.JSON([]byte(`{}`)),
+			TenantID:           targetTenant.TenantID,
+			UserID:             newUser.UserID,
+			ClientID:           defaultClient.ClientID,
+			IdentityProviderID: &defaultClient.IdentityProviderID,
+			Provider:           shared.ProviderDefault,
+			Sub:                newUser.UserUUID.String(),
+			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, err = txUserIdentityRepo.Create(userIdentity)
@@ -1306,6 +1308,82 @@ func (s *userService) FindBySubAndClientID(ctx context.Context, sub string, clie
 	return user, nil
 }
 
+func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.getMFA")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
+	if err != nil || user == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.SetStatus(codes.Error, "user not found")
+		return nil, apperror.NewNotFound("user not found")
+	}
+
+	if !userHasTenantAccess(user, tenantID) {
+		span.SetStatus(codes.Error, "user not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
+	}
+
+	var backupCount int64
+	if err := s.db.WithContext(ctx).
+		Table("user_backup_codes").
+		Where("user_id = ? AND used = false", user.UserID).
+		Count(&backupCount).Error; err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to count backup codes", err)
+	}
+
+	type webAuthnRow struct {
+		CredentialUUID string
+		Name           string
+		Transport      string
+		LastUsedAt     *time.Time
+		CreatedAt      time.Time
+	}
+	var rows []webAuthnRow
+	if err := s.db.WithContext(ctx).
+		Table("user_webauthn_credentials").
+		Select("credential_uuid, name, transport, last_used_at, created_at").
+		Where("user_id = ?", user.UserID).
+		Scan(&rows).Error; err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to query webauthn credentials", err)
+	}
+
+	keys := make([]UserMFAWebAuthnKeyDTO, 0, len(rows))
+	for _, r := range rows {
+		key := UserMFAWebAuthnKeyDTO{
+			CredentialUUID: r.CredentialUUID,
+			Name:           r.Name,
+			Transport:      r.Transport,
+			CreatedAt:      r.CreatedAt.Format(time.RFC3339),
+		}
+		if r.LastUsedAt != nil {
+			s := r.LastUsedAt.Format(time.RFC3339)
+			key.LastUsedAt = &s
+		}
+		keys = append(keys, key)
+	}
+
+	resp := &UserMFAResponseDTO{
+		IsTOTPEnabled:     user.IsTOTPEnabled,
+		IsWebAuthnEnabled: user.IsWebAuthnEnabled,
+		IsSMSEnabled:      s.isSMSVerified(ctx, user.UserID),
+		BackupCodesCount:  int(backupCount),
+		WebAuthnKeys:      keys,
+	}
+	if user.MFAEnabledAt != nil {
+		s := user.MFAEnabledAt.Format(time.RFC3339)
+		resp.MFAEnabledAt = &s
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return resp, nil
+}
+
 func userHasTenantAccess(user *User, tenantID int64) bool {
 	for _, identity := range user.UserIdentities {
 		if identity.TenantID == tenantID {
@@ -1388,4 +1466,16 @@ func ToClientServiceDataResult(client *Client) *ClientServiceDataResult {
 		CreatedAt:   client.CreatedAt,
 		UpdatedAt:   client.UpdatedAt,
 	}
+}
+
+func (s *userService) isSMSVerified(ctx context.Context, userID int64) bool {
+	var verified bool
+	if err := s.db.WithContext(ctx).
+		Table("user_sms_phones").
+		Select("is_verified").
+		Where("user_id = ?", userID).
+		Scan(&verified).Error; err != nil {
+		return false
+	}
+	return verified
 }

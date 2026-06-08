@@ -6,60 +6,60 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/notifier"
-	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/platform/sms"
 	"github.com/maintainerd/auth/internal/shared"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
 // ---------------------------------------------------------------------------
-// Mock: notifier.SMSOtpRepository
+// Mock: notifier.UserOTPRepository
 // ---------------------------------------------------------------------------
 
 type mockSMSOtpRepo struct {
-	createFn           func(*notifier.SMSOtp) (*notifier.SMSOtp, error)
-	findValidByPhoneFn func(string) (*notifier.SMSOtp, error)
+	createFn           func(*notifier.UserOTP) (*notifier.UserOTP, error)
+	findValidByPhoneFn func(string) (*notifier.UserOTP, error)
 	recordFailureFn    func(int64, int) error
 	markUsedFn         func(int64) error
 }
 
-func (m *mockSMSOtpRepo) WithTx(_ *gorm.DB) notifier.SMSOtpRepository { return m }
-func (m *mockSMSOtpRepo) Create(e *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+func (m *mockSMSOtpRepo) WithTx(_ *gorm.DB) notifier.UserOTPRepository { return m }
+func (m *mockSMSOtpRepo) Create(e *notifier.UserOTP) (*notifier.UserOTP, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockSMSOtpRepo) CreateOrUpdate(e *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+func (m *mockSMSOtpRepo) CreateOrUpdate(e *notifier.UserOTP) (*notifier.UserOTP, error) {
 	return nil, nil
 }
-func (m *mockSMSOtpRepo) FindAll(p ...string) ([]notifier.SMSOtp, error) { return nil, nil }
-func (m *mockSMSOtpRepo) FindByUUID(id any, p ...string) (*notifier.SMSOtp, error) {
+func (m *mockSMSOtpRepo) FindAll(p ...string) ([]notifier.UserOTP, error) { return nil, nil }
+func (m *mockSMSOtpRepo) FindByUUID(id any, p ...string) (*notifier.UserOTP, error) {
 	return nil, nil
 }
-func (m *mockSMSOtpRepo) FindByUUIDs(ids []string, p ...string) ([]notifier.SMSOtp, error) {
+func (m *mockSMSOtpRepo) FindByUUIDs(ids []string, p ...string) ([]notifier.UserOTP, error) {
 	return nil, nil
 }
-func (m *mockSMSOtpRepo) FindByID(id any, p ...string) (*notifier.SMSOtp, error) { return nil, nil }
-func (m *mockSMSOtpRepo) UpdateByUUID(id, data any) (*notifier.SMSOtp, error) {
+func (m *mockSMSOtpRepo) FindByID(id any, p ...string) (*notifier.UserOTP, error) { return nil, nil }
+func (m *mockSMSOtpRepo) UpdateByUUID(id, data any) (*notifier.UserOTP, error) {
 	return nil, nil
 }
-func (m *mockSMSOtpRepo) UpdateByID(id, data any) (*notifier.SMSOtp, error) { return nil, nil }
+func (m *mockSMSOtpRepo) UpdateByID(id, data any) (*notifier.UserOTP, error) { return nil, nil }
 func (m *mockSMSOtpRepo) DeleteByUUID(id any) error                         { return nil }
 func (m *mockSMSOtpRepo) DeleteByID(id any) error                           { return nil }
-func (m *mockSMSOtpRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*notifier.PaginationResult[notifier.SMSOtp], error) {
+func (m *mockSMSOtpRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*notifier.PaginationResult[notifier.UserOTP], error) {
 	return nil, nil
 }
-func (m *mockSMSOtpRepo) FindValidByPhone(phone string) (*notifier.SMSOtp, error) {
+func (m *mockSMSOtpRepo) FindValid(channel, recipient string) (*notifier.UserOTP, error) {
 	if m.findValidByPhoneFn != nil {
-		return m.findValidByPhoneFn(phone)
+		return m.findValidByPhoneFn(recipient)
 	}
 	return nil, nil
 }
@@ -82,9 +82,13 @@ func (m *mockSMSOtpRepo) MarkUsed(id int64) error {
 
 func TestSendOTP(t *testing.T) {
 	phone := "+1234567890"
-	originalBudget := config.SMSDailySendLimit
+	origFactory := newSMSProvider
+	origLimit := smsDailySendLimit
+	newSMSProvider = func(ctx context.Context, db *gorm.DB, tenantID int64) (sms.Provider, error) { return nil, nil }
+	smsDailySendLimit = func(db *gorm.DB, tenantID int64) int { return 0 }
 	t.Cleanup(func() {
-		config.SMSDailySendLimit = originalBudget
+		newSMSProvider = origFactory
+		smsDailySendLimit = origLimit
 		security.InitRateLimiter(nil)
 		security.ResetSMSDailyBudgetCounters()
 	})
@@ -114,15 +118,14 @@ func TestSendOTP(t *testing.T) {
 	})
 
 	t.Run("success rate-limit passes user found OTP stored", func(t *testing.T) {
-		config.SMSDailySendLimit = 0
 		userRepo := &mockUserRepo{
 			findByPhoneFn: func(_ string) (*User, error) {
 				return &User{UserID: 1, Phone: phone, Status: shared.StatusActive}, nil
 			},
 		}
 		smsOtpRepo := &mockSMSOtpRepo{
-			createFn: func(otp *notifier.SMSOtp) (*notifier.SMSOtp, error) {
-				otp.SMSOtpID = 1
+			createFn: func(otp *notifier.UserOTP) (*notifier.UserOTP, error) {
+				otp.UserOTPID = 1
 				return otp, nil
 			},
 		}
@@ -134,7 +137,7 @@ func TestSendOTP(t *testing.T) {
 	})
 
 	t.Run("daily SMS budget blocks additional sends", func(t *testing.T) {
-		config.SMSDailySendLimit = 1
+		smsDailySendLimit = func(db *gorm.DB, tenantID int64) int { return 1 }
 		security.InitRateLimiter(nil)
 		security.ResetSMSDailyBudgetCounters()
 		userRepo := &mockUserRepo{
@@ -144,9 +147,9 @@ func TestSendOTP(t *testing.T) {
 		}
 		createCount := 0
 		smsOtpRepo := &mockSMSOtpRepo{
-			createFn: func(otp *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+			createFn: func(otp *notifier.UserOTP) (*notifier.UserOTP, error) {
 				createCount++
-				otp.SMSOtpID = int64(createCount)
+				otp.UserOTPID = int64(createCount)
 				return otp, nil
 			},
 		}
@@ -279,7 +282,7 @@ func TestVerifyOTP(t *testing.T) {
 			},
 		}
 		smsOtpRepo := &mockSMSOtpRepo{
-			findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
+			findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
 				return nil, nil
 			},
 		}
@@ -314,9 +317,9 @@ func TestVerifyOTP(t *testing.T) {
 			},
 		}
 		smsOtpRepo := &mockSMSOtpRepo{
-			findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-				return &notifier.SMSOtp{
-					SMSOtpID: 1,
+			findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+				return &notifier.UserOTP{
+					UserOTPID: 1,
 					OTPHash:  "wrong-hash-value-for-verification-testing",
 				}, nil
 			},
@@ -358,9 +361,9 @@ func TestVerifyOTP(t *testing.T) {
 			},
 		}
 		smsOtpRepo := &mockSMSOtpRepo{
-			findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-				return &notifier.SMSOtp{
-					SMSOtpID: 1,
+			findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+				return &notifier.UserOTP{
+					UserOTPID: 1,
 					OTPHash:  correctHash,
 				}, nil
 			},
@@ -401,9 +404,9 @@ func TestVerifyOTP(t *testing.T) {
 			},
 		}
 		smsOtpRepo := &mockSMSOtpRepo{
-			findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-				return &notifier.SMSOtp{
-					SMSOtpID: 1,
+			findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+				return &notifier.UserOTP{
+					UserOTPID: 1,
 					OTPHash:  correctHash,
 				}, nil
 			},
@@ -520,13 +523,13 @@ func TestSendOTP_RateLimited(t *testing.T) {
 
 func TestSendOTP_StorageError(t *testing.T) {
 	phone := "+1234567890"
-	originalBudget := config.SMSDailySendLimit
+	origLimit := smsDailySendLimit
+	smsDailySendLimit = func(db *gorm.DB, tenantID int64) int { return 0 }
 	t.Cleanup(func() {
-		config.SMSDailySendLimit = originalBudget
+		smsDailySendLimit = origLimit
 		security.InitRateLimiter(nil)
 		security.ResetSMSDailyBudgetCounters()
 	})
-	config.SMSDailySendLimit = 0
 
 	userRepo := &mockUserRepo{
 		findByPhoneFn: func(_ string) (*User, error) {
@@ -534,7 +537,7 @@ func TestSendOTP_StorageError(t *testing.T) {
 		},
 	}
 	smsOtpRepo := &mockSMSOtpRepo{
-		createFn: func(_ *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+		createFn: func(_ *notifier.UserOTP) (*notifier.UserOTP, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -552,16 +555,18 @@ func TestSendOTP_StorageError(t *testing.T) {
 
 func TestSendOTP_SMSProviderPath(t *testing.T) {
 	phone := "+1234567890"
-	originalBudget := config.SMSDailySendLimit
-	originalProvider := config.SMSProvider
+	origFactory := newSMSProvider
+	origLimit := smsDailySendLimit
+	newSMSProvider = func(ctx context.Context, db *gorm.DB, tenantID int64) (sms.Provider, error) {
+		return &stubSMSProvider{}, nil
+	}
+	smsDailySendLimit = func(db *gorm.DB, tenantID int64) int { return 0 }
 	t.Cleanup(func() {
-		config.SMSDailySendLimit = originalBudget
-		config.SMSProvider = originalProvider
+		newSMSProvider = origFactory
+		smsDailySendLimit = origLimit
 		security.InitRateLimiter(nil)
 		security.ResetSMSDailyBudgetCounters()
 	})
-	config.SMSDailySendLimit = 0
-	config.SMSProvider = "test-provider"
 
 	userRepo := &mockUserRepo{
 		findByPhoneFn: func(_ string) (*User, error) {
@@ -569,8 +574,8 @@ func TestSendOTP_SMSProviderPath(t *testing.T) {
 		},
 	}
 	smsOtpRepo := &mockSMSOtpRepo{
-		createFn: func(otp *notifier.SMSOtp) (*notifier.SMSOtp, error) {
-			otp.SMSOtpID = 1
+		createFn: func(otp *notifier.UserOTP) (*notifier.UserOTP, error) {
+			otp.UserOTPID = 1
 			return otp, nil
 		},
 	}
@@ -659,9 +664,9 @@ func TestVerifyOTP_RecordFailureError(t *testing.T) {
 		},
 	}
 	smsOtpRepo := &mockSMSOtpRepo{
-		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-			return &notifier.SMSOtp{
-				SMSOtpID: 1,
+		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+			return &notifier.UserOTP{
+				UserOTPID: 1,
 				OTPHash:  "wrong-hash",
 			}, nil
 		},
@@ -707,9 +712,9 @@ func TestVerifyOTP_UserIdentityNil(t *testing.T) {
 		},
 	}
 	smsOtpRepo := &mockSMSOtpRepo{
-		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-			return &notifier.SMSOtp{
-				SMSOtpID: 1,
+		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+			return &notifier.UserOTP{
+				UserOTPID: 1,
 				OTPHash:  correctHash,
 			}, nil
 		},
@@ -759,9 +764,9 @@ func TestVerifyOTP_WithSession(t *testing.T) {
 		},
 	}
 	smsOtpRepo := &mockSMSOtpRepo{
-		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-			return &notifier.SMSOtp{
-				SMSOtpID: 1,
+		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+			return &notifier.UserOTP{
+				UserOTPID: 1,
 				OTPHash:  correctHash,
 			}, nil
 		},
@@ -819,8 +824,8 @@ func TestVerifyOTP_EnforceConcurrentLimitError(t *testing.T) {
 		},
 	}
 	smsOtpRepo := &mockSMSOtpRepo{
-		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-			return &notifier.SMSOtp{SMSOtpID: 1, OTPHash: correctHash}, nil
+		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+			return &notifier.UserOTP{UserOTPID: 1, OTPHash: correctHash}, nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
@@ -872,8 +877,8 @@ func TestVerifyOTP_CreateSessionError(t *testing.T) {
 		},
 	}
 	smsOtpRepo := &mockSMSOtpRepo{
-		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-			return &notifier.SMSOtp{SMSOtpID: 1, OTPHash: correctHash}, nil
+		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+			return &notifier.UserOTP{UserOTPID: 1, OTPHash: correctHash}, nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
@@ -927,8 +932,8 @@ func TestVerifyOTP_GenerateTokenSetError(t *testing.T) {
 		},
 	}
 	smsOtpRepo := &mockSMSOtpRepo{
-		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
-			return &notifier.SMSOtp{SMSOtpID: 1, OTPHash: correctHash}, nil
+		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
+			return &notifier.UserOTP{UserOTPID: 1, OTPHash: correctHash}, nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
@@ -944,3 +949,7 @@ func TestVerifyOTP_GenerateTokenSetError(t *testing.T) {
 	assert.Nil(t, resp)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+type stubSMSProvider struct{}
+
+func (stubSMSProvider) Send(context.Context, string, string) error { return nil }

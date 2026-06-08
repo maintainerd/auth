@@ -10,7 +10,6 @@ import (
 
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/security"
@@ -279,7 +278,7 @@ func (s *emailVerificationService) sendVerificationEmail(ctx context.Context, to
 		LogoURL string
 	}{
 		OTP:     otp,
-		LogoURL: config.EmailLogo,
+		LogoURL: email.GetLogoURL(ctx, s.db),
 	}
 
 	tmpl, err := template.New("verify_html").Parse(templateEntity.BodyHTML)
@@ -304,7 +303,7 @@ func (s *emailVerificationService) sendVerificationEmail(ctx context.Context, to
 		bodyPlainStr = bodyPlain.String()
 	}
 
-	return email.SendEmail(ctx, email.SendEmailParams{
+	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

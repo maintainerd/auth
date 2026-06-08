@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -68,32 +67,6 @@ var (
 	// Cookie Config
 	CookieSecure   bool   // defaults true; set COOKIE_SECURE=false for local dev
 	CookieSameSite string // "strict", "lax", or "none"; defaults "strict"
-
-	// Email Config
-	SMTPHost      string
-	SMTPPort      int
-	SMTPUser      string
-	SMTPPass      string
-	SMTPFromEmail string
-	SMTPFromName  string
-	EmailLogo     string
-
-	// Email Provider
-	EmailProvider string // EMAIL_PROVIDER; default "smtp"
-	EmailAPIKey   string // EMAIL_API_KEY
-	EmailDomain   string // EMAIL_DOMAIN (Mailgun)
-	EmailRegion   string // EMAIL_REGION (SES); default "us-east-1"
-
-	// SMS Config
-	SMSProvider       string // SMS_PROVIDER; "twilio", "sns", "vonage"
-	TwilioAccountSID  string // TWILIO_ACCOUNT_SID
-	TwilioAuthToken   string // TWILIO_AUTH_TOKEN
-	TwilioFromNumber  string // TWILIO_FROM_NUMBER
-	SNSRegion         string // SNS_REGION; default "us-east-1"
-	VonageAPIKey      string // VONAGE_API_KEY
-	VonageAPISecret   string // VONAGE_API_SECRET
-	VonageFrom        string // VONAGE_FROM
-	SMSDailySendLimit int    // SMS_DAILY_SEND_LIMIT; 0 disables the budget guard
 )
 
 // Init loads all configuration from environment variables (and an optional .env file).
@@ -102,7 +75,7 @@ var (
 func Init() error {
 	// Load environment variables first (best-effort; not required in production)
 	if err := godotenv.Load(); err != nil {
-		slog.Warn(".env file not found, relying on environment variables")
+		slog.Warn("no .env file found, using system environment", "err", err)
 	}
 
 	// Secret management provider (optional with defaults)
@@ -199,43 +172,6 @@ func Init() error {
 	DBConnMaxLifetimeSec = parseIntDefault(GetEnvOrDefault("DB_CONN_MAX_LIFETIME_SEC", "300"), 300)
 	DBStatementTimeoutMs = parseIntDefault(GetEnvOrDefault("DB_STATEMENT_TIMEOUT_MS", "30000"), 30000)
 
-	// Email Config
-	if SMTPHost, err = GetEnv("SMTP_HOST"); err != nil {
-		return err
-	}
-	smtpPortStr, err := GetEnv("SMTP_PORT")
-	if err != nil {
-		return err
-	}
-	SMTPPort, err = strconv.Atoi(smtpPortStr)
-	if err != nil {
-		return fmt.Errorf("invalid SMTP_PORT %q: %w", smtpPortStr, err)
-	}
-	if SMTPUser, err = GetEnv("SMTP_USER"); err != nil {
-		return err
-	}
-	if SMTPPass, err = GetEnv("SMTP_PASS"); err != nil {
-		return err
-	}
-	SMTPFromEmail = GetEnvOrDefault("SMTP_FROM_EMAIL", "noreply@maintainerd.com")
-	SMTPFromName = GetEnvOrDefault("SMTP_FROM_NAME", "Maintainerd")
-	EmailLogo = GetEnvOrDefault("EMAIL_LOGO_URL", "https://avatars.githubusercontent.com/u/215448978?s=400&u=f6f4016d81d3ef54ea34cd9cf3028a8ca1183afc&v=4")
-	EmailProvider = GetEnvOrDefault("EMAIL_PROVIDER", "smtp")
-	EmailAPIKey = GetEnvOrDefault("EMAIL_API_KEY", "")
-	EmailDomain = GetEnvOrDefault("EMAIL_DOMAIN", "")
-	EmailRegion = GetEnvOrDefault("EMAIL_REGION", "us-east-1")
-
-	// SMS Config
-	SMSProvider = GetEnvOrDefault("SMS_PROVIDER", "")
-	TwilioAccountSID = GetEnvOrDefault("TWILIO_ACCOUNT_SID", "")
-	TwilioAuthToken = GetEnvOrDefault("TWILIO_AUTH_TOKEN", "")
-	TwilioFromNumber = GetEnvOrDefault("TWILIO_FROM_NUMBER", "")
-	SNSRegion = GetEnvOrDefault("SNS_REGION", "us-east-1")
-	VonageAPIKey = GetEnvOrDefault("VONAGE_API_KEY", "")
-	VonageAPISecret = GetEnvOrDefault("VONAGE_API_SECRET", "")
-	VonageFrom = GetEnvOrDefault("VONAGE_FROM", "")
-	SMSDailySendLimit = parseIntDefault(GetEnvOrDefault("SMS_DAILY_SEND_LIMIT", "1000"), 1000)
-
 	// Cookie Config
 	CookieSecure = GetEnvOrDefault("COOKIE_SECURE", "true") != "false"
 	CookieSameSite = GetEnvOrDefault("COOKIE_SAMESITE", "strict")
@@ -286,29 +222,6 @@ type Config struct {
 
 	CookieSecure   bool
 	CookieSameSite string
-
-	SMTPHost      string
-	SMTPPort      int
-	SMTPUser      string
-	SMTPPass      string
-	SMTPFromEmail string
-	SMTPFromName  string
-	EmailLogo     string
-
-	EmailProvider string
-	EmailAPIKey   string
-	EmailDomain   string
-	EmailRegion   string
-
-	SMSProvider       string
-	TwilioAccountSID  string
-	TwilioAuthToken   string
-	TwilioFromNumber  string
-	SNSRegion         string
-	VonageAPIKey      string
-	VonageAPISecret   string
-	VonageFrom        string
-	SMSDailySendLimit int
 }
 
 func GetConfig() Config {
@@ -345,26 +258,6 @@ func GetConfig() Config {
 		DBStatementTimeoutMs:        DBStatementTimeoutMs,
 		CookieSecure:                CookieSecure,
 		CookieSameSite:              CookieSameSite,
-		SMTPHost:                    SMTPHost,
-		SMTPPort:                    SMTPPort,
-		SMTPUser:                    SMTPUser,
-		SMTPPass:                    SMTPPass,
-		SMTPFromEmail:               SMTPFromEmail,
-		SMTPFromName:                SMTPFromName,
-		EmailLogo:                   EmailLogo,
-		EmailProvider:               EmailProvider,
-		EmailAPIKey:                 EmailAPIKey,
-		EmailDomain:                 EmailDomain,
-		EmailRegion:                 EmailRegion,
-		SMSProvider:                 SMSProvider,
-		TwilioAccountSID:            TwilioAccountSID,
-		TwilioAuthToken:             TwilioAuthToken,
-		TwilioFromNumber:            TwilioFromNumber,
-		SNSRegion:                   SNSRegion,
-		VonageAPIKey:                VonageAPIKey,
-		VonageAPISecret:             VonageAPISecret,
-		VonageFrom:                  VonageFrom,
-		SMSDailySendLimit:           SMSDailySendLimit,
 	}
 }
 

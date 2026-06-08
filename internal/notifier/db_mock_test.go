@@ -62,16 +62,16 @@ func smsConfigRows(values ...driver.Value) *sqlmock.Rows {
 	}).AddRow(values...)
 }
 
-func smsOtpRows(values ...driver.Value) *sqlmock.Rows {
+func userOTPRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
 		values = []driver.Value{
-			int64(1), testTenantUUID.String(), int64(42), "+15551234567", "hash",
+			int64(1), testTenantUUID.String(), int64(42), "sms", "+15551234567", "hash",
 			time.Now().Add(time.Minute), false, 0, time.Now(),
 		}
 	}
 	return sqlmock.NewRows([]string{
-		"sms_otp_id", "sms_otp_uuid", "user_id", "phone", "otp_hash", "expires_at",
-		"used", "failed_attempts", "created_at",
+		"user_otp_id", "user_otp_uuid", "user_id", "channel", "recipient", "otp_hash",
+		"expires_at", "used", "failed_attempts", "created_at",
 	}).AddRow(values...)
 }
 

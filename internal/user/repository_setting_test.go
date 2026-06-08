@@ -51,8 +51,8 @@ func TestUserSettingRepository_FindByUserID(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"user_setting_id", "user_setting_uuid", "user_id"}))
 
 		result, err := repo.FindByUserID(99)
-		require.Error(t, err)
-		assert.NotNil(t, result)
+		require.NoError(t, err)
+		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -66,7 +66,7 @@ func TestUserSettingRepository_FindByUserID(t *testing.T) {
 
 		result, err := repo.FindByUserID(42)
 		require.Error(t, err)
-		assert.NotNil(t, result)
+		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

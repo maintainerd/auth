@@ -672,6 +672,32 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, response, "User roles fetched successfully")
 }
 
+// GetUserMFA retrieves the MFA configuration for a specific user.
+//
+// GET /users/{user_uuid}/mfa
+func (h *UserHandler) GetUserMFA(w http.ResponseWriter, r *http.Request) {
+	userUUIDStr := chi.URLParam(r, "user_uuid")
+	userUUID, err := uuid.Parse(userUUIDStr)
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	result, err := h.userService.GetUserMFA(r.Context(), userUUID, tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to fetch user MFA", err)
+		return
+	}
+
+	resp.Success(w, result, "User MFA fetched successfully")
+}
+
 // GetUserIdentities retrieves all identities for a user with pagination and filters.
 //
 // GET /users/{user_uuid}/identities

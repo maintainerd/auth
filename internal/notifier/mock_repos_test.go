@@ -131,7 +131,7 @@ func (m *mockSMSConfigRepo) Paginate(c map[string]any, pg, lim int, p ...string)
 
 type mockEmailConfigService struct {
 	getFn    func(int64) (*EmailConfigServiceDataResult, error)
-	updateFn func(int64, string, string, int, string, string, string, string, string, string, *bool) (*EmailConfigServiceDataResult, error)
+	updateFn func(int64, string, string, int, string, string, string, string, string, string, string, *bool) (*EmailConfigServiceDataResult, error)
 }
 
 func (m *mockEmailConfigService) Get(ctx context.Context, tenantID int64) (*EmailConfigServiceDataResult, error) {
@@ -141,9 +141,9 @@ func (m *mockEmailConfigService) Get(ctx context.Context, tenantID int64) (*Emai
 	return nil, nil
 }
 
-func (m *mockEmailConfigService) Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*EmailConfigServiceDataResult, error) {
+func (m *mockEmailConfigService) Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(tenantID, provider, host, port, username, password, fromAddress, fromName, replyTo, encryption, testMode)
+		return m.updateFn(tenantID, provider, host, port, username, password, fromAddress, fromName, replyTo, encryption, logoURL, testMode)
 	}
 	return nil, nil
 }
@@ -154,7 +154,7 @@ func (m *mockEmailConfigService) Update(ctx context.Context, tenantID int64, pro
 
 type mockSMSConfigService struct {
 	getFn    func(int64) (*SMSConfigServiceDataResult, error)
-	updateFn func(int64, string, string, string, string, string, *bool) (*SMSConfigServiceDataResult, error)
+	updateFn func(int64, string, string, string, string, string, *int, *bool) (*SMSConfigServiceDataResult, error)
 }
 
 func (m *mockSMSConfigService) Get(ctx context.Context, tenantID int64) (*SMSConfigServiceDataResult, error) {
@@ -164,9 +164,9 @@ func (m *mockSMSConfigService) Get(ctx context.Context, tenantID int64) (*SMSCon
 	return nil, nil
 }
 
-func (m *mockSMSConfigService) Update(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, testMode *bool) (*SMSConfigServiceDataResult, error) {
+func (m *mockSMSConfigService) Update(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, dailySendLimit *int, testMode *bool) (*SMSConfigServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(tenantID, provider, accountSID, authToken, fromNumber, senderID, testMode)
+		return m.updateFn(tenantID, provider, accountSID, authToken, fromNumber, senderID, nil, testMode)
 	}
 	return nil, nil
 }

@@ -15,7 +15,7 @@ import (
 func TestMigrations_RegisterSetupStatesTable(t *testing.T) {
 	require.NotEmpty(t, migrations)
 	last := migrations[len(migrations)-1]
-	assert.Equal(t, "061_create_webhook_delivery_history_table", last.Version)
+	assert.Equal(t, "062_create_webhook_delivery_history_table", last.Version)
 	assert.NotNil(t, last.Fn)
 }
 

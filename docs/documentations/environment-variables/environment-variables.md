@@ -13,65 +13,12 @@ Copy the full block below as your starting point. Replace every value marked wit
 Refer to the relevant section below for instructions on generating each secret.
 
 ```env
-# =============================================================================
-# APP
-# =============================================================================
-APP_VERSION="v1"
-APP_PUBLIC_HOSTNAME="https://auth.yourdomain.com"           # ← replace
-APP_PRIVATE_HOSTNAME="https://auth-internal.yourdomain.com" # ← replace
-MANAGEMENT_PORT="8082"
-
-# =============================================================================
 # FRONTEND
-# =============================================================================
-ACCOUNT_HOSTNAME="https://account.yourdomain.com" # ← replace
-AUTH_HOSTNAME="https://auth.yourdomain.com"        # ← replace
-
-# =============================================================================
 # DATABASE
-# =============================================================================
-DB_HOST="your-postgres.rds.amazonaws.com" # ← replace
-DB_PORT="5432"
-DB_USER="maintainerd_auth"                # ← replace
-DB_PASSWORD="<generated-32-char-secret>"  # ← replace  (openssl rand -base64 32)
-DB_NAME="maintainerd"
-DB_SSLMODE="require"
-DB_TABLE_PREFIX="md_"
-
-# =============================================================================
 # REDIS
-# =============================================================================
-REDIS_HOST="your-redis.cache.amazonaws.com"                         # ← replace
-REDIS_PORT="6379"
-REDIS_PASSWORD="<generated-secret>"                                 # ← replace
-REDIS_CONNECTION_STRING="rediss://:<generated-secret>@your-redis.cache.amazonaws.com:6379" # ← replace
-
-# =============================================================================
 # EMAIL
-# =============================================================================
-SMTP_HOST="smtp.sendgrid.net"          # ← replace with your provider
-SMTP_PORT="587"
-SMTP_USER="apikey"                     # ← replace
-SMTP_PASS="<retrieved-from-secret-manager>" # ← replace
-SMTP_FROM_EMAIL="noreply@yourdomain.com"    # ← replace (must match SPF/DKIM)
-SMTP_FROM_NAME="Maintainerd"
-EMAIL_LOGO_URL="https://cdn.yourdomain.com/logo.png" # ← replace
-
-# =============================================================================
 # SMS
-# =============================================================================
-SMS_PROVIDER="twilio"
-SMS_DAILY_SEND_LIMIT="1000"
-TWILIO_ACCOUNT_SID="<retrieved-from-secret-manager>" # ← replace if SMS is enabled
-TWILIO_AUTH_TOKEN="<retrieved-from-secret-manager>"  # ← replace if SMS is enabled
-TWILIO_FROM_NUMBER="+15551234567"                    # ← replace if SMS is enabled
-
-# =============================================================================
 # SECRET MANAGEMENT
-# =============================================================================
-SECRET_PROVIDER=aws_secrets       # ← set to your provider: aws_secrets | aws_ssm | vault | gcp | azure_kv | file
-SECRET_PREFIX=maintainerd/auth
-
 ## --- File provider ---
 # SECRET_FILE_PATH=/run/secrets
 
@@ -97,21 +44,8 @@ SECRET_PREFIX=maintainerd/auth
 # AZURE_CLIENT_ID=
 # AZURE_CLIENT_SECRET=
 
-# =============================================================================
-# JWT  ← generate with: ./scripts/generate-jwt-keys.sh 4096 /tmp/jwt-keys
 # Store keys in your secret manager — never leave them as plain files on disk
-# =============================================================================
-JWT_PRIVATE_KEY="<retrieved-from-secret-manager>" # ← replace
-JWT_PUBLIC_KEY="<retrieved-from-secret-manager>"  # ← replace
-
-# =============================================================================
 # OPENTELEMETRY (TRACING)  — optional, disabled by default
-# =============================================================================
-OTEL_ENABLED="true"
-OTEL_EXPORTER_OTLP_ENDPOINT="otel-collector:4317" # ← replace with your collector address
-OTEL_SERVICE_NAME="maintainerd-auth"
-```
-
 > **Every `← replace` value is required before deployment.** The service will fail to start or operate insecurely if any are left as placeholders.
 > Use the [Pre-Deployment Checklist](#pre-deployment-checklist) to verify before going live.
 
@@ -124,8 +58,6 @@ OTEL_SERVICE_NAME="maintainerd-auth"
 - [Frontend Hostnames](#frontend-hostnames)
 - [Database](#database)
 - [Redis](#redis)
-- [Email (SMTP)](#email-smtp)
-- [SMS](#sms)
 - [Secret Management](#secret-management)
 - [JWT Configuration](#jwt-configuration)
 - [OpenTelemetry (Tracing)](#opentelemetry-tracing)
@@ -229,56 +161,21 @@ REDIS_CONNECTION_STRING="rediss://:your-password@your-redis.cache.amazonaws.com:
 
 ---
 
-## Email (SMTP)
+## Email & SMS Delivery
 
-| Variable | Required | Description |
+Email and SMS credentials are no longer configured via environment variables.
+They are managed per-tenant through the admin API and stored in database tables:
+
+| Concern | Table | Admin API |
 |---|---|---|
-| `SMTP_HOST` | ✅ | SMTP server hostname. |
-| `SMTP_PORT` | ✅ | `587` for STARTTLS, `465` for implicit TLS. Never use port `25` in production. |
-| `SMTP_USER` | ✅ | SMTP authentication username. |
-| `SMTP_PASS` | ✅ | SMTP password or API key. Store in your secret manager. |
-| `SMTP_FROM_EMAIL` | ✅ | Verified sender address. Must match your domain's SPF/DKIM records. |
-| `SMTP_FROM_NAME` | ✅ | Display name shown to recipients. |
-| `EMAIL_LOGO_URL` | ❌ | Publicly accessible URL of the logo image in HTML emails. Use a CDN URL. |
+| Email delivery (SMTP, SES, SendGrid, etc.) | `email_config` | `GET/PUT /api/v1/email-config` |
+| SMS delivery (Twilio, SNS, Vonage) | `sms_config` | `GET/PUT /api/v1/sms-config` |
+| SMS daily budget cap | `sms_config.daily_send_limit` | `PUT /api/v1/sms-config` |
+| Email logo branding | `email_config.logo_url` | `PUT /api/v1/email-config` |
 
-```env
-SMTP_HOST="smtp.sendgrid.net"
-SMTP_PORT="587"
-SMTP_USER="apikey"
-SMTP_PASS="<retrieved-from-secret-manager>"
-SMTP_FROM_EMAIL="noreply@yourdomain.com"
-SMTP_FROM_NAME="Maintainerd"
-EMAIL_LOGO_URL="https://cdn.yourdomain.com/logo.png"
-```
-
-> **Recommended providers for production:** [SendGrid](https://sendgrid.com), [Postmark](https://postmarkapp.com), [Resend](https://resend.com), [Mailgun](https://www.mailgun.com).  
-> Transactional email providers offer better deliverability, bounce handling, and analytics than raw SMTP.
-
----
-
-## SMS
-
-| Variable | Required | Description |
-|---|---|---|
-| `SMS_PROVIDER` | ❌ | SMS provider name: `twilio`, `sns`, or `vonage`. Configure a provider before enabling SMS OTP in production. |
-| `SMS_DAILY_SEND_LIMIT` | ✅ | Global daily SMS send ceiling. Keep nonzero in production to cap spend; default is `1000`. |
-| `TWILIO_ACCOUNT_SID` | ❌ | Twilio account SID when `SMS_PROVIDER=twilio`. Store in your secret manager. |
-| `TWILIO_AUTH_TOKEN` | ❌ | Twilio auth token when `SMS_PROVIDER=twilio`. Store in your secret manager. |
-| `TWILIO_FROM_NUMBER` | ❌ | Twilio sender phone number. |
-| `SNS_REGION` | ❌ | AWS SNS region when `SMS_PROVIDER=sns`. |
-| `VONAGE_API_KEY` | ❌ | Vonage API key when `SMS_PROVIDER=vonage`. Store in your secret manager. |
-| `VONAGE_API_SECRET` | ❌ | Vonage API secret when `SMS_PROVIDER=vonage`. Store in your secret manager. |
-| `VONAGE_FROM` | ❌ | Vonage sender name/number. |
-
-```env
-SMS_PROVIDER="twilio"
-SMS_DAILY_SEND_LIMIT="1000"
-TWILIO_ACCOUNT_SID="<retrieved-from-secret-manager>"
-TWILIO_AUTH_TOKEN="<retrieved-from-secret-manager>"
-TWILIO_FROM_NUMBER="+15551234567"
-```
-
-> The SMS budget uses Redis across pods. If Redis is unavailable, the service falls back to a process-local budget counter rather than disabling the guard.
+Each tenant configures its own credentials. The system tenant's configuration
+acts as the global fallback when a tenant has no entry of its own.
+Credentials are encrypted at rest using `APP_ENCRYPTION_KEY`.
 
 ---
 

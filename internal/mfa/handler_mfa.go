@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -23,6 +24,42 @@ var (
 
 func NewMFAHandler(mfaSvc MFAService, webAuthnSvc WebAuthnService) *MFAHandler {
 	return &MFAHandler{mfaSvc: mfaSvc, webAuthnSvc: webAuthnSvc}
+}
+
+// RequireStepUpOrEnrolledMFA gates a user's *own* MFA self-service actions
+// (download/delete a passkey, regenerate backup codes, disable TOTP/SMS).
+//
+// It allows the request when EITHER:
+//   - the session is already stepped-up (acr=2), or
+//   - the authenticated user already has at least one MFA factor enrolled.
+//
+// Enrolling and holding an MFA factor is itself proof of a second factor, so we
+// don't demand a separate step-up challenge just to manage one's own factors.
+// Sensitive cross-user actions (e.g. admin MFA reset) intentionally keep the
+// strict middleware.RequireStepUp guard instead of this one. It must run after
+// JWTAuthMiddleware and UserContextMiddleware so both the claims and the user
+// context are present.
+func (h *MFAHandler) RequireStepUpOrEnrolledMFA(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if claims := middleware.JWTClaimsFromRequest(r); claims != nil && claims.ACR == jwt.ACRLevel2 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		user := middleware.AuthFromRequest(r).User
+		if user == nil {
+			resp.Error(w, http.StatusUnauthorized, "No valid authentication found")
+			return
+		}
+
+		status, err := h.mfaSvc.GetMFAStatus(r.Context(), user.UserID)
+		if err == nil && status != nil && (status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		resp.Error(w, http.StatusForbidden, "Step-up authentication required")
+	})
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -282,6 +319,25 @@ func (h *MFAHandler) WebAuthnDeleteCredential(w http.ResponseWriter, r *http.Req
 	resp.Success(w, nil, "Credential deleted")
 }
 
+func (h *MFAHandler) WebAuthnDownloadCredential(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	credUUID := chi.URLParam(r, "credential_uuid")
+	result, err := h.webAuthnSvc.DownloadCredential(r.Context(), credUUID, user.UserID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to download credential", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", `attachment; filename="passkey-`+credUUID+`.json"`)
+	resp.Success(w, result, "Credential downloaded")
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Step-up authentication
 // ──────────────────────────────────────────────────────────────────────────────
@@ -296,13 +352,52 @@ func (h *MFAHandler) IssueStepUpChallenge(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result, err := h.mfaSvc.IssueStepUpChallenge(r.Context(), user.UserUUID.String(), []string{"totp", "backup_code"})
+	status, err := h.mfaSvc.GetMFAStatus(r.Context(), user.UserID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to determine step-up methods", err)
+		return
+	}
+
+	methods := buildStepUpMethods(status)
+	result, err := h.mfaSvc.IssueStepUpChallenge(r.Context(), user.UserUUID.String(), methods)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to issue step-up challenge", err)
 		return
 	}
 
 	resp.Success(w, result, "Step-up challenge issued")
+}
+
+// SendStepUpSMS sends an SMS OTP for step-up authentication.
+//
+// POST /mfa/step-up/send-sms
+func (h *MFAHandler) SendStepUpSMS(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	if err := h.mfaSvc.SendStepUpSMS(r.Context(), user.UserID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to send SMS step-up code", err)
+		return
+	}
+
+	resp.Success(w, nil, "SMS step-up code sent")
+}
+
+func buildStepUpMethods(status *MFAStatusResponseDTO) []string {
+	methods := make([]string, 0, 3)
+	if status.IsTOTPEnabled {
+		methods = append(methods, "totp")
+	}
+	if status.BackupCodesCount > 0 {
+		methods = append(methods, "backup_code")
+	}
+	if status.IsSMSEnabled {
+		methods = append(methods, "sms")
+	}
+	return methods
 }
 
 // VerifyStepUp verifies a step-up factor and returns an elevated access token.
@@ -352,4 +447,53 @@ func (h *MFAHandler) AdminResetMFA(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp.Success(w, nil, "MFA reset successfully")
+}
+
+func (h *MFAHandler) EnrollSMS(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	var req SMSEnrollRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := h.mfaSvc.EnrollSMS(r.Context(), user.UserID, req.Phone); err != nil {
+		resp.HandleServiceError(w, r, "SMS enrollment failed", err)
+		return
+	}
+	resp.Success(w, nil, "SMS enrollment code sent")
+}
+
+func (h *MFAHandler) VerifySMS(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	var req SMSVerifyRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := h.mfaSvc.VerifySMS(r.Context(), user.UserID, req.Phone, req.Code); err != nil {
+		resp.HandleServiceError(w, r, "SMS verification failed", err)
+		return
+	}
+	resp.Success(w, nil, "SMS MFA enabled")
+}
+
+func (h *MFAHandler) DisableSMS(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if err := h.mfaSvc.DisableSMS(r.Context(), user.UserID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to disable SMS MFA", err)
+		return
+	}
+	resp.Success(w, nil, "SMS MFA disabled")
 }

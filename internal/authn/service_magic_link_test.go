@@ -60,7 +60,7 @@ func TestSendMagicLink(t *testing.T) {
 		config.AuthHostname = "http://localhost"
 
 		origSendEmail := email.SendEmail
-		email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+		email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 		defer func() { email.SendEmail = origSendEmail }()
 
 		userRepo := &mockUserRepo{
@@ -493,7 +493,7 @@ func TestSendMagicLink_DefaultClient(t *testing.T) {
 	config.AccountHostname = "http://localhost"
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -692,7 +692,7 @@ func TestSendMagicLink_Internal(t *testing.T) {
 	config.AuthHostname = "http://localhost"
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -747,7 +747,7 @@ func TestSendMagicLink_TemplateFindByNameError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -801,7 +801,7 @@ func TestSendMagicLink_TemplateParseError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -858,7 +858,7 @@ func TestSendMagicLink_TemplateExecuteError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -915,7 +915,7 @@ func TestSendMagicLink_PlaintextParseError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -974,7 +974,7 @@ func TestSendMagicLink_PlaintextExecuteError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -1297,7 +1297,7 @@ func TestSendMagicLink_SignedURLError(t *testing.T) {
 	defer func() { config.AppPublicHostname = origHostname }()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -1357,7 +1357,7 @@ func TestSendMagicLink_ConvertToFrontendURLError(t *testing.T) {
 	defer func() { config.AccountHostname = origAccount }()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{

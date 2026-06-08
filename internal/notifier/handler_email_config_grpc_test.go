@@ -24,14 +24,14 @@ func (m *testNotifierTenant) GetByUUID(ctx context.Context, tuuid uuid.UUID) (*T
 
 type testEmailConfigService struct {
 	getFn    func(ctx context.Context, tenantID int64) (*EmailConfigServiceDataResult, error)
-	updateFn func(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*EmailConfigServiceDataResult, error)
+	updateFn func(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error)
 }
 
 func (m *testEmailConfigService) Get(ctx context.Context, tenantID int64) (*EmailConfigServiceDataResult, error) {
 	return m.getFn(ctx, tenantID)
 }
-func (m *testEmailConfigService) Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*EmailConfigServiceDataResult, error) {
-	return m.updateFn(ctx, tenantID, provider, host, port, username, password, fromAddress, fromName, replyTo, encryption, testMode)
+func (m *testEmailConfigService) Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error) {
+	return m.updateFn(ctx, tenantID, provider, host, port, username, password, fromAddress, fromName, replyTo, encryption, logoURL, testMode)
 }
 
 func TestEmailConfigGRPCHandler_RPCS(t *testing.T) {
@@ -57,7 +57,7 @@ func TestEmailConfigGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testEmailConfigService{
-			updateFn: func(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*EmailConfigServiceDataResult, error) {
+			updateFn: func(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error) {
 				return &EmailConfigServiceDataResult{EmailConfigUUID: uuid.New(), Provider: "smtp"}, nil
 			},
 		}
@@ -104,7 +104,7 @@ func TestEmailConfigGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update service error", func(t *testing.T) {
 		svc := &testEmailConfigService{
-			updateFn: func(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*EmailConfigServiceDataResult, error) {
+			updateFn: func(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error) {
 				return nil, errors.New("db")
 			},
 		}

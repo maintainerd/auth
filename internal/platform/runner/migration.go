@@ -65,55 +65,48 @@ var migrations = []migrationEntry{
 	{"025_create_user_identities_table", migration.CreateUserIdentityTable},
 	{"026_create_user_roles_table", migration.CreateUserRoleTable},
 	{"027_create_user_tokens_table", migration.CreateUserTokenTable},
-	{"028_create_user_settings_table", migration.CreateUserSettingsTable},
-	{"029_create_profiles_table", migration.CreateProfileTable},
-	{"030_create_user_backup_codes_table", migration.CreateUserBackupCodesTable},
-	{"031_create_user_totp_secrets_table", migration.CreateUserTOTPSecretsTable},
-	{"032_create_user_webauthn_credentials_table", migration.CreateUserWebAuthnCredentialsTable},
-	{"033_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
+	{"028_create_user_otps_table", migration.CreateUserOTPsTable},
+	{"029_create_user_settings_table", migration.CreateUserSettingsTable},
+	{"030_create_profiles_table", migration.CreateProfileTable},
+	{"031_create_user_backup_codes_table", migration.CreateUserBackupCodesTable},
+	{"032_create_user_totp_secrets_table", migration.CreateUserTOTPSecretsTable},
+	{"033_create_user_webauthn_credentials_table", migration.CreateUserWebAuthnCredentialsTable},
+	{"034_create_user_sms_phones_table", migration.CreateUserSMSPhonesTable},
+	{"035_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
 	// Block 8: Tenant organisation & flows
-	{"034_create_tenant_members_table", migration.CreateTenantMembersTable},
-	{"035_create_signup_flows_table", migration.CreateSignupFlowTable},
-	{"036_create_signup_flow_roles_table", migration.CreateSignupFlowRoleTable},
-	{"037_create_invites_table", migration.CreateInvitesTable},
-	{"038_create_invite_roles_table", migration.CreateInviteRolesTable},
+	{"036_create_tenant_members_table", migration.CreateTenantMembersTable},
+	{"037_create_signup_flows_table", migration.CreateSignupFlowTable},
+	{"038_create_signup_flow_roles_table", migration.CreateSignupFlowRoleTable},
+	{"039_create_invites_table", migration.CreateInvitesTable},
+	{"040_create_invite_roles_table", migration.CreateInviteRolesTable},
 	// Block 9: Security
-	{"039_create_security_settings_table", migration.CreateSecuritySettingsTable},
-	{"040_create_ip_restriction_rules_table", migration.CreateIPRestrictionRulesTable},
-	{"041_create_security_settings_audit_table", migration.CreateSecuritySettingsAuditTable},
+	{"041_create_security_settings_table", migration.CreateSecuritySettingsTable},
+	{"042_create_ip_restriction_rules_table", migration.CreateIPRestrictionRulesTable},
+	{"043_create_security_settings_audit_table", migration.CreateSecuritySettingsAuditTable},
 	// Block 10: Templates
-	{"042_create_login_templates_table", migration.CreateLoginTemplatesTable},
-	{"043_create_email_templates_table", migration.CreateEmailTemplatesTable},
-	{"044_create_sms_templates_table", migration.CreateSMSTemplatesTable},
-	// Block 11: Auth events — the AUDIT plane (append-only security log for the
-	// tenant's SIEM: login, MFA, token, OAuth activity). NOT the same as the
-	// integration event tables in Block 15 (event_types/outbox), which are a
-	// data-change delivery pipeline for external consumers. Distinct on purpose.
-	{"045_create_auth_events_table", migration.CreateAuthEventsTable},
+	{"044_create_login_templates_table", migration.CreateLoginTemplatesTable},
+	{"045_create_email_templates_table", migration.CreateEmailTemplatesTable},
+	{"046_create_sms_templates_table", migration.CreateSMSTemplatesTable},
+	// Block 11: Auth events
+	{"047_create_auth_events_table", migration.CreateAuthEventsTable},
 	// Block 12: OAuth
-	{"046_create_oauth_authorization_codes_table", migration.CreateOAuthAuthorizationCodesTable},
-	{"047_create_oauth_refresh_tokens_table", migration.CreateOAuthRefreshTokensTable},
-	{"048_create_oauth_consent_grants_table", migration.CreateOAuthConsentGrantsTable},
-	{"049_create_oauth_consent_challenges_table", migration.CreateOAuthConsentChallengesTable},
-	{"050_create_oauth_par_requests_table", migration.CreateOAuthPARRequestsTable},
-	{"051_create_oauth_device_codes_table", migration.CreateOAuthDeviceCodesTable},
-	{"052_create_oauth_ciba_requests_table", migration.CreateOAuthCIBARequestsTable},
-	// Block 13: SMS OTP
-	{"053_create_sms_otps_table", migration.CreateSMSOtpsTable},
-	// Block 14: Setup process state
-	{"054_create_setup_states_table", migration.CreateSetupStatesTable},
-	// Block 15: Webhooks & event-driven integration — the INTEGRATION plane
-	// (data-change events delivered to external consumers). Separate from the
-	// auth_events AUDIT plane (Block 11); not a duplicate.
-	// (catalog -> endpoints -> subscriptions -> broker routes -> per-tenant
-	// switches -> outbox -> delivery history; ordered by FK dependency)
-	{"055_create_event_types_table", migration.CreateEventTypesTable},
-	{"056_create_webhook_endpoints_table", migration.CreateWebhookEndpointsTable},
-	{"057_create_webhook_endpoint_events_table", migration.CreateWebhookEndpointEventsTable},
-	{"058_create_event_routes_table", migration.CreateEventRoutesTable},
-	{"059_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
-	{"060_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
-	{"061_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
+	{"048_create_oauth_authorization_codes_table", migration.CreateOAuthAuthorizationCodesTable},
+	{"049_create_oauth_refresh_tokens_table", migration.CreateOAuthRefreshTokensTable},
+	{"050_create_oauth_consent_grants_table", migration.CreateOAuthConsentGrantsTable},
+	{"051_create_oauth_consent_challenges_table", migration.CreateOAuthConsentChallengesTable},
+	{"052_create_oauth_par_requests_table", migration.CreateOAuthPARRequestsTable},
+	{"053_create_oauth_device_codes_table", migration.CreateOAuthDeviceCodesTable},
+	{"054_create_oauth_ciba_requests_table", migration.CreateOAuthCIBARequestsTable},
+	// Block 13: Setup process state
+	{"055_create_setup_states_table", migration.CreateSetupStatesTable},
+	// Block 14: Webhooks & event-driven integration
+	{"056_create_event_types_table", migration.CreateEventTypesTable},
+	{"057_create_webhook_endpoints_table", migration.CreateWebhookEndpointsTable},
+	{"058_create_webhook_endpoint_events_table", migration.CreateWebhookEndpointEventsTable},
+	{"059_create_event_routes_table", migration.CreateEventRoutesTable},
+	{"060_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
+	{"061_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
+	{"062_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

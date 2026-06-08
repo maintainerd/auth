@@ -33,8 +33,6 @@ func StartSecretRefreshRunner(ctx context.Context, period time.Duration) {
 
 func refreshSecrets() {
 	refreshJWTKeys()
-	refreshStringSecret("SMTP_USER", &config.SMTPUser)
-	refreshStringSecret("SMTP_PASS", &config.SMTPPass)
 }
 
 func refreshJWTKeys() {

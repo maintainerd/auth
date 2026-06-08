@@ -170,6 +170,23 @@ type UserIdentityResponseDTO struct {
 	UpdatedAt        time.Time          `json:"updated_at"`
 }
 
+type UserMFAResponseDTO struct {
+	IsTOTPEnabled     bool                    `json:"is_totp_enabled"`
+	IsWebAuthnEnabled bool                    `json:"is_webauthn_enabled"`
+	IsSMSEnabled      bool                    `json:"is_sms_enabled"`
+	BackupCodesCount  int                     `json:"backup_codes_count"`
+	WebAuthnKeys      []UserMFAWebAuthnKeyDTO `json:"webauthn_keys,omitempty"`
+	MFAEnabledAt      *string                 `json:"mfa_enabled_at,omitempty"`
+}
+
+type UserMFAWebAuthnKeyDTO struct {
+	CredentialUUID string  `json:"credential_uuid"`
+	Name           string  `json:"name"`
+	Transport      string  `json:"transport,omitempty"`
+	LastUsedAt     *string `json:"last_used_at,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+}
+
 // User input structures
 type UserCreateRequestDTO struct {
 	Username string         `json:"username"`

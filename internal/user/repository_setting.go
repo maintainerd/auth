@@ -1,6 +1,8 @@
 package user
 
 import (
+	"errors"
+
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -32,7 +34,13 @@ func (r *userSettingRepository) WithTx(tx *gorm.DB) UserSettingRepository {
 func (r *userSettingRepository) FindByUserID(userID int64) (*UserSetting, error) {
 	var userSetting UserSetting
 	err := r.DB().Where("user_id = ?", userID).First(&userSetting).Error
-	return &userSetting, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Return nil when not found so callers can create.
+		}
+		return nil, err
+	}
+	return &userSetting, nil
 }
 
 func (r *userSettingRepository) UpdateByUserID(userID int64, updatedUserSetting *UserSetting) error {

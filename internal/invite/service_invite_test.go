@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 // defaultInviteClient returns a full client with domain, IDP and tenant set.
@@ -232,7 +233,7 @@ func TestInviteService_SendInvite_FullSuccess(t *testing.T) {
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
 	var emailSent bool
-	email.SendEmail = func(_ context.Context, p email.SendEmailParams) error {
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, p email.SendEmailParams) error {
 		emailSent = true
 		assert.Equal(t, "user@example.com", p.To)
 		assert.Contains(t, p.BodyHTML, "https://account.example.com/register/invite")
@@ -284,7 +285,7 @@ func TestInviteService_SendInvite_EmailSendError(t *testing.T) {
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return errors.New("smtp err") }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return errors.New("smtp err") }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()

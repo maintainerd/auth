@@ -826,3 +826,63 @@ func TestUserHandler_ForcePasswordChange(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
+
+func TestUserHandler_GetUserMFA(t *testing.T) {
+	t.Run("invalid UUID returns 400", func(t *testing.T) {
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "user_uuid", "bad"))
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}).GetUserMFA(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "user_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}).GetUserMFA(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("not found returns 404", func(t *testing.T) {
+		svc := &mockUserService{
+			getUserMFAFn: func(uuid.UUID, int64) (*UserMFAResponseDTO, error) {
+				return nil, errNotFound
+			},
+		}
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "user_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewUserHandler(svc).GetUserMFA(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockUserService{
+			getUserMFAFn: func(uuid.UUID, int64) (*UserMFAResponseDTO, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "user_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewUserHandler(svc).GetUserMFA(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("success returns 200 with MFA data", func(t *testing.T) {
+		mfaEnabledAt := "2025-01-01T00:00:00Z"
+		svc := &mockUserService{
+			getUserMFAFn: func(uuid.UUID, int64) (*UserMFAResponseDTO, error) {
+				return &UserMFAResponseDTO{
+					IsTOTPEnabled:     true,
+					IsWebAuthnEnabled: false,
+					IsSMSEnabled:      true,
+					BackupCodesCount:  5,
+					MFAEnabledAt:      &mfaEnabledAt,
+					WebAuthnKeys:      []UserMFAWebAuthnKeyDTO{},
+				}, nil
+			},
+		}
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "user_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewUserHandler(svc).GetUserMFA(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}

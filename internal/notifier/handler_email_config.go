@@ -63,7 +63,7 @@ func (h *EmailConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 		req.Provider, req.Host, req.Port,
 		req.Username, req.Password,
 		req.FromAddress, req.FromName, req.ReplyTo,
-		req.Encryption, req.TestMode,
+		req.Encryption, req.LogoURL, req.TestMode,
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update email config", err)
@@ -84,6 +84,7 @@ func toEmailConfigResponseDTO(ec *EmailConfigServiceDataResult) EmailConfigRespo
 		FromName:      ec.FromName,
 		ReplyTo:       ec.ReplyTo,
 		Encryption:    ec.Encryption,
+		LogoURL:       ec.LogoURL,
 		TestMode:      ec.TestMode,
 		Status:        ec.Status,
 		CreatedAt:     ec.CreatedAt,

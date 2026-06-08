@@ -40,7 +40,7 @@ func (h *SMSConfigGRPCHandler) UpdateSMSConfig(ctx context.Context, req *authv1.
 		return nil, err
 	}
 	r, err := h.svc.Update(ctx, t.TenantID, req.GetProvider(), req.GetAccountSid(), req.GetAuthToken(),
-		req.GetFromNumber(), req.GetSenderId(), req.TestMode)
+		req.GetFromNumber(), req.GetSenderId(), nil, req.TestMode)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

@@ -195,7 +195,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 		LogoURL  string
 	}{
 		ResetURL: resetURL,
-		LogoURL:  config.EmailLogo,
+		LogoURL: email.GetLogoURL(ctx, s.db),
 	}
 
 	// Parse HTML template
@@ -223,7 +223,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 	}
 
 	// Send email
-	return email.SendEmail(ctx, email.SendEmailParams{
+	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

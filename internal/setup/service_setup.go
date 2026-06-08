@@ -337,11 +337,12 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 
 		// Create user identity
 		userIdentity := &UserIdentity{
-			TenantID: defaultTenant.TenantID,
-			UserID:   createdUser.UserID,
-			ClientID: defaultClient.ClientID,
-			Provider: shared.ProviderDefault,
-			Sub:      uuid.New().String(),
+			TenantID:           defaultTenant.TenantID,
+			UserID:             createdUser.UserID,
+			ClientID:           defaultClient.ClientID,
+			IdentityProviderID: &defaultClient.IdentityProviderID,
+			Provider:           shared.ProviderDefault,
+			Sub:                uuid.New().String(),
 		}
 		_, err = txUserIdentityRepo.Create(userIdentity)
 		if err != nil {

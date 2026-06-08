@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS sms_config (
     from_number             VARCHAR(50),
     sender_id               VARCHAR(50),
     test_mode               BOOLEAN NOT NULL DEFAULT false,
+    daily_send_limit        INTEGER NOT NULL DEFAULT 1000,
     status                  VARCHAR(20) NOT NULL DEFAULT 'active',
     metadata                JSONB DEFAULT '{}',
     created_by              BIGINT,
@@ -50,7 +51,7 @@ BEGIN
         SELECT 1 FROM pg_constraint WHERE conname = 'chk_sms_config_provider'
     ) THEN
         ALTER TABLE sms_config
-            ADD CONSTRAINT chk_sms_config_provider CHECK (provider IN ('twilio', 'sns', 'vonage', 'messagebird'));
+            ADD CONSTRAINT chk_sms_config_provider CHECK (provider IN ('twilio', 'sns', 'vonage', 'messagebird', 'log'));
     END IF;
 END$$;
 

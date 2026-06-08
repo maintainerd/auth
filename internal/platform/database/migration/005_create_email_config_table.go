@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS email_config (
     from_name           VARCHAR(255),
     reply_to            VARCHAR(255),
     encryption          VARCHAR(20),
+    logo_url            TEXT,
     test_mode           BOOLEAN NOT NULL DEFAULT false,
     status              VARCHAR(20) NOT NULL DEFAULT 'active',
     metadata            JSONB DEFAULT '{}',

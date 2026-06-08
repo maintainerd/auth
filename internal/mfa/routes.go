@@ -23,11 +23,11 @@ func MFARoute(
 		// TOTP
 		r.Post("/totp/enroll", mfaHandler.BeginTOTPEnrollment)
 		r.Post("/totp/verify", mfaHandler.FinishTOTPEnrollment)
-		r.With(middleware.RequireStepUp).Delete("/totp", mfaHandler.DisableTOTP)
+		r.With(mfaHandler.RequireStepUpOrEnrolledMFA).Delete("/totp", mfaHandler.DisableTOTP)
 
 		// Backup codes
 		r.Get("/backup-codes/count", mfaHandler.GetBackupCodesCount)
-		r.With(middleware.RequireStepUp).Post("/backup-codes/regenerate", mfaHandler.RegenerateBackupCodes)
+		r.With(mfaHandler.RequireStepUpOrEnrolledMFA).Post("/backup-codes/regenerate", mfaHandler.RegenerateBackupCodes)
 
 		// WebAuthn passkey registration
 		r.Post("/webauthn/register/begin", mfaHandler.WebAuthnBeginRegistration)
@@ -38,13 +38,22 @@ func MFARoute(
 		r.Post("/webauthn/auth/finish", mfaHandler.WebAuthnFinishAuthentication)
 
 		// WebAuthn credential management
-		r.With(middleware.RequireStepUp).Delete("/webauthn/{credential_uuid}", mfaHandler.WebAuthnDeleteCredential)
+		r.With(mfaHandler.RequireStepUpOrEnrolledMFA).Delete("/webauthn/{credential_uuid}", mfaHandler.WebAuthnDeleteCredential)
+		r.With(mfaHandler.RequireStepUpOrEnrolledMFA).Get("/webauthn/{credential_uuid}/download", mfaHandler.WebAuthnDownloadCredential)
 
 		// Step-up authentication
 		r.Post("/step-up/challenge", mfaHandler.IssueStepUpChallenge)
+		r.Post("/step-up/send-sms", mfaHandler.SendStepUpSMS)
 		r.Post("/step-up/verify", mfaHandler.VerifyStepUp)
 
-		// Admin — reset another user's MFA
+		// SMS MFA enrollment
+		r.Post("/sms/enroll", mfaHandler.EnrollSMS)
+		r.Post("/sms/verify", mfaHandler.VerifySMS)
+		r.With(mfaHandler.RequireStepUpOrEnrolledMFA).Delete("/sms", mfaHandler.DisableSMS)
+
+		// Admin — reset another user's MFA. This affects a *different* user, so it
+		// keeps the strict step-up requirement (acr=2) rather than the relaxed
+		// self-service guard.
 		r.With(middleware.RequireStepUp).Post("/admin/users/{user_uuid}/reset", mfaHandler.AdminResetMFA)
 	})
 }

@@ -602,7 +602,7 @@ gaps rather than classic bugs — either finish the wiring or downgrade the chec
 - [x] **FC-19** 🟡 — **SMS "cost guard" is only a per-phone rate limit.**
   `authn/service_sms_login.go` has no spend/budget cap or global daily ceiling, contrary to the
   "rate-limit + cost guard" claim. **Fix:** add a per-tenant/global SMS send budget with a hard cap.
-  **Fixed:** SMS OTP sends now enforce `SMS_DAILY_SEND_LIMIT` as a global daily hard cap using Redis
+  **Fixed:** SMS OTP sends now enforce a per-tenant daily send budget via `sms_config.daily_send_limit` using Redis
   across pods, with a process-local fallback when Redis is unavailable.
 
 ### Tenancy / federation / sessions
