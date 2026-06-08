@@ -29,8 +29,8 @@ func (m *testUserTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.
 type testUserService struct {
 	getFn               func(ctx context.Context, filter UserServiceGetFilter) (*UserServiceGetResult, error)
 	getByUUIDFn         func(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	createFn            func(ctx context.Context, username, fullname string, email, phone *string, password, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	updateFn            func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username, fullname string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	createFn            func(ctx context.Context, username string, email, phone *string, password, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	updateFn            func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	setStatusFn         func(ctx context.Context, userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	verifyEmailFn       func(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	verifyPhoneFn       func(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
@@ -50,11 +50,11 @@ func (m *testUserService) Get(ctx context.Context, filter UserServiceGetFilter) 
 func (m *testUserService) GetByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	return m.getByUUIDFn(ctx, userUUID, tenantID)
 }
-func (m *testUserService) Create(ctx context.Context, username, fullname string, email, phone *string, password, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
-	return m.createFn(ctx, username, fullname, email, phone, password, status, metadata, tenantUUID, creatorUserUUID)
+func (m *testUserService) Create(ctx context.Context, username string, email, phone *string, password, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+	return m.createFn(ctx, username, email, phone, password, status, metadata, tenantUUID, creatorUserUUID)
 }
-func (m *testUserService) Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username, fullname string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
-	return m.updateFn(ctx, userUUID, tenantID, username, fullname, email, phone, status, metadata, updaterUserUUID)
+func (m *testUserService) Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+	return m.updateFn(ctx, userUUID, tenantID, username, email, phone, status, metadata, updaterUserUUID)
 }
 func (m *testUserService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	return m.setStatusFn(ctx, userUUID, tenantID, status, updaterUserUUID)
@@ -138,12 +138,12 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create success", func(t *testing.T) {
 		svc := &testUserService{
-			createFn: func(ctx context.Context, username, fullname string, email, phone *string, password, status string, metadata datatypes.JSON, tUUID string, cu uuid.UUID) (*UserServiceDataResult, error) {
+			createFn: func(ctx context.Context, username string, email, phone *string, password, status string, metadata datatypes.JSON, tUUID string, cu uuid.UUID) (*UserServiceDataResult, error) {
 				return &userResult, nil
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantUuid: tenantUUID.String(), Username: "testuser", Fullname: "Test User", Password: "pass", Status: "active"})
+		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantUuid: tenantUUID.String(), Username: "testuser", Password: "pass", Status: "active"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -207,7 +207,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testUserService{
-			updateFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username, fullname string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+			updateFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 				return &userResult, nil
 			},
 		}
@@ -220,7 +220,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update service error", func(t *testing.T) {
 		svc := &testUserService{
-			updateFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username, fullname string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+			updateFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 				return nil, errors.New("db")
 			},
 		}
@@ -460,7 +460,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create service error", func(t *testing.T) {
 		svc := &testUserService{
-			createFn: func(ctx context.Context, username, fullname string, email, phone *string, password, rStatus string, metadata datatypes.JSON, tUUID string, cu uuid.UUID) (*UserServiceDataResult, error) {
+			createFn: func(ctx context.Context, username string, email, phone *string, password, rStatus string, metadata datatypes.JSON, tUUID string, cu uuid.UUID) (*UserServiceDataResult, error) {
 				return nil, errors.New("db")
 			},
 		}
@@ -614,7 +614,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create invalid actor UUID", func(t *testing.T) {
 		svc := &testUserService{
-			createFn: func(ctx context.Context, username, fullname string, email, phone *string, password, rStatus string, metadata datatypes.JSON, tUUID string, cu uuid.UUID) (*UserServiceDataResult, error) {
+			createFn: func(ctx context.Context, username string, email, phone *string, password, rStatus string, metadata datatypes.JSON, tUUID string, cu uuid.UUID) (*UserServiceDataResult, error) {
 				return &userResult, nil
 			},
 		}
@@ -638,7 +638,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update invalid actor UUID", func(t *testing.T) {
 		svc := &testUserService{
-			updateFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username, fullname string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+			updateFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 				return &userResult, nil
 			},
 		}

@@ -619,8 +619,8 @@ func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
 type mockUserService struct {
 	getFn                  func(UserServiceGetFilter) (*UserServiceGetResult, error)
 	getByUUIDFn            func(uuid.UUID, int64) (*UserServiceDataResult, error)
-	createFn               func(string, string, *string, *string, string, string, datatypes.JSON, string, uuid.UUID) (*UserServiceDataResult, error)
-	updateFn               func(uuid.UUID, int64, string, string, *string, *string, string, datatypes.JSON, uuid.UUID) (*UserServiceDataResult, error)
+	createFn               func(string, *string, *string, string, string, datatypes.JSON, string, uuid.UUID) (*UserServiceDataResult, error)
+	updateFn               func(uuid.UUID, int64, string, *string, *string, string, datatypes.JSON, uuid.UUID) (*UserServiceDataResult, error)
 	setStatusFn            func(uuid.UUID, int64, string, uuid.UUID) (*UserServiceDataResult, error)
 	verifyEmailFn          func(uuid.UUID, int64) (*UserServiceDataResult, error)
 	verifyPhoneFn          func(uuid.UUID, int64) (*UserServiceDataResult, error)
@@ -647,15 +647,15 @@ func (m *mockUserService) GetByUUID(_ context.Context, id uuid.UUID, tenantID in
 	}
 	return &UserServiceDataResult{}, nil
 }
-func (m *mockUserService) Create(_ context.Context, username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (m *mockUserService) Create(_ context.Context, username string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	if m.createFn != nil {
-		return m.createFn(username, fullname, email, phone, password, status, metadata, tenantUUID, creatorUserUUID)
+		return m.createFn(username, email, phone, password, status, metadata, tenantUUID, creatorUserUUID)
 	}
 	return &UserServiceDataResult{}, nil
 }
-func (m *mockUserService) Update(_ context.Context, userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (m *mockUserService) Update(_ context.Context, userUUID uuid.UUID, tenantID int64, username string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(userUUID, tenantID, username, fullname, email, phone, status, metadata, updaterUserUUID)
+		return m.updateFn(userUUID, tenantID, username, email, phone, status, metadata, updaterUserUUID)
 	}
 	return &UserServiceDataResult{}, nil
 }

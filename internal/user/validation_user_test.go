@@ -11,11 +11,9 @@ import (
 
 func validUserCreate() UserCreateRequestDTO {
 	return UserCreateRequestDTO{
-		Username:   "testuser",
-		Fullname:   "Test User",
-		Password:   "SecurePass1!",
-		Status:     shared.StatusActive,
-		TenantUUID: uuid.New().String(),
+		Username: "testuser",
+		Password: "SecurePass1!",
+		Status:   shared.StatusActive,
 	}
 }
 
@@ -27,12 +25,6 @@ func TestUserCreateRequestDto_Validate(t *testing.T) {
 	t.Run("username too short", func(t *testing.T) {
 		d := validUserCreate()
 		d.Username = "ab"
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("missing fullname", func(t *testing.T) {
-		d := validUserCreate()
-		d.Fullname = ""
 		require.Error(t, d.Validate())
 	})
 
@@ -71,24 +63,11 @@ func TestUserCreateRequestDto_Validate(t *testing.T) {
 		d.Status = shared.StatusPending
 		assert.NoError(t, d.Validate())
 	})
-
-	t.Run("missing tenant_id", func(t *testing.T) {
-		d := validUserCreate()
-		d.TenantUUID = ""
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("invalid tenant_id uuid", func(t *testing.T) {
-		d := validUserCreate()
-		d.TenantUUID = "not-a-uuid"
-		require.Error(t, d.Validate())
-	})
 }
 
 func TestUserUpdateRequestDto_Validate(t *testing.T) {
 	d := UserUpdateRequestDTO{
 		Username: "testuser",
-		Fullname: "Test User",
 		Status:   shared.StatusActive,
 	}
 	assert.NoError(t, d.Validate())

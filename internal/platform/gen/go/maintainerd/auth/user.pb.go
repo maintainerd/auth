@@ -779,7 +779,6 @@ type CreateUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
-	Fullname      string                 `protobuf:"bytes,3,opt,name=fullname,proto3" json:"fullname,omitempty"`
 	Email         string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
 	Phone         string                 `protobuf:"bytes,5,opt,name=phone,proto3" json:"phone,omitempty"`
 	Password      string                 `protobuf:"bytes,6,opt,name=password,proto3" json:"password,omitempty"`
@@ -830,13 +829,6 @@ func (x *CreateUserRequest) GetTenantUuid() string {
 func (x *CreateUserRequest) GetUsername() string {
 	if x != nil {
 		return x.Username
-	}
-	return ""
-}
-
-func (x *CreateUserRequest) GetFullname() string {
-	if x != nil {
-		return x.Fullname
 	}
 	return ""
 }
@@ -932,7 +924,6 @@ type UpdateUserRequest struct {
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
 	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
-	Fullname      string                 `protobuf:"bytes,4,opt,name=fullname,proto3" json:"fullname,omitempty"`
 	Email         string                 `protobuf:"bytes,5,opt,name=email,proto3" json:"email,omitempty"`
 	Phone         string                 `protobuf:"bytes,6,opt,name=phone,proto3" json:"phone,omitempty"`
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
@@ -989,13 +980,6 @@ func (x *UpdateUserRequest) GetUserUuid() string {
 func (x *UpdateUserRequest) GetUsername() string {
 	if x != nil {
 		return x.Username
-	}
-	return ""
-}
-
-func (x *UpdateUserRequest) GetFullname() string {
-	if x != nil {
-		return x.Fullname
 	}
 	return ""
 }
@@ -3272,31 +3256,29 @@ const file_maintainerd_auth_v1_user_proto_rawDesc = "" +
 	"tenantUuid\x12\x1b\n" +
 	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\"@\n" +
 	"\x0fGetUserResponse\x12-\n" +
-	"\x04user\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.UserR\x04user\"\xa9\x02\n" +
+	"\x04user\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.UserR\x04user\"\x9d\x02\n" +
 	"\x11CreateUserRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1a\n" +
-	"\busername\x18\x02 \x01(\tR\busername\x12\x1a\n" +
-	"\bfullname\x18\x03 \x01(\tR\bfullname\x12\x14\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x14\n" +
 	"\x05email\x18\x04 \x01(\tR\x05email\x12\x14\n" +
 	"\x05phone\x18\x05 \x01(\tR\x05phone\x12\x1a\n" +
 	"\bpassword\x18\x06 \x01(\tR\bpassword\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\x123\n" +
 	"\bmetadata\x18\b \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\"C\n" +
+	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuidJ\x04\b\x03\x10\x04R\bfullname\"C\n" +
 	"\x12CreateUserResponse\x12-\n" +
-	"\x04user\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.UserR\x04user\"\xaa\x02\n" +
+	"\x04user\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.UserR\x04user\"\x9e\x02\n" +
 	"\x11UpdateUserRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1b\n" +
 	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12\x1a\n" +
-	"\busername\x18\x03 \x01(\tR\busername\x12\x1a\n" +
-	"\bfullname\x18\x04 \x01(\tR\bfullname\x12\x14\n" +
+	"\busername\x18\x03 \x01(\tR\busername\x12\x14\n" +
 	"\x05email\x18\x05 \x01(\tR\x05email\x12\x14\n" +
 	"\x05phone\x18\x06 \x01(\tR\x05phone\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\x123\n" +
 	"\bmetadata\x18\b \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\"C\n" +
+	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuidJ\x04\b\x04\x10\x05R\bfullname\"C\n" +
 	"\x12UpdateUserResponse\x12-\n" +
 	"\x04user\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.UserR\x04user\"\x94\x01\n" +
 	"\x14SetUserStatusRequest\x12\x1f\n" +
