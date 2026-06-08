@@ -484,8 +484,9 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Check if target user exists
-		user, err := txUserRepo.FindByUUID(userUUID, "UserIdentities")
+		// Check if target user exists. Preload the identity's Tenant so the
+		// tenant-access check below has a non-nil tenant to validate against.
+		user, err := txUserRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 		if err != nil || user == nil {
 			return apperror.NewNotFound("user not found")
 		}
@@ -622,8 +623,9 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID), attribute.String("user.status", status))
 
-	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
+	// Check if target user exists. Preload the identity's Tenant so the
+	// tenant-access check below has a non-nil tenant to validate against.
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
 		return nil, apperror.NewNotFound("user not found")
 	}
@@ -804,7 +806,7 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities", "Roles")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 	if err != nil || user == nil {
 		return nil, apperror.NewNotFound("user not found")
 	}
