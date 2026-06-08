@@ -294,9 +294,9 @@ func TestUserRepository_FindRolesPaginated(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
-		mock.ExpectQuery(`SELECT COUNT\(.+\) FROM "roles"`).
+		mock.ExpectQuery(`SELECT count\(.+\) FROM "roles"`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
-		mock.ExpectQuery(`SELECT .+ FROM "roles" JOIN user_roles ur ON ur.role_id = roles.role_id WHERE ur.user_id = \$1 .+ LIMIT \$[0-9]+`).
+		mock.ExpectQuery(`SELECT .+ FROM "roles" WHERE roles.role_id IN .+ LIMIT \$[0-9]+`).
 			WillReturnRows(sqlmock.NewRows([]string{"role_id", "role_uuid", "name"}).
 				AddRow(10, testResourceUUID, shared.RoleRegistered).
 				AddRow(20, testUserUUID, "admin"))
@@ -314,7 +314,7 @@ func TestUserRepository_FindRolesPaginated(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
-		mock.ExpectQuery(`SELECT COUNT\(.+\) FROM "roles"`).
+		mock.ExpectQuery(`SELECT count\(.+\) FROM "roles"`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 		mock.ExpectQuery(`SELECT .+ FROM "roles"`).
 			WillReturnRows(sqlmock.NewRows([]string{"role_id"}))
@@ -332,7 +332,7 @@ func TestUserRepository_FindRolesPaginated(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
-		mock.ExpectQuery(`SELECT COUNT\(.+\) FROM "roles"`).
+		mock.ExpectQuery(`SELECT count\(.+\) FROM "roles"`).
 			WillReturnError(errors.New("db error"))
 
 		_, err := repo.FindRolesPaginated(GetUserRolesFilter{
@@ -347,7 +347,7 @@ func TestUserRepository_FindRolesPaginated(t *testing.T) {
 		repo := NewUserRepository(db)
 		active := "active"
 
-		mock.ExpectQuery(`SELECT COUNT\(.+\) FROM "roles"`).
+		mock.ExpectQuery(`SELECT count\(.+\) FROM "roles"`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 		mock.ExpectQuery(`SELECT .+ FROM "roles"`).
 			WillReturnRows(sqlmock.NewRows([]string{"role_id", "role_uuid", "name"}).

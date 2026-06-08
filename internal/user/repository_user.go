@@ -176,11 +176,14 @@ func (r *userRepository) FindRoles(userID int64) ([]Role, error) {
 }
 
 func (r *userRepository) FindRolesPaginated(filter GetUserRolesFilter) (*PaginationResult[Role], error) {
+	// Filter by a subquery rather than a JOIN+Select. A custom Select("roles.*")
+	// makes GORM's Count emit COUNT("roles"."*") (a quoted "*"), which Postgres
+	// rejects; the subquery keeps Count as a plain count(*) and avoids the join
+	// column ambiguity.
+	roleIDs := r.DB().Table("user_roles").Select("role_id").Where("user_id = ?", filter.UserID)
 	query := r.DB().
 		Model(&Role{}).
-		Select("roles.*").
-		Joins("JOIN user_roles ur ON ur.role_id = roles.role_id").
-		Where("ur.user_id = ?", filter.UserID)
+		Where("roles.role_id IN (?)", roleIDs)
 
 	query = database.ApplyILike(query, "roles.name", filter.Name)
 	query = database.ApplyILike(query, "roles.description", filter.Description)
