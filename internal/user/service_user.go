@@ -78,8 +78,8 @@ type UserServiceGetResult struct {
 type UserService interface {
 	Get(ctx context.Context, filter UserServiceGetFilter) (*UserServiceGetResult, error)
 	GetByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	Create(ctx context.Context, username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Create(ctx context.Context, username string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	SetStatus(ctx context.Context, userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
@@ -287,7 +287,7 @@ func (s *userService) GetByUUID(ctx context.Context, userUUID uuid.UUID, tenantI
 	return toUserServiceDataResult(user), nil
 }
 
-func (s *userService) Create(ctx context.Context, username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Create(ctx context.Context, username string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user.create")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.username", username))
@@ -376,7 +376,6 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 
 		newUser := &User{
 			Username:          username,
-			Fullname:          fullname,
 			Email:             emailStr,
 			Phone:             phoneStr,
 			Password:          &hashedPasswordStr,
@@ -430,11 +429,9 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 			return err
 		}
 
-		// NOTE: users.fullname column was removed. The fullname argument is held
-		// on the in-memory User struct (transient gorm:"-" field) so the
-		// immediate response carries it. To persist the name, the orchestration
-		// layer (handlers / register / setup) must explicitly create a Profile
-		// via the profile
+		// Display name is not stored on the user — it is derived from the user's
+		// Profile (see computeFullname). A new user has no profile yet, so the
+		// response carries an empty fullname until a profile is created.
 
 		// Fetch created user with relationships
 		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles", "Profile")
@@ -476,7 +473,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 	return toUserServiceDataResult(createdUser), nil
 }
 
-func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
@@ -547,9 +544,6 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 		if username != user.Username {
 			changed = append(changed, "username")
 		}
-		if fullname != user.Fullname {
-			changed = append(changed, "fullname")
-		}
 		if status != user.Status {
 			changed = append(changed, "status")
 		}
@@ -564,7 +558,6 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 		}
 
 		user.Username = username
-		user.Fullname = fullname
 		user.Status = status
 		if email != nil {
 			user.Email = emailStr

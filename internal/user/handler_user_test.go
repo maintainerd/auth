@@ -84,13 +84,13 @@ func TestUserHandler_CreateUser_NoTenant(t *testing.T) {
 
 func TestUserHandler_CreateUser_ServiceError(t *testing.T) {
 	svc := &mockUserService{
-		createFn: func(u, fn string, e, ph *string, pw, s string, meta datatypes.JSON, tUUID string, creator uuid.UUID) (*UserServiceDataResult, error) {
+		createFn: func(u string, e, ph *string, pw, s string, meta datatypes.JSON, tUUID string, creator uuid.UUID) (*UserServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
 	h := NewUserHandler(svc)
 	r := withTenantAndUser(jsonReq(t, http.MethodPost, "/users", map[string]any{
-		"username": "user1", "fullname": "User One", "password": "P@ssw0rd1!", "status": "active", "tenant_id": testTenantUUID.String(),
+		"username": "user1", "password": "P@ssw0rd1!", "status": "active", "tenant_id": testTenantUUID.String(),
 	}))
 	w := httptest.NewRecorder()
 	h.CreateUser(w, r)
@@ -219,11 +219,11 @@ func TestUserHandler_CreateUser_ValidationError(t *testing.T) {
 
 func TestUserHandler_CreateUser_Success(t *testing.T) {
 	svc := &mockUserService{
-		createFn: func(u, fn string, e, ph *string, pw, s string, meta datatypes.JSON, tUUID string, creator uuid.UUID) (*UserServiceDataResult, error) {
+		createFn: func(u string, e, ph *string, pw, s string, meta datatypes.JSON, tUUID string, creator uuid.UUID) (*UserServiceDataResult, error) {
 			return &UserServiceDataResult{Username: u}, nil
 		},
 	}
-	body := map[string]any{"username": "user1", "fullname": "User One", "password": "P@ssw0rd1!", "status": "active", "tenant_id": testTenantUUID.String()}
+	body := map[string]any{"username": "user1", "password": "P@ssw0rd1!", "status": "active", "tenant_id": testTenantUUID.String()}
 	r := withTenantAndUser(jsonReq(t, http.MethodPost, "/users", body))
 	w := httptest.NewRecorder()
 	NewUserHandler(svc).CreateUser(w, r)
@@ -235,7 +235,7 @@ func TestUserHandler_CreateUser_Success(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUserHandler_UpdateUser(t *testing.T) {
-	validBody := map[string]any{"username": "user1", "fullname": "User One", "status": "active"}
+	validBody := map[string]any{"username": "user1", "status": "active"}
 
 	t.Run("no tenant returns 401", func(t *testing.T) {
 		r := jsonReq(t, http.MethodPut, "/", validBody)
@@ -266,7 +266,7 @@ func TestUserHandler_UpdateUser(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{updateFn: func(uuid.UUID, int64, string, string, *string, *string, string, datatypes.JSON, uuid.UUID) (*UserServiceDataResult, error) {
+		svc := &mockUserService{updateFn: func(uuid.UUID, int64, string, *string, *string, string, datatypes.JSON, uuid.UUID) (*UserServiceDataResult, error) {
 			return nil, errors.New("update error")
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/", validBody), "user_uuid", testResourceUUID.String()))
@@ -276,7 +276,7 @@ func TestUserHandler_UpdateUser(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{updateFn: func(id uuid.UUID, tid int64, u, fn string, e, ph *string, s string, meta datatypes.JSON, updater uuid.UUID) (*UserServiceDataResult, error) {
+		svc := &mockUserService{updateFn: func(id uuid.UUID, tid int64, u string, e, ph *string, s string, meta datatypes.JSON, updater uuid.UUID) (*UserServiceDataResult, error) {
 			return &UserServiceDataResult{Username: u}, nil
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/", validBody), "user_uuid", testResourceUUID.String()))

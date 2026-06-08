@@ -121,9 +121,10 @@ message GetUserResponse {
 }
 
 message CreateUserRequest {
+  reserved 3;
+  reserved "fullname"; // removed: display name lives in Profile
   string tenant_uuid = 1;
   string username = 2;
-  string fullname = 3;
   string email = 4;
   string phone = 5;
   string password = 6;
@@ -137,10 +138,11 @@ message CreateUserResponse {
 }
 
 message UpdateUserRequest {
+  reserved 4;
+  reserved "fullname"; // removed: display name lives in Profile
   string tenant_uuid = 1;
   string user_uuid = 2;
   string username = 3;
-  string fullname = 4;
   string email = 5;
   string phone = 6;
   string status = 7;

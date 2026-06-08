@@ -189,7 +189,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user (includes creator context for audit trail)
-	user, err := h.userService.Create(r.Context(), req.Username, req.Fullname, req.Email, req.Phone, req.Password, req.Status, req.Metadata, tenant.TenantUUID.String(), creatorUser.UserUUID)
+	user, err := h.userService.Create(r.Context(), req.Username, req.Email, req.Phone, req.Password, req.Status, req.Metadata, tenant.TenantUUID.String(), creatorUser.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create user", err)
 		return
@@ -239,7 +239,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update user (service validates tenant ownership, includes updater context for audit)
-	user, err := h.userService.Update(r.Context(), userUUID, tenant.TenantID, req.Username, req.Fullname, req.Email, req.Phone, req.Status, req.Metadata, updaterUser.UserUUID)
+	user, err := h.userService.Update(r.Context(), userUUID, tenant.TenantID, req.Username, req.Email, req.Phone, req.Status, req.Metadata, updaterUser.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update user", err)
 		return

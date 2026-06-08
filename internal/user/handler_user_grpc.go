@@ -86,7 +86,7 @@ func (h *UserGRPCHandler) CreateUser(ctx context.Context, req *authv1.CreateUser
 		}
 	}
 	metadata := structToJSON(req.GetMetadata())
-	result, err := h.userService.Create(ctx, req.GetUsername(), req.GetFullname(), optionalEmail(req.GetEmail()), optionalPhone(req.GetPhone()), req.GetPassword(), req.GetStatus(), metadata, tenant.TenantUUID.String(), actorUUID)
+	result, err := h.userService.Create(ctx, req.GetUsername(), optionalEmail(req.GetEmail()), optionalPhone(req.GetPhone()), req.GetPassword(), req.GetStatus(), metadata, tenant.TenantUUID.String(), actorUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -110,7 +110,7 @@ func (h *UserGRPCHandler) UpdateUser(ctx context.Context, req *authv1.UpdateUser
 		}
 	}
 	metadata := structToJSON(req.GetMetadata())
-	result, err := h.userService.Update(ctx, userUUID, tenant.TenantID, req.GetUsername(), req.GetFullname(), optionalEmail(req.GetEmail()), optionalPhone(req.GetPhone()), req.GetStatus(), metadata, actorUUID)
+	result, err := h.userService.Update(ctx, userUUID, tenant.TenantID, req.GetUsername(), optionalEmail(req.GetEmail()), optionalPhone(req.GetPhone()), req.GetStatus(), metadata, actorUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

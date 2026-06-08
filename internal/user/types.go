@@ -172,19 +172,16 @@ type UserIdentityResponseDTO struct {
 
 // User input structures
 type UserCreateRequestDTO struct {
-	Username   string         `json:"username"`
-	Fullname   string         `json:"fullname"`
-	Email      *string        `json:"email,omitempty"`
-	Phone      *string        `json:"phone,omitempty"`
-	Password   string         `json:"password"`
-	Status     string         `json:"status"`
-	Metadata   datatypes.JSON `json:"metadata,omitempty"`
-	TenantUUID string         `json:"tenant_id"`
+	Username string         `json:"username"`
+	Email    *string        `json:"email,omitempty"`
+	Phone    *string        `json:"phone,omitempty"`
+	Password string         `json:"password"`
+	Status   string         `json:"status"`
+	Metadata datatypes.JSON `json:"metadata,omitempty"`
 }
 
 type UserUpdateRequestDTO struct {
 	Username string         `json:"username"`
-	Fullname string         `json:"fullname"`
 	Email    *string        `json:"email,omitempty"`
 	Phone    *string        `json:"phone,omitempty"`
 	Status   string         `json:"status"`

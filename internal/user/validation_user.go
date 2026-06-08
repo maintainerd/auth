@@ -9,19 +9,16 @@ import (
 func (dto UserCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
-		validation.Field(&dto.Fullname, validation.Required, validation.Length(1, 255)),
 		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
 		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
 		validation.Field(&dto.Password, validation.Required, validation.Length(8, 100)),
 		validation.Field(&dto.Status, validation.Required, validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended)),
-		validation.Field(&dto.TenantUUID, validation.Required, is.UUID),
 	)
 }
 
 func (dto UserUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
-		validation.Field(&dto.Fullname, validation.Required, validation.Length(1, 255)),
 		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
 		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
 		validation.Field(&dto.Status, validation.Required, validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended)),
