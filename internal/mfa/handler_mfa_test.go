@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,8 +41,12 @@ type mockMFAService struct {
 	isMFARequiredFn         func(context.Context, int64) (bool, error)
 	userHasMFAFn            func(context.Context, int64) (bool, error)
 	adminResetMFAFn         func(context.Context, string, int64) error
-	issueStepUpChallengeFn  func(context.Context, string, []string) (*StepUpChallengeResponseDTO, error)
-	verifyStepUpFn          func(context.Context, StepUpVerifyRequestDTO, int64) (*StepUpVerifyResponseDTO, error)
+	issueStepUpChallengeFn func(context.Context, string, []string) (*StepUpChallengeResponseDTO, error)
+	verifyStepUpFn         func(context.Context, StepUpVerifyRequestDTO, int64) (*StepUpVerifyResponseDTO, error)
+	sendStepUpSMSFn        func(context.Context, int64) error
+	enrollSMSFn            func(context.Context, int64, string) error
+	verifySMSFn            func(context.Context, int64, string, string) error
+	disableSMSFn           func(context.Context, int64) error
 }
 
 func (m *mockMFAService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TOTPEnrollResponseDTO, error) {
@@ -135,12 +140,41 @@ func (m *mockMFAService) VerifyStepUp(ctx context.Context, req StepUpVerifyReque
 	return &StepUpVerifyResponseDTO{AccessToken: "elevated", ExpiresIn: 300}, nil
 }
 
+func (m *mockMFAService) SendStepUpSMS(ctx context.Context, userID int64) error {
+	if m.sendStepUpSMSFn != nil {
+		return m.sendStepUpSMSFn(ctx, userID)
+	}
+	return nil
+}
+
+func (m *mockMFAService) EnrollSMS(ctx context.Context, userID int64, phone string) error {
+	if m.enrollSMSFn != nil {
+		return m.enrollSMSFn(ctx, userID, phone)
+	}
+	return nil
+}
+
+func (m *mockMFAService) VerifySMS(ctx context.Context, userID int64, phone, code string) error {
+	if m.verifySMSFn != nil {
+		return m.verifySMSFn(ctx, userID, phone, code)
+	}
+	return nil
+}
+
+func (m *mockMFAService) DisableSMS(ctx context.Context, userID int64) error {
+	if m.disableSMSFn != nil {
+		return m.disableSMSFn(ctx, userID)
+	}
+	return nil
+}
+
 type mockWebAuthnService struct {
 	beginRegistrationFn    func(context.Context, int64) (*protocol.CredentialCreation, error)
 	finishRegistrationFn   func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error)
 	beginAuthenticationFn  func(context.Context, int64) (*protocol.CredentialAssertion, error)
 	finishAuthenticationFn func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error)
 	deleteCredentialFn     func(context.Context, string, int64) error
+	downloadCredentialFn  func(context.Context, string, int64) (*WebAuthnCredentialDownloadDTO, error)
 }
 
 func (m *mockWebAuthnService) BeginRegistration(ctx context.Context, userID int64) (*protocol.CredentialCreation, error) {
@@ -176,6 +210,13 @@ func (m *mockWebAuthnService) DeleteCredential(ctx context.Context, credentialUU
 		return m.deleteCredentialFn(ctx, credentialUUIDStr, userID)
 	}
 	return nil
+}
+
+func (m *mockWebAuthnService) DownloadCredential(ctx context.Context, credentialUUIDStr string, userID int64) (*WebAuthnCredentialDownloadDTO, error) {
+	if m.downloadCredentialFn != nil {
+		return m.downloadCredentialFn(ctx, credentialUUIDStr, userID)
+	}
+	return &WebAuthnCredentialDownloadDTO{CredentialUUID: credentialUUIDStr, Name: "Security Key"}, nil
 }
 
 func TestMFAHandler_AuthRequired(t *testing.T) {
@@ -741,4 +782,76 @@ func authenticatedMFARequestWithParam(t *testing.T, method, path string, body an
 func withMFAUser(req *http.Request) *http.Request {
 	user := &authctx.AuthUser{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}
 	return middleware.WithAuthContext(req, &authctx.AuthContext{User: user})
+}
+
+func TestMFAHandler_RequireStepUpOrEnrolledMFA(t *testing.T) {
+	tests := []struct {
+		name       string
+		request    func() *http.Request
+		statusFn   func(context.Context, int64) (*MFAStatusResponseDTO, error)
+		wantStatus int
+		wantNext   bool
+	}{
+		{
+			name: "stepped-up session passes without enrolled MFA",
+			request: func() *http.Request {
+				req := withMFAUser(httptest.NewRequest(http.MethodGet, "/mfa/webauthn/x/download", nil))
+				return middleware.WithJWTClaims(req, &middleware.JWTClaims{ACR: jwt.ACRLevel2})
+			},
+			statusFn: func(context.Context, int64) (*MFAStatusResponseDTO, error) {
+				return &MFAStatusResponseDTO{}, nil // no factors — must still pass via acr=2
+			},
+			wantStatus: http.StatusOK,
+			wantNext:   true,
+		},
+		{
+			name: "enrolled MFA factor passes without step-up",
+			request: func() *http.Request {
+				return withMFAUser(httptest.NewRequest(http.MethodGet, "/mfa/webauthn/x/download", nil))
+			},
+			statusFn: func(context.Context, int64) (*MFAStatusResponseDTO, error) {
+				return &MFAStatusResponseDTO{IsWebAuthnEnabled: true}, nil
+			},
+			wantStatus: http.StatusOK,
+			wantNext:   true,
+		},
+		{
+			name: "no enrolled MFA and no step-up is forbidden",
+			request: func() *http.Request {
+				return withMFAUser(httptest.NewRequest(http.MethodGet, "/mfa/webauthn/x/download", nil))
+			},
+			statusFn: func(context.Context, int64) (*MFAStatusResponseDTO, error) {
+				return &MFAStatusResponseDTO{}, nil
+			},
+			wantStatus: http.StatusForbidden,
+			wantNext:   false,
+		},
+		{
+			name: "missing user is unauthorized",
+			request: func() *http.Request {
+				return httptest.NewRequest(http.MethodGet, "/mfa/webauthn/x/download", nil)
+			},
+			statusFn:   func(context.Context, int64) (*MFAStatusResponseDTO, error) { return &MFAStatusResponseDTO{}, nil },
+			wantStatus: http.StatusUnauthorized,
+			wantNext:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewMFAHandler(&mockMFAService{getMFAStatusFn: tt.statusFn}, &mockWebAuthnService{})
+
+			nextCalled := false
+			next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				nextCalled = true
+				w.WriteHeader(http.StatusOK)
+			})
+
+			rec := httptest.NewRecorder()
+			h.RequireStepUpOrEnrolledMFA(next).ServeHTTP(rec, tt.request())
+
+			assert.Equal(t, tt.wantStatus, rec.Code)
+			assert.Equal(t, tt.wantNext, nextCalled)
+		})
+	}
 }

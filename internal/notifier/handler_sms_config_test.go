@@ -72,7 +72,7 @@ func TestSMSConfigHandler_Update_ValidationError(t *testing.T) {
 
 func TestSMSConfigHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockSMSConfigService{
-		updateFn: func(_ int64, _, _, _, _, _ string, _ *bool) (*SMSConfigServiceDataResult, error) {
+		updateFn: func(_ int64, _, _, _, _, _ string, _ *int, _ *bool) (*SMSConfigServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -85,7 +85,7 @@ func TestSMSConfigHandler_Update_ServiceError(t *testing.T) {
 
 func TestSMSConfigHandler_Update_Success(t *testing.T) {
 	svc := &mockSMSConfigService{
-		updateFn: func(_ int64, _, _, _, _, _ string, _ *bool) (*SMSConfigServiceDataResult, error) {
+		updateFn: func(_ int64, _, _, _, _, _ string, _ *int, _ *bool) (*SMSConfigServiceDataResult, error) {
 			return &SMSConfigServiceDataResult{SMSConfigUUID: uuid.New(), Provider: "twilio"}, nil
 		},
 	}

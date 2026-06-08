@@ -662,6 +662,9 @@ func loginMFAAllowedMethods(user *User, policyMethods []string) []string {
 	if userHasAnyMFAFactor(user) && policyAllows["backup_code"] {
 		methods = append(methods, "backup_code")
 	}
+	if user.IsPhoneVerified && user.Phone != "" && policyAllows["sms"] {
+		methods = append(methods, "sms")
+	}
 	return methods
 }
 

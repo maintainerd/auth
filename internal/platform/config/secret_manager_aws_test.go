@@ -55,7 +55,7 @@ func TestAWSSecretsManager_SecretID(t *testing.T) {
 	}{
 		{"with prefix", "maintainerd/auth", "JWT_PRIVATE_KEY", "maintainerd/auth/jwt-private-key"},
 		{"no prefix", "", "DB_PASSWORD", "db-password"},
-		{"complex key", "app", "SMTP_FROM_EMAIL", "app/smtp-from-email"},
+		{"complex key", "app", "SOME_SECRET_KEY", "app/some-secret-key"},
 	}
 
 	for _, tc := range tests {

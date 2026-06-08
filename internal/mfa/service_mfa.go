@@ -2,12 +2,15 @@ package mfa
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"time"
 
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
@@ -15,6 +18,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/platform/sms"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/hotp"
@@ -33,6 +37,9 @@ const (
 	mfaBackupCodeCount  = 10
 	mfaBackupCodeLength = 10
 	stepUpChallengeTTL  = 5 * time.Minute
+	smsStepUpOTPLength  = 6
+	smsStepUpTTL        = 10 * time.Minute
+	smsStepUpMaxFailed  = 3
 )
 
 var (
@@ -72,6 +79,12 @@ type MFAService interface {
 	// Step-up
 	IssueStepUpChallenge(ctx context.Context, userUUID string, allowedMethods []string) (*StepUpChallengeResponseDTO, error)
 	VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDTO, userID int64) (*StepUpVerifyResponseDTO, error)
+	SendStepUpSMS(ctx context.Context, userID int64) error
+
+	// SMS MFA enrollment
+	EnrollSMS(ctx context.Context, userID int64, phone string) error
+	VerifySMS(ctx context.Context, userID int64, phone, code string) error
+	DisableSMS(ctx context.Context, userID int64) error
 }
 
 type mfaService struct {
@@ -80,6 +93,8 @@ type mfaService struct {
 	totpRepo         UserTOTPSecretRepository
 	webAuthnCredRepo UserWebAuthnCredentialRepository
 	backupCodeRepo   UserBackupCodeRepository
+	smsPhoneRepo     UserSMSPhoneRepository
+	smsOtpRepo       notifier.UserOTPRepository
 	secSettingRepo   secpolicy.SecuritySettingRepository
 	authEventService authevent.AuthEventService
 }
@@ -91,6 +106,8 @@ func NewMFAService(
 	totpRepo UserTOTPSecretRepository,
 	webAuthnCredRepo UserWebAuthnCredentialRepository,
 	backupCodeRepo UserBackupCodeRepository,
+	smsPhoneRepo UserSMSPhoneRepository,
+	smsOtpRepo notifier.UserOTPRepository,
 	secSettingRepo secpolicy.SecuritySettingRepository,
 	authEventService authevent.AuthEventService,
 ) MFAService {
@@ -100,6 +117,8 @@ func NewMFAService(
 		totpRepo:         totpRepo,
 		webAuthnCredRepo: webAuthnCredRepo,
 		backupCodeRepo:   backupCodeRepo,
+		smsPhoneRepo:     smsPhoneRepo,
+		smsOtpRepo:       smsOtpRepo,
 		secSettingRepo:   secSettingRepo,
 		authEventService: authEventService,
 	}
@@ -419,6 +438,7 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 	resp := &MFAStatusResponseDTO{
 		IsTOTPEnabled:     user.IsTOTPEnabled,
 		IsWebAuthnEnabled: user.IsWebAuthnEnabled,
+		IsSMSEnabled:      s.isSMSEnabled(ctx, userID),
 		BackupCodesCount:  backupCount,
 		WebAuthnKeys:      credSummaries,
 	}
@@ -492,6 +512,10 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete target WebAuthn credentials", err)
 	}
+	if err := s.smsPhoneRepo.DeleteByUserID(targetUserID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete target SMS phone", err)
+	}
 
 	if err := s.db.Model(&User{}).Where("user_id = ?", targetUserID).
 		Updates(map[string]any{
@@ -540,6 +564,170 @@ func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, 
 		ChallengeToken: token,
 		AllowedMethods: allowedMethods,
 	}, nil
+}
+
+func (s *mfaService) SendStepUpSMS(ctx context.Context, userID int64) error {
+	_, span := otel.Tracer("service").Start(ctx, "mfa.send_step_up_sms")
+	defer span.End()
+
+	phoneRecord, err := s.smsPhoneRepo.FindByUserID(userID)
+	if err != nil {
+		return apperror.NewInternal("failed to look up MFA phone", err)
+	}
+	if phoneRecord == nil || !phoneRecord.IsVerified {
+		return apperror.NewValidation("no verified MFA phone on file")
+	}
+
+	if err := security.CheckRateLimit("mfa-sms-step-up:" + phoneRecord.Phone); err != nil {
+		return err
+	}
+
+	otpCode, err := crypto.GenerateOTP(smsStepUpOTPLength)
+	if err != nil {
+		return apperror.NewInternal("failed to generate SMS OTP", err)
+	}
+	otpHash := crypto.HashAuthorizationCode(otpCode)
+
+	s.db.Where("user_id = ?", userID).Delete(&notifier.UserOTP{})
+
+	record := &notifier.UserOTP{
+		UserID:    userID,
+		Channel:   "sms",
+		Recipient: phoneRecord.Phone,
+		OTPHash:   otpHash,
+		ExpiresAt: time.Now().Add(smsStepUpTTL),
+	}
+	if _, err := s.smsOtpRepo.Create(record); err != nil {
+		return apperror.NewInternal("failed to store SMS OTP", err)
+	}
+
+	tenantID := mfaUserTenantID(ctx, s.db, userID)
+	provider, smsErr := sms.NewProviderFromDB(ctx, s.db, tenantID)
+	if smsErr != nil {
+		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phoneRecord.Phone, "otp", otpCode)
+	} else if provider != nil {
+		if sendErr := provider.Send(ctx, phoneRecord.Phone, fmt.Sprintf("Your step-up code is: %s", otpCode)); sendErr != nil {
+			slog.Error("SMS step-up send failed", "err", sendErr)
+		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) error {
+	_, span := otel.Tracer("service").Start(ctx, "mfa.enroll_sms")
+	defer span.End()
+
+	if phone == "" {
+		return apperror.NewValidation("phone is required")
+	}
+
+	record, err := s.smsPhoneRepo.FindByUserID(userID)
+	if err != nil {
+		return apperror.NewInternal("failed to check existing MFA phone", err)
+	}
+	if record != nil && record.IsVerified {
+		return apperror.NewConflict("SMS MFA is already enrolled — disable it first")
+	}
+
+	otpCode, err := crypto.GenerateOTP(smsStepUpOTPLength)
+	if err != nil {
+		return apperror.NewInternal("failed to generate SMS OTP", err)
+	}
+	otpHash := crypto.HashAuthorizationCode(otpCode)
+
+	s.db.Where("user_id = ?", userID).Delete(&notifier.UserOTP{})
+	otpRecord := &notifier.UserOTP{
+		UserID:    userID,
+		Channel:   "sms",
+		Recipient: phone,
+		OTPHash:   otpHash,
+		ExpiresAt: time.Now().Add(smsStepUpTTL),
+	}
+	if _, err := s.smsOtpRepo.Create(otpRecord); err != nil {
+		return apperror.NewInternal("failed to store SMS OTP", err)
+	}
+
+	tenantID := mfaUserTenantID(ctx, s.db, userID)
+	provider, smsErr := sms.NewProviderFromDB(ctx, s.db, tenantID)
+	if smsErr != nil {
+		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phone, "otp", otpCode)
+	} else if provider != nil {
+		if sendErr := provider.Send(ctx, phone, fmt.Sprintf("Your MFA verification code is: %s", otpCode)); sendErr != nil {
+			slog.Error("SMS enrollment send failed — logging OTP for dev", "err", sendErr, "phone", phone, "otp", otpCode)
+		}
+	} else {
+		slog.Info("SMS OTP (no provider) — use for dev", "phone", phone, "otp", otpCode)
+	}
+
+	existing, _ := s.smsPhoneRepo.FindByUserID(userID)
+	if existing != nil {
+		existing.Phone = phone
+		existing.IsVerified = false
+		existing.VerifiedAt = nil
+		if _, err := s.smsPhoneRepo.CreateOrUpdate(existing); err != nil {
+			return apperror.NewInternal("failed to save MFA phone", err)
+		}
+	} else {
+		if _, err := s.smsPhoneRepo.CreateOrUpdate(&UserSMSPhone{UserID: userID, Phone: phone}); err != nil {
+			return apperror.NewInternal("failed to save MFA phone", err)
+		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *mfaService) VerifySMS(ctx context.Context, userID int64, phone, code string) error {
+	_, span := otel.Tracer("service").Start(ctx, "mfa.verify_sms")
+	defer span.End()
+
+	record, err := s.smsPhoneRepo.FindByUserID(userID)
+	if err != nil {
+		return apperror.NewInternal("failed to look up MFA phone", err)
+	}
+	if record == nil || record.Phone != phone {
+		return apperror.NewValidation("no pending SMS enrollment for this phone")
+	}
+
+	otpRecord, lerr := s.smsOtpRepo.FindValid("sms", phone)
+	if lerr != nil || otpRecord == nil {
+		return apperror.NewUnauthorized("invalid or expired SMS code")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(otpRecord.OTPHash), []byte(crypto.HashAuthorizationCode(code))) != 1 {
+		_ = s.smsOtpRepo.RecordFailure(otpRecord.UserOTPID, smsStepUpMaxFailed)
+		return apperror.NewUnauthorized("invalid SMS code")
+	}
+	if err := s.smsOtpRepo.MarkUsed(otpRecord.UserOTPID); err != nil {
+		return apperror.NewInternal("failed to mark SMS OTP used", err)
+	}
+
+	now := time.Now()
+	record.IsVerified = true
+	record.VerifiedAt = &now
+	if _, err := s.smsPhoneRepo.CreateOrUpdate(record); err != nil {
+		return apperror.NewInternal("failed to verify MFA phone", err)
+	}
+
+	s.ensureMFAFlag(ctx, userID)
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *mfaService) DisableSMS(ctx context.Context, userID int64) error {
+	if err := s.smsPhoneRepo.DeleteByUserID(userID); err != nil {
+		return apperror.NewInternal("failed to disable SMS MFA", err)
+	}
+	return nil
+}
+
+func (s *mfaService) ensureMFAFlag(ctx context.Context, userID int64) {
+	now := time.Now()
+	s.db.Model(&User{}).Where("user_id = ? AND mfa_enabled_at IS NULL", userID).
+		Update("mfa_enabled_at", now)
 }
 
 // VerifyStepUp validates the step-up challenge token, verifies the provided
@@ -610,6 +798,34 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 		}
 		amr = []string{"pwd", "mfa"}
 
+	case "sms":
+		smsRateLimitKey := security.RateLimitKey(fmt.Sprintf("sms_step_up:%d", userID), "verify")
+		if err := checkMFARateLimit(smsRateLimitKey); err != nil {
+			span.SetStatus(codes.Error, "sms step-up rate limited")
+			return nil, apperror.NewUnauthorized("too many attempts; try again later")
+		}
+		user, uerr := s.userRepo.FindByID(userID)
+		if uerr != nil || user == nil || user.Phone == "" {
+			return nil, apperror.NewUnauthorized("no verified phone on file")
+		}
+		record, lerr := s.smsOtpRepo.FindValid("sms", user.Phone)
+		if lerr != nil || record == nil {
+			security.RecordFailedAttempt(smsRateLimitKey)
+			span.SetStatus(codes.Error, "no valid SMS OTP found")
+			return nil, apperror.NewUnauthorized("no valid SMS code found — request a new one")
+		}
+		if subtle.ConstantTimeCompare([]byte(record.OTPHash), []byte(crypto.HashAuthorizationCode(req.Code))) != 1 {
+			_ = s.smsOtpRepo.RecordFailure(record.UserOTPID, smsStepUpMaxFailed)
+			security.RecordFailedAttempt(smsRateLimitKey)
+			span.SetStatus(codes.Error, "SMS OTP invalid")
+			return nil, apperror.NewUnauthorized("invalid SMS code")
+		}
+		if err := s.smsOtpRepo.MarkUsed(record.UserOTPID); err != nil {
+			span.RecordError(err)
+			return nil, apperror.NewInternal("failed to mark SMS OTP used", err)
+		}
+		amr = []string{"pwd", "sms"}
+
 	default:
 		return nil, apperror.NewValidation(fmt.Sprintf("unsupported step-up method: %s", req.Method))
 	}
@@ -666,4 +882,23 @@ func stepUpMethodAllowed(raw any, method string) bool {
 		}
 	}
 	return false
+}
+
+func mfaUserTenantID(ctx context.Context, db *gorm.DB, userID int64) int64 {
+	var tenantID int64
+	if err := db.WithContext(ctx).
+		Table("user_identities").
+		Select("tenant_id").
+		Where("user_id = ?", userID).
+		Order("tenant_id ASC").
+		Limit(1).
+		Scan(&tenantID).Error; err != nil || tenantID == 0 {
+		return 0
+	}
+	return tenantID
+}
+
+func (s *mfaService) isSMSEnabled(ctx context.Context, userID int64) bool {
+	record, err := s.smsPhoneRepo.FindByUserID(userID)
+	return err == nil && record != nil && record.IsVerified
 }

@@ -7,7 +7,7 @@ func (r SMSConfigUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Provider,
 			validation.Required.Error("Provider is required"),
-			validation.In("twilio", "sns", "vonage", "messagebird").Error("Provider must be one of: twilio, sns, vonage, messagebird"),
+			validation.In("twilio", "sns", "vonage", "messagebird", "log").Error("Provider must be one of: twilio, sns, vonage, messagebird, log"),
 		),
 		validation.Field(&r.AccountSID,
 			validation.Length(0, 255).Error("Account SID must not exceed 255 characters"),

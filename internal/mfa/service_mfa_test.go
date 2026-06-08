@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/config"
 	authjwt "github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -150,6 +151,7 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 				userRepo:         &mockUserRepo{findByID: tt.user, findByIDErr: tt.userErr},
 				backupCodeRepo:   &mockBackupCodeRepo{findUnused: tt.codes},
 				webAuthnCredRepo: &mockWebAuthnCredentialRepo{findByUserID: tt.creds, findByUserIDErr: tt.credsErr},
+				smsPhoneRepo:     &mockSMSPhoneRepo{},
 			}
 
 			got, err := svc.GetMFAStatus(t.Context(), 42)
@@ -258,7 +260,7 @@ func TestMFAService_UserHasMFA(t *testing.T) {
 
 func TestNewMFAService(t *testing.T) {
 	db, _ := newMockGormDB(t)
-	svc := NewMFAService(db, &mockUserRepo{}, &mockTOTPSecretRepo{}, &mockWebAuthnCredentialRepo{}, &mockBackupCodeRepo{}, &mockSecuritySettingRepo{}, &mockAuthEventService{})
+	svc := NewMFAService(db, &mockUserRepo{}, &mockTOTPSecretRepo{}, &mockWebAuthnCredentialRepo{}, &mockBackupCodeRepo{}, &mockSMSPhoneRepo{}, &mockSMSOtpRepo{}, &mockSecuritySettingRepo{}, &mockAuthEventService{})
 	require.NotNil(t, svc)
 	assert.IsType(t, &mfaService{}, svc)
 }
@@ -552,6 +554,7 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 			totpRepo:         &mockTOTPSecretRepo{},
 			backupCodeRepo:   &mockBackupCodeRepo{},
 			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
+			smsPhoneRepo:     &mockSMSPhoneRepo{},
 			authEventService: events,
 		}
 
@@ -592,6 +595,7 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
 				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
 				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
+				smsPhoneRepo:     &mockSMSPhoneRepo{},
 				authEventService: &mockAuthEventService{},
 			}
 
@@ -804,7 +808,7 @@ func TestMFAService_StepUp(t *testing.T) {
 		}
 		svc := &mfaService{userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}}}
 
-		_, err := svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "sms", Code: "123456"}, mfaTestUserID)
+		_, err := svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "xyz", Code: "123456"}, mfaTestUserID)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported step-up method")
@@ -934,3 +938,31 @@ func (m *mockTOTPSecretRepo) MarkStepUsed(int64, int64) (bool, error) {
 	return m.markAccepted, m.markStepErr
 }
 func (m *mockTOTPSecretRepo) DeleteByUserID(int64) error { return nil }
+
+type mockSMSOtpRepo struct {
+	mockBaseRepositoryMethods[notifier.UserOTP]
+	findValid   *notifier.UserOTP
+	findValidErr error
+	recordFailErr error
+	markUsedErr   error
+}
+
+func (m *mockSMSOtpRepo) WithTx(*gorm.DB) notifier.UserOTPRepository { return m }
+func (m *mockSMSOtpRepo) FindValid(channel, recipient string) (*notifier.UserOTP, error) {
+	return m.findValid, m.findValidErr
+}
+func (m *mockSMSOtpRepo) RecordFailure(int64, int) error    { return m.recordFailErr }
+func (m *mockSMSOtpRepo) MarkUsed(int64) error              { return m.markUsedErr }
+
+type mockSMSPhoneRepo struct {
+	mockBaseRepositoryMethods[UserSMSPhone]
+	findByUserID   *UserSMSPhone
+	findByUserIDErr error
+	deleteErr      error
+}
+
+func (m *mockSMSPhoneRepo) WithTx(*gorm.DB) UserSMSPhoneRepository { return m }
+func (m *mockSMSPhoneRepo) FindByUserID(int64) (*UserSMSPhone, error) {
+	return m.findByUserID, m.findByUserIDErr
+}
+func (m *mockSMSPhoneRepo) DeleteByUserID(int64) error { return m.deleteErr }

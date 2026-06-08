@@ -73,7 +73,7 @@ func TestEmailConfigHandler_Update_ValidationError(t *testing.T) {
 
 func TestEmailConfigHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockEmailConfigService{
-		updateFn: func(_ int64, _, _ string, _ int, _, _, _, _, _, _ string, _ *bool) (*EmailConfigServiceDataResult, error) {
+		updateFn: func(_ int64, _, _ string, _ int, _, _, _, _, _, _, _ string, _ *bool) (*EmailConfigServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -89,7 +89,7 @@ func TestEmailConfigHandler_Update_ServiceError(t *testing.T) {
 
 func TestEmailConfigHandler_Update_Success(t *testing.T) {
 	svc := &mockEmailConfigService{
-		updateFn: func(_ int64, _, _ string, _ int, _, _, _, _, _, _ string, _ *bool) (*EmailConfigServiceDataResult, error) {
+		updateFn: func(_ int64, _, _ string, _ int, _, _, _, _, _, _, _ string, _ *bool) (*EmailConfigServiceDataResult, error) {
 			return &EmailConfigServiceDataResult{EmailConfigUUID: uuid.New(), Provider: "smtp"}, nil
 		},
 	}

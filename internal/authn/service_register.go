@@ -234,11 +234,12 @@ func (s *registerService) RegisterPublic(
 
 		// Create user identity
 		userIdentity := &UserIdentity{
-			UserID:   createdUser.UserID,
-			ClientID: Client.ClientID,
-			Provider: shared.ProviderDefault,
-			Sub:      uuid.New().String(),
-			Metadata: datatypes.JSON([]byte(`{}`)),
+			UserID:             createdUser.UserID,
+			ClientID:           Client.ClientID,
+			IdentityProviderID: &Client.IdentityProviderID,
+			Provider:           shared.ProviderDefault,
+			Sub:                uuid.New().String(),
+			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)
@@ -389,12 +390,13 @@ func (s *registerService) Register(
 
 		// Create user identity
 		userIdentity := &UserIdentity{
-			TenantID: tenantId,
-			UserID:   createdUser.UserID,
-			ClientID: Client.ClientID,
-			Provider: shared.ProviderDefault,
-			Sub:      uuid.New().String(),
-			Metadata: datatypes.JSON([]byte(`{}`)),
+			TenantID:           tenantId,
+			UserID:             createdUser.UserID,
+			ClientID:           Client.ClientID,
+			IdentityProviderID: &Client.IdentityProviderID,
+			Provider:           shared.ProviderDefault,
+			Sub:                uuid.New().String(),
+			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)
@@ -537,12 +539,13 @@ func (s *registerService) RegisterInvite(
 
 		// Create user identity
 		userIdentity := &UserIdentity{
-			TenantID: tenantId,
-			UserID:   createdUser.UserID,
-			ClientID: Client.ClientID,
-			Provider: shared.ProviderDefault,
-			Sub:      uuid.New().String(),
-			Metadata: datatypes.JSON([]byte(`{}`)),
+			TenantID:           tenantId,
+			UserID:             createdUser.UserID,
+			ClientID:           Client.ClientID,
+			IdentityProviderID: &Client.IdentityProviderID,
+			Provider:           shared.ProviderDefault,
+			Sub:                uuid.New().String(),
+			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)
@@ -720,12 +723,13 @@ func (s *registerService) RegisterInvitePublic(
 
 		// Create user identity
 		userIdentity := &UserIdentity{
-			TenantID: tenantId,
-			UserID:   createdUser.UserID,
-			ClientID: Client.ClientID,
-			Provider: shared.ProviderDefault,
-			Sub:      uuid.New().String(),
-			Metadata: datatypes.JSON([]byte(`{}`)),
+			TenantID:           tenantId,
+			UserID:             createdUser.UserID,
+			ClientID:           Client.ClientID,
+			IdentityProviderID: &Client.IdentityProviderID,
+			Provider:           shared.ProviderDefault,
+			Sub:                uuid.New().String(),
+			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)

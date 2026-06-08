@@ -411,7 +411,7 @@ func (s *oauthDeviceService) sendDeviceApprovalEmail(ctx context.Context, user *
 		 <p>If you did not approve this request, please secure your account immediately.</p>`,
 		strings.ReplaceAll(clientName, "<", "&lt;"),
 	)
-	return email.SendEmail(ctx, email.SendEmailParams{
+	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:        user.Email,
 		Subject:   "Device Authorization Approved",
 		BodyHTML:  bodyHTML,

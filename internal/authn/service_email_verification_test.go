@@ -15,6 +15,7 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 // ---------------------------------------------------------------------------
@@ -134,7 +135,7 @@ func TestSendVerificationEmail(t *testing.T) {
 		config.AppPublicHostname = "http://localhost"
 
 		origSendEmail := email.SendEmail
-		email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+		email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 		defer func() { email.SendEmail = origSendEmail }()
 
 		clientRepo := &mockClientRepo{
@@ -421,7 +422,7 @@ func TestSendVerificationEmail_DefaultClient(t *testing.T) {
 	config.AppPublicHostname = "http://localhost"
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -606,7 +607,7 @@ func TestSendVerificationEmail_TemplateFindByNameError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -660,7 +661,7 @@ func TestSendVerificationEmail_TemplateParseError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -717,7 +718,7 @@ func TestSendVerificationEmail_TemplateExecuteError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -774,7 +775,7 @@ func TestSendVerificationEmail_PlaintextParseError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{
@@ -833,7 +834,7 @@ func TestSendVerificationEmail_PlaintextExecuteError(t *testing.T) {
 	mock.ExpectCommit()
 
 	origSendEmail := email.SendEmail
-	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
 	defer func() { email.SendEmail = origSendEmail }()
 
 	clientRepo := &mockClientRepo{

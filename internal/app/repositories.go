@@ -73,7 +73,8 @@ type repos struct {
 	oauthPARRequestRepo       oauth.OAuthPARRequestRepository
 	oauthDeviceCodeRepo       oauth.OAuthDeviceCodeRepository
 	oauthCIBARequestRepo      oauth.OAuthCIBARequestRepository
-	smsOtpRepo                notifier.SMSOtpRepository
+	smsOtpRepo                notifier.UserOTPRepository
+	smsPhoneRepo              mfa.UserSMSPhoneRepository
 	userBackupCodeRepo        mfa.UserBackupCodeRepository
 	totpSecretRepo            mfa.UserTOTPSecretRepository
 	webAuthnCredRepo          mfa.UserWebAuthnCredentialRepository
@@ -134,7 +135,8 @@ func initRepos(db *gorm.DB) *repos {
 		oauthPARRequestRepo:       oauth.NewOAuthPARRequestRepository(db),
 		oauthDeviceCodeRepo:       oauth.NewOAuthDeviceCodeRepository(db),
 		oauthCIBARequestRepo:      oauth.NewOAuthCIBARequestRepository(db),
-		smsOtpRepo:                notifier.NewSMSOtpRepository(db),
+		smsOtpRepo:                notifier.NewUserOTPRepository(db),
+		smsPhoneRepo:              mfa.NewUserSMSPhoneRepository(db),
 		userBackupCodeRepo:        mfa.NewUserBackupCodeRepository(db),
 		totpSecretRepo:            mfa.NewUserTOTPSecretRepository(db),
 		webAuthnCredRepo:          mfa.NewUserWebAuthnCredentialRepository(db),

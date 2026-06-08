@@ -13,13 +13,13 @@ type EmailConfigResponseDTO struct {
 	FromName      string    `json:"from_name"`
 	ReplyTo       string    `json:"reply_to"`
 	Encryption    string    `json:"encryption"`
+	LogoURL       string    `json:"logo_url"`
 	TestMode      bool      `json:"test_mode"`
 	Status        string    `json:"status"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// EmailConfigUpdateRequestDTO is the request body for updating email config.
 type EmailConfigUpdateRequestDTO struct {
 	Provider    string `json:"provider"`
 	Host        string `json:"host"`
@@ -30,28 +30,29 @@ type EmailConfigUpdateRequestDTO struct {
 	FromName    string `json:"from_name"`
 	ReplyTo     string `json:"reply_to"`
 	Encryption  string `json:"encryption"`
+	LogoURL     string `json:"logo_url"`
 	TestMode    *bool  `json:"test_mode"`
 }
 
-// SMSConfigResponseDTO is the JSON representation of an SMS config record.
 type SMSConfigResponseDTO struct {
-	SMSConfigID string    `json:"sms_config_id"`
-	Provider    string    `json:"provider"`
-	AccountSID  string    `json:"account_sid"`
-	FromNumber  string    `json:"from_number"`
-	SenderID    string    `json:"sender_id"`
-	TestMode    bool      `json:"test_mode"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	SMSConfigID    string    `json:"sms_config_id"`
+	Provider       string    `json:"provider"`
+	AccountSID     string    `json:"account_sid"`
+	FromNumber     string    `json:"from_number"`
+	SenderID       string    `json:"sender_id"`
+	TestMode       bool      `json:"test_mode"`
+	DailySendLimit int       `json:"daily_send_limit"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
-// SMSConfigUpdateRequestDTO is the request body for updating SMS config.
 type SMSConfigUpdateRequestDTO struct {
-	Provider   string `json:"provider"`
-	AccountSID string `json:"account_sid"`
-	AuthToken  string `json:"auth_token"`
-	FromNumber string `json:"from_number"`
-	SenderID   string `json:"sender_id"`
-	TestMode   *bool  `json:"test_mode"`
+	Provider       string `json:"provider"`
+	AccountSID     string `json:"account_sid"`
+	AuthToken      string `json:"auth_token"`
+	FromNumber     string `json:"from_number"`
+	SenderID       string `json:"sender_id"`
+	DailySendLimit *int   `json:"daily_send_limit"`
+	TestMode       *bool  `json:"test_mode"`
 }

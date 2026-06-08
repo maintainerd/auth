@@ -633,6 +633,7 @@ type mockUserService struct {
 	getUserIdentsFn        func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
 	findBySubAndClientIDFn func(string, string) (*User, error)
 	forcePasswordChangeFn  func(uuid.UUID, bool) error
+	getUserMFAFn           func(uuid.UUID, int64) (*UserMFAResponseDTO, error)
 }
 
 func (m *mockUserService) Get(_ context.Context, f UserServiceGetFilter) (*UserServiceGetResult, error) {
@@ -733,6 +734,12 @@ func (m *mockUserService) ForcePasswordChange(_ context.Context, userUUID uuid.U
 		return m.forcePasswordChangeFn(userUUID, force)
 	}
 	return nil
+}
+func (m *mockUserService) GetUserMFA(_ context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error) {
+	if m.getUserMFAFn != nil {
+		return m.getUserMFAFn(userUUID, tenantID)
+	}
+	return &UserMFAResponseDTO{}, nil
 }
 
 type mockProfileService struct {

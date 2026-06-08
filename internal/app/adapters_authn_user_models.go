@@ -80,6 +80,7 @@ func toUserUserIdentity(u *authn.UserIdentity) *user.UserIdentity {
 	return &user.UserIdentity{
 		UserIdentityID: u.UserIdentityID, UserIdentityUUID: u.UserIdentityUUID,
 		TenantID: u.TenantID, UserID: u.UserID, ClientID: u.ClientID,
+		IdentityProviderID: u.IdentityProviderID,
 		Provider: u.Provider, Sub: u.Sub, Metadata: u.Metadata,
 		CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
 	}

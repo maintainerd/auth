@@ -22,6 +22,7 @@ type EmailConfig struct {
 	FromName          string         `gorm:"column:from_name;type:varchar(255)" json:"from_name"`
 	ReplyTo           string         `gorm:"column:reply_to;type:varchar(255)" json:"reply_to"`
 	Encryption        string         `gorm:"column:encryption;type:varchar(20)" json:"encryption"`
+	LogoURL           string         `gorm:"column:logo_url;type:text" json:"logo_url"`
 	TestMode          bool           `gorm:"column:test_mode;not null;default:false" json:"test_mode"`
 	Status            string         `gorm:"column:status;type:varchar(20);not null;default:'active'" json:"status"`
 	Metadata          datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'" json:"metadata"`

@@ -138,7 +138,7 @@ func (s *accountService) sendEmailChangeOTP(ctx context.Context, toEmail, otp st
 	subject := "Your email change verification code"
 	bodyHTML := fmt.Sprintf("<p>Your email change verification code is: <strong>%s</strong>. It expires in 1 hour.</p>", otp)
 
-	return email.SendEmail(ctx, email.SendEmailParams{
+	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:       toEmail,
 		Subject:  subject,
 		BodyHTML: bodyHTML,

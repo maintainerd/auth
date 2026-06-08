@@ -20,6 +20,7 @@ type SMSConfig struct {
 	FromNumber         string         `gorm:"column:from_number;type:varchar(50)" json:"from_number"`
 	SenderID           string         `gorm:"column:sender_id;type:varchar(50)" json:"sender_id"`
 	TestMode           bool           `gorm:"column:test_mode;not null;default:false" json:"test_mode"`
+	DailySendLimit     int            `gorm:"column:daily_send_limit;not null;default:1000" json:"daily_send_limit"`
 	Status             string         `gorm:"column:status;type:varchar(20);not null;default:'active'" json:"status"`
 	Metadata           datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'" json:"metadata"`
 	CreatedBy          *int64         `gorm:"column:created_by" json:"created_by,omitempty"`

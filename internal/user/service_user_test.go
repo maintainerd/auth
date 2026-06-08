@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -1871,5 +1872,136 @@ func TestToClientServiceDataResult(t *testing.T) {
 		res := ToClientServiceDataResult(client)
 		require.NotNil(t, res)
 		assert.Equal(t, "app", res.Name)
+	})
+}
+
+func TestUserService_GetUserMFA(t *testing.T) {
+	uid := uuid.New()
+	userID := int64(42)
+
+	t.Run("user not found", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
+		_, err := svc.GetUserMFA(context.Background(), uid, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("FindByUUID db error", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, errors.New("db error") }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
+		_, err := svc.GetUserMFA(context.Background(), uid, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("tenant access denied", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
+		_, err := svc.GetUserMFA(context.Background(), uid, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "access denied")
+	})
+
+	t.Run("backup codes count error", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_backup_codes" WHERE user_id = \$1 AND used = false`).
+			WithArgs(userID).
+			WillReturnError(errors.New("db error"))
+		_, err := svc.GetUserMFA(context.Background(), uid, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to count backup codes")
+	})
+
+	t.Run("webauthn query error", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_backup_codes" WHERE user_id = \$1 AND used = false`).
+			WithArgs(userID).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_webauthn_credentials" WHERE user_id = \$1`).
+			WithArgs(userID).
+			WillReturnError(errors.New("db error"))
+		_, err := svc.GetUserMFA(context.Background(), uid, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to query webauthn credentials")
+	})
+
+	t.Run("success with MFA configured", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		mfaAt := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			return &User{
+				UserID:             userID,
+				IsTOTPEnabled:      true,
+				IsWebAuthnEnabled:  true,
+				IsPhoneVerified:    true,
+				MFAEnabledAt:       &mfaAt,
+				UserIdentities:     []UserIdentity{{TenantID: 1}},
+			}, nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_backup_codes" WHERE user_id = \$1 AND used = false`).
+			WithArgs(userID).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
+		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_webauthn_credentials" WHERE user_id = \$1`).
+			WithArgs(userID).
+			WillReturnRows(sqlmock.NewRows([]string{"credential_uuid", "name", "transport", "last_used_at", "created_at"}).
+				AddRow("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Phone Key", "internal", time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC), time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)))
+		mock.ExpectQuery(`SELECT is_verified FROM "user_sms_phones" WHERE user_id = \$1`).
+			WithArgs(userID).
+			WillReturnRows(sqlmock.NewRows([]string{"is_verified"}).AddRow(true))
+		res, err := svc.GetUserMFA(context.Background(), uid, 1)
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+		assert.True(t, res.IsTOTPEnabled)
+		assert.True(t, res.IsWebAuthnEnabled)
+		assert.True(t, res.IsSMSEnabled)
+		assert.Equal(t, 5, res.BackupCodesCount)
+		assert.NotNil(t, res.MFAEnabledAt)
+		assert.Len(t, res.WebAuthnKeys, 1)
+		assert.Equal(t, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", res.WebAuthnKeys[0].CredentialUUID)
+		assert.Equal(t, "Phone Key", res.WebAuthnKeys[0].Name)
+	})
+
+	t.Run("success with no MFA configured", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			return &User{
+				UserID:         userID,
+				UserIdentities: []UserIdentity{{TenantID: 1}},
+			}, nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_backup_codes" WHERE user_id = \$1 AND used = false`).
+			WithArgs(userID).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_webauthn_credentials" WHERE user_id = \$1`).
+			WithArgs(userID).
+			WillReturnRows(sqlmock.NewRows([]string{"credential_uuid", "name", "transport", "last_used_at", "created_at"}))
+		mock.ExpectQuery(`SELECT is_verified FROM "user_sms_phones" WHERE user_id = \$1`).
+			WithArgs(userID).
+			WillReturnRows(sqlmock.NewRows([]string{"is_verified"}).AddRow(false))
+		res, err := svc.GetUserMFA(context.Background(), uid, 1)
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+		assert.False(t, res.IsTOTPEnabled)
+		assert.False(t, res.IsWebAuthnEnabled)
+		assert.False(t, res.IsSMSEnabled)
+		assert.Equal(t, 0, res.BackupCodesCount)
+		assert.Nil(t, res.MFAEnabledAt)
+		assert.Empty(t, res.WebAuthnKeys)
 	})
 }

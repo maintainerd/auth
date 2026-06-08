@@ -302,7 +302,7 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 		LogoURL      string
 	}{
 		MagicLinkURL: magicLinkURL,
-		LogoURL:      config.EmailLogo,
+		LogoURL: email.GetLogoURL(ctx, s.db),
 	}
 
 	tmpl, err := template.New("magic_link_html").Parse(templateEntity.BodyHTML)
@@ -327,7 +327,7 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 		bodyPlainStr = bodyPlain.String()
 	}
 
-	return email.SendEmail(ctx, email.SendEmailParams{
+	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

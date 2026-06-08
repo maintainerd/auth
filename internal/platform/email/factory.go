@@ -5,22 +5,72 @@ import (
 	"fmt"
 
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/shared"
+	"gorm.io/gorm"
 )
 
-// NewSystemProvider constructs a Provider from the application's global config.
-// Provider is selected by the EMAIL_PROVIDER env var (default "smtp").
-func NewSystemProvider(ctx context.Context) (Provider, error) {
-	cfg := ProviderConfig{
-		Provider: config.EmailProvider,
-		Host:     config.SMTPHost,
-		Port:     config.SMTPPort,
-		Username: config.SMTPUser,
-		Password: config.SMTPPass,
-		APIKey:   config.EmailAPIKey,
-		Domain:   config.EmailDomain,
-		Region:   config.EmailRegion,
+// NewProviderFromDB reads the tenant-scoped email_config row, decrypts the
+// stored password, and returns a Provider. When no config exists for the
+// given tenant, it falls back to the system tenant.
+func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provider, error) {
+	var cfg struct {
+		Provider          string
+		Host              string
+		Port              int
+		Username          string
+		PasswordEncrypted string
+		FromAddress       string
+		FromName          string
+		APIKey            string
+		Domain            string
+		Region            string
+		Status            string
 	}
-	return NewProvider(ctx, cfg)
+
+	err := db.WithContext(ctx).
+		Table("email_config").
+		Select("provider, host, port, username, password_encrypted, from_address, from_name, " +
+			"'' AS api_key, '' AS domain, '' AS region, status").
+		Where("tenant_id = ? AND status = ? AND deleted_at IS NULL", tenantID, shared.StatusActive).
+		First(&cfg).Error
+
+	if err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("email: lookup config for tenant %d: %w", tenantID, err)
+		}
+		err = db.WithContext(ctx).
+			Table("email_config ec").
+			Select("ec.provider, ec.host, ec.port, ec.username, ec.password_encrypted, " +
+				"ec.from_address, ec.from_name, '' AS api_key, ec.domain, ec.region, ec.status").
+			Joins("JOIN tenants t ON ec.tenant_id = t.tenant_id").
+			Where("t.is_system = true AND ec.status = ? AND ec.deleted_at IS NULL", shared.StatusActive).
+			First(&cfg).Error
+		if err != nil {
+			return nil, fmt.Errorf("email: no active email_config for tenant %d or system tenant", tenantID)
+		}
+	}
+
+	password := cfg.PasswordEncrypted
+	if password != "" {
+		decrypted, decErr := crypto.DecryptString(password, config.AppEncryptionKey)
+		if decErr != nil {
+			return nil, fmt.Errorf("email: decrypt password: %w", decErr)
+		}
+		password = decrypted
+	}
+
+	pc := ProviderConfig{
+		Provider: cfg.Provider,
+		Host:     cfg.Host,
+		Port:     cfg.Port,
+		Username: cfg.Username,
+		Password: password,
+		APIKey:   cfg.APIKey,
+		Domain:   cfg.Domain,
+		Region:   cfg.Region,
+	}
+	return NewProvider(ctx, pc)
 }
 
 // NewProvider returns the Provider implementation for cfg.Provider.

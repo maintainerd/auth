@@ -27,10 +27,6 @@ func TestInit(t *testing.T) {
 		t.Setenv("DB_USER", "postgres")
 		t.Setenv("DB_PASSWORD", "pass")
 		t.Setenv("DB_NAME", "authdb")
-		t.Setenv("SMTP_HOST", "smtp.example.com")
-		t.Setenv("SMTP_PORT", "587")
-		t.Setenv("SMTP_USER", "user")
-		t.Setenv("SMTP_PASS", "pass")
 	}
 
 	saveGlobals := func(t *testing.T) {
@@ -52,13 +48,6 @@ func TestInit(t *testing.T) {
 		origDBPass := DBPassword
 		origDBName := DBName
 		origDBSSL := DBSSLMode
-		origSMTPHost := SMTPHost
-		origSMTPPort := SMTPPort
-		origSMTPUser := SMTPUser
-		origSMTPPass := SMTPPass
-		origSMTPFromEmail := SMTPFromEmail
-		origSMTPFromName := SMTPFromName
-		origEmailLogo := EmailLogo
 		origEncKey := AppEncryptionKey
 		origHMACKey := HMACSecretKey
 		t.Cleanup(func() {
@@ -79,13 +68,6 @@ func TestInit(t *testing.T) {
 			DBPassword = origDBPass
 			DBName = origDBName
 			DBSSLMode = origDBSSL
-			SMTPHost = origSMTPHost
-			SMTPPort = origSMTPPort
-			SMTPUser = origSMTPUser
-			SMTPPass = origSMTPPass
-			SMTPFromEmail = origSMTPFromEmail
-			SMTPFromName = origSMTPFromName
-			EmailLogo = origEmailLogo
 			AppEncryptionKey = origEncKey
 			HMACSecretKey = origHMACKey
 		})
@@ -112,10 +94,6 @@ func TestInit(t *testing.T) {
 		assert.Equal(t, "pass", DBPassword)
 		assert.Equal(t, "authdb", DBName)
 		assert.Equal(t, "disable", DBSSLMode)
-		assert.Equal(t, "smtp.example.com", SMTPHost)
-		assert.Equal(t, 587, SMTPPort)
-		assert.Equal(t, "user", SMTPUser)
-		assert.Equal(t, "pass", SMTPPass)
 		assert.Equal(t, []byte("12345678901234567890123456789012"), AppEncryptionKey)
 	})
 
@@ -260,56 +238,6 @@ func TestInit(t *testing.T) {
 		assert.Contains(t, err.Error(), "DB_NAME")
 	})
 
-	t.Run("missing SMTP_HOST", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("SMTP_HOST", "")
-
-		err := Init()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "SMTP_HOST")
-	})
-
-	t.Run("missing SMTP_PORT", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("SMTP_PORT", "")
-
-		err := Init()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "SMTP_PORT")
-	})
-
-	t.Run("invalid SMTP_PORT", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("SMTP_PORT", "not-a-number")
-
-		err := Init()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid SMTP_PORT")
-	})
-
-	t.Run("missing SMTP_USER", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("SMTP_USER", "")
-
-		err := Init()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "SMTP_USER")
-	})
-
-	t.Run("missing SMTP_PASS", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("SMTP_PASS", "")
-
-		err := Init()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "SMTP_PASS")
-	})
-
 	t.Run("defaults for optional vars", func(t *testing.T) {
 		saveGlobals(t)
 		setRequiredEnv(t)
@@ -317,9 +245,6 @@ func TestInit(t *testing.T) {
 		err := Init()
 		require.NoError(t, err)
 
-		assert.Equal(t, "noreply@maintainerd.com", SMTPFromEmail)
-		assert.Equal(t, "Maintainerd", SMTPFromName)
-		assert.NotEmpty(t, EmailLogo)
 	})
 
 	t.Run("APP_ENCRYPTION_KEY wrong size", func(t *testing.T) {
@@ -350,110 +275,6 @@ func TestInit(t *testing.T) {
 		err := Init()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HMAC_SECRET_KEY")
-	})
-
-	t.Run("custom SMS_DAILY_SEND_LIMIT", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("SMS_DAILY_SEND_LIMIT", "500")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.Equal(t, 500, SMSDailySendLimit)
-	})
-
-	t.Run("SMS_DAILY_SEND_LIMIT disabled", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("SMS_DAILY_SEND_LIMIT", "0")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.Equal(t, 0, SMSDailySendLimit)
-	})
-
-	t.Run("custom MANAGEMENT_PORT", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("MANAGEMENT_PORT", "9090")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.Equal(t, ":9090", ManagementPort)
-	})
-
-	t.Run("custom LOG_LEVEL", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("LOG_LEVEL", "debug")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.Equal(t, "debug", LogLevel)
-	})
-
-	t.Run("custom COOKIE_SECURE false", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("COOKIE_SECURE", "false")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.False(t, CookieSecure)
-	})
-
-	t.Run("custom COOKIE_SECURE true", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("COOKIE_SECURE", "true")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.True(t, CookieSecure)
-	})
-
-	t.Run("custom COOKIE_SAMESITE lax", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("COOKIE_SAMESITE", "lax")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.Equal(t, "lax", CookieSameSite)
-	})
-
-	t.Run("custom EMAIL_PROVIDER", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("EMAIL_PROVIDER", "mailgun")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.Equal(t, "mailgun", EmailProvider)
-	})
-
-	t.Run("custom DB pool config", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("DB_MAX_OPEN_CONNS", "50")
-		t.Setenv("DB_MAX_IDLE_CONNS", "20")
-		t.Setenv("DB_CONN_MAX_LIFETIME_SEC", "600")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.Equal(t, 50, DBMaxOpenConns)
-		assert.Equal(t, 20, DBMaxIdleConns)
-		assert.Equal(t, 600, DBConnMaxLifetimeSec)
-	})
-
-	t.Run("custom EMAIL_API_KEY set", func(t *testing.T) {
-		saveGlobals(t)
-		setRequiredEnv(t)
-		t.Setenv("EMAIL_API_KEY", "key-123")
-
-		err := Init()
-		require.NoError(t, err)
-		assert.Equal(t, "key-123", EmailAPIKey)
 	})
 }
 

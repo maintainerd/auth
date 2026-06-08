@@ -178,8 +178,8 @@ The OTel SDK is initialized once in `main()`. When disabled (`OTEL_ENABLED != "t
 
 | Attribute | Source |
 |---|---|
-| `smtp.host` | `config.SMTPHost` |
-| `smtp.port` | `config.SMTPPort` |
+| `smtp.host` | `email_config.host` (DB) |
+| `smtp.port` | `email_config.port` (DB) |
 | `email.to` | `params.To` |
 | `email.subject` | `params.Subject` |
 

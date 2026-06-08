@@ -12,6 +12,8 @@ type User struct {
 	UserUUID          uuid.UUID
 	Email             string
 	Username          string
+	Phone             string `gorm:"column:phone"`
+	IsPhoneVerified   bool   `gorm:"column:is_phone_verified"`
 	IsTOTPEnabled     bool
 	IsWebAuthnEnabled bool `gorm:"column:is_webauthn_enabled"`
 	MFAEnabledAt      *time.Time

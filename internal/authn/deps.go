@@ -93,16 +93,17 @@ type User struct {
 func (User) TableName() string { return "users" }
 
 type UserIdentity struct {
-	UserIdentityID   int64
-	UserIdentityUUID uuid.UUID
-	TenantID         int64
-	UserID           int64
-	ClientID         int64
-	Provider         string
-	Sub              string
-	Metadata         datatypes.JSON
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	UserIdentityID     int64
+	UserIdentityUUID   uuid.UUID
+	TenantID           int64
+	UserID             int64
+	ClientID           int64
+	IdentityProviderID *int64     `gorm:"column:identity_provider_id"`
+	Provider           string
+	Sub                string
+	Metadata           datatypes.JSON
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 func (UserIdentity) TableName() string { return "user_identities" }

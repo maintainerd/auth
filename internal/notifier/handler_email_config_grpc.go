@@ -45,7 +45,7 @@ func (h *EmailConfigGRPCHandler) UpdateEmailConfig(ctx context.Context, req *aut
 	}
 	r, err := h.svc.Update(ctx, t.TenantID, req.GetProvider(), req.GetHost(), int(req.GetPort()),
 		req.GetUsername(), req.GetPassword(), req.GetFromAddress(), req.GetFromName(),
-		req.GetReplyTo(), req.GetEncryption(), req.TestMode)
+		req.GetReplyTo(), req.GetEncryption(), "", req.TestMode)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

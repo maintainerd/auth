@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/notifier"
-	"github.com/maintainerd/auth/internal/platform/config"
 	jwtplatform "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
@@ -17,6 +16,7 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestTokenHelper_RemainingErrorBranches(t *testing.T) {
@@ -210,14 +210,16 @@ func TestMagicLinkService_RemainingBranches(t *testing.T) {
 
 func TestSMSLoginService_RemainingBranches(t *testing.T) {
 	t.Run("sms provider init error is non fatal", func(t *testing.T) {
-		origProvider := config.SMSProvider
-		config.SMSProvider = "unknown-provider"
-		t.Cleanup(func() { config.SMSProvider = origProvider })
+		origFactory := newSMSProvider
+		newSMSProvider = func(ctx context.Context, db *gorm.DB, tenantID int64) (sms.Provider, error) {
+			return nil, errors.New("provider init error")
+		}
+		t.Cleanup(func() { newSMSProvider = origFactory })
 
 		userRepo := &mockUserRepo{findByPhoneFn: func(string) (*User, error) {
 			return &User{UserID: 1, Phone: "+1234567890", Status: shared.StatusActive}, nil
 		}}
-		otpRepo := &mockSMSOtpRepo{createFn: func(otp *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+		otpRepo := &mockSMSOtpRepo{createFn: func(otp *notifier.UserOTP) (*notifier.UserOTP, error) {
 			return otp, nil
 		}}
 		svc := NewSMSLoginService(nil, userRepo, otpRepo, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, nil)
@@ -228,21 +230,18 @@ func TestSMSLoginService_RemainingBranches(t *testing.T) {
 	})
 
 	t.Run("sms provider send error is non fatal", func(t *testing.T) {
-		origProviderName := config.SMSProvider
 		origFactory := newSMSProvider
-		config.SMSProvider = "test-provider"
-		newSMSProvider = func(context.Context) (sms.Provider, error) {
+		newSMSProvider = func(ctx context.Context, db *gorm.DB, tenantID int64) (sms.Provider, error) {
 			return failingSMSProvider{}, nil
 		}
 		t.Cleanup(func() {
-			config.SMSProvider = origProviderName
 			newSMSProvider = origFactory
 		})
 
 		userRepo := &mockUserRepo{findByPhoneFn: func(string) (*User, error) {
 			return &User{UserID: 1, Phone: "+1234567890", Status: shared.StatusActive}, nil
 		}}
-		otpRepo := &mockSMSOtpRepo{createFn: func(otp *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+		otpRepo := &mockSMSOtpRepo{createFn: func(otp *notifier.UserOTP) (*notifier.UserOTP, error) {
 			return otp, nil
 		}}
 		svc := NewSMSLoginService(nil, userRepo, otpRepo, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, nil)
@@ -283,7 +282,7 @@ func TestSMSLoginService_RemainingBranches(t *testing.T) {
 		userRepo := &mockUserRepo{findByPhoneFn: func(string) (*User, error) {
 			return &User{UserID: 1, Phone: "+1234567890", Status: shared.StatusActive}, nil
 		}}
-		otpRepo := &mockSMSOtpRepo{findValidByPhoneFn: func(string) (*notifier.SMSOtp, error) {
+		otpRepo := &mockSMSOtpRepo{findValidByPhoneFn: func(string) (*notifier.UserOTP, error) {
 			return nil, errors.New("otp lookup error")
 		}}
 		svc := NewSMSLoginService(db, userRepo, otpRepo, clientRepo, &mockUserIdentityRepo{}, idpRepo, nil)

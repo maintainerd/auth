@@ -166,6 +166,10 @@ func UserRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 			Get("/{user_uuid}/roles", userHandler.GetUserRoles)
 
+		// Get user MFA configuration
+		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
+			Get("/{user_uuid}/mfa", userHandler.GetUserMFA)
+
 		// Get user identities
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 			Get("/{user_uuid}/identities", userHandler.GetUserIdentities)

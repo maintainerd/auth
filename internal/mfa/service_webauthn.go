@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
@@ -52,6 +53,8 @@ type WebAuthnService interface {
 	FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error)
 	// DeleteCredential removes a single registered credential.
 	DeleteCredential(ctx context.Context, credentialUUIDStr string, userID int64) error
+	// DownloadCredential returns a downloadable representation of a credential.
+	DownloadCredential(ctx context.Context, credentialUUIDStr string, userID int64) (*WebAuthnCredentialDownloadDTO, error)
 }
 
 type webAuthnService struct {
@@ -73,6 +76,16 @@ func NewWebAuthnService(
 ) (WebAuthnService, error) {
 	rpID := rpIDFromHostname(config.AppPublicHostname)
 	rpOrigins := []string{config.AppPublicHostname}
+	if extraOrigins := config.GetEnvOrDefault("WEBAUTHN_EXTRA_ORIGINS", ""); extraOrigins != "" {
+		for _, o := range strings.Split(extraOrigins, ",") {
+			if o = strings.TrimSpace(o); o != "" {
+				rpOrigins = append(rpOrigins, o)
+			}
+		}
+	}
+	if overrideID := config.GetEnvOrDefault("WEBAUTHN_RP_ID", ""); overrideID != "" {
+		rpID = overrideID
+	}
 
 	wa, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: "maintainerd",
@@ -402,6 +415,39 @@ func (s *webAuthnService) loadSession(ctx context.Context, userID int64, kind st
 
 func (s *webAuthnService) deleteSession(ctx context.Context, userID int64, kind string) error {
 	return s.sessionStore.DeleteSession(ctx, s.sessionKey(userID, kind))
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Download
+// ──────────────────────────────────────────────────────────────────────────────
+
+func (s *webAuthnService) DownloadCredential(ctx context.Context, credentialUUIDStr string, userID int64) (*WebAuthnCredentialDownloadDTO, error) {
+	credUUID, err := uuid.Parse(credentialUUIDStr)
+	if err != nil {
+		return nil, apperror.NewValidation("invalid credential UUID")
+	}
+	cred, err := s.webAuthnCredRepo.FindByUUID(credUUID)
+	if err != nil || cred == nil {
+		return nil, apperror.NewNotFound("credential not found")
+	}
+	if cred.UserID != userID {
+		return nil, apperror.NewNotFound("credential not found")
+	}
+
+	dto := &WebAuthnCredentialDownloadDTO{
+		CredentialUUID:   cred.CredentialUUID.String(),
+		Name:             cred.Name,
+		CredentialKeyID:  cred.CredentialKeyID,
+		PublicKeyBase64:  base64.RawStdEncoding.EncodeToString(cred.PublicKey),
+		Transport:        cred.Transport,
+		IsBackupEligible: cred.IsBackupEligible,
+		IsBackupState:    cred.IsBackupState,
+		CreatedAt:        cred.CreatedAt.Format(time.RFC3339),
+	}
+	if cred.AAGUID != nil {
+		dto.AAGUID = cred.AAGUID.String()
+	}
+	return dto, nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
