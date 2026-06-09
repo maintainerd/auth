@@ -100,6 +100,7 @@ func (s *smsConfigService) Update(ctx context.Context, tenantID int64, provider,
 		config = &SMSConfig{TenantID: tenantID, Status: shared.StatusActive}
 	}
 
+	previousProvider := config.Provider
 	config.Provider = provider
 	config.AccountSID = accountSID
 	config.FromNumber = fromNumber
@@ -116,6 +117,10 @@ func (s *smsConfigService) Update(ctx context.Context, tenantID int64, provider,
 			return nil, encErr
 		}
 		config.AuthTokenEncrypted = enc
+	} else if previousProvider != "" && previousProvider != provider {
+		// Provider switched without a new secret: the stored token belongs to the
+		// previous provider, so clear it rather than silently carrying it over.
+		config.AuthTokenEncrypted = ""
 	}
 	if testMode != nil {
 		config.TestMode = *testMode
