@@ -48,6 +48,10 @@ func NewEmailConfigService(emailConfigRepo EmailConfigRepository) EmailConfigSer
 }
 
 func toEmailConfigServiceDataResult(ec *EmailConfig) *EmailConfigServiceDataResult {
+	encryption := ""
+	if ec.Encryption != nil {
+		encryption = *ec.Encryption
+	}
 	return &EmailConfigServiceDataResult{
 		EmailConfigUUID: ec.EmailConfigUUID,
 		Provider:        ec.Provider,
@@ -57,7 +61,7 @@ func toEmailConfigServiceDataResult(ec *EmailConfig) *EmailConfigServiceDataResu
 		FromAddress:     ec.FromAddress,
 		FromName:        ec.FromName,
 		ReplyTo:         ec.ReplyTo,
-		Encryption:      ec.Encryption,
+		Encryption:      encryption,
 		LogoURL:         ec.LogoURL,
 		TestMode:        ec.TestMode,
 		Status:          ec.Status,
@@ -108,6 +112,7 @@ func (s *emailConfigService) Update(ctx context.Context, tenantID int64, provide
 		config = &EmailConfig{TenantID: tenantID, Status: shared.StatusActive}
 	}
 
+	previousProvider := config.Provider
 	config.Provider = provider
 	config.Host = host
 	config.Port = port
@@ -115,7 +120,13 @@ func (s *emailConfigService) Update(ctx context.Context, tenantID int64, provide
 	config.FromAddress = fromAddress
 	config.FromName = fromName
 	config.ReplyTo = replyTo
-	config.Encryption = encryption
+	// Persist NULL rather than an empty string so the encryption CHECK
+	// constraint (tls/ssl/none) isn't violated when no value is supplied.
+	if encryption != "" {
+		config.Encryption = &encryption
+	} else {
+		config.Encryption = nil
+	}
 	config.LogoURL = logoURL
 
 	if password != "" {
@@ -126,6 +137,10 @@ func (s *emailConfigService) Update(ctx context.Context, tenantID int64, provide
 			return nil, encErr
 		}
 		config.PasswordEncrypted = enc
+	} else if previousProvider != "" && previousProvider != provider {
+		// Provider switched without a new secret: the stored password belongs to
+		// the previous provider, so clear it rather than silently carrying it over.
+		config.PasswordEncrypted = ""
 	}
 	if testMode != nil {
 		config.TestMode = *testMode

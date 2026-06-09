@@ -122,6 +122,27 @@ func TestSMSConfigService_Update(t *testing.T) {
 		assert.True(t, existing.TestMode)
 	})
 
+	t.Run("clears secret when provider changes without a new secret", func(t *testing.T) {
+		existing := &SMSConfig{
+			SMSConfigUUID:      uuid.New(),
+			TenantID:           1,
+			Provider:           "twilio",
+			AuthTokenEncrypted: "old-twilio-token",
+			Status:             shared.StatusActive,
+		}
+		svc := newSMSConfigSvc(&mockSMSConfigRepo{
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return existing, nil },
+			createOrUpdateFn: func(e *SMSConfig) (*SMSConfig, error) { return e, nil },
+		})
+		res, err := svc.Update(context.Background(), 1,
+			"vonage", "key456", "", "+15559876543", "MySender", nil, nil, // blank token while switching providers
+		)
+		require.NoError(t, err)
+		assert.Equal(t, "vonage", res.Provider)
+		// The old Twilio token must not carry over to the new provider.
+		assert.Empty(t, existing.AuthTokenEncrypted)
+	})
+
 	t.Run("encrypt auth token error", func(t *testing.T) {
 		original := crypto.EncryptAtRest
 		t.Cleanup(func() { crypto.EncryptAtRest = original })
