@@ -17,26 +17,35 @@ func AccountRoute(
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
-		// Email change flow
-		r.Post("/email/change", accountHandler.InitiateEmailChange)
-		r.Post("/email/verify", accountHandler.VerifyEmailChange)
+		// Email change flow — updating the account's sign-in identity.
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+			Post("/email/change", accountHandler.InitiateEmailChange)
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+			Post("/email/verify", accountHandler.VerifyEmailChange)
 
 		// Username change
-		r.Put("/username", accountHandler.ChangeUsername)
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+			Put("/username", accountHandler.ChangeUsername)
 
 		// Account deletion
-		r.With(middleware.RequireStepUp).Delete("/", accountHandler.DeleteAccount)
+		r.With(middleware.PermissionMiddleware([]string{"account:user:delete:self"}), middleware.RequireStepUp).
+			Delete("/", accountHandler.DeleteAccount)
 
 		// Account data export (GDPR / data portability)
-		r.Get("/export", accountHandler.ExportAccountData)
+		r.With(middleware.PermissionMiddleware([]string{"account:user:read:self"})).
+			Get("/export", accountHandler.ExportAccountData)
 
-		// Backup codes — generate and store securely
-		r.With(middleware.RequireStepUp).Post("/backup-codes", accountHandler.GenerateBackupCodes)
+		// Backup codes — generate and store securely (an MFA recovery factor).
+		r.With(middleware.PermissionMiddleware([]string{"account:mfa:enroll:self"}), middleware.RequireStepUp).
+			Post("/backup-codes", accountHandler.GenerateBackupCodes)
 
 		// Session management
-		r.Get("/sessions", accountHandler.ListSessions)
-		r.With(middleware.RequireStepUp).Delete("/sessions", accountHandler.RevokeAllSessions)
-		r.Delete("/sessions/{session_uuid}", accountHandler.RevokeSession)
+		r.With(middleware.PermissionMiddleware([]string{"account:session:read:self"})).
+			Get("/sessions", accountHandler.ListSessions)
+		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"}), middleware.RequireStepUp).
+			Delete("/sessions", accountHandler.RevokeAllSessions)
+		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"})).
+			Delete("/sessions/{session_uuid}", accountHandler.RevokeSession)
 	})
 }
 

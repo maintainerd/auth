@@ -86,6 +86,11 @@ type MFAService interface {
 
 	// Admin
 	AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error
+	AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64) error
+
+	// Self-service — reset all of the caller's own MFA factors. Scoped to the
+	// authenticated user (no target param), so a user can only reset their own.
+	SelfResetMFA(ctx context.Context, userID int64) error
 
 	// Step-up
 	IssueStepUpChallenge(ctx context.Context, userUUID string, allowedMethods []string) (*StepUpChallengeResponseDTO, error)
@@ -563,6 +568,144 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 		Severity:    authevent.AuthEventSeverityCritical,
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Admin reset MFA for user %s", targetUserUUID)),
+	})
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// Canonical MFA method identifiers accepted by AdminResetMFAMethod. These mirror
+// the values returned by EnrolledMFAMethods.
+const (
+	mfaMethodTOTP       = "totp"
+	mfaMethodWebAuthn   = "webauthn"
+	mfaMethodSMS        = "sms"
+	mfaMethodBackupCode = "backup_code"
+)
+
+// AdminResetMFAMethod removes a single MFA factor for a target user (admin only).
+// method is one of "totp", "webauthn", "sms", or "backup_code". Unlike
+// AdminResetMFA (which clears every factor), this lets an admin reset just the
+// factor a user lost access to — e.g. wiping TOTP/SMS for a lost phone while
+// leaving a registered passkey intact. After removing the factor it reconciles
+// recovery state so the account is left clean when no primary factor remains.
+func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64) error {
+	_, span := otel.Tracer("service").Start(ctx, "mfa.admin_reset_method")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("target_user.uuid", targetUserUUID),
+		attribute.String("mfa.method", method),
+		attribute.Int64("actor_user.id", actorUserID),
+	)
+
+	target, err := s.userRepo.FindByUUID(targetUserUUID)
+	if err != nil || target == nil {
+		return apperror.NewNotFound("target user not found")
+	}
+	targetUserID := target.UserID
+
+	switch method {
+	case mfaMethodTOTP:
+		if err := s.totpRepo.Disable(targetUserID); err != nil {
+			span.RecordError(err)
+			return apperror.NewInternal("failed to disable target TOTP", err)
+		}
+		if err := s.db.Model(&User{}).Where("user_id = ?", targetUserID).
+			Update("is_totp_enabled", false).Error; err != nil {
+			span.RecordError(err)
+			return apperror.NewInternal("failed to update target TOTP state", err)
+		}
+	case mfaMethodWebAuthn:
+		if err := s.webAuthnCredRepo.DeleteAllByUserID(targetUserID); err != nil {
+			span.RecordError(err)
+			return apperror.NewInternal("failed to delete target WebAuthn credentials", err)
+		}
+		if err := s.db.Model(&User{}).Where("user_id = ?", targetUserID).
+			Update("is_webauthn_enabled", false).Error; err != nil {
+			span.RecordError(err)
+			return apperror.NewInternal("failed to update target WebAuthn state", err)
+		}
+	case mfaMethodSMS:
+		if err := s.smsPhoneRepo.DeleteByUserID(targetUserID); err != nil {
+			span.RecordError(err)
+			return apperror.NewInternal("failed to delete target SMS phone", err)
+		}
+	case mfaMethodBackupCode:
+		if err := s.backupCodeRepo.DeleteAllByUserID(targetUserID); err != nil {
+			span.RecordError(err)
+			return apperror.NewInternal("failed to delete target backup codes", err)
+		}
+	default:
+		return apperror.NewValidation("unsupported MFA method")
+	}
+
+	// Reconcile recovery/flag state — clears leftover backup codes and
+	// mfa_enabled_at if this removal left the user with no primary factor.
+	if err := s.SyncMFAState(ctx, targetUserID); err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		ActorUserID: &actorUserID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityCritical,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Admin reset %s MFA for user %s", method, targetUserUUID)),
+	})
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// SelfResetMFA clears every MFA factor for the authenticated user. It is the
+// self-service counterpart to AdminResetMFA: the caller's own user ID is the only
+// account it touches (the handler derives userID from the session), so a user can
+// never reset another account's MFA.
+func (s *mfaService) SelfResetMFA(ctx context.Context, userID int64) error {
+	_, span := otel.Tracer("service").Start(ctx, "mfa.self_reset")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("user.id", userID))
+
+	if err := s.totpRepo.Disable(userID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to disable TOTP", err)
+	}
+	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete backup codes", err)
+	}
+	if err := s.webAuthnCredRepo.DeleteAllByUserID(userID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete WebAuthn credentials", err)
+	}
+	if err := s.smsPhoneRepo.DeleteByUserID(userID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete SMS phone", err)
+	}
+
+	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
+		Updates(map[string]any{
+			"is_totp_enabled":     false,
+			"is_webauthn_enabled": false,
+			"mfa_enabled_at":      nil,
+		}).Error; err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to reset MFA status", err)
+	}
+
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		ActorUserID: &userID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityWarn,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr("User reset their own MFA"),
 	})
 
 	span.SetStatus(codes.Ok, "")

@@ -42,6 +42,8 @@ type mockMFAService struct {
 	userHasMFAFn            func(context.Context, int64) (bool, error)
 	syncMFAStateFn          func() error
 	adminResetMFAFn         func(context.Context, string, int64) error
+	adminResetMFAMethodFn   func(context.Context, string, string, int64) error
+	selfResetMFAFn          func(context.Context, int64) error
 	issueStepUpChallengeFn  func(context.Context, string, []string) (*StepUpChallengeResponseDTO, error)
 	verifyStepUpFn          func(context.Context, StepUpVerifyRequestDTO, int64) (*StepUpVerifyResponseDTO, error)
 	sendStepUpSMSFn         func(context.Context, int64) error
@@ -123,6 +125,20 @@ func (m *mockMFAService) UserHasMFA(ctx context.Context, userID int64) (bool, er
 func (m *mockMFAService) AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error {
 	if m.adminResetMFAFn != nil {
 		return m.adminResetMFAFn(ctx, targetUserUUID, actorUserID)
+	}
+	return nil
+}
+
+func (m *mockMFAService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64) error {
+	if m.adminResetMFAMethodFn != nil {
+		return m.adminResetMFAMethodFn(ctx, targetUserUUID, method, actorUserID)
+	}
+	return nil
+}
+
+func (m *mockMFAService) SelfResetMFA(ctx context.Context, userID int64) error {
+	if m.selfResetMFAFn != nil {
+		return m.selfResetMFAFn(ctx, userID)
 	}
 	return nil
 }
