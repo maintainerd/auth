@@ -178,6 +178,70 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
 }
 
+// MFALoginVerify completes the login MFA second step and, on success, issues an
+// acr=2 session. Works for both internal login (no client_id) and public login
+// (client_id/provider_id passed as query params).
+func (h *LoginHandler) MFALoginVerify(w http.ResponseWriter, r *http.Request) {
+	var req MFALoginVerifyRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+
+	clientID, providerID := optionalClientQuery(r)
+	tokenResponse, err := h.loginService.CompleteMFALogin(
+		r.Context(), req.ChallengeToken, req.Method, req.Code, req.Assertion, clientID, providerID,
+	)
+	if err != nil {
+		resp.HandleServiceError(w, r, "MFA verification failed", err)
+		return
+	}
+
+	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
+}
+
+// MFALoginSendSMS sends an SMS OTP for the in-flight login MFA challenge.
+func (h *LoginHandler) MFALoginSendSMS(w http.ResponseWriter, r *http.Request) {
+	var req MFALoginChallengeRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := h.loginService.SendMFALoginSMS(r.Context(), req.ChallengeToken); err != nil {
+		resp.HandleServiceError(w, r, "Failed to send SMS code", err)
+		return
+	}
+	resp.Success(w, nil, "SMS code sent")
+}
+
+// MFALoginWebAuthnBegin starts a passkey assertion ceremony for the in-flight
+// login MFA challenge and returns the assertion options.
+func (h *LoginHandler) MFALoginWebAuthnBegin(w http.ResponseWriter, r *http.Request) {
+	var req MFALoginChallengeRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	options, err := h.loginService.BeginMFALoginWebAuthn(r.Context(), req.ChallengeToken)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to begin WebAuthn authentication", err)
+		return
+	}
+	resp.Success(w, options, "WebAuthn authentication ceremony started")
+}
+
+// optionalClientQuery extracts client_id/provider_id from the query string when
+// present (public login); returns nils for internal login (system client).
+func optionalClientQuery(r *http.Request) (clientID, providerID *string) {
+	if c := strings.TrimSpace(r.URL.Query().Get("client_id")); c != "" {
+		clientID = &c
+	}
+	if p := strings.TrimSpace(r.URL.Query().Get("provider_id")); p != "" {
+		providerID = &p
+	}
+	return clientID, providerID
+}
+
 func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	sc := extractSecurityContext(r)

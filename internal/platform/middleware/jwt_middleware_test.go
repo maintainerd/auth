@@ -310,6 +310,8 @@ func TestRequireStepUp(t *testing.T) {
 		RequireStepUp(okHandler()).ServeHTTP(rr, req)
 
 		assert.Equal(t, http.StatusForbidden, rr.Code)
+		// Clients branch on this stable code to trigger the step-up handshake.
+		assert.Contains(t, rr.Body.String(), `"code":"step_up_required"`)
 	})
 
 	t.Run("acr level 2 passes", func(t *testing.T) {

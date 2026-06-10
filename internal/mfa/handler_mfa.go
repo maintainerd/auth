@@ -58,7 +58,7 @@ func (h *MFAHandler) RequireStepUpOrEnrolledMFA(next http.Handler) http.Handler 
 			return
 		}
 
-		resp.Error(w, http.StatusForbidden, "Step-up authentication required")
+		resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
 	})
 }
 
@@ -316,6 +316,13 @@ func (h *MFAHandler) WebAuthnDeleteCredential(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Reconcile recovery state: if this was the user's last primary factor,
+	// purge backup codes and clear mfa_enabled_at so the account has no MFA.
+	if err := h.mfaSvc.SyncMFAState(r.Context(), user.UserID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to reconcile MFA state", err)
+		return
+	}
+
 	resp.Success(w, nil, "Credential deleted")
 }
 
@@ -387,9 +394,12 @@ func (h *MFAHandler) SendStepUpSMS(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildStepUpMethods(status *MFAStatusResponseDTO) []string {
-	methods := make([]string, 0, 3)
+	methods := make([]string, 0, 4)
 	if status.IsTOTPEnabled {
 		methods = append(methods, "totp")
+	}
+	if status.IsWebAuthnEnabled {
+		methods = append(methods, "webauthn")
 	}
 	if status.BackupCodesCount > 0 {
 		methods = append(methods, "backup_code")

@@ -1,5 +1,23 @@
 package authn
 
+import "encoding/json"
+
+// MFALoginVerifyRequestDTO completes the login MFA second step. `code` carries
+// the typed proof (totp/sms/backup_code); `assertion` carries the raw WebAuthn
+// assertion JSON (passkey). The challenge token comes from the login response.
+type MFALoginVerifyRequestDTO struct {
+	ChallengeToken string          `json:"mfa_challenge_token"`
+	Method         string          `json:"method"`
+	Code           string          `json:"code,omitempty"`
+	Assertion      json.RawMessage `json:"assertion,omitempty"`
+}
+
+// MFALoginChallengeRequestDTO carries just the login MFA challenge token, used
+// by the send-SMS and WebAuthn-begin steps.
+type MFALoginChallengeRequestDTO struct {
+	ChallengeToken string `json:"mfa_challenge_token"`
+}
+
 // SendEmailVerificationRequestDTO represents the request payload to (re)send an email verification code.
 type SendEmailVerificationRequestDTO struct {
 	Email string `json:"email"`

@@ -28,9 +28,26 @@ import (
 type LoginService interface {
 	LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
 	Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
+	CompleteMFALogin(ctx context.Context, challengeToken, method, code string, assertion []byte, clientID, providerID *string) (*LoginResponseDTO, error)
+	SendMFALoginSMS(ctx context.Context, challengeToken string) error
+	BeginMFALoginWebAuthn(ctx context.Context, challengeToken string) (json.RawMessage, error)
 	RefreshToken(ctx context.Context, refreshToken string, sessionID string) (*LoginResponseDTO, error)
 	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error)
 	Logout(ctx context.Context, accessToken string) error
+	SetMFAFactorAuthenticator(a MFAFactorAuthenticator)
+}
+
+// MFAFactorAuthenticator verifies a login second factor and drives the SMS /
+// WebAuthn ceremonies for it. Implemented by the mfa package; injected here so
+// the login flow can elevate a freshly issued session to acr=2 without the
+// authn package importing mfa.
+type MFAFactorAuthenticator interface {
+	VerifyFactor(ctx context.Context, userID int64, method, code string, assertion []byte) ([]string, error)
+	SendSMSChallenge(ctx context.Context, userID int64) error
+	BeginWebAuthnLogin(ctx context.Context, userID int64) (json.RawMessage, error)
+	// EnrolledMFAMethods returns the user's usable MFA methods (totp, webauthn,
+	// sms, backup_code) from their authoritative sources.
+	EnrolledMFAMethods(ctx context.Context, userID int64) ([]string, error)
 }
 
 type loginService struct {
@@ -43,6 +60,7 @@ type loginService struct {
 	authEventService     authevent.AuthEventService
 	sessionService       SessionService
 	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → skip expiry check
+	mfaAuthenticator     MFAFactorAuthenticator              // nil → login MFA disabled
 	jtiDenylist          cache.JTIDenylister
 }
 
@@ -74,6 +92,13 @@ func NewLoginService(
 		securitySettingRepo:  securitySettingRepo,
 		jtiDenylist:          denylist,
 	}
+}
+
+// SetMFAFactorAuthenticator injects the MFA factor verifier used by the login
+// MFA second step. Optional dependency (separate setter so the constructor
+// signature and its many call sites stay unchanged); nil → login MFA disabled.
+func (s *loginService) SetMFAFactorAuthenticator(a MFAFactorAuthenticator) {
+	s.mfaAuthenticator = a
 }
 
 func findLoginUser(repo UserRepository, usernameOrEmail string, tenantID int64) (*User, error) {
@@ -603,26 +628,46 @@ type loginMFAPolicy struct {
 }
 
 func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error) {
-	if s.securitySettingRepo == nil || user == nil {
+	if user == nil || s.mfaAuthenticator == nil {
 		return nil, nil
 	}
 
-	setting, err := s.securitySettingRepo.FindByTenantID(tenantID)
-	if err != nil || setting == nil || len(setting.MFAConfig) == 0 {
-		return nil, nil
-	}
-
+	// Load the tenant MFA policy if one exists. A missing security setting or
+	// empty MFAConfig simply means "no tenant-level enforcement" — it must NOT
+	// short-circuit the enrolled-factor trigger below.
 	var policy loginMFAPolicy
-	if err := json.Unmarshal(setting.MFAConfig, &policy); err != nil {
-		return nil, nil
+	if s.securitySettingRepo != nil {
+		if setting, err := s.securitySettingRepo.FindByTenantID(tenantID); err == nil && setting != nil && len(setting.MFAConfig) > 0 {
+			if jerr := json.Unmarshal(setting.MFAConfig, &policy); jerr != nil {
+				policy = loginMFAPolicy{}
+			}
+		}
 	}
-	if !policy.Required && !policy.EnforceMFA {
+
+	// Ask the mfa service for the user's actual enrolled factors (the single
+	// source of truth — covers TOTP, WebAuthn, the verified SMS phone, and backup
+	// codes). Reading from the user record alone would miss SMS/WebAuthn.
+	enrolled, err := s.mfaAuthenticator.EnrolledMFAMethods(ctx, user.UserID)
+	if err != nil {
+		// Don't lock the user out on a status-read error; fall back to acr=1.
 		return nil, nil
 	}
 
-	allowedMethods := loginMFAAllowedMethods(user, policy.AllowedMethods)
+	// Challenge for MFA when the tenant enforces it OR the user has a primary
+	// factor enrolled. Backup codes alone never trigger MFA (recovery-only).
+	if !policy.Required && !policy.EnforceMFA && !hasPrimaryMFAFactor(enrolled) {
+		return nil, nil
+	}
+
+	allowedMethods := filterMFAMethodsByPolicy(enrolled, policy.AllowedMethods)
 	if len(allowedMethods) == 0 {
-		return nil, apperror.NewUnauthorized("MFA is required but no supported factors are enrolled")
+		// Tenant forces MFA but the user has nothing usable enrolled → block.
+		// For a self-enrolled user with no usable factor, fall through to a
+		// normal (acr=1) login rather than locking them out.
+		if policy.Required || policy.EnforceMFA {
+			return nil, apperror.NewUnauthorized("MFA is required but no supported factors are enrolled")
+		}
+		return nil, nil
 	}
 
 	challengeToken, err := platformjwt.GenerateStepUpChallengeTokenWithContext(
@@ -642,34 +687,38 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 	}, nil
 }
 
-func loginMFAAllowedMethods(user *User, policyMethods []string) []string {
-	policyAllows := map[string]bool{}
-	for _, method := range policyMethods {
-		method = strings.ToLower(strings.TrimSpace(method))
-		if method != "" {
-			policyAllows[method] = true
+// hasPrimaryMFAFactor reports whether the enrolled list contains a primary
+// factor (anything other than backup_code). Backup codes are recovery-only and
+// never keep MFA active on their own.
+func hasPrimaryMFAFactor(enrolled []string) bool {
+	for _, m := range enrolled {
+		if m != "backup_code" {
+			return true
 		}
 	}
-	if len(policyAllows) == 0 {
-		policyAllows["totp"] = true
-		policyAllows["backup_code"] = true
-	}
-
-	var methods []string
-	if user.IsTOTPEnabled && policyAllows["totp"] {
-		methods = append(methods, "totp")
-	}
-	if userHasAnyMFAFactor(user) && policyAllows["backup_code"] {
-		methods = append(methods, "backup_code")
-	}
-	if user.IsPhoneVerified && user.Phone != "" && policyAllows["sms"] {
-		methods = append(methods, "sms")
-	}
-	return methods
+	return false
 }
 
-func userHasAnyMFAFactor(user *User) bool {
-	return user.IsTOTPEnabled || user.IsWebAuthnEnabled || user.MFAEnabledAt != nil
+// filterMFAMethodsByPolicy restricts the enrolled methods to those the tenant
+// policy allows, preserving the enrolled order. An empty policy list means "no
+// restriction" — all enrolled methods are offered.
+func filterMFAMethodsByPolicy(enrolled []string, policyMethods []string) []string {
+	if len(policyMethods) == 0 {
+		return enrolled
+	}
+	allowed := make(map[string]bool, len(policyMethods))
+	for _, m := range policyMethods {
+		if m = strings.ToLower(strings.TrimSpace(m)); m != "" {
+			allowed[m] = true
+		}
+	}
+	out := make([]string, 0, len(enrolled))
+	for _, m := range enrolled {
+		if allowed[m] {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 func verifyLoginPassword(user *User, password string, lookupOK bool) bool {
@@ -706,6 +755,14 @@ func (s *loginService) recordFailedLogin(ctx context.Context, usernameOrEmail, c
 }
 
 func (s *loginService) generateTokenResponse(ctx context.Context, sub string, user *User, Client *Client) (*LoginResponseDTO, error) {
+	// Plain password login is single-factor (acr=1).
+	return s.generateTokenResponseWithAuth(ctx, sub, user, Client, []string{platformjwt.AMRPassword}, platformjwt.ACRLevel1)
+}
+
+// generateTokenResponseWithAuth issues a full session token set with the given
+// amr/acr. Password login uses acr=1; the login MFA second step uses acr=2 so
+// the whole session satisfies step-up routes without per-action re-prompts.
+func (s *loginService) generateTokenResponseWithAuth(ctx context.Context, sub string, user *User, Client *Client, amr []string, acr string) (*LoginResponseDTO, error) {
 	var sessionID string
 
 	// Create a session record and enforce concurrent session limit.
@@ -723,8 +780,8 @@ func (s *loginService) generateTokenResponse(ctx context.Context, sub string, us
 	}
 
 	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, Client, tokenAuthContext{
-		AMR:       []string{platformjwt.AMRPassword},
-		ACR:       platformjwt.ACRLevel1,
+		AMR:       amr,
+		ACR:       acr,
 		SessionID: sessionID,
 	})
 	if err != nil {
@@ -738,4 +795,132 @@ func (s *loginService) generateTokenResponse(ctx context.Context, sub string, us
 	}
 
 	return resp, nil
+}
+
+// loginMFAMethodAllowed reports whether method is in the challenge token's
+// allowed_methods claim (a []any of strings).
+func loginMFAMethodAllowed(raw any, method string) bool {
+	if method == "" {
+		return false
+	}
+	values, ok := raw.([]any)
+	if !ok {
+		return false
+	}
+	for _, v := range values {
+		if s, ok := v.(string); ok && s == method {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveMFAChallengeUser validates a login MFA challenge token and returns the
+// referenced user. Shared by the verify / send-sms / webauthn-begin steps.
+func (s *loginService) resolveMFAChallengeUser(challengeToken string) (*User, jwtlib.MapClaims, error) {
+	claims, err := platformjwt.ValidateStepUpChallengeToken(challengeToken)
+	if err != nil {
+		return nil, nil, apperror.NewUnauthorized("invalid or expired MFA challenge")
+	}
+	userUUID, _ := claims["sub"].(string)
+	if userUUID == "" {
+		return nil, nil, apperror.NewUnauthorized("MFA challenge missing subject")
+	}
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, nil, apperror.NewUnauthorized("authentication failed")
+	}
+	return user, claims, nil
+}
+
+// CompleteMFALogin verifies the second factor for an in-flight login (identified
+// by the challenge token from step one) and, on success, issues a full session
+// elevated to acr=2.
+func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, method, code string, assertion []byte, clientID, providerID *string) (*LoginResponseDTO, error) {
+	if s.mfaAuthenticator == nil {
+		return nil, apperror.NewInternal("MFA is not configured", nil)
+	}
+
+	user, claims, err := s.resolveMFAChallengeUser(challengeToken)
+	if err != nil {
+		return nil, err
+	}
+	if !loginMFAMethodAllowed(claims["allowed_methods"], method) {
+		return nil, apperror.NewValidation(fmt.Sprintf("MFA method not allowed: %s", method))
+	}
+	if user.Status != shared.StatusActive {
+		return nil, apperror.NewUnauthorized("account is not active")
+	}
+
+	// Resolve the client the same way login does (explicit client or system).
+	var client *Client
+	if clientID != nil && providerID != nil {
+		client, err = s.clientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+	} else {
+		client, err = s.clientRepo.FindSystem()
+	}
+	if err != nil || client == nil || client.Status != shared.StatusActive ||
+		client.Domain == nil || *client.Domain == "" {
+		return nil, apperror.NewUnauthorized("authentication failed")
+	}
+
+	identity, ierr := s.userIdentityRepo.FindByUserIDAndClientID(user.UserID, client.ClientID)
+	if ierr != nil || identity == nil || identity.Sub == "" {
+		return nil, apperror.NewUnauthorized("authentication failed")
+	}
+
+	amr, err := s.mfaAuthenticator.VerifyFactor(ctx, user.UserID, method, code, assertion)
+	if err != nil {
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			TenantID:    client.IdentityProvider.TenantID,
+			ActorUserID: &user.UserID,
+			IPAddress:   middleware.ClientIPFromContext(ctx),
+			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeLoginFail,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultFailure,
+			Description: ptr.Ptr(fmt.Sprintf("Login MFA verification failed via %s", method)),
+		})
+		return nil, err
+	}
+
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    client.IdentityProvider.TenantID,
+		ActorUserID: &user.UserID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeLoginSuccess,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Login MFA completed via %s", method)),
+	})
+
+	return s.generateTokenResponseWithAuth(ctx, identity.Sub, user, client, amr, platformjwt.ACRLevel2)
+}
+
+// SendMFALoginSMS sends an SMS OTP to the challenged user's phone during login.
+func (s *loginService) SendMFALoginSMS(ctx context.Context, challengeToken string) error {
+	if s.mfaAuthenticator == nil {
+		return apperror.NewInternal("MFA is not configured", nil)
+	}
+	user, _, err := s.resolveMFAChallengeUser(challengeToken)
+	if err != nil {
+		return err
+	}
+	return s.mfaAuthenticator.SendSMSChallenge(ctx, user.UserID)
+}
+
+// BeginMFALoginWebAuthn starts a passkey assertion ceremony during login and
+// returns the assertion options for the browser.
+func (s *loginService) BeginMFALoginWebAuthn(ctx context.Context, challengeToken string) (json.RawMessage, error) {
+	if s.mfaAuthenticator == nil {
+		return nil, apperror.NewInternal("MFA is not configured", nil)
+	}
+	user, _, err := s.resolveMFAChallengeUser(challengeToken)
+	if err != nil {
+		return nil, err
+	}
+	return s.mfaAuthenticator.BeginWebAuthnLogin(ctx, user.UserID)
 }

@@ -75,6 +75,11 @@ func LoginRoute(r chi.Router, loginHandler *LoginHandler) {
 		// Internal login (no client_id/provider_id required)
 		r.Post("/login", loginHandler.Login)
 
+		// Login MFA second step (issues an acr=2 session on success)
+		r.Post("/login/mfa/verify", loginHandler.MFALoginVerify)
+		r.Post("/login/mfa/send-sms", loginHandler.MFALoginSendSMS)
+		r.Post("/login/mfa/webauthn/begin", loginHandler.MFALoginWebAuthnBegin)
+
 		// Refresh endpoint — exchanges a refresh token for a new token set
 		r.Post("/refresh-token", loginHandler.RefreshToken)
 
@@ -95,6 +100,11 @@ func LoginPublicRoute(r chi.Router, loginHandler *LoginHandler) {
 
 		// Public login (with client_id and provider_id)
 		r.Post("/login", loginHandler.LoginPublic)
+
+		// Login MFA second step (client_id/provider_id passed as query params)
+		r.Post("/login/mfa/verify", loginHandler.MFALoginVerify)
+		r.Post("/login/mfa/send-sms", loginHandler.MFALoginSendSMS)
+		r.Post("/login/mfa/webauthn/begin", loginHandler.MFALoginWebAuthnBegin)
 
 		// Logout endpoint (clears cookies if they exist)
 		r.Post("/logout", loginHandler.Logout)

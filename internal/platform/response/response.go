@@ -36,6 +36,7 @@ type response struct {
 	Data    interface{} `json:"data,omitempty"`
 	Message string      `json:"message,omitempty"`
 	Error   string      `json:"error,omitempty"`
+	Code    string      `json:"code,omitempty"`
 	Details interface{} `json:"details,omitempty"`
 }
 
@@ -90,6 +91,21 @@ func Error(w http.ResponseWriter, status int, err string, details ...any) {
 	resp := response{
 		Success: false,
 		Error:   err,
+	}
+	if len(details) > 0 {
+		resp.Details = details[0]
+	}
+	writeJSON(w, status, resp)
+}
+
+// ErrorWithCode sends an error response carrying a stable, machine-readable
+// code alongside the human-readable message, so clients can branch on the
+// code (e.g. "step_up_required") without string-matching the message.
+func ErrorWithCode(w http.ResponseWriter, status int, code, err string, details ...any) {
+	resp := response{
+		Success: false,
+		Error:   err,
+		Code:    code,
 	}
 	if len(details) > 0 {
 		resp.Details = details[0]
