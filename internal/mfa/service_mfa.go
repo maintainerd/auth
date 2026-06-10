@@ -1,6 +1,7 @@
 package mfa
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"encoding/json"
@@ -73,6 +74,16 @@ type MFAService interface {
 	IsMFARequired(ctx context.Context, tenantID int64) (bool, error)
 	UserHasMFA(ctx context.Context, userID int64) (bool, error)
 
+	// SyncMFAState clears recovery state (backup codes, mfa_enabled_at) when no
+	// primary MFA factor remains. Call after removing a factor that the service
+	// does not own (e.g. a WebAuthn credential deleted via WebAuthnService).
+	SyncMFAState(ctx context.Context, userID int64) error
+
+	// EnrolledMFAMethods returns the user's usable MFA methods in canonical order
+	// (totp, webauthn, sms, backup_code). It is the single source of truth for
+	// "which factors does this user have", used by the authn login MFA step.
+	EnrolledMFAMethods(ctx context.Context, userID int64) ([]string, error)
+
 	// Admin
 	AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error
 
@@ -80,6 +91,12 @@ type MFAService interface {
 	IssueStepUpChallenge(ctx context.Context, userUUID string, allowedMethods []string) (*StepUpChallengeResponseDTO, error)
 	VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDTO, userID int64) (*StepUpVerifyResponseDTO, error)
 	SendStepUpSMS(ctx context.Context, userID int64) error
+
+	// Login MFA (second step after password) — shared factor verification used
+	// by the authn package to elevate a freshly issued session to acr=2.
+	VerifyFactor(ctx context.Context, userID int64, method, code string, assertion []byte) ([]string, error)
+	SendSMSChallenge(ctx context.Context, userID int64) error
+	BeginWebAuthnLogin(ctx context.Context, userID int64) (json.RawMessage, error)
 
 	// SMS MFA enrollment
 	EnrollSMS(ctx context.Context, userID int64, phone string) error
@@ -92,6 +109,7 @@ type mfaService struct {
 	userRepo         UserRepository
 	totpRepo         UserTOTPSecretRepository
 	webAuthnCredRepo UserWebAuthnCredentialRepository
+	webAuthnSvc      WebAuthnService
 	backupCodeRepo   UserBackupCodeRepository
 	smsPhoneRepo     UserSMSPhoneRepository
 	smsOtpRepo       notifier.UserOTPRepository
@@ -105,6 +123,7 @@ func NewMFAService(
 	userRepo UserRepository,
 	totpRepo UserTOTPSecretRepository,
 	webAuthnCredRepo UserWebAuthnCredentialRepository,
+	webAuthnSvc WebAuthnService,
 	backupCodeRepo UserBackupCodeRepository,
 	smsPhoneRepo UserSMSPhoneRepository,
 	smsOtpRepo notifier.UserOTPRepository,
@@ -116,6 +135,7 @@ func NewMFAService(
 		userRepo:         userRepo,
 		totpRepo:         totpRepo,
 		webAuthnCredRepo: webAuthnCredRepo,
+		webAuthnSvc:      webAuthnSvc,
 		backupCodeRepo:   backupCodeRepo,
 		smsPhoneRepo:     smsPhoneRepo,
 		smsOtpRepo:       smsOtpRepo,
@@ -327,6 +347,13 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 		Updates(map[string]any{"is_totp_enabled": false}).Error; err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to update user TOTP state", err)
+	}
+
+	// Clear mfa_enabled_at (and any residual recovery state) if this was the
+	// last primary factor.
+	if err := s.SyncMFAState(ctx, userID); err != nil {
+		span.RecordError(err)
+		return err
 	}
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
@@ -721,7 +748,8 @@ func (s *mfaService) DisableSMS(ctx context.Context, userID int64) error {
 	if err := s.smsPhoneRepo.DeleteByUserID(userID); err != nil {
 		return apperror.NewInternal("failed to disable SMS MFA", err)
 	}
-	return nil
+	// Clear recovery state if SMS was the last primary factor.
+	return s.SyncMFAState(ctx, userID)
 }
 
 func (s *mfaService) ensureMFAFlag(ctx context.Context, userID int64) {
@@ -760,74 +788,10 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 	}
 
 	// Verify the provided MFA factor.
-	var amr []string
-	switch req.Method {
-	case "totp":
-		ok, verr := s.VerifyTOTP(ctx, userID, req.Code)
-		if verr != nil || !ok {
-			span.SetStatus(codes.Error, "totp verification failed")
-			return nil, apperror.NewUnauthorized("invalid TOTP code")
-		}
-		amr = []string{"pwd", "otp"}
-
-	case "backup_code":
-		backupRateLimitKey := security.RateLimitKey(fmt.Sprintf("backup_code:%d", userID), "verify")
-		if err := checkMFARateLimit(backupRateLimitKey); err != nil {
-			span.SetStatus(codes.Error, "backup code rate limited")
-			return nil, apperror.NewUnauthorized("too many attempts; try again later")
-		}
-		bCodes, lerr := s.backupCodeRepo.FindUnusedByUserID(userID)
-		if lerr != nil {
-			return nil, apperror.NewInternal("backup code lookup failed", lerr)
-		}
-		matched := false
-		for _, bc := range bCodes {
-			if bcrypt.CompareHashAndPassword([]byte(bc.CodeHash), []byte(req.Code)) == nil {
-				if err := s.backupCodeRepo.MarkUsed(bc.BackupCodeID); err != nil {
-					span.RecordError(err)
-					return nil, apperror.NewInternal("failed to mark backup code used", err)
-				}
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			security.RecordFailedAttempt(backupRateLimitKey)
-			span.SetStatus(codes.Error, "backup code invalid")
-			return nil, apperror.NewUnauthorized("invalid backup code")
-		}
-		amr = []string{"pwd", "mfa"}
-
-	case "sms":
-		smsRateLimitKey := security.RateLimitKey(fmt.Sprintf("sms_step_up:%d", userID), "verify")
-		if err := checkMFARateLimit(smsRateLimitKey); err != nil {
-			span.SetStatus(codes.Error, "sms step-up rate limited")
-			return nil, apperror.NewUnauthorized("too many attempts; try again later")
-		}
-		user, uerr := s.userRepo.FindByID(userID)
-		if uerr != nil || user == nil || user.Phone == "" {
-			return nil, apperror.NewUnauthorized("no verified phone on file")
-		}
-		record, lerr := s.smsOtpRepo.FindValid("sms", user.Phone)
-		if lerr != nil || record == nil {
-			security.RecordFailedAttempt(smsRateLimitKey)
-			span.SetStatus(codes.Error, "no valid SMS OTP found")
-			return nil, apperror.NewUnauthorized("no valid SMS code found — request a new one")
-		}
-		if subtle.ConstantTimeCompare([]byte(record.OTPHash), []byte(crypto.HashAuthorizationCode(req.Code))) != 1 {
-			_ = s.smsOtpRepo.RecordFailure(record.UserOTPID, smsStepUpMaxFailed)
-			security.RecordFailedAttempt(smsRateLimitKey)
-			span.SetStatus(codes.Error, "SMS OTP invalid")
-			return nil, apperror.NewUnauthorized("invalid SMS code")
-		}
-		if err := s.smsOtpRepo.MarkUsed(record.UserOTPID); err != nil {
-			span.RecordError(err)
-			return nil, apperror.NewInternal("failed to mark SMS OTP used", err)
-		}
-		amr = []string{"pwd", "sms"}
-
-	default:
-		return nil, apperror.NewValidation(fmt.Sprintf("unsupported step-up method: %s", req.Method))
+	amr, err := s.verifyFactor(ctx, userID, req.Method, req.Code, req.Assertion)
+	if err != nil {
+		span.SetStatus(codes.Error, "factor verification failed")
+		return nil, err
 	}
 
 	// Fetch user for token generation.
@@ -836,13 +800,32 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 		return nil, apperror.NewInternal("user lookup failed", err)
 	}
 
+	// Re-issue the elevated token as a faithful copy of the current session,
+	// only bumping acr/amr. The subject MUST stay the original token's `sub`:
+	// UserContextMiddleware resolves the caller via user_identities.sub, which
+	// is the login subject — not necessarily the user UUID — so substituting the
+	// UUID makes the retried request fail user lookup (401). client_id/provider_id
+	// must also be carried (the generator rejects empty values).
+	var sub, clientID, providerID, scope, sessionID string
+	if claims := middleware.JWTClaimsFromContext(ctx); claims != nil {
+		sub = claims.Sub
+		clientID = claims.ClientID
+		providerID = claims.ProviderID
+		scope = claims.Scope
+		sessionID = claims.SessionID
+	}
+	if sub == "" {
+		sub = user.UserUUID.String()
+	}
+
 	issuer := config.AppPublicHostname
 	accessToken, err := generateStepUpAccessToken(
 		ctx,
-		user.UserUUID.String(), "", issuer, issuer, "", "",
+		sub, scope, issuer, issuer, clientID, providerID,
 		&jwt.AccessTokenOptions{
-			AMR: amr,
-			ACR: jwt.ACRLevel2,
+			AMR:       amr,
+			ACR:       jwt.ACRLevel2,
+			SessionID: sessionID,
 		},
 	)
 	if err != nil {
@@ -866,6 +849,126 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 		AccessToken: accessToken,
 		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
 	}, nil
+}
+
+// verifyFactor verifies a single MFA factor (TOTP, backup code, SMS OTP, or a
+// WebAuthn assertion) for userID and returns the amr values (per RFC 8176) to
+// embed in the resulting token. It is shared by step-up elevation and the
+// login MFA second step. `code` carries the typed proof; `assertion` carries
+// the raw WebAuthn assertion JSON.
+func (s *mfaService) verifyFactor(ctx context.Context, userID int64, method, code string, assertion []byte) ([]string, error) {
+	switch method {
+	case "totp":
+		ok, verr := s.VerifyTOTP(ctx, userID, code)
+		if verr != nil || !ok {
+			return nil, apperror.NewUnauthorized("invalid TOTP code")
+		}
+		return []string{"pwd", "otp"}, nil
+
+	case "backup_code":
+		backupRateLimitKey := security.RateLimitKey(fmt.Sprintf("backup_code:%d", userID), "verify")
+		if err := checkMFARateLimit(backupRateLimitKey); err != nil {
+			return nil, apperror.NewUnauthorized("too many attempts; try again later")
+		}
+		bCodes, lerr := s.backupCodeRepo.FindUnusedByUserID(userID)
+		if lerr != nil {
+			return nil, apperror.NewInternal("backup code lookup failed", lerr)
+		}
+		for _, bc := range bCodes {
+			if bcrypt.CompareHashAndPassword([]byte(bc.CodeHash), []byte(code)) == nil {
+				if err := s.backupCodeRepo.MarkUsed(bc.BackupCodeID); err != nil {
+					return nil, apperror.NewInternal("failed to mark backup code used", err)
+				}
+				return []string{"pwd", "mfa"}, nil
+			}
+		}
+		security.RecordFailedAttempt(backupRateLimitKey)
+		return nil, apperror.NewUnauthorized("invalid backup code")
+
+	case "sms":
+		smsRateLimitKey := security.RateLimitKey(fmt.Sprintf("sms_step_up:%d", userID), "verify")
+		if err := checkMFARateLimit(smsRateLimitKey); err != nil {
+			return nil, apperror.NewUnauthorized("too many attempts; try again later")
+		}
+		// SMS MFA uses the dedicated user_sms_phones record, NOT users.phone
+		// (which is profile-only). The OTP was sent to and stored against this
+		// MFA phone, so verification must look it up the same way.
+		phone, perr := s.smsPhoneRepo.FindByUserID(userID)
+		if perr != nil || phone == nil || !phone.IsVerified || phone.Phone == "" {
+			return nil, apperror.NewUnauthorized("no verified phone on file")
+		}
+		record, lerr := s.smsOtpRepo.FindValid("sms", phone.Phone)
+		if lerr != nil || record == nil {
+			security.RecordFailedAttempt(smsRateLimitKey)
+			return nil, apperror.NewUnauthorized("no valid SMS code found — request a new one")
+		}
+		if subtle.ConstantTimeCompare([]byte(record.OTPHash), []byte(crypto.HashAuthorizationCode(code))) != 1 {
+			_ = s.smsOtpRepo.RecordFailure(record.UserOTPID, smsStepUpMaxFailed)
+			security.RecordFailedAttempt(smsRateLimitKey)
+			return nil, apperror.NewUnauthorized("invalid SMS code")
+		}
+		if err := s.smsOtpRepo.MarkUsed(record.UserOTPID); err != nil {
+			return nil, apperror.NewInternal("failed to mark SMS OTP used", err)
+		}
+		return []string{"pwd", "sms"}, nil
+
+	case "webauthn":
+		if s.webAuthnSvc == nil {
+			return nil, apperror.NewValidation("WebAuthn is not available")
+		}
+		if len(assertion) == 0 {
+			return nil, apperror.NewValidation("WebAuthn assertion is required")
+		}
+		parsed, perr := parseWebAuthnRequestResponse(bytes.NewReader(assertion))
+		if perr != nil {
+			return nil, apperror.NewValidation("invalid WebAuthn assertion")
+		}
+		// FinishAuthentication validates the assertion against the session
+		// created by the matching begin call, enforces sign-count regression
+		// detection, and clears the ceremony session.
+		cred, verr := s.webAuthnSvc.FinishAuthentication(ctx, userID, parsed)
+		if verr != nil {
+			return nil, apperror.NewUnauthorized("WebAuthn authentication failed")
+		}
+		// AMR per RFC 8176: password + user presence, plus a possession claim
+		// reflecting the authenticator — a backup-eligible (synced) passkey is a
+		// software key (swk); a device-bound credential is a hardware key (hwk).
+		amr := []string{"pwd", "user"}
+		if cred != nil && cred.IsBackupEligible {
+			return append(amr, "swk"), nil
+		}
+		return append(amr, "hwk"), nil
+
+	default:
+		return nil, apperror.NewValidation(fmt.Sprintf("unsupported MFA method: %s", method))
+	}
+}
+
+// VerifyFactor verifies a login second factor for userID and returns its amr
+// values. Used by the authn login MFA step (after password) to elevate the
+// freshly issued session to acr=2. The caller is responsible for having
+// established that userID owns the in-flight login challenge.
+func (s *mfaService) VerifyFactor(ctx context.Context, userID int64, method, code string, assertion []byte) ([]string, error) {
+	return s.verifyFactor(ctx, userID, method, code, assertion)
+}
+
+// SendSMSChallenge sends an SMS OTP to userID's verified phone for the login
+// MFA step. It reuses the same OTP store/rate limiting as step-up SMS.
+func (s *mfaService) SendSMSChallenge(ctx context.Context, userID int64) error {
+	return s.SendStepUpSMS(ctx, userID)
+}
+
+// BeginWebAuthnLogin starts a passkey assertion ceremony for userID and returns
+// the assertion options as JSON for the browser. Used by the login MFA step.
+func (s *mfaService) BeginWebAuthnLogin(ctx context.Context, userID int64) (json.RawMessage, error) {
+	if s.webAuthnSvc == nil {
+		return nil, apperror.NewValidation("WebAuthn is not available")
+	}
+	assertion, err := s.webAuthnSvc.BeginAuthentication(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(assertion)
 }
 
 func stepUpMethodAllowed(raw any, method string) bool {
@@ -901,4 +1004,53 @@ func mfaUserTenantID(ctx context.Context, db *gorm.DB, userID int64) int64 {
 func (s *mfaService) isSMSEnabled(ctx context.Context, userID int64) bool {
 	record, err := s.smsPhoneRepo.FindByUserID(userID)
 	return err == nil && record != nil && record.IsVerified
+}
+
+// EnrolledMFAMethods returns the user's usable MFA methods, read from their
+// authoritative sources: the user TOTP/WebAuthn flags, the verified SMS phone
+// record, and the backup-code count. backup_code is included only as a fallback
+// alongside a primary factor (a primary factor is always present when codes
+// exist, since codes are generated on enrollment and purged on full removal).
+func (s *mfaService) EnrolledMFAMethods(ctx context.Context, userID int64) ([]string, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		return nil, apperror.NewNotFound("user not found")
+	}
+	methods := make([]string, 0, 4)
+	if user.IsTOTPEnabled {
+		methods = append(methods, "totp")
+	}
+	if user.IsWebAuthnEnabled {
+		methods = append(methods, "webauthn")
+	}
+	if s.isSMSEnabled(ctx, userID) {
+		methods = append(methods, "sms")
+	}
+	if count, _ := s.GetBackupCodesCount(ctx, userID); count > 0 {
+		methods = append(methods, "backup_code")
+	}
+	return methods, nil
+}
+
+// SyncMFAState reconciles a user's recovery/flag state with their remaining
+// primary factors. If no primary factor (TOTP, WebAuthn, or verified SMS phone)
+// is active, it purges any leftover backup codes and clears mfa_enabled_at so
+// the account is left in a clean "no MFA" state. Idempotent and a no-op while at
+// least one primary factor remains.
+func (s *mfaService) SyncMFAState(ctx context.Context, userID int64) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		return apperror.NewInternal("user lookup failed", err)
+	}
+	if user.IsTOTPEnabled || user.IsWebAuthnEnabled || s.isSMSEnabled(ctx, userID) {
+		return nil
+	}
+	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+		return apperror.NewInternal("failed to delete backup codes", err)
+	}
+	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
+		Update("mfa_enabled_at", nil).Error; err != nil {
+		return apperror.NewInternal("failed to clear MFA state", err)
+	}
+	return nil
 }

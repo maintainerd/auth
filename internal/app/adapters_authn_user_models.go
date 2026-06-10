@@ -24,6 +24,9 @@ func toAuthnUser(u *user.User) *authn.User {
 		Status:              u.Status,
 		ForcePasswordChange: u.ForcePasswordChange,
 		PasswordChangedAt:   u.PasswordChangedAt,
+		IsTOTPEnabled:       u.IsTOTPEnabled,
+		IsWebAuthnEnabled:   u.IsWebAuthnEnabled,
+		MFAEnabledAt:        u.MFAEnabledAt,
 		CreatedAt:           u.CreatedAt,
 		UpdatedAt:           u.UpdatedAt,
 	}
@@ -48,6 +51,9 @@ func toUserUser(u *authn.User) *user.User {
 		Status:              u.Status,
 		ForcePasswordChange: u.ForcePasswordChange,
 		PasswordChangedAt:   u.PasswordChangedAt,
+		IsTOTPEnabled:       u.IsTOTPEnabled,
+		IsWebAuthnEnabled:   u.IsWebAuthnEnabled,
+		MFAEnabledAt:        u.MFAEnabledAt,
 		CreatedAt:           u.CreatedAt,
 		UpdatedAt:           u.UpdatedAt,
 	}

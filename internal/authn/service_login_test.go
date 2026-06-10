@@ -1080,6 +1080,10 @@ func TestLoginPublic_TenantMFAPolicyRequiresChallengeBeforeTokens(t *testing.T) 
 		securitySettingRepo,
 	)
 
+	svc.SetMFAFactorAuthenticator(&mockMFAAuthenticator{
+		enrolledFn: func(int64) ([]string, error) { return []string{"totp", "backup_code"}, nil },
+	})
+
 	resp, err := svc.LoginPublic(context.Background(), "pub-mfa-required", correctPassword, "client-1", "provider-1")
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -1745,7 +1749,11 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := &loginService{securitySettingRepo: settingRepo}
+		// Tenant requires totp, but the user has only backup codes enrolled.
+		svc := &loginService{
+			securitySettingRepo: settingRepo,
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"backup_code"}, nil }},
+		}
 		user := &User{UserID: 1, IsTOTPEnabled: false, IsWebAuthnEnabled: false}
 		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1)
 		require.Error(t, err)
@@ -1765,7 +1773,10 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := &loginService{securitySettingRepo: settingRepo}
+		svc := &loginService{
+			securitySettingRepo: settingRepo,
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"totp", "backup_code"}, nil }},
+		}
 		user := &User{UserID: 1, IsTOTPEnabled: true, MFAEnabledAt: &now}
 		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1)
 		require.Error(t, err)
@@ -1777,18 +1788,30 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 // TestLoginMFAAllowedMethods
 // ---------------------------------------------------------------------------
 
-func TestLoginMFAAllowedMethods(t *testing.T) {
-	t.Run("empty policy methods defaults to totp and backup_code", func(t *testing.T) {
-		user := &User{IsTOTPEnabled: true}
-		methods := loginMFAAllowedMethods(user, nil)
-		assert.Equal(t, []string{"totp", "backup_code"}, methods)
+func TestFilterMFAMethodsByPolicy(t *testing.T) {
+	t.Run("empty policy offers all enrolled methods", func(t *testing.T) {
+		enrolled := []string{"totp", "webauthn", "sms", "backup_code"}
+		assert.Equal(t, enrolled, filterMFAMethodsByPolicy(enrolled, nil))
 	})
 
-	t.Run("webauthn user gets backup_code when policy includes backup_code", func(t *testing.T) {
-		user := &User{IsWebAuthnEnabled: true}
-		methods := loginMFAAllowedMethods(user, []string{"backup_code"})
-		assert.Equal(t, []string{"backup_code"}, methods)
+	t.Run("restricts to policy-allowed methods, preserving enrolled order", func(t *testing.T) {
+		enrolled := []string{"totp", "webauthn", "sms", "backup_code"}
+		got := filterMFAMethodsByPolicy(enrolled, []string{"sms", "totp"})
+		assert.Equal(t, []string{"totp", "sms"}, got)
 	})
+
+	t.Run("returns empty when no enrolled method is allowed", func(t *testing.T) {
+		got := filterMFAMethodsByPolicy([]string{"backup_code"}, []string{"totp"})
+		assert.Empty(t, got)
+	})
+}
+
+func TestHasPrimaryMFAFactor(t *testing.T) {
+	assert.True(t, hasPrimaryMFAFactor([]string{"totp"}))
+	assert.True(t, hasPrimaryMFAFactor([]string{"backup_code", "webauthn"}))
+	assert.True(t, hasPrimaryMFAFactor([]string{"sms"}))
+	assert.False(t, hasPrimaryMFAFactor([]string{"backup_code"}))
+	assert.False(t, hasPrimaryMFAFactor(nil))
 }
 
 // ---------------------------------------------------------------------------
@@ -1912,6 +1935,10 @@ func TestLogin_MFAChallenge(t *testing.T) {
 		nil,
 		securitySettingRepo,
 	)
+
+	svc.SetMFAFactorAuthenticator(&mockMFAAuthenticator{
+		enrolledFn: func(int64) ([]string, error) { return []string{"totp", "backup_code"}, nil },
+	})
 
 	resp, err := svc.Login(context.Background(), "int-mfa-required", correctPassword, nil, nil)
 	require.NoError(t, err)

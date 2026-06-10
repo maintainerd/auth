@@ -195,7 +195,10 @@ func RequireStepUp(next http.Handler) http.Handler {
 			return
 		}
 		if claims.ACR != jwt.ACRLevel2 {
-			resp.Error(w, http.StatusForbidden, "Step-up authentication required")
+			// Emit a stable code so clients can detect the step-up requirement
+			// and run the challenge/verify handshake, then retry with the
+			// elevated (acr=2) token — rather than string-matching the message.
+			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
 			return
 		}
 		next.ServeHTTP(w, r)

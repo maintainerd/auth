@@ -1,5 +1,7 @@
 package mfa
 
+import "encoding/json"
+
 // ──────────────────────────────────────────────────────────────────────────────
 // TOTP
 // ──────────────────────────────────────────────────────────────────────────────
@@ -93,10 +95,16 @@ type StepUpChallengeResponseDTO struct {
 }
 
 // StepUpVerifyRequestDTO submits the completed second-factor proof.
+//
+// Code carries the typed proof for "totp" | "sms" | "backup_code".
+// Assertion carries the raw WebAuthn assertion (the publicKeyCredential JSON
+// produced by navigator.credentials.get) for the "webauthn" method; the
+// preceding /mfa/webauthn/auth/begin call establishes the matching session.
 type StepUpVerifyRequestDTO struct {
-	ChallengeToken string `json:"challenge_token"`
-	Method         string `json:"method"` // "totp" | "sms" | "webauthn" | "backup_code"
-	Code           string `json:"code,omitempty"`
+	ChallengeToken string          `json:"challenge_token"`
+	Method         string          `json:"method"` // "totp" | "sms" | "webauthn" | "backup_code"
+	Code           string          `json:"code,omitempty"`
+	Assertion      json.RawMessage `json:"assertion,omitempty"`
 }
 
 // StepUpVerifyResponseDTO is returned when step-up succeeds.

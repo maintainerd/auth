@@ -40,13 +40,14 @@ type mockMFAService struct {
 	getMFAPolicyFn          func(context.Context, int64) (*MFAPolicyDTO, error)
 	isMFARequiredFn         func(context.Context, int64) (bool, error)
 	userHasMFAFn            func(context.Context, int64) (bool, error)
+	syncMFAStateFn          func() error
 	adminResetMFAFn         func(context.Context, string, int64) error
-	issueStepUpChallengeFn func(context.Context, string, []string) (*StepUpChallengeResponseDTO, error)
-	verifyStepUpFn         func(context.Context, StepUpVerifyRequestDTO, int64) (*StepUpVerifyResponseDTO, error)
-	sendStepUpSMSFn        func(context.Context, int64) error
-	enrollSMSFn            func(context.Context, int64, string) error
-	verifySMSFn            func(context.Context, int64, string, string) error
-	disableSMSFn           func(context.Context, int64) error
+	issueStepUpChallengeFn  func(context.Context, string, []string) (*StepUpChallengeResponseDTO, error)
+	verifyStepUpFn          func(context.Context, StepUpVerifyRequestDTO, int64) (*StepUpVerifyResponseDTO, error)
+	sendStepUpSMSFn         func(context.Context, int64) error
+	enrollSMSFn             func(context.Context, int64, string) error
+	verifySMSFn             func(context.Context, int64, string, string) error
+	disableSMSFn            func(context.Context, int64) error
 }
 
 func (m *mockMFAService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TOTPEnrollResponseDTO, error) {
@@ -147,6 +148,27 @@ func (m *mockMFAService) SendStepUpSMS(ctx context.Context, userID int64) error 
 	return nil
 }
 
+func (m *mockMFAService) VerifyFactor(_ context.Context, _ int64, _, _ string, _ []byte) ([]string, error) {
+	return []string{"pwd", "otp"}, nil
+}
+
+func (m *mockMFAService) SyncMFAState(_ context.Context, _ int64) error {
+	if m.syncMFAStateFn != nil {
+		return m.syncMFAStateFn()
+	}
+	return nil
+}
+
+func (m *mockMFAService) EnrolledMFAMethods(_ context.Context, _ int64) ([]string, error) {
+	return []string{"totp", "backup_code"}, nil
+}
+
+func (m *mockMFAService) SendSMSChallenge(_ context.Context, _ int64) error { return nil }
+
+func (m *mockMFAService) BeginWebAuthnLogin(_ context.Context, _ int64) (json.RawMessage, error) {
+	return json.RawMessage(`{}`), nil
+}
+
 func (m *mockMFAService) EnrollSMS(ctx context.Context, userID int64, phone string) error {
 	if m.enrollSMSFn != nil {
 		return m.enrollSMSFn(ctx, userID, phone)
@@ -174,7 +196,7 @@ type mockWebAuthnService struct {
 	beginAuthenticationFn  func(context.Context, int64) (*protocol.CredentialAssertion, error)
 	finishAuthenticationFn func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error)
 	deleteCredentialFn     func(context.Context, string, int64) error
-	downloadCredentialFn  func(context.Context, string, int64) (*WebAuthnCredentialDownloadDTO, error)
+	downloadCredentialFn   func(context.Context, string, int64) (*WebAuthnCredentialDownloadDTO, error)
 }
 
 func (m *mockWebAuthnService) BeginRegistration(ctx context.Context, userID int64) (*protocol.CredentialCreation, error) {

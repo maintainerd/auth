@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -210,12 +211,38 @@ var (
 // ---------------------------------------------------------------------------
 
 type mockLoginService struct {
-	loginPublicFn    func(usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
-	loginFn          func(usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
-	refreshTokenFn   func(refreshToken, sessionID string) (*LoginResponseDTO, error)
-	getUserByEmailFn func(ctx context.Context, email string, tenantID int64) (*User, error)
-	logoutFn         func(ctx context.Context, accessToken string) error
+	loginPublicFn      func(usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
+	loginFn            func(usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
+	completeMFALoginFn func(challengeToken, method, code string, assertion []byte, clientID, providerID *string) (*LoginResponseDTO, error)
+	sendMFALoginSMSFn  func(challengeToken string) error
+	beginMFAWebAuthnFn func(challengeToken string) (json.RawMessage, error)
+	refreshTokenFn     func(refreshToken, sessionID string) (*LoginResponseDTO, error)
+	getUserByEmailFn   func(ctx context.Context, email string, tenantID int64) (*User, error)
+	logoutFn           func(ctx context.Context, accessToken string) error
 }
+
+func (m *mockLoginService) CompleteMFALogin(_ context.Context, challengeToken, method, code string, assertion []byte, clientID, providerID *string) (*LoginResponseDTO, error) {
+	if m.completeMFALoginFn != nil {
+		return m.completeMFALoginFn(challengeToken, method, code, assertion, clientID, providerID)
+	}
+	return nil, nil
+}
+
+func (m *mockLoginService) SendMFALoginSMS(_ context.Context, challengeToken string) error {
+	if m.sendMFALoginSMSFn != nil {
+		return m.sendMFALoginSMSFn(challengeToken)
+	}
+	return nil
+}
+
+func (m *mockLoginService) BeginMFALoginWebAuthn(_ context.Context, challengeToken string) (json.RawMessage, error) {
+	if m.beginMFAWebAuthnFn != nil {
+		return m.beginMFAWebAuthnFn(challengeToken)
+	}
+	return json.RawMessage(`{}`), nil
+}
+
+func (m *mockLoginService) SetMFAFactorAuthenticator(MFAFactorAuthenticator) {}
 
 func (m *mockLoginService) LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error) {
 	if m.loginPublicFn != nil {

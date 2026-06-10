@@ -216,6 +216,10 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		return nil, err
 	}
 
+	// Built before the login service so login can verify the MFA second step
+	// (acr=2 elevation) via the MFAFactorAuthenticator interface.
+	mfaSvc := mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.webAuthnCredRepo, webAuthnSvc, r.userBackupCodeRepo, r.smsPhoneRepo, r.smsOtpRepo, r.securitySettingRepo, authEventSvc)
+
 	s := &svcs{
 		serviceService:           iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
 		apiService:               iam.NewAPIService(db, r.apiRepo, r.serviceRepo, iamTenantServiceRepo, eventSvc),
@@ -270,7 +274,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		oauthRegisterService:         oauth.NewOAuthRegisterService(db, oauthClientRepo, oauthClientURIRepo, oauthTenantRepo, authEventSvc),
 		accountService:               user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc),
 		smsLoginService:              authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc),
-		mfaService:                   mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.webAuthnCredRepo, r.userBackupCodeRepo, r.smsPhoneRepo, r.smsOtpRepo, r.securitySettingRepo, authEventSvc),
+		mfaService:                   mfaSvc,
 		webAuthnService:              webAuthnSvc,
 		federationService:            idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, eventSvc, sessionSvc),
 		eventService:                 eventSvc,
@@ -287,6 +291,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	}
 	// Inject event service into ServiceService (uses setter to avoid breaking test constructors)
 	iam.SetServiceEventService(s.serviceService, eventSvc)
+	// Inject the MFA factor verifier so login can run the MFA second step (acr=2).
+	s.loginService.SetMFAFactorAuthenticator(mfaSvc)
 	return s, nil
 }
 

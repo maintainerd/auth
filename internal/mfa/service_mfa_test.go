@@ -3,15 +3,20 @@ package mfa
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-webauthn/webauthn/protocol"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/config"
-	authjwt "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/notifier"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/crypto"
+	authjwt "github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -260,7 +265,7 @@ func TestMFAService_UserHasMFA(t *testing.T) {
 
 func TestNewMFAService(t *testing.T) {
 	db, _ := newMockGormDB(t)
-	svc := NewMFAService(db, &mockUserRepo{}, &mockTOTPSecretRepo{}, &mockWebAuthnCredentialRepo{}, &mockBackupCodeRepo{}, &mockSMSPhoneRepo{}, &mockSMSOtpRepo{}, &mockSecuritySettingRepo{}, &mockAuthEventService{})
+	svc := NewMFAService(db, &mockUserRepo{}, &mockTOTPSecretRepo{}, &mockWebAuthnCredentialRepo{}, &mockWebAuthnService{}, &mockBackupCodeRepo{}, &mockSMSPhoneRepo{}, &mockSMSOtpRepo{}, &mockSecuritySettingRepo{}, &mockAuthEventService{})
 	require.NotNil(t, svc)
 	assert.IsType(t, &mfaService{}, svc)
 }
@@ -461,14 +466,127 @@ func TestMFAService_VerifyTOTP(t *testing.T) {
 	})
 }
 
-func TestMFAService_DisableAndRegenerateBackupCodes(t *testing.T) {
-	t.Run("disable success", func(t *testing.T) {
+func TestMFAService_SyncMFAState(t *testing.T) {
+	t.Run("no-op while a primary factor remains", func(t *testing.T) {
+		// No DB ops expected: a TOTP factor is still active.
+		db, mock := newMockGormDB(t)
+		svc := &mfaService{
+			db:             db,
+			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID, IsTOTPEnabled: true}},
+			backupCodeRepo: &mockBackupCodeRepo{deleteAllErr: errors.New("must not be called")},
+			smsPhoneRepo:   &mockSMSPhoneRepo{},
+		}
+
+		require.NoError(t, svc.SyncMFAState(t.Context(), mfaTestUserID))
+		assertExpectationsMet(t, mock)
+	})
+
+	t.Run("purges backup codes and clears mfa_enabled_at when no factor remains", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
+		svc := &mfaService{
+			db:             db,
+			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			backupCodeRepo: &mockBackupCodeRepo{},
+			smsPhoneRepo:   &mockSMSPhoneRepo{},
+		}
+
+		require.NoError(t, svc.SyncMFAState(t.Context(), mfaTestUserID))
+		assertExpectationsMet(t, mock)
+	})
+
+	t.Run("backup code delete error surfaces", func(t *testing.T) {
+		svc := &mfaService{
+			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			backupCodeRepo: &mockBackupCodeRepo{deleteAllErr: errors.New("db down")},
+			smsPhoneRepo:   &mockSMSPhoneRepo{},
+		}
+
+		err := svc.SyncMFAState(t.Context(), mfaTestUserID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete backup codes")
+	})
+}
+
+func TestMFAService_EnrolledMFAMethods(t *testing.T) {
+	t.Run("returns all active factors in canonical order", func(t *testing.T) {
+		svc := &mfaService{
+			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID, IsTOTPEnabled: true, IsWebAuthnEnabled: true}},
+			smsPhoneRepo:   &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}},
+			backupCodeRepo: &mockBackupCodeRepo{findUnused: []UserBackupCode{{BackupCodeID: 1}}},
+		}
+		got, err := svc.EnrolledMFAMethods(t.Context(), mfaTestUserID)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"totp", "webauthn", "sms", "backup_code"}, got)
+	})
+
+	t.Run("no active factor returns empty", func(t *testing.T) {
+		svc := &mfaService{
+			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			smsPhoneRepo:   &mockSMSPhoneRepo{},
+			backupCodeRepo: &mockBackupCodeRepo{},
+		}
+		got, err := svc.EnrolledMFAMethods(t.Context(), mfaTestUserID)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
+func TestMFAService_VerifyFactorSMS(t *testing.T) {
+	originalRL := checkMFARateLimit
+	t.Cleanup(func() { checkMFARateLimit = originalRL })
+	checkMFARateLimit = func(string) error { return nil }
+
+	t.Run("verifies against the MFA phone record, not users.phone", func(t *testing.T) {
+		svc := &mfaService{
+			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}},
+			smsOtpRepo:   &mockSMSOtpRepo{findValid: &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode("123456")}},
+		}
+		amr, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"pwd", "sms"}, amr)
+	})
+
+	t.Run("no verified MFA phone is rejected", func(t *testing.T) {
+		svc := &mfaService{smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: nil}}
+		_, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no verified phone on file")
+	})
+
+	t.Run("invalid code is rejected", func(t *testing.T) {
+		svc := &mfaService{
+			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}},
+			smsOtpRepo:   &mockSMSOtpRepo{findValid: &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode("999999")}},
+		}
+		_, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid SMS code")
+	})
+}
+
+func TestMFAService_DisableAndRegenerateBackupCodes(t *testing.T) {
+	t.Run("disable success", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		// 1) is_totp_enabled = false
+		mock.ExpectBegin()
+		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		// 2) SyncMFAState clears mfa_enabled_at when no primary factor remains.
+		mock.ExpectBegin()
+		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
 		events := &mockAuthEventService{}
-		svc := &mfaService{db: db, totpRepo: &mockTOTPSecretRepo{}, backupCodeRepo: &mockBackupCodeRepo{}, authEventService: events}
+		svc := &mfaService{
+			db:               db,
+			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			totpRepo:         &mockTOTPSecretRepo{},
+			backupCodeRepo:   &mockBackupCodeRepo{},
+			smsPhoneRepo:     &mockSMSPhoneRepo{},
+			authEventService: events,
+		}
 
 		require.NoError(t, svc.DisableTOTP(t.Context(), mfaTestUserID))
 
@@ -811,7 +929,151 @@ func TestMFAService_StepUp(t *testing.T) {
 		_, err := svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "xyz", Code: "123456"}, mfaTestUserID)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unsupported step-up method")
+		assert.Contains(t, err.Error(), "unsupported MFA method")
+	})
+
+	// Regression: the access-token generator rejects empty client_id/provider_id,
+	// so the elevated token must inherit them from the caller's session claims.
+	// Without this, every step-up 500s and acr=2 is unreachable.
+	t.Run("verify forwards session client/provider/scope into elevated token", func(t *testing.T) {
+		secret := "JBSWY3DPEHPK3PXP"
+		code, err := totp.GenerateCode(secret, time.Now())
+		require.NoError(t, err)
+		originalValidate := validateStepUpChallengeToken
+		originalAccess := generateStepUpAccessToken
+		t.Cleanup(func() {
+			validateStepUpChallengeToken = originalValidate
+			generateStepUpAccessToken = originalAccess
+		})
+		validateStepUpChallengeToken = func(string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{"sub": mfaTestUserUUID.String(), "allowed_methods": []any{"totp"}}, nil
+		}
+		var gotSub, gotClient, gotProvider, gotScope, gotSession string
+		generateStepUpAccessToken = func(_ context.Context, sub, scope, _, _, clientID, providerID string, opts *authjwt.AccessTokenOptions) (string, error) {
+			gotSub, gotClient, gotProvider, gotScope = sub, clientID, providerID, scope
+			if opts != nil {
+				gotSession = opts.SessionID
+			}
+			return "access", nil
+		}
+		svc := &mfaService{
+			userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}},
+			totpRepo:         &mockTOTPSecretRepo{findByUserID: &UserTOTPSecret{Secret: secret, IsEnabled: true}, markAccepted: true},
+			authEventService: &mockAuthEventService{},
+		}
+
+		// The original session subject (user_identities.sub) is NOT the user UUID;
+		// the elevated token must keep it so UserContextMiddleware resolves the user.
+		ctx := middleware.ContextWithJWTClaims(t.Context(), &middleware.JWTClaims{
+			Sub:        "identity-sub-001",
+			ClientID:   "client-123",
+			ProviderID: "provider-456",
+			Scope:      "openid profile",
+			SessionID:  "session-789",
+		})
+		_, err = svc.VerifyStepUp(ctx, StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "totp", Code: code}, mfaTestUserID)
+		require.NoError(t, err)
+		assert.Equal(t, "identity-sub-001", gotSub)
+		assert.NotEqual(t, mfaTestUserUUID.String(), gotSub, "elevated token must keep the original sub, not the user UUID")
+		assert.Equal(t, "client-123", gotClient)
+		assert.Equal(t, "provider-456", gotProvider)
+		assert.Equal(t, "openid profile", gotScope)
+		assert.Equal(t, "session-789", gotSession)
+	})
+
+	t.Run("verify webauthn step-up success and amr mapping", func(t *testing.T) {
+		originalValidate := validateStepUpChallengeToken
+		originalAccess := generateStepUpAccessToken
+		originalParse := parseWebAuthnRequestResponse
+		t.Cleanup(func() {
+			validateStepUpChallengeToken = originalValidate
+			generateStepUpAccessToken = originalAccess
+			parseWebAuthnRequestResponse = originalParse
+		})
+		validateStepUpChallengeToken = func(string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{"sub": mfaTestUserUUID.String(), "allowed_methods": []any{"webauthn"}}, nil
+		}
+		parseWebAuthnRequestResponse = func(io.Reader) (*protocol.ParsedCredentialAssertionData, error) {
+			return &protocol.ParsedCredentialAssertionData{}, nil
+		}
+		var gotAMR []string
+		generateStepUpAccessToken = func(_ context.Context, _, _, _, _, _, _ string, opts *authjwt.AccessTokenOptions) (string, error) {
+			if opts != nil {
+				gotAMR = opts.AMR
+			}
+			return "access", nil
+		}
+
+		// Backup-eligible (synced) passkey → software key (swk).
+		svc := &mfaService{
+			userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}},
+			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+				return &UserWebAuthnCredential{IsBackupEligible: true}, nil
+			}},
+			authEventService: &mockAuthEventService{},
+		}
+		got, err := svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "webauthn", Assertion: []byte(`{}`)}, mfaTestUserID)
+		require.NoError(t, err)
+		assert.Equal(t, "access", got.AccessToken)
+		assert.Equal(t, []string{"pwd", "user", "swk"}, gotAMR)
+
+		// Device-bound passkey → hardware key (hwk).
+		svc.webAuthnSvc = &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+			return &UserWebAuthnCredential{IsBackupEligible: false}, nil
+		}}
+		_, err = svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "webauthn", Assertion: []byte(`{}`)}, mfaTestUserID)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"pwd", "user", "hwk"}, gotAMR)
+	})
+
+	t.Run("verify webauthn step-up error paths", func(t *testing.T) {
+		originalValidate := validateStepUpChallengeToken
+		originalParse := parseWebAuthnRequestResponse
+		t.Cleanup(func() {
+			validateStepUpChallengeToken = originalValidate
+			parseWebAuthnRequestResponse = originalParse
+		})
+		validateStepUpChallengeToken = func(string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{"sub": mfaTestUserUUID.String(), "allowed_methods": []any{"webauthn"}}, nil
+		}
+		base := func() *mfaService {
+			return &mfaService{
+				userRepo:    &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}},
+				webAuthnSvc: &mockWebAuthnService{},
+			}
+		}
+
+		// Missing assertion.
+		_, err := base().VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "webauthn"}, mfaTestUserID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "assertion is required")
+
+		// WebAuthn service not wired.
+		svcNoWA := base()
+		svcNoWA.webAuthnSvc = nil
+		_, err = svcNoWA.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "webauthn", Assertion: []byte(`{}`)}, mfaTestUserID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not available")
+
+		// Malformed assertion.
+		parseWebAuthnRequestResponse = func(io.Reader) (*protocol.ParsedCredentialAssertionData, error) {
+			return nil, errors.New("bad assertion")
+		}
+		_, err = base().VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "webauthn", Assertion: []byte(`{`)}, mfaTestUserID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid WebAuthn assertion")
+
+		// Assertion verification fails.
+		parseWebAuthnRequestResponse = func(io.Reader) (*protocol.ParsedCredentialAssertionData, error) {
+			return &protocol.ParsedCredentialAssertionData{}, nil
+		}
+		svcFail := base()
+		svcFail.webAuthnSvc = &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+			return nil, apperror.NewUnauthorized("WebAuthn authentication failed")
+		}}
+		_, err = svcFail.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "webauthn", Assertion: []byte(`{}`)}, mfaTestUserID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WebAuthn authentication failed")
 	})
 }
 
@@ -941,8 +1203,8 @@ func (m *mockTOTPSecretRepo) DeleteByUserID(int64) error { return nil }
 
 type mockSMSOtpRepo struct {
 	mockBaseRepositoryMethods[notifier.UserOTP]
-	findValid   *notifier.UserOTP
-	findValidErr error
+	findValid     *notifier.UserOTP
+	findValidErr  error
 	recordFailErr error
 	markUsedErr   error
 }
@@ -951,14 +1213,14 @@ func (m *mockSMSOtpRepo) WithTx(*gorm.DB) notifier.UserOTPRepository { return m 
 func (m *mockSMSOtpRepo) FindValid(channel, recipient string) (*notifier.UserOTP, error) {
 	return m.findValid, m.findValidErr
 }
-func (m *mockSMSOtpRepo) RecordFailure(int64, int) error    { return m.recordFailErr }
-func (m *mockSMSOtpRepo) MarkUsed(int64) error              { return m.markUsedErr }
+func (m *mockSMSOtpRepo) RecordFailure(int64, int) error { return m.recordFailErr }
+func (m *mockSMSOtpRepo) MarkUsed(int64) error           { return m.markUsedErr }
 
 type mockSMSPhoneRepo struct {
 	mockBaseRepositoryMethods[UserSMSPhone]
-	findByUserID   *UserSMSPhone
+	findByUserID    *UserSMSPhone
 	findByUserIDErr error
-	deleteErr      error
+	deleteErr       error
 }
 
 func (m *mockSMSPhoneRepo) WithTx(*gorm.DB) UserSMSPhoneRepository { return m }
