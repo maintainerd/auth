@@ -459,6 +459,28 @@ func (h *MFAHandler) AdminResetMFA(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, nil, "MFA reset successfully")
 }
 
+// AdminResetMFAMethod resets a single MFA factor for a target user (admin only).
+//
+// POST /mfa/admin/users/{user_uuid}/reset/{method}
+// where {method} is one of: totp, webauthn, sms, backup_code.
+func (h *MFAHandler) AdminResetMFAMethod(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.AuthFromRequest(r).User
+	if actor == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	targetUUID := chi.URLParam(r, "user_uuid")
+	method := chi.URLParam(r, "method")
+
+	if err := h.mfaSvc.AdminResetMFAMethod(r.Context(), targetUUID, method, actor.UserID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to reset MFA method", err)
+		return
+	}
+
+	resp.Success(w, nil, "MFA method reset successfully")
+}
+
 func (h *MFAHandler) EnrollSMS(w http.ResponseWriter, r *http.Request) {
 	user := middleware.AuthFromRequest(r).User
 	if user == nil {
@@ -506,4 +528,22 @@ func (h *MFAHandler) DisableSMS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp.Success(w, nil, "SMS MFA disabled")
+}
+
+// SelfResetMFA removes every MFA factor for the authenticated user (self-service).
+// The target is always the caller — the user ID comes from the session, never
+// from the request — so this can only ever reset the caller's own MFA.
+//
+// POST /mfa/reset
+func (h *MFAHandler) SelfResetMFA(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if err := h.mfaSvc.SelfResetMFA(r.Context(), user.UserID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to reset MFA", err)
+		return
+	}
+	resp.Success(w, nil, "MFA reset successfully")
 }

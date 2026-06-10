@@ -29,7 +29,9 @@ func TestMFARouteMountsEndpoints(t *testing.T) {
 		{http.MethodDelete, "/mfa/webauthn/" + mfaTestCredentialUUID.String()},
 		{http.MethodPost, "/mfa/step-up/challenge"},
 		{http.MethodPost, "/mfa/step-up/verify"},
+		{http.MethodPost, "/mfa/reset"},
 		{http.MethodPost, "/mfa/admin/users/" + mfaTestUserUUID.String() + "/reset"},
+		{http.MethodPost, "/mfa/admin/users/" + mfaTestUserUUID.String() + "/reset/totp"},
 	}
 
 	for _, tt := range tests {

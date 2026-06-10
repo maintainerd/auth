@@ -73,14 +73,22 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("account:request-verify-phone:self", "Request phone verification", tenantID, apiID),
 		newPermission("account:verify-phone:self", "Verify phone", tenantID, apiID),
 		newPermission("account:change-password:self", "Change password (requires old password)", tenantID, apiID),
+		newPermission("account:mfa:read:self", "Read own MFA status and factors", tenantID, apiID),
 		newPermission("account:mfa:enroll:self", "Enroll in MFA (TOTP/WebAuthn)", tenantID, apiID),
 		newPermission("account:mfa:disable:self", "Disable MFA", tenantID, apiID),
 		newPermission("account:mfa:verify:self", "Verify MFA challenge", tenantID, apiID),
+		newPermission("account:mfa:reset:self", "Reset own MFA (clear all own factors)", tenantID, apiID),
 
 		// Authentication
 		newPermission("account:auth:logout:self", "Logout from current session", tenantID, apiID),
 		newPermission("account:auth:refresh-token:self", "Refresh JWT using refresh token", tenantID, apiID),
+		newPermission("account:session:read:self", "List own active sessions", tenantID, apiID),
 		newPermission("account:session:terminate:self", "End own active sessions", tenantID, apiID),
+
+		// Linked identities (SSO / federation) for own account
+		newPermission("account:identity:read:self", "List own linked identities", tenantID, apiID),
+		newPermission("account:identity:link:self", "Link a new identity to own account", tenantID, apiID),
+		newPermission("account:identity:unlink:self", "Unlink an identity from own account", tenantID, apiID),
 
 		// Token Permissions
 		newPermission("account:token:create:self", "Create API or personal access token", tenantID, apiID),
@@ -196,6 +204,7 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("user:role:assign", "Assign role to a user", tenantID, apiID),
 		newPermission("user:role:remove", "Remove role from a user", tenantID, apiID),
 		newPermission("user:invite", "Invite user via email", tenantID, apiID),
+		newPermission("user:mfa:reset", "Reset a user's MFA (all factors or a single method)", tenantID, apiID),
 
 		// Auth Events (OWASP-compliant security event log)
 		newPermission("auth_event:read", "Read auth events", tenantID, apiID),

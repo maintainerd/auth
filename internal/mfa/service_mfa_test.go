@@ -726,6 +726,142 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 	}
 }
 
+func TestMFAService_AdminResetMFAMethod(t *testing.T) {
+	t.Run("success resets a single factor and syncs state", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		// 1) is_totp_enabled = false
+		mock.ExpectBegin()
+		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		// 2) SyncMFAState clears mfa_enabled_at when no primary factor remains.
+		mock.ExpectBegin()
+		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		events := &mockAuthEventService{}
+		svc := &mfaService{
+			db:               db,
+			userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID}},
+			totpRepo:         &mockTOTPSecretRepo{},
+			backupCodeRepo:   &mockBackupCodeRepo{},
+			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
+			smsPhoneRepo:     &mockSMSPhoneRepo{},
+			authEventService: events,
+		}
+
+		require.NoError(t, svc.AdminResetMFAMethod(t.Context(), mfaTestUserUUID.String(), "totp", 99))
+
+		assert.Len(t, events.inputs, 1)
+		assertExpectationsMet(t, mock)
+	})
+
+	t.Run("missing user", func(t *testing.T) {
+		svc := &mfaService{userRepo: &mockUserRepo{findByUUID: nil}}
+		err := svc.AdminResetMFAMethod(t.Context(), mfaTestUserUUID.String(), "totp", 99)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "target user not found")
+	})
+
+	t.Run("unsupported method", func(t *testing.T) {
+		svc := &mfaService{userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}}}
+		err := svc.AdminResetMFAMethod(t.Context(), mfaTestUserUUID.String(), "carrier-pigeon", 99)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported MFA method")
+	})
+
+	tests := []struct {
+		name    string
+		method  string
+		totpErr error
+		webErr  error
+		smsErr  error
+		codeErr error
+		wantErr string
+	}{
+		{name: "totp error", method: "totp", totpErr: errors.New("db down"), wantErr: "failed to disable target TOTP"},
+		{name: "webauthn error", method: "webauthn", webErr: errors.New("db down"), wantErr: "failed to delete target WebAuthn credentials"},
+		{name: "sms error", method: "sms", smsErr: errors.New("db down"), wantErr: "failed to delete target SMS phone"},
+		{name: "backup code error", method: "backup_code", codeErr: errors.New("db down"), wantErr: "failed to delete target backup codes"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &mfaService{
+				userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}},
+				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
+				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
+				smsPhoneRepo:     &mockSMSPhoneRepo{deleteErr: tt.smsErr},
+				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
+				authEventService: &mockAuthEventService{},
+			}
+			err := svc.AdminResetMFAMethod(t.Context(), mfaTestUserUUID.String(), tt.method, 99)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestMFAService_SelfResetMFA(t *testing.T) {
+	t.Run("success clears all own factors", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		events := &mockAuthEventService{}
+		svc := &mfaService{
+			db:               db,
+			totpRepo:         &mockTOTPSecretRepo{},
+			backupCodeRepo:   &mockBackupCodeRepo{},
+			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
+			smsPhoneRepo:     &mockSMSPhoneRepo{},
+			authEventService: events,
+		}
+
+		require.NoError(t, svc.SelfResetMFA(t.Context(), mfaTestUserID))
+
+		assert.Len(t, events.inputs, 1)
+		assertExpectationsMet(t, mock)
+	})
+
+	tests := []struct {
+		name    string
+		totpErr error
+		codeErr error
+		webErr  error
+		smsErr  error
+		dbErr   bool
+		wantErr string
+	}{
+		{name: "totp error", totpErr: errors.New("db down"), wantErr: "failed to disable TOTP"},
+		{name: "backup code error", codeErr: errors.New("db down"), wantErr: "failed to delete backup codes"},
+		{name: "webauthn error", webErr: errors.New("db down"), wantErr: "failed to delete WebAuthn credentials"},
+		{name: "sms error", smsErr: errors.New("db down"), wantErr: "failed to delete SMS phone"},
+		{name: "db update error", dbErr: true, wantErr: "failed to reset MFA status"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock := newMockGormDB(t)
+			if tt.dbErr {
+				mock.ExpectBegin()
+				expectMFAUpdate(mock, "users").WillReturnError(errors.New("db down"))
+				mock.ExpectRollback()
+			}
+			svc := &mfaService{
+				db:               db,
+				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
+				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
+				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
+				smsPhoneRepo:     &mockSMSPhoneRepo{deleteErr: tt.smsErr},
+				authEventService: &mockAuthEventService{},
+			}
+
+			err := svc.SelfResetMFA(t.Context(), mfaTestUserID)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+			assertExpectationsMet(t, mock)
+		})
+	}
+}
+
 func TestMFAService_StepUp(t *testing.T) {
 	t.Run("issue challenge success and error", func(t *testing.T) {
 		original := generateStepUpChallengeToken

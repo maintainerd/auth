@@ -32,9 +32,12 @@ func FederationIdentityRoute(
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
-		r.Get("/", h.GetIdentities)
-		r.Post("/link", h.LinkIdentity)
-		r.Delete("/{identity_uuid}", h.UnlinkIdentity)
+		r.With(middleware.PermissionMiddleware([]string{"account:identity:read:self"})).
+			Get("/", h.GetIdentities)
+		r.With(middleware.PermissionMiddleware([]string{"account:identity:link:self"})).
+			Post("/link", h.LinkIdentity)
+		r.With(middleware.PermissionMiddleware([]string{"account:identity:unlink:self"})).
+			Delete("/{identity_uuid}", h.UnlinkIdentity)
 	})
 }
 
