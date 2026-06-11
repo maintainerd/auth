@@ -22,17 +22,28 @@ var validTokenEndpointAuthMethods = map[string]bool{
 	TokenAuthMethodSelfSignedTLSClientAuth: true,
 }
 
-// applyConfigToClientColumns mirrors the OAuth settings carried in the free-form
-// `config` JSON into the first-class client columns the OAuth runtime actually
-// reads — grant_types, response_types, token_endpoint_auth_method, allowed_scopes,
-// require_consent, and the access/refresh token TTLs.
+// validRequiredACRs is the set of ACR (authentication context class) values a
+// client may demand. "1" = password/single-factor, "2" = step-up/MFA. Anything
+// outside this set is ignored so a malformed config cannot weaken enforcement.
+var validRequiredACRs = map[string]bool{"1": true, "2": true}
+
+// applyConfigToClientColumns mirrors the OAuth and security settings carried in
+// the free-form `config` JSON into the first-class client columns the runtime
+// actually reads — grant_types, response_types, token_endpoint_auth_method,
+// allowed_scopes, require_consent, require_pkce, the access/refresh token TTLs,
+// and the per-client security overrides (required_acr, session timeouts).
 //
-// The admin console persists these settings inside `config`, but the authorization
-// and token-issuance paths (internal/oauth) read them from the dedicated columns.
+// The admin console persists these settings inside `config`, but the authorization,
+// token-issuance, login, and session paths read them from the dedicated columns.
 // Without this mapping, anything configured in the console would live only in the
 // opaque config blob and never take effect at runtime.
 //
-// Keys without a dedicated column (pkce_required, cors_enabled, refresh_token_rotation,
+// Security-override keys (required_acr, session_idle_timeout, session_absolute_timeout)
+// are NULL-when-absent so the tenant security_settings default is inherited.
+// Capability/credential policy (allowed MFA methods, password, lockout, threat,
+// registration) is deliberately NOT mapped here — it stays tenant-level.
+//
+// Keys without a dedicated column (cors_enabled, refresh_token_rotation,
 // multi_resource_refresh_token, and operator metadata) are intentionally left in
 // `config` untouched.
 func applyConfigToClientColumns(c *Client, config datatypes.JSON) {
@@ -63,11 +74,27 @@ func applyConfigToClientColumns(c *Client, config datatypes.JSON) {
 	if v, ok := boolFromConfig(firstPresentConfigValue(raw, "require_consent", "consent_required")); ok {
 		c.RequireConsent = v
 	}
+	if v, ok := boolFromConfig(firstPresentConfigValue(raw, "require_pkce", "pkce_required")); ok {
+		c.RequirePKCE = &v
+	}
 	if v, ok := intFromConfig(firstPresentConfigValue(raw, "access_token_lifetime", "access_token_ttl")); ok {
 		c.AccessTokenTTL = &v
 	}
 	if v, ok := intFromConfig(firstPresentConfigValue(raw, "refresh_token_lifetime", "refresh_token_ttl")); ok {
 		c.RefreshTokenTTL = &v
+	}
+
+	// Per-client security overrides — NULL/absent means inherit the tenant default.
+	if v, ok := raw["required_acr"].(string); ok {
+		if v = strings.TrimSpace(v); validRequiredACRs[v] {
+			c.RequiredACR = &v
+		}
+	}
+	if v, ok := intFromConfig(firstPresentConfigValue(raw, "session_idle_timeout", "session_idle_timeout_seconds")); ok && v > 0 {
+		c.SessionIdleTimeout = &v
+	}
+	if v, ok := intFromConfig(firstPresentConfigValue(raw, "session_absolute_timeout", "session_absolute_timeout_seconds")); ok && v > 0 {
+		c.SessionAbsoluteTimeout = &v
 	}
 }
 

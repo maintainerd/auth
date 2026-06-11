@@ -31,42 +31,63 @@ const (
 	ResponseTypeCode = "code"
 )
 
-// Client represents an OAuth2/OIDC client application registered with an
-// identity provider under a tenant.
+// Client represents an OAuth2/OIDC downstream relying-party application (SPA,
+// traditional web, mobile/native, or M2M) registered under a tenant. The OAuth
+// columns describe how the application authenticates to and obtains tokens from
+// THIS authorization server; identity_provider_id only selects which login
+// backend verifies the end user. External provider credentials are NOT stored
+// here — they live in identity_providers.config.
+//
+// Field groups mirror the clients migration: identity & ownership, descriptive,
+// secret storage, config & lifecycle, OAuth core, token lifetime, security
+// overrides, advanced client auth, claims, and audit.
 type Client struct {
-	ClientID                int64          `gorm:"column:client_id;primaryKey"`
-	ClientUUID              uuid.UUID      `gorm:"column:client_uuid"`
-	TenantID                int64          `gorm:"column:tenant_id;not null"`
-	ServiceID               *int64         `gorm:"column:service_id"`
-	IdentityProviderID      int64          `gorm:"column:identity_provider_id"`
-	Name                    string         `gorm:"column:name"`
-	DisplayName             string         `gorm:"column:display_name"`
-	ClientType              string         `gorm:"column:client_type"`
-	Domain                  *string        `gorm:"column:domain"`
-	Identifier              *string        `gorm:"column:identifier"`
-	SecretHash              *string        `gorm:"column:secret_hash"`
-	SecretEncrypted         *string        `gorm:"column:secret_encrypted"`
-	PreviousSecretHash      *string        `gorm:"column:previous_secret_hash"`
-	PreviousSecretEncrypted *string        `gorm:"column:previous_secret_encrypted"`
-	PreviousSecretExpiresAt *time.Time     `gorm:"column:previous_secret_expires_at"`
-	Config                  datatypes.JSON `gorm:"column:config"`
-	Status                  string         `gorm:"column:status;default:'inactive'"`
-	IsDefault               bool           `gorm:"column:is_default;default:false"`
-	IsSystem                bool           `gorm:"column:is_system;default:false"`
-	CreatedBy               *int64         `gorm:"column:created_by"`
-	UpdatedBy               *int64         `gorm:"column:updated_by"`
-	CreatedAt               time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt               time.Time      `gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt               gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	// Identity & ownership
+	ClientID           int64     `gorm:"column:client_id;primaryKey"`
+	ClientUUID         uuid.UUID `gorm:"column:client_uuid"`
+	TenantID           int64     `gorm:"column:tenant_id;not null"`
+	ServiceID          *int64    `gorm:"column:service_id"`
+	IdentityProviderID int64     `gorm:"column:identity_provider_id"`
 
-	// OAuth 2.0 fields
+	// Descriptive
+	Name        string  `gorm:"column:name"`
+	DisplayName string  `gorm:"column:display_name"`
+	ClientType  string  `gorm:"column:client_type"`
+	Domain      *string `gorm:"column:domain"`
+	Identifier  *string `gorm:"column:identifier"`
+
+	// Secret storage (nullable — public clients carry no secret)
+	SecretHash              *string    `gorm:"column:secret_hash"`
+	SecretEncrypted         *string    `gorm:"column:secret_encrypted"`
+	PreviousSecretHash      *string    `gorm:"column:previous_secret_hash"`
+	PreviousSecretEncrypted *string    `gorm:"column:previous_secret_encrypted"`
+	PreviousSecretExpiresAt *time.Time `gorm:"column:previous_secret_expires_at"`
+
+	// Free-form config blob + lifecycle
+	Config    datatypes.JSON `gorm:"column:config"`
+	Status    string         `gorm:"column:status;default:'inactive'"`
+	IsDefault bool           `gorm:"column:is_default;default:false"`
+	IsSystem  bool           `gorm:"column:is_system;default:false"`
+
+	// OAuth 2.0 core
 	TokenEndpointAuthMethod string         `gorm:"column:token_endpoint_auth_method;default:'client_secret_basic'"`
 	GrantTypes              pq.StringArray `gorm:"column:grant_types;type:text[];default:'{authorization_code}'"`
 	ResponseTypes           pq.StringArray `gorm:"column:response_types;type:text[];default:'{code}'"`
-	AccessTokenTTL          *int           `gorm:"column:access_token_ttl"`
-	RefreshTokenTTL         *int           `gorm:"column:refresh_token_ttl"`
 	RequireConsent          bool           `gorm:"column:require_consent;default:true"`
-	AllowedScopes           pq.StringArray `gorm:"column:allowed_scopes;type:text[];default:'{}'"`
+	// RequirePKCE: pointer so an explicit false is distinguishable from "unset"
+	// (unset → DB default TRUE). PKCE is mandatory for public clients.
+	RequirePKCE   *bool          `gorm:"column:require_pkce;default:true"`
+	AllowedScopes pq.StringArray `gorm:"column:allowed_scopes;type:text[];default:'{}'"`
+
+	// Token lifetime overrides (seconds). nil = inherit tenant token_config.
+	AccessTokenTTL  *int `gorm:"column:access_token_ttl"`
+	RefreshTokenTTL *int `gorm:"column:refresh_token_ttl"`
+
+	// Security overrides — runtime enforcement only, tighten-only.
+	// nil = inherit the tenant security_settings default.
+	RequiredACR            *string `gorm:"column:required_acr"`             // MFA/step-up: "1" pwd, "2" step-up
+	SessionIdleTimeout     *int    `gorm:"column:session_idle_timeout"`     // sliding idle window (seconds)
+	SessionAbsoluteTimeout *int    `gorm:"column:session_absolute_timeout"` // hard session cap (seconds)
 
 	// JWT client auth (RFC 7523)
 	JWKS    datatypes.JSON `gorm:"column:jwks;type:jsonb"`
@@ -82,6 +103,13 @@ type Client struct {
 	// ClaimMappers: static or metadata-derived extra claims injected into tokens.
 	// Stored as {"claim_name": "static_value"}.
 	ClaimMappers datatypes.JSON `gorm:"column:claim_mappers;type:jsonb"`
+
+	// Audit
+	CreatedBy *int64         `gorm:"column:created_by"`
+	UpdatedBy *int64         `gorm:"column:updated_by"`
+	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
 	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
