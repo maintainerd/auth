@@ -55,8 +55,15 @@ type ClientServiceDataResult struct {
 	Status           string
 	IsDefault        bool
 	IsSystem         bool
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+
+	// Security posture / per-client overrides (nil = inherit tenant default)
+	RequirePKCE            *bool
+	RequiredACR            *string
+	SessionIdleTimeout     *int
+	SessionAbsoluteTimeout *int
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type ClientAPIServiceDataResult struct {
@@ -1021,16 +1028,20 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 	}
 
 	result := &ClientServiceDataResult{
-		ClientUUID:  Client.ClientUUID,
-		Name:        Client.Name,
-		DisplayName: Client.DisplayName,
-		ClientType:  Client.ClientType,
-		Domain:      Client.Domain,
-		Status:      Client.Status,
-		IsDefault:   Client.IsDefault,
-		IsSystem:    Client.IsSystem,
-		CreatedAt:   Client.CreatedAt,
-		UpdatedAt:   Client.UpdatedAt,
+		ClientUUID:             Client.ClientUUID,
+		Name:                   Client.Name,
+		DisplayName:            Client.DisplayName,
+		ClientType:             Client.ClientType,
+		Domain:                 Client.Domain,
+		Status:                 Client.Status,
+		IsDefault:              Client.IsDefault,
+		IsSystem:               Client.IsSystem,
+		RequirePKCE:            Client.RequirePKCE,
+		RequiredACR:            Client.RequiredACR,
+		SessionIdleTimeout:     Client.SessionIdleTimeout,
+		SessionAbsoluteTimeout: Client.SessionAbsoluteTimeout,
+		CreatedAt:              Client.CreatedAt,
+		UpdatedAt:              Client.UpdatedAt,
 	}
 
 	if Client.IdentityProvider != nil {

@@ -166,8 +166,16 @@ type ClientResponseDTO struct {
 	Status           string                       `json:"status"`
 	IsDefault        bool                         `json:"is_default"`
 	IsSystem         bool                         `json:"is_system"`
-	CreatedAt        time.Time                    `json:"created_at"`
-	UpdatedAt        time.Time                    `json:"updated_at"`
+
+	// Security posture / per-client overrides. The override fields are null when
+	// the client inherits the tenant security_settings default.
+	RequirePKCE            *bool   `json:"require_pkce,omitempty"`
+	RequiredACR            *string `json:"required_acr,omitempty"`
+	SessionIdleTimeout     *int    `json:"session_idle_timeout,omitempty"`
+	SessionAbsoluteTimeout *int    `json:"session_absolute_timeout,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Create auth client request DTO

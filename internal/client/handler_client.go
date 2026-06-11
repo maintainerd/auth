@@ -839,16 +839,20 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 // Convert result to DTO
 func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 	result := ClientResponseDTO{
-		ClientUUID:  r.ClientUUID,
-		Name:        r.Name,
-		DisplayName: r.DisplayName,
-		ClientType:  r.ClientType,
-		Domain:      r.Domain,
-		Status:      r.Status,
-		IsDefault:   r.IsDefault,
-		IsSystem:    r.IsSystem,
-		CreatedAt:   r.CreatedAt,
-		UpdatedAt:   r.UpdatedAt,
+		ClientUUID:             r.ClientUUID,
+		Name:                   r.Name,
+		DisplayName:            r.DisplayName,
+		ClientType:             r.ClientType,
+		Domain:                 r.Domain,
+		Status:                 r.Status,
+		IsDefault:              r.IsDefault,
+		IsSystem:               r.IsSystem,
+		RequirePKCE:            r.RequirePKCE,
+		RequiredACR:            r.RequiredACR,
+		SessionIdleTimeout:     r.SessionIdleTimeout,
+		SessionAbsoluteTimeout: r.SessionAbsoluteTimeout,
+		CreatedAt:              r.CreatedAt,
+		UpdatedAt:              r.UpdatedAt,
 	}
 
 	if r.IdentityProvider != nil {
