@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -226,6 +225,7 @@ func lockedRateLimiterReg(t *testing.T, identifier string) func() {
 // ---------------------------------------------------------------------------
 
 func TestRegisterPublic_RateLimited(t *testing.T) {
+	cid, pid := "c", "p"
 	cleanup := lockedRateLimiterReg(t, "ratelimited-user")
 	defer cleanup()
 
@@ -233,8 +233,8 @@ func TestRegisterPublic_RateLimited(t *testing.T) {
 	_ = mock
 	m := defaultRegPublicMocks()
 	svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-		m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-	resp, err := svc.RegisterPublic(context.Background(), "ratelimited-user", "F", "P@ssW0rd!", nil, nil, "c", "p")
+		m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+	resp, err := svc.RegisterPublic(context.Background(), "ratelimited-user", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 	require.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Contains(t, err.Error(), "locked")
@@ -252,7 +252,7 @@ func TestRegister_RateLimited(t *testing.T) {
 	_ = mock
 	m := defaultRegInternalMocks()
 	svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-		m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+		m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 	resp, err := svc.Register(context.Background(), "ratelimited-user2", "F", "P@ssW0rd!", nil, nil, nil, nil)
 	require.Error(t, err)
 	assert.Nil(t, resp)
@@ -264,6 +264,7 @@ func TestRegister_RateLimited(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRegisterService_RegisterPublic(t *testing.T) {
+	cid, pid := "c", "p"
 	t.Run("client not found", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -273,8 +274,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid or inactive auth client")
@@ -290,8 +291,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -306,8 +307,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return nil, errors.New("idp db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "identity provider lookup failed")
@@ -323,8 +324,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "identity provider not found")
@@ -340,8 +341,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "username already taken")
@@ -357,9 +358,9 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		email := "dup@test.com"
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", &email, nil, "c", "p")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", &email, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "email already registered")
@@ -375,9 +376,9 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		phone := "+1234567890"
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, &phone, "c", "p")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, &phone, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "phone number already registered")
@@ -390,8 +391,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "weak", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "weak", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "password must be at least")
@@ -407,8 +408,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return nil, errors.New("create error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -423,8 +424,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return nil, errors.New("identity create error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -439,8 +440,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return nil, errors.New("role error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -455,8 +456,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return nil, errors.New("role assign error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -471,8 +472,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		m := defaultRegPublicMocks()
 		m.user.createFn = func(u *User) (*User, error) { u.UserID = 1; u.UserUUID = uuid.New(); return u, nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "P@ssW0rd!", nil, nil, "c", "p")
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -495,10 +496,10 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			return u, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		email := "test@example.com"
 		phone := "+1234567890"
-		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "P@ssW0rd!", &email, &phone, "c", "p")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "P@ssW0rd!", &email, &phone, &cid, &pid)
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -526,7 +527,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -543,7 +544,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -557,7 +558,7 @@ func TestRegisterService_Register(t *testing.T) {
 		m := defaultRegInternalMocks()
 		m.client.findSystemFn = func() (*Client, error) { return nil, nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -574,7 +575,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -591,7 +592,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return nil, errors.New("record not found")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		// With the userIdentitySub bug fixed, token response now succeeds.
 		require.NoError(t, err)
@@ -609,7 +610,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -626,7 +627,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return nil, errors.New("create error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -642,7 +643,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return nil, errors.New("identity error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -657,7 +658,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return nil, errors.New("role error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -673,7 +674,7 @@ func TestRegisterService_Register(t *testing.T) {
 			return nil, errors.New("role assign error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -689,7 +690,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectCommit()
 		m := defaultRegInternalMocks()
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -703,7 +704,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectCommit()
 		m := defaultRegInternalMocks()
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		email := "a@b.com"
 		phone := "+1234567890"
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", &email, &phone, &cid, &pid)
@@ -720,336 +721,8 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectCommit()
 		m := defaultRegInternalMocks()
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, nil, nil)
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-}
-
-// ---------------------------------------------------------------------------
-// RegisterInvite (internal)
-// ---------------------------------------------------------------------------
-
-func TestRegisterService_RegisterInvite(t *testing.T) {
-	cid := "client-id"
-	pid := "provider-id"
-
-	validInvite := func() *Invite {
-		future := time.Now().Add(time.Hour)
-		return &Invite{
-			InviteUUID:   uuid.New(),
-			InvitedEmail: "invite@test.com",
-			Status:       shared.StatusPending,
-			ExpiresAt:    &future,
-			Roles:        []Role{{RoleID: 10}},
-		}
-	}
-
-	t.Run("FindByClientIDAndIdentityProvider error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
-			return nil, errors.New("db error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "auth client lookup by client_id and provider_id failed")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("FindDefault error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.client.findSystemFn = func() (*Client, error) {
-			return nil, errors.New("db error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", nil, nil)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("client nil or inactive", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.client.findSystemFn = func() (*Client, error) { return nil, nil }
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", nil, nil)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "auth client not found or inactive")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("invite FindByToken error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
-			return nil, errors.New("db error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "invalid invite token")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("invite nil", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
-			return nil, nil
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "invite token is invalid or expired")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("invite not pending", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
-			return &Invite{Status: "accepted"}, nil
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "invite token is invalid or expired")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("invite expired", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		past := time.Now().Add(-time.Hour)
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
-			return &Invite{Status: shared.StatusPending, ExpiresAt: &past}, nil
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "invite token is invalid or expired")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("FindByUsername non-record-not-found error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.user.findByUsernameFn = func(_ string) (*User, error) {
-			return nil, errors.New("db error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("user already exists", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.user.findByUsernameFn = func(_ string) (*User, error) {
-			return &User{UserID: 99}, nil
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "user already exists")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("user create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.user.createFn = func(_ *User) (*User, error) {
-			return nil, errors.New("create error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("user identity create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.userIdentity.createFn = func(_ *UserIdentity) (*UserIdentity, error) {
-			return nil, errors.New("identity error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-	t.Run("findDefaultRole error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.role.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
-			return nil, errors.New("role error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("default user role create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
-			return nil, errors.New("role assign error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("invite role create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		callCount := 0
-		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
-			callCount++
-			if callCount > 1 { // first call is default role, second is invite role
-				return nil, errors.New("invite role error")
-			}
-			return &UserRole{}, nil
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("MarkAsUsed error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.invite.markAsUsedFn = func(_ uuid.UUID) error {
-			return errors.New("mark error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("generateTokenResponse error", func(t *testing.T) {
-		jwt.ResetJWTKeys()
-		defer initTestJWTKeysService(t)
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("tx commits with clientID and providerID", func(t *testing.T) {
-		initTestJWTKeysService(t)
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("tx commits with default client", func(t *testing.T) {
-		initTestJWTKeysService(t)
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -1070,7 +743,6 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			InvitedEmail: "invite@test.com",
 			Status:       shared.StatusPending,
 			ExpiresAt:    &future,
-			Roles:        []Role{{RoleID: 10}},
 		}
 	}
 
@@ -1083,7 +755,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1099,7 +771,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1116,7 +788,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1133,7 +805,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1150,7 +822,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1167,7 +839,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1184,7 +856,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return &Invite{Status: "accepted"}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1202,7 +874,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return &Invite{Status: shared.StatusPending, ExpiresAt: &past}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1220,7 +892,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1237,7 +909,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1255,7 +927,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1272,7 +944,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1290,7 +962,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("create error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1307,7 +979,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("identity error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1323,7 +995,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("role error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1340,65 +1012,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return nil, errors.New("role assign error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("FindByUserIDAndRoleID error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.userRole.findByUserIDAndRoleIDFn = func(_, _ int64) (*UserRole, error) {
-			return nil, errors.New("lookup error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("invite role already exists - skipped", func(t *testing.T) {
-		initTestJWTKeysService(t)
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		m.userRole.findByUserIDAndRoleIDFn = func(_, _ int64) (*UserRole, error) {
-			return &UserRole{UserID: 1, RoleID: 10}, nil // already exists
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("invite role create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		createCount := 0
-		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
-			createCount++
-			if createCount > 1 { // first = default role, second = invite role
-				return nil, errors.New("invite role error")
-			}
-			return &UserRole{}, nil
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1415,7 +1029,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 			return errors.New("mark error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1432,7 +1046,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		m := defaultRegPublicMocks()
 		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -1447,7 +1061,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		m := defaultRegPublicMocks()
 		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
@@ -1455,44 +1069,6 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-}
-
-// ---------------------------------------------------------------------------
-// TestRegisterInvite_PasswordPolicyValidationError
-// ---------------------------------------------------------------------------
-
-func TestRegisterInvite_PasswordPolicyValidationError(t *testing.T) {
-	cid := "client-id"
-	pid := "provider-id"
-	validInvite := func() *Invite {
-		future := time.Now().Add(time.Hour)
-		return &Invite{
-			InviteUUID:   uuid.New(),
-			InvitedEmail: "invite@test.com",
-			Status:       shared.StatusPending,
-			ExpiresAt:    &future,
-			Roles:        []Role{{RoleID: 10}},
-		}
-	}
-
-	gormDB, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectRollback()
-	m := defaultRegInternalMocks()
-	m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-	m.user.findByUsernameFn = func(_ string) (*User, error) { return nil, nil }
-	settingRepo := &mockSecuritySettingRepo{
-		findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
-			return nil, errors.New("db error")
-		},
-	}
-	svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-		m.userIdentity, m.role, m.invite, m.idp, settingRepo, nil)
-	resp, err := svc.RegisterInvite(context.Background(), "u", "weak", "token", &cid, &pid)
-	require.Error(t, err)
-	assert.Nil(t, resp)
-	assert.Contains(t, err.Error(), "password must be at least")
-	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // ---------------------------------------------------------------------------
@@ -1507,7 +1083,6 @@ func TestRegisterInvitePublic_PasswordPolicyValidationTight(t *testing.T) {
 			InvitedEmail: "invite@test.com",
 			Status:       shared.StatusPending,
 			ExpiresAt:    &future,
-			Roles:        []Role{{RoleID: 10}},
 		}
 	}
 
@@ -1517,7 +1092,7 @@ func TestRegisterInvitePublic_PasswordPolicyValidationTight(t *testing.T) {
 	m := defaultRegPublicMocks()
 	m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 	svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-		m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+		m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 	resp, err := svc.RegisterInvitePublic(context.Background(), "u", "weak", "c", "p", "token")
 	require.Error(t, err)
 	assert.Nil(t, resp)

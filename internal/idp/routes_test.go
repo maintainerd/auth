@@ -71,23 +71,23 @@ func TestIdentityProviderRoute(t *testing.T) {
 	}
 }
 
-func TestSignupFlowRouteRegistration(t *testing.T) {
+func TestAuthFlowRouteRegistration(t *testing.T) {
 	r := chi.NewRouter()
-	SignupFlowRoute(r, NewSignupFlowHandler(&mockSignupFlowService{}), nil, nil)
+	AuthFlowRoute(r, NewAuthFlowHandler(&mockAuthFlowService{}), nil, nil)
 
 	paths := []struct {
 		method string
 		path   string
 	}{
-		{http.MethodGet, "/signup_flows/"},
-		{http.MethodGet, "/signup_flows/abc"},
-		{http.MethodPost, "/signup_flows/"},
-		{http.MethodPut, "/signup_flows/abc"},
-		{http.MethodPatch, "/signup_flows/abc/status"},
-		{http.MethodDelete, "/signup_flows/abc"},
-		{http.MethodPost, "/signup_flows/abc/roles/"},
-		{http.MethodGet, "/signup_flows/abc/roles/"},
-		{http.MethodDelete, "/signup_flows/abc/roles/role"},
+		{http.MethodGet, "/auth_flows/"},
+		{http.MethodGet, "/auth_flows/abc"},
+		{http.MethodPost, "/auth_flows/"},
+		{http.MethodPut, "/auth_flows/abc"},
+		{http.MethodPatch, "/auth_flows/abc/status"},
+		{http.MethodDelete, "/auth_flows/abc"},
+		{http.MethodPost, "/auth_flows/abc/roles/"},
+		{http.MethodGet, "/auth_flows/abc/roles/"},
+		{http.MethodDelete, "/auth_flows/abc/roles/role"},
 	}
 	for _, tc := range paths {
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {

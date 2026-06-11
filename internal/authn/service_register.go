@@ -21,10 +21,9 @@ var secValidatePasswordPolicy = security.ValidatePasswordPolicy
 var secHashPassword = security.HashPassword
 
 type RegisterService interface {
-	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID string) (*RegisterResponseDTO, error)
+	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
 	RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
 	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
-	RegisterInvite(ctx context.Context, username, password, inviteToken string, clientID, providerID *string) (*RegisterResponseDTO, error)
 }
 
 type registerService struct {
@@ -39,6 +38,7 @@ type registerService struct {
 	identityProviderRepo IdentityProviderRepository
 	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → use defaults
 	passwordHistoryRepo  UserPasswordHistoryRepository       // nil → skip history
+	authFlowRoleRepo     AuthFlowRoleRepository
 }
 
 func NewRegistrationService(
@@ -53,6 +53,7 @@ func NewRegistrationService(
 	identityProviderRepo IdentityProviderRepository,
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
+	authFlowRoleRepo AuthFlowRoleRepository,
 ) RegisterService {
 	return &registerService{
 		db:                   db,
@@ -66,6 +67,7 @@ func NewRegistrationService(
 		identityProviderRepo: identityProviderRepo,
 		securitySettingRepo:  securitySettingRepo,
 		passwordHistoryRepo:  passwordHistoryRepo,
+		authFlowRoleRepo:     authFlowRoleRepo,
 	}
 }
 
@@ -101,7 +103,8 @@ func (s *registerService) findDefaultRole(roleRepo RoleRepository, tenantID int6
 }
 
 // RegisterPublic registers new users for public-facing applications.
-// Requires clientID and providerID to identify the auth client.
+// clientID and providerID are optional. When absent, registers under the
+// default client of the system tenant (mirrors internal Register() fallback).
 // Used by external applications on port 8081.
 func (s *registerService) RegisterPublic(
 	ctx context.Context,
@@ -111,11 +114,16 @@ func (s *registerService) RegisterPublic(
 	email,
 	phone *string,
 	clientID,
-	providerID string,
+	providerID *string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.public")
 	defer span.End()
-	span.SetAttributes(attribute.String("client.id", clientID), attribute.String("provider.id", providerID))
+	if clientID != nil {
+		span.SetAttributes(attribute.String("client.id", *clientID))
+	}
+	if providerID != nil {
+		span.SetAttributes(attribute.String("provider.id", *providerID))
+	}
 
 	// Rate limiting check to prevent registration abuse
 	if err := security.CheckRateLimit(username); err != nil {
@@ -123,6 +131,8 @@ func (s *registerService) RegisterPublic(
 		span.SetStatus(codes.Error, "register public failed")
 		return nil, err
 	}
+
+	isExplicitClient := clientID != nil && providerID != nil
 
 	var createdUser *User
 	var Client *Client
@@ -137,29 +147,41 @@ func (s *registerService) RegisterPublic(
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
-		// Get and validate auth client with proper relationship preloading
 		var txErr error
-		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
-		if txErr != nil {
-			return txErr
-		}
-		if Client == nil ||
-			Client.Status != shared.StatusActive ||
-			Client.Domain == nil || *Client.Domain == "" {
-			return apperror.NewValidation("invalid or inactive auth client")
-		}
+		var tenantId int64
 
-		// Look up identity provider by identifier to get auth container
-		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
-		if txErr != nil {
-			return apperror.NewInternal("identity provider lookup failed", txErr)
-		}
+		if isExplicitClient {
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			if txErr != nil {
+				return txErr
+			}
+			if Client == nil ||
+				Client.Status != shared.StatusActive ||
+				Client.Domain == nil || *Client.Domain == "" {
+				return apperror.NewValidation("invalid or inactive auth client")
+			}
 
-		if identityProvider == nil {
-			return apperror.NewNotFoundWithReason("identity provider not found")
-		}
+			identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(*providerID)
+			if txErr != nil {
+				return apperror.NewInternal("identity provider lookup failed", txErr)
+			}
+			if identityProvider == nil {
+				return apperror.NewNotFoundWithReason("identity provider not found")
+			}
+			tenantId = identityProvider.TenantID
+		} else {
+			Client, txErr = txClientRepo.FindSystem()
+			if txErr != nil {
+				return txErr
+			}
+			if Client == nil ||
+				Client.Status != shared.StatusActive ||
+				Client.Domain == nil || *Client.Domain == "" {
+				return apperror.NewNotFoundWithReason("auth client not found or inactive")
+			}
 
-		tenantId := identityProvider.TenantID
+			tenantId = Client.IdentityProvider.Tenant.TenantID
+		}
 
 		// Check if username already exists
 		existingUser, txErr := txUserRepo.FindByUsername(username)
@@ -234,6 +256,7 @@ func (s *registerService) RegisterPublic(
 
 		// Create user identity
 		userIdentity := &UserIdentity{
+			TenantID:           tenantId,
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
 			IdentityProviderID: &Client.IdentityProviderID,
@@ -435,173 +458,6 @@ func (s *registerService) Register(
 	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 
-// RegisterInvite registers new users via invite token for internal applications.
-// If clientID and providerID are provided, uses the specified auth client.
-// If not provided, uses the default auth client.
-// Used by internal applications on port 8080.
-func (s *registerService) RegisterInvite(
-	ctx context.Context,
-	username,
-	password,
-	inviteToken string,
-	clientID,
-	providerID *string,
-) (*RegisterResponseDTO, error) {
-	_, span := otel.Tracer("service").Start(ctx, "register.invite")
-	defer span.End()
-
-	var createdUser *User
-	var Client *Client
-	var userIdentitySub string
-
-	// All database operations in transaction
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txUserRepo := s.userRepo.WithTx(tx)
-		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
-		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
-		txInviteRepo := s.inviteRepo.WithTx(tx)
-		txClientRepo := s.clientRepo.WithTx(tx)
-		txRoleRepo := s.roleRepo.WithTx(tx)
-
-		// Get auth client - either by client_id and provider_id or default
-		var txErr error
-		if clientID != nil && providerID != nil {
-			// Get auth client by client_id and identity provider identifier
-			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
-			if txErr != nil {
-				return apperror.NewInternal("auth client lookup by client_id and provider_id failed", txErr)
-			}
-		} else {
-			// Get default auth client for internal authentication
-			Client, txErr = txClientRepo.FindSystem()
-			if txErr != nil {
-				return txErr
-			}
-		}
-
-		if Client == nil ||
-			Client.Status != shared.StatusActive ||
-			Client.Domain == nil || *Client.Domain == "" {
-			return apperror.NewNotFoundWithReason("auth client not found or inactive")
-		}
-
-		// Get tenant ID from the default client's identity provider
-		tenantId := Client.IdentityProvider.Tenant.TenantID
-
-		// Validate invite token
-		invite, txErr := txInviteRepo.FindByToken(inviteToken)
-		if txErr != nil {
-			return apperror.NewUnauthorized("invalid invite token")
-		}
-		if invite == nil || invite.Status != shared.StatusPending || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
-			return apperror.NewUnauthorized("invite token is invalid or expired")
-		}
-
-		// Check if user already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username)
-		if txErr != nil && txErr.Error() != "record not found" {
-			return txErr
-		}
-		if existingUser != nil {
-			return apperror.NewConflict("user already exists")
-		}
-
-		// Validate password against tenant policy
-		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
-			return apperror.NewValidation(txErr.Error())
-		}
-
-		// Hash password
-		hashed, txErr := secHashPassword(ctx, []byte(password))
-		if txErr != nil {
-			return txErr
-		}
-
-		now := time.Now()
-		// Create user
-		newUser := &User{
-			Username:          username,
-			Fullname:          username, // Use username as fullname since invite doesn't have fullname
-			Password:          ptr.Ptr(string(hashed)),
-			Email:             invite.InvitedEmail,
-			Status:            shared.StatusActive,
-			PasswordChangedAt: &now,
-		}
-
-		createdUser, txErr = txUserRepo.Create(newUser)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Record password history
-		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
-
-		// Create user identity
-		userIdentity := &UserIdentity{
-			TenantID:           tenantId,
-			UserID:             createdUser.UserID,
-			ClientID:           Client.ClientID,
-			IdentityProviderID: &Client.IdentityProviderID,
-			Provider:           shared.ProviderDefault,
-			Sub:                uuid.New().String(),
-			Metadata:           datatypes.JSON([]byte(`{}`)),
-		}
-
-		_, txErr = txUserIdentityRepo.Create(userIdentity)
-		if txErr != nil {
-			return txErr
-		}
-		userIdentitySub = userIdentity.Sub
-
-		// Get default role and assign it first
-		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Assign default role to user
-		defaultUserRole := &UserRole{
-			UserID: createdUser.UserID,
-			RoleID: defaultRole.RoleID,
-		}
-		_, txErr = txUserRoleRepo.Create(defaultUserRole)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Assign additional roles from invite
-		for _, role := range invite.Roles {
-			userRole := &UserRole{
-				UserID: createdUser.UserID,
-				RoleID: role.RoleID,
-			}
-			_, txErr = txUserRoleRepo.Create(userRole)
-			if txErr != nil {
-				return txErr
-			}
-		}
-
-		// Mark invite as used
-		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)
-		if txErr != nil {
-			return txErr
-		}
-
-		return nil // commit transaction
-	})
-
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "register invite failed")
-		return nil, err
-	}
-
-	span.SetStatus(codes.Ok, "")
-	// Return token response
-	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
-}
-
 // RegisterInvitePublic registers new users via invite token for public-facing applications.
 // Requires clientID and providerID to identify the auth client.
 // Used by external applications on port 8081.
@@ -709,7 +565,9 @@ func (s *registerService) RegisterInvitePublic(
 			Email:             invite.InvitedEmail, // Always use the invited email
 			Password:          ptr.Ptr(string(hashed)),
 			Status:            shared.StatusActive,
-			IsEmailVerified:   true, // Auto-verify email for invited users
+			IsEmailVerified:   true,  // Auto-verify email for invited users
+			IsProfileCompleted: false, // Require profile completion
+			IsAccountCompleted: false, // Require account completion
 			PasswordChangedAt: &now,
 		}
 
@@ -754,23 +612,31 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 
-		// Assign additional roles from invite
-		for _, role := range invite.Roles {
-			existingRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, role.RoleID)
+		// If invite references an auth_flow, grant its roles
+		if invite.AuthFlowID != nil && s.authFlowRoleRepo != nil {
+			txAuthFlowRoleRepo := s.authFlowRoleRepo.WithTx(tx)
+			roleIDs, txErr := txAuthFlowRoleRepo.FindRoleIDsByAuthFlowID(*invite.AuthFlowID)
 			if txErr != nil {
 				return txErr
 			}
-			if existingRole != nil {
-				continue
-			}
-			userRole := &UserRole{
-				UserID: createdUser.UserID,
-				RoleID: role.RoleID,
-			}
-			_, txErr = txUserRoleRepo.Create(userRole)
-
-			if txErr != nil {
-				return txErr
+			for _, roleID := range roleIDs {
+				if roleID == defaultRole.RoleID {
+					continue // already assigned
+				}
+				existingRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, roleID)
+				if txErr != nil {
+					return txErr
+				}
+				if existingRole != nil {
+					continue
+				}
+				_, txErr = txUserRoleRepo.Create(&UserRole{
+					UserID: createdUser.UserID,
+					RoleID: roleID,
+				})
+				if txErr != nil {
+					return txErr
+				}
 			}
 		}
 

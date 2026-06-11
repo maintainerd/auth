@@ -68,12 +68,11 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		user.UserRoute(api, h.user, h.profile, userProvider, application.Cache)
 		invite.InviteRoute(api, h.invite, userProvider, application.Cache)
 		client.APIKeyRoute(api, h.apiKey, userProvider, application.Cache)
-		idp.SignupFlowRoute(api, h.signupFlow, userProvider, application.Cache)
+		idp.AuthFlowRoute(api, h.authFlow, userProvider, application.Cache)
 		secpolicy.SecuritySettingRoute(api, h.securitySetting, userProvider, application.Cache)
 		secpolicy.IPRestrictionRuleRoute(api, h.ipRestrictionRule, userProvider, application.Cache)
 		branding.EmailTemplateRoute(api, h.emailTemplate, userProvider, application.Cache)
 		branding.SMSTemplateRoute(api, h.smsTemplate, userProvider, application.Cache)
-		branding.LoginTemplateRoute(api, h.loginTemplate, userProvider, application.Cache)
 		branding.BrandingRoute(api, h.branding, userProvider, application.Cache)
 		tenant.TenantSettingRoute(api, h.tenantSetting, userProvider, application.Cache)
 		notifier.EmailConfigRoute(api, h.emailConfig, userProvider, application.Cache)
@@ -180,6 +179,8 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		authn.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
 		user.RecoveryRoute(api, h.account)
+		// Public branding (colors + logo, non-sensitive, no auth)
+		branding.BrandingPublicRoute(api, h.branding)
 	})
 
 	return r

@@ -9,6 +9,7 @@ import (
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/datatypes"
 )
 
 func TestBrandingGRPCHandler_RPCS(t *testing.T) {
@@ -78,7 +79,7 @@ func TestBrandingGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testBrandingService{
-			updateFn: func(ctx context.Context, tenantID int64, cn, lu, fu, pc, sc, ac, ff, cs, su, pp, ts string) (*BrandingServiceDataResult, error) {
+			updateFn: func(ctx context.Context, tenantID int64, nm, cn, lu, fu string, md datatypes.JSON, su, pp, ts string) (*BrandingServiceDataResult, error) {
 				return &brResult, nil
 			},
 		}
@@ -120,7 +121,7 @@ func TestBrandingGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update service error", func(t *testing.T) {
 		svc := &testBrandingService{
-			updateFn: func(ctx context.Context, tenantID int64, cn, lu, fu, pc, sc, ac, ff, cs, su, pp, ts string) (*BrandingServiceDataResult, error) {
+			updateFn: func(ctx context.Context, tenantID int64, nm, cn, lu, fu string, md datatypes.JSON, su, pp, ts string) (*BrandingServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}

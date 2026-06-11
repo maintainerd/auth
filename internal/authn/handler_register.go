@@ -29,26 +29,15 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// Validate query parameters
-	q := RegisterQueryDTO{
-		ClientID:   r.URL.Query().Get("client_id"),
-		ProviderID: r.URL.Query().Get("provider_id"),
+	// Parse optional query parameters (client_id and provider_id)
+	var clientIDPtr, providerIDPtr *string
+	var clientIDStr string
+	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
+		clientIDPtr = &clientID
+		clientIDStr = clientID
 	}
-
-	if err := q.Validate(); err != nil {
-		security.LogSecurityEvent(security.SecurityEvent{
-			EventType: "registration_validation_failure",
-			ClientIP:  clientIPStr,
-			UserAgent: userAgentStr,
-			RequestID: requestIDStr,
-			Endpoint:  "/register",
-			Method:    r.Method,
-			Timestamp: startTime,
-			Details:   "Query parameter validation failed",
-			Severity:  "MEDIUM",
-		})
-		resp.ValidationError(w, err)
-		return
+	if providerID := r.URL.Query().Get("provider_id"); providerID != "" {
+		providerIDPtr = &providerID
 	}
 
 	// Validate User-Agent for suspicious patterns
@@ -117,15 +106,15 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Public registration attempt (requires client_id and provider_id)
+	// Public registration attempt (client_id/provider_id optional)
 	tokenResponse, err := h.registerService.RegisterPublic(
-		r.Context(), req.Username, req.Fullname, req.Password, req.Email, req.Phone, q.ClientID, q.ProviderID,
+		r.Context(), req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, providerIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "registration_failure",
 			UserID:    req.Username,
-			ClientID:  q.ClientID,
+			ClientID:  clientIDStr,
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -143,7 +132,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "registration_success",
 		UserID:    req.Username,
-		ClientID:  q.ClientID,
+		ClientID:  clientIDStr,
 		ClientIP:  clientIPStr,
 		UserAgent: userAgentStr,
 		RequestID: requestIDStr,
@@ -157,15 +146,13 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	// Best-effort: send email verification OTP if an email was supplied.
 	// Failures here must not fail the registration response.
 	if req.Email != nil && *req.Email != "" && h.emailVerificationService != nil {
-		clientIDPtr := q.ClientID
-		providerIDPtr := q.ProviderID
 		if _, sendErr := h.emailVerificationService.SendVerificationEmail(
-			r.Context(), *req.Email, &clientIDPtr, &providerIDPtr,
+			r.Context(), *req.Email, clientIDPtr, providerIDPtr,
 		); sendErr != nil {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "email_verification_send_failure",
 				UserID:    req.Username,
-				ClientID:  q.ClientID,
+				ClientID:  clientIDStr,
 				ClientIP:  clientIPStr,
 				UserAgent: userAgentStr,
 				RequestID: requestIDStr,
@@ -268,52 +255,6 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Details:   "User successfully registered via internal endpoint",
 		Severity:  "LOW",
 	})
-
-	// Response with optional cookie delivery based on X-Token-Delivery header
-	resp.CreatedWithCookies(w, r, tokenResponse, "Registration successful")
-}
-
-func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request) {
-	// Get invite token from query parameters
-	inviteToken := r.URL.Query().Get("invite_token")
-	if inviteToken == "" {
-		resp.Error(w, http.StatusBadRequest, "Invite token is required")
-		return
-	}
-
-	// Parse optional query parameters (client_id and provider_id)
-	var clientIDPtr, providerIDPtr *string
-	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
-		clientIDPtr = &clientID
-	}
-	if providerID := r.URL.Query().Get("provider_id"); providerID != "" {
-		providerIDPtr = &providerID
-	}
-
-	// Validate body payload
-	var req LoginRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.BadRequestBody(w)
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		resp.ValidationError(w, err)
-		return
-	}
-
-	// Internal register with invite (client_id/provider_id optional)
-	tokenResponse, err := h.registerService.RegisterInvite(
-		r.Context(),
-		req.Username,
-		req.Password,
-		inviteToken,
-		clientIDPtr, providerIDPtr,
-	)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Registration failed", err)
-		return
-	}
 
 	// Response with optional cookie delivery based on X-Token-Delivery header
 	resp.CreatedWithCookies(w, r, tokenResponse, "Registration successful")

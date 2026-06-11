@@ -43,14 +43,14 @@ type repos struct {
 	inviteRepo                invite.InviteRepository
 	emailTemplateRepo         branding.EmailTemplateRepository
 	smsTemplateRepo           branding.SMSTemplateRepository
-	loginTemplateRepo         branding.LoginTemplateRepository
 	policyRepo                iam.PolicyRepository
 	servicePolicyRepo         iam.ServicePolicyRepository
 	apiKeyRepo                client.APIKeyRepository
 	apiKeyAPIRepo             client.APIKeyAPIRepository
 	apiKeyPermissionRepo      client.APIKeyPermissionRepository
-	signupFlowRepo            idp.SignupFlowRepository
-	signupFlowRoleRepo        idp.SignupFlowRoleRepository
+	authFlowRepo            idp.AuthFlowRepository
+	authFlowRoleRepo        idp.AuthFlowRoleRepository
+	authFlowCallbackURIRepo idp.AuthFlowCallbackURIRepository
 	securitySettingRepo       secpolicy.SecuritySettingRepository
 	securitySettingsAuditRepo secpolicy.SecuritySettingsAuditRepository
 	ipRestrictionRuleRepo     secpolicy.IPRestrictionRuleRepository
@@ -105,14 +105,14 @@ func initRepos(db *gorm.DB) *repos {
 		inviteRepo:                invite.NewInviteRepository(db),
 		emailTemplateRepo:         branding.NewEmailTemplateRepository(db),
 		smsTemplateRepo:           branding.NewSMSTemplateRepository(db),
-		loginTemplateRepo:         branding.NewLoginTemplateRepository(db),
 		policyRepo:                iam.NewPolicyRepository(db),
 		servicePolicyRepo:         iam.NewServicePolicyRepository(db),
 		apiKeyRepo:                client.NewAPIKeyRepository(db),
 		apiKeyAPIRepo:             client.NewAPIKeyAPIRepository(db),
 		apiKeyPermissionRepo:      client.NewAPIKeyPermissionRepository(db),
-		signupFlowRepo:            idp.NewSignupFlowRepository(db),
-		signupFlowRoleRepo:        idp.NewSignupFlowRoleRepository(db),
+		authFlowRepo:            idp.NewAuthFlowRepository(db),
+		authFlowRoleRepo:        idp.NewAuthFlowRoleRepository(db),
+		authFlowCallbackURIRepo: idp.NewAuthFlowCallbackURIRepository(db),
 		securitySettingRepo:       secpolicy.NewSecuritySettingRepository(db),
 		securitySettingsAuditRepo: secpolicy.NewSecuritySettingsAuditRepository(db),
 		ipRestrictionRuleRepo:     secpolicy.NewIPRestrictionRuleRepository(db),

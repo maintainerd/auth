@@ -50,13 +50,12 @@ type Application struct {
 	EmailVerificationService     authn.EmailVerificationService
 	MagicLinkService             authn.MagicLinkService
 	SetupService                 setup.SetupService
-	SignupFlowService            idp.SignupFlowService
+	AuthFlowService            idp.AuthFlowService
 	APIKeyService                client.APIKeyService
 	SecuritySettingService       secpolicy.SecuritySettingService
 	IPRestrictionRuleService     secpolicy.IPRestrictionRuleService
 	EmailTemplateService         branding.EmailTemplateService
 	SMSTemplateService           branding.SMSTemplateService
-	LoginTemplateService         branding.LoginTemplateService
 	BrandingService              branding.BrandingService
 	TenantSettingService         tenant.TenantSettingService
 	EmailConfigService           notifier.EmailConfigService

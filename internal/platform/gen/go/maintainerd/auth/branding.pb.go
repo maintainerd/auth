@@ -9,7 +9,6 @@ package authv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -29,18 +28,18 @@ type Branding struct {
 	CompanyName       string                 `protobuf:"bytes,2,opt,name=company_name,json=companyName,proto3" json:"company_name,omitempty"`
 	LogoUrl           string                 `protobuf:"bytes,3,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
 	FaviconUrl        string                 `protobuf:"bytes,4,opt,name=favicon_url,json=faviconUrl,proto3" json:"favicon_url,omitempty"`
-	PrimaryColor      string                 `protobuf:"bytes,5,opt,name=primary_color,json=primaryColor,proto3" json:"primary_color,omitempty"`
-	SecondaryColor    string                 `protobuf:"bytes,6,opt,name=secondary_color,json=secondaryColor,proto3" json:"secondary_color,omitempty"`
-	AccentColor       string                 `protobuf:"bytes,7,opt,name=accent_color,json=accentColor,proto3" json:"accent_color,omitempty"`
-	FontFamily        string                 `protobuf:"bytes,8,opt,name=font_family,json=fontFamily,proto3" json:"font_family,omitempty"`
-	CustomCss         string                 `protobuf:"bytes,9,opt,name=custom_css,json=customCss,proto3" json:"custom_css,omitempty"`
 	SupportUrl        string                 `protobuf:"bytes,10,opt,name=support_url,json=supportUrl,proto3" json:"support_url,omitempty"`
 	PrivacyPolicyUrl  string                 `protobuf:"bytes,11,opt,name=privacy_policy_url,json=privacyPolicyUrl,proto3" json:"privacy_policy_url,omitempty"`
 	TermsOfServiceUrl string                 `protobuf:"bytes,12,opt,name=terms_of_service_url,json=termsOfServiceUrl,proto3" json:"terms_of_service_url,omitempty"`
 	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt         *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	Name              string                 `protobuf:"bytes,15,opt,name=name,proto3" json:"name,omitempty"`
+	IsSystem          bool                   `protobuf:"varint,16,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	IsActive          bool                   `protobuf:"varint,17,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	// Theme tokens (colors, fonts, panel backgrounds, …) as a JSON object string.
+	Metadata      string `protobuf:"bytes,18,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Branding) Reset() {
@@ -101,41 +100,6 @@ func (x *Branding) GetFaviconUrl() string {
 	return ""
 }
 
-func (x *Branding) GetPrimaryColor() string {
-	if x != nil {
-		return x.PrimaryColor
-	}
-	return ""
-}
-
-func (x *Branding) GetSecondaryColor() string {
-	if x != nil {
-		return x.SecondaryColor
-	}
-	return ""
-}
-
-func (x *Branding) GetAccentColor() string {
-	if x != nil {
-		return x.AccentColor
-	}
-	return ""
-}
-
-func (x *Branding) GetFontFamily() string {
-	if x != nil {
-		return x.FontFamily
-	}
-	return ""
-}
-
-func (x *Branding) GetCustomCss() string {
-	if x != nil {
-		return x.CustomCss
-	}
-	return ""
-}
-
 func (x *Branding) GetSupportUrl() string {
 	if x != nil {
 		return x.SupportUrl
@@ -169,6 +133,34 @@ func (x *Branding) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Branding) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Branding) GetIsSystem() bool {
+	if x != nil {
+		return x.IsSystem
+	}
+	return false
+}
+
+func (x *Branding) GetIsActive() bool {
+	if x != nil {
+		return x.IsActive
+	}
+	return false
+}
+
+func (x *Branding) GetMetadata() string {
+	if x != nil {
+		return x.Metadata
+	}
+	return ""
 }
 
 type GetBrandingRequest struct {
@@ -265,14 +257,11 @@ type UpdateBrandingRequest struct {
 	CompanyName       string                 `protobuf:"bytes,2,opt,name=company_name,json=companyName,proto3" json:"company_name,omitempty"`
 	LogoUrl           string                 `protobuf:"bytes,3,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
 	FaviconUrl        string                 `protobuf:"bytes,4,opt,name=favicon_url,json=faviconUrl,proto3" json:"favicon_url,omitempty"`
-	PrimaryColor      string                 `protobuf:"bytes,5,opt,name=primary_color,json=primaryColor,proto3" json:"primary_color,omitempty"`
-	SecondaryColor    string                 `protobuf:"bytes,6,opt,name=secondary_color,json=secondaryColor,proto3" json:"secondary_color,omitempty"`
-	AccentColor       string                 `protobuf:"bytes,7,opt,name=accent_color,json=accentColor,proto3" json:"accent_color,omitempty"`
-	FontFamily        string                 `protobuf:"bytes,8,opt,name=font_family,json=fontFamily,proto3" json:"font_family,omitempty"`
-	CustomCss         string                 `protobuf:"bytes,9,opt,name=custom_css,json=customCss,proto3" json:"custom_css,omitempty"`
 	SupportUrl        string                 `protobuf:"bytes,10,opt,name=support_url,json=supportUrl,proto3" json:"support_url,omitempty"`
 	PrivacyPolicyUrl  string                 `protobuf:"bytes,11,opt,name=privacy_policy_url,json=privacyPolicyUrl,proto3" json:"privacy_policy_url,omitempty"`
 	TermsOfServiceUrl string                 `protobuf:"bytes,12,opt,name=terms_of_service_url,json=termsOfServiceUrl,proto3" json:"terms_of_service_url,omitempty"`
+	Name              string                 `protobuf:"bytes,13,opt,name=name,proto3" json:"name,omitempty"`
+	Metadata          string                 `protobuf:"bytes,14,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -335,41 +324,6 @@ func (x *UpdateBrandingRequest) GetFaviconUrl() string {
 	return ""
 }
 
-func (x *UpdateBrandingRequest) GetPrimaryColor() string {
-	if x != nil {
-		return x.PrimaryColor
-	}
-	return ""
-}
-
-func (x *UpdateBrandingRequest) GetSecondaryColor() string {
-	if x != nil {
-		return x.SecondaryColor
-	}
-	return ""
-}
-
-func (x *UpdateBrandingRequest) GetAccentColor() string {
-	if x != nil {
-		return x.AccentColor
-	}
-	return ""
-}
-
-func (x *UpdateBrandingRequest) GetFontFamily() string {
-	if x != nil {
-		return x.FontFamily
-	}
-	return ""
-}
-
-func (x *UpdateBrandingRequest) GetCustomCss() string {
-	if x != nil {
-		return x.CustomCss
-	}
-	return ""
-}
-
 func (x *UpdateBrandingRequest) GetSupportUrl() string {
 	if x != nil {
 		return x.SupportUrl
@@ -387,6 +341,20 @@ func (x *UpdateBrandingRequest) GetPrivacyPolicyUrl() string {
 func (x *UpdateBrandingRequest) GetTermsOfServiceUrl() string {
 	if x != nil {
 		return x.TermsOfServiceUrl
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateBrandingRequest) GetMetadata() string {
+	if x != nil {
+		return x.Metadata
 	}
 	return ""
 }
@@ -2067,844 +2035,17 @@ func (x *DeleteSMSTemplateResponse) GetSmsTemplate() *SMSTemplate {
 	return nil
 }
 
-type LoginTemplate struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	LoginTemplateUuid string                 `protobuf:"bytes,1,opt,name=login_template_uuid,json=loginTemplateUuid,proto3" json:"login_template_uuid,omitempty"`
-	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description       *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Template          string                 `protobuf:"bytes,4,opt,name=template,proto3" json:"template,omitempty"`
-	Metadata          *structpb.Struct       `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	Status            string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	IsDefault         bool                   `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
-	IsSystem          bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt         *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *LoginTemplate) Reset() {
-	*x = LoginTemplate{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[31]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LoginTemplate) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LoginTemplate) ProtoMessage() {}
-
-func (x *LoginTemplate) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[31]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LoginTemplate.ProtoReflect.Descriptor instead.
-func (*LoginTemplate) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{31}
-}
-
-func (x *LoginTemplate) GetLoginTemplateUuid() string {
-	if x != nil {
-		return x.LoginTemplateUuid
-	}
-	return ""
-}
-
-func (x *LoginTemplate) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *LoginTemplate) GetDescription() string {
-	if x != nil && x.Description != nil {
-		return *x.Description
-	}
-	return ""
-}
-
-func (x *LoginTemplate) GetTemplate() string {
-	if x != nil {
-		return x.Template
-	}
-	return ""
-}
-
-func (x *LoginTemplate) GetMetadata() *structpb.Struct {
-	if x != nil {
-		return x.Metadata
-	}
-	return nil
-}
-
-func (x *LoginTemplate) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *LoginTemplate) GetIsDefault() bool {
-	if x != nil {
-		return x.IsDefault
-	}
-	return false
-}
-
-func (x *LoginTemplate) GetIsSystem() bool {
-	if x != nil {
-		return x.IsSystem
-	}
-	return false
-}
-
-func (x *LoginTemplate) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return nil
-}
-
-func (x *LoginTemplate) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-type ListLoginTemplatesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Status        []string               `protobuf:"bytes,3,rep,name=status,proto3" json:"status,omitempty"`
-	Template      string                 `protobuf:"bytes,4,opt,name=template,proto3" json:"template,omitempty"`
-	IsDefault     *bool                  `protobuf:"varint,5,opt,name=is_default,json=isDefault,proto3,oneof" json:"is_default,omitempty"`
-	IsSystem      *bool                  `protobuf:"varint,6,opt,name=is_system,json=isSystem,proto3,oneof" json:"is_system,omitempty"`
-	Pagination    *Pagination            `protobuf:"bytes,7,opt,name=pagination,proto3" json:"pagination,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListLoginTemplatesRequest) Reset() {
-	*x = ListLoginTemplatesRequest{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[32]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListLoginTemplatesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListLoginTemplatesRequest) ProtoMessage() {}
-
-func (x *ListLoginTemplatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[32]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListLoginTemplatesRequest.ProtoReflect.Descriptor instead.
-func (*ListLoginTemplatesRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{32}
-}
-
-func (x *ListLoginTemplatesRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-func (x *ListLoginTemplatesRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *ListLoginTemplatesRequest) GetStatus() []string {
-	if x != nil {
-		return x.Status
-	}
-	return nil
-}
-
-func (x *ListLoginTemplatesRequest) GetTemplate() string {
-	if x != nil {
-		return x.Template
-	}
-	return ""
-}
-
-func (x *ListLoginTemplatesRequest) GetIsDefault() bool {
-	if x != nil && x.IsDefault != nil {
-		return *x.IsDefault
-	}
-	return false
-}
-
-func (x *ListLoginTemplatesRequest) GetIsSystem() bool {
-	if x != nil && x.IsSystem != nil {
-		return *x.IsSystem
-	}
-	return false
-}
-
-func (x *ListLoginTemplatesRequest) GetPagination() *Pagination {
-	if x != nil {
-		return x.Pagination
-	}
-	return nil
-}
-
-type ListLoginTemplatesResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	LoginTemplates []*LoginTemplate       `protobuf:"bytes,1,rep,name=login_templates,json=loginTemplates,proto3" json:"login_templates,omitempty"`
-	Page           *PageMetadata          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *ListLoginTemplatesResponse) Reset() {
-	*x = ListLoginTemplatesResponse{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[33]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListLoginTemplatesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListLoginTemplatesResponse) ProtoMessage() {}
-
-func (x *ListLoginTemplatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[33]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListLoginTemplatesResponse.ProtoReflect.Descriptor instead.
-func (*ListLoginTemplatesResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{33}
-}
-
-func (x *ListLoginTemplatesResponse) GetLoginTemplates() []*LoginTemplate {
-	if x != nil {
-		return x.LoginTemplates
-	}
-	return nil
-}
-
-func (x *ListLoginTemplatesResponse) GetPage() *PageMetadata {
-	if x != nil {
-		return x.Page
-	}
-	return nil
-}
-
-type GetLoginTemplateRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	LoginTemplateUuid string                 `protobuf:"bytes,2,opt,name=login_template_uuid,json=loginTemplateUuid,proto3" json:"login_template_uuid,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *GetLoginTemplateRequest) Reset() {
-	*x = GetLoginTemplateRequest{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[34]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetLoginTemplateRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetLoginTemplateRequest) ProtoMessage() {}
-
-func (x *GetLoginTemplateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[34]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetLoginTemplateRequest.ProtoReflect.Descriptor instead.
-func (*GetLoginTemplateRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{34}
-}
-
-func (x *GetLoginTemplateRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-func (x *GetLoginTemplateRequest) GetLoginTemplateUuid() string {
-	if x != nil {
-		return x.LoginTemplateUuid
-	}
-	return ""
-}
-
-type GetLoginTemplateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LoginTemplate *LoginTemplate         `protobuf:"bytes,1,opt,name=login_template,json=loginTemplate,proto3" json:"login_template,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetLoginTemplateResponse) Reset() {
-	*x = GetLoginTemplateResponse{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[35]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetLoginTemplateResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetLoginTemplateResponse) ProtoMessage() {}
-
-func (x *GetLoginTemplateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[35]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetLoginTemplateResponse.ProtoReflect.Descriptor instead.
-func (*GetLoginTemplateResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{35}
-}
-
-func (x *GetLoginTemplateResponse) GetLoginTemplate() *LoginTemplate {
-	if x != nil {
-		return x.LoginTemplate
-	}
-	return nil
-}
-
-type CreateLoginTemplateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Template      string                 `protobuf:"bytes,4,opt,name=template,proto3" json:"template,omitempty"`
-	Metadata      *structpb.Struct       `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateLoginTemplateRequest) Reset() {
-	*x = CreateLoginTemplateRequest{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[36]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateLoginTemplateRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateLoginTemplateRequest) ProtoMessage() {}
-
-func (x *CreateLoginTemplateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[36]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateLoginTemplateRequest.ProtoReflect.Descriptor instead.
-func (*CreateLoginTemplateRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{36}
-}
-
-func (x *CreateLoginTemplateRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-func (x *CreateLoginTemplateRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *CreateLoginTemplateRequest) GetDescription() string {
-	if x != nil && x.Description != nil {
-		return *x.Description
-	}
-	return ""
-}
-
-func (x *CreateLoginTemplateRequest) GetTemplate() string {
-	if x != nil {
-		return x.Template
-	}
-	return ""
-}
-
-func (x *CreateLoginTemplateRequest) GetMetadata() *structpb.Struct {
-	if x != nil {
-		return x.Metadata
-	}
-	return nil
-}
-
-func (x *CreateLoginTemplateRequest) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-type CreateLoginTemplateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LoginTemplate *LoginTemplate         `protobuf:"bytes,1,opt,name=login_template,json=loginTemplate,proto3" json:"login_template,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateLoginTemplateResponse) Reset() {
-	*x = CreateLoginTemplateResponse{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[37]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateLoginTemplateResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateLoginTemplateResponse) ProtoMessage() {}
-
-func (x *CreateLoginTemplateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[37]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateLoginTemplateResponse.ProtoReflect.Descriptor instead.
-func (*CreateLoginTemplateResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{37}
-}
-
-func (x *CreateLoginTemplateResponse) GetLoginTemplate() *LoginTemplate {
-	if x != nil {
-		return x.LoginTemplate
-	}
-	return nil
-}
-
-type UpdateLoginTemplateRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	LoginTemplateUuid string                 `protobuf:"bytes,2,opt,name=login_template_uuid,json=loginTemplateUuid,proto3" json:"login_template_uuid,omitempty"`
-	Name              string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description       *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Template          string                 `protobuf:"bytes,5,opt,name=template,proto3" json:"template,omitempty"`
-	Metadata          *structpb.Struct       `protobuf:"bytes,6,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	Status            string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *UpdateLoginTemplateRequest) Reset() {
-	*x = UpdateLoginTemplateRequest{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[38]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateLoginTemplateRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateLoginTemplateRequest) ProtoMessage() {}
-
-func (x *UpdateLoginTemplateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[38]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateLoginTemplateRequest.ProtoReflect.Descriptor instead.
-func (*UpdateLoginTemplateRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{38}
-}
-
-func (x *UpdateLoginTemplateRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-func (x *UpdateLoginTemplateRequest) GetLoginTemplateUuid() string {
-	if x != nil {
-		return x.LoginTemplateUuid
-	}
-	return ""
-}
-
-func (x *UpdateLoginTemplateRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *UpdateLoginTemplateRequest) GetDescription() string {
-	if x != nil && x.Description != nil {
-		return *x.Description
-	}
-	return ""
-}
-
-func (x *UpdateLoginTemplateRequest) GetTemplate() string {
-	if x != nil {
-		return x.Template
-	}
-	return ""
-}
-
-func (x *UpdateLoginTemplateRequest) GetMetadata() *structpb.Struct {
-	if x != nil {
-		return x.Metadata
-	}
-	return nil
-}
-
-func (x *UpdateLoginTemplateRequest) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-type UpdateLoginTemplateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LoginTemplate *LoginTemplate         `protobuf:"bytes,1,opt,name=login_template,json=loginTemplate,proto3" json:"login_template,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateLoginTemplateResponse) Reset() {
-	*x = UpdateLoginTemplateResponse{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[39]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateLoginTemplateResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateLoginTemplateResponse) ProtoMessage() {}
-
-func (x *UpdateLoginTemplateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[39]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateLoginTemplateResponse.ProtoReflect.Descriptor instead.
-func (*UpdateLoginTemplateResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{39}
-}
-
-func (x *UpdateLoginTemplateResponse) GetLoginTemplate() *LoginTemplate {
-	if x != nil {
-		return x.LoginTemplate
-	}
-	return nil
-}
-
-type SetLoginTemplateStatusRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	LoginTemplateUuid string                 `protobuf:"bytes,2,opt,name=login_template_uuid,json=loginTemplateUuid,proto3" json:"login_template_uuid,omitempty"`
-	Status            string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *SetLoginTemplateStatusRequest) Reset() {
-	*x = SetLoginTemplateStatusRequest{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[40]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetLoginTemplateStatusRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetLoginTemplateStatusRequest) ProtoMessage() {}
-
-func (x *SetLoginTemplateStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[40]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetLoginTemplateStatusRequest.ProtoReflect.Descriptor instead.
-func (*SetLoginTemplateStatusRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{40}
-}
-
-func (x *SetLoginTemplateStatusRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-func (x *SetLoginTemplateStatusRequest) GetLoginTemplateUuid() string {
-	if x != nil {
-		return x.LoginTemplateUuid
-	}
-	return ""
-}
-
-func (x *SetLoginTemplateStatusRequest) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-type SetLoginTemplateStatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LoginTemplate *LoginTemplate         `protobuf:"bytes,1,opt,name=login_template,json=loginTemplate,proto3" json:"login_template,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SetLoginTemplateStatusResponse) Reset() {
-	*x = SetLoginTemplateStatusResponse{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[41]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetLoginTemplateStatusResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetLoginTemplateStatusResponse) ProtoMessage() {}
-
-func (x *SetLoginTemplateStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[41]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetLoginTemplateStatusResponse.ProtoReflect.Descriptor instead.
-func (*SetLoginTemplateStatusResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{41}
-}
-
-func (x *SetLoginTemplateStatusResponse) GetLoginTemplate() *LoginTemplate {
-	if x != nil {
-		return x.LoginTemplate
-	}
-	return nil
-}
-
-type DeleteLoginTemplateRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	LoginTemplateUuid string                 `protobuf:"bytes,2,opt,name=login_template_uuid,json=loginTemplateUuid,proto3" json:"login_template_uuid,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *DeleteLoginTemplateRequest) Reset() {
-	*x = DeleteLoginTemplateRequest{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[42]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeleteLoginTemplateRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteLoginTemplateRequest) ProtoMessage() {}
-
-func (x *DeleteLoginTemplateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[42]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteLoginTemplateRequest.ProtoReflect.Descriptor instead.
-func (*DeleteLoginTemplateRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{42}
-}
-
-func (x *DeleteLoginTemplateRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-func (x *DeleteLoginTemplateRequest) GetLoginTemplateUuid() string {
-	if x != nil {
-		return x.LoginTemplateUuid
-	}
-	return ""
-}
-
-type DeleteLoginTemplateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LoginTemplate *LoginTemplate         `protobuf:"bytes,1,opt,name=login_template,json=loginTemplate,proto3" json:"login_template,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeleteLoginTemplateResponse) Reset() {
-	*x = DeleteLoginTemplateResponse{}
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[43]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeleteLoginTemplateResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteLoginTemplateResponse) ProtoMessage() {}
-
-func (x *DeleteLoginTemplateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_branding_proto_msgTypes[43]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteLoginTemplateResponse.ProtoReflect.Descriptor instead.
-func (*DeleteLoginTemplateResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{43}
-}
-
-func (x *DeleteLoginTemplateResponse) GetLoginTemplate() *LoginTemplate {
-	if x != nil {
-		return x.LoginTemplate
-	}
-	return nil
-}
-
 var File_maintainerd_auth_v1_branding_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\n" +
-	"\"maintainerd/auth/v1/branding.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"\xb5\x04\n" +
+	"\"maintainerd/auth/v1/branding.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"\xee\x03\n" +
 	"\bBranding\x12#\n" +
 	"\rbranding_uuid\x18\x01 \x01(\tR\fbrandingUuid\x12!\n" +
 	"\fcompany_name\x18\x02 \x01(\tR\vcompanyName\x12\x19\n" +
 	"\blogo_url\x18\x03 \x01(\tR\alogoUrl\x12\x1f\n" +
 	"\vfavicon_url\x18\x04 \x01(\tR\n" +
-	"faviconUrl\x12#\n" +
-	"\rprimary_color\x18\x05 \x01(\tR\fprimaryColor\x12'\n" +
-	"\x0fsecondary_color\x18\x06 \x01(\tR\x0esecondaryColor\x12!\n" +
-	"\faccent_color\x18\a \x01(\tR\vaccentColor\x12\x1f\n" +
-	"\vfont_family\x18\b \x01(\tR\n" +
-	"fontFamily\x12\x1d\n" +
-	"\n" +
-	"custom_css\x18\t \x01(\tR\tcustomCss\x12\x1f\n" +
+	"faviconUrl\x12\x1f\n" +
 	"\vsupport_url\x18\n" +
 	" \x01(\tR\n" +
 	"supportUrl\x12,\n" +
@@ -2913,31 +2054,30 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"5\n" +
+	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x12\n" +
+	"\x04name\x18\x0f \x01(\tR\x04name\x12\x1b\n" +
+	"\tis_system\x18\x10 \x01(\bR\bisSystem\x12\x1b\n" +
+	"\tis_active\x18\x11 \x01(\bR\bisActive\x12\x1a\n" +
+	"\bmetadata\x18\x12 \x01(\tR\bmetadata\"5\n" +
 	"\x12GetBrandingRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\"P\n" +
 	"\x13GetBrandingResponse\x129\n" +
-	"\bbranding\x18\x01 \x01(\v2\x1d.maintainerd.auth.v1.BrandingR\bbranding\"\xc8\x03\n" +
+	"\bbranding\x18\x01 \x01(\v2\x1d.maintainerd.auth.v1.BrandingR\bbranding\"\xc7\x02\n" +
 	"\x15UpdateBrandingRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12!\n" +
 	"\fcompany_name\x18\x02 \x01(\tR\vcompanyName\x12\x19\n" +
 	"\blogo_url\x18\x03 \x01(\tR\alogoUrl\x12\x1f\n" +
 	"\vfavicon_url\x18\x04 \x01(\tR\n" +
-	"faviconUrl\x12#\n" +
-	"\rprimary_color\x18\x05 \x01(\tR\fprimaryColor\x12'\n" +
-	"\x0fsecondary_color\x18\x06 \x01(\tR\x0esecondaryColor\x12!\n" +
-	"\faccent_color\x18\a \x01(\tR\vaccentColor\x12\x1f\n" +
-	"\vfont_family\x18\b \x01(\tR\n" +
-	"fontFamily\x12\x1d\n" +
-	"\n" +
-	"custom_css\x18\t \x01(\tR\tcustomCss\x12\x1f\n" +
+	"faviconUrl\x12\x1f\n" +
 	"\vsupport_url\x18\n" +
 	" \x01(\tR\n" +
 	"supportUrl\x12,\n" +
 	"\x12privacy_policy_url\x18\v \x01(\tR\x10privacyPolicyUrl\x12/\n" +
-	"\x14terms_of_service_url\x18\f \x01(\tR\x11termsOfServiceUrl\"S\n" +
+	"\x14terms_of_service_url\x18\f \x01(\tR\x11termsOfServiceUrl\x12\x12\n" +
+	"\x04name\x18\r \x01(\tR\x04name\x12\x1a\n" +
+	"\bmetadata\x18\x0e \x01(\tR\bmetadata\"S\n" +
 	"\x16UpdateBrandingResponse\x129\n" +
 	"\bbranding\x18\x01 \x01(\v2\x1d.maintainerd.auth.v1.BrandingR\bbranding\"\x87\x03\n" +
 	"\rEmailTemplate\x12.\n" +
@@ -3100,83 +2240,7 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"tenantUuid\x12*\n" +
 	"\x11sms_template_uuid\x18\x02 \x01(\tR\x0fsmsTemplateUuid\"`\n" +
 	"\x19DeleteSMSTemplateResponse\x12C\n" +
-	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"\xa5\x03\n" +
-	"\rLoginTemplate\x12.\n" +
-	"\x13login_template_uuid\x18\x01 \x01(\tR\x11loginTemplateUuid\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1a\n" +
-	"\btemplate\x18\x04 \x01(\tR\btemplate\x123\n" +
-	"\bmetadata\x18\x05 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x16\n" +
-	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1d\n" +
-	"\n" +
-	"is_default\x18\a \x01(\bR\tisDefault\x12\x1b\n" +
-	"\tis_system\x18\b \x01(\bR\bisSystem\x129\n" +
-	"\n" +
-	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
-	"\n" +
-	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
-	"\f_description\"\xa8\x02\n" +
-	"\x19ListLoginTemplatesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06status\x18\x03 \x03(\tR\x06status\x12\x1a\n" +
-	"\btemplate\x18\x04 \x01(\tR\btemplate\x12\"\n" +
-	"\n" +
-	"is_default\x18\x05 \x01(\bH\x00R\tisDefault\x88\x01\x01\x12 \n" +
-	"\tis_system\x18\x06 \x01(\bH\x01R\bisSystem\x88\x01\x01\x12?\n" +
-	"\n" +
-	"pagination\x18\a \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
-	"paginationB\r\n" +
-	"\v_is_defaultB\f\n" +
-	"\n" +
-	"_is_system\"\xa0\x01\n" +
-	"\x1aListLoginTemplatesResponse\x12K\n" +
-	"\x0flogin_templates\x18\x01 \x03(\v2\".maintainerd.auth.v1.LoginTemplateR\x0eloginTemplates\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"j\n" +
-	"\x17GetLoginTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12.\n" +
-	"\x13login_template_uuid\x18\x02 \x01(\tR\x11loginTemplateUuid\"e\n" +
-	"\x18GetLoginTemplateResponse\x12I\n" +
-	"\x0elogin_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.LoginTemplateR\rloginTemplate\"\xf1\x01\n" +
-	"\x1aCreateLoginTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1a\n" +
-	"\btemplate\x18\x04 \x01(\tR\btemplate\x123\n" +
-	"\bmetadata\x18\x05 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x16\n" +
-	"\x06status\x18\x06 \x01(\tR\x06statusB\x0e\n" +
-	"\f_description\"h\n" +
-	"\x1bCreateLoginTemplateResponse\x12I\n" +
-	"\x0elogin_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.LoginTemplateR\rloginTemplate\"\xa1\x02\n" +
-	"\x1aUpdateLoginTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12.\n" +
-	"\x13login_template_uuid\x18\x02 \x01(\tR\x11loginTemplateUuid\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1a\n" +
-	"\btemplate\x18\x05 \x01(\tR\btemplate\x123\n" +
-	"\bmetadata\x18\x06 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06statusB\x0e\n" +
-	"\f_description\"h\n" +
-	"\x1bUpdateLoginTemplateResponse\x12I\n" +
-	"\x0elogin_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.LoginTemplateR\rloginTemplate\"\x88\x01\n" +
-	"\x1dSetLoginTemplateStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12.\n" +
-	"\x13login_template_uuid\x18\x02 \x01(\tR\x11loginTemplateUuid\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\"k\n" +
-	"\x1eSetLoginTemplateStatusResponse\x12I\n" +
-	"\x0elogin_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.LoginTemplateR\rloginTemplate\"m\n" +
-	"\x1aDeleteLoginTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12.\n" +
-	"\x13login_template_uuid\x18\x02 \x01(\tR\x11loginTemplateUuid\"h\n" +
-	"\x1bDeleteLoginTemplateResponse\x12I\n" +
-	"\x0elogin_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.LoginTemplateR\rloginTemplate2\xde\x01\n" +
+	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate2\xde\x01\n" +
 	"\x0fBrandingService\x12`\n" +
 	"\vGetBranding\x12'.maintainerd.auth.v1.GetBrandingRequest\x1a(.maintainerd.auth.v1.GetBrandingResponse\x12i\n" +
 	"\x0eUpdateBranding\x12*.maintainerd.auth.v1.UpdateBrandingRequest\x1a+.maintainerd.auth.v1.UpdateBrandingResponse2\xf0\x05\n" +
@@ -3193,14 +2257,7 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\x11CreateSMSTemplate\x12-.maintainerd.auth.v1.CreateSMSTemplateRequest\x1a..maintainerd.auth.v1.CreateSMSTemplateResponse\x12r\n" +
 	"\x11UpdateSMSTemplate\x12-.maintainerd.auth.v1.UpdateSMSTemplateRequest\x1a..maintainerd.auth.v1.UpdateSMSTemplateResponse\x12{\n" +
 	"\x14SetSMSTemplateStatus\x120.maintainerd.auth.v1.SetSMSTemplateStatusRequest\x1a1.maintainerd.auth.v1.SetSMSTemplateStatusResponse\x12r\n" +
-	"\x11DeleteSMSTemplate\x12-.maintainerd.auth.v1.DeleteSMSTemplateRequest\x1a..maintainerd.auth.v1.DeleteSMSTemplateResponse2\xf0\x05\n" +
-	"\x14LoginTemplateService\x12u\n" +
-	"\x12ListLoginTemplates\x12..maintainerd.auth.v1.ListLoginTemplatesRequest\x1a/.maintainerd.auth.v1.ListLoginTemplatesResponse\x12o\n" +
-	"\x10GetLoginTemplate\x12,.maintainerd.auth.v1.GetLoginTemplateRequest\x1a-.maintainerd.auth.v1.GetLoginTemplateResponse\x12x\n" +
-	"\x13CreateLoginTemplate\x12/.maintainerd.auth.v1.CreateLoginTemplateRequest\x1a0.maintainerd.auth.v1.CreateLoginTemplateResponse\x12x\n" +
-	"\x13UpdateLoginTemplate\x12/.maintainerd.auth.v1.UpdateLoginTemplateRequest\x1a0.maintainerd.auth.v1.UpdateLoginTemplateResponse\x12\x81\x01\n" +
-	"\x16SetLoginTemplateStatus\x122.maintainerd.auth.v1.SetLoginTemplateStatusRequest\x1a3.maintainerd.auth.v1.SetLoginTemplateStatusResponse\x12x\n" +
-	"\x13DeleteLoginTemplate\x12/.maintainerd.auth.v1.DeleteLoginTemplateRequest\x1a0.maintainerd.auth.v1.DeleteLoginTemplateResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x11DeleteSMSTemplate\x12-.maintainerd.auth.v1.DeleteSMSTemplateRequest\x1a..maintainerd.auth.v1.DeleteSMSTemplateResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_branding_proto_rawDescOnce sync.Once
@@ -3214,7 +2271,7 @@ func file_maintainerd_auth_v1_branding_proto_rawDescGZIP() []byte {
 	return file_maintainerd_auth_v1_branding_proto_rawDescData
 }
 
-var file_maintainerd_auth_v1_branding_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_maintainerd_auth_v1_branding_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_maintainerd_auth_v1_branding_proto_goTypes = []any{
 	(*Branding)(nil),                       // 0: maintainerd.auth.v1.Branding
 	(*GetBrandingRequest)(nil),             // 1: maintainerd.auth.v1.GetBrandingRequest
@@ -3247,107 +2304,68 @@ var file_maintainerd_auth_v1_branding_proto_goTypes = []any{
 	(*SetSMSTemplateStatusResponse)(nil),   // 28: maintainerd.auth.v1.SetSMSTemplateStatusResponse
 	(*DeleteSMSTemplateRequest)(nil),       // 29: maintainerd.auth.v1.DeleteSMSTemplateRequest
 	(*DeleteSMSTemplateResponse)(nil),      // 30: maintainerd.auth.v1.DeleteSMSTemplateResponse
-	(*LoginTemplate)(nil),                  // 31: maintainerd.auth.v1.LoginTemplate
-	(*ListLoginTemplatesRequest)(nil),      // 32: maintainerd.auth.v1.ListLoginTemplatesRequest
-	(*ListLoginTemplatesResponse)(nil),     // 33: maintainerd.auth.v1.ListLoginTemplatesResponse
-	(*GetLoginTemplateRequest)(nil),        // 34: maintainerd.auth.v1.GetLoginTemplateRequest
-	(*GetLoginTemplateResponse)(nil),       // 35: maintainerd.auth.v1.GetLoginTemplateResponse
-	(*CreateLoginTemplateRequest)(nil),     // 36: maintainerd.auth.v1.CreateLoginTemplateRequest
-	(*CreateLoginTemplateResponse)(nil),    // 37: maintainerd.auth.v1.CreateLoginTemplateResponse
-	(*UpdateLoginTemplateRequest)(nil),     // 38: maintainerd.auth.v1.UpdateLoginTemplateRequest
-	(*UpdateLoginTemplateResponse)(nil),    // 39: maintainerd.auth.v1.UpdateLoginTemplateResponse
-	(*SetLoginTemplateStatusRequest)(nil),  // 40: maintainerd.auth.v1.SetLoginTemplateStatusRequest
-	(*SetLoginTemplateStatusResponse)(nil), // 41: maintainerd.auth.v1.SetLoginTemplateStatusResponse
-	(*DeleteLoginTemplateRequest)(nil),     // 42: maintainerd.auth.v1.DeleteLoginTemplateRequest
-	(*DeleteLoginTemplateResponse)(nil),    // 43: maintainerd.auth.v1.DeleteLoginTemplateResponse
-	(*timestamppb.Timestamp)(nil),          // 44: google.protobuf.Timestamp
-	(*Pagination)(nil),                     // 45: maintainerd.auth.v1.Pagination
-	(*PageMetadata)(nil),                   // 46: maintainerd.auth.v1.PageMetadata
-	(*structpb.Struct)(nil),                // 47: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),          // 31: google.protobuf.Timestamp
+	(*Pagination)(nil),                     // 32: maintainerd.auth.v1.Pagination
+	(*PageMetadata)(nil),                   // 33: maintainerd.auth.v1.PageMetadata
 }
 var file_maintainerd_auth_v1_branding_proto_depIdxs = []int32{
-	44, // 0: maintainerd.auth.v1.Branding.created_at:type_name -> google.protobuf.Timestamp
-	44, // 1: maintainerd.auth.v1.Branding.updated_at:type_name -> google.protobuf.Timestamp
+	31, // 0: maintainerd.auth.v1.Branding.created_at:type_name -> google.protobuf.Timestamp
+	31, // 1: maintainerd.auth.v1.Branding.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: maintainerd.auth.v1.GetBrandingResponse.branding:type_name -> maintainerd.auth.v1.Branding
 	0,  // 3: maintainerd.auth.v1.UpdateBrandingResponse.branding:type_name -> maintainerd.auth.v1.Branding
-	44, // 4: maintainerd.auth.v1.EmailTemplate.created_at:type_name -> google.protobuf.Timestamp
-	44, // 5: maintainerd.auth.v1.EmailTemplate.updated_at:type_name -> google.protobuf.Timestamp
-	45, // 6: maintainerd.auth.v1.ListEmailTemplatesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	31, // 4: maintainerd.auth.v1.EmailTemplate.created_at:type_name -> google.protobuf.Timestamp
+	31, // 5: maintainerd.auth.v1.EmailTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	32, // 6: maintainerd.auth.v1.ListEmailTemplatesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
 	5,  // 7: maintainerd.auth.v1.ListEmailTemplatesResponse.email_templates:type_name -> maintainerd.auth.v1.EmailTemplate
-	46, // 8: maintainerd.auth.v1.ListEmailTemplatesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	33, // 8: maintainerd.auth.v1.ListEmailTemplatesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
 	5,  // 9: maintainerd.auth.v1.GetEmailTemplateResponse.email_template:type_name -> maintainerd.auth.v1.EmailTemplate
 	5,  // 10: maintainerd.auth.v1.CreateEmailTemplateResponse.email_template:type_name -> maintainerd.auth.v1.EmailTemplate
 	5,  // 11: maintainerd.auth.v1.UpdateEmailTemplateResponse.email_template:type_name -> maintainerd.auth.v1.EmailTemplate
 	5,  // 12: maintainerd.auth.v1.SetEmailTemplateStatusResponse.email_template:type_name -> maintainerd.auth.v1.EmailTemplate
 	5,  // 13: maintainerd.auth.v1.DeleteEmailTemplateResponse.email_template:type_name -> maintainerd.auth.v1.EmailTemplate
-	44, // 14: maintainerd.auth.v1.SMSTemplate.created_at:type_name -> google.protobuf.Timestamp
-	44, // 15: maintainerd.auth.v1.SMSTemplate.updated_at:type_name -> google.protobuf.Timestamp
-	45, // 16: maintainerd.auth.v1.ListSMSTemplatesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	31, // 14: maintainerd.auth.v1.SMSTemplate.created_at:type_name -> google.protobuf.Timestamp
+	31, // 15: maintainerd.auth.v1.SMSTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	32, // 16: maintainerd.auth.v1.ListSMSTemplatesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
 	18, // 17: maintainerd.auth.v1.ListSMSTemplatesResponse.sms_templates:type_name -> maintainerd.auth.v1.SMSTemplate
-	46, // 18: maintainerd.auth.v1.ListSMSTemplatesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	33, // 18: maintainerd.auth.v1.ListSMSTemplatesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
 	18, // 19: maintainerd.auth.v1.GetSMSTemplateResponse.sms_template:type_name -> maintainerd.auth.v1.SMSTemplate
 	18, // 20: maintainerd.auth.v1.CreateSMSTemplateResponse.sms_template:type_name -> maintainerd.auth.v1.SMSTemplate
 	18, // 21: maintainerd.auth.v1.UpdateSMSTemplateResponse.sms_template:type_name -> maintainerd.auth.v1.SMSTemplate
 	18, // 22: maintainerd.auth.v1.SetSMSTemplateStatusResponse.sms_template:type_name -> maintainerd.auth.v1.SMSTemplate
 	18, // 23: maintainerd.auth.v1.DeleteSMSTemplateResponse.sms_template:type_name -> maintainerd.auth.v1.SMSTemplate
-	47, // 24: maintainerd.auth.v1.LoginTemplate.metadata:type_name -> google.protobuf.Struct
-	44, // 25: maintainerd.auth.v1.LoginTemplate.created_at:type_name -> google.protobuf.Timestamp
-	44, // 26: maintainerd.auth.v1.LoginTemplate.updated_at:type_name -> google.protobuf.Timestamp
-	45, // 27: maintainerd.auth.v1.ListLoginTemplatesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
-	31, // 28: maintainerd.auth.v1.ListLoginTemplatesResponse.login_templates:type_name -> maintainerd.auth.v1.LoginTemplate
-	46, // 29: maintainerd.auth.v1.ListLoginTemplatesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
-	31, // 30: maintainerd.auth.v1.GetLoginTemplateResponse.login_template:type_name -> maintainerd.auth.v1.LoginTemplate
-	47, // 31: maintainerd.auth.v1.CreateLoginTemplateRequest.metadata:type_name -> google.protobuf.Struct
-	31, // 32: maintainerd.auth.v1.CreateLoginTemplateResponse.login_template:type_name -> maintainerd.auth.v1.LoginTemplate
-	47, // 33: maintainerd.auth.v1.UpdateLoginTemplateRequest.metadata:type_name -> google.protobuf.Struct
-	31, // 34: maintainerd.auth.v1.UpdateLoginTemplateResponse.login_template:type_name -> maintainerd.auth.v1.LoginTemplate
-	31, // 35: maintainerd.auth.v1.SetLoginTemplateStatusResponse.login_template:type_name -> maintainerd.auth.v1.LoginTemplate
-	31, // 36: maintainerd.auth.v1.DeleteLoginTemplateResponse.login_template:type_name -> maintainerd.auth.v1.LoginTemplate
-	1,  // 37: maintainerd.auth.v1.BrandingService.GetBranding:input_type -> maintainerd.auth.v1.GetBrandingRequest
-	3,  // 38: maintainerd.auth.v1.BrandingService.UpdateBranding:input_type -> maintainerd.auth.v1.UpdateBrandingRequest
-	6,  // 39: maintainerd.auth.v1.EmailTemplateService.ListEmailTemplates:input_type -> maintainerd.auth.v1.ListEmailTemplatesRequest
-	8,  // 40: maintainerd.auth.v1.EmailTemplateService.GetEmailTemplate:input_type -> maintainerd.auth.v1.GetEmailTemplateRequest
-	10, // 41: maintainerd.auth.v1.EmailTemplateService.CreateEmailTemplate:input_type -> maintainerd.auth.v1.CreateEmailTemplateRequest
-	12, // 42: maintainerd.auth.v1.EmailTemplateService.UpdateEmailTemplate:input_type -> maintainerd.auth.v1.UpdateEmailTemplateRequest
-	14, // 43: maintainerd.auth.v1.EmailTemplateService.SetEmailTemplateStatus:input_type -> maintainerd.auth.v1.SetEmailTemplateStatusRequest
-	16, // 44: maintainerd.auth.v1.EmailTemplateService.DeleteEmailTemplate:input_type -> maintainerd.auth.v1.DeleteEmailTemplateRequest
-	19, // 45: maintainerd.auth.v1.SMSTemplateService.ListSMSTemplates:input_type -> maintainerd.auth.v1.ListSMSTemplatesRequest
-	21, // 46: maintainerd.auth.v1.SMSTemplateService.GetSMSTemplate:input_type -> maintainerd.auth.v1.GetSMSTemplateRequest
-	23, // 47: maintainerd.auth.v1.SMSTemplateService.CreateSMSTemplate:input_type -> maintainerd.auth.v1.CreateSMSTemplateRequest
-	25, // 48: maintainerd.auth.v1.SMSTemplateService.UpdateSMSTemplate:input_type -> maintainerd.auth.v1.UpdateSMSTemplateRequest
-	27, // 49: maintainerd.auth.v1.SMSTemplateService.SetSMSTemplateStatus:input_type -> maintainerd.auth.v1.SetSMSTemplateStatusRequest
-	29, // 50: maintainerd.auth.v1.SMSTemplateService.DeleteSMSTemplate:input_type -> maintainerd.auth.v1.DeleteSMSTemplateRequest
-	32, // 51: maintainerd.auth.v1.LoginTemplateService.ListLoginTemplates:input_type -> maintainerd.auth.v1.ListLoginTemplatesRequest
-	34, // 52: maintainerd.auth.v1.LoginTemplateService.GetLoginTemplate:input_type -> maintainerd.auth.v1.GetLoginTemplateRequest
-	36, // 53: maintainerd.auth.v1.LoginTemplateService.CreateLoginTemplate:input_type -> maintainerd.auth.v1.CreateLoginTemplateRequest
-	38, // 54: maintainerd.auth.v1.LoginTemplateService.UpdateLoginTemplate:input_type -> maintainerd.auth.v1.UpdateLoginTemplateRequest
-	40, // 55: maintainerd.auth.v1.LoginTemplateService.SetLoginTemplateStatus:input_type -> maintainerd.auth.v1.SetLoginTemplateStatusRequest
-	42, // 56: maintainerd.auth.v1.LoginTemplateService.DeleteLoginTemplate:input_type -> maintainerd.auth.v1.DeleteLoginTemplateRequest
-	2,  // 57: maintainerd.auth.v1.BrandingService.GetBranding:output_type -> maintainerd.auth.v1.GetBrandingResponse
-	4,  // 58: maintainerd.auth.v1.BrandingService.UpdateBranding:output_type -> maintainerd.auth.v1.UpdateBrandingResponse
-	7,  // 59: maintainerd.auth.v1.EmailTemplateService.ListEmailTemplates:output_type -> maintainerd.auth.v1.ListEmailTemplatesResponse
-	9,  // 60: maintainerd.auth.v1.EmailTemplateService.GetEmailTemplate:output_type -> maintainerd.auth.v1.GetEmailTemplateResponse
-	11, // 61: maintainerd.auth.v1.EmailTemplateService.CreateEmailTemplate:output_type -> maintainerd.auth.v1.CreateEmailTemplateResponse
-	13, // 62: maintainerd.auth.v1.EmailTemplateService.UpdateEmailTemplate:output_type -> maintainerd.auth.v1.UpdateEmailTemplateResponse
-	15, // 63: maintainerd.auth.v1.EmailTemplateService.SetEmailTemplateStatus:output_type -> maintainerd.auth.v1.SetEmailTemplateStatusResponse
-	17, // 64: maintainerd.auth.v1.EmailTemplateService.DeleteEmailTemplate:output_type -> maintainerd.auth.v1.DeleteEmailTemplateResponse
-	20, // 65: maintainerd.auth.v1.SMSTemplateService.ListSMSTemplates:output_type -> maintainerd.auth.v1.ListSMSTemplatesResponse
-	22, // 66: maintainerd.auth.v1.SMSTemplateService.GetSMSTemplate:output_type -> maintainerd.auth.v1.GetSMSTemplateResponse
-	24, // 67: maintainerd.auth.v1.SMSTemplateService.CreateSMSTemplate:output_type -> maintainerd.auth.v1.CreateSMSTemplateResponse
-	26, // 68: maintainerd.auth.v1.SMSTemplateService.UpdateSMSTemplate:output_type -> maintainerd.auth.v1.UpdateSMSTemplateResponse
-	28, // 69: maintainerd.auth.v1.SMSTemplateService.SetSMSTemplateStatus:output_type -> maintainerd.auth.v1.SetSMSTemplateStatusResponse
-	30, // 70: maintainerd.auth.v1.SMSTemplateService.DeleteSMSTemplate:output_type -> maintainerd.auth.v1.DeleteSMSTemplateResponse
-	33, // 71: maintainerd.auth.v1.LoginTemplateService.ListLoginTemplates:output_type -> maintainerd.auth.v1.ListLoginTemplatesResponse
-	35, // 72: maintainerd.auth.v1.LoginTemplateService.GetLoginTemplate:output_type -> maintainerd.auth.v1.GetLoginTemplateResponse
-	37, // 73: maintainerd.auth.v1.LoginTemplateService.CreateLoginTemplate:output_type -> maintainerd.auth.v1.CreateLoginTemplateResponse
-	39, // 74: maintainerd.auth.v1.LoginTemplateService.UpdateLoginTemplate:output_type -> maintainerd.auth.v1.UpdateLoginTemplateResponse
-	41, // 75: maintainerd.auth.v1.LoginTemplateService.SetLoginTemplateStatus:output_type -> maintainerd.auth.v1.SetLoginTemplateStatusResponse
-	43, // 76: maintainerd.auth.v1.LoginTemplateService.DeleteLoginTemplate:output_type -> maintainerd.auth.v1.DeleteLoginTemplateResponse
-	57, // [57:77] is the sub-list for method output_type
-	37, // [37:57] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	1,  // 24: maintainerd.auth.v1.BrandingService.GetBranding:input_type -> maintainerd.auth.v1.GetBrandingRequest
+	3,  // 25: maintainerd.auth.v1.BrandingService.UpdateBranding:input_type -> maintainerd.auth.v1.UpdateBrandingRequest
+	6,  // 26: maintainerd.auth.v1.EmailTemplateService.ListEmailTemplates:input_type -> maintainerd.auth.v1.ListEmailTemplatesRequest
+	8,  // 27: maintainerd.auth.v1.EmailTemplateService.GetEmailTemplate:input_type -> maintainerd.auth.v1.GetEmailTemplateRequest
+	10, // 28: maintainerd.auth.v1.EmailTemplateService.CreateEmailTemplate:input_type -> maintainerd.auth.v1.CreateEmailTemplateRequest
+	12, // 29: maintainerd.auth.v1.EmailTemplateService.UpdateEmailTemplate:input_type -> maintainerd.auth.v1.UpdateEmailTemplateRequest
+	14, // 30: maintainerd.auth.v1.EmailTemplateService.SetEmailTemplateStatus:input_type -> maintainerd.auth.v1.SetEmailTemplateStatusRequest
+	16, // 31: maintainerd.auth.v1.EmailTemplateService.DeleteEmailTemplate:input_type -> maintainerd.auth.v1.DeleteEmailTemplateRequest
+	19, // 32: maintainerd.auth.v1.SMSTemplateService.ListSMSTemplates:input_type -> maintainerd.auth.v1.ListSMSTemplatesRequest
+	21, // 33: maintainerd.auth.v1.SMSTemplateService.GetSMSTemplate:input_type -> maintainerd.auth.v1.GetSMSTemplateRequest
+	23, // 34: maintainerd.auth.v1.SMSTemplateService.CreateSMSTemplate:input_type -> maintainerd.auth.v1.CreateSMSTemplateRequest
+	25, // 35: maintainerd.auth.v1.SMSTemplateService.UpdateSMSTemplate:input_type -> maintainerd.auth.v1.UpdateSMSTemplateRequest
+	27, // 36: maintainerd.auth.v1.SMSTemplateService.SetSMSTemplateStatus:input_type -> maintainerd.auth.v1.SetSMSTemplateStatusRequest
+	29, // 37: maintainerd.auth.v1.SMSTemplateService.DeleteSMSTemplate:input_type -> maintainerd.auth.v1.DeleteSMSTemplateRequest
+	2,  // 38: maintainerd.auth.v1.BrandingService.GetBranding:output_type -> maintainerd.auth.v1.GetBrandingResponse
+	4,  // 39: maintainerd.auth.v1.BrandingService.UpdateBranding:output_type -> maintainerd.auth.v1.UpdateBrandingResponse
+	7,  // 40: maintainerd.auth.v1.EmailTemplateService.ListEmailTemplates:output_type -> maintainerd.auth.v1.ListEmailTemplatesResponse
+	9,  // 41: maintainerd.auth.v1.EmailTemplateService.GetEmailTemplate:output_type -> maintainerd.auth.v1.GetEmailTemplateResponse
+	11, // 42: maintainerd.auth.v1.EmailTemplateService.CreateEmailTemplate:output_type -> maintainerd.auth.v1.CreateEmailTemplateResponse
+	13, // 43: maintainerd.auth.v1.EmailTemplateService.UpdateEmailTemplate:output_type -> maintainerd.auth.v1.UpdateEmailTemplateResponse
+	15, // 44: maintainerd.auth.v1.EmailTemplateService.SetEmailTemplateStatus:output_type -> maintainerd.auth.v1.SetEmailTemplateStatusResponse
+	17, // 45: maintainerd.auth.v1.EmailTemplateService.DeleteEmailTemplate:output_type -> maintainerd.auth.v1.DeleteEmailTemplateResponse
+	20, // 46: maintainerd.auth.v1.SMSTemplateService.ListSMSTemplates:output_type -> maintainerd.auth.v1.ListSMSTemplatesResponse
+	22, // 47: maintainerd.auth.v1.SMSTemplateService.GetSMSTemplate:output_type -> maintainerd.auth.v1.GetSMSTemplateResponse
+	24, // 48: maintainerd.auth.v1.SMSTemplateService.CreateSMSTemplate:output_type -> maintainerd.auth.v1.CreateSMSTemplateResponse
+	26, // 49: maintainerd.auth.v1.SMSTemplateService.UpdateSMSTemplate:output_type -> maintainerd.auth.v1.UpdateSMSTemplateResponse
+	28, // 50: maintainerd.auth.v1.SMSTemplateService.SetSMSTemplateStatus:output_type -> maintainerd.auth.v1.SetSMSTemplateStatusResponse
+	30, // 51: maintainerd.auth.v1.SMSTemplateService.DeleteSMSTemplate:output_type -> maintainerd.auth.v1.DeleteSMSTemplateResponse
+	38, // [38:52] is the sub-list for method output_type
+	24, // [24:38] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_maintainerd_auth_v1_branding_proto_init() }
@@ -3364,19 +2382,15 @@ func file_maintainerd_auth_v1_branding_proto_init() {
 	file_maintainerd_auth_v1_branding_proto_msgTypes[19].OneofWrappers = []any{}
 	file_maintainerd_auth_v1_branding_proto_msgTypes[23].OneofWrappers = []any{}
 	file_maintainerd_auth_v1_branding_proto_msgTypes[25].OneofWrappers = []any{}
-	file_maintainerd_auth_v1_branding_proto_msgTypes[31].OneofWrappers = []any{}
-	file_maintainerd_auth_v1_branding_proto_msgTypes[32].OneofWrappers = []any{}
-	file_maintainerd_auth_v1_branding_proto_msgTypes[36].OneofWrappers = []any{}
-	file_maintainerd_auth_v1_branding_proto_msgTypes[38].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_maintainerd_auth_v1_branding_proto_rawDesc), len(file_maintainerd_auth_v1_branding_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   31,
 			NumExtensions: 0,
-			NumServices:   4,
+			NumServices:   3,
 		},
 		GoTypes:           file_maintainerd_auth_v1_branding_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_branding_proto_depIdxs,

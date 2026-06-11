@@ -52,28 +52,6 @@ func TestEmailTemplateRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 	}
 }
 
-func TestLoginTemplateRoute_ProtectedRoutesRequireAuth(t *testing.T) {
-	router := chi.NewRouter()
-	LoginTemplateRoute(router, NewLoginTemplateHandler(&mockLoginTemplateService{}), nil, nil)
-
-	for _, tc := range []struct {
-		method string
-		path   string
-	}{
-		{http.MethodGet, "/login_templates/"},
-		{http.MethodGet, "/login_templates/00000000-0000-0000-0000-000000000099"},
-		{http.MethodPost, "/login_templates/"},
-		{http.MethodPut, "/login_templates/00000000-0000-0000-0000-000000000099"},
-		{http.MethodDelete, "/login_templates/00000000-0000-0000-0000-000000000099"},
-		{http.MethodPatch, "/login_templates/00000000-0000-0000-0000-000000000099/status"},
-	} {
-		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, httptest.NewRequest(tc.method, tc.path, nil))
-			assert.Equal(t, http.StatusUnauthorized, w.Code)
-		})
-	}
-}
 
 func TestSMSTemplateRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 	router := chi.NewRouter()

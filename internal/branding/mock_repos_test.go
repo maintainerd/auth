@@ -10,9 +10,13 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockBrandingRepo struct {
-	findByTenantIDFn func(int64) (*Branding, error)
+	findByTenantIDFn    func(int64) (*Branding, error)
+	findAllByTenantIDFn func(int64) ([]Branding, error)
 	createFn         func(*Branding) (*Branding, error)
 	createOrUpdateFn func(*Branding) (*Branding, error)
+	findActiveFn     func(int64) (*Branding, error)
+	findSystemFn     func(int64) (*Branding, error)
+	deactivateAllFn  func(int64) error
 }
 
 func (m *mockBrandingRepo) WithTx(_ *gorm.DB) BrandingRepository { return m }
@@ -23,11 +27,35 @@ func (m *mockBrandingRepo) FindByTenantID(tenantID int64) (*Branding, error) {
 	}
 	return nil, nil
 }
+func (m *mockBrandingRepo) FindAllByTenantID(tenantID int64) ([]Branding, error) {
+	if m.findAllByTenantIDFn != nil {
+		return m.findAllByTenantIDFn(tenantID)
+	}
+	return nil, nil
+}
 func (m *mockBrandingRepo) Create(e *Branding) (*Branding, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
+}
+func (m *mockBrandingRepo) FindActive(tenantID int64) (*Branding, error) {
+	if m.findActiveFn != nil {
+		return m.findActiveFn(tenantID)
+	}
+	return nil, nil
+}
+func (m *mockBrandingRepo) FindSystem(tenantID int64) (*Branding, error) {
+	if m.findSystemFn != nil {
+		return m.findSystemFn(tenantID)
+	}
+	return nil, nil
+}
+func (m *mockBrandingRepo) DeactivateAll(tenantID int64) error {
+	if m.deactivateAllFn != nil {
+		return m.deactivateAllFn(tenantID)
+	}
+	return nil
 }
 func (m *mockBrandingRepo) CreateOrUpdate(e *Branding) (*Branding, error) {
 	if m.createOrUpdateFn != nil {
@@ -176,62 +204,5 @@ func (m *mockSMSTemplateRepo) Paginate(c map[string]any, pg, lim int, p ...strin
 func (m *mockSMSTemplateRepo) WithTx(_ *gorm.DB) SMSTemplateRepository { return m }
 
 // ---------------------------------------------------------------------------
-// Mock: LoginTemplateRepository
-// ---------------------------------------------------------------------------
 
-type mockLoginTemplateRepo struct {
-	findByUUIDAndTenantIDFn func(uuid.UUID, int64, ...string) (*LoginTemplate, error)
-	findPaginatedFn         func(LoginTemplateRepositoryGetFilter) (*PaginationResult[LoginTemplate], error)
-	createFn                func(*LoginTemplate) (*LoginTemplate, error)
-	updateByUUIDFn          func(any, any) (*LoginTemplate, error)
-	deleteByUUIDFn          func(any) error
-}
 
-func (m *mockLoginTemplateRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, p ...string) (*LoginTemplate, error) {
-	if m.findByUUIDAndTenantIDFn != nil {
-		return m.findByUUIDAndTenantIDFn(id, tenantID, p...)
-	}
-	return nil, nil
-}
-func (m *mockLoginTemplateRepo) FindPaginated(f LoginTemplateRepositoryGetFilter) (*PaginationResult[LoginTemplate], error) {
-	if m.findPaginatedFn != nil {
-		return m.findPaginatedFn(f)
-	}
-	return &PaginationResult[LoginTemplate]{}, nil
-}
-func (m *mockLoginTemplateRepo) Create(e *LoginTemplate) (*LoginTemplate, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
-}
-func (m *mockLoginTemplateRepo) CreateOrUpdate(e *LoginTemplate) (*LoginTemplate, error) {
-	return e, nil
-}
-func (m *mockLoginTemplateRepo) FindAll(p ...string) ([]LoginTemplate, error) { return nil, nil }
-func (m *mockLoginTemplateRepo) FindByUUID(id any, p ...string) (*LoginTemplate, error) {
-	return nil, nil
-}
-func (m *mockLoginTemplateRepo) FindByUUIDs(ids []string, p ...string) ([]LoginTemplate, error) {
-	return nil, nil
-}
-func (m *mockLoginTemplateRepo) FindByID(id any, p ...string) (*LoginTemplate, error) {
-	return nil, nil
-}
-func (m *mockLoginTemplateRepo) UpdateByUUID(id, data any) (*LoginTemplate, error) {
-	if m.updateByUUIDFn != nil {
-		return m.updateByUUIDFn(id, data)
-	}
-	return nil, nil
-}
-func (m *mockLoginTemplateRepo) UpdateByID(id, data any) (*LoginTemplate, error) { return nil, nil }
-func (m *mockLoginTemplateRepo) DeleteByUUID(id any) error {
-	if m.deleteByUUIDFn != nil {
-		return m.deleteByUUIDFn(id)
-	}
-	return nil
-}
-func (m *mockLoginTemplateRepo) DeleteByID(id any) error { return nil }
-func (m *mockLoginTemplateRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[LoginTemplate], error) {
-	return nil, nil
-}

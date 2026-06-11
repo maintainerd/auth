@@ -19,6 +19,8 @@ func EmailConfigRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"email-config:read"})).
 			Get("/", emailConfigHandler.Get)
+		r.With(middleware.PermissionMiddleware([]string{"email-config:read"})).
+			Get("/status", emailConfigHandler.Status)
 		r.With(middleware.PermissionMiddleware([]string{"email-config:update"})).
 			Put("/", emailConfigHandler.Update)
 	})
@@ -37,6 +39,8 @@ func SMSConfigRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"sms-config:read"})).
 			Get("/", smsConfigHandler.Get)
+		r.With(middleware.PermissionMiddleware([]string{"sms-config:read"})).
+			Get("/status", smsConfigHandler.Status)
 		r.With(middleware.PermissionMiddleware([]string{"sms-config:update"})).
 			Put("/", smsConfigHandler.Update)
 	})

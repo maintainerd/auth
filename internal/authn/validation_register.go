@@ -84,12 +84,10 @@ func (q *RegisterQueryDTO) Validate() error {
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
-			validation.Required.Error("Client ID is required"),
-			validation.Length(1, 255).Error("Client ID must not exceed 255 characters"),
+			validation.Length(0, 255).Error("Client ID must not exceed 255 characters"),
 		),
 		validation.Field(&q.ProviderID,
-			validation.Required.Error("Provider ID is required"),
-			validation.Length(1, 255).Error("Provider ID must not exceed 255 characters"),
+			validation.Length(0, 255).Error("Provider ID must not exceed 255 characters"),
 		),
 	)
 }

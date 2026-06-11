@@ -85,3 +85,20 @@ type RoleRepository interface {
 	WithTx(tx *gorm.DB) RoleRepository
 	FindByUUIDs(uuids []string, preloads ...string) ([]Role, error)
 }
+
+type AuthFlow struct {
+	AuthFlowID   int64
+	AuthFlowUUID uuid.UUID
+	TenantID     int64
+	Name         string
+	Status       string
+	CreatedAt    time.Time
+}
+
+func (AuthFlow) TableName() string { return "auth_flows" }
+
+type AuthFlowRepository interface {
+	BaseRepositoryMethods[AuthFlow]
+	WithTx(tx *gorm.DB) AuthFlowRepository
+	FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, preloads ...string) (*AuthFlow, error)
+}

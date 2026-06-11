@@ -31,7 +31,7 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 			return nil, fmt.Errorf("sms: lookup config for tenant %d: %w", tenantID, err)
 		}
 		err = db.WithContext(ctx).
-			Table("sms_config").
+			Table("sms_config sc").
 			Select("sc.provider, sc.account_sid, sc.auth_token_encrypted, sc.from_number, sc.status").
 			Joins("JOIN tenants t ON sc.tenant_id = t.tenant_id").
 			Where("t.is_system = true AND sc.status = ? AND sc.deleted_at IS NULL", shared.StatusActive).

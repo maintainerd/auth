@@ -3,13 +3,12 @@ package invite
 import (
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSendInviteRequest_Validate(t *testing.T) {
-	validRoles := []uuid.UUID{uuid.New()}
+	authFlowStr := "00000000-0000-0000-0000-000000000001"
 
 	tests := []struct {
 		name    string
@@ -17,51 +16,36 @@ func TestSendInviteRequest_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "valid",
-			dto:     SendInviteRequest{Email: "user@example.com", Roles: validRoles},
+			name:    "valid with email only",
+			dto:     SendInviteRequest{Email: "user@example.com"},
+			wantErr: false,
+		},
+		{
+			name:    "valid with email and auth_flow",
+			dto:     SendInviteRequest{Email: "user@example.com", AuthFlowUUID: &authFlowStr},
 			wantErr: false,
 		},
 		{
 			name:    "missing email",
-			dto:     SendInviteRequest{Email: "", Roles: validRoles},
+			dto:     SendInviteRequest{Email: ""},
 			wantErr: true,
 		},
 		{
 			name:    "invalid email format",
-			dto:     SendInviteRequest{Email: "not-an-email", Roles: validRoles},
+			dto:     SendInviteRequest{Email: "not-an-email"},
 			wantErr: true,
 		},
 		{
 			name:    "email too short",
-			dto:     SendInviteRequest{Email: "a@b", Roles: validRoles},
-			wantErr: true,
-		},
-		{
-			name:    "missing roles",
-			dto:     SendInviteRequest{Email: "user@example.com", Roles: nil},
-			wantErr: true,
-		},
-		{
-			name:    "empty roles slice",
-			dto:     SendInviteRequest{Email: "user@example.com", Roles: []uuid.UUID{}},
-			wantErr: true,
-		},
-		{
-			name: "too many roles",
-			dto: SendInviteRequest{
-				Email: "user@example.com",
-				Roles: []uuid.UUID{
-					uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(),
-					uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(),
-				},
-			},
+			dto:     SendInviteRequest{Email: "a@b"},
 			wantErr: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.dto.Validate()
+			d := tc.dto
+			err := d.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {

@@ -75,16 +75,15 @@ var migrations = []migrationEntry{
 	{"035_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
 	// Block 8: Tenant organisation & flows
 	{"036_create_tenant_members_table", migration.CreateTenantMembersTable},
-	{"037_create_signup_flows_table", migration.CreateSignupFlowTable},
-	{"038_create_signup_flow_roles_table", migration.CreateSignupFlowRoleTable},
-	{"039_create_invites_table", migration.CreateInvitesTable},
-	{"040_create_invite_roles_table", migration.CreateInviteRolesTable},
+	{"037_create_auth_flows_table", migration.CreateAuthFlowTable},
+	{"038_create_auth_flow_roles_table", migration.CreateAuthFlowRoleTable},
+	{"039_create_auth_flow_callback_uris_table", migration.CreateAuthFlowCallbackURITable},
+	{"040_create_invites_table", migration.CreateInvitesTable},
 	// Block 9: Security
 	{"041_create_security_settings_table", migration.CreateSecuritySettingsTable},
 	{"042_create_ip_restriction_rules_table", migration.CreateIPRestrictionRulesTable},
 	{"043_create_security_settings_audit_table", migration.CreateSecuritySettingsAuditTable},
 	// Block 10: Templates
-	{"044_create_login_templates_table", migration.CreateLoginTemplatesTable},
 	{"045_create_email_templates_table", migration.CreateEmailTemplatesTable},
 	{"046_create_sms_templates_table", migration.CreateSMSTemplatesTable},
 	// Block 11: Auth events

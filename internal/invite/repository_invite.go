@@ -2,6 +2,7 @@ package invite
 
 import (
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/database"
@@ -18,6 +19,7 @@ type InviteRepository interface {
 	FindAllByTenantID(tenantID int64) ([]Invite, error)
 	MarkAsUsed(inviteUUID uuid.UUID) error
 	RevokeByUUID(inviteUUID uuid.UUID) error
+	ResetForResend(inviteUUID uuid.UUID, newToken string, newExpiry time.Time) error
 }
 
 type inviteRepository struct {
@@ -57,7 +59,6 @@ func (r *inviteRepository) FindByUUIDAndTenantID(inviteUUID uuid.UUID, tenantID 
 func (r *inviteRepository) FindByToken(token string) (*Invite, error) {
 	var invite Invite
 	err := r.DB().
-		Preload("Roles").
 		Where("invite_token = ?", token).
 		First(&invite).Error
 	if err != nil {
@@ -81,6 +82,7 @@ func (r *inviteRepository) FindAllByTenantID(tenantID int64) ([]Invite, error) {
 	var invites []Invite
 	err := r.DB().
 		Where("tenant_id = ?", tenantID).
+		Preload("AuthFlow").
 		Find(&invites).Error
 	return invites, err
 }
@@ -98,4 +100,15 @@ func (r *inviteRepository) RevokeByUUID(inviteUUID uuid.UUID) error {
 	return r.DB().Model(&Invite{}).
 		Where("invite_uuid = ?", inviteUUID).
 		Update("status", shared.StatusRevoked).Error
+}
+
+func (r *inviteRepository) ResetForResend(inviteUUID uuid.UUID, newToken string, newExpiry time.Time) error {
+	return r.DB().Model(&Invite{}).
+		Where("invite_uuid = ?", inviteUUID).
+		Updates(map[string]any{
+			"invite_token": newToken,
+			"status":       shared.StatusPending,
+			"expires_at":   newExpiry,
+			"used_at":      nil,
+		}).Error
 }

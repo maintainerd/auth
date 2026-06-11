@@ -18,9 +18,5 @@ func (r SendInviteRequest) Validate() error {
 			validation.Length(3, 100).Error("Email must be between 3 and 100 characters"),
 			validation.Match(emailRegex).Error("Invalid email format"),
 		),
-		validation.Field(&r.Roles,
-			validation.Required.Error("Roles are required"),
-			validation.Length(1, 10).Error("Must provide between 1 and 10 roles"),
-		),
 	)
 }

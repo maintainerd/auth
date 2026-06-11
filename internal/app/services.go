@@ -46,14 +46,13 @@ type svcs struct {
 	emailVerificationService     authn.EmailVerificationService
 	magicLinkService             authn.MagicLinkService
 	setupService                 setup.SetupService
-	signupFlowService            idp.SignupFlowService
+	authFlowService            idp.AuthFlowService
 	policyService                iam.PolicyService
 	apiKeyService                client.APIKeyService
 	securitySettingService       secpolicy.SecuritySettingService
 	ipRestrictionRuleService     secpolicy.IPRestrictionRuleService
 	emailTemplateService         branding.EmailTemplateService
 	smsTemplateService           branding.SMSTemplateService
-	loginTemplateService         branding.LoginTemplateService
 	brandingService              branding.BrandingService
 	tenantSettingService         tenant.TenantSettingService
 	emailConfigService           notifier.EmailConfigService
@@ -230,12 +229,12 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		clientService:            client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
 		roleService:              iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
 		userService:              user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, appCache, r.userTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc),
-		registerService:          authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
+		registerService:          authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnAuthFlowRoleRepoAdapter(r.authFlowRoleRepo)),
 		loginService:             authn.NewLoginService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo, appCache),
 		sessionService:           sessionSvc,
 		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo),
 		userSettingService:       user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
-		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), newInviteRoleRepo(db), r.emailTemplateRepo),
+		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), r.emailTemplateRepo, newInviteAuthFlowRepo(db)),
 		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
 		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
 		emailVerificationService: authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
@@ -248,14 +247,13 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 				ServicePolicyRepo: r.servicePolicyRepo,
 			},
 		),
-		signupFlowService:            idp.NewSignupFlowService(db, r.signupFlowRepo, r.signupFlowRoleRepo, idpRoleRepo, idpClientRepo),
+		authFlowService:            idp.NewAuthFlowService(db, r.authFlowRepo, r.authFlowRoleRepo, r.authFlowCallbackURIRepo, idpRoleRepo, idpClientRepo),
 		policyService:                iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo, eventSvc, authEventSvc),
 		apiKeyService:                client.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyAPIRepo, r.apiKeyPermissionRepo, clientAPIRepo, clientUserRepo, clientPermissionRepo, eventSvc),
 		securitySettingService:       secpolicy.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
 		ipRestrictionRuleService:     secpolicy.NewIPRestrictionRuleService(db, r.ipRestrictionRuleRepo),
 		emailTemplateService:         branding.NewEmailTemplateService(r.emailTemplateRepo),
 		smsTemplateService:           branding.NewSMSTemplateService(r.smsTemplateRepo),
-		loginTemplateService:         branding.NewLoginTemplateService(r.loginTemplateRepo),
 		brandingService:              branding.NewBrandingService(r.brandingRepo),
 		tenantSettingService:         tenant.NewTenantSettingService(r.tenantSettingRepo),
 		emailConfigService:           notifier.NewEmailConfigService(r.emailConfigRepo),
@@ -312,7 +310,6 @@ func tenantCascadeModels() []any {
 		&notifier.SMSConfig{},
 		&notifier.EmailConfig{},
 		&branding.SMSTemplate{},
-		&branding.LoginTemplate{},
 		&branding.EmailTemplate{},
 		&branding.Branding{},
 
@@ -321,7 +318,7 @@ func tenantCascadeModels() []any {
 		&secpolicy.SecuritySetting{},
 
 		&invite.Invite{},
-		&idp.SignupFlow{},
+		&idp.AuthFlow{},
 		&idp.IdentityProvider{},
 
 		&client.ClientURI{},

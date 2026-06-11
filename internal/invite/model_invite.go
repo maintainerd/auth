@@ -15,6 +15,7 @@ type Invite struct {
 	InvitedEmail    string         `gorm:"column:invited_email"`
 	InvitedByUserID *int64         `gorm:"column:invited_by_user_id"`
 	InviteToken     string         `gorm:"column:invite_token;unique"`
+	AuthFlowID      *int64         `gorm:"column:auth_flow_id"`
 	Status          string         `gorm:"column:status;default:pending"` // pending, accepted, expired, revoked
 	ExpiresAt       *time.Time     `gorm:"column:expires_at"`
 	UsedAt          *time.Time     `gorm:"column:used_at"`
@@ -23,6 +24,8 @@ type Invite struct {
 	CreatedAt       time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt       time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt       gorm.DeletedAt `gorm:"column:deleted_at;index"`
+
+	AuthFlow *AuthFlow `gorm:"foreignKey:AuthFlowID;references:AuthFlowID"`
 }
 
 func (Invite) TableName() string {

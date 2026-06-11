@@ -94,6 +94,11 @@ func RunAll(db *gorm.DB, appVersion string) error {
 		return err
 	}
 
+	if err := SeedBranding(db, sysTenant.TenantID); err != nil {
+		slog.Error("Failed to seed system branding", "error", err)
+		return err
+	}
+
 	slog.Info("Default seeding process completed")
 	return nil
 }

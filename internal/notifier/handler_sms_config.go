@@ -37,6 +37,30 @@ func (h *SMSConfigHandler) Get(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, toSMSConfigResponseDTO(result), "SMS config retrieved successfully")
 }
 
+// Status reports whether SMS delivery is configured for the authenticated
+// tenant (lightweight, exposes no secrets).
+//
+// GET /sms-config/status
+func (h *SMSConfigHandler) Status(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	result, err := h.smsConfigService.GetStatus(r.Context(), tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get SMS config status", err)
+		return
+	}
+
+	resp.Success(w, ConfigStatusResponseDTO{
+		Configured: result.Configured,
+		Provider:   result.Provider,
+		Status:     result.Status,
+	}, "SMS config status retrieved successfully")
+}
+
 // Update upserts the SMS config for the authenticated tenant.
 //
 // PUT /sms-config

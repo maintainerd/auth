@@ -3,10 +3,43 @@ package app
 import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authn"
+	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/invite"
 	"github.com/maintainerd/auth/internal/user"
 	"gorm.io/gorm"
 )
+
+// ---------------------------------------------------------------------------
+// authn.AuthFlowRoleRepository adapter — wraps idp.AuthFlowRoleRepository
+// ---------------------------------------------------------------------------
+
+type authnAuthFlowRoleRepoAdapter struct {
+	repo idp.AuthFlowRoleRepository
+}
+
+func newAuthnAuthFlowRoleRepoAdapter(repo idp.AuthFlowRoleRepository) authn.AuthFlowRoleRepository {
+	return &authnAuthFlowRoleRepoAdapter{repo: repo}
+}
+
+func (a *authnAuthFlowRoleRepoAdapter) WithTx(tx *gorm.DB) authn.AuthFlowRoleRepository {
+	return &authnAuthFlowRoleRepoAdapter{repo: a.repo.WithTx(tx)}
+}
+
+func (a *authnAuthFlowRoleRepoAdapter) FindRoleIDsByAuthFlowID(authFlowID int64) ([]int64, error) {
+	roles, err := a.repo.FindByAuthFlowID(authFlowID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(roles))
+	for i, r := range roles {
+		ids[i] = r.RoleID
+	}
+	return ids, nil
+}
+
+// ---------------------------------------------------------------------------
+// authn.InviteRepository adapter
+// ---------------------------------------------------------------------------
 
 type authnInviteRepoAdapter struct {
 	repo invite.InviteRepository

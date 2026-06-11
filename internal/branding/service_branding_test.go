@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 )
 
 func newBrandingSvc(repo *mockBrandingRepo) BrandingService {
@@ -19,11 +20,11 @@ func newBrandingSvc(repo *mockBrandingRepo) BrandingService {
 // ---------------------------------------------------------------------------
 
 func TestBrandingService_Get(t *testing.T) {
-	t.Run("existing record", func(t *testing.T) {
+	t.Run("finds active record", func(t *testing.T) {
 		id := uuid.New()
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(tid int64) (*Branding, error) {
-				return &Branding{BrandingUUID: id, TenantID: tid, CompanyName: "Acme"}, nil
+			findActiveFn: func(tid int64) (*Branding, error) {
+				return &Branding{BrandingUUID: id, TenantID: tid, CompanyName: "Acme", IsActive: true}, nil
 			},
 		})
 		res, err := svc.Get(context.Background(), 1)
@@ -32,37 +33,13 @@ func TestBrandingService_Get(t *testing.T) {
 		assert.Equal(t, "Acme", res.CompanyName)
 	})
 
-	t.Run("auto-creates default when not found", func(t *testing.T) {
+	t.Run("FindActive error", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, nil },
-			createFn: func(e *Branding) (*Branding, error) {
-				e.BrandingUUID = uuid.New()
-				return e, nil
-			},
-		})
-		res, err := svc.Get(context.Background(), 1)
-		require.NoError(t, err)
-		assert.NotNil(t, res)
-	})
-
-	t.Run("FindByTenantID error", func(t *testing.T) {
-		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, errors.New("db err") },
+			findActiveFn: func(_ int64) (*Branding, error) { return nil, errors.New("db err") },
 		})
 		_, err := svc.Get(context.Background(), 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
-	})
-
-	t.Run("create default error", func(t *testing.T) {
-		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, nil },
-			createFn: func(_ *Branding) (*Branding, error) {
-				return nil, errors.New("create fail")
-			},
-		})
-		_, err := svc.Get(context.Background(), 1)
-		require.Error(t, err)
 	})
 }
 
@@ -78,14 +55,14 @@ func TestBrandingService_Update(t *testing.T) {
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 		res, err := svc.Update(context.Background(), 1,
-			"Acme", "https://logo.png", "https://favicon.ico",
-			"#111", "#222", "#333", "Inter", "body{}",
+			"", "Acme", "https://logo.png", "https://favicon.ico",
+			datatypes.JSON([]byte(`{"colors":{"primary":"#111"}}`)),
 			"https://support", "https://privacy", "https://terms",
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "Acme", res.CompanyName)
 		assert.Equal(t, "https://logo.png", res.LogoURL)
-		assert.Equal(t, "#111", res.PrimaryColor)
+		assert.JSONEq(t, `{"colors":{"primary":"#111"}}`, string(res.Metadata))
 		assert.Equal(t, "https://support", res.SupportURL)
 	})
 
@@ -98,7 +75,7 @@ func TestBrandingService_Update(t *testing.T) {
 			},
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
-		res, err := svc.Update(context.Background(), 1, "X", "", "", "", "", "", "", "", "", "", "")
+		res, err := svc.Update(context.Background(), 1, "", "X", "", "", datatypes.JSON(nil), "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "X", res.CompanyName)
 	})
@@ -107,7 +84,7 @@ func TestBrandingService_Update(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
 			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, errors.New("db") },
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", "", "", "", "", "", "", "", "", "")
+		_, err := svc.Update(context.Background(), 1, "", "", "", "", datatypes.JSON(nil), "", "", "")
 		require.Error(t, err)
 	})
 
@@ -120,7 +97,7 @@ func TestBrandingService_Update(t *testing.T) {
 				return nil, errors.New("save err")
 			},
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", "", "", "", "", "", "", "", "", "")
+		_, err := svc.Update(context.Background(), 1, "", "", "", "", datatypes.JSON(nil), "", "", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})

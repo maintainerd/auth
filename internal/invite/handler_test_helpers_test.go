@@ -17,20 +17,43 @@ import (
 const testTenantID int64 = 1
 
 var (
-	testTenantUUID   = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	testUserUUID     = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	testResourceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000099")
+	testTenantUUID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	testUserUUID   = uuid.MustParse("00000000-0000-0000-0000-000000000002")
 )
 
 type mockInviteService struct {
-	sendInviteFn func(int64, string, int64, []string) (*Invite, error)
+	sendInviteFn   func(int64, string, int64, *string) (*Invite, error)
+	resendInviteFn func(uuid.UUID, int64) (*Invite, error)
+	listInvitesFn  func(int64) ([]Invite, error)
+	revokeInviteFn func(uuid.UUID, int64) error
 }
 
-func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*Invite, error) {
+func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email string, userID int64, authFlowUUID *string) (*Invite, error) {
 	if m.sendInviteFn != nil {
-		return m.sendInviteFn(tenantID, email, userID, roleUUIDs)
+		return m.sendInviteFn(tenantID, email, userID, authFlowUUID)
 	}
 	return nil, nil
+}
+
+func (m *mockInviteService) ResendInvite(_ context.Context, inviteUUID uuid.UUID, tenantID int64) (*Invite, error) {
+	if m.resendInviteFn != nil {
+		return m.resendInviteFn(inviteUUID, tenantID)
+	}
+	return nil, nil
+}
+
+func (m *mockInviteService) ListInvites(_ context.Context, tenantID int64) ([]Invite, error) {
+	if m.listInvitesFn != nil {
+		return m.listInvitesFn(tenantID)
+	}
+	return nil, nil
+}
+
+func (m *mockInviteService) RevokeInvite(_ context.Context, inviteUUID uuid.UUID, tenantID int64) error {
+	if m.revokeInviteFn != nil {
+		return m.revokeInviteFn(inviteUUID, tenantID)
+	}
+	return nil
 }
 
 func withTenant(r *http.Request) *http.Request {

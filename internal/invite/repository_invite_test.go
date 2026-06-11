@@ -97,11 +97,6 @@ func TestInviteRepository_FindByToken(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
-		// Remove the gorm:preload callback to bypass schema validation for "Roles"
-		// (Invite struct does not have a Roles field yet Preload("Roles") is called)
-		origCb := db.Callback().Query().Get("gorm:preload")
-		_ = db.Callback().Query().Remove("gorm:preload")
-		defer func() { _ = db.Callback().Query().Register("gorm:preload", origCb) }()
 
 		testUUID := uuid.New()
 		mock.ExpectQuery(`SELECT \* FROM "invites" WHERE invite_token = \$1 AND "invites"\."deleted_at" IS NULL ORDER BY "invites"\."invite_id" LIMIT \$2`).
@@ -144,7 +139,7 @@ func TestInviteRepository_FindByToken(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("role preload error on missing field", func(t *testing.T) {
+	t.Run("success without preload", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectQuery(`SELECT \* FROM "invites" WHERE invite_token = \$1 AND "invites"\."deleted_at" IS NULL ORDER BY "invites"\."invite_id" LIMIT \$2`).
 			WithArgs("token123", 1).
@@ -153,9 +148,9 @@ func TestInviteRepository_FindByToken(t *testing.T) {
 
 		result, err := NewInviteRepository(db).FindByToken("token123")
 
-		require.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "Roles")
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "token123", result.InviteToken)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

@@ -35,14 +35,13 @@ func TestInviteHandler_Send_BadJSON(t *testing.T) {
 
 func TestInviteHandler_Send_ServiceError(t *testing.T) {
 	svc := &mockInviteService{
-		sendInviteFn: func(tid int64, email string, uid int64, roles []string) (*Invite, error) {
+		sendInviteFn: func(tid int64, email string, uid int64, authFlowUUID *string) (*Invite, error) {
 			return nil, assert.AnError
 		},
 	}
 	h := NewInviteHandler(svc)
 	r := withTenantAndUser(jsonReq(t, http.MethodPost, "/invites", map[string]interface{}{
 		"email": "user@example.com",
-		"roles": []string{testResourceUUID.String()},
 	}))
 	w := httptest.NewRecorder()
 	h.Send(w, r)
@@ -50,11 +49,8 @@ func TestInviteHandler_Send_ServiceError(t *testing.T) {
 }
 
 func TestInviteHandler_Send_ValidationError(t *testing.T) {
-	// Email present but Roles omitted → req.Validate() returns error → 400.
 	h := NewInviteHandler(&mockInviteService{})
-	r := withTenantAndUser(jsonReq(t, http.MethodPost, "/invites", map[string]any{
-		"email": "user@example.com",
-	}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPost, "/invites", map[string]any{}))
 	w := httptest.NewRecorder()
 	h.Send(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -62,14 +58,13 @@ func TestInviteHandler_Send_ValidationError(t *testing.T) {
 
 func TestInviteHandler_Send_Success(t *testing.T) {
 	svc := &mockInviteService{
-		sendInviteFn: func(tid int64, email string, uid int64, roles []string) (*Invite, error) {
+		sendInviteFn: func(tid int64, email string, uid int64, authFlowUUID *string) (*Invite, error) {
 			return &Invite{}, nil
 		},
 	}
 	h := NewInviteHandler(svc)
 	r := withTenantAndUser(jsonReq(t, http.MethodPost, "/invites", map[string]interface{}{
 		"email": "user@example.com",
-		"roles": []string{testResourceUUID.String()},
 	}))
 	w := httptest.NewRecorder()
 	h.Send(w, r)
