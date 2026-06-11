@@ -37,6 +37,30 @@ func (h *EmailConfigHandler) Get(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, toEmailConfigResponseDTO(result), "Email config retrieved successfully")
 }
 
+// Status reports whether email delivery is configured for the authenticated
+// tenant (lightweight, exposes no secrets).
+//
+// GET /email-config/status
+func (h *EmailConfigHandler) Status(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	result, err := h.emailConfigService.GetStatus(r.Context(), tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get email config status", err)
+		return
+	}
+
+	resp.Success(w, ConfigStatusResponseDTO{
+		Configured: result.Configured,
+		Provider:   result.Provider,
+		Status:     result.Status,
+	}, "Email config status retrieved successfully")
+}
+
 // Update upserts the email config for the authenticated tenant.
 //
 // PUT /email-config

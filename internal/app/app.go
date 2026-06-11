@@ -49,13 +49,12 @@ type App struct {
 	EmailVerificationService     authn.EmailVerificationService
 	MagicLinkService             authn.MagicLinkService
 	SetupService                 setup.SetupService
-	SignupFlowService            idp.SignupFlowService
+	AuthFlowService            idp.AuthFlowService
 	APIKeyService                client.APIKeyService
 	SecuritySettingService       secpolicy.SecuritySettingService
 	IPRestrictionRuleService     secpolicy.IPRestrictionRuleService
 	EmailTemplateService         branding.EmailTemplateService
 	SMSTemplateService           branding.SMSTemplateService
-	LoginTemplateService         branding.LoginTemplateService
 	BrandingService              branding.BrandingService
 	TenantSettingService         tenant.TenantSettingService
 	EmailConfigService           notifier.EmailConfigService
@@ -126,13 +125,12 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		EmailVerificationService:     s.emailVerificationService,
 		MagicLinkService:             s.magicLinkService,
 		SetupService:                 s.setupService,
-		SignupFlowService:            s.signupFlowService,
+		AuthFlowService:            s.authFlowService,
 		APIKeyService:                s.apiKeyService,
 		SecuritySettingService:       s.securitySettingService,
 		IPRestrictionRuleService:     s.ipRestrictionRuleService,
 		EmailTemplateService:         s.emailTemplateService,
 		SMSTemplateService:           s.smsTemplateService,
-		LoginTemplateService:         s.loginTemplateService,
 		BrandingService:              s.brandingService,
 		TenantSettingService:         s.tenantSettingService,
 		EmailConfigService:           s.emailConfigService,

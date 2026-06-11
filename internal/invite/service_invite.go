@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"html/template"
+	"os"
+	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
@@ -19,33 +22,45 @@ import (
 	"gorm.io/gorm"
 )
 
-const DefaultInviteTTL = 72 * time.Hour
+const defaultInviteTTL = 72 * time.Hour
+
+func inviteTTL() time.Duration {
+	if v := os.Getenv("INVITE_TTL_HOURS"); v != "" {
+		if h, err := strconv.Atoi(v); err == nil && h > 0 {
+			return time.Duration(h) * time.Hour
+		}
+	}
+	return defaultInviteTTL
+}
 
 type InviteService interface {
-	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*Invite, error)
+	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, authFlowUUID *string) (*Invite, error)
+	ResendInvite(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) (*Invite, error)
+	ListInvites(ctx context.Context, tenantID int64) ([]Invite, error)
+	RevokeInvite(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) error
 }
 
 type inviteService struct {
 	db                *gorm.DB
 	inviteRepo        InviteRepository
 	clientRepo        ClientRepository
-	roleRepo          RoleRepository
 	emailTemplateRepo branding.EmailTemplateRepository
+	authFlowRepo      AuthFlowRepository
 }
 
 func NewInviteService(
 	db *gorm.DB,
 	inviteRepo InviteRepository,
 	clientRepo ClientRepository,
-	roleRepo RoleRepository,
 	emailTemplateRepo branding.EmailTemplateRepository,
+	authFlowRepo AuthFlowRepository,
 ) InviteService {
 	return &inviteService{
 		db:                db,
 		inviteRepo:        inviteRepo,
 		clientRepo:        clientRepo,
-		roleRepo:          roleRepo,
 		emailTemplateRepo: emailTemplateRepo,
+		authFlowRepo:      authFlowRepo,
 	}
 }
 
@@ -54,7 +69,7 @@ func (s *inviteService) SendInvite(
 	tenantID int64,
 	email string,
 	userID int64,
-	roleUUIDs []string,
+	authFlowUUID *string,
 ) (*Invite, error) {
 	_, span := otel.Tracer("service").Start(ctx, "invite.send")
 	defer span.End()
@@ -63,7 +78,7 @@ func (s *inviteService) SendInvite(
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		clientRepo := s.clientRepo.WithTx(tx)
-		roleRepo := s.roleRepo.WithTx(tx)
+		authFlowRepo := s.authFlowRepo.WithTx(tx)
 		inviteRepo := s.inviteRepo.WithTx(tx)
 
 		Client, err := clientRepo.FindSystem()
@@ -74,35 +89,21 @@ func (s *inviteService) SendInvite(
 			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" ||
 			Client.IdentityProvider == nil ||
-			Client.IdentityProvider.Tenant == nil ||
-			Client.IdentityProvider.Tenant.TenantID == 0 {
+			Client.IdentityProvider.TenantID == 0 {
 			return apperror.NewValidation("invalid client or identity provider")
 		}
 
-		// Get tenant id
-		tenantId := Client.IdentityProvider.Tenant.TenantID
-
-		// Find roles by UUIDs
-		foundRoles, err := roleRepo.FindByUUIDs(roleUUIDs)
-		if err != nil {
-			return err
-		}
-
-		// Validate all roles belong to the correct tenant
-		if len(foundRoles) != len(roleUUIDs) {
-			return apperror.NewNotFoundWithReason("one or more roles not found")
-		}
-		for _, role := range foundRoles {
-			if role.TenantID != tenantId {
-				return apperror.NewValidation("invalid role for the given client")
-			}
+		// The identity provider's tenant is the system tenant the client lives under.
+		systemTenantID := Client.IdentityProvider.TenantID
+		if tenantID != systemTenantID {
+			return apperror.NewValidation("tenant mismatch: invite tenant must match the system tenant")
 		}
 
 		inviteToken, err := crypto.GenerateIdentifier(32)
 		if err != nil {
 			return err
 		}
-		expiresAt := ptr.TimePtr(time.Now().Add(DefaultInviteTTL))
+		expiresAt := ptr.TimePtr(time.Now().Add(inviteTTL()))
 
 		invite = &Invite{
 			TenantID:        tenantID,
@@ -114,21 +115,38 @@ func (s *inviteService) SendInvite(
 			ExpiresAt:       expiresAt,
 		}
 
+		if authFlowUUID != nil && *authFlowUUID != "" {
+			authFlowUUIDParsed, err := uuid.Parse(*authFlowUUID)
+			if err != nil {
+				return apperror.NewValidation("invalid auth flow UUID")
+			}
+			authFlow, err := authFlowRepo.FindByUUIDAndTenantID(authFlowUUIDParsed, systemTenantID)
+			if err != nil || authFlow == nil {
+				return apperror.NewNotFoundWithReason("auth flow not found")
+			}
+			invite.AuthFlowID = &authFlow.AuthFlowID
+
+			// Privilege escalation guard: inviter must possess all roles the auth flow grants.
+			var flowRoleIDs []int64
+			if err := tx.Table("auth_flow_roles").
+				Where("auth_flow_id = ?", authFlow.AuthFlowID).
+				Pluck("role_id", &flowRoleIDs).Error; err != nil {
+				return err
+			}
+			for _, roleID := range flowRoleIDs {
+				var hasRole int64
+				if err := tx.Table("user_roles").
+					Where("user_id = ? AND role_id = ?", userID, roleID).
+					Count(&hasRole).Error; err != nil {
+					return err
+				}
+				if hasRole == 0 {
+					return apperror.NewValidation("you cannot grant roles you do not possess")
+				}
+			}
+		}
+
 		if _, err := inviteRepo.Create(invite); err != nil {
-			return err
-		}
-
-		// Create invite roles request
-		var inviteRoles []InviteRole
-		for _, role := range foundRoles {
-			inviteRoles = append(inviteRoles, InviteRole{
-				InviteID: invite.InviteID,
-				RoleID:   role.RoleID,
-			})
-		}
-
-		// Bulk create invite roles
-		if err := tx.Create(&inviteRoles).Error; err != nil {
 			return err
 		}
 
@@ -144,7 +162,7 @@ func (s *inviteService) SendInvite(
 	// Generate signed invite URL (API domain)
 	params := map[string]string{"invite_token": invite.InviteToken}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
-	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, DefaultInviteTTL)
+	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
 	if err != nil {
 		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
 	}
@@ -156,8 +174,8 @@ func (s *inviteService) SendInvite(
 		return nil, apperror.NewInternal("failed to convert invite URL", err)
 	}
 
-	// Send invite email
-	if err := s.sendInviteEmail(ctx, email, inviteURL); err != nil {
+	// Send invite email (scoped to the invite's tenant — from the request context)
+	if err := s.sendInviteEmail(ctx, tenantID, email, inviteURL); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to send invite email")
 		return nil, apperror.NewInternal("failed to send invite email", err)
@@ -167,14 +185,59 @@ func (s *inviteService) SendInvite(
 	return invite, nil
 }
 
-func (s *inviteService) sendInviteEmail(ctx context.Context, to, inviteURL string) error {
-	// Get email template from DB
+func (s *inviteService) ResendInvite(
+	ctx context.Context,
+	inviteUUID uuid.UUID,
+	tenantID int64,
+) (*Invite, error) {
+	_, span := otel.Tracer("service").Start(ctx, "invite.resend")
+	defer span.End()
+
+	existing, err := s.inviteRepo.FindByUUIDAndTenantID(inviteUUID, tenantID)
+	if err != nil || existing == nil {
+		return nil, apperror.NewNotFoundWithReason("invite not found")
+	}
+
+	inviteToken, err := crypto.GenerateIdentifier(32)
+	if err != nil {
+		return nil, err
+	}
+	expiresAt := ptr.TimePtr(time.Now().Add(inviteTTL()))
+
+	if err := s.inviteRepo.ResetForResend(inviteUUID, inviteToken, *expiresAt); err != nil {
+		return nil, err
+	}
+
+	params := map[string]string{"invite_token": inviteToken}
+	apiBaseURL := config.AppPrivateHostname + "/register/invite"
+	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
+	if err != nil {
+		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
+	}
+	frontendBaseURL := config.AccountHostname + "/register/invite"
+	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to convert invite URL", err)
+	}
+
+	if err := s.sendInviteEmail(ctx, existing.TenantID, existing.InvitedEmail, inviteURL); err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to send invite email", err)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	existing.InviteToken = inviteToken
+	existing.ExpiresAt = expiresAt
+	existing.Status = shared.StatusPending
+	return existing, nil
+}
+
+func (s *inviteService) sendInviteEmail(ctx context.Context, tenantID int64, to, inviteURL string) error {
 	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:invite")
 	if err != nil {
 		return apperror.NewInternal("failed to fetch invite email template", err)
 	}
 
-	// Prepare data for the template
 	data := struct {
 		InviteURL string
 		LogoURL   string
@@ -182,7 +245,6 @@ func (s *inviteService) sendInviteEmail(ctx context.Context, to, inviteURL strin
 		InviteURL: inviteURL,
 	}
 
-	// Parse HTML template
 	tmpl, err := template.New("invite_html").Parse(templateEntity.BodyHTML)
 	if err != nil {
 		return apperror.NewInternal("failed to parse HTML invite template", err)
@@ -192,7 +254,6 @@ func (s *inviteService) sendInviteEmail(ctx context.Context, to, inviteURL strin
 		return apperror.NewInternal("failed to execute HTML invite template", err)
 	}
 
-	// Parse plain-text template if available
 	var bodyPlainStr string
 	if templateEntity.BodyPlain != nil {
 		tmplPlain, err := template.New("invite_plain").Parse(*templateEntity.BodyPlain)
@@ -206,11 +267,41 @@ func (s *inviteService) sendInviteEmail(ctx context.Context, to, inviteURL strin
 		bodyPlainStr = bodyPlain.String()
 	}
 
-	// Send email
 	return email.SendEmail(ctx, s.db, email.SendEmailParams{
+		TenantID:  tenantID,
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),
 		BodyPlain: bodyPlainStr,
 	})
+}
+
+// ListInvites returns all invitations for a tenant (admin view).
+func (s *inviteService) ListInvites(ctx context.Context, tenantID int64) ([]Invite, error) {
+	_, span := otel.Tracer("service").Start(ctx, "invite.list")
+	defer span.End()
+	return s.inviteRepo.FindAllByTenantID(tenantID)
+}
+
+// RevokeInvite marks a pending invitation as revoked. Scoped to the tenant so an
+// admin can only revoke invites belonging to their own tenant.
+func (s *inviteService) RevokeInvite(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) error {
+	_, span := otel.Tracer("service").Start(ctx, "invite.revoke")
+	defer span.End()
+
+	existing, err := s.inviteRepo.FindByUUIDAndTenantID(inviteUUID, tenantID)
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+	if existing == nil {
+		return apperror.NewNotFoundWithReason("invite not found")
+	}
+	if err := s.inviteRepo.RevokeByUUID(inviteUUID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "revoke invite failed")
+		return apperror.NewInternal("failed to revoke invite", err)
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }

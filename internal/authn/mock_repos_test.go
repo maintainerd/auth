@@ -284,13 +284,12 @@ func (m *mockLoginService) Logout(ctx context.Context, accessToken string) error
 // ---------------------------------------------------------------------------
 
 type mockRegisterService struct {
-	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, providerID string) (*RegisterResponseDTO, error)
+	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
 	registerFn             func(username, fullname, password string, email, phone, clientID, providerID *string) (*RegisterResponseDTO, error)
-	registerInviteFn       func(username, password, inviteToken string, clientID, providerID *string) (*RegisterResponseDTO, error)
 	registerInvitePublicFn func(username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
 }
 
-func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID string) (*RegisterResponseDTO, error) {
+func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error) {
 	if m.registerPublicFn != nil {
 		return m.registerPublicFn(username, fullname, password, email, phone, clientID, providerID)
 	}
@@ -304,16 +303,25 @@ func (m *mockRegisterService) Register(ctx context.Context, username, fullname, 
 	return nil, nil
 }
 
-func (m *mockRegisterService) RegisterInvite(ctx context.Context, username, password, inviteToken string, clientID, providerID *string) (*RegisterResponseDTO, error) {
-	if m.registerInviteFn != nil {
-		return m.registerInviteFn(username, password, inviteToken, clientID, providerID)
+func (m *mockRegisterService) RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error) {
+	if m.registerInvitePublicFn != nil {
+		return m.registerInvitePublicFn(username, password, clientID, providerID, inviteToken)
 	}
 	return nil, nil
 }
 
-func (m *mockRegisterService) RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error) {
-	if m.registerInvitePublicFn != nil {
-		return m.registerInvitePublicFn(username, password, clientID, providerID, inviteToken)
+// ---------------------------------------------------------------------------
+// Mock: AuthFlowRoleRepository
+// ---------------------------------------------------------------------------
+
+type mockAuthFlowRoleRepo struct {
+	findRoleIDsByAuthFlowIDFn func(int64) ([]int64, error)
+}
+
+func (m *mockAuthFlowRoleRepo) WithTx(_ *gorm.DB) AuthFlowRoleRepository { return m }
+func (m *mockAuthFlowRoleRepo) FindRoleIDsByAuthFlowID(authFlowID int64) ([]int64, error) {
+	if m.findRoleIDsByAuthFlowIDFn != nil {
+		return m.findRoleIDsByAuthFlowIDFn(authFlowID)
 	}
 	return nil, nil
 }

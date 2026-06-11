@@ -30,6 +30,9 @@ type testEmailConfigService struct {
 func (m *testEmailConfigService) Get(ctx context.Context, tenantID int64) (*EmailConfigServiceDataResult, error) {
 	return m.getFn(ctx, tenantID)
 }
+func (m *testEmailConfigService) GetStatus(ctx context.Context, tenantID int64) (*ConfigStatusResult, error) {
+	return &ConfigStatusResult{}, nil
+}
 func (m *testEmailConfigService) Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error) {
 	return m.updateFn(ctx, tenantID, provider, host, port, username, password, fromAddress, fromName, replyTo, encryption, logoURL, testMode)
 }

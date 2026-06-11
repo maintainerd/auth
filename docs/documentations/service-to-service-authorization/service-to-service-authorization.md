@@ -1,7 +1,7 @@
 # Service-to-Service Authorization (IAM Enforcement)
 
 **Status:** Planned — required for **v1.0.0**.
-**Owner:** rseguma@lula.life
+**Owner:** segumareyco@gmail.com
 **Created:** 2026-06-04
 
 This document specifies how Lula's auth server graduates from an IAM *control plane*

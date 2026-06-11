@@ -19,6 +19,9 @@ type testSMSConfigService struct {
 func (m *testSMSConfigService) Get(ctx context.Context, tenantID int64) (*SMSConfigServiceDataResult, error) {
 	return m.getFn(ctx, tenantID)
 }
+func (m *testSMSConfigService) GetStatus(ctx context.Context, tenantID int64) (*ConfigStatusResult, error) {
+	return &ConfigStatusResult{}, nil
+}
 func (m *testSMSConfigService) Update(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, dailySendLimit *int, testMode *bool) (*SMSConfigServiceDataResult, error) {
 	return m.updateFn(ctx, tenantID, provider, accountSID, authToken, fromNumber, senderID, testMode)
 }

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS invites (
     invited_email       VARCHAR(255) NOT NULL,
     invited_by_user_id  BIGINT,
     invite_token        TEXT NOT NULL UNIQUE,
+    auth_flow_id        BIGINT,
     status              VARCHAR(20),
     expires_at          TIMESTAMPTZ,
     used_at             TIMESTAMPTZ,
@@ -42,6 +43,14 @@ BEGIN
         ALTER TABLE invites
             ADD CONSTRAINT fk_invites_client_id FOREIGN KEY (client_id)
             REFERENCES clients(client_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_invites_auth_flow_id'
+    ) THEN
+        ALTER TABLE invites
+            ADD CONSTRAINT fk_invites_auth_flow_id FOREIGN KEY (auth_flow_id)
+            REFERENCES auth_flows(auth_flow_id) ON DELETE SET NULL;
     END IF;
 
     IF NOT EXISTS (
@@ -73,6 +82,7 @@ END$$;
 CREATE INDEX IF NOT EXISTS idx_invites_uuid ON invites (invite_uuid);
 CREATE INDEX IF NOT EXISTS idx_invites_tenant_id ON invites (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_invites_client_id ON invites (client_id);
+CREATE INDEX IF NOT EXISTS idx_invites_auth_flow_id ON invites (auth_flow_id);
 CREATE INDEX IF NOT EXISTS idx_invites_email ON invites (invited_email);
 CREATE INDEX IF NOT EXISTS idx_invites_invited_by_user_id ON invites (invited_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_invites_token ON invites (invite_token);

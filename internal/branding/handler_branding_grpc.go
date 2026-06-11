@@ -8,6 +8,7 @@ import (
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/platform/pagination"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/datatypes"
 )
 
 type TenantResolver interface {
@@ -41,7 +42,13 @@ func (h *BrandingGRPCHandler) UpdateBranding(ctx context.Context, req *authv1.Up
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.svc.Update(ctx, tenant.TenantID, req.GetCompanyName(), req.GetLogoUrl(), req.GetFaviconUrl(), req.GetPrimaryColor(), req.GetSecondaryColor(), req.GetAccentColor(), req.GetFontFamily(), req.GetCustomCss(), req.GetSupportUrl(), req.GetPrivacyPolicyUrl(), req.GetTermsOfServiceUrl())
+	// Colors are managed via the HTTP API only (JSON palette); the gRPC surface
+	// covers the scalar fields.
+	var metadata datatypes.JSON
+	if m := req.GetMetadata(); m != "" {
+		metadata = datatypes.JSON([]byte(m))
+	}
+	result, err := h.svc.Update(ctx, tenant.TenantID, req.GetName(), req.GetCompanyName(), req.GetLogoUrl(), req.GetFaviconUrl(), metadata, req.GetSupportUrl(), req.GetPrivacyPolicyUrl(), req.GetTermsOfServiceUrl())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -101,10 +108,10 @@ func brandingProto(r *BrandingServiceDataResult) *authv1.Branding {
 		return nil
 	}
 	return &authv1.Branding{
-		BrandingUuid: r.BrandingUUID.String(), CompanyName: r.CompanyName, LogoUrl: r.LogoURL,
-		FaviconUrl: r.FaviconURL, PrimaryColor: r.PrimaryColor, SecondaryColor: r.SecondaryColor,
-		AccentColor: r.AccentColor, FontFamily: r.FontFamily, CustomCss: r.CustomCSS,
+		BrandingUuid: r.BrandingUUID.String(), Name: r.Name, IsSystem: r.IsSystem, IsActive: r.IsActive,
+		CompanyName: r.CompanyName, LogoUrl: r.LogoURL, FaviconUrl: r.FaviconURL,
 		SupportUrl: r.SupportURL, PrivacyPolicyUrl: r.PrivacyPolicyURL, TermsOfServiceUrl: r.TermsOfServiceURL,
+		Metadata:  string(r.Metadata),
 		CreatedAt: timestamppb.New(r.CreatedAt), UpdatedAt: timestamppb.New(r.UpdatedAt),
 	}
 }

@@ -8,21 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSignupFlowRole_TableName(t *testing.T) {
-	assert.Equal(t, "signup_flow_roles", SignupFlowRole{}.TableName())
+func TestAuthFlowRole_TableName(t *testing.T) {
+	assert.Equal(t, "auth_flow_roles", AuthFlowRole{}.TableName())
 }
 
-func TestSignupFlowRole_BeforeCreate(t *testing.T) {
+func TestAuthFlowRole_BeforeCreate(t *testing.T) {
 	t.Run("assigns uuid when empty", func(t *testing.T) {
-		role := &SignupFlowRole{}
+		role := &AuthFlowRole{}
 		require.NoError(t, role.BeforeCreate(nil))
-		assert.NotEqual(t, uuid.Nil, role.SignupFlowRoleUUID)
+		assert.NotEqual(t, uuid.Nil, role.AuthFlowRoleUUID)
 	})
 
 	t.Run("keeps existing uuid", func(t *testing.T) {
 		existing := uuid.New()
-		role := &SignupFlowRole{SignupFlowRoleUUID: existing}
+		role := &AuthFlowRole{AuthFlowRoleUUID: existing}
 		require.NoError(t, role.BeforeCreate(nil))
-		assert.Equal(t, existing, role.SignupFlowRoleUUID)
+		assert.Equal(t, existing, role.AuthFlowRoleUUID)
 	})
 }

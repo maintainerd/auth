@@ -7,6 +7,10 @@ import (
 )
 
 type SendEmailParams struct {
+	// TenantID scopes which tenant's email_config is used. It comes from the
+	// request context (set by the auth middleware). A zero value falls back to
+	// the system tenant's config.
+	TenantID  int64
 	To        string
 	From      string
 	Subject   string
@@ -23,7 +27,7 @@ func sendEmail(ctx context.Context, db *gorm.DB, params SendEmailParams) error {
 	if db == nil {
 		return nil
 	}
-	provider, err := NewProviderFromDB(ctx, db, 0)
+	provider, err := NewProviderFromDB(ctx, db, params.TenantID)
 	if err != nil {
 		return err
 	}

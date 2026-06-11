@@ -16,6 +16,7 @@ type smtpProvider struct {
 	port int
 	user string
 	pass string
+	from string
 }
 
 func newSMTPProvider(cfg ProviderConfig) Provider {
@@ -24,6 +25,7 @@ func newSMTPProvider(cfg ProviderConfig) Provider {
 		port: cfg.Port,
 		user: cfg.Username,
 		pass: cfg.Password,
+		from: cfg.ResolveFrom(""),
 	}
 }
 
@@ -37,8 +39,13 @@ func (p *smtpProvider) Send(ctx context.Context, params SendParams) error {
 		attribute.String("email.subject", params.Subject),
 	)
 
+	from := params.From
+	if from == "" {
+		from = p.from
+	}
+
 	m := gomail.NewMessage()
-	m.SetHeader("From", params.From)
+	m.SetHeader("From", from)
 	m.SetHeader("To", params.To)
 	m.SetHeader("Subject", params.Subject)
 	if params.BodyPlain != "" {

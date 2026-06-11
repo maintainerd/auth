@@ -156,9 +156,9 @@ type Invite struct {
 	InviteUUID   uuid.UUID
 	TenantID     int64
 	InvitedEmail string
+	AuthFlowID   *int64
 	Status       string
 	ExpiresAt    *time.Time
-	Roles        []Role `gorm:"many2many:invite_roles;"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -317,4 +317,9 @@ type UserPasswordHistoryRepository interface {
 	AddEntry(userID int64, hash string) error
 	FindRecentHashes(userID int64, count int) ([]string, error)
 	PruneExcess(userID int64, keepCount int) error
+}
+
+type AuthFlowRoleRepository interface {
+	WithTx(tx *gorm.DB) AuthFlowRoleRepository
+	FindRoleIDsByAuthFlowID(authFlowID int64) ([]int64, error)
 }

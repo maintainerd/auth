@@ -75,8 +75,8 @@ func TestRegisterQueryDto_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "valid", dto: RegisterQueryDTO{ClientID: "c1", ProviderID: "p1"}, wantErr: false},
-		{name: "missing client_id", dto: RegisterQueryDTO{ProviderID: "p1"}, wantErr: true},
-		{name: "missing provider_id", dto: RegisterQueryDTO{ClientID: "c1"}, wantErr: true},
+		{name: "empty client_id ok", dto: RegisterQueryDTO{ProviderID: "p1"}, wantErr: false},
+		{name: "empty provider_id ok", dto: RegisterQueryDTO{ClientID: "c1"}, wantErr: false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -1,7 +1,7 @@
 # gRPC Feature List — Service-to-Service Control Plane Transport
 
 **Status:** Phase 0 foundation complete; Phase 1 management surface complete. Optional production-hardening recommendations are explicitly listed below — proposed for **v1.1.0** (post REST/S2S-authz baseline).
-**Owner:** rseguma@lula.life
+**Owner:** segumareyco@gmail.com
 **Created:** 2026-06-04
 **Related:** [service-to-service-authorization.md](../documentations/service-to-service-authorization/service-to-service-authorization.md) · [architecture.md](../documentations/architecture/architecture.md) · [code-structure.md](../contributing/code-structure.md) · [testing.md](../contributing/testing.md)
 

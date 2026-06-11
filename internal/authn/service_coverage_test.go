@@ -332,15 +332,16 @@ func TestResetPasswordService_RemainingBranches(t *testing.T) {
 }
 
 func TestRegisterService_RemainingBranches(t *testing.T) {
+    cid, pid := "client", "provider"
 	t.Run("register public username lookup error", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
 		m.user.findByUsernameFn = func(string) (*User, error) { return nil, errors.New("username error") }
-		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, "client", "provider")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, &cid, &pid)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -353,9 +354,9 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		email := "user@example.com"
 		m := defaultRegPublicMocks()
 		m.user.findByEmailFn = func(string) (*User, error) { return nil, errors.New("email error") }
-		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", &email, nil, "client", "provider")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", &email, nil, &cid, &pid)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -368,9 +369,9 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		phone := "+1234567890"
 		m := defaultRegPublicMocks()
 		m.user.findByPhoneFn = func(string) (*User, error) { return nil, errors.New("phone error") }
-		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, &phone, "client", "provider")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, &phone, &cid, &pid)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -385,7 +386,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 			name: "register public hash error",
 			m:    defaultRegPublicMocks,
 			run: func(s RegisterService) (*RegisterResponseDTO, error) {
-				return s.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, "client", "provider")
+				return s.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, &cid, &pid)
 			},
 		},
 		{
@@ -404,7 +405,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 			mock.ExpectBegin()
 			mock.ExpectRollback()
 			m := tc.m()
-			svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
 			resp, err := tc.run(svc)
 
@@ -424,7 +425,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
 		resp, err := svc.Register(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, nil, nil)
 
@@ -439,7 +440,6 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 			InvitedEmail: "invite@example.com",
 			Status:       shared.StatusPending,
 			ExpiresAt:    &future,
-			Roles:        []Role{{RoleID: 1}},
 		}
 	}
 
@@ -449,14 +449,6 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		run  func(RegisterService) (*RegisterResponseDTO, error)
 	}{
 		{
-			name: "register invite hash error",
-			m:    defaultRegInternalMocks,
-			run: func(s RegisterService) (*RegisterResponseDTO, error) {
-				return s.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", nil, nil)
-			},
-		},
-		{
-			name: "register invite public hash error",
 			m:    defaultRegPublicMocks,
 			run: func(s RegisterService) (*RegisterResponseDTO, error) {
 				return s.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "client", "provider", "token")
@@ -475,7 +467,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 			m.invite.findByTokenFn = func(string) (*Invite, error) { return validInvite(), nil }
 			m.user.findByUsernameFn = func(string) (*User, error) { return nil, nil }
 			m.user.findByEmailFn = func(string) (*User, error) { return nil, nil }
-			svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil)
+			svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
 			resp, err := tc.run(svc)
 

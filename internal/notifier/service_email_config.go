@@ -35,7 +35,15 @@ type EmailConfigServiceDataResult struct {
 // configuration.
 type EmailConfigService interface {
 	Get(ctx context.Context, tenantID int64) (*EmailConfigServiceDataResult, error)
+	GetStatus(ctx context.Context, tenantID int64) (*ConfigStatusResult, error)
 	Update(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption, logoURL string, testMode *bool) (*EmailConfigServiceDataResult, error)
+}
+
+// ConfigStatusResult is the service-layer "is this channel configured" result.
+type ConfigStatusResult struct {
+	Configured bool
+	Provider   string
+	Status     string
 }
 
 type emailConfigService struct {
@@ -92,6 +100,35 @@ func (s *emailConfigService) Get(ctx context.Context, tenantID int64) (*EmailCon
 	}
 	span.SetStatus(codes.Ok, "")
 	return toEmailConfigServiceDataResult(config), nil
+}
+
+// GetStatus reports whether email delivery is configured well enough to send:
+// a record exists, is active, has a sender address, and has the transport
+// essentials (SMTP host, or credentials for an API provider).
+func (s *emailConfigService) GetStatus(ctx context.Context, tenantID int64) (*ConfigStatusResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "emailConfig.getStatus")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
+
+	config, err := s.emailConfigRepo.FindByTenantID(tenantID)
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	if config == nil {
+		return &ConfigStatusResult{Configured: false}, nil
+	}
+
+	configured := config.Status == shared.StatusActive &&
+		config.Provider != "" &&
+		config.FromAddress != "" &&
+		(config.Host != "" || config.PasswordEncrypted != "")
+
+	return &ConfigStatusResult{
+		Configured: configured,
+		Provider:   config.Provider,
+		Status:     config.Status,
+	}, nil
 }
 
 // Update upserts the email config for a tenant. The password field is only

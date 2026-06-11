@@ -56,3 +56,11 @@ type SMSConfigUpdateRequestDTO struct {
 	DailySendLimit *int   `json:"daily_send_limit"`
 	TestMode       *bool  `json:"test_mode"`
 }
+
+// ConfigStatusResponseDTO reports whether a delivery channel (email/SMS) is
+// configured well enough to send. Lightweight; exposes no secrets.
+type ConfigStatusResponseDTO struct {
+	Configured bool   `json:"configured"`
+	Provider   string `json:"provider,omitempty"`
+	Status     string `json:"status,omitempty"`
+}

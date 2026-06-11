@@ -10,8 +10,7 @@ import (
 
 func validBrandingUpdate() BrandingUpdateRequestDTO {
 	return BrandingUpdateRequestDTO{
-		CompanyName:  "Acme Corp",
-		PrimaryColor: "#111111",
+		CompanyName: "Acme Corp",
 	}
 }
 
@@ -45,30 +44,6 @@ func TestBrandingUpdateRequestDTO_Validate(t *testing.T) {
 	t.Run("company_name too long", func(t *testing.T) {
 		d := validBrandingUpdate()
 		d.CompanyName = strings.Repeat("a", 256)
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("primary_color too long", func(t *testing.T) {
-		d := validBrandingUpdate()
-		d.PrimaryColor = strings.Repeat("a", 21)
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("secondary_color too long", func(t *testing.T) {
-		d := validBrandingUpdate()
-		d.SecondaryColor = strings.Repeat("a", 21)
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("accent_color too long", func(t *testing.T) {
-		d := validBrandingUpdate()
-		d.AccentColor = strings.Repeat("a", 21)
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("font_family too long", func(t *testing.T) {
-		d := validBrandingUpdate()
-		d.FontFamily = strings.Repeat("a", 101)
 		require.Error(t, d.Validate())
 	})
 
@@ -126,15 +101,15 @@ func TestBrandingUpdateRequestDTO_Validate(t *testing.T) {
 		assert.NoError(t, d.Validate())
 	})
 
-	t.Run("custom_css too long", func(t *testing.T) {
+	t.Run("name too long", func(t *testing.T) {
 		d := validBrandingUpdate()
-		d.CustomCSS = strings.Repeat("a", 50001)
+		d.Name = strings.Repeat("a", 101)
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("custom_css valid", func(t *testing.T) {
+	t.Run("name valid", func(t *testing.T) {
 		d := validBrandingUpdate()
-		d.CustomCSS = "body { color: red; }"
+		d.Name = "My Theme"
 		assert.NoError(t, d.Validate())
 	})
 }

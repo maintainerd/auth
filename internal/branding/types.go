@@ -2,39 +2,38 @@ package branding
 
 import (
 	"time"
+
+	"gorm.io/datatypes"
 )
 
-// BrandingResponseDTO is the JSON representation of a branding record.
+// BrandingResponseDTO is the JSON representation of a branding record. Theme
+// tokens (colors, fonts, panel backgrounds, …) live in metadata.
 type BrandingResponseDTO struct {
-	BrandingID        string    `json:"branding_id"`
-	CompanyName       string    `json:"company_name"`
-	LogoURL           string    `json:"logo_url"`
-	FaviconURL        string    `json:"favicon_url"`
-	PrimaryColor      string    `json:"primary_color"`
-	SecondaryColor    string    `json:"secondary_color"`
-	AccentColor       string    `json:"accent_color"`
-	FontFamily        string    `json:"font_family"`
-	CustomCSS         string    `json:"custom_css"`
-	SupportURL        string    `json:"support_url"`
-	PrivacyPolicyURL  string    `json:"privacy_policy_url"`
-	TermsOfServiceURL string    `json:"terms_of_service_url"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	BrandingID        string         `json:"branding_id"`
+	Name              string         `json:"name"`
+	IsSystem          bool           `json:"is_system"`
+	IsActive          bool           `json:"is_active"`
+	CompanyName       string         `json:"company_name"`
+	LogoURL           string         `json:"logo_url"`
+	FaviconURL        string         `json:"favicon_url"`
+	SupportURL        string         `json:"support_url"`
+	PrivacyPolicyURL  string         `json:"privacy_policy_url"`
+	TermsOfServiceURL string         `json:"terms_of_service_url"`
+	Metadata          datatypes.JSON `json:"metadata"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
 // BrandingUpdateRequestDTO is the request body for updating branding.
 type BrandingUpdateRequestDTO struct {
-	CompanyName       string `json:"company_name"`
-	LogoURL           string `json:"logo_url"`
-	FaviconURL        string `json:"favicon_url"`
-	PrimaryColor      string `json:"primary_color"`
-	SecondaryColor    string `json:"secondary_color"`
-	AccentColor       string `json:"accent_color"`
-	FontFamily        string `json:"font_family"`
-	CustomCSS         string `json:"custom_css"`
-	SupportURL        string `json:"support_url"`
-	PrivacyPolicyURL  string `json:"privacy_policy_url"`
-	TermsOfServiceURL string `json:"terms_of_service_url"`
+	Name              string         `json:"name"`
+	CompanyName       string         `json:"company_name"`
+	LogoURL           string         `json:"logo_url"`
+	FaviconURL        string         `json:"favicon_url"`
+	SupportURL        string         `json:"support_url"`
+	PrivacyPolicyURL  string         `json:"privacy_policy_url"`
+	TermsOfServiceURL string         `json:"terms_of_service_url"`
+	Metadata          datatypes.JSON `json:"metadata"`
 }
 
 // Email template list response DTO (without body content)

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/invite"
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
@@ -27,14 +28,27 @@ func (r *inviteClientRepo) FindSystem() (*invite.Client, error) {
 	return &c, nil
 }
 
-type inviteRoleRepo struct {
-	*database.BaseRepository[invite.Role]
+type inviteAuthFlowRepo struct {
+	*database.BaseRepository[invite.AuthFlow]
 }
 
-func newInviteRoleRepo(db *gorm.DB) invite.RoleRepository {
-	return &inviteRoleRepo{database.NewBaseRepository[invite.Role](db, "role_uuid", "role_id")}
+func newInviteAuthFlowRepo(db *gorm.DB) invite.AuthFlowRepository {
+	return &inviteAuthFlowRepo{database.NewBaseRepository[invite.AuthFlow](db, "auth_flow_uuid", "auth_flow_id")}
 }
 
-func (r *inviteRoleRepo) WithTx(tx *gorm.DB) invite.RoleRepository {
-	return &inviteRoleRepo{r.BaseRepository.WithTx(tx)}
+func (r *inviteAuthFlowRepo) WithTx(tx *gorm.DB) invite.AuthFlowRepository {
+	return &inviteAuthFlowRepo{r.BaseRepository.WithTx(tx)}
+}
+
+func (r *inviteAuthFlowRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, preloads ...string) (*invite.AuthFlow, error) {
+	var af invite.AuthFlow
+	query := r.DB().Where("auth_flow_uuid = ? AND tenant_id = ?", id, tenantID)
+	for _, p := range preloads {
+		query = query.Preload(p)
+	}
+	err := query.First(&af).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &af, nil
 }

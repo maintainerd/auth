@@ -210,11 +210,11 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("auth_event:read", "Read auth events", tenantID, apiID),
 		newPermission("auth_event:delete", "Delete auth events (retention)", tenantID, apiID),
 
-		// Signup Flows
-		newPermission("signup-flow:read", "Read signup flows", tenantID, apiID),
-		newPermission("signup-flow:create", "Create signup flow", tenantID, apiID),
-		newPermission("signup-flow:update", "Update signup flow", tenantID, apiID),
-		newPermission("signup-flow:delete", "Delete signup flow", tenantID, apiID),
+		// Auth Flows (hosted login/registration presets)
+		newPermission("auth-flow:read", "Read auth flows", tenantID, apiID),
+		newPermission("auth-flow:create", "Create auth flow", tenantID, apiID),
+		newPermission("auth-flow:update", "Update auth flow", tenantID, apiID),
+		newPermission("auth-flow:delete", "Delete auth flow", tenantID, apiID),
 
 		// Security Settings
 		newPermission("security-setting:read", "Read security settings", tenantID, apiID),
@@ -239,14 +239,13 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("sms-template:delete", "Delete SMS template", tenantID, apiID),
 
 		// Login Templates
-		newPermission("login-template:read", "Read login templates", tenantID, apiID),
-		newPermission("login-template:create", "Create login template", tenantID, apiID),
-		newPermission("login-template:update", "Update login template", tenantID, apiID),
-		newPermission("login-template:delete", "Delete login template", tenantID, apiID),
 
 		// Branding
 		newPermission("branding:read", "Read tenant branding", tenantID, apiID),
+		newPermission("branding:create", "Create tenant branding", tenantID, apiID),
 		newPermission("branding:update", "Update tenant branding", tenantID, apiID),
+		newPermission("branding:delete", "Delete tenant branding", tenantID, apiID),
+		newPermission("branding:activate", "Activate/deactivate tenant branding", tenantID, apiID),
 
 		// Tenant Settings
 		newPermission("tenant-setting:read", "Read tenant settings", tenantID, apiID),

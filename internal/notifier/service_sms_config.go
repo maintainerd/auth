@@ -31,6 +31,7 @@ type SMSConfigServiceDataResult struct {
 // configuration.
 type SMSConfigService interface {
 	Get(ctx context.Context, tenantID int64) (*SMSConfigServiceDataResult, error)
+	GetStatus(ctx context.Context, tenantID int64) (*ConfigStatusResult, error)
 	Update(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, dailySendLimit *int, testMode *bool) (*SMSConfigServiceDataResult, error)
 }
 
@@ -80,6 +81,35 @@ func (s *smsConfigService) Get(ctx context.Context, tenantID int64) (*SMSConfigS
 	}
 	span.SetStatus(codes.Ok, "")
 	return toSMSConfigServiceDataResult(config), nil
+}
+
+// GetStatus reports whether SMS delivery is configured well enough to send:
+// a record exists, is active, has a provider, a sender (from number or sender
+// id), and credentials.
+func (s *smsConfigService) GetStatus(ctx context.Context, tenantID int64) (*ConfigStatusResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "smsConfig.getStatus")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
+
+	config, err := s.smsConfigRepo.FindByTenantID(tenantID)
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	if config == nil {
+		return &ConfigStatusResult{Configured: false}, nil
+	}
+
+	configured := config.Status == shared.StatusActive &&
+		config.Provider != "" &&
+		(config.FromNumber != "" || config.SenderID != "") &&
+		config.AuthTokenEncrypted != ""
+
+	return &ConfigStatusResult{
+		Configured: configured,
+		Provider:   config.Provider,
+		Status:     config.Status,
+	}, nil
 }
 
 // Update upserts the SMS config for a tenant. The auth token is only written

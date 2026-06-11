@@ -36,14 +36,19 @@ func withEmptyUACtx(r *http.Request) *http.Request {
 // RegisterPublic
 // ---------------------------------------------------------------------------
 
-func TestRegisterHandler_RegisterPublic_MissingClientID(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
+func TestRegisterHandler_RegisterPublic_NoClientID_ShouldFallback(t *testing.T) {
+	svc := &mockRegisterService{
+		registerPublicFn: func(u, f, p string, e, ph, c, pr *string) (*RegisterResponseDTO, error) {
+			return &RegisterResponseDTO{}, nil
+		},
+	}
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/public/register", map[string]string{
-		"username": "user1", "password": "Pass@1234", "fullname": "User One",
+		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
 	})
 	w := httptest.NewRecorder()
 	h.RegisterPublic(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
 func TestRegisterHandler_RegisterPublic_EmptyUserAgent(t *testing.T) {
@@ -73,7 +78,7 @@ func TestRegisterHandler_RegisterPublic_InvalidBody(t *testing.T) {
 
 func TestRegisterHandler_RegisterPublic_ServiceError(t *testing.T) {
 	svc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*RegisterResponseDTO, error) {
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr *string) (*RegisterResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -88,7 +93,7 @@ func TestRegisterHandler_RegisterPublic_ServiceError(t *testing.T) {
 
 func TestRegisterHandler_RegisterPublic_Success(t *testing.T) {
 	svc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*RegisterResponseDTO, error) {
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr *string) (*RegisterResponseDTO, error) {
 			return &RegisterResponseDTO{}, nil
 		},
 	}
@@ -104,7 +109,7 @@ func TestRegisterHandler_RegisterPublic_Success(t *testing.T) {
 func TestRegisterHandler_RegisterPublic_SendsVerificationEmail(t *testing.T) {
 	email := "user@example.com"
 	regSvc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*RegisterResponseDTO, error) {
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr *string) (*RegisterResponseDTO, error) {
 			require.NotNil(t, e)
 			assert.Equal(t, email, *e)
 			return &RegisterResponseDTO{}, nil
@@ -136,7 +141,7 @@ func TestRegisterHandler_RegisterPublic_SendsVerificationEmail(t *testing.T) {
 
 func TestRegisterHandler_RegisterPublic_VerificationEmailErrorStillCreates(t *testing.T) {
 	regSvc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*RegisterResponseDTO, error) {
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr *string) (*RegisterResponseDTO, error) {
 			return &RegisterResponseDTO{}, nil
 		},
 	}
@@ -197,48 +202,6 @@ func TestRegisterHandler_Register_Success(t *testing.T) {
 	})
 	w := httptest.NewRecorder()
 	h.Register(w, r)
-	assert.Equal(t, http.StatusCreated, w.Code)
-}
-
-// ---------------------------------------------------------------------------
-// RegisterInvite (internal)
-// ---------------------------------------------------------------------------
-
-func TestRegisterHandler_RegisterInvite_MissingToken(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
-	r := regRequest(t, "/register/invite", map[string]string{"username": "u", "password": "p"})
-	w := httptest.NewRecorder()
-	h.RegisterInvite(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestRegisterHandler_RegisterInvite_ServiceError(t *testing.T) {
-	svc := &mockRegisterService{
-		registerInviteFn: func(u, p, t string, c, pr *string) (*RegisterResponseDTO, error) {
-			return nil, assert.AnError
-		},
-	}
-	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
-	r := regRequest(t, "/register/invite?invite_token=tok", map[string]string{
-		"username": "user1", "password": "Pass@1234",
-	})
-	w := httptest.NewRecorder()
-	h.RegisterInvite(w, r)
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestRegisterHandler_RegisterInvite_Success(t *testing.T) {
-	svc := &mockRegisterService{
-		registerInviteFn: func(u, p, t string, c, pr *string) (*RegisterResponseDTO, error) {
-			return &RegisterResponseDTO{}, nil
-		},
-	}
-	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
-	r := regRequest(t, "/register/invite?invite_token=tok", map[string]string{
-		"username": "user1", "password": "Pass@1234",
-	})
-	w := httptest.NewRecorder()
-	h.RegisterInvite(w, r)
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
@@ -315,43 +278,6 @@ func TestRegisterHandler_Register_WithOptionalParams(t *testing.T) {
 	})
 	w := httptest.NewRecorder()
 	h.Register(w, r)
-	assert.Equal(t, http.StatusCreated, w.Code)
-}
-
-// ── RegisterInvite ────────────────────────────────────────────────────────────
-
-// BadJSON: invite_token present, body is malformed → covers decode error path.
-func TestRegisterHandler_RegisterInvite_BadJSON(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
-	r := httptest.NewRequest(http.MethodPost, "/register/invite?invite_token=tok",
-		bytes.NewBufferString("{bad}"))
-	r.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	h.RegisterInvite(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// ValidationError: invite_token present, body decodes but fails LoginRequestDTO.Validate().
-func TestRegisterHandler_RegisterInvite_ValidationError(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
-	r := regRequest(t, "/register/invite?invite_token=tok", map[string]string{})
-	w := httptest.NewRecorder()
-	h.RegisterInvite(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// WithOptionalParams: ?client_id and ?provider_id present → covers pointer-assign branches.
-func TestRegisterHandler_RegisterInvite_WithOptionalParams(t *testing.T) {
-	svc := &mockRegisterService{
-		registerInviteFn: func(u, p, tok string, c, pr *string) (*RegisterResponseDTO, error) {
-			return &RegisterResponseDTO{}, nil
-		},
-	}
-	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
-	r := regRequest(t, "/register/invite?invite_token=tok&client_id=c1&provider_id=p1",
-		map[string]string{"username": "user1", "password": "Pass@1234"})
-	w := httptest.NewRecorder()
-	h.RegisterInvite(w, r)
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 

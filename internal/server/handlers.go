@@ -41,12 +41,11 @@ type handlers struct {
 	magicLink          *authn.MagicLinkHandler
 	setup              *setup.SetupHandler
 	apiKey             *client.APIKeyHandler
-	signupFlow         *idp.SignupFlowHandler
+	authFlow         *idp.AuthFlowHandler
 	securitySetting    *secpolicy.SecuritySettingHandler
 	ipRestrictionRule  *secpolicy.IPRestrictionRuleHandler
 	emailTemplate      *branding.EmailTemplateHandler
 	smsTemplate        *branding.SMSTemplateHandler
-	loginTemplate      *branding.LoginTemplateHandler
 	branding           *branding.BrandingHandler
 	tenantSetting      *tenant.TenantSettingHandler
 	emailConfig        *notifier.EmailConfigHandler
@@ -95,12 +94,11 @@ func initHandlers(application *Application) *handlers {
 		magicLink:          authn.NewMagicLinkHandler(application.MagicLinkService),
 		setup:              setup.NewSetupHandler(application.SetupService),
 		apiKey:             client.NewAPIKeyHandler(application.APIKeyService),
-		signupFlow:         idp.NewSignupFlowHandler(application.SignupFlowService),
+		authFlow:         idp.NewAuthFlowHandler(application.AuthFlowService),
 		securitySetting:    secpolicy.NewSecuritySettingHandler(application.SecuritySettingService),
 		ipRestrictionRule:  secpolicy.NewIPRestrictionRuleHandler(application.IPRestrictionRuleService),
 		emailTemplate:      branding.NewEmailTemplateHandler(application.EmailTemplateService),
 		smsTemplate:        branding.NewSMSTemplateHandler(application.SMSTemplateService),
-		loginTemplate:      branding.NewLoginTemplateHandler(application.LoginTemplateService),
 		branding:           branding.NewBrandingHandler(application.BrandingService),
 		tenantSetting:      tenant.NewTenantSettingHandler(application.TenantSettingService),
 		emailConfig:        notifier.NewEmailConfigHandler(application.EmailConfigService),

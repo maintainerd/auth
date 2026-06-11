@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authctx"
+	"gorm.io/datatypes"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
@@ -33,17 +34,6 @@ var (
 func withTenant(r *http.Request) *http.Request {
 	tenant := &authctx.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
 	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant})
-}
-
-func withUser(r *http.Request) *http.Request {
-	user := &authctx.AuthUser{UserUUID: testResourceUUID}
-	return middleware.WithAuthContext(r, &authctx.AuthContext{User: user})
-}
-
-func withTenantAndUser(r *http.Request) *http.Request {
-	tenant := &authctx.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
-	user := &authctx.AuthUser{UserUUID: testResourceUUID}
-	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant, User: user})
 }
 
 func withChiParam(r *http.Request, key, val string) *http.Request {
@@ -82,22 +72,47 @@ func validPagination() PaginationRequestDTO {
 // ---------------------------------------------------------------------------
 
 type mockBrandingService struct {
-	getFn    func(tenantID int64) (*BrandingServiceDataResult, error)
-	updateFn func(tenantID int64, companyName, logoURL, faviconURL, primaryColor, secondaryColor, accentColor, fontFamily, customCSS, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	getFn          func(tenantID int64) (*BrandingServiceDataResult, error)
+	updateFn       func(tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	listFn         func(tenantID int64) ([]*BrandingServiceDataResult, error)
+	createFn       func(tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	updateByUUIDFn func(brandingUUID uuid.UUID, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	activateFn func(brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
+	deleteFn   func(brandingUUID uuid.UUID, tenantID int64) error
+	getPublicFn func(tenantID int64) (*BrandingServiceDataResult, error)
 }
 
 func (m *mockBrandingService) Get(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error) {
-	if m.getFn != nil {
-		return m.getFn(tenantID)
-	}
+	if m.getFn != nil { return m.getFn(tenantID) }
 	return nil, nil
 }
-
-func (m *mockBrandingService) Update(ctx context.Context, tenantID int64, companyName, logoURL, faviconURL, primaryColor, secondaryColor, accentColor, fontFamily, customCSS, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
-	if m.updateFn != nil {
-		return m.updateFn(tenantID, companyName, logoURL, faviconURL, primaryColor, secondaryColor, accentColor, fontFamily, customCSS, supportURL, privacyPolicyURL, termsOfServiceURL)
-	}
+func (m *mockBrandingService) List(ctx context.Context, tenantID int64) ([]*BrandingServiceDataResult, error) {
+	if m.listFn != nil { return m.listFn(tenantID) }
 	return nil, nil
+}
+func (m *mockBrandingService) Create(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+	if m.createFn != nil { return m.createFn(tenantID, name, companyName, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL) }
+	return &BrandingServiceDataResult{}, nil
+}
+func (m *mockBrandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+	if m.updateByUUIDFn != nil { return m.updateByUUIDFn(brandingUUID, tenantID, name, companyName, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL) }
+	return &BrandingServiceDataResult{}, nil
+}
+func (m *mockBrandingService) Update(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+	if m.updateFn != nil { return m.updateFn(tenantID, name, companyName, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL) }
+	return nil, nil
+}
+func (m *mockBrandingService) Activate(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error) {
+	if m.activateFn != nil { return m.activateFn(brandingUUID, tenantID) }
+	return &BrandingServiceDataResult{}, nil
+}
+func (m *mockBrandingService) Delete(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) error {
+	if m.deleteFn != nil { return m.deleteFn(brandingUUID, tenantID) }
+	return nil
+}
+func (m *mockBrandingService) GetPublic(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error) {
+	if m.getPublicFn != nil { return m.getPublicFn(tenantID) }
+	return &BrandingServiceDataResult{}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -211,59 +226,12 @@ func (m *mockSMSTemplateService) Delete(ctx context.Context, id uuid.UUID, tenan
 }
 
 // ---------------------------------------------------------------------------
-// Mock: LoginTemplateService
-// ---------------------------------------------------------------------------
 
-type mockLoginTemplateService struct {
-	getAllFn       func(tid int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error)
-	getByUUIDFn    func(id uuid.UUID, tid int64) (*LoginTemplateServiceDataResult, error)
-	createFn       func(tid int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
-	updateFn       func(id uuid.UUID, tid int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
-	updateStatusFn func(id uuid.UUID, tid int64, status string) (*LoginTemplateServiceDataResult, error)
-	deleteFn       func(id uuid.UUID, tid int64) (*LoginTemplateServiceDataResult, error)
-}
 
-func (m *mockLoginTemplateService) GetAll(ctx context.Context, tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error) {
-	if m.getAllFn != nil {
-		return m.getAllFn(tenantID, name, status, template, isDefault, isSystem, page, limit, sortBy, sortOrder)
-	}
-	return &LoginTemplateServiceListResult{}, nil
-}
 
-func (m *mockLoginTemplateService) GetByUUID(ctx context.Context, id uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error) {
-	if m.getByUUIDFn != nil {
-		return m.getByUUIDFn(id, tenantID)
-	}
-	return nil, nil
-}
 
-func (m *mockLoginTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
-	if m.createFn != nil {
-		return m.createFn(tenantID, name, description, template, metadata, status)
-	}
-	return nil, nil
-}
 
-func (m *mockLoginTemplateService) Update(ctx context.Context, id uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
-	if m.updateFn != nil {
-		return m.updateFn(id, tenantID, name, description, template, metadata, status)
-	}
-	return nil, nil
-}
 
-func (m *mockLoginTemplateService) UpdateStatus(ctx context.Context, id uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error) {
-	if m.updateStatusFn != nil {
-		return m.updateStatusFn(id, tenantID, status)
-	}
-	return nil, nil
-}
-
-func (m *mockLoginTemplateService) Delete(ctx context.Context, id uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error) {
-	if m.deleteFn != nil {
-		return m.deleteFn(id, tenantID)
-	}
-	return nil, nil
-}
 
 func newMockGormDBRegex(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()

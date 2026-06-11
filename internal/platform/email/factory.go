@@ -42,7 +42,7 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 		err = db.WithContext(ctx).
 			Table("email_config ec").
 			Select("ec.provider, ec.host, ec.port, ec.username, ec.password_encrypted, " +
-				"ec.from_address, ec.from_name, '' AS api_key, ec.domain, ec.region, ec.status").
+				"ec.from_address, ec.from_name, '' AS api_key, '' AS domain, '' AS region, ec.status").
 			Joins("JOIN tenants t ON ec.tenant_id = t.tenant_id").
 			Where("t.is_system = true AND ec.status = ? AND ec.deleted_at IS NULL", shared.StatusActive).
 			First(&cfg).Error
@@ -61,14 +61,16 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 	}
 
 	pc := ProviderConfig{
-		Provider: cfg.Provider,
-		Host:     cfg.Host,
-		Port:     cfg.Port,
-		Username: cfg.Username,
-		Password: password,
-		APIKey:   cfg.APIKey,
-		Domain:   cfg.Domain,
-		Region:   cfg.Region,
+		Provider:    cfg.Provider,
+		FromAddress: cfg.FromAddress,
+		FromName:    cfg.FromName,
+		Host:        cfg.Host,
+		Port:        cfg.Port,
+		Username:    cfg.Username,
+		Password:    password,
+		APIKey:      cfg.APIKey,
+		Domain:      cfg.Domain,
+		Region:      cfg.Region,
 	}
 	return NewProvider(ctx, pc)
 }

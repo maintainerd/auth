@@ -12,6 +12,10 @@ type BrandingRepository interface {
 	BaseRepositoryMethods[Branding]
 	WithTx(tx *gorm.DB) BrandingRepository
 	FindByTenantID(tenantID int64) (*Branding, error)
+	FindAllByTenantID(tenantID int64) ([]Branding, error)
+	FindActive(tenantID int64) (*Branding, error)
+	FindSystem(tenantID int64) (*Branding, error)
+	DeactivateAll(tenantID int64) error
 }
 
 type brandingRepository struct {
@@ -33,7 +37,7 @@ func (r *brandingRepository) WithTx(tx *gorm.DB) BrandingRepository {
 	}
 }
 
-// FindByTenantID retrieves the single branding record for a tenant. Returns
+// FindByTenantID retrieves the FIRST branding record for a tenant. Returns
 // nil, nil when no record exists.
 func (r *brandingRepository) FindByTenantID(tenantID int64) (*Branding, error) {
 	var branding Branding
@@ -45,4 +49,53 @@ func (r *brandingRepository) FindByTenantID(tenantID int64) (*Branding, error) {
 		return nil, err
 	}
 	return &branding, nil
+}
+
+// FindAllByTenantID returns every branding record for a tenant, system records
+// first, then newest. Used by the admin branding list.
+func (r *brandingRepository) FindAllByTenantID(tenantID int64) ([]Branding, error) {
+	var brandings []Branding
+	err := r.DB().
+		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
+		Order("is_system DESC, created_at ASC").
+		Find(&brandings).Error
+	return brandings, err
+}
+
+// FindActive returns the active branding for a tenant, or falls back to the
+// system branding if no custom active record exists.
+func (r *brandingRepository) FindActive(tenantID int64) (*Branding, error) {
+	var b Branding
+	err := r.DB().
+		Where("tenant_id = ? AND is_active = ? AND deleted_at IS NULL", tenantID, true).
+		First(&b).Error
+	if err == nil {
+		return &b, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	return r.FindSystem(tenantID)
+}
+
+// FindSystem returns the immutable system branding record.
+func (r *brandingRepository) FindSystem(tenantID int64) (*Branding, error) {
+	var b Branding
+	err := r.DB().
+		Where("tenant_id = ? AND is_system = ? AND deleted_at IS NULL", tenantID, true).
+		First(&b).Error
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+// DeactivateAll sets is_active=false for ALL branding records of the given
+// tenant (including system records) so a different one can become active —
+// system themes (e.g. light/dark) are switchable, just not deletable.
+func (r *brandingRepository) DeactivateAll(tenantID int64) error {
+	return r.DB().
+		Model(&Branding{}).
+		Where("tenant_id = ?", tenantID).
+		Update("is_active", false).Error
 }

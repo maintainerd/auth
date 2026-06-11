@@ -6,7 +6,7 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 )
 
-func (r SignupFlowCreateRequestDTO) Validate() error {
+func (r AuthFlowCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Signup flow name is required"),
@@ -25,7 +25,7 @@ func (r SignupFlowCreateRequestDTO) Validate() error {
 	)
 }
 
-func (r SignupFlowUpdateRequestDTO) Validate() error {
+func (r AuthFlowUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Signup flow name is required"),
@@ -40,7 +40,7 @@ func (r SignupFlowUpdateRequestDTO) Validate() error {
 	)
 }
 
-func (r SignupFlowUpdateStatusRequestDTO) Validate() error {
+func (r AuthFlowUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -49,7 +49,7 @@ func (r SignupFlowUpdateStatusRequestDTO) Validate() error {
 	)
 }
 
-func (f SignupFlowFilterDTO) Validate() error {
+func (f AuthFlowFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
@@ -65,11 +65,21 @@ func (f SignupFlowFilterDTO) Validate() error {
 	)
 }
 
-func (r SignupFlowAssignRolesRequestDTO) Validate() error {
+func (r AuthFlowAssignRolesRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.RoleUUIDs,
 			validation.Required.Error("Role UUIDs are required"),
 			validation.Length(1, 0).Error("At least one role UUID is required"),
+			validation.Each(is.UUID.Error("Invalid UUID provided")),
+		),
+	)
+}
+
+func (r AuthFlowAssignCallbackURIsRequestDTO) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.ClientURIUUIDs,
+			validation.Required.Error("Client URI UUIDs are required"),
+			validation.Length(1, 0).Error("At least one client URI UUID is required"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
 		),
 	)
