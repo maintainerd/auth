@@ -60,12 +60,3 @@ func refreshJWTKeys() {
 	}
 	slog.Info("secret_refresh: JWT keys refreshed")
 }
-
-func refreshStringSecret(key string, dest *string) {
-	val, err := config.LoadSecret(key)
-	if err != nil {
-		slog.Warn("secret_refresh: failed to reload secret", "key", key, "err", err)
-		return
-	}
-	*dest = string(val)
-}

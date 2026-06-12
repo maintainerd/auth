@@ -122,10 +122,12 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 		return apperror.NewInternal("failed to store pending email", err)
 	}
 
+	sendEmail := email.SendEmail
+
 	// #nosec G118 -- best-effort background goroutine must outlive request context
 	go func() {
 		sendCtx := context.Background()
-		if sendErr := s.sendEmailChangeOTP(sendCtx, newEmail, otp); sendErr != nil {
+		if sendErr := s.sendEmailChangeOTP(sendCtx, sendEmail, newEmail, otp); sendErr != nil {
 			slog.Error("account: failed to send email change OTP", "error", sendErr, "user_id", userID)
 		}
 	}()
@@ -134,11 +136,11 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 	return nil
 }
 
-func (s *accountService) sendEmailChangeOTP(ctx context.Context, toEmail, otp string) error {
+func (s *accountService) sendEmailChangeOTP(ctx context.Context, sendEmail func(context.Context, *gorm.DB, email.SendEmailParams) error, toEmail, otp string) error {
 	subject := "Your email change verification code"
 	bodyHTML := fmt.Sprintf("<p>Your email change verification code is: <strong>%s</strong>. It expires in 1 hour.</p>", otp)
 
-	return email.SendEmail(ctx, s.db, email.SendEmailParams{
+	return sendEmail(ctx, s.db, email.SendEmailParams{
 		To:       toEmail,
 		Subject:  subject,
 		BodyHTML: bodyHTML,
