@@ -337,7 +337,6 @@ func newPermission(name, description string, tenantID, apiID int64) model.Permis
 		Description:    description,
 		APIID:          apiID,
 		Status:         "active",
-		IsDefault:      true,
 		IsSystem:       true,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),

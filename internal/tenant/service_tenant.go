@@ -33,7 +33,6 @@ type TenantServiceGetFilter struct {
 	Name        *string
 	DisplayName *string
 	Description *string
-	APIType     *string
 	Identifier  *string
 	Status      []string
 	IsPublic    *bool
@@ -85,19 +84,7 @@ func (s *tenantService) Get(ctx context.Context, filter TenantServiceGetFilter) 
 	_, span := otel.Tracer("service").Start(ctx, "tenant.list")
 	defer span.End()
 
-	tenantFilter := TenantRepositoryGetFilter{
-		Name:        filter.Name,
-		DisplayName: filter.DisplayName,
-		Description: filter.Description,
-		Identifier:  filter.Identifier,
-		Status:      filter.Status,
-		IsPublic:    filter.IsPublic,
-		IsSystem:    filter.IsSystem,
-		Page:        filter.Page,
-		Limit:       filter.Limit,
-		SortBy:      filter.SortBy,
-		SortOrder:   filter.SortOrder,
-	}
+	tenantFilter := TenantRepositoryGetFilter(filter)
 
 	result, err := s.tenantRepo.FindPaginated(tenantFilter)
 	if err != nil {

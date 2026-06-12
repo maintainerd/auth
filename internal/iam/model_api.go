@@ -15,7 +15,6 @@ type API struct {
 	Name        string         `gorm:"column:name"`
 	DisplayName string         `gorm:"column:display_name"`
 	Description string         `gorm:"column:description"`
-	APIType     string         `gorm:"column:api_type"`
 	Identifier  string         `gorm:"column:identifier"`
 	Status      string         `gorm:"column:status;default:'inactive'"`
 	IsSystem    bool           `gorm:"column:is_system;default:false"`

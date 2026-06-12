@@ -106,7 +106,7 @@ message ClientAPIPermission {
   string name = 2;
   string description = 3;
   string status = 4;
-  bool is_default = 5;
+  reserved 5;
   bool is_system = 6;
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp updated_at = 8;

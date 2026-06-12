@@ -42,7 +42,6 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 		Name:        "login",
 		DisplayName: "Login API",
 		Description: "Login API endpoint",
-		APIType:     shared.APITypeRest,
 		Identifier:  "auth.login",
 		Status:      shared.StatusActive,
 		Service:     serviceResult,
@@ -68,16 +67,15 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 				assert.Equal(t, int64(77), tenantID)
 				return &apiResult, nil
 			},
-			createFn: func(tenantID int64, name, displayName, description, apiType, apiStatus string, isSystem bool, svcUUID string) (*APIServiceDataResult, error) {
+			createFn: func(tenantID int64, name, displayName, description, apiStatus string, isSystem bool, svcUUID string) (*APIServiceDataResult, error) {
 				assert.Equal(t, int64(77), tenantID)
 				assert.Equal(t, "login", name)
 				assert.Equal(t, serviceUUID.String(), svcUUID)
 				assert.False(t, isSystem)
 				return &apiResult, nil
 			},
-			updateFn: func(id uuid.UUID, tenantID int64, name, displayName, description, apiType, apiStatus, svcUUID string) (*APIServiceDataResult, error) {
+			updateFn: func(id uuid.UUID, tenantID int64, name, displayName, description, apiStatus, svcUUID string) (*APIServiceDataResult, error) {
 				assert.Equal(t, apiUUID, id)
-				assert.Equal(t, shared.APITypeRest, apiType)
 				return &apiResult, nil
 			},
 			setStatusByUUIDFn: func(id uuid.UUID, tenantID int64, apiStatus string) (*APIServiceDataResult, error) {
@@ -109,7 +107,7 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 
 		created, err := h.CreateAPI(ctx, validCreateAPIRequest(tenantUUID, serviceUUID))
 		require.NoError(t, err)
-		assert.Equal(t, shared.APITypeRest, created.Api.ApiType)
+		assert.Equal(t, "login", created.Api.Name)
 
 		updated, err := h.UpdateAPI(ctx, validUpdateAPIRequest(tenantUUID, apiUUID, serviceUUID))
 		require.NoError(t, err)
@@ -127,8 +125,6 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 	t.Run("validation and dependency errors", func(t *testing.T) {
 		h := NewAPIGRPCHandler(mockTenantResolver{}, &mockAPIService{})
 		_, err := h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantUuid: "bad"})
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantUuid: tenantUUID.String(), ApiType: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantUuid: tenantUUID.String(), ServiceUuid: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -166,10 +162,10 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 			getServiceIDByUUIDFn: func(uuid.UUID) (int64, error) { return 0, serviceErr },
 			getFn:                func(APIServiceGetFilter) (*APIServiceGetResult, error) { return nil, serviceErr },
 			getByUUIDFn:          func(uuid.UUID, int64) (*APIServiceDataResult, error) { return nil, serviceErr },
-			createFn: func(int64, string, string, string, string, string, bool, string) (*APIServiceDataResult, error) {
+			createFn: func(int64, string, string, string, string, bool, string) (*APIServiceDataResult, error) {
 				return nil, serviceErr
 			},
-			updateFn: func(uuid.UUID, int64, string, string, string, string, string, string) (*APIServiceDataResult, error) {
+			updateFn: func(uuid.UUID, int64, string, string, string, string, string) (*APIServiceDataResult, error) {
 				return nil, serviceErr
 			},
 			setStatusByUUIDFn: func(uuid.UUID, int64, string) (*APIServiceDataResult, error) { return nil, serviceErr },
@@ -184,10 +180,10 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 
 		h = NewAPIGRPCHandler(tenantResolver, &mockAPIService{
 			getByUUIDFn: func(uuid.UUID, int64) (*APIServiceDataResult, error) { return nil, serviceErr },
-			createFn: func(int64, string, string, string, string, string, bool, string) (*APIServiceDataResult, error) {
+			createFn: func(int64, string, string, string, string, bool, string) (*APIServiceDataResult, error) {
 				return nil, serviceErr
 			},
-			updateFn: func(uuid.UUID, int64, string, string, string, string, string, string) (*APIServiceDataResult, error) {
+			updateFn: func(uuid.UUID, int64, string, string, string, string, string) (*APIServiceDataResult, error) {
 				return nil, serviceErr
 			},
 			setStatusByUUIDFn: func(uuid.UUID, int64, string) (*APIServiceDataResult, error) { return nil, serviceErr },
@@ -212,7 +208,6 @@ func validCreateAPIRequest(tenantUUID uuid.UUID, serviceUUID uuid.UUID) *authv1.
 		Name:        "login",
 		DisplayName: "Login API",
 		Description: "Login API endpoint",
-		ApiType:     shared.APITypeRest,
 		Status:      shared.StatusActive,
 		ServiceUuid: serviceUUID.String(),
 	}
@@ -225,7 +220,6 @@ func validUpdateAPIRequest(tenantUUID uuid.UUID, apiUUID uuid.UUID, serviceUUID 
 		Name:        "login",
 		DisplayName: "Login API",
 		Description: "Login API endpoint",
-		ApiType:     shared.APITypeRest,
 		Status:      shared.StatusActive,
 		ServiceUuid: serviceUUID.String(),
 	}

@@ -15,7 +15,6 @@ type API struct {
 	Name        string
 	DisplayName string
 	Description string
-	APIType     string
 	Identifier  string
 	Status      string
 	IsSystem    bool
@@ -102,12 +101,12 @@ type User struct {
 func (User) TableName() string { return "users" }
 
 type UserIdentity struct {
-	UserIdentityID int64     `gorm:"primaryKey"`
-	TenantID       int64     `gorm:"column:tenant_id"`
-	UserID         int64     `gorm:"column:user_id"`
-	ClientID       int64     `gorm:"column:client_id"`
-	Tenant         *Tenant   `gorm:"foreignKey:TenantID;references:TenantID"`
-	Client         *Client   `gorm:"foreignKey:ClientID;references:ClientID"`
+	UserIdentityID int64   `gorm:"primaryKey"`
+	TenantID       int64   `gorm:"column:tenant_id"`
+	UserID         int64   `gorm:"column:user_id"`
+	ClientID       int64   `gorm:"column:client_id"`
+	Tenant         *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
+	Client         *Client `gorm:"foreignKey:ClientID;references:ClientID"`
 }
 
 func (UserIdentity) TableName() string { return "user_identities" }
@@ -147,7 +146,6 @@ type APIServiceDataResult struct {
 	Name        string
 	DisplayName string
 	Description string
-	APIType     string
 	Identifier  string
 	Status      string
 	IsSystem    bool
@@ -161,7 +159,6 @@ type PermissionServiceDataResult struct {
 	Description    string
 	API            *APIServiceDataResult
 	Status         string
-	IsDefault      bool
 	IsSystem       bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -173,7 +170,6 @@ func toPermissionServiceDataResult(p *Permission) PermissionServiceDataResult {
 		Name:           p.Name,
 		Description:    p.Description,
 		Status:         p.Status,
-		IsDefault:      p.IsDefault,
 		IsSystem:       p.IsSystem,
 		CreatedAt:      p.CreatedAt,
 		UpdatedAt:      p.UpdatedAt,

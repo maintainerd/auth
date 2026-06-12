@@ -707,8 +707,8 @@ type mockAPIService struct {
 	getFn                func(APIServiceGetFilter) (*APIServiceGetResult, error)
 	getByUUIDFn          func(uuid.UUID, int64) (*APIServiceDataResult, error)
 	getServiceIDByUUIDFn func(uuid.UUID) (int64, error)
-	createFn             func(int64, string, string, string, string, string, bool, string) (*APIServiceDataResult, error)
-	updateFn             func(uuid.UUID, int64, string, string, string, string, string, string) (*APIServiceDataResult, error)
+	createFn             func(int64, string, string, string, string, bool, string) (*APIServiceDataResult, error)
+	updateFn             func(uuid.UUID, int64, string, string, string, string, string) (*APIServiceDataResult, error)
 	setStatusByUUIDFn    func(uuid.UUID, int64, string) (*APIServiceDataResult, error)
 	deleteByUUIDFn       func(uuid.UUID, int64) (*APIServiceDataResult, error)
 }
@@ -731,15 +731,15 @@ func (m *mockAPIService) GetServiceIDByUUID(_ context.Context, id uuid.UUID) (in
 	}
 	return 0, nil
 }
-func (m *mockAPIService) Create(_ context.Context, tenantID int64, name, displayName, description, apiType, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
+func (m *mockAPIService) Create(_ context.Context, tenantID int64, name, displayName, description, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
 	if m.createFn != nil {
-		return m.createFn(tenantID, name, displayName, description, apiType, status, isSystem, serviceUUID)
+		return m.createFn(tenantID, name, displayName, description, status, isSystem, serviceUUID)
 	}
 	return &APIServiceDataResult{}, nil
 }
-func (m *mockAPIService) Update(_ context.Context, id uuid.UUID, tenantID int64, name, displayName, description, apiType, status, serviceUUID string) (*APIServiceDataResult, error) {
+func (m *mockAPIService) Update(_ context.Context, id uuid.UUID, tenantID int64, name, displayName, description, status, serviceUUID string) (*APIServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(id, tenantID, name, displayName, description, apiType, status, serviceUUID)
+		return m.updateFn(id, tenantID, name, displayName, description, status, serviceUUID)
 	}
 	return &APIServiceDataResult{}, nil
 }

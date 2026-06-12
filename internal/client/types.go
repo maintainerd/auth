@@ -247,7 +247,6 @@ type APIResponseDTO struct {
 	Name        string    `json:"name"`
 	DisplayName string    `json:"display_name"`
 	Description string    `json:"description"`
-	APIType     string    `json:"api_type"`
 	Identifier  string    `json:"identifier"`
 	Status      string    `json:"status"`
 	IsSystem    bool      `json:"is_system"`
@@ -260,7 +259,6 @@ type PermissionResponseDTO struct {
 	Name           string    `json:"name"`
 	Description    string    `json:"description"`
 	Status         string    `json:"status"`
-	IsDefault      bool      `json:"is_default"`
 	IsSystem       bool      `json:"is_system"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`

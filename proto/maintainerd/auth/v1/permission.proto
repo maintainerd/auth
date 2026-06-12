@@ -23,7 +23,7 @@ message Permission {
   string description = 3;
   API api = 4;
   string status = 5;
-  bool is_default = 6;
+  reserved 6;
   bool is_system = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
@@ -37,7 +37,7 @@ message ListPermissionsRequest {
   string role_uuid = 5;
   string client_uuid = 6;
   string status = 7;
-  optional bool is_default = 8;
+  reserved 8;
   optional bool is_system = 9;
   Pagination pagination = 10;
 }

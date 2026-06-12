@@ -15,10 +15,10 @@ import (
 
 func permissionRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), tenantID, int64(9), "permission", "desc", "active", false, false, time.Now(), time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), tenantID, int64(9), "permission", "desc", "active", false, time.Now(), time.Now()}
 	}
 	return sqlmock.NewRows([]string{
-		"permission_id", "permission_uuid", "tenant_id", "api_id", "name", "description", "status", "is_default", "is_system", "created_at", "updated_at",
+		"permission_id", "permission_uuid", "tenant_id", "api_id", "name", "description", "status", "is_system", "created_at", "updated_at",
 	}).AddRow(values...)
 }
 
@@ -33,7 +33,7 @@ func TestPermissionRepository(t *testing.T) {
 	t.Run("FindByUUIDAndTenantID success not found and error", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		expectAnySelect(mock, "permissions").WillReturnRows(permissionRows())
-		expectAnySelect(mock, "apis").WillReturnRows(apiRows(int64(9), uuid.New().String(), tenantID, int64(0), "api", "API", "desc", "rest", "svc:api", "active", false, time.Now(), time.Now()))
+		expectAnySelect(mock, "apis").WillReturnRows(apiRows(int64(9), uuid.New().String(), tenantID, int64(0), "api", "API", "desc", "svc:api", "active", false, time.Now(), time.Now()))
 		expectAnySelect(mock, "permissions").WillReturnError(gorm.ErrRecordNotFound)
 		expectAnySelect(mock, "permissions").WillReturnError(errors.New("db error"))
 
@@ -77,7 +77,7 @@ func TestPermissionRepository(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		expectAnyCount(mock, "permissions").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 		expectAnySelect(mock, "permissions").WillReturnRows(permissionRows())
-		expectAnySelect(mock, "apis").WillReturnRows(apiRows(int64(9), uuid.New().String(), tenantID, int64(0), "api", "API", "desc", "rest", "svc:api", "active", false, time.Now(), time.Now()))
+		expectAnySelect(mock, "apis").WillReturnRows(apiRows(int64(9), uuid.New().String(), tenantID, int64(0), "api", "API", "desc", "svc:api", "active", false, time.Now(), time.Now()))
 		name := "permission"
 		apiID := int64(9)
 		roleID := int64(8)
@@ -86,7 +86,7 @@ func TestPermissionRepository(t *testing.T) {
 
 		got, err := NewPermissionRepository(db).FindPaginated(PermissionRepositoryGetFilter{
 			TenantID: tenantID, Name: &name, Description: &name, APIID: &apiID, RoleID: &roleID,
-			Status: &status, IsDefault: &flag, IsSystem: &flag, Page: 1, Limit: 10,
+			Status: &status, IsSystem: &flag, Page: 1, Limit: 10,
 		})
 
 		require.NoError(t, err)

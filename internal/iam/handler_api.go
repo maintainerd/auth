@@ -58,7 +58,6 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	reqParams := APIFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
-		APIType:              ptr.PtrOrNil(q.Get("api_type")),
 		Identifier:           ptr.PtrOrNil(q.Get("identifier")),
 		ServiceUUID:          ptr.PtrOrNil(q.Get("service_id")),
 		Status:               status,
@@ -93,7 +92,6 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	apiFilter := APIServiceGetFilter{
 		Name:        reqParams.Name,
 		DisplayName: reqParams.DisplayName,
-		APIType:     reqParams.APIType,
 		Identifier:  reqParams.Identifier,
 		ServiceID:   serviceID,
 		Status:      reqParams.Status,
@@ -176,7 +174,7 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, false, req.ServiceUUID)
+	api, err := h.apiService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.Description, req.Status, false, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create API", err)
 		return
@@ -213,7 +211,7 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Update(r.Context(), apiUUID, tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, req.ServiceUUID)
+	api, err := h.apiService.Update(r.Context(), apiUUID, tenant.TenantID, req.Name, req.DisplayName, req.Description, req.Status, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update API", err)
 		return
@@ -296,7 +294,6 @@ func toAPIResponseDTO(r APIServiceDataResult) APIResponseDTO {
 		Name:        r.Name,
 		DisplayName: r.DisplayName,
 		Description: r.Description,
-		APIType:     r.APIType,
 		Identifier:  r.Identifier,
 		Status:      r.Status,
 		IsSystem:    r.IsSystem,

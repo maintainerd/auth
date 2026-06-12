@@ -36,13 +36,7 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination
 
 	// Parse bools safely
-	var isDefault, isSystem *bool
-	if v := q.Get("is_default"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err == nil {
-			isDefault = &parsed
-		}
-	}
+	var isSystem *bool
 
 	if v := q.Get("is_system"); v != "" {
 		parsed, err := strconv.ParseBool(v)
@@ -59,7 +53,6 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		RoleUUID:             ptr.PtrOrNil(q.Get("role_id")),
 		ClientUUID:           ptr.PtrOrNil(q.Get("client_id")),
 		Status:               ptr.PtrOrNil(q.Get("status")),
-		IsDefault:            isDefault,
 		IsSystem:             isSystem,
 		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
@@ -78,7 +71,6 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		RoleUUID:    reqParams.RoleUUID,
 		ClientUUID:  reqParams.ClientUUID,
 		Status:      reqParams.Status,
-		IsDefault:   reqParams.IsDefault,
 		IsSystem:    reqParams.IsSystem,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
@@ -274,7 +266,6 @@ func toPermissionResponseDTO(r PermissionServiceDataResult) PermissionResponseDT
 		Name:           r.Name,
 		Description:    r.Description,
 		Status:         r.Status,
-		IsDefault:      r.IsDefault,
 		IsSystem:       r.IsSystem,
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
@@ -286,7 +277,6 @@ func toPermissionResponseDTO(r PermissionServiceDataResult) PermissionResponseDT
 			Name:        r.API.Name,
 			DisplayName: r.API.DisplayName,
 			Description: r.API.Description,
-			APIType:     r.API.APIType,
 			Identifier:  r.API.Identifier,
 			Status:      r.API.Status,
 			CreatedAt:   r.API.CreatedAt,

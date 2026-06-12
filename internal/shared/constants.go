@@ -50,15 +50,6 @@ const (
 	ClientURITypeLogin      = "login-uri"
 	ClientURITypeCORSOrigin = "cors-origin-uri"
 
-	// API types (API.APIType)
-	APITypeRest      = "rest"
-	APITypeGRPC      = "grpc"
-	APITypeGraphQL   = "graphql"
-	APITypeSOAP      = "soap"
-	APITypeWebhook   = "webhook"
-	APITypeWebSocket = "websocket"
-	APITypeRPC       = "rpc"
-
 	// Gender values (Profile.Gender)
 	GenderMale           = "male"
 	GenderFemale         = "female"

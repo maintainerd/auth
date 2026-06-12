@@ -639,7 +639,6 @@ func toClientAPIPermissionProto(p *PermissionServiceDataResult) *authv1.ClientAP
 		Name:           p.Name,
 		Description:    p.Description,
 		Status:         p.Status,
-		IsDefault:      p.IsDefault,
 		IsSystem:       p.IsSystem,
 		CreatedAt:      timestamppb.New(p.CreatedAt),
 		UpdatedAt:      timestamppb.New(p.UpdatedAt),

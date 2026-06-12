@@ -13,7 +13,6 @@ type APIResponseDTO struct {
 	Name        string              `json:"name"`
 	DisplayName string              `json:"display_name"`
 	Description string              `json:"description"`
-	APIType     string              `json:"api_type"`
 	Identifier  string              `json:"identifier"`
 	Service     *ServiceResponseDTO `json:"service,omitempty"`
 	Status      string              `json:"status"`
@@ -27,7 +26,6 @@ type APICreateRequestDTO struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
-	APIType     string `json:"api_type"`
 	Status      string `json:"status"`
 	ServiceUUID string `json:"service_id"`
 }
@@ -37,7 +35,6 @@ type APIUpdateRequestDTO struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
-	APIType     string `json:"api_type"`
 	Status      string `json:"status"`
 	ServiceUUID string `json:"service_id"`
 }
@@ -47,7 +44,6 @@ type APIFilterDTO struct {
 	Name        *string  `json:"name"`
 	DisplayName *string  `json:"display_name"`
 	Description *string  `json:"description"`
-	APIType     *string  `json:"api_type"`
 	Identifier  *string  `json:"identifier"`
 	ServiceUUID *string  `json:"service_id"`
 	Status      []string `json:"status"`
@@ -69,7 +65,6 @@ type PermissionResponseDTO struct {
 	Description    string          `json:"description"`
 	API            *APIResponseDTO `json:"api,omitempty"`
 	Status         string          `json:"status"`
-	IsDefault      bool            `json:"is_default"`
 	IsSystem       bool            `json:"is_system"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
@@ -98,7 +93,6 @@ type PermissionFilterDTO struct {
 	RoleUUID    *string `json:"role_id"`
 	ClientUUID  *string `json:"client_id"`
 	Status      *string `json:"status"`
-	IsDefault   *bool   `json:"is_default"`
 	IsSystem    *bool   `json:"is_system"`
 
 	// Pagination and sorting

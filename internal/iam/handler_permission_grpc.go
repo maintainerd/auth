@@ -29,7 +29,6 @@ func (h *PermissionGRPCHandler) ListPermissions(ctx context.Context, req *authv1
 		RoleUUID:             iamOptionalString(req.GetRoleUuid()),
 		ClientUUID:           iamOptionalString(req.GetClientUuid()),
 		Status:               iamOptionalString(req.GetStatus()),
-		IsDefault:            req.IsDefault,
 		IsSystem:             req.IsSystem,
 		PaginationRequestDTO: iamPaginationDTO(req.GetPagination()),
 	}
@@ -44,7 +43,6 @@ func (h *PermissionGRPCHandler) ListPermissions(ctx context.Context, req *authv1
 		RoleUUID:    dto.RoleUUID,
 		ClientUUID:  dto.ClientUUID,
 		Status:      dto.Status,
-		IsDefault:   dto.IsDefault,
 		IsSystem:    dto.IsSystem,
 		Page:        dto.Page,
 		Limit:       dto.Limit,

@@ -29,7 +29,6 @@ type Permission struct {
 	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Api            *API                   `protobuf:"bytes,4,opt,name=api,proto3" json:"api,omitempty"`
 	Status         string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	IsDefault      bool                   `protobuf:"varint,6,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
 	IsSystem       bool                   `protobuf:"varint,7,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
 	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
@@ -102,13 +101,6 @@ func (x *Permission) GetStatus() string {
 	return ""
 }
 
-func (x *Permission) GetIsDefault() bool {
-	if x != nil {
-		return x.IsDefault
-	}
-	return false
-}
-
 func (x *Permission) GetIsSystem() bool {
 	if x != nil {
 		return x.IsSystem
@@ -139,7 +131,6 @@ type ListPermissionsRequest struct {
 	RoleUuid      string                 `protobuf:"bytes,5,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
 	ClientUuid    string                 `protobuf:"bytes,6,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	IsDefault     *bool                  `protobuf:"varint,8,opt,name=is_default,json=isDefault,proto3,oneof" json:"is_default,omitempty"`
 	IsSystem      *bool                  `protobuf:"varint,9,opt,name=is_system,json=isSystem,proto3,oneof" json:"is_system,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,10,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -223,13 +214,6 @@ func (x *ListPermissionsRequest) GetStatus() string {
 		return x.Status
 	}
 	return ""
-}
-
-func (x *ListPermissionsRequest) GetIsDefault() bool {
-	if x != nil && x.IsDefault != nil {
-		return *x.IsDefault
-	}
-	return false
 }
 
 func (x *ListPermissionsRequest) GetIsSystem() bool {
@@ -838,21 +822,19 @@ var File_maintainerd_auth_v1_permission_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_permission_proto_rawDesc = "" +
 	"\n" +
-	"$maintainerd/auth/v1/permission.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dmaintainerd/auth/v1/api.proto\x1a maintainerd/auth/v1/tenant.proto\"\xe1\x02\n" +
+	"$maintainerd/auth/v1/permission.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dmaintainerd/auth/v1/api.proto\x1a maintainerd/auth/v1/tenant.proto\"\xc8\x02\n" +
 	"\n" +
 	"Permission\x12'\n" +
 	"\x0fpermission_uuid\x18\x01 \x01(\tR\x0epermissionUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12*\n" +
 	"\x03api\x18\x04 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\x12\x16\n" +
-	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1d\n" +
-	"\n" +
-	"is_default\x18\x06 \x01(\bR\tisDefault\x12\x1b\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1b\n" +
 	"\tis_system\x18\a \x01(\bR\bisSystem\x129\n" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x84\x03\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtJ\x04\b\x06\x10\a\"\xd7\x02\n" +
 	"\x16ListPermissionsRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
@@ -862,17 +844,14 @@ const file_maintainerd_auth_v1_permission_proto_rawDesc = "" +
 	"\trole_uuid\x18\x05 \x01(\tR\broleUuid\x12\x1f\n" +
 	"\vclient_uuid\x18\x06 \x01(\tR\n" +
 	"clientUuid\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\x12\"\n" +
-	"\n" +
-	"is_default\x18\b \x01(\bH\x00R\tisDefault\x88\x01\x01\x12 \n" +
-	"\tis_system\x18\t \x01(\bH\x01R\bisSystem\x88\x01\x01\x12?\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12 \n" +
+	"\tis_system\x18\t \x01(\bH\x00R\bisSystem\x88\x01\x01\x12?\n" +
 	"\n" +
 	"pagination\x18\n" +
 	" \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
-	"paginationB\r\n" +
-	"\v_is_defaultB\f\n" +
+	"paginationB\f\n" +
 	"\n" +
-	"_is_system\"\x93\x01\n" +
+	"_is_systemJ\x04\b\b\x10\t\"\x93\x01\n" +
 	"\x17ListPermissionsResponse\x12A\n" +
 	"\vpermissions\x18\x01 \x03(\v2\x1f.maintainerd.auth.v1.PermissionR\vpermissions\x125\n" +
 	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"`\n" +

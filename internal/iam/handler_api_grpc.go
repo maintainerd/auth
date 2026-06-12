@@ -27,7 +27,6 @@ func (h *APIGRPCHandler) ListAPIs(ctx context.Context, req *authv1.ListAPIsReque
 	dto := APIFilterDTO{
 		Name:                 iamOptionalString(req.GetName()),
 		DisplayName:          iamOptionalString(req.GetDisplayName()),
-		APIType:              iamOptionalString(req.GetApiType()),
 		Identifier:           iamOptionalString(req.GetIdentifier()),
 		ServiceUUID:          iamOptionalString(req.GetServiceUuid()),
 		Status:               req.GetStatus(),
@@ -53,7 +52,6 @@ func (h *APIGRPCHandler) ListAPIs(ctx context.Context, req *authv1.ListAPIsReque
 		TenantID:    scope.TenantID,
 		Name:        dto.Name,
 		DisplayName: dto.DisplayName,
-		APIType:     dto.APIType,
 		Identifier:  dto.Identifier,
 		ServiceID:   serviceID,
 		Status:      dto.Status,
@@ -90,11 +88,11 @@ func (h *APIGRPCHandler) CreateAPI(ctx context.Context, req *authv1.CreateAPIReq
 	if err != nil {
 		return nil, err
 	}
-	dto := APICreateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), APIType: req.GetApiType(), Status: req.GetStatus(), ServiceUUID: req.GetServiceUuid()}
+	dto := APICreateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), Status: req.GetStatus(), ServiceUUID: req.GetServiceUuid()}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	result, err := h.apiService.Create(ctx, scope.TenantID, dto.Name, dto.DisplayName, dto.Description, dto.APIType, dto.Status, false, dto.ServiceUUID)
+	result, err := h.apiService.Create(ctx, scope.TenantID, dto.Name, dto.DisplayName, dto.Description, dto.Status, false, dto.ServiceUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -106,11 +104,11 @@ func (h *APIGRPCHandler) UpdateAPI(ctx context.Context, req *authv1.UpdateAPIReq
 	if err != nil {
 		return nil, err
 	}
-	dto := APIUpdateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), APIType: req.GetApiType(), Status: req.GetStatus(), ServiceUUID: req.GetServiceUuid()}
+	dto := APIUpdateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), Status: req.GetStatus(), ServiceUUID: req.GetServiceUuid()}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	result, err := h.apiService.Update(ctx, id, scope.TenantID, dto.Name, dto.DisplayName, dto.Description, dto.APIType, dto.Status, dto.ServiceUUID)
+	result, err := h.apiService.Update(ctx, id, scope.TenantID, dto.Name, dto.DisplayName, dto.Description, dto.Status, dto.ServiceUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
