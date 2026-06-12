@@ -101,7 +101,7 @@ func redactIdpConfig(config datatypes.JSON) *datatypes.JSON {
 	if v, ok := m[idpClientSecretKey]; ok {
 		// Redact any set value; only an explicit empty string is left as-is so the
 		// form can distinguish "no secret configured" from "secret hidden".
-		if s, isStr := v.(string); !(isStr && s == "") {
+		if s, isStr := v.(string); !isStr || s != "" {
 			m[idpClientSecretKey] = idpClientSecretRedacted
 		}
 	}

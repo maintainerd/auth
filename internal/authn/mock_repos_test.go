@@ -311,22 +311,6 @@ func (m *mockRegisterService) RegisterInvitePublic(ctx context.Context, username
 }
 
 // ---------------------------------------------------------------------------
-// Mock: AuthFlowRoleRepository
-// ---------------------------------------------------------------------------
-
-type mockAuthFlowRoleRepo struct {
-	findRoleIDsByAuthFlowIDFn func(int64) ([]int64, error)
-}
-
-func (m *mockAuthFlowRoleRepo) WithTx(_ *gorm.DB) AuthFlowRoleRepository { return m }
-func (m *mockAuthFlowRoleRepo) FindRoleIDsByAuthFlowID(authFlowID int64) ([]int64, error) {
-	if m.findRoleIDsByAuthFlowIDFn != nil {
-		return m.findRoleIDsByAuthFlowIDFn(authFlowID)
-	}
-	return nil, nil
-}
-
-// ---------------------------------------------------------------------------
 // Mock: ResetPasswordService
 // ---------------------------------------------------------------------------
 
