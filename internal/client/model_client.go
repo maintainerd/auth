@@ -61,12 +61,12 @@ type Client struct {
 
 	// OAuth 2.0 fields
 	TokenEndpointAuthMethod string         `gorm:"column:token_endpoint_auth_method;default:'client_secret_basic'"`
-	GrantTypes              pq.StringArray `gorm:"column:grant_types;type:text[]"`
-	ResponseTypes           pq.StringArray `gorm:"column:response_types;type:text[]"`
+	GrantTypes              pq.StringArray `gorm:"column:grant_types;type:text[];default:'{authorization_code}'"`
+	ResponseTypes           pq.StringArray `gorm:"column:response_types;type:text[];default:'{code}'"`
 	AccessTokenTTL          *int           `gorm:"column:access_token_ttl"`
 	RefreshTokenTTL         *int           `gorm:"column:refresh_token_ttl"`
 	RequireConsent          bool           `gorm:"column:require_consent;default:true"`
-	AllowedScopes           pq.StringArray `gorm:"column:allowed_scopes;type:text[]"`
+	AllowedScopes           pq.StringArray `gorm:"column:allowed_scopes;type:text[];default:'{}'"`
 
 	// JWT client auth (RFC 7523)
 	JWKS    datatypes.JSON `gorm:"column:jwks;type:jsonb"`
@@ -96,6 +96,15 @@ func (Client) TableName() string {
 func (ac *Client) BeforeCreate(tx *gorm.DB) (err error) {
 	if ac.ClientUUID == uuid.Nil {
 		ac.ClientUUID = uuid.New()
+	}
+	if ac.GrantTypes == nil {
+		ac.GrantTypes = pq.StringArray{"authorization_code"}
+	}
+	if ac.ResponseTypes == nil {
+		ac.ResponseTypes = pq.StringArray{"code"}
+	}
+	if ac.AllowedScopes == nil {
+		ac.AllowedScopes = pq.StringArray{}
 	}
 	return
 }

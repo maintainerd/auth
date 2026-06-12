@@ -366,6 +366,10 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			IsSystem:           false,
 		}
 
+		// Mirror OAuth settings from config into the first-class columns the
+		// authorization and token-issuance paths read at runtime.
+		applyConfigToClientColumns(newClient, config)
+
 		_, err = txClientRepo.CreateOrUpdate(newClient)
 		if err != nil {
 			return err
@@ -550,6 +554,10 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		Client.Config = config
 		Client.Status = status
 		Client.IsDefault = isDefault
+
+		// Mirror OAuth settings from config into the first-class columns the
+		// authorization and token-issuance paths read at runtime.
+		applyConfigToClientColumns(Client, config)
 
 		// Update
 		_, err = txClientRepo.CreateOrUpdate(Client)
