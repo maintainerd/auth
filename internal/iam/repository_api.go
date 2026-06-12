@@ -12,7 +12,6 @@ type APIRepositoryGetFilter struct {
 	TenantID    int64
 	Name        *string
 	DisplayName *string
-	APIType     *string
 	Identifier  *string
 	ServiceID   *int64
 	Status      []string
@@ -103,10 +102,6 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	query = database.ApplyILike(query, "name", filter.Name)
 	query = database.ApplyILike(query, "display_name", filter.DisplayName)
 
-	// Filters with exact match
-	if filter.APIType != nil {
-		query = query.Where("api_type = ?", *filter.APIType)
-	}
 	if filter.Identifier != nil {
 		query = query.Where("identifier = ?", *filter.Identifier)
 	}

@@ -298,12 +298,12 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "permission not found")
 	})
 
-	t.Run("default permission → cannot toggle", func(t *testing.T) {
+	t.Run("system permission → cannot toggle", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		perm := newPermission(1, "read:users", tenantID)
-		perm.IsDefault = true
+		perm.IsSystem = true
 		permRepo := &mockPermissionRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
@@ -401,18 +401,18 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "permission not found")
 	})
 
-	t.Run("default permission → cannot delete", func(t *testing.T) {
+	t.Run("system permission → cannot delete", func(t *testing.T) {
 		permRepo := &mockPermissionRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				p := newPermission(1, "read:users", tenantID)
-				p.IsDefault = true
+				p.IsSystem = true
 				return p, nil
 			},
 		}
 		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "default permission")
+		assert.Contains(t, err.Error(), "system permission")
 	})
 
 	t.Run("delete repo error → propagated", func(t *testing.T) {
@@ -635,12 +635,12 @@ func TestPermissionService_Update(t *testing.T) {
 		assert.Contains(t, err.Error(), "permission not found")
 	})
 
-	t.Run("default permission → cannot update", func(t *testing.T) {
+	t.Run("system permission → cannot update", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		perm := newPermission(1, "read:users", tenantID)
-		perm.IsDefault = true
+		perm.IsSystem = true
 		permRepo := &mockPermissionRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
@@ -649,7 +649,7 @@ func TestPermissionService_Update(t *testing.T) {
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", shared.StatusActive)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "default permission")
+		assert.Contains(t, err.Error(), "system permission")
 	})
 
 	t.Run("name changed findByName error → propagated", func(t *testing.T) {

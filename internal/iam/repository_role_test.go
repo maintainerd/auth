@@ -105,7 +105,7 @@ func TestRoleRepository(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		expectAnyCount(mock, "permissions").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 		expectAnySelect(mock, "permissions").WillReturnRows(permissionRows())
-		expectAnySelect(mock, "apis").WillReturnRows(apiRows(int64(9), testResourceUUID.String(), tenantID, int64(0), "api", "API", "desc", "rest", "svc:api", "active", false, time.Now(), time.Now()))
+		expectAnySelect(mock, "apis").WillReturnRows(apiRows(int64(9), testResourceUUID.String(), tenantID, int64(0), "api", "API", "desc", "svc:api", "active", false, time.Now(), time.Now()))
 		status := "active"
 
 		got, err := NewRoleRepository(db).GetPermissionsByRoleUUID(RoleRepositoryGetPermissionsFilter{

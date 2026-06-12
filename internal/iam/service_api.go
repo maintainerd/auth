@@ -20,7 +20,6 @@ type APIServiceDataResult struct {
 	Name        string
 	DisplayName string
 	Description string
-	APIType     string
 	Identifier  string
 	Service     *ServiceServiceDataResult
 	Status      string
@@ -33,7 +32,6 @@ type APIServiceGetFilter struct {
 	TenantID    int64
 	Name        *string
 	DisplayName *string
-	APIType     *string
 	Identifier  *string
 	ServiceID   *int64
 	Status      []string
@@ -56,8 +54,8 @@ type APIService interface {
 	Get(ctx context.Context, filter APIServiceGetFilter) (*APIServiceGetResult, error)
 	GetByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
 	GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UUID) (int64, error)
-	Create(ctx context.Context, tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
-	Update(ctx context.Context, apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, description string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
+	Update(ctx context.Context, apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, status string, serviceUUID string) (*APIServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64, status string) (*APIServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
 }
@@ -162,7 +160,7 @@ func (s *apiService) GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UU
 	return service.ServiceID, nil
 }
 
-func (s *apiService) Create(ctx context.Context, tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
+func (s *apiService) Create(ctx context.Context, tenantID int64, name string, displayName string, description string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "api.create")
 	defer span.End()
 	span.SetAttributes(
@@ -203,7 +201,6 @@ func (s *apiService) Create(ctx context.Context, tenantID int64, name string, di
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
-			APIType:     apiType,
 			Identifier:  identifier,
 			ServiceID:   service.ServiceID,
 			TenantID:    tenantID,
@@ -244,7 +241,7 @@ func (s *apiService) Create(ctx context.Context, tenantID int64, name string, di
 	return toAPIServiceDataResult(createdAPI), nil
 }
 
-func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error) {
+func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, status string, serviceUUID string) (*APIServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "api.update")
 	defer span.End()
 	span.SetAttributes(
@@ -313,7 +310,6 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 		api.Name = name
 		api.DisplayName = displayName
 		api.Description = description
-		api.APIType = apiType
 		api.Status = status
 		api.ServiceID = service.ServiceID // Update the service assignment
 
@@ -480,7 +476,6 @@ func toAPIServiceDataResult(api *API) *APIServiceDataResult {
 		Name:        api.Name,
 		DisplayName: api.DisplayName,
 		Description: api.Description,
-		APIType:     api.APIType,
 		Identifier:  api.Identifier,
 		Status:      api.Status,
 		IsSystem:    api.IsSystem,

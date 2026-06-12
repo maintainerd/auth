@@ -1041,7 +1041,7 @@ func TestClientHelpersFull(t *testing.T) {
 		idp := IdentityProviderServiceDataResult{
 			IdentityProviderUUID: id, Name: "google", DisplayName: "Google",
 			Provider: "google", ProviderType: "oidc", Identifier: "google-id",
-			Status: "active", IsDefault: false, IsSystem: false,
+			Status: "active", IsSystem: false,
 			CreatedAt: now, UpdatedAt: now,
 		}
 		result := &ClientServiceDataResult{
@@ -1085,7 +1085,7 @@ func TestClientHelpersFull(t *testing.T) {
 	t.Run("toClientAPIPermissionProto non-nil", func(t *testing.T) {
 		perm := &PermissionServiceDataResult{
 			PermissionUUID: id, Name: "read", Description: "Read access",
-			Status: "active", IsDefault: false, IsSystem: false,
+			Status: "active", IsSystem: false,
 			CreatedAt: now, UpdatedAt: now,
 		}
 		proto := toClientAPIPermissionProto(perm)

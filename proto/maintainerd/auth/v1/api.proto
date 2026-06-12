@@ -22,7 +22,6 @@ message API {
   string name = 2;
   string display_name = 3;
   string description = 4;
-  string api_type = 5;
   string identifier = 6;
   string status = 7;
   bool is_system = 8;
@@ -35,7 +34,6 @@ message ListAPIsRequest {
   string tenant_uuid = 1;
   string name = 2;
   string display_name = 3;
-  string api_type = 4;
   string identifier = 5;
   string service_uuid = 6;
   repeated string status = 7;
@@ -62,7 +60,6 @@ message CreateAPIRequest {
   string name = 2;
   string display_name = 3;
   string description = 4;
-  string api_type = 5;
   string status = 6;
   string service_uuid = 7;
 }
@@ -77,7 +74,6 @@ message UpdateAPIRequest {
   string name = 3;
   string display_name = 4;
   string description = 5;
-  string api_type = 6;
   string status = 7;
   string service_uuid = 8;
 }

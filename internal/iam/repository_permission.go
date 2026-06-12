@@ -15,7 +15,6 @@ type PermissionRepositoryGetFilter struct {
 	APIID       *int64
 	RoleID      *int64
 	Status      *string
-	IsDefault   *bool
 	IsSystem    *bool
 	Page        int
 	Limit       int
@@ -93,9 +92,6 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 	}
 	if filter.Status != nil {
 		query = query.Where("status = ?", *filter.Status)
-	}
-	if filter.IsDefault != nil {
-		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)

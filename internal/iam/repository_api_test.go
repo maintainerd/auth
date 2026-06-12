@@ -31,10 +31,10 @@ func expectAnyDelete(mock sqlmock.Sqlmock, table string) *sqlmock.ExpectedExec {
 
 func apiRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), tenantID, int64(0), "api", "API", "desc", "rest", "svc:api", "active", false, time.Now(), time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), tenantID, int64(0), "api", "API", "desc", "svc:api", "active", false, time.Now(), time.Now()}
 	}
 	return sqlmock.NewRows([]string{
-		"api_id", "api_uuid", "tenant_id", "service_id", "name", "display_name", "description", "api_type", "identifier", "status", "is_system", "created_at", "updated_at",
+		"api_id", "api_uuid", "tenant_id", "service_id", "name", "display_name", "description", "identifier", "status", "is_system", "created_at", "updated_at",
 	}).AddRow(values...)
 }
 
@@ -129,14 +129,13 @@ func TestAPIRepository(t *testing.T) {
 		expectAnyCount(mock, "apis").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 		expectAnySelect(mock, "apis").WillReturnRows(apiRows())
 		name := "api"
-		apiType := "rest"
 		identifier := "svc:api"
 		serviceID := int64(7)
 		statuses := []string{"active"}
 		isSystem := true
 
 		got, err := NewAPIRepository(db).FindPaginated(APIRepositoryGetFilter{
-			TenantID: tenantID, Name: &name, DisplayName: &name, APIType: &apiType, Identifier: &identifier,
+			TenantID: tenantID, Name: &name, DisplayName: &name, Identifier: &identifier,
 			ServiceID: &serviceID, Status: statuses, IsSystem: &isSystem, Page: 1, Limit: 10,
 		})
 

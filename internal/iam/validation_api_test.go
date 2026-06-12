@@ -14,7 +14,6 @@ func validAPICreate() APICreateRequestDTO {
 		Name:        "my-api",
 		DisplayName: "My API",
 		Description: "A test API description",
-		APIType:     shared.APITypeRest,
 		Status:      shared.StatusActive,
 		ServiceUUID: uuid.New().String(),
 	}
@@ -49,12 +48,6 @@ func TestAPICreateRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("invalid api_type", func(t *testing.T) {
-		d := validAPICreate()
-		d.APIType = "ftp"
-		require.Error(t, d.Validate())
-	})
-
 	t.Run("invalid status", func(t *testing.T) {
 		d := validAPICreate()
 		d.Status = "unknown"
@@ -73,26 +66,16 @@ func TestAPIUpdateRequestDto_Validate(t *testing.T) {
 		Name:        "my-api",
 		DisplayName: "My API",
 		Description: "A valid description",
-		APIType:     shared.APITypeGRPC,
 		Status:      shared.StatusInactive,
 		ServiceUUID: uuid.New().String(),
 	}
 	assert.NoError(t, d.Validate())
-
-	d.APIType = "bad"
-	require.Error(t, d.Validate())
 }
 
 func TestAPIFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
 		f := APIFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
-	})
-
-	t.Run("invalid api_type filter", func(t *testing.T) {
-		apiType := "bad"
-		f := APIFilterDTO{PaginationRequestDTO: validPagination(), APIType: &apiType}
-		require.Error(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {

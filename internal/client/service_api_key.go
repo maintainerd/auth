@@ -599,7 +599,6 @@ func (s *apiKeyService) GetAPIKeyAPIs(ctx context.Context, tenantID int64, apiKe
 			Name:        apiKeyAPI.API.Name,
 			DisplayName: apiKeyAPI.API.DisplayName,
 			Description: apiKeyAPI.API.Description,
-			APIType:     apiKeyAPI.API.APIType,
 			Identifier:  apiKeyAPI.API.Identifier,
 			Status:      apiKeyAPI.API.Status,
 			IsSystem:    apiKeyAPI.API.IsSystem,

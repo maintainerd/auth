@@ -206,14 +206,14 @@ func TestAPIHandler_Create_ValidationError(t *testing.T) {
 
 func TestAPIHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockAPIService{
-		createFn: func(tid int64, n, dn, desc, tp, s string, isSys bool, svcUUID string) (*APIServiceDataResult, error) {
+		createFn: func(tid int64, n, dn, desc, s string, isSys bool, svcUUID string) (*APIServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
 	h := NewAPIHandler(svc)
 	r := withTenant(jsonReq(t, http.MethodPost, "/apis", map[string]string{
 		"name": "api1", "display_name": "API One", "description": "A test API for testing",
-		"api_type": "rest", "status": "active", "service_id": testResourceUUID.String(),
+		"status": "active", "service_id": testResourceUUID.String(),
 	}))
 	w := httptest.NewRecorder()
 	h.Create(w, r)
@@ -222,14 +222,14 @@ func TestAPIHandler_Create_ServiceError(t *testing.T) {
 
 func TestAPIHandler_Create_Success(t *testing.T) {
 	svc := &mockAPIService{
-		createFn: func(tid int64, n, dn, desc, tp, s string, isSys bool, svcUUID string) (*APIServiceDataResult, error) {
+		createFn: func(tid int64, n, dn, desc, s string, isSys bool, svcUUID string) (*APIServiceDataResult, error) {
 			return &APIServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewAPIHandler(svc)
 	r := withTenant(jsonReq(t, http.MethodPost, "/apis", map[string]string{
 		"name": "api1", "display_name": "API One", "description": "A test API for testing",
-		"api_type": "rest", "status": "active", "service_id": testResourceUUID.String(),
+		"status": "active", "service_id": testResourceUUID.String(),
 	}))
 	w := httptest.NewRecorder()
 	h.Create(w, r)
@@ -274,14 +274,14 @@ func TestAPIHandler_Update_ValidationError(t *testing.T) {
 
 func TestAPIHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockAPIService{
-		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, tp, s, svcUUID string) (*APIServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, s, svcUUID string) (*APIServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
 	h := NewAPIHandler(svc)
 	r := withTenant(withChiParam(jsonReq(t, http.MethodPut, "/apis/"+testResourceUUID.String(), map[string]string{
 		"name": "api1", "display_name": "API One", "description": "A test API for testing",
-		"api_type": "rest", "status": "active", "service_id": testResourceUUID.String(),
+		"status": "active", "service_id": testResourceUUID.String(),
 	}), "api_uuid", testResourceUUID.String()))
 	w := httptest.NewRecorder()
 	h.Update(w, r)
@@ -290,14 +290,14 @@ func TestAPIHandler_Update_ServiceError(t *testing.T) {
 
 func TestAPIHandler_Update_Success(t *testing.T) {
 	svc := &mockAPIService{
-		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, tp, s, svcUUID string) (*APIServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, s, svcUUID string) (*APIServiceDataResult, error) {
 			return &APIServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewAPIHandler(svc)
 	r := withTenant(withChiParam(jsonReq(t, http.MethodPut, "/apis/"+testResourceUUID.String(), map[string]string{
 		"name": "api1", "display_name": "API One", "description": "A test API for testing",
-		"api_type": "rest", "status": "active", "service_id": testResourceUUID.String(),
+		"status": "active", "service_id": testResourceUUID.String(),
 	}), "api_uuid", testResourceUUID.String()))
 	w := httptest.NewRecorder()
 	h.Update(w, r)

@@ -504,7 +504,6 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 								Name:        "test-api",
 								DisplayName: "Test API",
 								Description: "desc",
-								APIType:     "rest",
 								Identifier:  "test",
 								Status:      "active",
 								IsSystem:    false,
@@ -516,7 +515,6 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 										Name:           "read",
 										Description:    "Read access",
 										Status:         "active",
-										IsDefault:      true,
 										IsSystem:       false,
 									},
 								},
@@ -871,7 +869,7 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 		akpRepo := &mockAPIKeyPermissionRepo{
 			findByAPIKeyAPIIDFn: func(_ int64) ([]APIKeyPermission, error) {
 				return []APIKeyPermission{
-					{Permission: &Permission{PermissionUUID: permUUID, Name: "read", Description: "Read", Status: "active", IsDefault: true}},
+					{Permission: &Permission{PermissionUUID: permUUID, Name: "read", Description: "Read", Status: "active"}},
 				}, nil
 			},
 		}

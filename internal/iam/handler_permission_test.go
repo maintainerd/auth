@@ -32,7 +32,7 @@ func TestPermissionHandler_Get_ValidationError(t *testing.T) {
 }
 
 func TestPermissionHandler_Get_WithFiltersAndRows(t *testing.T) {
-	// Covers is_default/is_system bool parse branches, row loop, and toPermissionResponseDTO API branch.
+	// Covers is_system bool parse branch, row loop, and toPermissionResponseDTO API branch.
 	apiUUID := uuid.New()
 	svc := &mockPermissionService{
 		getFn: func(PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
@@ -44,7 +44,7 @@ func TestPermissionHandler_Get_WithFiltersAndRows(t *testing.T) {
 			}, nil
 		},
 	}
-	r := withTenant(httptest.NewRequest(http.MethodGet, "/permissions?page=1&limit=10&is_default=true&is_system=false", nil))
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/permissions?page=1&limit=10&is_system=false", nil))
 	w := httptest.NewRecorder()
 	NewPermissionHandler(svc).Get(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)

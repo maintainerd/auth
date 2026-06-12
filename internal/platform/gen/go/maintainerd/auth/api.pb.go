@@ -28,7 +28,6 @@ type API struct {
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	ApiType       string                 `protobuf:"bytes,5,opt,name=api_type,json=apiType,proto3" json:"api_type,omitempty"`
 	Identifier    string                 `protobuf:"bytes,6,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	IsSystem      bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
@@ -97,13 +96,6 @@ func (x *API) GetDescription() string {
 	return ""
 }
 
-func (x *API) GetApiType() string {
-	if x != nil {
-		return x.ApiType
-	}
-	return ""
-}
-
 func (x *API) GetIdentifier() string {
 	if x != nil {
 		return x.Identifier
@@ -151,7 +143,6 @@ type ListAPIsRequest struct {
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	ApiType       string                 `protobuf:"bytes,4,opt,name=api_type,json=apiType,proto3" json:"api_type,omitempty"`
 	Identifier    string                 `protobuf:"bytes,5,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	ServiceUuid   string                 `protobuf:"bytes,6,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
 	Status        []string               `protobuf:"bytes,7,rep,name=status,proto3" json:"status,omitempty"`
@@ -208,13 +199,6 @@ func (x *ListAPIsRequest) GetName() string {
 func (x *ListAPIsRequest) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *ListAPIsRequest) GetApiType() string {
-	if x != nil {
-		return x.ApiType
 	}
 	return ""
 }
@@ -408,7 +392,6 @@ type CreateAPIRequest struct {
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	ApiType       string                 `protobuf:"bytes,5,opt,name=api_type,json=apiType,proto3" json:"api_type,omitempty"`
 	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
 	ServiceUuid   string                 `protobuf:"bytes,7,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -469,13 +452,6 @@ func (x *CreateAPIRequest) GetDisplayName() string {
 func (x *CreateAPIRequest) GetDescription() string {
 	if x != nil {
 		return x.Description
-	}
-	return ""
-}
-
-func (x *CreateAPIRequest) GetApiType() string {
-	if x != nil {
-		return x.ApiType
 	}
 	return ""
 }
@@ -545,7 +521,6 @@ type UpdateAPIRequest struct {
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
-	ApiType       string                 `protobuf:"bytes,6,opt,name=api_type,json=apiType,proto3" json:"api_type,omitempty"`
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	ServiceUuid   string                 `protobuf:"bytes,8,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -613,13 +588,6 @@ func (x *UpdateAPIRequest) GetDisplayName() string {
 func (x *UpdateAPIRequest) GetDescription() string {
 	if x != nil {
 		return x.Description
-	}
-	return ""
-}
-
-func (x *UpdateAPIRequest) GetApiType() string {
-	if x != nil {
-		return x.ApiType
 	}
 	return ""
 }
@@ -886,13 +854,12 @@ var File_maintainerd_auth_v1_api_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_api_proto_rawDesc = "" +
 	"\n" +
-	"\x1dmaintainerd/auth/v1/api.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!maintainerd/auth/v1/service.proto\x1a maintainerd/auth/v1/tenant.proto\"\x97\x03\n" +
+	"\x1dmaintainerd/auth/v1/api.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!maintainerd/auth/v1/service.proto\x1a maintainerd/auth/v1/tenant.proto\"\xfc\x02\n" +
 	"\x03API\x12\x19\n" +
 	"\bapi_uuid\x18\x01 \x01(\tR\aapiUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x19\n" +
-	"\bapi_type\x18\x05 \x01(\tR\aapiType\x12\x1e\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1e\n" +
 	"\n" +
 	"identifier\x18\x06 \x01(\tR\n" +
 	"identifier\x12\x16\n" +
@@ -903,13 +870,12 @@ const file_maintainerd_auth_v1_api_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xd0\x02\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb5\x02\n" +
 	"\x0fListAPIsRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x19\n" +
-	"\bapi_type\x18\x04 \x01(\tR\aapiType\x12\x1e\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1e\n" +
 	"\n" +
 	"identifier\x18\x05 \x01(\tR\n" +
 	"identifier\x12!\n" +
@@ -929,26 +895,24 @@ const file_maintainerd_auth_v1_api_proto_rawDesc = "" +
 	"tenantUuid\x12\x19\n" +
 	"\bapi_uuid\x18\x02 \x01(\tR\aapiUuid\"<\n" +
 	"\x0eGetAPIResponse\x12*\n" +
-	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"\xe2\x01\n" +
+	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"\xc7\x01\n" +
 	"\x10CreateAPIRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x19\n" +
-	"\bapi_type\x18\x05 \x01(\tR\aapiType\x12\x16\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12!\n" +
 	"\fservice_uuid\x18\a \x01(\tR\vserviceUuid\"?\n" +
 	"\x11CreateAPIResponse\x12*\n" +
-	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"\xfd\x01\n" +
+	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"\xe2\x01\n" +
 	"\x10UpdateAPIRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x19\n" +
 	"\bapi_uuid\x18\x02 \x01(\tR\aapiUuid\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12 \n" +
-	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x19\n" +
-	"\bapi_type\x18\x06 \x01(\tR\aapiType\x12\x16\n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\x12!\n" +
 	"\fservice_uuid\x18\b \x01(\tR\vserviceUuid\"?\n" +
 	"\x11UpdateAPIResponse\x12*\n" +

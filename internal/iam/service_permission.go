@@ -21,7 +21,6 @@ type PermissionServiceDataResult struct {
 	Description    string
 	API            *APIServiceDataResult
 	Status         string
-	IsDefault      bool
 	IsSystem       bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -35,7 +34,6 @@ type PermissionServiceGetFilter struct {
 	RoleUUID    *string
 	ClientUUID  *string
 	Status      *string
-	IsDefault   *bool
 	IsSystem    *bool
 	Page        int
 	Limit       int
@@ -136,7 +134,6 @@ func (s *permissionService) Get(ctx context.Context, filter PermissionServiceGet
 		APIID:       apiID,
 		RoleID:      roleID,
 		Status:      filter.Status,
-		IsDefault:   filter.IsDefault,
 		IsSystem:    filter.IsSystem,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
@@ -224,7 +221,6 @@ func (s *permissionService) Create(ctx context.Context, tenantID int64, name str
 			TenantID:    tenantID,
 			APIID:       api.APIID,
 			Status:      status,
-			IsDefault:   false, // System-managed field, always default to false for user-created permissions
 			IsSystem:    isSystem,
 		}
 
@@ -279,9 +275,8 @@ func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID
 			return apperror.NewNotFoundWithReason("permission not found or access denied")
 		}
 
-		// Check if default
-		if permission.IsDefault {
-			return apperror.NewValidation("default permission cannot cannot be updated")
+		if permission.IsSystem {
+			return apperror.NewValidation("system permission cannot be updated")
 		}
 
 		// Check if permission already exist
@@ -366,9 +361,8 @@ func (s *permissionService) SetActiveStatusByUUID(ctx context.Context, permissio
 			return apperror.NewNotFoundWithReason("permission not found or access denied")
 		}
 
-		// Check if default
-		if permission.IsDefault {
-			return apperror.NewValidation("default permission cannot be updated")
+		if permission.IsSystem {
+			return apperror.NewValidation("system permission cannot be updated")
 		}
 
 		if permission.Status == shared.StatusActive {
@@ -463,9 +457,8 @@ func (s *permissionService) DeleteByUUID(ctx context.Context, permissionUUID uui
 		return nil, apperror.NewNotFoundWithReason("permission not found or access denied")
 	}
 
-	// Check if default
-	if permission.IsDefault {
-		return nil, apperror.NewValidation("default permission cannot be deleted")
+	if permission.IsSystem {
+		return nil, apperror.NewValidation("system permission cannot be deleted")
 	}
 
 	// Delete + event emission commit together; cache invalidation runs after.
@@ -508,7 +501,6 @@ func toPermissionServiceDataResult(permission *Permission) *PermissionServiceDat
 		Name:           permission.Name,
 		Description:    permission.Description,
 		Status:         permission.Status,
-		IsDefault:      permission.IsDefault,
 		IsSystem:       permission.IsSystem,
 		CreatedAt:      permission.CreatedAt,
 		UpdatedAt:      permission.UpdatedAt,
@@ -520,7 +512,6 @@ func toPermissionServiceDataResult(permission *Permission) *PermissionServiceDat
 			Name:        permission.API.Name,
 			DisplayName: permission.API.DisplayName,
 			Description: permission.API.Description,
-			APIType:     permission.API.APIType,
 			Identifier:  permission.API.Identifier,
 			Status:      permission.API.Status,
 			CreatedAt:   permission.API.CreatedAt,

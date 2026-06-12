@@ -29,7 +29,7 @@ func TestPermissionGRPCHandler_RPCS(t *testing.T) {
 		Name:           "read:users",
 		Description:    "Read users permission",
 		Status:         shared.StatusActive,
-		API:            &APIServiceDataResult{APIUUID: apiUUID, Name: "users", APIType: shared.APITypeRest},
+		API:            &APIServiceDataResult{APIUUID: apiUUID, Name: "users"},
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}

@@ -15,7 +15,6 @@ type Permission struct {
 	Name           string         `gorm:"column:name"`
 	Description    string         `gorm:"column:description"`
 	Status         string         `gorm:"column:status;default:'active'"`
-	IsDefault      bool           `gorm:"column:is_default;default:false"`
 	IsSystem       bool           `gorm:"column:is_system;default:false"`
 	CreatedBy      *int64         `gorm:"column:created_by"`
 	UpdatedBy      *int64         `gorm:"column:updated_by"`
