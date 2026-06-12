@@ -92,22 +92,22 @@ type IdentityProvider struct {
 func (IdentityProvider) TableName() string { return "identity_providers" }
 
 type User struct {
-	UserID         int64
-	UserUUID       uuid.UUID
-	Username       string
-	Email          string
-	UserIdentities []UserIdentity
+	UserID         int64          `gorm:"primaryKey"`
+	UserUUID       uuid.UUID      `gorm:"column:user_uuid"`
+	Username       string         `gorm:"column:username"`
+	Email          string         `gorm:"column:email"`
+	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID"`
 }
 
 func (User) TableName() string { return "users" }
 
 type UserIdentity struct {
-	UserIdentityID int64
-	TenantID       int64
-	UserID         int64
-	ClientID       int64
-	Tenant         *Tenant
-	Client         *Client
+	UserIdentityID int64     `gorm:"primaryKey"`
+	TenantID       int64     `gorm:"column:tenant_id"`
+	UserID         int64     `gorm:"column:user_id"`
+	ClientID       int64     `gorm:"column:client_id"`
+	Tenant         *Tenant   `gorm:"foreignKey:TenantID;references:TenantID"`
+	Client         *Client   `gorm:"foreignKey:ClientID;references:ClientID"`
 }
 
 func (UserIdentity) TableName() string { return "user_identities" }

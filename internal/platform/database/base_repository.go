@@ -6,6 +6,7 @@ import (
 
 	"github.com/maintainerd/auth/internal/platform/pagination"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // allowedSortColumns is the set of column names that are safe to interpolate
@@ -109,9 +110,12 @@ func (r *BaseRepository[T]) Create(entity *T) (*T, error) {
 	return entity, nil
 }
 
-// Create Or Update
+// CreateOrUpdate persists the entity itself only. Associations are omitted so a
+// preloaded belongs-to/has-many relation (e.g. role.Tenant) is never cascaded
+// into a broken upsert — GORM would otherwise emit "ON CONFLICT DO UPDATE"
+// without a conflict target and Postgres rejects it (SQLSTATE 42601).
 func (r *BaseRepository[T]) CreateOrUpdate(entity *T) (*T, error) {
-	if err := r.db.Save(entity).Error; err != nil {
+	if err := r.db.Omit(clause.Associations).Save(entity).Error; err != nil {
 		return nil, err
 	}
 	return entity, nil

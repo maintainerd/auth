@@ -206,3 +206,45 @@ func TestRedactIdpConfig_NonStringClientSecret(t *testing.T) {
 		assert.Contains(t, string(*result), "***REDACTED***")
 	})
 }
+
+func TestPreserveIdpClientSecret(t *testing.T) {
+	existing := datatypes.JSON(json.RawMessage(`{"client_id":"app","client_secret":"ENC_OLD","issuer":"https://idp.example.com"}`))
+
+	t.Run("blank secret preserves existing", func(t *testing.T) {
+		incoming := datatypes.JSON(json.RawMessage(`{"client_id":"app","client_secret":"","issuer":"https://idp.example.com"}`))
+		result := preserveIdpClientSecret(incoming, existing)
+		assert.Contains(t, string(result), `"client_secret":"ENC_OLD"`)
+	})
+
+	t.Run("redacted sentinel preserves existing", func(t *testing.T) {
+		incoming := datatypes.JSON(json.RawMessage(`{"client_id":"app","client_secret":"` + idpClientSecretRedacted + `"}`))
+		result := preserveIdpClientSecret(incoming, existing)
+		assert.Contains(t, string(result), `"client_secret":"ENC_OLD"`)
+	})
+
+	t.Run("missing key preserves existing", func(t *testing.T) {
+		incoming := datatypes.JSON(json.RawMessage(`{"client_id":"app"}`))
+		result := preserveIdpClientSecret(incoming, existing)
+		assert.Contains(t, string(result), `"client_secret":"ENC_OLD"`)
+	})
+
+	t.Run("new secret is kept", func(t *testing.T) {
+		incoming := datatypes.JSON(json.RawMessage(`{"client_id":"app","client_secret":"ENC_NEW"}`))
+		result := preserveIdpClientSecret(incoming, existing)
+		assert.Contains(t, string(result), `"client_secret":"ENC_NEW"`)
+		assert.NotContains(t, string(result), "ENC_OLD")
+	})
+
+	t.Run("blank with no existing drops the key", func(t *testing.T) {
+		incoming := datatypes.JSON(json.RawMessage(`{"client_id":"app","client_secret":""}`))
+		result := preserveIdpClientSecret(incoming, datatypes.JSON(json.RawMessage(`{"client_id":"app"}`)))
+		assert.NotContains(t, string(result), "client_secret")
+	})
+}
+
+func TestRedactIdpConfig_EmptyStringNotRedacted(t *testing.T) {
+	config := datatypes.JSON(json.RawMessage(`{"client_secret":"","issuer":"https://idp.example.com"}`))
+	result := redactIdpConfig(config)
+	require.NotNil(t, result)
+	assert.NotContains(t, string(*result), "***REDACTED***")
+}

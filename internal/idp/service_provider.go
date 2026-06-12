@@ -314,10 +314,14 @@ func (s *identityProviderService) Update(ctx context.Context, idpUUID uuid.UUID,
 		idp.DisplayName = displayName
 		idp.Provider = provider
 		idp.ProviderType = providerType
+		// Preserve the stored secret when the request omits/blanks/redacts it,
+		// then encrypt any newly provided secret before persisting.
+		existingConfig := idp.Config
 		encConfig, encErr := encryptIdpConfig(config)
 		if encErr != nil {
 			return encErr
 		}
+		encConfig = preserveIdpClientSecret(encConfig, existingConfig)
 		idp.Config = encConfig
 		idp.Status = status
 		// IsDefault and IsSystem are system-managed, don't update them in user requests
@@ -480,7 +484,9 @@ func toIdpServiceDataResult(idp *IdentityProvider) *IdentityProviderServiceDataR
 		Provider:             idp.Provider,
 		ProviderType:         idp.ProviderType,
 		Identifier:           idp.Identifier,
-		Config:               &idp.Config,
+		// Never expose the stored secret (encrypted at rest); GET responses carry
+		// a redaction sentinel the form treats as "unchanged" on save.
+		Config: redactIdpConfig(idp.Config),
 		Status:               idp.Status,
 		IsDefault:            idp.IsDefault,
 		IsSystem:             idp.IsSystem,
