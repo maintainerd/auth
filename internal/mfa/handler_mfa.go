@@ -93,7 +93,8 @@ func (h *MFAHandler) RequirePolicyStepUp(next http.Handler) http.Handler {
 			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
 			return
 		}
-		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > 300 {
+		ttl := h.mfaSvc.StepUpTTLSeconds(r.Context(), user.UserID)
+		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > ttl {
 			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication has expired; please re-authenticate")
 			return
 		}
@@ -245,6 +246,13 @@ func (h *MFAHandler) WebAuthnBeginRegistration(w http.ResponseWriter, r *http.Re
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
+	if allowed, err := h.mfaSvc.IsMethodAllowed(r.Context(), user.UserID, "webauthn"); err != nil {
+		resp.HandleServiceError(w, r, "Failed to check MFA policy", err)
+		return
+	} else if !allowed {
+		resp.Error(w, http.StatusForbidden, "WebAuthn MFA is not permitted by tenant policy")
+		return
+	}
 
 	creation, err := h.webAuthnSvc.BeginRegistration(r.Context(), user.UserID)
 	if err != nil {
@@ -262,6 +270,13 @@ func (h *MFAHandler) WebAuthnFinishRegistration(w http.ResponseWriter, r *http.R
 	user := middleware.AuthFromRequest(r).User
 	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if allowed, err := h.mfaSvc.IsMethodAllowed(r.Context(), user.UserID, "webauthn"); err != nil {
+		resp.HandleServiceError(w, r, "Failed to check MFA policy", err)
+		return
+	} else if !allowed {
+		resp.Error(w, http.StatusForbidden, "WebAuthn MFA is not permitted by tenant policy")
 		return
 	}
 
@@ -300,6 +315,13 @@ func (h *MFAHandler) WebAuthnBeginAuthentication(w http.ResponseWriter, r *http.
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
+	if allowed, err := h.mfaSvc.IsMethodAllowed(r.Context(), user.UserID, "webauthn"); err != nil {
+		resp.HandleServiceError(w, r, "Failed to check MFA policy", err)
+		return
+	} else if !allowed {
+		resp.Error(w, http.StatusForbidden, "WebAuthn MFA is not permitted by tenant policy")
+		return
+	}
 
 	assertion, err := h.webAuthnSvc.BeginAuthentication(r.Context(), user.UserID)
 	if err != nil {
@@ -317,6 +339,13 @@ func (h *MFAHandler) WebAuthnFinishAuthentication(w http.ResponseWriter, r *http
 	user := middleware.AuthFromRequest(r).User
 	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if allowed, err := h.mfaSvc.IsMethodAllowed(r.Context(), user.UserID, "webauthn"); err != nil {
+		resp.HandleServiceError(w, r, "Failed to check MFA policy", err)
+		return
+	} else if !allowed {
+		resp.Error(w, http.StatusForbidden, "WebAuthn MFA is not permitted by tenant policy")
 		return
 	}
 

@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/platform/apperror"
@@ -21,6 +23,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/sms"
 	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/hotp"
 	"github.com/pquerna/otp/totp"
@@ -72,6 +75,7 @@ type MFAService interface {
 	// Policy
 	GetMFAPolicy(ctx context.Context, tenantID int64) (*MFAPolicyDTO, error)
 	IsMFARequired(ctx context.Context, tenantID int64) (bool, error)
+	IsMethodAllowed(ctx context.Context, userID int64, method string) (bool, error)
 	UserHasMFA(ctx context.Context, userID int64) (bool, error)
 
 	// SensitiveActionStepUpRequired reports whether sensitive self-service
@@ -80,6 +84,9 @@ type MFAService interface {
 	// require_mfa_for_sensitive_actions is enabled AND the user has an enrolled
 	// MFA factor; password-only users (no MFA) are never gated.
 	SensitiveActionStepUpRequired(ctx context.Context, userID int64) (bool, error)
+
+	// StepUpTTLSeconds returns the configured step-up freshness window in seconds.
+	StepUpTTLSeconds(ctx context.Context, userID int64) int64
 
 	// SyncMFAState clears recovery state (backup codes, mfa_enabled_at) when no
 	// primary MFA factor remains. Call after removing a factor that the service
@@ -129,6 +136,23 @@ type mfaService struct {
 	authEventService authevent.AuthEventService
 }
 
+type trustedDeviceToken struct {
+	UserTokenID   int64      `gorm:"column:user_token_id"`
+	UserTokenUUID uuid.UUID  `gorm:"column:user_token_uuid"`
+	UserID        int64      `gorm:"column:user_id"`
+	TokenType     string     `gorm:"column:token_type"`
+	Token         string     `gorm:"column:token"`
+	UserAgent     *string    `gorm:"column:user_agent"`
+	IPAddress     *string    `gorm:"column:ip_address"`
+	ExpiresAt     *time.Time `gorm:"column:expires_at"`
+	IsRevoked     bool       `gorm:"column:is_revoked"`
+	LastUsedAt    *time.Time `gorm:"column:last_used_at"`
+	CreatedAt     time.Time  `gorm:"column:created_at"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at"`
+}
+
+func (trustedDeviceToken) TableName() string { return "user_tokens" }
+
 // NewMFAService constructs a MFAService.
 func NewMFAService(
 	db *gorm.DB,
@@ -173,6 +197,9 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TO
 	}
 
 	mfaPolicy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	if !methodAllowed(mfaPolicy, "totp") {
+		return nil, apperror.NewForbidden("TOTP MFA is not permitted by tenant policy")
+	}
 	issuer := totpIssuer
 	digits := totpDigits
 	period := totpPeriod
@@ -253,8 +280,22 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 		return nil, apperror.NewValidation("no pending TOTP enrollment found")
 	}
 
+	mfaPolicy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	if !methodAllowed(mfaPolicy, "totp") {
+		return nil, apperror.NewForbidden("TOTP MFA is not permitted by tenant policy")
+	}
+
 	dec := crypto.SafeDecryptAtRest(record.Secret)
-	valid := totp.Validate(code, dec)
+	digits := digitsFromInt(record.Digits)
+	period := record.Period
+	if period <= 0 {
+		period = totpPeriod
+	}
+	_, valid, validationErr := validateTOTPAndStep(code, dec, time.Now(), digits, period)
+	if validationErr != nil {
+		span.RecordError(validationErr)
+		return nil, apperror.NewValidation("invalid TOTP code")
+	}
 	if !valid {
 		span.SetStatus(codes.Error, "invalid totp code")
 		return nil, apperror.NewValidation("invalid TOTP code")
@@ -277,9 +318,10 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 	}
 
 	// Generate a fresh set of backup codes using the tenant's policy.
-	mfaPolicy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
 	codeCount := mfaBackupCodeCount
-	if mfaPolicy != nil && mfaPolicy.RecoveryCodesCount > 0 {
+	if !methodAllowed(mfaPolicy, "backup_code") {
+		codeCount = 0
+	} else if mfaPolicy != nil && mfaPolicy.RecoveryCodesCount > 0 {
 		codeCount = mfaPolicy.RecoveryCodesCount
 	}
 	plainCodes, err := s.generateAndStoreBackupCodes(userID, codeCount)
@@ -443,6 +485,9 @@ func (s *mfaService) RegenerateBackupCodes(ctx context.Context, userID int64) ([
 	span.SetAttributes(attribute.Int64("user.id", userID))
 
 	mfaPolicy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	if !methodAllowed(mfaPolicy, "backup_code") {
+		return nil, apperror.NewForbidden("Backup-code MFA is not permitted by tenant policy")
+	}
 	codeCount := mfaBackupCodeCount
 	if mfaPolicy != nil && mfaPolicy.RecoveryCodesCount > 0 {
 		codeCount = mfaPolicy.RecoveryCodesCount
@@ -543,6 +588,9 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 
 // GetMFAPolicy reads the per-pool MFA policy from secpolicy.SecuritySetting.MFAConfig.
 func (s *mfaService) GetMFAPolicy(ctx context.Context, tenantID int64) (*MFAPolicyDTO, error) {
+	if s.secSettingRepo == nil {
+		return defaultMFAPolicy(), nil
+	}
 	setting, err := s.secSettingRepo.FindByTenantID(tenantID)
 	if err != nil || setting == nil {
 		return defaultMFAPolicy(), nil
@@ -569,6 +617,18 @@ func (s *mfaService) GetMFAPolicy(ctx context.Context, tenantID int64) (*MFAPoli
 	if raw.AllowedMethods != nil {
 		policy.AllowedMethods = normalizeMFAPolicyMethods(raw.AllowedMethods)
 	}
+	if effective := secpolicy.LoadMFAPolicy(s.secSettingRepo, tenantID); effective != nil {
+		switch effective.Mode {
+		case "disabled":
+			policy.Required = false
+			policy.AllowedMethods = []string{}
+		case "enforced":
+			policy.Required = true
+			policy.AllowedMethods = effective.AllowedMethods
+		default:
+			policy.AllowedMethods = effective.AllowedMethods
+		}
+	}
 	return policy, nil
 }
 
@@ -576,6 +636,11 @@ func (s *mfaService) GetMFAPolicy(ctx context.Context, tenantID int64) (*MFAPoli
 func (s *mfaService) IsMFARequired(ctx context.Context, tenantID int64) (bool, error) {
 	policy, _ := s.GetMFAPolicy(ctx, tenantID)
 	return policy.Required, nil
+}
+
+func (s *mfaService) IsMethodAllowed(ctx context.Context, userID int64, method string) (bool, error) {
+	policy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	return methodAllowed(policy, method), nil
 }
 
 func defaultMFAPolicy() *MFAPolicyDTO {
@@ -620,6 +685,11 @@ func (s *mfaService) SensitiveActionStepUpRequired(ctx context.Context, userID i
 		return false, nil
 	}
 	return status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled, nil
+}
+
+func (s *mfaService) StepUpTTLSeconds(ctx context.Context, userID int64) int64 {
+	policy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	return policy.StepUpTTLSeconds()
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -832,7 +902,20 @@ func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, 
 	_, span := otel.Tracer("service").Start(ctx, "mfa.issue_step_up_challenge")
 	defer span.End()
 
-	token, err := generateStepUpChallengeToken(ctx, userUUID, stepUpChallengeTTL, allowedMethods)
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, apperror.NewUnauthorized("step-up challenge subject not found")
+	}
+	policy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, user.UserID))
+	allowedMethods = filterMethodsByPolicy(allowedMethods, policy)
+	if policy != nil {
+		allowedMethods = preferMethodFirst(allowedMethods, policy.PreferredMethod)
+	}
+	if len(allowedMethods) == 0 {
+		return nil, apperror.NewForbidden("no MFA methods are permitted by tenant policy")
+	}
+
+	token, err := generateStepUpChallengeToken(ctx, userUUID, time.Duration(policy.StepUpTTLSeconds())*time.Second, allowedMethods)
 	if err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("step-up challenge generation failed", err)
@@ -848,6 +931,10 @@ func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, 
 func (s *mfaService) SendStepUpSMS(ctx context.Context, userID int64) error {
 	_, span := otel.Tracer("service").Start(ctx, "mfa.send_step_up_sms")
 	defer span.End()
+
+	if !methodAllowed(secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID)), "sms") {
+		return apperror.NewForbidden("SMS MFA is not permitted by tenant policy")
+	}
 
 	phoneRecord, err := s.smsPhoneRepo.FindByUserID(userID)
 	if err != nil {
@@ -1113,6 +1200,10 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 // login MFA second step. `code` carries the typed proof; `assertion` carries
 // the raw WebAuthn assertion JSON.
 func (s *mfaService) verifyFactor(ctx context.Context, userID int64, method, code string, assertion []byte) ([]string, error) {
+	if !methodAllowed(secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID)), method) {
+		return nil, apperror.NewForbidden(fmt.Sprintf("%s MFA is not permitted by tenant policy", method))
+	}
+
 	switch method {
 	case "totp":
 		ok, verr := s.VerifyTOTP(ctx, userID, code)
@@ -1221,6 +1312,9 @@ func (s *mfaService) SendSMSChallenge(ctx context.Context, userID int64) error {
 // BeginWebAuthnLogin starts a passkey assertion ceremony for userID and returns
 // the assertion options as JSON for the browser. Used by the login MFA step.
 func (s *mfaService) BeginWebAuthnLogin(ctx context.Context, userID int64) (json.RawMessage, error) {
+	if !methodAllowed(secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID)), "webauthn") {
+		return nil, apperror.NewForbidden("WebAuthn MFA is not permitted by tenant policy")
+	}
 	if s.webAuthnSvc == nil {
 		return nil, apperror.NewValidation("WebAuthn is not available")
 	}
@@ -1229,6 +1323,60 @@ func (s *mfaService) BeginWebAuthnLogin(ctx context.Context, userID int64) (json
 		return nil, err
 	}
 	return json.Marshal(assertion)
+}
+
+// TrustedDeviceValid reports whether a presented trusted-device token is valid
+// for userID. The plaintext token is never stored; user_tokens.token contains a
+// deterministic hash so lookup can be exact.
+func (s *mfaService) TrustedDeviceValid(ctx context.Context, userID int64, token string) (bool, error) {
+	if s.db == nil || strings.TrimSpace(token) == "" {
+		return false, nil
+	}
+	now := time.Now()
+	hash := crypto.HashAuthorizationCode(strings.TrimSpace(token))
+	var rec trustedDeviceToken
+	err := s.db.WithContext(ctx).
+		Where("user_id = ? AND token_type = ? AND token = ? AND is_revoked = false AND (expires_at IS NULL OR expires_at > ?)",
+			userID, shared.TokenTypeMFATrustedDevice, hash, now).
+		First(&rec).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil
+		}
+		return false, apperror.NewInternal("trusted device lookup failed", err)
+	}
+	_ = s.db.WithContext(ctx).
+		Model(&trustedDeviceToken{}).
+		Where("user_token_id = ?", rec.UserTokenID).
+		Updates(map[string]any{"last_used_at": now, "updated_at": now}).Error
+	return true, nil
+}
+
+// IssueTrustedDevice creates a new trusted-device token for userID and returns
+// the one-time plaintext value for the client to store.
+func (s *mfaService) IssueTrustedDevice(ctx context.Context, userID int64, periodDays int) (string, error) {
+	if s.db == nil || periodDays <= 0 {
+		return "", nil
+	}
+	raw, err := crypto.GenerateRandomString(32)
+	if err != nil {
+		return "", apperror.NewInternal("trusted device token generation failed", err)
+	}
+	expiresAt := time.Now().Add(time.Duration(periodDays) * 24 * time.Hour)
+	rec := &trustedDeviceToken{
+		UserTokenUUID: uuid.New(),
+		UserID:        userID,
+		TokenType:     shared.TokenTypeMFATrustedDevice,
+		Token:         crypto.HashAuthorizationCode(raw),
+		UserAgent:     ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		IPAddress:     ptr.PtrOrNil(middleware.ClientIPFromContext(ctx)),
+		ExpiresAt:     &expiresAt,
+		IsRevoked:     false,
+	}
+	if err := s.db.WithContext(ctx).Create(rec).Error; err != nil {
+		return "", apperror.NewInternal("trusted device token storage failed", err)
+	}
+	return raw, nil
 }
 
 func stepUpMethodAllowed(raw any, method string) bool {
@@ -1299,11 +1447,20 @@ func (s *mfaService) EnrolledMFAMethods(ctx context.Context, userID int64) ([]st
 }
 
 func methodAllowed(policy *secpolicy.MFAPolicy, method string) bool {
-	if policy == nil || len(policy.AllowedMethods) == 0 {
+	if method == "" {
+		return false
+	}
+	if policy == nil {
 		return true
+	}
+	if policy.Mode == "disabled" {
+		return false
 	}
 	if method == "sms" && !policy.AllowSMS {
 		return false
+	}
+	if len(policy.AllowedMethods) == 0 {
+		return true
 	}
 	for _, m := range policy.AllowedMethods {
 		if m == method {
@@ -1311,6 +1468,41 @@ func methodAllowed(policy *secpolicy.MFAPolicy, method string) bool {
 		}
 	}
 	return false
+}
+
+func filterMethodsByPolicy(methods []string, policy *secpolicy.MFAPolicy) []string {
+	out := make([]string, 0, len(methods))
+	for _, method := range methods {
+		if methodAllowed(policy, method) {
+			out = append(out, method)
+		}
+	}
+	return out
+}
+
+func preferMethodFirst(methods []string, preferred string) []string {
+	if preferred == "recovery_code" {
+		preferred = "backup_code"
+	}
+	if preferred == "" || len(methods) < 2 {
+		return methods
+	}
+	out := make([]string, 0, len(methods))
+	for _, method := range methods {
+		if method == preferred {
+			out = append(out, method)
+			break
+		}
+	}
+	if len(out) == 0 {
+		return methods
+	}
+	for _, method := range methods {
+		if method != preferred {
+			out = append(out, method)
+		}
+	}
+	return out
 }
 
 // SyncMFAState reconciles a user's recovery/flag state with their remaining

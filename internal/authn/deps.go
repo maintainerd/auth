@@ -75,25 +75,26 @@ type Client struct {
 func (Client) TableName() string { return "clients" }
 
 type User struct {
-	UserID              int64
-	UserUUID            uuid.UUID
-	Username            string
-	Fullname            string `gorm:"-"`
-	Email               string
-	Phone               string
-	Password            *string
-	IsEmailVerified     bool
-	IsPhoneVerified     bool
-	IsProfileCompleted  bool
-	IsAccountCompleted  bool
-	Status              string
-	ForcePasswordChange bool
-	PasswordChangedAt   *time.Time
-	IsTOTPEnabled       bool
-	IsWebAuthnEnabled   bool `gorm:"column:is_webauthn_enabled"`
-	MFAEnabledAt        *time.Time
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	UserID                     int64
+	UserUUID                   uuid.UUID
+	Username                   string
+	Fullname                   string `gorm:"-"`
+	Email                      string
+	Phone                      string
+	Password                   *string
+	IsEmailVerified            bool
+	IsPhoneVerified            bool
+	IsProfileCompleted         bool
+	IsAccountCompleted         bool
+	Status                     string
+	ForcePasswordChange        bool
+	PasswordChangedAt          *time.Time
+	TemporaryPasswordExpiresAt *time.Time
+	IsTOTPEnabled              bool
+	IsWebAuthnEnabled          bool `gorm:"column:is_webauthn_enabled"`
+	MFAEnabledAt               *time.Time
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
 }
 
 func (User) TableName() string { return "users" }

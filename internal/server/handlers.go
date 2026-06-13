@@ -78,7 +78,7 @@ func initHandlers(application *Application) *handlers {
 		api:                iam.NewAPIHandler(application.APIService),
 		permission:         iam.NewPermissionHandler(application.PermissionService),
 		policy:             iam.NewPolicyHandler(application.PolicyService),
-		tenant:             tenant.NewTenantHandler(application.TenantService, application.TenantMemberService),
+		tenant:             tenant.NewTenantHandler(application.TenantService, application.TenantMemberService, application.BrandingService, application.SecuritySettingService),
 		identityProvider:   idp.NewIdentityProviderHandler(application.IdentityProviderService),
 		client:             client.NewClientHandler(application.ClientService),
 		role:               iam.NewRoleHandler(application.RoleService),

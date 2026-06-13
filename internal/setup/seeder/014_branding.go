@@ -90,7 +90,7 @@ func SeedBranding(db *gorm.DB, tenantID int64) error {
 			BrandingUUID: uuid.New(),
 			TenantID:     tenantID,
 			Name:         t.name,
-			CompanyName:  "Lula",
+			CompanyName:  "Maintainerd-Auth",
 			IsSystem:     true,
 			IsActive:     t.active,
 			Metadata:     datatypes.JSON([]byte(t.metadata)),

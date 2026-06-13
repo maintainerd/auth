@@ -2,7 +2,7 @@ package authn
 
 import (
 	"context"
-	"strings"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,18 +31,19 @@ type RegisterService interface {
 }
 
 type registerService struct {
-	db                   *gorm.DB
-	clientRepo           ClientRepository
-	userRepo             UserRepository
-	userRoleRepo         UserRoleRepository
-	userTokenRepo        UserTokenRepository
-	userIdentityRepo     UserIdentityRepository
-	roleRepo             RoleRepository
-	inviteRepo           InviteRepository
-	identityProviderRepo IdentityProviderRepository
-	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → use defaults
-	passwordHistoryRepo  UserPasswordHistoryRepository       // nil → skip history
-	authFlowRoleRepo     AuthFlowRoleRepository
+	db                      *gorm.DB
+	clientRepo              ClientRepository
+	userRepo                UserRepository
+	userRoleRepo            UserRoleRepository
+	userTokenRepo           UserTokenRepository
+	userIdentityRepo        UserIdentityRepository
+	roleRepo                RoleRepository
+	inviteRepo              InviteRepository
+	identityProviderRepo    IdentityProviderRepository
+	securitySettingRepo     secpolicy.SecuritySettingRepository // nil → use defaults
+	passwordHistoryRepo     UserPasswordHistoryRepository       // nil → skip history
+	authFlowRoleRepo        AuthFlowRoleRepository
+	emailVerificationSvc    EmailVerificationService
 }
 
 func NewRegistrationService(
@@ -58,6 +59,7 @@ func NewRegistrationService(
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
 	authFlowRoleRepo AuthFlowRoleRepository,
+	emailVerificationSvc EmailVerificationService,
 ) RegisterService {
 	return &registerService{
 		db:                   db,
@@ -72,12 +74,22 @@ func NewRegistrationService(
 		securitySettingRepo:  securitySettingRepo,
 		passwordHistoryRepo:  passwordHistoryRepo,
 		authFlowRoleRepo:     authFlowRoleRepo,
+		emailVerificationSvc: emailVerificationSvc,
 	}
 }
 
-// Helper function to find the default role for a tenant
+// Helper function to find the system default registration role for a tenant.
 func (s *registerService) findDefaultRole(roleRepo RoleRepository, tenantID int64) (*Role, error) {
-	// First try to find a role marked as default
+	// Registration always assigns the system "registered" role. The fallback to
+	// an is_default role keeps legacy/unseeded tenants from blocking signup.
+	role, err := roleRepo.FindByNameAndTenantID(shared.RoleRegistered, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if role != nil {
+		return role, nil
+	}
+
 	filter := RoleRepositoryGetFilter{
 		IsDefault: &[]bool{true}[0],
 		TenantID:  tenantID,
@@ -94,29 +106,7 @@ func (s *registerService) findDefaultRole(roleRepo RoleRepository, tenantID int6
 		return &result.Data[0], nil
 	}
 
-	// Fallback: if no default role found, try to find "registered" role
-	role, err := roleRepo.FindByNameAndTenantID(shared.RoleRegistered, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	if role == nil {
-		return nil, apperror.NewValidation("no default role found for tenant")
-	}
-
-	return role, nil
-}
-
-// resolveRegistrationRole prefers the tenant registration policy's configured
-// default_role when it names an existing role for the tenant; otherwise it
-// falls back to the tenant's default/registered role. This keeps a misconfigured
-// or unseeded default_role from blocking registration.
-func (s *registerService) resolveRegistrationRole(roleRepo RoleRepository, tenantID int64, configuredRole string) (*Role, error) {
-	if name := strings.TrimSpace(configuredRole); name != "" {
-		if role, err := roleRepo.FindByNameAndTenantID(name, tenantID); err == nil && role != nil {
-			return role, nil
-		}
-	}
-	return s.findDefaultRole(roleRepo, tenantID)
+	return nil, apperror.NewValidation("registered role not found for tenant")
 }
 
 func enforceRegistrationAbuseControls(ctx context.Context, tenantID int64, regPolicy *secpolicy.RegistrationPolicy) error {
@@ -174,6 +164,7 @@ func (s *registerService) RegisterPublic(
 	var createdUser *User
 	var Client *Client
 	var userIdentitySub string
+	var needEmailVerification bool
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -198,14 +189,17 @@ func (s *registerService) RegisterPublic(
 				return apperror.NewValidation("invalid or inactive auth client")
 			}
 
-			identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(*providerID)
-			if txErr != nil {
-				return apperror.NewInternal("identity provider lookup failed", txErr)
+			tenantId = clientTenantID(Client)
+			if tenantId == 0 {
+				identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(*providerID)
+				if txErr != nil {
+					return apperror.NewInternal("identity provider lookup failed", txErr)
+				}
+				if identityProvider == nil {
+					return apperror.NewNotFoundWithReason("identity provider not found")
+				}
+				tenantId = identityProvider.TenantID
 			}
-			if identityProvider == nil {
-				return apperror.NewNotFoundWithReason("identity provider not found")
-			}
-			tenantId = identityProvider.TenantID
 		} else {
 			Client, txErr = txClientRepo.FindSystem()
 			if txErr != nil {
@@ -217,11 +211,15 @@ func (s *registerService) RegisterPublic(
 				return apperror.NewNotFoundWithReason("auth client not found or inactive")
 			}
 
-			tenantId = Client.IdentityProvider.Tenant.TenantID
+			tenantId = clientTenantID(Client)
+		}
+		if tenantId == 0 {
+			return apperror.NewValidation("auth client tenant could not be resolved")
 		}
 
 		// Enforce tenant registration policy (self-service path).
 		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId)
+		needEmailVerification = regPolicy.RequireEmailVerification
 		if !regPolicy.SelfRegistrationEnabled {
 			return apperror.NewForbidden("self-registration is disabled for this tenant")
 		}
@@ -230,6 +228,9 @@ func (s *registerService) RegisterPublic(
 		}
 		if email != nil && *email != "" && !regPolicy.EmailDomainAllowed(*email) {
 			return apperror.NewValidation("email domain is not permitted for registration")
+		}
+		if regPolicy.RequirePhoneVerification && (phone == nil || *phone == "") {
+			return apperror.NewValidation("phone number is required for registration")
 		}
 
 		// Check if username already exists
@@ -276,14 +277,16 @@ func (s *registerService) RegisterPublic(
 		}
 
 		now := time.Now()
-		// Create user. Email-verified state is governed by the tenant
-		// registration policy (auto-confirm or verification-not-required).
+		// Email/phone-verified state is governed by the tenant registration
+		// policy. Users start as "pending" when email verification is required
+		// so they must complete verification before proceeding.
 		newUser := &User{
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
 			Status:            registrationInitialStatus(regPolicy, email),
 			IsEmailVerified:   regPolicy.EmailVerified(),
+			IsPhoneVerified:   false,
 			PasswordChangedAt: &now,
 		}
 
@@ -322,10 +325,8 @@ func (s *registerService) RegisterPublic(
 		}
 		userIdentitySub = userIdentity.Sub
 
-		// Resolve the role to assign: prefer the tenant policy's default_role
-		// when it names an existing role, otherwise fall back to the tenant's
-		// default/registered role.
-		defaultRole, txErr := s.resolveRegistrationRole(txRoleRepo, tenantId, regPolicy.DefaultRole)
+		// Assign the system default registration role.
+		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
 		if txErr != nil {
 			return txErr
 		}
@@ -347,6 +348,13 @@ func (s *registerService) RegisterPublic(
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "register public failed")
 		return nil, err
+	}
+
+	// Trigger email verification if the tenant policy requires it.
+	if email != nil && *email != "" && needEmailVerification && s.emailVerificationSvc != nil {
+		if _, err := s.emailVerificationSvc.SendVerificationEmail(ctx, *email, clientID, providerID); err != nil {
+			slog.Warn("failed to send verification email during registration", "email", *email, "err", err)
+		}
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -412,8 +420,10 @@ func (s *registerService) Register(
 			return apperror.NewNotFoundWithReason("auth client not found or inactive")
 		}
 
-		// Get tenant ID from the default client's identity provider
-		tenantId := Client.IdentityProvider.Tenant.TenantID
+		tenantId := clientTenantID(Client)
+		if tenantId == 0 {
+			return apperror.NewValidation("auth client tenant could not be resolved")
+		}
 
 		// Enforce tenant registration policy.
 		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId)
@@ -425,6 +435,9 @@ func (s *registerService) Register(
 		}
 		if email != nil && *email != "" && !regPolicy.EmailDomainAllowed(*email) {
 			return apperror.NewValidation("email domain is not permitted for registration")
+		}
+		if regPolicy.RequirePhoneVerification && (phone == nil || *phone == "") {
+			return apperror.NewValidation("phone number is required for registration")
 		}
 
 		// Check if user already exists
@@ -449,13 +462,14 @@ func (s *registerService) Register(
 		}
 
 		now := time.Now()
-		// Create user. Email-verified state follows the tenant registration policy.
+		// Email-verified state follows the tenant registration policy.
 		newUser := &User{
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
 			Status:            registrationInitialStatus(regPolicy, email),
 			IsEmailVerified:   regPolicy.EmailVerified(),
+			IsPhoneVerified:   false,
 			PasswordChangedAt: &now,
 		}
 
@@ -494,8 +508,8 @@ func (s *registerService) Register(
 		}
 		userIdentitySub = userIdentity.Sub
 
-		// Resolve role from policy default_role with safe fallback.
-		defaultRole, txErr := s.resolveRegistrationRole(txRoleRepo, tenantId, regPolicy.DefaultRole)
+		// Assign the system default registration role.
+		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
 		if txErr != nil {
 			return txErr
 		}
@@ -728,7 +742,8 @@ func (s *registerService) RegisterInvitePublic(
 
 func (s *registerService) generateTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*RegisterResponseDTO, error) {
 	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, client)
-	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRPassword}, jwt.ACRLevel1, "", policy))
+	tokenPolicy := resolveEffectiveTokenPolicy(s.securitySettingRepo, client)
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRPassword}, jwt.ACRLevel1, "", policy, tokenPolicy))
 	if err != nil {
 		return nil, err
 	}

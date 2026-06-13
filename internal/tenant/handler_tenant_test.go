@@ -17,7 +17,7 @@ func newTenantHandler(ts *mockTenantService, ms *mockTenantMemberService) *Tenan
 	if ms == nil {
 		ms = &mockTenantMemberService{}
 	}
-	return NewTenantHandler(ts, ms)
+	return NewTenantHandler(ts, ms, nil, nil)
 }
 
 func TestTenantHandler_Get(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/jsonutil"
+	platformjwt "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/secpolicy"
 )
 
@@ -24,6 +25,24 @@ func resolveEffectiveSessionPolicy(repo secpolicy.SecuritySettingRepository, cli
 	if err != nil {
 		policy, _ = secpolicy.ResolveEffectiveSessionPolicy(nil, nil, clientSecurityOverrides(client))
 	}
+	return policy
+}
+
+func resolveEffectiveTokenPolicy(repo secpolicy.SecuritySettingRepository, client *Client) secpolicy.EffectiveTokenPolicy {
+	var tokenConfig map[string]any
+
+	tenantID := clientTenantID(client)
+	if repo != nil && tenantID > 0 {
+		if setting, err := repo.FindByTenantID(tenantID); err == nil && setting != nil {
+			tokenConfig = jsonutil.JSONToMap(setting.TokenConfig)
+		}
+	}
+
+	policy, err := secpolicy.ResolveEffectiveTokenPolicy(tokenConfig, clientSecurityOverrides(client))
+	if err != nil {
+		policy, _ = secpolicy.ResolveEffectiveTokenPolicy(nil, clientSecurityOverrides(client))
+	}
+	platformjwt.SetTokenLeeway(policy.ClockSkewLeewaySeconds)
 	return policy
 }
 
@@ -54,23 +73,34 @@ func clientSecurityOverrides(client *Client) secpolicy.SecuritySettingClientOver
 	}
 }
 
-func tokenAuthContextWithPolicy(amr []string, acr, sessionID string, policy secpolicy.EffectiveSessionPolicy) tokenAuthContext {
-	return tokenAuthContext{
+func tokenAuthContextWithPolicy(amr []string, acr, sessionID string, sessionPolicy secpolicy.EffectiveSessionPolicy, tokenPolicy secpolicy.EffectiveTokenPolicy) tokenAuthContext {
+	ctx := tokenAuthContext{
 		AMR:                    amr,
 		ACR:                    acr,
 		SessionID:              sessionID,
-		AccessTokenTTLSeconds:  policy.AccessTokenTTLSeconds,
-		RefreshTokenTTLSeconds: policy.RefreshTokenTTLSeconds,
-		CookieSecure:           policy.CookieSecure,
-		CookieHTTPOnly:         policy.CookieHTTPOnly,
-		CookieSameSite:         policy.CookieSameSite,
-		CookieRefreshMaxAge:    policy.RefreshTokenTTLSeconds,
+		AccessTokenTTLSeconds:  sessionPolicy.AccessTokenTTLSeconds,
+		RefreshTokenTTLSeconds: sessionPolicy.RefreshTokenTTLSeconds,
+		CookieSecure:           sessionPolicy.CookieSecure,
+		CookieHTTPOnly:         sessionPolicy.CookieHTTPOnly,
+		CookieSameSite:         sessionPolicy.CookieSameSite,
+		CookieRefreshMaxAge:    sessionPolicy.RefreshTokenTTLSeconds,
 		HasCookiePolicy:        true,
+		SigningAlgorithm:       tokenPolicy.SigningAlgorithm,
 	}
+	if len(tokenPolicy.AdditionalAccessTokenClaims) > 0 {
+		ctx.ExtraAccessClaims = make(map[string]any)
+		for _, claim := range tokenPolicy.AdditionalAccessTokenClaims {
+			switch claim {
+			case "tenant_id":
+				ctx.ExtraAccessClaims["tenant_id"] = 0
+			}
+		}
+	}
+	return ctx
 }
 
-func tokenAuthContextWithPolicyAndRefreshFamily(amr []string, acr, sessionID string, policy secpolicy.EffectiveSessionPolicy, familyID string) tokenAuthContext {
-	ctx := tokenAuthContextWithPolicy(amr, acr, sessionID, policy)
+func tokenAuthContextWithPolicyAndRefreshFamily(amr []string, acr, sessionID string, sessionPolicy secpolicy.EffectiveSessionPolicy, tokenPolicy secpolicy.EffectiveTokenPolicy, familyID string) tokenAuthContext {
+	ctx := tokenAuthContextWithPolicy(amr, acr, sessionID, sessionPolicy, tokenPolicy)
 	ctx.RefreshTokenFamilyID = familyID
 	return ctx
 }

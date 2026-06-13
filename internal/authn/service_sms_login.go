@@ -254,6 +254,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	var sessionID string
 	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, client)
+	tokenPolicy := resolveEffectiveTokenPolicy(s.securitySettingRepo, client)
 	if s.sessionService != nil {
 		if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
 			return nil, err
@@ -264,7 +265,7 @@ func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub stri
 		}
 		sessionID = sess.UserTokenUUID.String()
 	}
-	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRSMS}, jwt.ACRLevel1, sessionID, policy))
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRSMS}, jwt.ACRLevel1, sessionID, policy, tokenPolicy))
 	if err != nil {
 		return nil, err
 	}

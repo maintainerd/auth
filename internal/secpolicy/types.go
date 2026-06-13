@@ -87,6 +87,7 @@ type MFAConfigDTO struct {
 	RecoveryCodesCount            *int     `json:"recovery_codes_count,omitempty"`
 	RequireMFAForSensitiveActions *bool    `json:"require_mfa_for_sensitive_actions,omitempty"`
 	AdminGracePeriodDays          *int     `json:"admin_grace_period_days,omitempty"`
+	StepUpTTLMinutes              *int     `json:"step_up_ttl_minutes,omitempty"`
 }
 
 type SessionConfigDTO struct {
@@ -132,7 +133,6 @@ type RegistrationConfigDTO struct {
 	BlockedEmailDomains               []string `json:"blocked_email_domains,omitempty"`
 	AutoConfirmEnabled                *bool    `json:"auto_confirm_enabled,omitempty"`
 	VerificationTokenTTLHours         *int     `json:"verification_token_ttl_hours,omitempty"`
-	DefaultRole                       *string  `json:"default_role,omitempty"`
 	CaptchaOnSignup                   *bool    `json:"captcha_on_signup,omitempty"`
 	RegistrationRateLimitPerIPPerHour *int     `json:"registration_rate_limit_per_ip_per_hour,omitempty"`
 }

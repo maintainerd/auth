@@ -490,6 +490,7 @@ func TestUserService_Create(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		phone := "555"
+		var createdUser *User
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			callCount++
@@ -497,6 +498,11 @@ func TestUserService_Create(t *testing.T) {
 				return userWithAccess(2, 1), nil // creator
 			}
 			return &User{UserUUID: uuid.New(), Username: "user"}, nil // fetch result
+		}
+		ur.createFn = func(u *User) (*User, error) {
+			u.UserID = 10
+			createdUser = u
+			return u, nil
 		}
 		cr.findDefaultByTenantIDFn = func(_ int64) (*Client, error) { return &Client{ClientID: 1}, nil }
 		rr.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
@@ -508,6 +514,11 @@ func TestUserService_Create(t *testing.T) {
 		res, err := svc.Create(context.Background(), "user", &email, &phone, "P@ssW0rd1Long", "active", datatypes.JSON([]byte("{}")), tenantUUID, creatorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
+		require.NotNil(t, createdUser)
+		assert.True(t, createdUser.ForcePasswordChange)
+		require.NotNil(t, createdUser.TemporaryPasswordExpiresAt)
+		require.NotNil(t, createdUser.PasswordChangedAt)
+		assert.WithinDuration(t, createdUser.PasswordChangedAt.Add(72*time.Hour), *createdUser.TemporaryPasswordExpiresAt, time.Minute)
 	})
 
 	t.Run("findDefaultRole — fallback to registered role success", func(t *testing.T) {

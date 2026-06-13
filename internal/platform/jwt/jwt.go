@@ -350,6 +350,14 @@ type RefreshTokenOptions struct {
 
 	// FamilyID groups rotated refresh tokens so reuse can revoke descendants.
 	FamilyID string
+
+	// AMR is the list of Authentication Methods References (RFC 8176) to
+	// carry through refresh, so the step-up context survives token rotation.
+	AMR []string
+
+	// ACR is the Authentication Context Class Reference to carry through
+	// refresh, preserving the step-up level across token rotation.
+	ACR string
 }
 
 // GenerateAccessToken is the standard (Bearer) entry point for access token
@@ -490,7 +498,11 @@ func GenerateAccessTokenWithOptionsContext(
 		}
 	}
 
-	tok, err := generateToken(claims)
+	alg := ""
+	if opts != nil {
+		alg = opts.SigningAlgorithm
+	}
+	tok, err := generateTokenWithAlgorithm(claims, alg)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "generate access token failed")
@@ -793,6 +805,12 @@ func GenerateRefreshTokenWithOptionsContext(ctx context.Context, userUUID, issue
 		claims["rfid"] = strings.TrimSpace(opts.FamilyID)
 	} else {
 		claims["rfid"] = generateSecureJTI()
+	}
+	if opts != nil && len(opts.AMR) > 0 {
+		claims["amr"] = opts.AMR
+	}
+	if opts != nil && opts.ACR != "" {
+		claims["acr"] = opts.ACR
 	}
 
 	alg := ""

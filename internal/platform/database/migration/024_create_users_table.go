@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     metadata                    JSONB DEFAULT '{}'::jsonb,
     force_password_change       BOOLEAN NOT NULL DEFAULT FALSE,
     password_changed_at         TIMESTAMPTZ,
+    temporary_password_expires_at TIMESTAMPTZ,
     pending_email               VARCHAR(255),
     email_change_otp            VARCHAR(10),
     email_change_otp_expires_at TIMESTAMPTZ,
@@ -46,6 +47,8 @@ CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users (deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_users_password_changed_at ON users(password_changed_at)
     WHERE password_changed_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_temporary_password_expires_at ON users(temporary_password_expires_at)
+    WHERE temporary_password_expires_at IS NOT NULL;
 
 -- Now that users exists, attach the audit FK constraints to all earlier
 -- tables that declared created_by/updated_by columns. These can't be added

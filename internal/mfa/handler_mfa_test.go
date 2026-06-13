@@ -39,6 +39,7 @@ type mockMFAService struct {
 	getMFAStatusFn          func(context.Context, int64) (*MFAStatusResponseDTO, error)
 	getMFAPolicyFn          func(context.Context, int64) (*MFAPolicyDTO, error)
 	isMFARequiredFn         func(context.Context, int64) (bool, error)
+	isMethodAllowedFn       func(context.Context, int64, string) (bool, error)
 	userHasMFAFn            func(context.Context, int64) (bool, error)
 
 	sensitiveActionStepUpRequiredFn func(context.Context, int64) (bool, error)
@@ -117,6 +118,13 @@ func (m *mockMFAService) IsMFARequired(ctx context.Context, tenantID int64) (boo
 	return false, nil
 }
 
+func (m *mockMFAService) IsMethodAllowed(ctx context.Context, userID int64, method string) (bool, error) {
+	if m.isMethodAllowedFn != nil {
+		return m.isMethodAllowedFn(ctx, userID, method)
+	}
+	return true, nil
+}
+
 func (m *mockMFAService) UserHasMFA(ctx context.Context, userID int64) (bool, error) {
 	if m.userHasMFAFn != nil {
 		return m.userHasMFAFn(ctx, userID)
@@ -129,6 +137,10 @@ func (m *mockMFAService) SensitiveActionStepUpRequired(ctx context.Context, user
 		return m.sensitiveActionStepUpRequiredFn(ctx, userID)
 	}
 	return false, nil
+}
+
+func (m *mockMFAService) StepUpTTLSeconds(ctx context.Context, userID int64) int64 {
+	return 300
 }
 
 func (m *mockMFAService) AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error {
@@ -573,6 +585,57 @@ func TestMFAHandler_WebAuthnFinishBadBodies(t *testing.T) {
 
 			assert.Equal(t, http.StatusBadRequest, rec.Code)
 			assert.Contains(t, rec.Body.String(), tt.wantErrMsg)
+		})
+	}
+}
+
+func TestMFAHandler_WebAuthnPolicyGate(t *testing.T) {
+	mfaSvc := &mockMFAService{
+		isMethodAllowedFn: func(_ context.Context, userID int64, method string) (bool, error) {
+			assert.Equal(t, mfaTestUserID, userID)
+			assert.Equal(t, "webauthn", method)
+			return false, nil
+		},
+	}
+	webAuthnSvc := &mockWebAuthnService{
+		beginRegistrationFn: func(context.Context, int64) (*protocol.CredentialCreation, error) {
+			t.Fatal("registration ceremony should not start when WebAuthn is disallowed")
+			return nil, nil
+		},
+		finishRegistrationFn: func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+			t.Fatal("registration ceremony should not finish when WebAuthn is disallowed")
+			return nil, nil
+		},
+		beginAuthenticationFn: func(context.Context, int64) (*protocol.CredentialAssertion, error) {
+			t.Fatal("authentication ceremony should not start when WebAuthn is disallowed")
+			return nil, nil
+		},
+		finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+			t.Fatal("authentication ceremony should not finish when WebAuthn is disallowed")
+			return nil, nil
+		},
+	}
+	h := NewMFAHandler(mfaSvc, webAuthnSvc)
+
+	tests := []struct {
+		name    string
+		request *http.Request
+		call    func(http.ResponseWriter, *http.Request)
+	}{
+		{name: "begin registration", request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/register/begin", nil), call: h.WebAuthnBeginRegistration},
+		{name: "finish registration", request: authenticatedRawMFARequest(http.MethodPost, "/mfa/webauthn/register/finish", "{}"), call: h.WebAuthnFinishRegistration},
+		{name: "begin authentication", request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/auth/begin", nil), call: h.WebAuthnBeginAuthentication},
+		{name: "finish authentication", request: authenticatedRawMFARequest(http.MethodPost, "/mfa/webauthn/auth/finish", "{}"), call: h.WebAuthnFinishAuthentication},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+
+			tt.call(rec, tt.request)
+
+			assert.Equal(t, http.StatusForbidden, rec.Code)
+			assert.Contains(t, rec.Body.String(), "WebAuthn MFA is not permitted by tenant policy")
 		})
 	}
 }

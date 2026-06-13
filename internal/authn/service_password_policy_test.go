@@ -121,19 +121,19 @@ func TestLoadPolicy(t *testing.T) {
 
 func expectedBusinessPasswordPolicy() security.PasswordPolicy {
 	return security.PasswordPolicy{
-		MinLength:                  12,
-		MaxLength:                  128,
-		RequireUpper:               false,
-		RequireLower:               false,
-		RequireDigit:               false,
-		RequireSpecial:             false,
-		BlocklistEnabled:           true,
-		HistoryCount:               5,
-		ExpiryDays:                 0,
-		CheckHIBP:                  true,
-		MinStrengthScore:           2,
-		HashAlgorithm:              "argon2id",
-		TempPasswordValidityHours:  72,
+		MinLength:                 12,
+		MaxLength:                 128,
+		RequireUpper:              false,
+		RequireLower:              false,
+		RequireDigit:              false,
+		RequireSpecial:            false,
+		BlocklistEnabled:          true,
+		HistoryCount:              5,
+		ExpiryDays:                0,
+		CheckHIBP:                 true,
+		MinStrengthScore:          2,
+		HashAlgorithm:             "argon2id",
+		TempPasswordValidityHours: 72,
 	}
 }
 
@@ -252,6 +252,30 @@ func TestCheckPasswordExpiry(t *testing.T) {
 		svc := &loginService{securitySettingRepo: repo, userRepo: &mockUserRepo{}}
 		svc.checkPasswordExpiry(context.Background(), user, 1)
 		assert.False(t, user.ForcePasswordChange)
+	})
+}
+
+func TestCheckTemporaryPasswordExpiry(t *testing.T) {
+	t.Run("no temporary password expiry is no-op", func(t *testing.T) {
+		user := &User{UserID: 1, ForcePasswordChange: true}
+		svc := &loginService{}
+		assert.NoError(t, svc.checkTemporaryPasswordExpiry(context.Background(), user, 1))
+	})
+
+	t.Run("unexpired temporary password is allowed to continue to password change", func(t *testing.T) {
+		expiresAt := time.Now().Add(time.Hour)
+		user := &User{UserID: 1, ForcePasswordChange: true, TemporaryPasswordExpiresAt: &expiresAt}
+		svc := &loginService{}
+		assert.NoError(t, svc.checkTemporaryPasswordExpiry(context.Background(), user, 1))
+	})
+
+	t.Run("expired temporary password is rejected", func(t *testing.T) {
+		expiresAt := time.Now().Add(-time.Hour)
+		user := &User{UserID: 1, ForcePasswordChange: true, TemporaryPasswordExpiresAt: &expiresAt}
+		svc := &loginService{}
+		err := svc.checkTemporaryPasswordExpiry(context.Background(), user, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "temporary password has expired")
 	})
 }
 

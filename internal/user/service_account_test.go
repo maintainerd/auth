@@ -57,7 +57,7 @@ func TestNewAccountService(t *testing.T) {
 	db, _ := newMockGormDB(t)
 	svc := NewAccountService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockProfileRepo{},
 		&mockUserSettingRepo{}, &mockRoleRepo{}, &mockClientRepo{}, &mockUserBackupCodeRepo{},
-		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService())
+		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService(), nil)
 	assert.NotNil(t, svc)
 }
 

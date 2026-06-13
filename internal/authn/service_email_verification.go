@@ -102,6 +102,10 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 			return nil
 		}
 
+		if user.IsEmailVerified {
+			return nil
+		}
+
 		// Skip suspended/inactive users but allow pending accounts to complete
 		// their initial email verification.
 		if user.Status != shared.StatusActive && user.Status != shared.StatusPending {

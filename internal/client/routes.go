@@ -92,35 +92,35 @@ func ClientRoute(
 		r.With(middleware.PermissionMiddleware([]string{"client:create"})).
 			Post("/", ClientHandler.Create)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:update"}), middleware.RequireStepUp).
 			Put("/{client_uuid}", ClientHandler.Update)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:update"}), middleware.RequireStepUp).
 			Put("/{client_uuid}/status", ClientHandler.SetStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:delete"}), middleware.RequireStepUp).
 			Delete("/{client_uuid}", ClientHandler.Delete)
 
 		r.With(middleware.PermissionMiddleware([]string{"client:uri:read"})).
 			Get("/{client_uuid}/uris", ClientHandler.GetURIs)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:uri:create"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:uri:create"}), middleware.RequireStepUp).
 			Post("/{client_uuid}/uris", ClientHandler.CreateURI)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:uri:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:uri:update"}), middleware.RequireStepUp).
 			Put("/{client_uuid}/uris/{client_uri_uuid}", ClientHandler.UpdateURI)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:uri:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:uri:delete"}), middleware.RequireStepUp).
 			Delete("/{client_uuid}/uris/{client_uri_uuid}", ClientHandler.DeleteURI)
 
 		// Auth Client APIs Management
 		r.With(middleware.PermissionMiddleware([]string{"client:api:read"})).
 			Get("/{client_uuid}/apis", ClientHandler.GetAPIs)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:api:create"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:api:create"}), middleware.RequireStepUp).
 			Post("/{client_uuid}/apis", ClientHandler.AddAPIs)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:api:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:api:delete"}), middleware.RequireStepUp).
 			Delete("/{client_uuid}/apis/{api_uuid}", ClientHandler.RemoveAPI)
 
 		// Auth Client API Permissions Management (nested under APIs)

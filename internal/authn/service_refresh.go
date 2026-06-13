@@ -36,10 +36,6 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 		return nil, apperror.NewUnauthorized("refresh token is required")
 	}
 
-	if err := s.rejectRefreshReuse(ctx, refreshToken); err != nil {
-		return nil, err
-	}
-
 	// Validate signature, expiry, and denylist via the shared validator.
 	claims, err := platformjwt.ValidateTokenWithContext(ctx, refreshToken)
 	if err != nil {
@@ -83,8 +79,18 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 		return nil, apperror.NewUnauthorized("client not found for refresh token")
 	}
 
-	// Bind the new tokens to a session (reuse the caller's, or start a new one).
+	// Resolve session policy before any mutate operations so we can conditionally
+	// skip reuse detection and denylisting when token rotation is disabled.
 	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, client)
+	tokenPolicy := resolveEffectiveTokenPolicy(s.securitySettingRepo, client)
+
+	if policy.RotateRefreshTokens {
+		if err := s.rejectRefreshReuse(ctx, refreshToken); err != nil {
+			return nil, err
+		}
+	}
+
+	// Bind the new tokens to a session (reuse the caller's, or start a new one).
 	resolvedSessionID, err := s.resolveRefreshSession(ctx, user, sessionID, policy)
 	if err != nil {
 		span.SetStatus(codes.Error, "session resolution failed")
@@ -92,7 +98,23 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	}
 
 	familyID, _ := claims["rfid"].(string)
-	accessToken, idToken, newRefreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicyAndRefreshFamily([]string{platformjwt.AMRPassword}, platformjwt.ACRLevel1, resolvedSessionID, policy, familyID))
+
+	acr, _ := claims["acr"].(string)
+	if acr == "" {
+		acr = platformjwt.ACRLevel1
+	}
+	amr, _ := claims["amr"].([]any)
+	amrValues := make([]string, 0, len(amr))
+	for _, v := range amr {
+		if s, ok := v.(string); ok {
+			amrValues = append(amrValues, s)
+		}
+	}
+	if len(amrValues) == 0 {
+		amrValues = []string{platformjwt.AMRPassword}
+	}
+
+	accessToken, idToken, newRefreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicyAndRefreshFamily(amrValues, acr, resolvedSessionID, policy, tokenPolicy, familyID))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "token generation failed")
@@ -100,7 +122,10 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	}
 
 	// Single-use rotation: deny the consumed refresh token so it cannot be replayed.
-	s.denylistConsumedRefreshToken(ctx, claims, policy)
+	// Skip denylisting when rotation is disabled — the token remains reusable.
+	if policy.RotateRefreshTokens {
+		s.denylistConsumedRefreshToken(ctx, claims, policy)
+	}
 
 	resp := buildLoginTokenResponse(accessToken, idToken, newRefreshToken, time.Now().Unix())
 	applyLoginCookiePolicy(resp, policy)

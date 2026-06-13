@@ -3,6 +3,7 @@ package oauth
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 
@@ -138,6 +139,32 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 	if oerr := validateOAuthPKCE(req.CodeChallenge, req.CodeChallengeMethod, oauthEffectiveTokenPolicy(s.securitySettingRepo, client).RequirePKCE); oerr != nil {
 		span.SetStatus(codes.Error, "pkce invalid")
 		return nil, oerr
+	}
+
+	// Enforce MFA / step-up requirement. When the tenant enforces MFA
+	// (RequiredACR = "2") or the client overrides require step-up, the
+	// user must present a fresh acr=2 token to proceed.
+	sessionPolicy := oauthEffectiveSessionPolicy(s.securitySettingRepo, client)
+	if sessionPolicy.RequiredACR == "2" {
+		claims := middleware.JWTClaimsFromContext(ctx)
+		if claims == nil || claims.ACR != "2" {
+			span.SetStatus(codes.Error, "step-up required")
+			return nil, &apperror.OAuthError{
+				Code:        "step_up_required",
+				Description: "Step-up authentication required",
+				StatusCode:  http.StatusForbidden,
+			}
+		}
+		mfaPolicy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, client.TenantID)
+		stepUpTTL := mfaPolicy.StepUpTTLSeconds()
+		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > stepUpTTL {
+			span.SetStatus(codes.Error, "step-up expired")
+			return nil, &apperror.OAuthError{
+				Code:        "step_up_required",
+				Description: "Step-up authentication has expired; please re-authenticate",
+				StatusCode:  http.StatusForbidden,
+			}
+		}
 	}
 
 	// Validate that the client supports the authorization_code grant.

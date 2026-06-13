@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -8,21 +9,32 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/secpolicy"
 )
 
 type TenantHandler struct {
-	tenantService       TenantService
-	tenantMemberService TenantMemberService
+	tenantService          TenantService
+	tenantMemberService    TenantMemberService
+	brandingService        branding.BrandingService
+	securitySettingService secpolicy.SecuritySettingService
 }
 
-func NewTenantHandler(tenantService TenantService, tenantMemberService TenantMemberService) *TenantHandler {
+func NewTenantHandler(
+	tenantService TenantService,
+	tenantMemberService TenantMemberService,
+	brandingService branding.BrandingService,
+	securitySettingService secpolicy.SecuritySettingService,
+) *TenantHandler {
 	return &TenantHandler{
-		tenantService:       tenantService,
-		tenantMemberService: tenantMemberService,
+		tenantService:          tenantService,
+		tenantMemberService:    tenantMemberService,
+		brandingService:        brandingService,
+		securitySettingService: securitySettingService,
 	}
 }
 
@@ -138,12 +150,11 @@ func (h *TenantHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dtoRes := toTenantResponseDTO(*tenant)
+	dtoRes := h.toPublicResponse(r.Context(), *tenant)
 
 	resp.Success(w, dtoRes, "System tenant fetched successfully")
 }
 
-// Get Tenant by Identifier
 func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) {
 	identifier := chi.URLParam(r, "identifier")
 	if identifier == "" {
@@ -157,9 +168,78 @@ func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	dtoRes := toTenantResponseDTO(*tenant)
+	dtoRes := h.toPublicResponse(r.Context(), *tenant)
 
 	resp.Success(w, dtoRes, "Tenant fetched successfully")
+}
+
+func (h *TenantHandler) toPublicResponse(ctx context.Context, tenant TenantServiceDataResult) TenantPublicResponseDTO {
+	res := TenantPublicResponseDTO{
+		Identifier:  tenant.Identifier,
+		Name:        tenant.Name,
+		DisplayName: tenant.DisplayName,
+		Description: tenant.Description,
+		Status:      tenant.Status,
+		IsPublic:    tenant.IsPublic,
+		IsSystem:    tenant.IsSystem,
+	}
+
+	if h.securitySettingService != nil {
+		if pwd, err := h.securitySettingService.GetPasswordConfig(ctx, tenant.TenantID); err == nil {
+			res.PasswordConfig = &PasswordConfigPublic{
+				MinLength:        intFromMap(pwd, "min_length"),
+				MaxLength:        intFromMap(pwd, "max_length"),
+				RequireUppercase: boolFromMap(pwd, "require_uppercase"),
+				RequireLowercase: boolFromMap(pwd, "require_lowercase"),
+				RequireNumber:    boolFromMap(pwd, "require_number"),
+				RequireSymbol:    boolFromMap(pwd, "require_symbol"),
+			}
+		}
+		if reg, err := h.securitySettingService.GetRegistrationConfig(ctx, tenant.TenantID); err == nil {
+			res.RegistrationConfig = &RegistrationConfigPublic{
+				SelfRegistrationEnabled:  boolFromMap(reg, "self_registration_enabled"),
+				RequireEmailVerification: boolFromMap(reg, "require_email_verification"),
+				CaptchaOnSignup:          boolFromMap(reg, "captcha_on_signup"),
+			}
+		}
+	}
+
+	if h.brandingService != nil {
+		if b, err := h.brandingService.GetPublic(ctx, tenant.TenantID); err == nil && b != nil {
+			res.Branding = &BrandingPublic{
+				CompanyName:       b.CompanyName,
+				LogoURL:           b.LogoURL,
+				FaviconURL:        b.FaviconURL,
+				SupportURL:        b.SupportURL,
+				PrivacyPolicyURL:  b.PrivacyPolicyURL,
+				TermsOfServiceURL: b.TermsOfServiceURL,
+				Metadata:          b.Metadata,
+			}
+		}
+	}
+
+	return res
+}
+
+func intFromMap(m map[string]any, key string) int {
+	if v, ok := m[key]; ok {
+		switch n := v.(type) {
+		case float64:
+			return int(n)
+		case int:
+			return n
+		}
+	}
+	return 0
+}
+
+func boolFromMap(m map[string]any, key string) bool {
+	if v, ok := m[key]; ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return false
 }
 
 // Create Tenant
