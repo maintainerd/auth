@@ -25,7 +25,7 @@ var defaultSecuritySettingConfigs = map[string]map[string]any{
 	"mfa": {
 		"mode":                              "optional",
 		"allowed_methods":                   []string{"totp", "webauthn", "recovery_code"},
-		"totp_issuer":                       "Lula",
+		"totp_issuer":                       "Maintainerd-Auth",
 		"trusted_device_period_days":        14,
 		"grace_period_days":                 30,
 		"preferred_method":                  "webauthn",
@@ -35,6 +35,7 @@ var defaultSecuritySettingConfigs = map[string]map[string]any{
 		"recovery_codes_count":              10,
 		"require_mfa_for_sensitive_actions": true,
 		"admin_grace_period_days":           0,
+		"step_up_ttl_minutes":               5,
 	},
 	"session": {
 		"access_token_ttl_minutes":             15,
@@ -76,7 +77,6 @@ var defaultSecuritySettingConfigs = map[string]map[string]any{
 		"blocked_email_domains":                   []string{},
 		"auto_confirm_enabled":                    false,
 		"verification_token_ttl_hours":            24,
-		"default_role":                            "member",
 		"captcha_on_signup":                       true,
 		"registration_rate_limit_per_ip_per_hour": 10,
 	},

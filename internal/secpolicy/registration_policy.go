@@ -11,7 +11,6 @@ type RegistrationPolicy struct {
 	AllowedEmailDomains               []string
 	BlockedEmailDomains               []string
 	AutoConfirmEnabled                bool
-	DefaultRole                       string
 	VerificationTokenTTLHours         int
 	CaptchaOnSignup                   bool
 	RegistrationRateLimitPerIPPerHour int
@@ -56,9 +55,6 @@ func mapToRegistrationPolicy(cfg map[string]any) *RegistrationPolicy {
 	}
 	if v, ok := cfg["auto_confirm_enabled"]; ok {
 		p.AutoConfirmEnabled = boolValue(v)
-	}
-	if v, ok := cfg["default_role"]; ok {
-		p.DefaultRole = stringValue(v)
 	}
 	if v, ok := cfg["verification_token_ttl_hours"]; ok {
 		p.VerificationTokenTTLHours = intValue(v)

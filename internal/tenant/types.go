@@ -22,6 +22,48 @@ type TenantResponseDTO struct {
 	UpdatedAt   time.Time      `json:"updated_at"`
 }
 
+// TenantPublicResponseDTO is the public-facing tenant response (no auth required).
+// It includes password policy, registration config, and active branding needed by
+// the login/register/reset-password pages for client-side validation and theming.
+type TenantPublicResponseDTO struct {
+	Identifier         string                    `json:"identifier"`
+	Name               string                    `json:"name"`
+	DisplayName        string                    `json:"display_name"`
+	Description        string                    `json:"description"`
+	Status             string                    `json:"status"`
+	IsPublic           bool                      `json:"is_public"`
+	IsSystem           bool                      `json:"is_system"`
+	IsDefault          bool                      `json:"is_default"`
+	PasswordConfig     *PasswordConfigPublic     `json:"password_config,omitempty"`
+	RegistrationConfig *RegistrationConfigPublic `json:"registration_config,omitempty"`
+	Branding           *BrandingPublic           `json:"branding,omitempty"`
+}
+
+type PasswordConfigPublic struct {
+	MinLength        int  `json:"min_length"`
+	MaxLength        int  `json:"max_length"`
+	RequireUppercase bool `json:"require_uppercase"`
+	RequireLowercase bool `json:"require_lowercase"`
+	RequireNumber    bool `json:"require_number"`
+	RequireSymbol    bool `json:"require_symbol"`
+}
+
+type RegistrationConfigPublic struct {
+	SelfRegistrationEnabled    bool `json:"self_registration_enabled"`
+	RequireEmailVerification   bool `json:"require_email_verification"`
+	CaptchaOnSignup            bool `json:"captcha_on_signup"`
+}
+
+type BrandingPublic struct {
+	CompanyName       string         `json:"company_name"`
+	LogoURL           string         `json:"logo_url"`
+	FaviconURL        string         `json:"favicon_url"`
+	SupportURL        string         `json:"support_url"`
+	PrivacyPolicyURL  string         `json:"privacy_policy_url"`
+	TermsOfServiceURL string         `json:"terms_of_service_url"`
+	Metadata          datatypes.JSON `json:"metadata"`
+}
+
 // Create Tenant request DTO
 type TenantCreateRequestDTO struct {
 	Name        string `json:"name"`

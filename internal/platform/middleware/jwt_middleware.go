@@ -189,6 +189,8 @@ func stringSliceClaim(raw any) []string {
 	return out
 }
 
+const defaultStepUpTTLSeconds = 300
+
 // RequireStepUp requires an elevated token with acr=2 issued within the last
 // 5 minutes (step-up freshness window). It must run after JWTAuthMiddleware
 // so JWTClaims are already present in the request context.
@@ -203,7 +205,7 @@ func RequireStepUp(next http.Handler) http.Handler {
 			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
 			return
 		}
-		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > 300 {
+		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > defaultStepUpTTLSeconds {
 			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication has expired; please re-authenticate")
 			return
 		}

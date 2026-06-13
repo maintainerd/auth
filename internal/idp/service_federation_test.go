@@ -384,12 +384,12 @@ func TestFederationServiceProvisionUser_VerifiedEmailLookupErrorFailsClosed(t *t
 
 func TestNewFederationService(t *testing.T) {
 	t.Run("without session service", func(t *testing.T) {
-		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil)
+		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil)
 		require.NotNil(t, svc)
 	})
 
 	t.Run("with session service", func(t *testing.T) {
-		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, &mockSessionService{})
+		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil, &mockSessionService{})
 		require.NotNil(t, svc)
 	})
 }
@@ -2010,7 +2010,7 @@ func TestFederationService_GenerateTokens_WithSession(t *testing.T) {
 	assert.NotEmpty(t, resp.IDToken)
 	assert.NotEmpty(t, resp.RefreshToken)
 	assert.Equal(t, "Bearer", resp.TokenType)
-	assert.EqualValues(t, shared.DefaultAccessTokenExpiresIn, resp.ExpiresIn)
+	assert.EqualValues(t, int64(15*60), resp.ExpiresIn)
 	assert.NotNil(t, resp.SessionID)
 }
 

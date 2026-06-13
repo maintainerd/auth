@@ -249,6 +249,12 @@ func validateMFAConfig(d MFAConfigDTO) error {
 	if d.AdminGracePeriodDays != nil && *d.AdminGracePeriodDays < 0 {
 		return fmt.Errorf("admin_grace_period_days must be non-negative")
 	}
+	if d.StepUpTTLMinutes != nil && *d.StepUpTTLMinutes < 1 {
+		return fmt.Errorf("step_up_ttl_minutes must be at least 1")
+	}
+	if d.StepUpTTLMinutes != nil && *d.StepUpTTLMinutes > 60 {
+		return fmt.Errorf("step_up_ttl_minutes must be at most 60")
+	}
 	return nil
 }
 
@@ -336,9 +342,6 @@ func validateRegistrationConfig(d RegistrationConfigDTO) error {
 	}
 	if d.VerificationTokenTTLHours != nil && *d.VerificationTokenTTLHours < 1 {
 		return fmt.Errorf("verification_token_ttl_hours must be at least 1")
-	}
-	if d.DefaultRole != nil && strings.TrimSpace(*d.DefaultRole) == "" {
-		return fmt.Errorf("default_role cannot be empty")
 	}
 	if d.RegistrationRateLimitPerIPPerHour != nil && *d.RegistrationRateLimitPerIPPerHour < 1 {
 		return fmt.Errorf("registration_rate_limit_per_ip_per_hour must be at least 1")

@@ -366,6 +366,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		// Create user
 		hashedPasswordStr := string(hashedPassword)
 		now := time.Now()
+		temporaryPasswordExpiresAt := now.Add(time.Duration(policy.TempPasswordValidityHours) * time.Hour)
 
 		// Convert optional pointers to strings
 		emailStr := ""
@@ -378,13 +379,15 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		}
 
 		newUser := &User{
-			Username:          username,
-			Email:             emailStr,
-			Phone:             phoneStr,
-			Password:          &hashedPasswordStr,
-			Status:            status,
-			Metadata:          metadata,
-			PasswordChangedAt: &now,
+			Username:                   username,
+			Email:                      emailStr,
+			Phone:                      phoneStr,
+			Password:                   &hashedPasswordStr,
+			Status:                     status,
+			Metadata:                   metadata,
+			ForcePasswordChange:        true,
+			PasswordChangedAt:          &now,
+			TemporaryPasswordExpiresAt: &temporaryPasswordExpiresAt,
 		}
 
 		_, err = txUserRepo.Create(newUser)

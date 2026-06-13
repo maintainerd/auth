@@ -1741,6 +1741,78 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 		assert.Nil(t, resp)
 	})
 
+	t.Run("disabled mode skips challenge even when user has enrolled MFA", func(t *testing.T) {
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte(`{"mode":"disabled","allowed_methods":["totp"]}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{
+			securitySettingRepo: settingRepo,
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"totp"}, nil }},
+		}
+
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1, IsTOTPEnabled: true}, 1, false)
+
+		require.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("preferred method is offered first", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte(`{"mode":"enforced","allowed_methods":["totp","webauthn"],"preferred_method":"webauthn"}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{
+			securitySettingRepo: settingRepo,
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"totp", "webauthn"}, nil }},
+		}
+
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1, UserUUID: uuid.New(), IsTOTPEnabled: true, IsWebAuthnEnabled: true}, 1, false)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, []string{"webauthn", "totp"}, resp.MFAAllowedMethods)
+	})
+
+	t.Run("admin grace period applies only to tenant super admin", func(t *testing.T) {
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte(`{"mode":"enforced","allowed_methods":["totp"],"grace_period_days":0,"admin_grace_period_days":30}`)),
+				}, nil
+			},
+		}
+		user := &User{UserID: 1, CreatedAt: time.Now()}
+		svc := &loginService{
+			userRepo: &mockUserRepo{findRolesFn: func(int64) ([]Role, error) {
+				return []Role{{TenantID: 1, Name: shared.RoleSuperAdmin}}, nil
+			}},
+			securitySettingRepo: settingRepo,
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return nil, nil }},
+		}
+
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1, false)
+
+		require.NoError(t, err)
+		assert.Nil(t, resp)
+
+		svc.userRepo = &mockUserRepo{findRolesFn: func(int64) ([]Role, error) {
+			return []Role{{TenantID: 2, Name: shared.RoleSuperAdmin}}, nil
+		}}
+		resp, err = svc.loginMFAChallengeResponse(context.Background(), user, 1, false)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "MFA is required but no supported factors are enrolled")
+		assert.Nil(t, resp)
+	})
+
 	t.Run("no allowed methods returns error", func(t *testing.T) {
 		settingRepo := &mockSecuritySettingRepo{
 			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {

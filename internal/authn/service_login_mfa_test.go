@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
+	platformjwt "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -96,6 +99,23 @@ func TestSendMFALoginSMS_Guards(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid or expired MFA challenge")
 	})
+
+	t.Run("challenge allowed methods must include sms", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		userUUID := uuid.New()
+		const userID int64 = 42
+		challenge, err := platformjwt.GenerateStepUpChallengeTokenWithContext(context.Background(), userUUID.String(), time.Minute, []string{"totp"})
+		require.NoError(t, err)
+		svc := &loginService{
+			userRepo:         &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return &User{UserID: userID, UserUUID: userUUID}, nil }},
+			mfaAuthenticator: &mockMFAAuthenticator{},
+		}
+
+		err = svc.SendMFALoginSMS(context.Background(), challenge)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "MFA method not allowed: sms")
+	})
 }
 
 func TestBeginMFALoginWebAuthn_Guards(t *testing.T) {
@@ -104,6 +124,23 @@ func TestBeginMFALoginWebAuthn_Guards(t *testing.T) {
 		_, err := svc.BeginMFALoginWebAuthn(context.Background(), "not-a-jwt")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid or expired MFA challenge")
+	})
+
+	t.Run("challenge allowed methods must include webauthn", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		userUUID := uuid.New()
+		const userID int64 = 42
+		challenge, err := platformjwt.GenerateStepUpChallengeTokenWithContext(context.Background(), userUUID.String(), time.Minute, []string{"totp"})
+		require.NoError(t, err)
+		svc := &loginService{
+			userRepo:         &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return &User{UserID: userID, UserUUID: userUUID}, nil }},
+			mfaAuthenticator: &mockMFAAuthenticator{},
+		}
+
+		_, err = svc.BeginMFALoginWebAuthn(context.Background(), challenge)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "MFA method not allowed: webauthn")
 	})
 }
 

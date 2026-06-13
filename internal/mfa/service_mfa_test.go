@@ -78,6 +78,28 @@ func TestStepUpMethodAllowed(t *testing.T) {
 	}
 }
 
+func TestMFAMethodAllowedPolicy(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy *secpolicy.MFAPolicy
+		method string
+		want   bool
+	}{
+		{name: "nil policy allows configured method", method: "totp", want: true},
+		{name: "disabled mode blocks configured method", policy: &secpolicy.MFAPolicy{Mode: "disabled", AllowedMethods: []string{"totp"}}, method: "totp", want: false},
+		{name: "sms requires explicit sms permission flag", policy: &secpolicy.MFAPolicy{AllowedMethods: []string{"sms"}, AllowSMS: false}, method: "sms", want: false},
+		{name: "sms gate applies even without allowed method list", policy: &secpolicy.MFAPolicy{AllowSMS: false}, method: "sms", want: false},
+		{name: "allowed method passes", policy: &secpolicy.MFAPolicy{AllowedMethods: []string{"webauthn"}}, method: "webauthn", want: true},
+		{name: "unlisted method blocked", policy: &secpolicy.MFAPolicy{AllowedMethods: []string{"totp"}}, method: "webauthn", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, methodAllowed(tt.policy, tt.method))
+		})
+	}
+}
+
 func TestMFAService_GetBackupCodesCount(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -211,6 +233,13 @@ func TestMFAService_GetMFAPolicy(t *testing.T) {
 				MFAConfig: datatypes.JSON([]byte(`{"mode":"enforced","allowed_methods":["totp","recovery_code"]}`)),
 			},
 			want: &MFAPolicyDTO{Required: true, AllowedMethods: []string{"totp", "backup_code"}},
+		},
+		{
+			name: "disabled mode exposes no usable methods",
+			setting: &secpolicy.SecuritySetting{
+				MFAConfig: datatypes.JSON([]byte(`{"mode":"disabled","allowed_methods":["totp","webauthn"]}`)),
+			},
+			want: &MFAPolicyDTO{Required: false, AllowedMethods: []string{}},
 		},
 		{
 			name: "repo error uses default policy",
@@ -546,6 +575,17 @@ func TestMFAService_VerifyFactorSMS(t *testing.T) {
 	t.Cleanup(func() { checkMFARateLimit = originalRL })
 	checkMFARateLimit = func(string) error { return nil }
 
+	t.Run("policy disabled blocks stale SMS verification", func(t *testing.T) {
+		svc := &mfaService{secSettingRepo: &mockSecuritySettingRepo{findByTenantID: &secpolicy.SecuritySetting{
+			MFAConfig: datatypes.JSON([]byte(`{"mode":"disabled","allowed_methods":["sms"],"allow_sms":true}`)),
+		}}}
+
+		_, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sms MFA is not permitted by tenant policy")
+	})
+
 	t.Run("verifies against the MFA phone record, not users.phone", func(t *testing.T) {
 		svc := &mfaService{
 			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}},
@@ -571,6 +611,42 @@ func TestMFAService_VerifyFactorSMS(t *testing.T) {
 		_, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid SMS code")
+	})
+}
+
+func TestMFAService_BeginWebAuthnLoginPolicyGate(t *testing.T) {
+	t.Run("disabled policy blocks login ceremony", func(t *testing.T) {
+		svc := &mfaService{
+			secSettingRepo: &mockSecuritySettingRepo{findByTenantID: &secpolicy.SecuritySetting{
+				MFAConfig: datatypes.JSON([]byte(`{"mode":"disabled","allowed_methods":["webauthn"]}`)),
+			}},
+			webAuthnSvc: &mockWebAuthnService{beginAuthenticationFn: func(context.Context, int64) (*protocol.CredentialAssertion, error) {
+				t.Fatal("WebAuthn ceremony should not start when disabled")
+				return nil, nil
+			}},
+		}
+
+		_, err := svc.BeginWebAuthnLogin(t.Context(), mfaTestUserID)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WebAuthn MFA is not permitted by tenant policy")
+	})
+
+	t.Run("allowed policy starts login ceremony", func(t *testing.T) {
+		svc := &mfaService{
+			secSettingRepo: &mockSecuritySettingRepo{findByTenantID: &secpolicy.SecuritySetting{
+				MFAConfig: datatypes.JSON([]byte(`{"mode":"optional","allowed_methods":["webauthn"]}`)),
+			}},
+			webAuthnSvc: &mockWebAuthnService{beginAuthenticationFn: func(_ context.Context, userID int64) (*protocol.CredentialAssertion, error) {
+				assert.Equal(t, mfaTestUserID, userID)
+				return &protocol.CredentialAssertion{}, nil
+			}},
+		}
+
+		got, err := svc.BeginWebAuthnLogin(t.Context(), mfaTestUserID)
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, got)
 	})
 }
 
@@ -879,16 +955,52 @@ func TestMFAService_StepUp(t *testing.T) {
 			assert.Equal(t, []string{"totp"}, allowedMethods[0])
 			return "challenge", nil
 		}
-		got, err := (&mfaService{}).IssueStepUpChallenge(t.Context(), mfaTestUserUUID.String(), []string{"totp"})
+		svc := &mfaService{userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}}}
+		got, err := svc.IssueStepUpChallenge(t.Context(), mfaTestUserUUID.String(), []string{"totp"})
 		require.NoError(t, err)
 		assert.Equal(t, "challenge", got.ChallengeToken)
 
 		generateStepUpChallengeToken = func(context.Context, string, time.Duration, ...[]string) (string, error) {
 			return "", errors.New("jwt down")
 		}
-		_, err = (&mfaService{}).IssueStepUpChallenge(t.Context(), mfaTestUserUUID.String(), []string{"totp"})
+		_, err = svc.IssueStepUpChallenge(t.Context(), mfaTestUserUUID.String(), []string{"totp"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "step-up challenge generation failed")
+	})
+
+	t.Run("issue challenge filters disabled methods and prefers configured method", func(t *testing.T) {
+		original := generateStepUpChallengeToken
+		t.Cleanup(func() { generateStepUpChallengeToken = original })
+		generateStepUpChallengeToken = func(_ context.Context, userUUID string, ttl time.Duration, allowedMethods ...[]string) (string, error) {
+			assert.Equal(t, mfaTestUserUUID.String(), userUUID)
+			assert.Equal(t, []string{"webauthn", "totp"}, allowedMethods[0])
+			return "challenge", nil
+		}
+		svc := &mfaService{
+			userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}},
+			secSettingRepo: &mockSecuritySettingRepo{findByTenantID: &secpolicy.SecuritySetting{
+				MFAConfig: datatypes.JSON([]byte(`{"mode":"optional","allowed_methods":["totp","webauthn"],"preferred_method":"webauthn"}`)),
+			}},
+		}
+
+		got, err := svc.IssueStepUpChallenge(t.Context(), mfaTestUserUUID.String(), []string{"totp", "sms", "webauthn"})
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"webauthn", "totp"}, got.AllowedMethods)
+	})
+
+	t.Run("issue challenge rejects when policy disables every requested method", func(t *testing.T) {
+		svc := &mfaService{
+			userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}},
+			secSettingRepo: &mockSecuritySettingRepo{findByTenantID: &secpolicy.SecuritySetting{
+				MFAConfig: datatypes.JSON([]byte(`{"mode":"disabled","allowed_methods":["totp"]}`)),
+			}},
+		}
+
+		_, err := svc.IssueStepUpChallenge(t.Context(), mfaTestUserUUID.String(), []string{"totp"})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no MFA methods are permitted by tenant policy")
 	})
 
 	t.Run("verify backup code success and errors", func(t *testing.T) {

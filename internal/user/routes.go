@@ -56,9 +56,9 @@ func AccountRoute(
 		// Session management
 		r.With(middleware.PermissionMiddleware([]string{"account:session:read:self"})).
 			Get("/sessions", accountHandler.ListSessions)
-		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"}), middleware.RequireStepUp).
+		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"}), sensitiveActionStepUp).
 			Delete("/sessions", accountHandler.RevokeAllSessions)
-		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"})).
+		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"}), sensitiveActionStepUp).
 			Delete("/sessions/{session_uuid}", accountHandler.RevokeSession)
 	})
 }

@@ -50,6 +50,11 @@ type MFAFactorAuthenticator interface {
 	EnrolledMFAMethods(ctx context.Context, userID int64) ([]string, error)
 }
 
+type MFATrustedDeviceAuthenticator interface {
+	TrustedDeviceValid(ctx context.Context, userID int64, token string) (bool, error)
+	IssueTrustedDevice(ctx context.Context, userID int64, periodDays int) (string, error)
+}
+
 type loginService struct {
 	db                   *gorm.DB
 	clientRepo           ClientRepository
@@ -267,6 +272,10 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 	// Check if user account is active
 	if user.Status != shared.StatusActive {
+		if user.Status == shared.StatusPending && !user.IsEmailVerified {
+			return nil, apperror.NewUnauthorized("email is not verified")
+		}
+
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
@@ -319,6 +328,10 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 	// Check password expiry and set ForcePasswordChange if needed
 	s.checkPasswordExpiry(ctx, user, client.IdentityProvider.TenantID)
+
+	if err := s.checkTemporaryPasswordExpiry(ctx, user, client.IdentityProvider.TenantID); err != nil {
+		return nil, err
+	}
 
 	if user.ForcePasswordChange {
 		return passwordChangeRequiredLoginResponse(), nil
@@ -475,6 +488,10 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 
 	// Check if user account is active
 	if user.Status != shared.StatusActive {
+		if user.Status == shared.StatusPending && !user.IsEmailVerified {
+			return nil, apperror.NewUnauthorized("email is not verified")
+		}
+
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
@@ -527,6 +544,10 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 
 	// Check password expiry and set ForcePasswordChange if needed
 	s.checkPasswordExpiry(ctx, user, client.IdentityProvider.TenantID)
+
+	if err := s.checkTemporaryPasswordExpiry(ctx, user, client.IdentityProvider.TenantID); err != nil {
+		return nil, err
+	}
 
 	if user.ForcePasswordChange {
 		return passwordChangeRequiredLoginResponse(), nil
@@ -670,14 +691,43 @@ func (s *loginService) checkPasswordExpiry(ctx context.Context, user *User, tena
 	}
 }
 
+func (s *loginService) checkTemporaryPasswordExpiry(ctx context.Context, user *User, tenantID int64) error {
+	if user == nil || !user.ForcePasswordChange || user.TemporaryPasswordExpiresAt == nil {
+		return nil
+	}
+	if time.Now().Before(*user.TemporaryPasswordExpiresAt) {
+		return nil
+	}
+	slog.Warn("temporary password expired", "user_id", user.UserID, "tenant_id", tenantID)
+	if s.authEventService != nil {
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			TenantID:    tenantID,
+			ActorUserID: &user.UserID,
+			IPAddress:   middleware.ClientIPFromContext(ctx),
+			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeLoginFail,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultFailure,
+			Description: ptr.Ptr("Temporary password expired"),
+		})
+	}
+	return apperror.NewUnauthorized("temporary password has expired")
+}
+
 const loginMFAChallengeTTL = 5 * time.Minute
 
+func mfaStepUpTTLSeconds(policy *secpolicy.MFAPolicy) int64 {
+	return policy.StepUpTTLSeconds()
+}
+
 type loginMFAPolicy struct {
-	Required          bool     `json:"required"`
-	EnforceMFA        bool     `json:"enforce_mfa"`
-	Mode              string   `json:"mode"`
-	AllowedMethods    []string `json:"allowed_methods"`
-	GracePeriodDays   int      `json:"grace_period_days"`
+	Required             bool     `json:"required"`
+	EnforceMFA           bool     `json:"enforce_mfa"`
+	Mode                 string   `json:"mode"`
+	AllowedMethods       []string `json:"allowed_methods"`
+	GracePeriodDays      int      `json:"grace_period_days"`
+	PreferredMethod      string   `json:"preferred_method"`
 	AdminGracePeriodDays int      `json:"admin_grace_period_days"`
 }
 
@@ -700,6 +750,18 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 			}
 		}
 	}
+	var mfaPolicy *secpolicy.MFAPolicy
+	if mp := secpolicy.LoadMFAPolicy(s.securitySettingRepo, tenantID); mp != nil {
+		mfaPolicy = mp
+		policy.Mode = mp.Mode
+		policy.AllowedMethods = mp.AllowedMethods
+		policy.GracePeriodDays = mp.GracePeriodDays
+		policy.PreferredMethod = mp.PreferredMethod
+		policy.AdminGracePeriodDays = mp.AdminGracePeriodDays
+	}
+	if policy.Mode == "disabled" {
+		return nil, nil
+	}
 	if policy.Mode == "enforced" || forceStepUp {
 		policy.Required = true
 	}
@@ -717,7 +779,7 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 	// allow login at acr=1 if we're within the grace window from account creation.
 	if policy.Mode == "enforced" && !hasPrimaryMFAFactor(enrolled) {
 		graceDays := policy.GracePeriodDays
-		if graceDays <= 0 {
+		if s.userHasAdminRole(user.UserID, tenantID) {
 			graceDays = policy.AdminGracePeriodDays
 		}
 		if graceDays > 0 {
@@ -735,6 +797,7 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 	}
 
 	allowedMethods := filterMFAMethodsByPolicy(enrolled, policy.AllowedMethods)
+	allowedMethods = preferLoginMFAMethodFirst(allowedMethods, policy.PreferredMethod)
 	if len(allowedMethods) == 0 {
 		// Tenant forces MFA but the user has nothing usable enrolled → block.
 		// For a self-enrolled user with no usable factor, fall through to a
@@ -748,7 +811,7 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 	challengeToken, err := platformjwt.GenerateStepUpChallengeTokenWithContext(
 		ctx,
 		user.UserUUID.String(),
-		loginMFAChallengeTTL,
+		time.Duration(mfaStepUpTTLSeconds(mfaPolicy))*time.Second,
 		allowedMethods,
 	)
 	if err != nil {
@@ -816,7 +879,8 @@ func (s *loginService) recordFailedLogin(ctx context.Context, rateLimitIdentifie
 	})
 
 	if client != nil {
-		security.RecordLoginThreatFailure(ctx, client.IdentityProvider.TenantID, middleware.ClientIPFromContext(ctx), nil)
+		threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, client.IdentityProvider.TenantID)
+		security.RecordLoginThreatFailure(ctx, client.IdentityProvider.TenantID, middleware.ClientIPFromContext(ctx), threatPolicy)
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    client.IdentityProvider.TenantID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
@@ -841,6 +905,7 @@ func (s *loginService) generateTokenResponse(ctx context.Context, sub string, us
 func (s *loginService) generateTokenResponseWithAuth(ctx context.Context, sub string, user *User, Client *Client, amr []string, acr string) (*LoginResponseDTO, error) {
 	var sessionID string
 	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, Client)
+	tokenPolicy := resolveEffectiveTokenPolicy(s.securitySettingRepo, Client)
 
 	// Create a session record and enforce concurrent session limit.
 	if s.sessionService != nil {
@@ -856,7 +921,7 @@ func (s *loginService) generateTokenResponseWithAuth(ctx context.Context, sub st
 		sessionID = sess.UserTokenUUID.String()
 	}
 
-	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, Client, tokenAuthContextWithPolicy(amr, acr, sessionID, policy))
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, Client, tokenAuthContextWithPolicy(amr, acr, sessionID, policy, tokenPolicy))
 	if err != nil {
 		return nil, err
 	}
@@ -890,6 +955,31 @@ func loginMFAMethodAllowed(raw any, method string) bool {
 		}
 	}
 	return false
+}
+
+func preferLoginMFAMethodFirst(methods []string, preferred string) []string {
+	if preferred == "recovery_code" {
+		preferred = "backup_code"
+	}
+	if preferred == "" || len(methods) < 2 {
+		return methods
+	}
+	out := make([]string, 0, len(methods))
+	for _, method := range methods {
+		if method == preferred {
+			out = append(out, method)
+			break
+		}
+	}
+	if len(out) == 0 {
+		return methods
+	}
+	for _, method := range methods {
+		if method != preferred {
+			out = append(out, method)
+		}
+	}
+	return out
 }
 
 func normalizeLoginMFAPolicyMethods(methods []string) []string {
@@ -1005,9 +1095,12 @@ func (s *loginService) SendMFALoginSMS(ctx context.Context, challengeToken strin
 	if s.mfaAuthenticator == nil {
 		return apperror.NewInternal("MFA is not configured", nil)
 	}
-	user, _, err := s.resolveMFAChallengeUser(challengeToken)
+	user, claims, err := s.resolveMFAChallengeUser(challengeToken)
 	if err != nil {
 		return err
+	}
+	if !loginMFAMethodAllowed(claims["allowed_methods"], "sms") {
+		return apperror.NewValidation("MFA method not allowed: sms")
 	}
 	return s.mfaAuthenticator.SendSMSChallenge(ctx, user.UserID)
 }
@@ -1018,49 +1111,51 @@ func (s *loginService) BeginMFALoginWebAuthn(ctx context.Context, challengeToken
 	if s.mfaAuthenticator == nil {
 		return nil, apperror.NewInternal("MFA is not configured", nil)
 	}
-	user, _, err := s.resolveMFAChallengeUser(challengeToken)
+	user, claims, err := s.resolveMFAChallengeUser(challengeToken)
 	if err != nil {
 		return nil, err
+	}
+	if !loginMFAMethodAllowed(claims["allowed_methods"], "webauthn") {
+		return nil, apperror.NewValidation("MFA method not allowed: webauthn")
 	}
 	return s.mfaAuthenticator.BeginWebAuthnLogin(ctx, user.UserID)
 }
 
 func (s *loginService) issueTrustedDeviceToken(ctx context.Context, userID, tenantID int64) (string, error) {
 	mfaPolicy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, tenantID)
-	if mfaPolicy == nil || mfaPolicy.TrustedDevicePeriodDays <= 0 {
+	if mfaPolicy == nil || mfaPolicy.Mode == "disabled" || mfaPolicy.TrustedDevicePeriodDays <= 0 {
 		return "", nil
 	}
-	rawToken, err := generateRandomToken(32)
-	if err != nil {
-		return "", err
+	trusted, ok := s.mfaAuthenticator.(MFATrustedDeviceAuthenticator)
+	if !ok {
+		return "", nil
 	}
-	expiresAt := time.Now().Add(time.Duration(mfaPolicy.TrustedDevicePeriodDays) * 24 * time.Hour)
-	token := &UserToken{
-		UserID:    userID,
-		TokenType: shared.TokenTypeMFATrustedDevice,
-		Token:     rawToken,
-		ExpiresAt: &expiresAt,
-	}
-	if _, err := s.userTokenRepo.Create(token); err != nil {
-		return "", err
-	}
-	return rawToken, nil
+	return trusted.IssueTrustedDevice(ctx, userID, mfaPolicy.TrustedDevicePeriodDays)
 }
 
 func (s *loginService) isTrustedDeviceValid(ctx context.Context, userID, tenantID int64, rawToken string) bool {
 	mfaPolicy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, tenantID)
-	if mfaPolicy == nil || mfaPolicy.TrustedDevicePeriodDays <= 0 {
+	if mfaPolicy == nil || mfaPolicy.Mode == "disabled" || mfaPolicy.TrustedDevicePeriodDays <= 0 {
 		return false
 	}
-	tokens, err := s.userTokenRepo.FindByUserIDAndTokenType(userID, shared.TokenTypeMFATrustedDevice)
-	if err != nil || len(tokens) == 0 {
+	trusted, ok := s.mfaAuthenticator.(MFATrustedDeviceAuthenticator)
+	if !ok {
 		return false
 	}
-	now := time.Now()
-	for _, t := range tokens {
-		if t.Token == rawToken && !t.IsRevoked && (t.ExpiresAt == nil || now.Before(*t.ExpiresAt)) {
-			t.LastUsedAt = &now
-			_, _ = s.userTokenRepo.CreateOrUpdate(&t)
+	valid, err := trusted.TrustedDeviceValid(ctx, userID, rawToken)
+	return err == nil && valid
+}
+
+func (s *loginService) userHasAdminRole(userID, tenantID int64) bool {
+	if s.userRepo == nil {
+		return false
+	}
+	roles, err := s.userRepo.FindRoles(userID)
+	if err != nil {
+		return false
+	}
+	for _, role := range roles {
+		if role.TenantID == tenantID && role.Name == shared.RoleSuperAdmin {
 			return true
 		}
 	}

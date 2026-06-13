@@ -91,9 +91,9 @@ func refreshTokenCookieName() string { return "__Secure-refresh_token" }
 const refreshTokenCookiePath = "/api/v1/refresh-token"
 
 type authCookieOptions struct {
-	Secure       *bool
-	HTTPOnly     *bool
-	SameSite     string
+	Secure        *bool
+	HTTPOnly      *bool
+	SameSite      string
 	RefreshMaxAge int
 }
 

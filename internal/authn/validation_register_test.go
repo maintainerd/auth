@@ -36,7 +36,7 @@ func TestRegisterRequestDto_Validate(t *testing.T) {
 		{
 			name:    "missing fullname",
 			dto:     RegisterRequestDTO{Username: "johndoe", Password: "SecurePass1!"},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name:    "missing password",

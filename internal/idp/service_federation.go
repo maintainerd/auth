@@ -18,6 +18,7 @@ import (
 	jwtlib "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -76,16 +77,17 @@ type FederationService interface {
 }
 
 type federationService struct {
-	db               *gorm.DB
-	userRepo         UserRepository
-	userIdentityRepo UserIdentityRepository
-	idpRepo          IdentityProviderRepository
-	clientRepo       ClientRepository
-	userRoleRepo     UserRoleRepository
-	roleRepo         RoleRepository
-	authEventService authevent.AuthEventService
-	sessionService   authn.SessionService
-	eventService     event.EventService
+	db                  *gorm.DB
+	userRepo            UserRepository
+	userIdentityRepo    UserIdentityRepository
+	idpRepo             IdentityProviderRepository
+	clientRepo          ClientRepository
+	userRoleRepo        UserRoleRepository
+	roleRepo            RoleRepository
+	authEventService    authevent.AuthEventService
+	sessionService      authn.SessionService
+	eventService        event.EventService
+	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
 func NewFederationService(
@@ -98,6 +100,7 @@ func NewFederationService(
 	roleRepo RoleRepository,
 	authEventService authevent.AuthEventService,
 	eventService event.EventService,
+	securitySettingRepo secpolicy.SecuritySettingRepository,
 	sessionService ...authn.SessionService,
 ) FederationService {
 	var sessions authn.SessionService
@@ -105,16 +108,17 @@ func NewFederationService(
 		sessions = sessionService[0]
 	}
 	return &federationService{
-		db:               db,
-		userRepo:         userRepo,
-		userIdentityRepo: userIdentityRepo,
-		idpRepo:          idpRepo,
-		clientRepo:       clientRepo,
-		userRoleRepo:     userRoleRepo,
-		roleRepo:         roleRepo,
-		authEventService: authEventService,
-		sessionService:   sessions,
-		eventService:     eventService,
+		db:                  db,
+		userRepo:            userRepo,
+		userIdentityRepo:    userIdentityRepo,
+		idpRepo:             idpRepo,
+		clientRepo:          clientRepo,
+		userRoleRepo:        userRoleRepo,
+		roleRepo:            roleRepo,
+		authEventService:    authEventService,
+		sessionService:      sessions,
+		eventService:        eventService,
+		securitySettingRepo: securitySettingRepo,
 	}
 }
 
@@ -701,15 +705,36 @@ func (s *federationService) refreshMetadata(tx *gorm.DB, identity *UserIdentity,
 
 func (s *federationService) generateTokens(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	var sessionID string
+	policy := s.resolveFederationSessionPolicy(client)
 	if s.sessionService != nil {
-		if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
-			return nil, apperror.NewInternal("session limit enforcement failed", err)
+		if svc, ok := s.sessionService.(policyAwareSessionService); ok {
+			if err := svc.EnforceConcurrentLimitWithPolicy(ctx, user.UserUUID, user.UserID, policy); err != nil {
+				return nil, apperror.NewInternal("session limit enforcement failed", err)
+			}
+			sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+			if err != nil {
+				return nil, apperror.NewInternal("session creation failed", err)
+			}
+			sessionID = sess.UserTokenUUID.String()
+		} else {
+			if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
+				return nil, apperror.NewInternal("session limit enforcement failed", err)
+			}
+			sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
+			if err != nil {
+				return nil, apperror.NewInternal("session creation failed", err)
+			}
+			sessionID = sess.UserTokenUUID.String()
 		}
-		sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
-		if err != nil {
-			return nil, apperror.NewInternal("session creation failed", err)
-		}
-		sessionID = sess.UserTokenUUID.String()
+	}
+
+	accessOpts := &jwtlib.AccessTokenOptions{
+		AMR:       []string{jwtlib.AMRMFA},
+		ACR:       jwtlib.ACRLevel1,
+		SessionID: sessionID,
+	}
+	if policy.AccessTokenTTLSeconds > 0 {
+		accessOpts.AccessTokenTTL = time.Duration(policy.AccessTokenTTLSeconds) * time.Second
 	}
 
 	accessToken, err := idpGenerateAccessTokenWithOptionsContext(
@@ -720,11 +745,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		*client.Identifier,
 		*client.Identifier,
 		client.IdentityProvider.Identifier,
-		&jwtlib.AccessTokenOptions{
-			AMR:       []string{jwtlib.AMRMFA},
-			ACR:       jwtlib.ACRLevel1,
-			SessionID: sessionID,
-		},
+		accessOpts,
 	)
 	if err != nil {
 		return nil, apperror.NewInternal("access token generation failed", err)
@@ -750,11 +771,15 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		return nil, apperror.NewInternal("refresh token generation failed", err)
 	}
 
+	var expiresIn int64 = shared.DefaultAccessTokenExpiresIn
+	if policy.AccessTokenTTLSeconds > 0 {
+		expiresIn = int64(policy.AccessTokenTTLSeconds)
+	}
 	resp := &LoginResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    shared.DefaultAccessTokenExpiresIn,
+		ExpiresIn:    expiresIn,
 		TokenType:    "Bearer",
 		IssuedAt:     time.Now().Unix(),
 	}
@@ -762,6 +787,41 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		resp.SessionID = &sessionID
 	}
 	return resp, nil
+}
+
+func (s *federationService) resolveFederationSessionPolicy(client *Client) secpolicy.EffectiveSessionPolicy {
+	if s.securitySettingRepo == nil || client == nil || client.TenantID <= 0 {
+		policy, _ := secpolicy.ResolveEffectiveSessionPolicy(nil, nil, secpolicy.SecuritySettingClientOverrides{})
+		return policy
+	}
+	ss, err := s.securitySettingRepo.FindByTenantID(client.TenantID)
+	if err != nil || ss == nil {
+		policy, _ := secpolicy.ResolveEffectiveSessionPolicy(nil, nil, secpolicy.SecuritySettingClientOverrides{})
+		return policy
+	}
+	sessionConfig := mapFromJSON(ss.SessionConfig)
+	mfaConfig := mapFromJSON(ss.MFAConfig)
+	policy, err := secpolicy.ResolveEffectiveSessionPolicy(sessionConfig, mfaConfig, secpolicy.SecuritySettingClientOverrides{})
+	if err != nil {
+		policy, _ = secpolicy.ResolveEffectiveSessionPolicy(nil, nil, secpolicy.SecuritySettingClientOverrides{})
+	}
+	return policy
+}
+
+func mapFromJSON(raw []byte) map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil
+	}
+	return m
+}
+
+type policyAwareSessionService interface {
+	EnforceConcurrentLimitWithPolicy(ctx context.Context, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error
+	CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*authn.UserToken, error)
 }
 
 // findDefaultRole mirrors the logic in registerService to locate the tenant's

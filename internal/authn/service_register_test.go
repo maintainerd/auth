@@ -131,9 +131,53 @@ func defaultRegInternalMocks() *regMocks {
 // ---------------------------------------------------------------------------
 
 func TestRegisterService_FindDefaultRole(t *testing.T) {
-	t.Run("FindPaginated error", func(t *testing.T) {
+	t.Run("registered role found", func(t *testing.T) {
 		svc := &registerService{}
 		roleRepo := &mockRoleRepo{
+			findByNameAndTenantIDFn: func(name string, tenantID int64) (*Role, error) {
+				assert.Equal(t, shared.RoleRegistered, name)
+				assert.Equal(t, int64(1), tenantID)
+				return &Role{RoleID: 99}, nil
+			},
+		}
+		role, err := svc.findDefaultRole(roleRepo, 1)
+		require.NoError(t, err)
+		assert.Equal(t, int64(99), role.RoleID)
+	})
+
+	t.Run("registered lookup error", func(t *testing.T) {
+		svc := &registerService{}
+		roleRepo := &mockRoleRepo{
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
+				return nil, errors.New("registered lookup error")
+			},
+		}
+		role, err := svc.findDefaultRole(roleRepo, 1)
+		require.Error(t, err)
+		assert.Nil(t, role)
+	})
+
+	t.Run("fallback default role found via FindPaginated", func(t *testing.T) {
+		svc := &registerService{}
+		roleRepo := &mockRoleRepo{
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
+				return nil, nil
+			},
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
+				return &PaginationResult[Role]{Data: []Role{{RoleID: 42}}}, nil
+			},
+		}
+		role, err := svc.findDefaultRole(roleRepo, 1)
+		require.NoError(t, err)
+		assert.Equal(t, int64(42), role.RoleID)
+	})
+
+	t.Run("fallback FindPaginated error", func(t *testing.T) {
+		svc := &registerService{}
+		roleRepo := &mockRoleRepo{
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
+				return nil, nil
+			},
 			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 				return nil, errors.New("db error")
 			},
@@ -143,64 +187,20 @@ func TestRegisterService_FindDefaultRole(t *testing.T) {
 		assert.Nil(t, role)
 	})
 
-	t.Run("default role found via FindPaginated", func(t *testing.T) {
+	t.Run("no registration role", func(t *testing.T) {
 		svc := &registerService{}
 		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
-				return &PaginationResult[Role]{
-					Data: []Role{{RoleID: 42}},
-				}, nil
-			},
-		}
-		role, err := svc.findDefaultRole(roleRepo, 1)
-		require.NoError(t, err)
-		assert.Equal(t, int64(42), role.RoleID)
-	})
-
-	t.Run("fallback FindByNameAndTenantID error", func(t *testing.T) {
-		svc := &registerService{}
-		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
-				return &PaginationResult[Role]{Data: []Role{}}, nil
-			},
-			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
-				return nil, errors.New("fallback error")
-			},
-		}
-		role, err := svc.findDefaultRole(roleRepo, 1)
-		require.Error(t, err)
-		assert.Nil(t, role)
-	})
-
-	t.Run("fallback returns nil - no default role", func(t *testing.T) {
-		svc := &registerService{}
-		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
-				return &PaginationResult[Role]{Data: []Role{}}, nil
-			},
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
 				return nil, nil
 			},
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
+				return &PaginationResult[Role]{Data: []Role{}}, nil
+			},
 		}
 		role, err := svc.findDefaultRole(roleRepo, 1)
 		require.Error(t, err)
 		assert.Nil(t, role)
-		assert.Contains(t, err.Error(), "no default role found for tenant")
-	})
-
-	t.Run("fallback success", func(t *testing.T) {
-		svc := &registerService{}
-		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
-				return &PaginationResult[Role]{Data: []Role{}}, nil
-			},
-			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
-				return &Role{RoleID: 99}, nil
-			},
-		}
-		role, err := svc.findDefaultRole(roleRepo, 1)
-		require.NoError(t, err)
-		assert.Equal(t, int64(99), role.RoleID)
+		assert.Contains(t, err.Error(), "registered role not found for tenant")
 	})
 }
 
@@ -303,6 +303,16 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
+		domain := "example.com"
+		identifier := "test-client"
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     &domain,
+				Identifier: &identifier,
+			}, nil
+		}
 		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 			return nil, errors.New("idp db error")
 		}
@@ -320,6 +330,16 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
+		domain := "example.com"
+		identifier := "test-client"
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     &domain,
+				Identifier: &identifier,
+			}, nil
+		}
 		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 			return nil, nil
 		}
@@ -508,6 +528,62 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("explicit client assigns registered role from client tenant", func(t *testing.T) {
+		initTestJWTKeysService(t)
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		m := defaultRegPublicMocks()
+		const tenantID int64 = 42
+		const registeredRoleID int64 = 420
+		domain := "tenant.example.com"
+		identifier := "tenant-client"
+		m.client.findByClientIDAndIdentityProviderFn = func(clientID, providerID string) (*Client, error) {
+			assert.Equal(t, cid, clientID)
+			assert.Equal(t, pid, providerID)
+			return &Client{
+				ClientID:   99,
+				TenantID:   tenantID,
+				Status:     shared.StatusActive,
+				Domain:     &domain,
+				Identifier: &identifier,
+				IdentityProvider: &IdentityProvider{
+					Identifier: pid,
+					TenantID:   tenantID,
+					Tenant:     &Tenant{TenantID: tenantID},
+				},
+			}, nil
+		}
+		m.user.createFn = func(u *User) (*User, error) {
+			u.UserID = 1001
+			u.UserUUID = uuid.New()
+			return u, nil
+		}
+		m.userIdentity.createFn = func(ui *UserIdentity) (*UserIdentity, error) {
+			assert.Equal(t, tenantID, ui.TenantID)
+			assert.Equal(t, int64(99), ui.ClientID)
+			return ui, nil
+		}
+		m.role.findByNameAndTenantIDFn = func(name string, gotTenantID int64) (*Role, error) {
+			assert.Equal(t, shared.RoleRegistered, name)
+			assert.Equal(t, tenantID, gotTenantID)
+			return &Role{RoleID: registeredRoleID, TenantID: gotTenantID, Name: name}, nil
+		}
+		m.userRole.createFn = func(ur *UserRole) (*UserRole, error) {
+			assert.Equal(t, int64(1001), ur.UserID)
+			assert.Equal(t, registeredRoleID, ur.RoleID)
+			return ur, nil
+		}
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+
+		resp, err := svc.RegisterPublic(context.Background(), "tenant-user", "Tenant User", "P@ssW0rd!2026", nil, nil, &cid, &pid)
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.NotEmpty(t, resp.AccessToken)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -729,6 +805,60 @@ func TestRegisterService_Register(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("no client uses system client tenant registered role", func(t *testing.T) {
+		initTestJWTKeysService(t)
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		m := defaultRegInternalMocks()
+		const systemTenantID int64 = 7
+		const registeredRoleID int64 = 70
+		domain := "system.example.com"
+		identifier := "system-client"
+		m.client.findSystemFn = func() (*Client, error) {
+			return &Client{
+				ClientID:   11,
+				TenantID:   systemTenantID,
+				Status:     shared.StatusActive,
+				Domain:     &domain,
+				Identifier: &identifier,
+				IdentityProvider: &IdentityProvider{
+					Identifier: "system-provider",
+					TenantID:   systemTenantID,
+					Tenant:     &Tenant{TenantID: systemTenantID, IsSystem: true},
+				},
+			}, nil
+		}
+		m.user.createFn = func(u *User) (*User, error) {
+			u.UserID = 701
+			u.UserUUID = uuid.New()
+			return u, nil
+		}
+		m.userIdentity.createFn = func(ui *UserIdentity) (*UserIdentity, error) {
+			assert.Equal(t, systemTenantID, ui.TenantID)
+			assert.Equal(t, int64(11), ui.ClientID)
+			return ui, nil
+		}
+		m.role.findByNameAndTenantIDFn = func(name string, tenantID int64) (*Role, error) {
+			assert.Equal(t, shared.RoleRegistered, name)
+			assert.Equal(t, systemTenantID, tenantID)
+			return &Role{RoleID: registeredRoleID, TenantID: tenantID, Name: name}, nil
+		}
+		m.userRole.createFn = func(ur *UserRole) (*UserRole, error) {
+			assert.Equal(t, int64(701), ur.UserID)
+			assert.Equal(t, registeredRoleID, ur.RoleID)
+			return ur, nil
+		}
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+
+		resp, err := svc.Register(context.Background(), "system-user", "System User", "P@ssW0rd!2026", nil, nil, nil, nil)
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.NotEmpty(t, resp.AccessToken)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 // ---------------------------------------------------------------------------

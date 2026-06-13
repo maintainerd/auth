@@ -433,9 +433,16 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
 			WillReturnRows(validTokenRow(tok, userID, tokenUUID))
 		mock.ExpectCommit()
+		var updateData map[string]any
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
 				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
+			},
+			updateByIDFn: func(_ any, data any) (*User, error) {
+				var ok bool
+				updateData, ok = data.(map[string]any)
+				require.True(t, ok)
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		}, &mockUserTokenRepo{
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
@@ -451,6 +458,9 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		require.NotNil(t, resp)
 		assert.True(t, resp.Success)
 		assert.Contains(t, resp.Message, "Password has been reset successfully")
+		require.NotNil(t, updateData)
+		assert.False(t, updateData["force_password_change"].(bool))
+		assert.Nil(t, updateData["temporary_password_expires_at"])
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 

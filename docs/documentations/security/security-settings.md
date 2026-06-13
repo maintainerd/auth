@@ -19,7 +19,7 @@ Security settings define a tenant's authentication and session security posture.
 | `session_config` | Token lifetimes, idle/absolute timeouts, concurrency, refresh rotation, cookie flags |
 | `token_config` | JWT clock-skew, signing algorithm, extra claims, PKCE requirement |
 | `lockout_config` | Failed-login lockout, progressive escalation, auto-unlock, notification |
-| `registration_config` | Self-registration, email/phone verification, domain allow/block, captcha, default role |
+| `registration_config` | Self-registration, email/phone verification, domain allow/block, captcha |
 | `threat_config` | Brute-force/velocity detection, risk-based step-up, new-device, compromised-credential monitoring |
 
 Settings are **tenant-level**. A `client` (relying-party app) may override a deliberately limited, **tighten-only** subset (see §6). All seven blocks are seeded with secure, standards-aligned defaults at tenant creation (§8).
@@ -208,7 +208,7 @@ Defaults below are the seeded **Business SaaS** baseline (`internal/secpolicy/de
 | `hash_algorithm` | string | `"argon2id"` | one of `argon2id`,`bcrypt`,`scrypt`,`pbkdf2` |
 | `min_strength_score` | int | `2` | 0–4 (zxcvbn-like) |
 
-**Enforcement** (register, password-reset): length + optional complexity; common-password blocklist (embedded `common_passwords.txt`, case-insensitive); HIBP k-anonymity check (SHA-1 5-char prefix range query, **fail-open** on network error); strength score threshold; password history reuse rejection; `max_age_days>0` → sets `ForcePasswordChange` at login (response carries `require_password_change`). Hashing uses the configured KDF — argon2id (64 MiB / t=3 / p=4), bcrypt (cost 12), scrypt (N=2¹⁵), pbkdf2 (600k iters); KDF hashes carry a `$maintainerd$` envelope.
+**Enforcement** (register, password-reset): length + optional complexity; common-password blocklist (embedded `common_passwords.txt`, case-insensitive); HIBP k-anonymity check (SHA-1 5-char prefix range query, **fail-open** on network error); strength score threshold; password history reuse rejection; `max_age_days>0` → sets `ForcePasswordChange` at login (response carries `require_password_change`). Admin-created users receive a temporary initial password, are forced to change it on first login, and are blocked once `temporary_password_validity_hours` has elapsed. Hashing uses the configured KDF — argon2id (64 MiB / t=3 / p=4), bcrypt (cost 12), scrypt (N=2¹⁵), pbkdf2 (600k iters); KDF hashes carry a `$maintainerd$` envelope.
 
 ### 5.2 `mfa_config`
 
@@ -227,7 +227,7 @@ Defaults below are the seeded **Business SaaS** baseline (`internal/secpolicy/de
 | `require_mfa_for_sensitive_actions` | bool | `true` | — |
 | `admin_grace_period_days` | int | `0` | ≥0 |
 
-**Enforcement**: at login, `mode=enforced` requires a usable factor or login is blocked; `allowed_methods` filters offered factors; SMS is rejected at **enrollment** when `allow_sms=false` / not allowed. TOTP issuer/digits/period are read from config and **persisted per enrolled secret** (changing tenant policy never breaks existing enrollments). `recovery_codes_count` controls generated backup codes. `require_mfa_for_sensitive_actions=true` + an MFA-enrolled user → email-change requires a fresh step-up (§7.4). Trusted-device tokens let a remembered device skip MFA within `trusted_device_period_days`. `client.required_acr` can force step-up per client (§6).
+**Enforcement**: `mode=disabled` hard-disables MFA challenges, trusted-device acceptance, WebAuthn ceremonies, step-up issuance, and factor verification through current tenant policy. At login, `mode=enforced` requires a usable primary factor or login is blocked after the applicable grace window; `admin_grace_period_days` applies only to tenant `super-admin` users, while normal users use `grace_period_days`. `allowed_methods` filters offered and usable factors across login, step-up, TOTP/backup-code generation, SMS, and WebAuthn; `preferred_method` is offered first when enrolled and allowed. SMS is rejected at **enrollment/send/verification** when `allow_sms=false` / not allowed. TOTP issuer/digits/period are read from config and **persisted per enrolled secret** (changing tenant policy never breaks existing enrollments). `recovery_codes_count` controls generated backup codes. `require_mfa_for_sensitive_actions=true` + an MFA-enrolled user → email-change requires a fresh step-up (§7.4). Trusted-device tokens let a remembered device skip MFA within `trusted_device_period_days`. `client.required_acr` can force step-up per client (§6).
 
 ### 5.3 `session_config`
 
@@ -287,11 +287,10 @@ Defaults below are the seeded **Business SaaS** baseline (`internal/secpolicy/de
 | `blocked_email_domains` | []string | `[]` | valid domains |
 | `auto_confirm_enabled` | bool | `false` | not both true with `require_email_verification` |
 | `verification_token_ttl_hours` | int | `24` | ≥1 |
-| `default_role` | string | `"member"` | non-empty |
 | `captcha_on_signup` | bool | `true` | — |
 | `registration_rate_limit_per_ip_per_hour` | int | `10` | ≥1 |
 
-**Enforcement** (public registration): `self_registration_enabled=false` → 403; email domain allow/block (case-insensitive, supports `*.domain`); captcha verified (reCAPTCHA v3 — empty token rejected, score below `CAPTCHA_MIN_SCORE` (default 0.5) rejected) when `captcha_on_signup`; per-IP rate limit; new users start `pending` (so login is blocked) until email verified, unless `auto_confirm_enabled`/verification not required; role assigned from `default_role` (falls back to the tenant default role if the named role doesn't exist).
+**Enforcement** (public registration): `self_registration_enabled=false` → 403; email domain allow/block (case-insensitive, supports `*.domain`); captcha verified when `captcha_on_signup`; per-IP rate limit; new users start `pending` (so login is blocked) until email verified, unless `auto_confirm_enabled`/verification not required; role assignment is not configurable here and always uses the system `registered` role.
 
 ### 5.7 `threat_config`
 

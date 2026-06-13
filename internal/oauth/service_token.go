@@ -285,6 +285,11 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 	// Reuse detection — if the token is already revoked, the entire family is
 	// compromised.
 	if storedToken.IsRevoked {
+		reuseInterval := oauthEffectiveSessionPolicy(s.securitySettingRepo, client).RefreshTokenReuseIntervalSeconds
+		if reuseInterval > 0 && storedToken.RevokedAt != nil && time.Since(*storedToken.RevokedAt) <= time.Duration(reuseInterval)*time.Second {
+			span.SetStatus(codes.Error, "refresh token reused within grace interval")
+			return nil, apperror.NewOAuthInvalidGrant("the refresh token has already been used")
+		}
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    storedToken.TenantID,
 			ActorUserID: &storedToken.UserID,
@@ -314,13 +319,20 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 	}
 
 	// Rotate: revoke the old token and issue a new one in the same family.
+	// When token rotation is disabled, the existing token is reused and no new
+	// refresh token is issued — only access/id tokens are regenerated.
+	sessionPolicy := oauthEffectiveSessionPolicy(s.securitySettingRepo, client)
+	rotate := sessionPolicy.RotateRefreshTokens
+
 	var result *OAuthTokenResult
 	txErr := s.db.Transaction(func(tx *gorm.DB) error {
 		txRefreshRepo := s.refreshTokenRepo.WithTx(tx)
 
-		// Revoke old token.
-		if err := txRefreshRepo.RevokeByID(storedToken.OAuthRefreshTokenID); err != nil {
-			return err
+		if rotate {
+			// Revoke old token.
+			if err := txRefreshRepo.RevokeByID(storedToken.OAuthRefreshTokenID); err != nil {
+				return err
+			}
 		}
 
 		// Resolve user sub.
@@ -353,28 +365,33 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 			return oerr
 		}
 
-		// Create the new refresh token in the same family.
-		rawRT, err := oauthTokenGenerateRandomString(refreshTokenByteLength)
-		if err != nil {
-			return err
-		}
-		rtHash := crypto.HashRefreshToken(rawRT)
+		if rotate {
+			// Create the new refresh token in the same family.
+			rawRT, err := oauthTokenGenerateRandomString(refreshTokenByteLength)
+			if err != nil {
+				return err
+			}
+			rtHash := crypto.HashRefreshToken(rawRT)
 
-		rtTTL := s.refreshTokenTTL(client)
-		newToken := &OAuthRefreshToken{
-			TokenHash: rtHash,
-			FamilyID:  storedToken.FamilyID,
-			ClientID:  client.ClientID,
-			UserID:    storedToken.UserID,
-			TenantID:  client.TenantID,
-			Scope:     scope,
-			ExpiresAt: time.Now().Add(rtTTL),
-		}
-		if _, err := txRefreshRepo.Create(newToken); err != nil {
-			return err
-		}
+			rtTTL := s.refreshTokenTTL(client)
+			newToken := &OAuthRefreshToken{
+				TokenHash: rtHash,
+				FamilyID:  storedToken.FamilyID,
+				ClientID:  client.ClientID,
+				UserID:    storedToken.UserID,
+				TenantID:  client.TenantID,
+				Scope:     scope,
+				ExpiresAt: time.Now().Add(rtTTL),
+			}
+			if _, err := txRefreshRepo.Create(newToken); err != nil {
+				return err
+			}
 
-		result.RefreshToken = rawRT
+			result.RefreshToken = rawRT
+		} else {
+			// Reuse the incoming refresh token without rotation.
+			result.RefreshToken = req.RefreshToken
+		}
 		return nil
 	})
 

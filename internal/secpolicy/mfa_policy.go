@@ -17,6 +17,7 @@ type MFAPolicy struct {
 	RecoveryCodesCount            int
 	RequireMFAForSensitiveActions bool
 	AdminGracePeriodDays          int
+	StepUpTTLMinutes              int
 }
 
 // LoadMFAPolicy returns the effective MFA policy for a tenant, falling
@@ -29,8 +30,17 @@ func LoadMFAPolicy(repo SecuritySettingRepository, tenantID int64) *MFAPolicy {
 	}
 	cfg, _ := DefaultSecuritySettingConfig("mfa")
 	if ss, err := repo.FindByTenantID(tenantID); err == nil && ss != nil {
-		if merged, err := NormalizeSecuritySettingConfig("mfa", mapFromJSON(ss.MFAConfig), nil); err == nil {
+		raw := mapFromJSON(ss.MFAConfig)
+		if merged, err := NormalizeSecuritySettingConfig("mfa", raw, nil); err == nil {
 			cfg = merged
+		} else {
+			// Enforcement must honor already-stored tenant policy even when an
+			// older row does not satisfy today's write-time validation.
+			for k := range cfg {
+				if v, ok := raw[k]; ok {
+					cfg[k] = v
+				}
+			}
 		}
 	}
 	return &MFAPolicy{
@@ -46,7 +56,25 @@ func LoadMFAPolicy(repo SecuritySettingRepository, tenantID int64) *MFAPolicy {
 		RecoveryCodesCount:            intValue(cfg["recovery_codes_count"]),
 		RequireMFAForSensitiveActions: boolValue(cfg["require_mfa_for_sensitive_actions"]),
 		AdminGracePeriodDays:          intValue(cfg["admin_grace_period_days"]),
+		StepUpTTLMinutes:              stepUpTTLWithDefault(intValue(cfg["step_up_ttl_minutes"])),
 	}
+}
+
+func stepUpTTLWithDefault(v int) int {
+	if v <= 0 {
+		return 5
+	}
+	return v
+}
+
+func (p *MFAPolicy) StepUpTTLSeconds() int64 {
+	if p == nil {
+		return 300
+	}
+	if p.StepUpTTLMinutes <= 0 {
+		return 300
+	}
+	return int64(p.StepUpTTLMinutes) * 60
 }
 
 func normalizeMFAMethods(methods []string) []string {

@@ -13,6 +13,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -53,6 +54,7 @@ type accountService struct {
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
 	authEventService     authevent.AuthEventService
+	securitySettingRepo  secpolicy.SecuritySettingRepository
 }
 
 func NewAccountService(
@@ -67,6 +69,7 @@ func NewAccountService(
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
 	authEventService authevent.AuthEventService,
+	securitySettingRepo secpolicy.SecuritySettingRepository,
 ) AccountService {
 	return &accountService{
 		db:                   db,
@@ -80,6 +83,7 @@ func NewAccountService(
 		userIdentityRepo:     userIdentityRepo,
 		identityProviderRepo: identityProviderRepo,
 		authEventService:     authEventService,
+		securitySettingRepo:  securitySettingRepo,
 	}
 }
 
@@ -381,6 +385,13 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 			client.Status != shared.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			return apperror.NewUnauthorized("authentication failed")
+		}
+
+		// Check tenant MFA policy: backup-code recovery is an MFA factor;
+		// when MFA is disabled for the tenant, recovery via backup codes is
+		// also disabled.
+		if policy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, client.IdentityProvider.TenantID); policy != nil && policy.Mode == "disabled" {
+			return apperror.NewUnauthorized("backup code recovery is unavailable")
 		}
 
 		// Find user by email

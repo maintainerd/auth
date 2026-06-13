@@ -605,7 +605,7 @@ func TestSecuritySettingHandler_GetTokenConfig_Success(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateRegistrationConfig_NoTenant(t *testing.T) {
 	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
-	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"default_role": "member"}))
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"self_registration_enabled": true}))
 	w := httptest.NewRecorder()
 	h.UpdateRegistrationConfig(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -634,7 +634,7 @@ func TestSecuritySettingHandler_UpdateRegistrationConfig_ServiceError(t *testing
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"default_role": "member"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"self_registration_enabled": true}))
 	w := httptest.NewRecorder()
 	h.UpdateRegistrationConfig(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -650,7 +650,7 @@ func TestSecuritySettingHandler_UpdateRegistrationConfig_GetConfigError(t *testi
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"default_role": "member"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"self_registration_enabled": true}))
 	w := httptest.NewRecorder()
 	h.UpdateRegistrationConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -663,7 +663,7 @@ func TestSecuritySettingHandler_UpdateRegistrationConfig_Success(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"default_role": "member"})))
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"self_registration_enabled": true})))
 	w := httptest.NewRecorder()
 	h.UpdateRegistrationConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)

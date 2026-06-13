@@ -27,6 +27,8 @@ type tokenAuthContext struct {
 	AccessTokenTTLSeconds  int
 	RefreshTokenTTLSeconds int
 	RefreshTokenFamilyID   string
+	SigningAlgorithm       string
+	ExtraAccessClaims      map[string]any
 	CookieSecure           bool
 	CookieHTTPOnly         bool
 	CookieSameSite         string
@@ -65,12 +67,16 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 	}
 
 	accessOpts := &jwt.AccessTokenOptions{
-		AMR:       authCtx.AMR,
-		ACR:       authCtx.ACR,
-		SessionID: authCtx.SessionID,
+		AMR:              authCtx.AMR,
+		ACR:              authCtx.ACR,
+		SessionID:        authCtx.SessionID,
+		SigningAlgorithm: authCtx.SigningAlgorithm,
 	}
 	if authCtx.AccessTokenTTLSeconds > 0 {
 		accessOpts.AccessTokenTTL = time.Duration(authCtx.AccessTokenTTLSeconds) * time.Second
+	}
+	if len(authCtx.ExtraAccessClaims) > 0 {
+		accessOpts.ExtraClaims = authCtx.ExtraAccessClaims
 	}
 
 	accessToken, err = jwt.GenerateAccessTokenWithOptionsContext(
@@ -100,15 +106,17 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		return "", "", "", err
 	}
 
+	rtOpts := &jwt.RefreshTokenOptions{
+		FamilyID:         authCtx.RefreshTokenFamilyID,
+		AMR:              authCtx.AMR,
+		ACR:              authCtx.ACR,
+		SigningAlgorithm: authCtx.SigningAlgorithm,
+	}
 	if authCtx.RefreshTokenTTLSeconds > 0 {
-		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, &jwt.RefreshTokenOptions{
-			RefreshTokenTTL: time.Duration(authCtx.RefreshTokenTTLSeconds) * time.Second,
-			FamilyID:        authCtx.RefreshTokenFamilyID,
-		})
+		rtOpts.RefreshTokenTTL = time.Duration(authCtx.RefreshTokenTTLSeconds) * time.Second
+		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, rtOpts)
 	} else if authCtx.RefreshTokenFamilyID != "" {
-		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, &jwt.RefreshTokenOptions{
-			FamilyID: authCtx.RefreshTokenFamilyID,
-		})
+		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, rtOpts)
 	} else {
 		refreshToken, err = jwtGenRefreshToken(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
 	}

@@ -82,7 +82,7 @@ func TestAPIKeyGRPCHandler_RPCS(t *testing.T) {
 	resolver := &mockClientTenantResolver{}
 
 	akResult := APIKeyServiceDataResult{
-		APIKeyUUID: akUUID, Name: "my-key", Description: "Test key", KeyPrefix: "lula_", Status: "active",
+		APIKeyUUID: akUUID, Name: "my-key", Description: "Test key", KeyPrefix: "maintainerd_", Status: "active",
 		CreatedAt: now, UpdatedAt: now,
 	}
 
@@ -200,7 +200,7 @@ func TestAPIKeyGRPCHandler_AllMissingHandlers(t *testing.T) {
 
 	akResult := APIKeyServiceDataResult{
 		APIKeyUUID: akUUID, Name: "my-key", Description: "Test key",
-		KeyPrefix: "lula_", Status: "active", CreatedAt: now, UpdatedAt: now,
+		KeyPrefix: "maintainerd_", Status: "active", CreatedAt: now, UpdatedAt: now,
 	}
 	cfgStruct, _ := structpb.NewStruct(map[string]any{"key": "value"})
 
