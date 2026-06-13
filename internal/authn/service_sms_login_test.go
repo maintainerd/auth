@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/platform/crypto"
@@ -14,6 +13,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/sms"
 	"github.com/maintainerd/auth/internal/shared"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -52,8 +52,8 @@ func (m *mockSMSOtpRepo) UpdateByUUID(id, data any) (*notifier.UserOTP, error) {
 	return nil, nil
 }
 func (m *mockSMSOtpRepo) UpdateByID(id, data any) (*notifier.UserOTP, error) { return nil, nil }
-func (m *mockSMSOtpRepo) DeleteByUUID(id any) error                         { return nil }
-func (m *mockSMSOtpRepo) DeleteByID(id any) error                           { return nil }
+func (m *mockSMSOtpRepo) DeleteByUUID(id any) error                          { return nil }
+func (m *mockSMSOtpRepo) DeleteByID(id any) error                            { return nil }
 func (m *mockSMSOtpRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*notifier.PaginationResult[notifier.UserOTP], error) {
 	return nil, nil
 }
@@ -320,7 +320,7 @@ func TestVerifyOTP(t *testing.T) {
 			findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
 				return &notifier.UserOTP{
 					UserOTPID: 1,
-					OTPHash:  "wrong-hash-value-for-verification-testing",
+					OTPHash:   "wrong-hash-value-for-verification-testing",
 				}, nil
 			},
 			recordFailureFn: func(id int64, maxAttempts int) error {
@@ -364,7 +364,7 @@ func TestVerifyOTP(t *testing.T) {
 			findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
 				return &notifier.UserOTP{
 					UserOTPID: 1,
-					OTPHash:  correctHash,
+					OTPHash:   correctHash,
 				}, nil
 			},
 			markUsedFn: func(_ int64) error {
@@ -407,7 +407,7 @@ func TestVerifyOTP(t *testing.T) {
 			findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
 				return &notifier.UserOTP{
 					UserOTPID: 1,
-					OTPHash:  correctHash,
+					OTPHash:   correctHash,
 				}, nil
 			},
 		}
@@ -424,7 +424,7 @@ func TestVerifyOTP(t *testing.T) {
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
 		assert.Equal(t, "Bearer", resp.TokenType)
-		assert.Equal(t, int64(3600), resp.ExpiresIn)
+		assert.Equal(t, int64(900), resp.ExpiresIn)
 		accessClaims, err := jwt.ValidateToken(resp.AccessToken)
 		require.NoError(t, err)
 		assert.Equal(t, jwt.ACRLevel1, accessClaims["acr"])
@@ -667,7 +667,7 @@ func TestVerifyOTP_RecordFailureError(t *testing.T) {
 		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
 			return &notifier.UserOTP{
 				UserOTPID: 1,
-				OTPHash:  "wrong-hash",
+				OTPHash:   "wrong-hash",
 			}, nil
 		},
 		recordFailureFn: func(_ int64, _ int) error {
@@ -715,7 +715,7 @@ func TestVerifyOTP_UserIdentityNil(t *testing.T) {
 		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
 			return &notifier.UserOTP{
 				UserOTPID: 1,
-				OTPHash:  correctHash,
+				OTPHash:   correctHash,
 			}, nil
 		},
 	}
@@ -767,7 +767,7 @@ func TestVerifyOTP_WithSession(t *testing.T) {
 		findValidByPhoneFn: func(_ string) (*notifier.UserOTP, error) {
 			return &notifier.UserOTP{
 				UserOTPID: 1,
-				OTPHash:  correctHash,
+				OTPHash:   correctHash,
 			}, nil
 		},
 	}
@@ -789,7 +789,7 @@ func TestVerifyOTP_WithSession(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.NotEmpty(t, resp.AccessToken)
 	assert.Equal(t, "Bearer", resp.TokenType)
-	assert.Equal(t, int64(3600), resp.ExpiresIn)
+	assert.Equal(t, int64(900), resp.ExpiresIn)
 	require.NotNil(t, resp.SessionID)
 	assert.Equal(t, sessionUUID.String(), *resp.SessionID)
 	assert.NoError(t, mock.ExpectationsWereMet())

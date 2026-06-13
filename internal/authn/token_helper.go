@@ -3,9 +3,11 @@ package authn
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 )
 
@@ -19,9 +21,17 @@ func hashUserBearerToken(token string) string {
 }
 
 type tokenAuthContext struct {
-	AMR       []string
-	ACR       string
-	SessionID string
+	AMR                    []string
+	ACR                    string
+	SessionID              string
+	AccessTokenTTLSeconds  int
+	RefreshTokenTTLSeconds int
+	RefreshTokenFamilyID   string
+	CookieSecure           bool
+	CookieHTTPOnly         bool
+	CookieSameSite         string
+	CookieRefreshMaxAge    int
+	HasCookiePolicy        bool
 }
 
 func passwordAuthContext() tokenAuthContext {
@@ -41,6 +51,7 @@ func generateTokenSetWithContext(ctx context.Context, sub string, user *User, cl
 
 var jwtGenIDToken = jwt.GenerateIDTokenWithContext
 var jwtGenRefreshToken = jwt.GenerateRefreshTokenWithContext
+var jwtGenRefreshTokenWithOptions = jwt.GenerateRefreshTokenWithOptionsContext
 
 func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User, client *Client, authCtx tokenAuthContext) (accessToken, idToken, refreshToken string, err error) {
 	if ctx == nil {
@@ -53,6 +64,15 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		authCtx.ACR = jwt.ACRLevel1
 	}
 
+	accessOpts := &jwt.AccessTokenOptions{
+		AMR:       authCtx.AMR,
+		ACR:       authCtx.ACR,
+		SessionID: authCtx.SessionID,
+	}
+	if authCtx.AccessTokenTTLSeconds > 0 {
+		accessOpts.AccessTokenTTL = time.Duration(authCtx.AccessTokenTTLSeconds) * time.Second
+	}
+
 	accessToken, err = jwt.GenerateAccessTokenWithOptionsContext(
 		ctx,
 		sub,
@@ -61,11 +81,7 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		*client.Identifier,
 		*client.Identifier,
 		client.IdentityProvider.Identifier,
-		&jwt.AccessTokenOptions{
-			AMR:       authCtx.AMR,
-			ACR:       authCtx.ACR,
-			SessionID: authCtx.SessionID,
-		},
+		accessOpts,
 	)
 	if err != nil {
 		return "", "", "", err
@@ -84,7 +100,18 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		return "", "", "", err
 	}
 
-	refreshToken, err = jwtGenRefreshToken(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	if authCtx.RefreshTokenTTLSeconds > 0 {
+		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, &jwt.RefreshTokenOptions{
+			RefreshTokenTTL: time.Duration(authCtx.RefreshTokenTTLSeconds) * time.Second,
+			FamilyID:        authCtx.RefreshTokenFamilyID,
+		})
+	} else if authCtx.RefreshTokenFamilyID != "" {
+		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, &jwt.RefreshTokenOptions{
+			FamilyID: authCtx.RefreshTokenFamilyID,
+		})
+	} else {
+		refreshToken, err = jwtGenRefreshToken(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	}
 	if err != nil {
 		return "", "", "", err
 	}
@@ -110,6 +137,30 @@ func buildLoginTokenResponse(accessToken, idToken, refreshToken string, issuedAt
 		ExpiresIn:    DefaultAccessTokenExpiresIn,
 		TokenType:    "Bearer",
 		IssuedAt:     issuedAt,
+	}
+}
+
+func applyLoginCookiePolicy(resp *LoginResponseDTO, policy secpolicy.EffectiveSessionPolicy) {
+	if resp == nil {
+		return
+	}
+	resp.CookieSecure = &policy.CookieSecure
+	resp.CookieHTTPOnly = &policy.CookieHTTPOnly
+	resp.CookieSameSite = policy.CookieSameSite
+	if policy.RefreshTokenTTLSeconds > 0 {
+		resp.RefreshTokenMaxAge = policy.RefreshTokenTTLSeconds
+	}
+}
+
+func applyRegisterCookiePolicy(resp *RegisterResponseDTO, policy secpolicy.EffectiveSessionPolicy) {
+	if resp == nil {
+		return
+	}
+	resp.CookieSecure = &policy.CookieSecure
+	resp.CookieHTTPOnly = &policy.CookieHTTPOnly
+	resp.CookieSameSite = policy.CookieSameSite
+	if policy.RefreshTokenTTLSeconds > 0 {
+		resp.RefreshTokenMaxAge = policy.RefreshTokenTTLSeconds
 	}
 }
 

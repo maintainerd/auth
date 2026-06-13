@@ -106,13 +106,13 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
-					MFAConfig: datatypes.JSON([]byte(`{"key":"val"}`)),
+					MFAConfig: datatypes.JSON([]byte(`{"mode":"enforced"}`)),
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
 		cfg, err := svc.GetMFAConfig(context.Background(), 1)
 		require.NoError(t, err)
-		assert.Equal(t, "val", cfg["key"])
+		assert.Equal(t, "enforced", cfg["mode"])
 	})
 }
 
@@ -152,13 +152,13 @@ func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
-					SessionConfig: datatypes.JSON([]byte(`{"timeout":3600}`)),
+					SessionConfig: datatypes.JSON([]byte(`{"idle_timeout_minutes":60}`)),
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
 		cfg, err := svc.GetSessionConfig(context.Background(), 1)
 		require.NoError(t, err)
-		assert.EqualValues(t, float64(3600), cfg["timeout"])
+		assert.EqualValues(t, float64(60), cfg["idle_timeout_minutes"])
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -179,13 +179,13 @@ func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
-					ThreatConfig: datatypes.JSON([]byte(`{"max_attempts":5}`)),
+					ThreatConfig: datatypes.JSON([]byte(`{"risk_step_up_threshold":5}`)),
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
 		cfg, err := svc.GetThreatConfig(context.Background(), 1)
 		require.NoError(t, err)
-		assert.EqualValues(t, float64(5), cfg["max_attempts"])
+		assert.EqualValues(t, float64(5), cfg["risk_step_up_threshold"])
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -231,7 +231,7 @@ func TestSecuritySettingService_GetLockoutConfig(t *testing.T) {
 func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 	tenantID := int64(1)
 	updatedBy := int64(10)
-	cfg := map[string]any{"enforce_mfa": true}
+	cfg := map[string]any{"mode": "optional"}
 
 	t.Run("FindByTenantID error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
@@ -259,7 +259,7 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*SecuritySetting, error) {
 				ss := newSecSetting(tenantID)
 				ss.SecuritySettingUUID = settingUUID
-				ss.MFAConfig = datatypes.JSON([]byte(`{"enforce_mfa":true}`))
+				ss.MFAConfig = datatypes.JSON([]byte(`{"mode":"optional"}`))
 				ss.Version = 2
 				return ss, nil
 			},
@@ -422,7 +422,7 @@ func TestSecuritySettingService_UpdatePasswordConfig(t *testing.T) {
 
 func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
 	tenantID := int64(1)
-	cfg := map[string]any{"timeout": 7200}
+	cfg := map[string]any{"idle_timeout_minutes": 20}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
@@ -457,7 +457,7 @@ func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
 
 func TestSecuritySettingService_UpdateThreatConfig(t *testing.T) {
 	tenantID := int64(1)
-	cfg := map[string]any{"max_attempts": 10}
+	cfg := map[string]any{"risk_step_up_threshold": 10}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
@@ -541,13 +541,13 @@ func TestSecuritySettingService_GetRegistrationConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
-					RegistrationConfig: datatypes.JSON([]byte(`{"enabled":true}`)),
+					RegistrationConfig: datatypes.JSON([]byte(`{"self_registration_enabled":true}`)),
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
 		cfg, err := svc.GetRegistrationConfig(context.Background(), 1)
 		require.NoError(t, err)
-		assert.Equal(t, true, cfg["enabled"])
+		assert.Equal(t, true, cfg["self_registration_enabled"])
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -568,13 +568,13 @@ func TestSecuritySettingService_GetTokenConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
-					TokenConfig: datatypes.JSON([]byte(`{"expiry":3600}`)),
+					TokenConfig: datatypes.JSON([]byte(`{"clock_skew_leeway_seconds":60}`)),
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
 		cfg, err := svc.GetTokenConfig(context.Background(), 1)
 		require.NoError(t, err)
-		assert.EqualValues(t, float64(3600), cfg["expiry"])
+		assert.EqualValues(t, float64(60), cfg["clock_skew_leeway_seconds"])
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -592,7 +592,7 @@ func TestSecuritySettingService_GetTokenConfig(t *testing.T) {
 
 func TestSecuritySettingService_UpdateRegistrationConfig(t *testing.T) {
 	tenantID := int64(1)
-	cfg := map[string]any{"enabled": true}
+	cfg := map[string]any{"self_registration_enabled": true}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
@@ -627,7 +627,7 @@ func TestSecuritySettingService_UpdateRegistrationConfig(t *testing.T) {
 
 func TestSecuritySettingService_UpdateTokenConfig(t *testing.T) {
 	tenantID := int64(1)
-	cfg := map[string]any{"expiry": 7200}
+	cfg := map[string]any{"clock_skew_leeway_seconds": 60}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)

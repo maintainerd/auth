@@ -107,8 +107,9 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Public registration attempt (client_id/provider_id optional)
+	ctx := contextWithRegistrationCaptchaToken(r.Context(), req.CaptchaToken)
 	tokenResponse, err := h.registerService.RegisterPublic(
-		r.Context(), req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, providerIDPtr,
+		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, providerIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -222,8 +223,9 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Internal registration attempt (client_id/provider_id optional)
+	ctx := contextWithRegistrationCaptchaToken(r.Context(), req.CaptchaToken)
 	tokenResponse, err := h.registerService.Register(
-		r.Context(), req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, providerIDPtr,
+		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, providerIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{

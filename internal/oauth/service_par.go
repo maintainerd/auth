@@ -12,6 +12,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -43,6 +44,7 @@ type oauthPARService struct {
 	clientURIRepo    ClientURIRepository
 	parRepo          OAuthPARRequestRepository
 	authEventService authevent.AuthEventService
+	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
 // NewOAuthPARService creates a new OAuthPARService.
@@ -52,13 +54,19 @@ func NewOAuthPARService(
 	clientURIRepo ClientURIRepository,
 	parRepo OAuthPARRequestRepository,
 	authEventService authevent.AuthEventService,
+	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) OAuthPARService {
+	var settings secpolicy.SecuritySettingRepository
+	if len(securitySettingRepo) > 0 {
+		settings = securitySettingRepo[0]
+	}
 	return &oauthPARService{
 		db:               db,
 		clientRepo:       clientRepo,
 		clientURIRepo:    clientURIRepo,
 		parRepo:          parRepo,
 		authEventService: authEventService,
+		securitySettingRepo: settings,
 	}
 }
 
@@ -85,6 +93,11 @@ func (s *oauthPARService) Push(ctx context.Context, req OAuthPARRequestDTO, cred
 
 	if oerr := validateClientAllowedScopes(client, req.Scope); oerr != nil {
 		span.SetStatus(codes.Error, "scope not allowed")
+		return nil, oerr
+	}
+
+	if oerr := validateOAuthPKCE(req.CodeChallenge, req.CodeChallengeMethod, oauthEffectiveTokenPolicy(s.securitySettingRepo, client).RequirePKCE); oerr != nil {
+		span.SetStatus(codes.Error, "pkce invalid")
 		return nil, oerr
 	}
 

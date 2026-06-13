@@ -68,6 +68,8 @@ import (
 // These constants define security policies and limits across the application
 
 // Rate Limiting Constants (SOC2 CC6.1 - Logical Access Controls)
+// These are the fallback defaults used when no tenant-specific lockout config is
+// available. Per-tenant values are read from security_settings.lockout_config.
 const (
 	MaxLoginAttempts   = 5                // Maximum failed attempts before lockout
 	LoginAttemptWindow = 15 * time.Minute // Time window for counting attempts
@@ -78,6 +80,22 @@ const (
 const (
 	MaxConcurrentSessions = 5 // Maximum concurrent sessions per user
 )
+
+// RateLimitConfig carries tenant-specific lockout thresholds read from
+// security_settings.lockout_config. A nil config means "use the hardcoded
+// constants above".
+type RateLimitConfig struct {
+	Enabled             bool
+	MaxFailedAttempts   int
+	LockoutDuration     time.Duration
+	ObservationWindow   time.Duration
+	AutoUnlock          bool
+	ResetCountOnSuccess bool
+	NotifyUserOnLockout bool
+	MaxLockoutDuration  time.Duration
+	ProgressiveLockout  bool
+	ProgressionReset    time.Duration
+}
 
 // ============================================================================
 // DATA STRUCTURES
@@ -313,6 +331,12 @@ func GetDummyBcryptHash() []byte {
 // Initialised once at startup via InitRateLimiter.
 var rateLimiterClient *redis.Client
 
+// OnAccountLockout is an optional hook fired when a user's account is locked
+// due to too many failed login attempts and NotifyUserOnLockout is true.
+// The identifier is the tenant-scoped key ("tenantID:username").
+// Wired during application startup in internal/app.
+var OnAccountLockout func(ctx context.Context, identifier string)
+
 // InitRateLimiter wires the Redis client for rate limiting.
 // Must be called before CheckRateLimit / RecordFailedAttempt / ResetFailedAttempts.
 func InitRateLimiter(rdb *redis.Client) {
@@ -392,6 +416,139 @@ func RecordFailedAttempt(identifier string) {
 	_, _ = pipe.Exec(ctx)
 }
 
+// CheckRateLimitWithConfig checks whether identifier is locked out using
+// tenant-specific thresholds. Falls back to hardcoded constants when cfg is nil.
+func CheckRateLimitWithConfig(identifier string, cfg *RateLimitConfig) error {
+	maxAttempts := MaxLoginAttempts
+	lockoutDuration := AccountLockoutTime
+	observationWindow := LoginAttemptWindow
+	if cfg != nil {
+		if !cfg.Enabled {
+			return nil
+		}
+		if cfg.MaxFailedAttempts > 0 {
+			maxAttempts = cfg.MaxFailedAttempts
+		}
+		if cfg.LockoutDuration > 0 {
+			lockoutDuration = cfg.LockoutDuration
+		}
+		if cfg.ObservationWindow > 0 {
+			observationWindow = cfg.ObservationWindow
+		}
+	}
+	return checkRateLimitWithThresholds(identifier, maxAttempts, lockoutDuration, observationWindow, cfg)
+}
+
+func checkRateLimitWithThresholds(identifier string, maxAttempts int, lockoutDuration, observationWindow time.Duration, cfg *RateLimitConfig) error {
+	_, span := otel.Tracer("security").Start(context.Background(), "security.check_rate_limit")
+	defer span.End()
+	span.SetAttributes(attribute.String("identifier", identifier))
+
+	if rateLimiterClient == nil {
+		return nil
+	}
+	ctx := context.Background()
+
+	lockVal, err := rateLimiterClient.Get(ctx, rateLimitLockKey(identifier)).Result()
+	if err == nil && lockVal != "" {
+		ttl, _ := rateLimiterClient.TTL(ctx, rateLimitLockKey(identifier)).Result()
+		span.SetStatus(codes.Error, "account locked")
+		if ttl <= 0 {
+			return fmt.Errorf("account is locked due to too many failed login attempts")
+		}
+		return fmt.Errorf("account is locked for %v due to too many failed login attempts", ttl.Round(time.Minute))
+	}
+
+	countStr, err := rateLimiterClient.Get(ctx, rateLimitCountKey(identifier)).Result()
+	if err != nil {
+		return nil
+	}
+	count, _ := strconv.Atoi(countStr)
+	if count >= maxAttempts {
+		effectiveDuration := effectiveLockoutDuration(ctx, identifier, lockoutDuration, cfg)
+		_ = rateLimiterClient.Set(ctx, rateLimitLockKey(identifier), "1", effectiveDuration).Err()
+		_ = rateLimiterClient.Del(ctx, rateLimitCountKey(identifier)).Err()
+		details := fmt.Sprintf("Account locked after %d failed login attempts", count)
+		if cfg != nil && cfg.NotifyUserOnLockout {
+			if OnAccountLockout != nil {
+				OnAccountLockout(context.Background(), identifier)
+			}
+		}
+		LogSecurityEvent(SecurityEvent{
+			EventType: "account_locked",
+			UserID:    identifier,
+			Timestamp: time.Now(),
+			Details:   details,
+		})
+		span.SetStatus(codes.Error, "account locked")
+		if effectiveDuration <= 0 {
+			return fmt.Errorf("account locked due to too many failed login attempts")
+		}
+		return fmt.Errorf("account locked for %v due to too many failed login attempts", effectiveDuration)
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func effectiveLockoutDuration(ctx context.Context, identifier string, base time.Duration, cfg *RateLimitConfig) time.Duration {
+	if cfg == nil {
+		return base
+	}
+	if !cfg.AutoUnlock {
+		return 0
+	}
+	if !cfg.ProgressiveLockout {
+		return base
+	}
+	tierKey := rateLimitTierKey(identifier)
+	tier, err := rateLimiterClient.Incr(ctx, tierKey).Result()
+	if err != nil || tier < 1 {
+		tier = 1
+	}
+	resetAfter := cfg.ProgressionReset
+	if resetAfter <= 0 {
+		resetAfter = cfg.ObservationWindow
+	}
+	if resetAfter > 0 {
+		_ = rateLimiterClient.Expire(ctx, tierKey, resetAfter).Err()
+	}
+	duration := time.Duration(tier) * base
+	if cfg.MaxLockoutDuration > 0 && duration > cfg.MaxLockoutDuration {
+		return cfg.MaxLockoutDuration
+	}
+	return duration
+}
+
+// RecordFailedAttemptWithConfig increments the failure counter in Redis using
+// tenant-specific observation window.
+func RecordFailedAttemptWithConfig(identifier string, cfg *RateLimitConfig) {
+	window := LoginAttemptWindow
+	if cfg != nil && cfg.ObservationWindow > 0 {
+		window = cfg.ObservationWindow
+	}
+	_, span := otel.Tracer("security").Start(context.Background(), "security.record_failed_attempt")
+	defer span.End()
+	span.SetAttributes(attribute.String("identifier", identifier))
+
+	if rateLimiterClient == nil {
+		return
+	}
+	ctx := context.Background()
+	key := rateLimitCountKey(identifier)
+	pipe := rateLimiterClient.Pipeline()
+	pipe.Incr(ctx, key)
+	pipe.Expire(ctx, key, window)
+	_, _ = pipe.Exec(ctx)
+}
+
+// ResetFailedAttemptsWithConfig clears rate-limit state when reset-on-success is enabled.
+func ResetFailedAttemptsWithConfig(identifier string, cfg *RateLimitConfig) {
+	if cfg != nil && !cfg.ResetCountOnSuccess {
+		return
+	}
+	ResetFailedAttempts(identifier)
+}
+
 // ResetFailedAttempts clears all rate-limit state after a successful login.
 func ResetFailedAttempts(identifier string) {
 	_, span := otel.Tracer("security").Start(context.Background(), "security.reset_failed_attempts")
@@ -404,6 +561,10 @@ func ResetFailedAttempts(identifier string) {
 	ctx := context.Background()
 	_ = rateLimiterClient.Del(ctx, rateLimitCountKey(identifier), rateLimitLockKey(identifier)).Err()
 	span.SetStatus(codes.Ok, "")
+}
+
+func rateLimitTierKey(identifier string) string {
+	return "rl:tier:" + identifier
 }
 
 var (

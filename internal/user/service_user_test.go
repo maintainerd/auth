@@ -9,6 +9,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -224,7 +225,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, "bad-uuid", creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, "bad-uuid", creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid tenant UUID")
 	})
@@ -235,7 +236,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
 	})
@@ -254,7 +255,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "creator user not found")
 	})
@@ -268,7 +269,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user has no identities")
 	})
@@ -281,7 +282,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "username err")
 	})
@@ -294,7 +295,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "username already exists")
 	})
@@ -307,7 +308,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", &email, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", &email, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "email err")
 	})
@@ -320,7 +321,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", &email, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", &email, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "email already exists")
 	})
@@ -333,7 +334,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create user err")
 	})
@@ -346,7 +347,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default auth client not found")
 	})
@@ -360,7 +361,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ident err")
 	})
@@ -375,7 +376,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role paginate err")
 	})
@@ -392,7 +393,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no default role found")
 	})
@@ -409,7 +410,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
 	})
@@ -427,11 +428,11 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("hash password error", func(t *testing.T) {
-		original := userHashPassword
-		userHashPassword = func(context.Context, []byte) ([]byte, error) {
+		original := userHashPasswordWithPolicy
+		userHashPasswordWithPolicy = func(context.Context, []byte, security.PasswordPolicy) ([]byte, error) {
 			return nil, errors.New("hash error")
 		}
-		t.Cleanup(func() { userHashPassword = original })
+		t.Cleanup(func() { userHashPasswordWithPolicy = original })
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
@@ -439,7 +440,7 @@ func TestUserService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "hash error")
@@ -457,7 +458,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ur create err")
 	})
@@ -480,7 +481,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		_, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -504,7 +505,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.Create(context.Background(), "user", &email, &phone, "P@ssW0rd1!", "active", datatypes.JSON([]byte("{}")), tenantUUID, creatorUUID)
+		res, err := svc.Create(context.Background(), "user", &email, &phone, "P@ssW0rd1Long", "active", datatypes.JSON([]byte("{}")), tenantUUID, creatorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -530,7 +531,7 @@ func TestUserService_Create(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+		res, err := svc.Create(context.Background(), "user", nil, nil, "P@ssW0rd1Long", "active", nil, tenantUUID, creatorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1944,12 +1945,12 @@ func TestUserService_GetUserMFA(t *testing.T) {
 		mfaAt := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{
-				UserID:             userID,
-				IsTOTPEnabled:      true,
-				IsWebAuthnEnabled:  true,
-				IsPhoneVerified:    true,
-				MFAEnabledAt:       &mfaAt,
-				UserIdentities:     []UserIdentity{{TenantID: 1}},
+				UserID:            userID,
+				IsTOTPEnabled:     true,
+				IsWebAuthnEnabled: true,
+				IsPhoneVerified:   true,
+				MFAEnabledAt:      &mfaAt,
+				UserIdentities:    []UserIdentity{{TenantID: 1}},
 			}, nil
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)

@@ -15,6 +15,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/sms"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -43,6 +44,7 @@ type smsLoginService struct {
 	identityProviderRepo IdentityProviderRepository
 	authEventService     authevent.AuthEventService
 	sessionService       SessionService
+	securitySettingRepo  secpolicy.SecuritySettingRepository
 }
 
 func NewSMSLoginService(
@@ -53,11 +55,17 @@ func NewSMSLoginService(
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
 	authEventService authevent.AuthEventService,
-	sessionService ...SessionService,
+	options ...any,
 ) SMSLoginService {
 	var sessions SessionService
-	if len(sessionService) > 0 {
-		sessions = sessionService[0]
+	var settings secpolicy.SecuritySettingRepository
+	for _, option := range options {
+		switch v := option.(type) {
+		case SessionService:
+			sessions = v
+		case secpolicy.SecuritySettingRepository:
+			settings = v
+		}
 	}
 	return &smsLoginService{
 		db:                   db,
@@ -68,6 +76,7 @@ func NewSMSLoginService(
 		identityProviderRepo: identityProviderRepo,
 		authEventService:     authEventService,
 		sessionService:       sessions,
+		securitySettingRepo:  settings,
 	}
 }
 
@@ -97,6 +106,16 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 		span.SetStatus(codes.Ok, "")
 		return nil
 	}
+
+	// Threat check before sending SMS — block if velocity threshold is breached.
+	tenantID := userTenantID(ctx, s.db, user.UserID)
+	threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, tenantID)
+	threatDecision := security.AssessLoginThreat(ctx, tenantID, middleware.ClientIPFromContext(ctx), "", threatPolicy)
+	if threatDecision.Blocked {
+		span.SetStatus(codes.Ok, "")
+		return nil // fail silently to avoid enumeration
+	}
+
 	if err := security.CheckAndRecordSMSDailyBudget(ctx, "global", smsDailySendLimit(s.db, 0)); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "sms_otp_budget_exceeded",
@@ -126,7 +145,6 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 		return apperror.NewInternal("failed to store SMS OTP", err)
 	}
 
-	tenantID := userTenantID(ctx, s.db, user.UserID)
 	provider, smsErr := newSMSProvider(ctx, s.db, tenantID)
 	if smsErr != nil {
 		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", req.Phone, "otp", otp)
@@ -228,30 +246,33 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Record threat success for SMS login — marks device/last-login for future assessments.
+	security.RecordLoginThreatSuccess(ctx, client.IdentityProvider.TenantID, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), secpolicy.LoadThreatPolicy(s.securitySettingRepo, client.IdentityProvider.TenantID))
 	return s.generateSMSTokenResponse(ctx, userIdentitySub, user, client)
 }
 
 func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	var sessionID string
+	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, client)
 	if s.sessionService != nil {
-		if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
+		if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
 			return nil, err
 		}
-		sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
+		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
 		if err != nil {
 			return nil, err
 		}
 		sessionID = sess.UserTokenUUID.String()
 	}
-	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContext{
-		AMR:       []string{jwt.AMRSMS},
-		ACR:       jwt.ACRLevel1,
-		SessionID: sessionID,
-	})
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRSMS}, jwt.ACRLevel1, sessionID, policy))
 	if err != nil {
 		return nil, err
 	}
 	resp := buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix())
+	applyLoginCookiePolicy(resp, policy)
+	if policy.AccessTokenTTLSeconds > 0 {
+		resp.ExpiresIn = int64(policy.AccessTokenTTLSeconds)
+	}
 	if sessionID != "" {
 		resp.SessionID = &sessionID
 	}

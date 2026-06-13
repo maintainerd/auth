@@ -84,7 +84,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		iam.AuthorizationRoute(api, h.authorization)
 
 		// Account self-service routes (authenticated)
-		user.AccountRoute(api, h.account, userProvider, application.Cache)
+		user.AccountRoute(api, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp)
 		// MFA self-service routes (authenticated)
 		mfa.MFARoute(api, h.mfa, userProvider, application.Cache)
 		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
@@ -166,7 +166,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 			cookieAuth.Use(securityMiddleware.CSRFMiddleware)
 			user.ProfileRoute(cookieAuth, h.profile, userProvider, application.Cache)
 			user.UserSettingRoute(cookieAuth, h.userSetting, userProvider, application.Cache)
-			user.AccountRoute(cookieAuth, h.account, userProvider, application.Cache)
+			user.AccountRoute(cookieAuth, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp)
 			mfa.MFARoute(cookieAuth, h.mfa, userProvider, application.Cache)
 			idp.FederationIdentityRoute(cookieAuth, h.federation, userProvider, application.Cache)
 		})

@@ -40,16 +40,18 @@ type mockMFAService struct {
 	getMFAPolicyFn          func(context.Context, int64) (*MFAPolicyDTO, error)
 	isMFARequiredFn         func(context.Context, int64) (bool, error)
 	userHasMFAFn            func(context.Context, int64) (bool, error)
-	syncMFAStateFn          func() error
-	adminResetMFAFn         func(context.Context, string, int64) error
-	adminResetMFAMethodFn   func(context.Context, string, string, int64) error
-	selfResetMFAFn          func(context.Context, int64) error
-	issueStepUpChallengeFn  func(context.Context, string, []string) (*StepUpChallengeResponseDTO, error)
-	verifyStepUpFn          func(context.Context, StepUpVerifyRequestDTO, int64) (*StepUpVerifyResponseDTO, error)
-	sendStepUpSMSFn         func(context.Context, int64) error
-	enrollSMSFn             func(context.Context, int64, string) error
-	verifySMSFn             func(context.Context, int64, string, string) error
-	disableSMSFn            func(context.Context, int64) error
+
+	sensitiveActionStepUpRequiredFn func(context.Context, int64) (bool, error)
+	syncMFAStateFn                  func() error
+	adminResetMFAFn                 func(context.Context, string, int64) error
+	adminResetMFAMethodFn           func(context.Context, string, string, int64) error
+	selfResetMFAFn                  func(context.Context, int64) error
+	issueStepUpChallengeFn          func(context.Context, string, []string) (*StepUpChallengeResponseDTO, error)
+	verifyStepUpFn                  func(context.Context, StepUpVerifyRequestDTO, int64) (*StepUpVerifyResponseDTO, error)
+	sendStepUpSMSFn                 func(context.Context, int64) error
+	enrollSMSFn                     func(context.Context, int64, string) error
+	verifySMSFn                     func(context.Context, int64, string, string) error
+	disableSMSFn                    func(context.Context, int64) error
 }
 
 func (m *mockMFAService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TOTPEnrollResponseDTO, error) {
@@ -120,6 +122,13 @@ func (m *mockMFAService) UserHasMFA(ctx context.Context, userID int64) (bool, er
 		return m.userHasMFAFn(ctx, userID)
 	}
 	return true, nil
+}
+
+func (m *mockMFAService) SensitiveActionStepUpRequired(ctx context.Context, userID int64) (bool, error) {
+	if m.sensitiveActionStepUpRequiredFn != nil {
+		return m.sensitiveActionStepUpRequiredFn(ctx, userID)
+	}
+	return false, nil
 }
 
 func (m *mockMFAService) AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error {

@@ -362,8 +362,8 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Convert to response DTOs
-	var services []ServiceResponseDTO
+	// Convert to response DTOs. Keep rows as [] instead of null when empty.
+	services := make([]ServiceResponseDTO, 0, len(result.Data))
 	for _, svc := range result.Data {
 		services = append(services, ServiceResponseDTO(svc))
 	}

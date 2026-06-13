@@ -196,15 +196,23 @@ func TestSameSiteForCookie(t *testing.T) {
 		config.CookieSameSite = oldSameSite
 	})
 
+	// Empty override → falls back to the global COOKIE_SAMESITE config.
 	config.CookieSameSite = "strict"
-	assert.Equal(t, http.SameSiteStrictMode, sameSiteForCookie(true))
-	assert.Equal(t, http.SameSiteStrictMode, sameSiteForCookie(false))
+	assert.Equal(t, http.SameSiteStrictMode, sameSiteForCookie(true, ""))
+	assert.Equal(t, http.SameSiteStrictMode, sameSiteForCookie(false, ""))
 
 	config.CookieSameSite = "lax"
-	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(true))
-	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(false))
+	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(true, ""))
+	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(false, ""))
 
 	config.CookieSameSite = "none"
-	assert.Equal(t, http.SameSiteNoneMode, sameSiteForCookie(true))
-	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(false))
+	assert.Equal(t, http.SameSiteNoneMode, sameSiteForCookie(true, ""))
+	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(false, ""))
+
+	// Explicit per-policy override wins over the global config.
+	config.CookieSameSite = "strict"
+	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(true, "lax"))
+	assert.Equal(t, http.SameSiteNoneMode, sameSiteForCookie(true, "none"))
+	// None downgrades to Lax when the cookie is not Secure (browser requirement).
+	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(false, "none"))
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -162,7 +163,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
 			RedirectURI:         "https://example.com/callback",
 			ResponseType:        ResponseTypeCode,
-			CodeChallenge:       "abc",
+			CodeChallenge:       strings.Repeat("A", 43),
 			CodeChallengeMethod: "S256",
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
@@ -204,7 +205,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
 			RedirectURI:         "https://example.com/callback",
 			ResponseType:        ResponseTypeCode,
-			CodeChallenge:       "abc",
+			CodeChallenge:       strings.Repeat("A", 43),
 			CodeChallengeMethod: "S256",
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
@@ -236,7 +237,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
 			RedirectURI:         "https://example.com/callback",
 			ResponseType:        ResponseTypeCode,
-			CodeChallenge:       "abc",
+			CodeChallenge:       strings.Repeat("A", 43),
 			CodeChallengeMethod: "S256",
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
@@ -271,7 +272,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 		result, oerr := svc.Push(ctx, OAuthPARRequestDTO{
 			RedirectURI:         "https://example.com/callback",
 			ResponseType:        ResponseTypeCode,
-			CodeChallenge:       "abc",
+			CodeChallenge:       strings.Repeat("A", 43),
 			CodeChallengeMethod: "S256",
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
@@ -376,7 +377,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 		result, oerr := svc.Push(ctx, OAuthPARRequestDTO{
 			RedirectURI:         "https://example.com/callback",
 			ResponseType:        ResponseTypeCode,
-			CodeChallenge:       "abc",
+			CodeChallenge:       strings.Repeat("A", 43),
 			CodeChallengeMethod: "S256",
 			State:               "mystate",
 			Nonce:               "mynonce",
@@ -417,8 +418,10 @@ func TestOAuthPARService_Push(t *testing.T) {
 		svc := newOAuthPARSvc(db, &mockClientURIRepo{}, &mockOAuthPARRepo{}, &mockAuthEventService{})
 
 		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
-			RedirectURI:  "javascript:alert(1)",
-			ResponseType: ResponseTypeCode,
+			RedirectURI:         "javascript:alert(1)",
+			ResponseType:        ResponseTypeCode,
+			CodeChallenge:       strings.Repeat("A", 43),
+			CodeChallengeMethod: "S256",
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
@@ -455,8 +458,10 @@ func TestOAuthPARService_Push(t *testing.T) {
 		svc := newOAuthPARSvc(db, &mockClientURIRepo{}, &mockOAuthPARRepo{}, &mockAuthEventService{})
 
 		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
-			RedirectURI:  "https://example.com/callback",
-			ResponseType: ResponseTypeCode,
+			RedirectURI:         "https://example.com/callback",
+			ResponseType:        ResponseTypeCode,
+			CodeChallenge:       strings.Repeat("A", 43),
+			CodeChallengeMethod: "S256",
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)

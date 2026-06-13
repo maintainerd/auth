@@ -10,6 +10,8 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	platformjwt "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 )
@@ -32,6 +34,10 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 
 	if strings.TrimSpace(refreshToken) == "" {
 		return nil, apperror.NewUnauthorized("refresh token is required")
+	}
+
+	if err := s.rejectRefreshReuse(ctx, refreshToken); err != nil {
+		return nil, err
 	}
 
 	// Validate signature, expiry, and denylist via the shared validator.
@@ -78,17 +84,15 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	}
 
 	// Bind the new tokens to a session (reuse the caller's, or start a new one).
-	resolvedSessionID, err := s.resolveRefreshSession(ctx, user, sessionID)
+	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, client)
+	resolvedSessionID, err := s.resolveRefreshSession(ctx, user, sessionID, policy)
 	if err != nil {
 		span.SetStatus(codes.Error, "session resolution failed")
 		return nil, err
 	}
 
-	accessToken, idToken, newRefreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContext{
-		AMR:       []string{platformjwt.AMRPassword},
-		ACR:       platformjwt.ACRLevel1,
-		SessionID: resolvedSessionID,
-	})
+	familyID, _ := claims["rfid"].(string)
+	accessToken, idToken, newRefreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicyAndRefreshFamily([]string{platformjwt.AMRPassword}, platformjwt.ACRLevel1, resolvedSessionID, policy, familyID))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "token generation failed")
@@ -96,9 +100,13 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	}
 
 	// Single-use rotation: deny the consumed refresh token so it cannot be replayed.
-	s.denylistConsumedRefreshToken(ctx, claims)
+	s.denylistConsumedRefreshToken(ctx, claims, policy)
 
 	resp := buildLoginTokenResponse(accessToken, idToken, newRefreshToken, time.Now().Unix())
+	applyLoginCookiePolicy(resp, policy)
+	if policy.AccessTokenTTLSeconds > 0 {
+		resp.ExpiresIn = int64(policy.AccessTokenTTLSeconds)
+	}
 	resp.RequirePasswordChange = user.ForcePasswordChange
 	if resolvedSessionID != "" {
 		resp.SessionID = &resolvedSessionID
@@ -111,7 +119,7 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 // resolveRefreshSession reuses the caller's session when a valid session id is
 // supplied (preserving idle/absolute limits), otherwise creates a new one. It
 // returns the empty string when no session service is configured.
-func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, sessionID string) (string, error) {
+func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, sessionID string, policy secpolicy.EffectiveSessionPolicy) (string, error) {
 	if s.sessionService == nil {
 		return "", nil
 	}
@@ -129,10 +137,10 @@ func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, se
 	}
 
 	// No session supplied — establish a new one, mirroring the login flow.
-	if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
+	if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
 		return "", err
 	}
-	sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
+	sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
 	if err != nil {
 		return "", err
 	}
@@ -141,7 +149,7 @@ func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, se
 
 // denylistConsumedRefreshToken best-effort denylists the refresh token's JTI for
 // its remaining lifetime so a rotated token cannot be replayed.
-func (s *loginService) denylistConsumedRefreshToken(ctx context.Context, claims jwtlib.MapClaims) {
+func (s *loginService) denylistConsumedRefreshToken(ctx context.Context, claims jwtlib.MapClaims, policy secpolicy.EffectiveSessionPolicy) {
 	if s.jtiDenylist == nil {
 		return
 	}
@@ -154,6 +162,81 @@ func (s *loginService) denylistConsumedRefreshToken(ctx context.Context, claims 
 		return
 	}
 	_ = s.jtiDenylist.DenyJTI(ctx, jti, ttl)
+	_ = s.jtiDenylist.DenyJTI(ctx, refreshUsedKey(jti), ttl)
+	if policy.RefreshTokenReuseIntervalSeconds > 0 {
+		_ = s.jtiDenylist.DenyJTI(ctx, refreshGraceKey(jti), time.Duration(policy.RefreshTokenReuseIntervalSeconds)*time.Second)
+	}
+}
+
+func (s *loginService) rejectRefreshReuse(ctx context.Context, refreshToken string) error {
+	if s.jtiDenylist == nil {
+		return nil
+	}
+	claims := unverifiedRefreshClaims(refreshToken)
+	if len(claims) == 0 {
+		return nil
+	}
+	jti, _ := claims["jti"].(string)
+	familyID, _ := claims["rfid"].(string)
+	if familyID != "" {
+		if denied, _ := s.jtiDenylist.IsJTIDenied(ctx, refreshFamilyKey(familyID)); denied {
+			return apperror.NewUnauthorized("refresh token family has been revoked")
+		}
+	}
+	if strings.TrimSpace(jti) == "" {
+		return nil
+	}
+	used, _ := s.jtiDenylist.IsJTIDenied(ctx, refreshUsedKey(jti))
+	if !used {
+		used, _ = s.jtiDenylist.IsJTIDenied(ctx, jti)
+	}
+	if !used {
+		return nil
+	}
+	if inGrace, _ := s.jtiDenylist.IsJTIDenied(ctx, refreshGraceKey(jti)); inGrace {
+		return apperror.NewUnauthorized("refresh token was already consumed")
+	}
+	if familyID != "" {
+		ttl := jwtClaimTTL(claims["exp"])
+		if ttl <= 0 {
+			ttl = platformjwt.RefreshTokenTTL
+		}
+		_ = s.jtiDenylist.DenyJTI(ctx, refreshFamilyKey(familyID), ttl)
+		security.LogSecurityEvent(security.SecurityEvent{
+			EventType: "refresh_token_reuse",
+			UserID:    stringClaim(claims, "sub"),
+			ClientID:  stringClaim(claims, "client_id"),
+			ClientIP:  middleware.ClientIPFromContext(ctx),
+			UserAgent: middleware.UserAgentFromContext(ctx),
+			Timestamp: time.Now(),
+			Details:   "Refresh token reuse detected; token family revoked",
+			Severity:  "HIGH",
+		})
+	}
+	return apperror.NewUnauthorized("refresh token reuse detected")
+}
+
+func unverifiedRefreshClaims(tokenString string) jwtlib.MapClaims {
+	token, _, err := jwtlib.NewParser().ParseUnverified(tokenString, jwtlib.MapClaims{})
+	if err != nil {
+		return nil
+	}
+	claims, ok := token.Claims.(jwtlib.MapClaims)
+	if !ok {
+		return nil
+	}
+	return claims
+}
+
+func refreshUsedKey(jti string) string { return "rtused:" + strings.TrimSpace(jti) }
+
+func refreshGraceKey(jti string) string { return "rtgrace:" + strings.TrimSpace(jti) }
+
+func refreshFamilyKey(familyID string) string { return "rtfam:" + strings.TrimSpace(familyID) }
+
+func stringClaim(claims jwtlib.MapClaims, key string) string {
+	value, _ := claims[key].(string)
+	return value
 }
 
 // sessionIDFromAccessToken extracts the sid claim from a (typically expired)

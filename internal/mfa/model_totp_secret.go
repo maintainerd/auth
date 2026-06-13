@@ -18,6 +18,8 @@ type UserTOTPSecret struct {
 	EnrolledAt     *time.Time `gorm:"column:enrolled_at"`
 	LastUsedAt     *time.Time `gorm:"column:last_used_at"`
 	LastUsedStep   *int64     `gorm:"column:last_used_step"`
+	Digits         int        `gorm:"column:digits;default:6"`
+	Period         int        `gorm:"column:period;default:30"`
 	CreatedAt      time.Time  `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt      time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 }

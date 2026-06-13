@@ -39,6 +39,9 @@ func toAuthnClient(c *client.Client) *authn.Client {
 		IdentityProviderID: c.IdentityProviderID, Name: c.Name, DisplayName: c.DisplayName,
 		ClientType: c.ClientType, Domain: c.Domain, Identifier: c.Identifier,
 		Status: c.Status, IsDefault: c.IsDefault, IsSystem: c.IsSystem,
+		AccessTokenTTL: c.AccessTokenTTL, RefreshTokenTTL: c.RefreshTokenTTL,
+		RequiredACR: c.RequiredACR, RequirePKCE: c.RequirePKCE,
+		SessionIdleTimeout: c.SessionIdleTimeout, SessionAbsoluteTimeout: c.SessionAbsoluteTimeout,
 		IdentityProvider: toAuthnIDPFromClient(c.IdentityProvider),
 		CreatedAt:        c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
@@ -53,6 +56,9 @@ func toClientClient(c *authn.Client) *client.Client {
 		IdentityProviderID: c.IdentityProviderID, Name: c.Name, DisplayName: c.DisplayName,
 		ClientType: c.ClientType, Domain: c.Domain, Identifier: c.Identifier,
 		Status: c.Status, IsDefault: c.IsDefault, IsSystem: c.IsSystem,
+		AccessTokenTTL: c.AccessTokenTTL, RefreshTokenTTL: c.RefreshTokenTTL,
+		RequiredACR: c.RequiredACR, RequirePKCE: c.RequirePKCE,
+		SessionIdleTimeout: c.SessionIdleTimeout, SessionAbsoluteTimeout: c.SessionAbsoluteTimeout,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 }

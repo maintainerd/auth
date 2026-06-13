@@ -2,7 +2,6 @@ package secpolicy
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -194,21 +193,16 @@ func (h *SecuritySettingHandler) updateConfig(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var req SecuritySettingUpdateConfigRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	req, err := DecodeSecuritySettingUpdateConfig(configType, r.Body)
+	if err != nil {
 		resp.BadRequestBody(w)
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		resp.ValidationError(w, err)
 		return
 	}
 
 	clientIPStr := middleware.ClientIPFromContext(r.Context())
 	userAgentStr := middleware.UserAgentFromContext(r.Context())
 
-	if err := h.updateConfigByType(r.Context(), tenant.TenantID, configType, map[string]any(req), user.UserID, clientIPStr, userAgentStr); err != nil {
+	if err := h.updateConfigByType(r.Context(), tenant.TenantID, configType, req, user.UserID, clientIPStr, userAgentStr); err != nil {
 		label := configDisplayLabels[configType]
 		resp.HandleServiceError(w, r, "Failed to update "+label+" config", err)
 		return

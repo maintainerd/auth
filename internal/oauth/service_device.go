@@ -15,6 +15,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -47,12 +48,13 @@ type OAuthDeviceService interface {
 }
 
 type oauthDeviceService struct {
-	db               *gorm.DB
-	clientRepo       ClientRepository
-	deviceCodeRepo   OAuthDeviceCodeRepository
-	userRepo         UserRepository
-	userIdentityRepo UserIdentityRepository
-	authEventService authevent.AuthEventService
+	db                  *gorm.DB
+	clientRepo          ClientRepository
+	deviceCodeRepo      OAuthDeviceCodeRepository
+	userRepo            UserRepository
+	userIdentityRepo    UserIdentityRepository
+	authEventService    authevent.AuthEventService
+	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
 // NewOAuthDeviceService creates a new OAuthDeviceService.
@@ -63,14 +65,20 @@ func NewOAuthDeviceService(
 	userRepo UserRepository,
 	userIdentityRepo UserIdentityRepository,
 	authEventService authevent.AuthEventService,
+	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) OAuthDeviceService {
+	var settings secpolicy.SecuritySettingRepository
+	if len(securitySettingRepo) > 0 {
+		settings = securitySettingRepo[0]
+	}
 	return &oauthDeviceService{
-		db:               db,
-		clientRepo:       clientRepo,
-		deviceCodeRepo:   deviceCodeRepo,
-		userRepo:         userRepo,
-		userIdentityRepo: userIdentityRepo,
-		authEventService: authEventService,
+		db:                  db,
+		clientRepo:          clientRepo,
+		deviceCodeRepo:      deviceCodeRepo,
+		userRepo:            userRepo,
+		userIdentityRepo:    userIdentityRepo,
+		authEventService:    authEventService,
+		securitySettingRepo: settings,
 	}
 }
 
@@ -303,7 +311,7 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 		issuer,
 		clientIdentifier,
 		providerID,
-		deviceAccessTokenOpts(record),
+		deviceAccessTokenOpts(s.securitySettingRepo, record),
 	)
 	if err != nil {
 		span.RecordError(err)
@@ -328,7 +336,7 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 	return &OAuthTokenResponseDTO{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
+		ExpiresIn:   oauthAccessTokenExpiresIn(s.securitySettingRepo, record.Client),
 		Scope:       record.Scope,
 	}, nil
 }
@@ -376,8 +384,8 @@ func authContextFromContext(ctx context.Context) (string, []string) {
 	return acr, amr
 }
 
-func deviceAccessTokenOpts(record *OAuthDeviceCode) *jwt.AccessTokenOptions {
-	opts := clientAccessTokenOpts(record.Client)
+func deviceAccessTokenOpts(repo secpolicy.SecuritySettingRepository, record *OAuthDeviceCode) *jwt.AccessTokenOptions {
+	opts := oauthAccessTokenOptions(repo, record.Client)
 	acr, amr := persistedAuthContext(record.AuthACR, record.AuthAMR)
 	opts.ACR = acr
 	opts.AMR = amr

@@ -13,6 +13,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -70,6 +71,7 @@ type oauthAuthorizeService struct {
 	consentGrantRepo OAuthConsentGrantRepository
 	consentChallRepo OAuthConsentChallengeRepository
 	authEventService authevent.AuthEventService
+	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
 // NewOAuthAuthorizeService creates a new OAuthAuthorizeService.
@@ -81,7 +83,12 @@ func NewOAuthAuthorizeService(
 	consentGrantRepo OAuthConsentGrantRepository,
 	consentChallRepo OAuthConsentChallengeRepository,
 	authEventService authevent.AuthEventService,
+	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) OAuthAuthorizeService {
+	var settings secpolicy.SecuritySettingRepository
+	if len(securitySettingRepo) > 0 {
+		settings = securitySettingRepo[0]
+	}
 	return &oauthAuthorizeService{
 		db:               db,
 		clientRepo:       clientRepo,
@@ -90,6 +97,7 @@ func NewOAuthAuthorizeService(
 		consentGrantRepo: consentGrantRepo,
 		consentChallRepo: consentChallRepo,
 		authEventService: authEventService,
+		securitySettingRepo: settings,
 	}
 }
 
@@ -125,6 +133,11 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 	if client == nil || client.Status != shared.StatusActive {
 		span.SetStatus(codes.Error, "client not found or inactive")
 		return nil, apperror.NewOAuthInvalidRequest("unknown or inactive client_id")
+	}
+
+	if oerr := validateOAuthPKCE(req.CodeChallenge, req.CodeChallengeMethod, oauthEffectiveTokenPolicy(s.securitySettingRepo, client).RequirePKCE); oerr != nil {
+		span.SetStatus(codes.Error, "pkce invalid")
+		return nil, oerr
 	}
 
 	// Validate that the client supports the authorization_code grant.

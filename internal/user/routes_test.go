@@ -12,7 +12,7 @@ import (
 func TestAccountRoute(t *testing.T) {
 	r := chi.NewRouter()
 	h := NewAccountHandler(&mockAccountService{}, &mockSessionService{})
-	AccountRoute(r, h, nil, nil)
+	AccountRoute(r, h, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/account/sessions", nil)
 	w := httptest.NewRecorder()

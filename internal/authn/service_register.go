@@ -2,10 +2,13 @@ package authn
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/secpolicy"
@@ -19,6 +22,7 @@ import (
 
 var secValidatePasswordPolicy = security.ValidatePasswordPolicy
 var secHashPassword = security.HashPassword
+var secHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
 type RegisterService interface {
 	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
@@ -102,6 +106,39 @@ func (s *registerService) findDefaultRole(roleRepo RoleRepository, tenantID int6
 	return role, nil
 }
 
+// resolveRegistrationRole prefers the tenant registration policy's configured
+// default_role when it names an existing role for the tenant; otherwise it
+// falls back to the tenant's default/registered role. This keeps a misconfigured
+// or unseeded default_role from blocking registration.
+func (s *registerService) resolveRegistrationRole(roleRepo RoleRepository, tenantID int64, configuredRole string) (*Role, error) {
+	if name := strings.TrimSpace(configuredRole); name != "" {
+		if role, err := roleRepo.FindByNameAndTenantID(name, tenantID); err == nil && role != nil {
+			return role, nil
+		}
+	}
+	return s.findDefaultRole(roleRepo, tenantID)
+}
+
+func enforceRegistrationAbuseControls(ctx context.Context, tenantID int64, regPolicy *secpolicy.RegistrationPolicy) error {
+	if regPolicy == nil {
+		return nil
+	}
+	if regPolicy.CaptchaOnSignup {
+		captchaToken := registrationCaptchaTokenFromContext(ctx)
+		clientIP := middleware.ClientIPFromContext(ctx)
+		if err := security.VerifyCaptcha(ctx, captchaToken, clientIP); err != nil {
+			return apperror.NewValidation("captcha verification failed")
+		}
+	}
+	if regPolicy.RegistrationRateLimitPerIPPerHour > 0 {
+		clientIP := middleware.ClientIPFromContext(ctx)
+		if err := security.CheckRegistrationRateLimit(ctx, tenantID, clientIP, regPolicy.RegistrationRateLimitPerIPPerHour); err != nil {
+			return apperror.NewValidation("registration rate limit exceeded")
+		}
+	}
+	return nil
+}
+
 // RegisterPublic registers new users for public-facing applications.
 // clientID and providerID are optional. When absent, registers under the
 // default client of the system tenant (mirrors internal Register() fallback).
@@ -183,6 +220,18 @@ func (s *registerService) RegisterPublic(
 			tenantId = Client.IdentityProvider.Tenant.TenantID
 		}
 
+		// Enforce tenant registration policy (self-service path).
+		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId)
+		if !regPolicy.SelfRegistrationEnabled {
+			return apperror.NewForbidden("self-registration is disabled for this tenant")
+		}
+		if err := enforceRegistrationAbuseControls(ctx, tenantId, regPolicy); err != nil {
+			return err
+		}
+		if email != nil && *email != "" && !regPolicy.EmailDomainAllowed(*email) {
+			return apperror.NewValidation("email domain is not permitted for registration")
+		}
+
 		// Check if username already exists
 		existingUser, txErr := txUserRepo.FindByUsername(username)
 		if txErr != nil {
@@ -221,18 +270,20 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Hash password
-		hashed, txErr := secHashPassword(ctx, []byte(password))
+		hashed, txErr := secHashPasswordWithPolicy(ctx, []byte(password), policy)
 		if txErr != nil {
 			return txErr
 		}
 
 		now := time.Now()
-		// Create user
+		// Create user. Email-verified state is governed by the tenant
+		// registration policy (auto-confirm or verification-not-required).
 		newUser := &User{
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
-			Status:            shared.StatusActive,
+			Status:            registrationInitialStatus(regPolicy, email),
+			IsEmailVerified:   regPolicy.EmailVerified(),
 			PasswordChangedAt: &now,
 		}
 
@@ -271,8 +322,10 @@ func (s *registerService) RegisterPublic(
 		}
 		userIdentitySub = userIdentity.Sub
 
-		// Get default role
-		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
+		// Resolve the role to assign: prefer the tenant policy's default_role
+		// when it names an existing role, otherwise fall back to the tenant's
+		// default/registered role.
+		defaultRole, txErr := s.resolveRegistrationRole(txRoleRepo, tenantId, regPolicy.DefaultRole)
 		if txErr != nil {
 			return txErr
 		}
@@ -362,6 +415,18 @@ func (s *registerService) Register(
 		// Get tenant ID from the default client's identity provider
 		tenantId := Client.IdentityProvider.Tenant.TenantID
 
+		// Enforce tenant registration policy.
+		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId)
+		if !regPolicy.SelfRegistrationEnabled {
+			return apperror.NewForbidden("self-registration is disabled for this tenant")
+		}
+		if err := enforceRegistrationAbuseControls(ctx, tenantId, regPolicy); err != nil {
+			return err
+		}
+		if email != nil && *email != "" && !regPolicy.EmailDomainAllowed(*email) {
+			return apperror.NewValidation("email domain is not permitted for registration")
+		}
+
 		// Check if user already exists
 		existingUser, txErr := txUserRepo.FindByUsername(username)
 		if txErr != nil && txErr.Error() != "record not found" {
@@ -378,18 +443,19 @@ func (s *registerService) Register(
 		}
 
 		// Hash password
-		hashed, txErr := secHashPassword(ctx, []byte(password))
+		hashed, txErr := secHashPasswordWithPolicy(ctx, []byte(password), policy)
 		if txErr != nil {
 			return txErr
 		}
 
 		now := time.Now()
-		// Create user
+		// Create user. Email-verified state follows the tenant registration policy.
 		newUser := &User{
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
-			Status:            shared.StatusActive,
+			Status:            registrationInitialStatus(regPolicy, email),
+			IsEmailVerified:   regPolicy.EmailVerified(),
 			PasswordChangedAt: &now,
 		}
 
@@ -428,8 +494,8 @@ func (s *registerService) Register(
 		}
 		userIdentitySub = userIdentity.Sub
 
-		// Get default role
-		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
+		// Resolve role from policy default_role with safe fallback.
+		defaultRole, txErr := s.resolveRegistrationRole(txRoleRepo, tenantId, regPolicy.DefaultRole)
 		if txErr != nil {
 			return txErr
 		}
@@ -553,7 +619,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Hash password
-		hashed, txErr := secHashPassword(ctx, []byte(password))
+		hashed, txErr := secHashPasswordWithPolicy(ctx, []byte(password), policy)
 		if txErr != nil {
 			return txErr
 		}
@@ -561,14 +627,14 @@ func (s *registerService) RegisterInvitePublic(
 		now := time.Now()
 		// Create user
 		newUser := &User{
-			Username:          username,
-			Email:             invite.InvitedEmail, // Always use the invited email
-			Password:          ptr.Ptr(string(hashed)),
-			Status:            shared.StatusActive,
-			IsEmailVerified:   true,  // Auto-verify email for invited users
+			Username:           username,
+			Email:              invite.InvitedEmail, // Always use the invited email
+			Password:           ptr.Ptr(string(hashed)),
+			Status:             shared.StatusActive,
+			IsEmailVerified:    true,  // Auto-verify email for invited users
 			IsProfileCompleted: false, // Require profile completion
 			IsAccountCompleted: false, // Require account completion
-			PasswordChangedAt: &now,
+			PasswordChangedAt:  &now,
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)
@@ -661,9 +727,26 @@ func (s *registerService) RegisterInvitePublic(
 }
 
 func (s *registerService) generateTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*RegisterResponseDTO, error) {
-	accessToken, idToken, refreshToken, err := generateTokenSetWithContext(ctx, sub, user, client)
+	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, client)
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRPassword}, jwt.ACRLevel1, "", policy))
 	if err != nil {
 		return nil, err
 	}
-	return buildRegisterTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix()), nil
+	resp := buildRegisterTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix())
+	applyRegisterCookiePolicy(resp, policy)
+	if policy.AccessTokenTTLSeconds > 0 {
+		resp.ExpiresIn = int64(policy.AccessTokenTTLSeconds)
+	}
+	return resp, nil
+}
+
+func registrationInitialStatus(policy *secpolicy.RegistrationPolicy, email *string) string {
+	emailValue := ""
+	if email != nil {
+		emailValue = *email
+	}
+	if policy != nil && policy.InitialUserStatus(emailValue) == shared.StatusPending {
+		return shared.StatusPending
+	}
+	return shared.StatusActive
 }

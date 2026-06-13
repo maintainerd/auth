@@ -302,11 +302,11 @@ func (failingSMSProvider) Send(context.Context, string, string) error {
 
 func TestResetPasswordService_RemainingBranches(t *testing.T) {
 	t.Run("hash password error", func(t *testing.T) {
-		orig := resetHashPassword
-		resetHashPassword = func(context.Context, []byte) ([]byte, error) {
+		orig := resetHashPasswordWithPolicy
+		resetHashPasswordWithPolicy = func(context.Context, []byte, security.PasswordPolicy) ([]byte, error) {
 			return nil, errors.New("hash error")
 		}
-		t.Cleanup(func() { resetHashPassword = orig })
+		t.Cleanup(func() { resetHashPasswordWithPolicy = orig })
 
 		tok := "some-token"
 		userID := int64(42)
@@ -332,7 +332,7 @@ func TestResetPasswordService_RemainingBranches(t *testing.T) {
 }
 
 func TestRegisterService_RemainingBranches(t *testing.T) {
-    cid, pid := "client", "provider"
+	cid, pid := "client", "provider"
 	t.Run("register public username lookup error", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -449,7 +449,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		run  func(RegisterService) (*RegisterResponseDTO, error)
 	}{
 		{
-			m:    defaultRegPublicMocks,
+			m: defaultRegPublicMocks,
 			run: func(s RegisterService) (*RegisterResponseDTO, error) {
 				return s.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "client", "provider", "token")
 			},

@@ -49,21 +49,27 @@ type IdentityProvider struct {
 func (IdentityProvider) TableName() string { return "identity_providers" }
 
 type Client struct {
-	ClientID           int64
-	ClientUUID         uuid.UUID
-	TenantID           int64
-	IdentityProviderID int64
-	Name               string
-	DisplayName        string
-	ClientType         string
-	Domain             *string
-	Identifier         *string
-	Status             string
-	IsDefault          bool
-	IsSystem           bool
-	IdentityProvider   *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ClientID               int64
+	ClientUUID             uuid.UUID
+	TenantID               int64
+	IdentityProviderID     int64
+	Name                   string
+	DisplayName            string
+	ClientType             string
+	Domain                 *string
+	Identifier             *string
+	Status                 string
+	IsDefault              bool
+	IsSystem               bool
+	AccessTokenTTL         *int
+	RefreshTokenTTL        *int
+	RequiredACR            *string
+	RequirePKCE            *bool
+	SessionIdleTimeout     *int
+	SessionAbsoluteTimeout *int
+	IdentityProvider       *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
 }
 
 func (Client) TableName() string { return "clients" }
@@ -98,7 +104,7 @@ type UserIdentity struct {
 	TenantID           int64
 	UserID             int64
 	ClientID           int64
-	IdentityProviderID *int64     `gorm:"column:identity_provider_id"`
+	IdentityProviderID *int64 `gorm:"column:identity_provider_id"`
 	Provider           string
 	Sub                string
 	Metadata           datatypes.JSON
