@@ -140,8 +140,17 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 	// Input validation is now handled at the DTO/handler level
 
+	// Resolve tenant ID early for rate-limiting scope.
+	var lockoutPolicy *security.RateLimitConfig
+	var tenantIDForRL int64
+	if ip, ipErr := s.identityProviderRepo.FindByIdentifier(providerID); ipErr == nil && ip != nil {
+		tenantIDForRL = ip.TenantID
+		lockoutPolicy = secpolicy.LoadLockoutPolicy(s.securitySettingRepo, tenantIDForRL)
+	}
+	rateLimitIdentifier := fmt.Sprintf("%d:%s", tenantIDForRL, usernameOrEmail)
+
 	// Rate limiting check (SOC2 CC6.1 - Logical Access Controls)
-	if err := security.CheckRateLimit(usernameOrEmail); err != nil {
+	if err := security.CheckRateLimitWithConfig(rateLimitIdentifier, lockoutPolicy); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_rate_limited",
 			UserID:    usernameOrEmail,
@@ -158,6 +167,15 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		})
 		return nil, err
 	}
+
+	// Threat detection — pre-auth velocity / brute-force / risk assessment.
+	clientIP := middleware.ClientIPFromContext(ctx)
+	threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, tenantIDForRL)
+	threatDecision := security.AssessLoginThreat(ctx, tenantIDForRL, clientIP, "", threatPolicy)
+	if threatDecision.Blocked {
+		return nil, apperror.NewUnauthorized("login blocked by threat detection")
+	}
+	forceStepUp := threatPolicy != nil && threatPolicy.RiskBasedStepUpEnabled && threatDecision.RequiresStepUp
 
 	var user *User
 	var client *Client
@@ -243,7 +261,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
-		s.recordFailedLogin(ctx, usernameOrEmail, clientID, client, startTime)
+		s.recordFailedLogin(ctx, rateLimitIdentifier, clientID, client, startTime, lockoutPolicy)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -272,8 +290,11 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		return nil, apperror.NewUnauthorized("account is not active")
 	}
 
-	// Reset failed attempts on successful authentication
-	security.ResetFailedAttempts(usernameOrEmail)
+	// Reset failed attempts on successful authentication.
+	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
+
+	// Check for compromised credentials at login (post-auth HIBP).
+	s.checkCompromisedPassword(ctx, user, password, client.IdentityProvider.TenantID)
 
 	// authevent.Log successful login
 	security.LogSecurityEvent(security.SecurityEvent{
@@ -303,9 +324,12 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		return passwordChangeRequiredLoginResponse(), nil
 	}
 
-	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, client.IdentityProvider.TenantID); mfaErr != nil || mfaResponse != nil {
+	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, client.IdentityProvider.TenantID, forceStepUp); mfaErr != nil || mfaResponse != nil {
 		return mfaResponse, mfaErr
 	}
+
+	// Record threat success after successful authentication.
+	security.RecordLoginThreatSuccess(ctx, client.IdentityProvider.TenantID, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), threatPolicy)
 
 	// Generate token response
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
@@ -328,8 +352,19 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	}()
 	startTime := time.Now()
 
+	// Resolve tenant ID early for rate-limiting scope.
+	var lockoutPolicy *security.RateLimitConfig
+	var tenantIDForRL int64
+	if providerID != nil {
+		if ip, ipErr := s.identityProviderRepo.FindByIdentifier(*providerID); ipErr == nil && ip != nil {
+			tenantIDForRL = ip.TenantID
+			lockoutPolicy = secpolicy.LoadLockoutPolicy(s.securitySettingRepo, tenantIDForRL)
+		}
+	}
+	rateLimitIdentifier := fmt.Sprintf("%d:%s", tenantIDForRL, usernameOrEmail)
+
 	// Rate limiting check (SOC2 CC6.1 - Logical Access Controls)
-	if err := security.CheckRateLimit(usernameOrEmail); err != nil {
+	if err := security.CheckRateLimitWithConfig(rateLimitIdentifier, lockoutPolicy); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_rate_limited",
 			UserID:    usernameOrEmail,
@@ -351,6 +386,8 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	var client *Client
 	var userIdentitySub string
 	var userLookupErr error
+	var threatPolicy *security.ThreatConfig
+	var forceStepUp bool
 
 	// All database operations in transaction for consistency
 	err = s.db.Transaction(func(tx *gorm.DB) error {
@@ -420,11 +457,19 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		return nil, err
 	}
 
+	// Threat detection — post-transaction, once tenant is known.
+	threatPolicy = secpolicy.LoadThreatPolicy(s.securitySettingRepo, client.IdentityProvider.TenantID)
+	threatDecision := security.AssessLoginThreat(ctx, client.IdentityProvider.TenantID, middleware.ClientIPFromContext(ctx), "", threatPolicy)
+	if threatDecision.Blocked {
+		return nil, apperror.NewUnauthorized("login blocked by threat detection")
+	}
+	forceStepUp = threatPolicy != nil && threatPolicy.RiskBasedStepUpEnabled && threatDecision.RequiresStepUp
+
 	passwordValid := verifyLoginPassword(user, password, userLookupErr == nil)
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
-		s.recordFailedLogin(ctx, usernameOrEmail, "internal", client, startTime)
+		s.recordFailedLogin(ctx, rateLimitIdentifier, "internal", client, startTime, lockoutPolicy)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -454,7 +499,10 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	}
 
 	// Reset failed attempts on successful authentication
-	security.ResetFailedAttempts(usernameOrEmail)
+	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
+
+	// Check for compromised credentials at login (post-auth HIBP).
+	s.checkCompromisedPassword(ctx, user, password, client.IdentityProvider.TenantID)
 
 	// authevent.Log successful login
 	security.LogSecurityEvent(security.SecurityEvent{
@@ -484,9 +532,12 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		return passwordChangeRequiredLoginResponse(), nil
 	}
 
-	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, client.IdentityProvider.TenantID); mfaErr != nil || mfaResponse != nil {
+	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, client.IdentityProvider.TenantID, forceStepUp); mfaErr != nil || mfaResponse != nil {
 		return mfaResponse, mfaErr
 	}
+
+	// Record threat success after successful authentication.
+	security.RecordLoginThreatSuccess(ctx, client.IdentityProvider.TenantID, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), threatPolicy)
 
 	// Generate token response
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
@@ -622,19 +673,25 @@ func (s *loginService) checkPasswordExpiry(ctx context.Context, user *User, tena
 const loginMFAChallengeTTL = 5 * time.Minute
 
 type loginMFAPolicy struct {
-	Required       bool     `json:"required"`
-	EnforceMFA     bool     `json:"enforce_mfa"`
-	AllowedMethods []string `json:"allowed_methods"`
+	Required          bool     `json:"required"`
+	EnforceMFA        bool     `json:"enforce_mfa"`
+	Mode              string   `json:"mode"`
+	AllowedMethods    []string `json:"allowed_methods"`
+	GracePeriodDays   int      `json:"grace_period_days"`
+	AdminGracePeriodDays int      `json:"admin_grace_period_days"`
 }
 
-func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error) {
+func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User, tenantID int64, forceStepUp bool) (*LoginResponseDTO, error) {
 	if user == nil || s.mfaAuthenticator == nil {
 		return nil, nil
 	}
 
-	// Load the tenant MFA policy if one exists. A missing security setting or
-	// empty MFAConfig simply means "no tenant-level enforcement" — it must NOT
-	// short-circuit the enrolled-factor trigger below.
+	// Check for a valid trusted-device token; skip MFA when recognized.
+	trustedDeviceToken := trustedDeviceTokenFromContext(ctx)
+	if trustedDeviceToken != "" && s.isTrustedDeviceValid(ctx, user.UserID, tenantID, trustedDeviceToken) {
+		return nil, nil
+	}
+
 	var policy loginMFAPolicy
 	if s.securitySettingRepo != nil {
 		if setting, err := s.securitySettingRepo.FindByTenantID(tenantID); err == nil && setting != nil && len(setting.MFAConfig) > 0 {
@@ -643,14 +700,32 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 			}
 		}
 	}
+	if policy.Mode == "enforced" || forceStepUp {
+		policy.Required = true
+	}
+	policy.AllowedMethods = normalizeLoginMFAPolicyMethods(policy.AllowedMethods)
 
 	// Ask the mfa service for the user's actual enrolled factors (the single
 	// source of truth — covers TOTP, WebAuthn, the verified SMS phone, and backup
 	// codes). Reading from the user record alone would miss SMS/WebAuthn.
 	enrolled, err := s.mfaAuthenticator.EnrolledMFAMethods(ctx, user.UserID)
 	if err != nil {
-		// Don't lock the user out on a status-read error; fall back to acr=1.
 		return nil, nil
+	}
+
+	// Grace-period check: when mode=enforced and the user has no enrolled factor,
+	// allow login at acr=1 if we're within the grace window from account creation.
+	if policy.Mode == "enforced" && !hasPrimaryMFAFactor(enrolled) {
+		graceDays := policy.GracePeriodDays
+		if graceDays <= 0 {
+			graceDays = policy.AdminGracePeriodDays
+		}
+		if graceDays > 0 {
+			deadline := user.CreatedAt.AddDate(0, 0, graceDays)
+			if time.Now().Before(deadline) {
+				return nil, nil
+			}
+		}
 	}
 
 	// Challenge for MFA when the tenant enforces it OR the user has a primary
@@ -729,18 +804,19 @@ func verifyLoginPassword(user *User, password string, lookupOK bool) bool {
 	return false
 }
 
-func (s *loginService) recordFailedLogin(ctx context.Context, usernameOrEmail, clientID string, client *Client, at time.Time) {
-	security.RecordFailedAttempt(usernameOrEmail)
+func (s *loginService) recordFailedLogin(ctx context.Context, rateLimitIdentifier, clientID string, client *Client, at time.Time, lockoutPolicy *security.RateLimitConfig) {
+	security.RecordFailedAttemptWithConfig(rateLimitIdentifier, lockoutPolicy)
 
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_failure",
-		UserID:    usernameOrEmail,
+		UserID:    rateLimitIdentifier,
 		ClientID:  clientID,
 		Timestamp: at,
 		Details:   "Invalid credentials provided",
 	})
 
 	if client != nil {
+		security.RecordLoginThreatFailure(ctx, client.IdentityProvider.TenantID, middleware.ClientIPFromContext(ctx), nil)
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    client.IdentityProvider.TenantID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
@@ -764,31 +840,32 @@ func (s *loginService) generateTokenResponse(ctx context.Context, sub string, us
 // the whole session satisfies step-up routes without per-action re-prompts.
 func (s *loginService) generateTokenResponseWithAuth(ctx context.Context, sub string, user *User, Client *Client, amr []string, acr string) (*LoginResponseDTO, error) {
 	var sessionID string
+	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, Client)
 
 	// Create a session record and enforce concurrent session limit.
 	if s.sessionService != nil {
-		if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
+		if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
 			return nil, err
 		}
 		ipAddress := middleware.ClientIPFromContext(ctx)
 		userAgent := middleware.UserAgentFromContext(ctx)
-		sess, err := s.sessionService.CreateSession(ctx, user.UserID, ipAddress, userAgent)
+		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, ipAddress, userAgent, policy)
 		if err != nil {
 			return nil, err
 		}
 		sessionID = sess.UserTokenUUID.String()
 	}
 
-	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, Client, tokenAuthContext{
-		AMR:       amr,
-		ACR:       acr,
-		SessionID: sessionID,
-	})
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, Client, tokenAuthContextWithPolicy(amr, acr, sessionID, policy))
 	if err != nil {
 		return nil, err
 	}
 
 	resp := buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix())
+	applyLoginCookiePolicy(resp, policy)
+	if policy.AccessTokenTTLSeconds > 0 {
+		resp.ExpiresIn = int64(policy.AccessTokenTTLSeconds)
+	}
 	resp.RequirePasswordChange = user.ForcePasswordChange
 	if sessionID != "" {
 		resp.SessionID = &sessionID
@@ -813,6 +890,17 @@ func loginMFAMethodAllowed(raw any, method string) bool {
 		}
 	}
 	return false
+}
+
+func normalizeLoginMFAPolicyMethods(methods []string) []string {
+	normalized := make([]string, 0, len(methods))
+	for _, method := range methods {
+		if method == "recovery_code" {
+			method = "backup_code"
+		}
+		normalized = append(normalized, method)
+	}
+	return normalized
 }
 
 // resolveMFAChallengeUser validates a login MFA challenge token and returns the
@@ -897,7 +985,19 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 		Description: ptr.Ptr(fmt.Sprintf("Login MFA completed via %s", method)),
 	})
 
-	return s.generateTokenResponseWithAuth(ctx, identity.Sub, user, client, amr, platformjwt.ACRLevel2)
+	resp, err := s.generateTokenResponseWithAuth(ctx, identity.Sub, user, client, amr, platformjwt.ACRLevel2)
+	if err != nil {
+		return nil, err
+	}
+
+	// Issue a trusted-device token when the client opted in.
+	if rememberDeviceFromContext(ctx) {
+		if deviceToken, tokenErr := s.issueTrustedDeviceToken(ctx, user.UserID, client.IdentityProvider.TenantID); tokenErr == nil {
+			resp.TrustedDeviceToken = deviceToken
+		}
+	}
+
+	return resp, nil
 }
 
 // SendMFALoginSMS sends an SMS OTP to the challenged user's phone during login.
@@ -923,4 +1023,74 @@ func (s *loginService) BeginMFALoginWebAuthn(ctx context.Context, challengeToken
 		return nil, err
 	}
 	return s.mfaAuthenticator.BeginWebAuthnLogin(ctx, user.UserID)
+}
+
+func (s *loginService) issueTrustedDeviceToken(ctx context.Context, userID, tenantID int64) (string, error) {
+	mfaPolicy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, tenantID)
+	if mfaPolicy == nil || mfaPolicy.TrustedDevicePeriodDays <= 0 {
+		return "", nil
+	}
+	rawToken, err := generateRandomToken(32)
+	if err != nil {
+		return "", err
+	}
+	expiresAt := time.Now().Add(time.Duration(mfaPolicy.TrustedDevicePeriodDays) * 24 * time.Hour)
+	token := &UserToken{
+		UserID:    userID,
+		TokenType: shared.TokenTypeMFATrustedDevice,
+		Token:     rawToken,
+		ExpiresAt: &expiresAt,
+	}
+	if _, err := s.userTokenRepo.Create(token); err != nil {
+		return "", err
+	}
+	return rawToken, nil
+}
+
+func (s *loginService) isTrustedDeviceValid(ctx context.Context, userID, tenantID int64, rawToken string) bool {
+	mfaPolicy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, tenantID)
+	if mfaPolicy == nil || mfaPolicy.TrustedDevicePeriodDays <= 0 {
+		return false
+	}
+	tokens, err := s.userTokenRepo.FindByUserIDAndTokenType(userID, shared.TokenTypeMFATrustedDevice)
+	if err != nil || len(tokens) == 0 {
+		return false
+	}
+	now := time.Now()
+	for _, t := range tokens {
+		if t.Token == rawToken && !t.IsRevoked && (t.ExpiresAt == nil || now.Before(*t.ExpiresAt)) {
+			t.LastUsedAt = &now
+			_, _ = s.userTokenRepo.CreateOrUpdate(&t)
+			return true
+		}
+	}
+	return false
+}
+
+func (s *loginService) checkCompromisedPassword(ctx context.Context, user *User, password string, tenantID int64) {
+	if user == nil || password == "" {
+		return
+	}
+	threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, tenantID)
+	if threatPolicy == nil || !threatPolicy.CompromisedCredentialMonitoringEnabled {
+		return
+	}
+	if security.CheckHIBPPassword(ctx, []byte(password)) {
+		slog.Warn("compromised password detected at login, forcing password change", "user_id", user.UserID)
+		user.ForcePasswordChange = true
+		if _, err := s.userRepo.UpdateByID(user.UserID, map[string]any{"force_password_change": true}); err != nil {
+			slog.Warn("failed to set force_password_change for compromised credential", "user_id", user.UserID, "err", err)
+		}
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			TenantID:    tenantID,
+			ActorUserID: &user.UserID,
+			IPAddress:   middleware.ClientIPFromContext(ctx),
+			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeLoginSuccess,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultSuccess,
+			Description: ptr.Ptr("Login succeeded with compromised password — password change forced"),
+		})
+	}
 }

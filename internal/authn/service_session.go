@@ -21,7 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -154,6 +154,10 @@ func (s *sessionService) RevokeAllSessions(ctx context.Context, userID int64) er
 
 // CreateSession creates a new UserToken of type shared.TokenTypeSession for userID.
 func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
+	return s.CreateSessionWithPolicy(ctx, userID, ipAddress, userAgent, defaultEffectiveSessionPolicy())
+}
+
+func (s *sessionService) CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserToken, error) {
 	_, span := otel.Tracer("service").Start(ctx, "session.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -168,8 +172,14 @@ func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddr
 	}
 
 	now := time.Now()
-	absoluteExpiry := now.Add(defaultAbsoluteLifetimeHours * time.Hour)
-	idleTimeout := defaultIdleTimeoutSeconds
+	if policy.IdleTimeoutSeconds <= 0 {
+		policy.IdleTimeoutSeconds = defaultIdleTimeoutSeconds
+	}
+	if policy.AbsoluteTimeoutSeconds <= 0 {
+		policy.AbsoluteTimeoutSeconds = int((defaultAbsoluteLifetimeHours * time.Hour).Seconds())
+	}
+	absoluteExpiry := now.Add(time.Duration(policy.AbsoluteTimeoutSeconds) * time.Second)
+	idleTimeout := policy.IdleTimeoutSeconds
 
 	token := &UserToken{
 		UserID:             userID,
@@ -198,6 +208,10 @@ func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddr
 // security.MaxConcurrentSessions. If so, the oldest active session is evoked
 // to make room for the new one rather than blocking login.
 func (s *sessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
+	return s.EnforceConcurrentLimitWithPolicy(ctx, userUUID, userID, defaultEffectiveSessionPolicy())
+}
+
+func (s *sessionService) EnforceConcurrentLimitWithPolicy(ctx context.Context, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error {
 	_, span := otel.Tracer("service").Start(ctx, "session.enforceConcurrentLimit")
 	defer span.End()
 	span.SetAttributes(
@@ -212,7 +226,7 @@ func (s *sessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uu
 		return err
 	}
 
-	if count < int64(security.MaxConcurrentSessions) {
+	if policy.MaxConcurrentSessions <= 0 || count < int64(policy.MaxConcurrentSessions) {
 		span.SetStatus(codes.Ok, "")
 		return nil
 	}
@@ -238,6 +252,18 @@ func (s *sessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uu
 
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+func defaultEffectiveSessionPolicy() secpolicy.EffectiveSessionPolicy {
+	policy, err := secpolicy.ResolveEffectiveSessionPolicy(nil, nil, secpolicy.SecuritySettingClientOverrides{})
+	if err != nil {
+		return secpolicy.EffectiveSessionPolicy{
+			MaxConcurrentSessions:  5,
+			IdleTimeoutSeconds:     defaultIdleTimeoutSeconds,
+			AbsoluteTimeoutSeconds: int((defaultAbsoluteLifetimeHours * time.Hour).Seconds()),
+		}
+	}
+	return policy
 }
 
 // ValidateAndTouch validates that the session is still active (checking both

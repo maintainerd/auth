@@ -74,6 +74,13 @@ type MFAService interface {
 	IsMFARequired(ctx context.Context, tenantID int64) (bool, error)
 	UserHasMFA(ctx context.Context, userID int64) (bool, error)
 
+	// SensitiveActionStepUpRequired reports whether sensitive self-service
+	// actions (e.g. email change) must present a fresh step-up for this user.
+	// It is true only when the user's tenant policy
+	// require_mfa_for_sensitive_actions is enabled AND the user has an enrolled
+	// MFA factor; password-only users (no MFA) are never gated.
+	SensitiveActionStepUpRequired(ctx context.Context, userID int64) (bool, error)
+
 	// SyncMFAState clears recovery state (backup codes, mfa_enabled_at) when no
 	// primary MFA factor remains. Call after removing a factor that the service
 	// does not own (e.g. a WebAuthn credential deleted via WebAuthnService).
@@ -165,11 +172,30 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TO
 		return nil, apperror.NewNotFound("user not found")
 	}
 
+	mfaPolicy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	issuer := totpIssuer
+	digits := totpDigits
+	period := totpPeriod
+	var policyDigits, policyPeriod int
+	if mfaPolicy != nil {
+		if mfaPolicy.TOTPIssuer != "" {
+			issuer = mfaPolicy.TOTPIssuer
+		}
+		policyDigits = mfaPolicy.TOTPDigits
+		policyPeriod = mfaPolicy.TOTPPeriodSeconds
+	}
+	if policyDigits > 0 {
+		digits = digitsFromInt(policyDigits)
+	}
+	if policyPeriod > 0 {
+		period = policyPeriod
+	}
+
 	key, err := generateTOTPKey(totp.GenerateOpts{
-		Issuer:      totpIssuer,
+		Issuer:      issuer,
 		AccountName: user.Email,
-		Digits:      totpDigits,
-		Period:      totpPeriod,
+		Digits:      digits,
+		Period:      uint(period),
 	})
 	if err != nil {
 		span.RecordError(err)
@@ -181,6 +207,14 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TO
 		UserID:    userID,
 		Secret:    key.Secret(),
 		IsEnabled: false,
+		Digits:    policyDigits,
+		Period:    period,
+	}
+	if secret.Digits <= 0 {
+		secret.Digits = int(totpDigits.Length())
+	}
+	if secret.Period <= 0 {
+		secret.Period = totpPeriod
 	}
 	enc, encErr := crypto.EncryptAtRest(secret.Secret)
 	if encErr != nil {
@@ -242,8 +276,13 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 		return nil, apperror.NewInternal("failed to update user MFA status", err)
 	}
 
-	// Generate a fresh set of backup codes.
-	plainCodes, err := s.generateAndStoreBackupCodes(userID)
+	// Generate a fresh set of backup codes using the tenant's policy.
+	mfaPolicy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	codeCount := mfaBackupCodeCount
+	if mfaPolicy != nil && mfaPolicy.RecoveryCodesCount > 0 {
+		codeCount = mfaPolicy.RecoveryCodesCount
+	}
+	plainCodes, err := s.generateAndStoreBackupCodes(userID, codeCount)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
@@ -286,7 +325,12 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 	}
 
 	dec := crypto.SafeDecryptAtRest(record.Secret)
-	step, valid, validationErr := validateTOTPAndStep(code, dec, time.Now())
+	digits := digitsFromInt(record.Digits)
+	period := record.Period
+	if period <= 0 {
+		period = totpPeriod
+	}
+	step, valid, validationErr := validateTOTPAndStep(code, dec, time.Now(), digits, period)
 	if validationErr != nil {
 		span.RecordError(validationErr)
 		return false, apperror.NewValidation("invalid TOTP code")
@@ -310,8 +354,11 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 	return valid, nil
 }
 
-func validateTOTPAndStep(passcode, secret string, at time.Time) (int64, bool, error) {
-	counter := int64(math.Floor(float64(at.UTC().Unix()) / float64(totpPeriod)))
+func validateTOTPAndStep(passcode, secret string, at time.Time, digits otp.Digits, period int) (int64, bool, error) {
+	if period <= 0 {
+		period = totpPeriod
+	}
+	counter := int64(math.Floor(float64(at.UTC().Unix()) / float64(period)))
 	candidates := []int64{counter}
 	for i := int64(1); i <= 1; i++ {
 		candidates = append(candidates, counter+i, counter-i)
@@ -321,7 +368,7 @@ func validateTOTPAndStep(passcode, secret string, at time.Time) (int64, bool, er
 			continue
 		}
 		ok, err := hotp.ValidateCustom(passcode, uint64(candidate), secret, hotp.ValidateOpts{
-			Digits:    totpDigits,
+			Digits:    digits,
 			Algorithm: otp.AlgorithmSHA1,
 		})
 		if err != nil {
@@ -395,7 +442,12 @@ func (s *mfaService) RegenerateBackupCodes(ctx context.Context, userID int64) ([
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
 
-	plainCodes, err := s.generateAndStoreBackupCodes(userID)
+	mfaPolicy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	codeCount := mfaBackupCodeCount
+	if mfaPolicy != nil && mfaPolicy.RecoveryCodesCount > 0 {
+		codeCount = mfaPolicy.RecoveryCodesCount
+	}
+	plainCodes, err := s.generateAndStoreBackupCodes(userID, codeCount)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "regenerate failed")
@@ -405,16 +457,20 @@ func (s *mfaService) RegenerateBackupCodes(ctx context.Context, userID int64) ([
 	return plainCodes, nil
 }
 
-// generateAndStoreBackupCodes generates mfaBackupCodeCount new codes,
+// generateAndStoreBackupCodes generates count new backup codes,
 // replaces all existing codes for the user, and returns the plaintexts.
-func (s *mfaService) generateAndStoreBackupCodes(userID int64) ([]string, error) {
+// When count <= 0, deletes all existing codes and returns nil.
+func (s *mfaService) generateAndStoreBackupCodes(userID int64, count int) ([]string, error) {
 	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
 		return nil, apperror.NewInternal("failed to delete existing backup codes", err)
 	}
+	if count <= 0 {
+		return nil, nil
+	}
 
-	plainCodes := make([]string, mfaBackupCodeCount)
-	models := make([]*UserBackupCode, mfaBackupCodeCount)
-	for i := range mfaBackupCodeCount {
+	plainCodes := make([]string, count)
+	models := make([]*UserBackupCode, count)
+	for i := range count {
 		code, err := generateBackupCodeString(mfaBackupCodeLength)
 		if err != nil {
 			return nil, apperror.NewInternal("backup code generation failed", err)
@@ -489,19 +545,52 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 func (s *mfaService) GetMFAPolicy(ctx context.Context, tenantID int64) (*MFAPolicyDTO, error) {
 	setting, err := s.secSettingRepo.FindByTenantID(tenantID)
 	if err != nil || setting == nil {
-		return &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}}, nil
+		return defaultMFAPolicy(), nil
 	}
-	var policy MFAPolicyDTO
-	if err := json.Unmarshal(setting.MFAConfig, &policy); err != nil || policy.AllowedMethods == nil {
-		return &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}}, nil
+	policy := defaultMFAPolicy()
+	var raw struct {
+		Required       *bool    `json:"required"`
+		EnforceMFA     *bool    `json:"enforce_mfa"`
+		Mode           *string  `json:"mode"`
+		AllowedMethods []string `json:"allowed_methods"`
 	}
-	return &policy, nil
+	if err := json.Unmarshal(setting.MFAConfig, &raw); err != nil {
+		return defaultMFAPolicy(), nil
+	}
+	if raw.Required != nil {
+		policy.Required = *raw.Required
+	}
+	if raw.EnforceMFA != nil {
+		policy.Required = policy.Required || *raw.EnforceMFA
+	}
+	if raw.Mode != nil {
+		policy.Required = *raw.Mode == "enforced"
+	}
+	if raw.AllowedMethods != nil {
+		policy.AllowedMethods = normalizeMFAPolicyMethods(raw.AllowedMethods)
+	}
+	return policy, nil
 }
 
 // IsMFARequired returns true when the pool policy requires MFA.
 func (s *mfaService) IsMFARequired(ctx context.Context, tenantID int64) (bool, error) {
 	policy, _ := s.GetMFAPolicy(ctx, tenantID)
 	return policy.Required, nil
+}
+
+func defaultMFAPolicy() *MFAPolicyDTO {
+	return &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "webauthn", "backup_code"}}
+}
+
+func normalizeMFAPolicyMethods(methods []string) []string {
+	normalized := make([]string, 0, len(methods))
+	for _, method := range methods {
+		if method == "recovery_code" {
+			method = "backup_code"
+		}
+		normalized = append(normalized, method)
+	}
+	return normalized
 }
 
 // UserHasMFA returns true when the user has at least one active MFA factor.
@@ -511,6 +600,26 @@ func (s *mfaService) UserHasMFA(ctx context.Context, userID int64) (bool, error)
 		return false, nil
 	}
 	return user.IsTOTPEnabled || user.IsWebAuthnEnabled, nil
+}
+
+// SensitiveActionStepUpRequired reports whether the tenant policy
+// require_mfa_for_sensitive_actions applies to this user. It returns true only
+// when the flag is enabled for the user's tenant AND the user already has an
+// enrolled MFA factor (TOTP, WebAuthn, or SMS). Password-only users are never
+// gated, keeping the change non-breaking for accounts without MFA.
+func (s *mfaService) SensitiveActionStepUpRequired(ctx context.Context, userID int64) (bool, error) {
+	policy := secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID))
+	if policy == nil || !policy.RequireMFAForSensitiveActions {
+		return false, nil
+	}
+	status, err := s.GetMFAStatus(ctx, userID)
+	if err != nil || status == nil {
+		// Fail open on lookup errors: never block solely because status was
+		// unreadable. The unconditional gates on MFA self-service routes are
+		// unaffected by this helper.
+		return false, nil
+	}
+	return status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled, nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -791,6 +900,10 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 
 	if phone == "" {
 		return apperror.NewValidation("phone is required")
+	}
+
+	if !methodAllowed(secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID)), "sms") {
+		return apperror.NewForbidden("SMS MFA is not permitted by tenant policy")
 	}
 
 	record, err := s.smsPhoneRepo.FindByUserID(userID)
@@ -1097,7 +1210,11 @@ func (s *mfaService) VerifyFactor(ctx context.Context, userID int64, method, cod
 
 // SendSMSChallenge sends an SMS OTP to userID's verified phone for the login
 // MFA step. It reuses the same OTP store/rate limiting as step-up SMS.
+// Returns forbidden when the tenant policy disallows SMS as an MFA method.
 func (s *mfaService) SendSMSChallenge(ctx context.Context, userID int64) error {
+	if !methodAllowed(secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID)), "sms") {
+		return apperror.NewForbidden("SMS MFA is not permitted by tenant policy")
+	}
 	return s.SendStepUpSMS(ctx, userID)
 }
 
@@ -1131,6 +1248,9 @@ func stepUpMethodAllowed(raw any, method string) bool {
 }
 
 func mfaUserTenantID(ctx context.Context, db *gorm.DB, userID int64) int64 {
+	if db == nil {
+		return 0
+	}
 	var tenantID int64
 	if err := db.WithContext(ctx).
 		Table("user_identities").
@@ -1154,25 +1274,43 @@ func (s *mfaService) isSMSEnabled(ctx context.Context, userID int64) bool {
 // record, and the backup-code count. backup_code is included only as a fallback
 // alongside a primary factor (a primary factor is always present when codes
 // exist, since codes are generated on enrollment and purged on full removal).
+// Tenant policy can suppress methods (e.g. when allow_sms=false, sms is omitted).
 func (s *mfaService) EnrolledMFAMethods(ctx context.Context, userID int64) ([]string, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil || user == nil {
 		return nil, apperror.NewNotFound("user not found")
 	}
+	tenantID := mfaUserTenantID(ctx, s.db, userID)
+	policy := secpolicy.LoadMFAPolicy(s.secSettingRepo, tenantID)
 	methods := make([]string, 0, 4)
-	if user.IsTOTPEnabled {
+	if user.IsTOTPEnabled && methodAllowed(policy, "totp") {
 		methods = append(methods, "totp")
 	}
-	if user.IsWebAuthnEnabled {
+	if user.IsWebAuthnEnabled && methodAllowed(policy, "webauthn") {
 		methods = append(methods, "webauthn")
 	}
-	if s.isSMSEnabled(ctx, userID) {
+	if s.isSMSEnabled(ctx, userID) && methodAllowed(policy, "sms") {
 		methods = append(methods, "sms")
 	}
-	if count, _ := s.GetBackupCodesCount(ctx, userID); count > 0 {
+	if count, _ := s.GetBackupCodesCount(ctx, userID); count > 0 && methodAllowed(policy, "backup_code") {
 		methods = append(methods, "backup_code")
 	}
 	return methods, nil
+}
+
+func methodAllowed(policy *secpolicy.MFAPolicy, method string) bool {
+	if policy == nil || len(policy.AllowedMethods) == 0 {
+		return true
+	}
+	if method == "sms" && !policy.AllowSMS {
+		return false
+	}
+	for _, m := range policy.AllowedMethods {
+		if m == method {
+			return true
+		}
+	}
+	return false
 }
 
 // SyncMFAState reconciles a user's recovery/flag state with their remaining
@@ -1196,4 +1334,13 @@ func (s *mfaService) SyncMFAState(ctx context.Context, userID int64) error {
 		return apperror.NewInternal("failed to clear MFA state", err)
 	}
 	return nil
+}
+
+func digitsFromInt(d int) otp.Digits {
+	switch d {
+	case 8:
+		return otp.DigitsEight
+	default:
+		return otp.DigitsSix
+	}
 }

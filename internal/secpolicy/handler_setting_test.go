@@ -104,7 +104,7 @@ func TestSecuritySettingHandler_GetLockoutConfig_NoTenant(t *testing.T) {
 func TestSecuritySettingHandler_UpdateMFAConfig_NoTenant(t *testing.T) {
 	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
 	// Provide user but not tenant; handler fetches user first then checks tenant.
-	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/general", map[string]any{"key": "val"}))
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/general", map[string]any{"mode": "optional"}))
 	w := httptest.NewRecorder()
 	h.UpdateMFAConfig(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -134,7 +134,7 @@ func TestSecuritySettingHandler_UpdateMFAConfig_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/general", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/general", map[string]any{"mode": "optional"}))
 	w := httptest.NewRecorder()
 	h.UpdateMFAConfig(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -150,7 +150,7 @@ func TestSecuritySettingHandler_UpdateMFAConfig_GetConfigError(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/general", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/general", map[string]any{"mode": "optional"}))
 	w := httptest.NewRecorder()
 	h.UpdateMFAConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -165,7 +165,7 @@ func TestSecuritySettingHandler_UpdateMFAConfig_Success(t *testing.T) {
 	h := NewSecuritySettingHandler(svc)
 	// withSecurityCtx injects ClientIPKey + UserAgentKey → covers clientIP != nil and
 	// userAgentCtx != nil branches (lines 203-205, 206-208).
-	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/general", map[string]any{"key": "val"})))
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/general", map[string]any{"mode": "optional"})))
 	w := httptest.NewRecorder()
 	h.UpdateMFAConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -261,7 +261,7 @@ func TestSecuritySettingHandler_GetLockoutConfig_Success(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdatePasswordConfig_NoTenant(t *testing.T) {
 	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
-	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/password", map[string]any{"key": "val"}))
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/password", map[string]any{"min_length": 12}))
 	w := httptest.NewRecorder()
 	h.UpdatePasswordConfig(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -290,7 +290,7 @@ func TestSecuritySettingHandler_UpdatePasswordConfig_ServiceError(t *testing.T) 
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/password", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/password", map[string]any{"min_length": 12}))
 	w := httptest.NewRecorder()
 	h.UpdatePasswordConfig(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -306,7 +306,7 @@ func TestSecuritySettingHandler_UpdatePasswordConfig_GetConfigError(t *testing.T
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/password", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/password", map[string]any{"min_length": 12}))
 	w := httptest.NewRecorder()
 	h.UpdatePasswordConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -319,7 +319,7 @@ func TestSecuritySettingHandler_UpdatePasswordConfig_Success(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/password", map[string]any{"key": "val"})))
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/password", map[string]any{"min_length": 12})))
 	w := httptest.NewRecorder()
 	h.UpdatePasswordConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -329,7 +329,7 @@ func TestSecuritySettingHandler_UpdatePasswordConfig_Success(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateSessionConfig_NoTenant(t *testing.T) {
 	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
-	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/session", map[string]any{"key": "val"}))
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/session", map[string]any{"idle_timeout_minutes": 20}))
 	w := httptest.NewRecorder()
 	h.UpdateSessionConfig(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -358,7 +358,7 @@ func TestSecuritySettingHandler_UpdateSessionConfig_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/session", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/session", map[string]any{"idle_timeout_minutes": 20}))
 	w := httptest.NewRecorder()
 	h.UpdateSessionConfig(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -374,7 +374,7 @@ func TestSecuritySettingHandler_UpdateSessionConfig_GetConfigError(t *testing.T)
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/session", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/session", map[string]any{"idle_timeout_minutes": 20}))
 	w := httptest.NewRecorder()
 	h.UpdateSessionConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -387,7 +387,7 @@ func TestSecuritySettingHandler_UpdateSessionConfig_Success(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/session", map[string]any{"key": "val"})))
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/session", map[string]any{"idle_timeout_minutes": 20})))
 	w := httptest.NewRecorder()
 	h.UpdateSessionConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -397,7 +397,7 @@ func TestSecuritySettingHandler_UpdateSessionConfig_Success(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateThreatConfig_NoTenant(t *testing.T) {
 	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
-	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/threat", map[string]any{"key": "val"}))
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/threat", map[string]any{"risk_step_up_threshold": 21}))
 	w := httptest.NewRecorder()
 	h.UpdateThreatConfig(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -426,7 +426,7 @@ func TestSecuritySettingHandler_UpdateThreatConfig_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/threat", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/threat", map[string]any{"risk_step_up_threshold": 21}))
 	w := httptest.NewRecorder()
 	h.UpdateThreatConfig(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -442,7 +442,7 @@ func TestSecuritySettingHandler_UpdateThreatConfig_GetConfigError(t *testing.T) 
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/threat", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/threat", map[string]any{"risk_step_up_threshold": 21}))
 	w := httptest.NewRecorder()
 	h.UpdateThreatConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -455,7 +455,7 @@ func TestSecuritySettingHandler_UpdateThreatConfig_Success(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/threat", map[string]any{"key": "val"})))
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/threat", map[string]any{"risk_step_up_threshold": 21})))
 	w := httptest.NewRecorder()
 	h.UpdateThreatConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -465,7 +465,7 @@ func TestSecuritySettingHandler_UpdateThreatConfig_Success(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateLockoutConfig_NoTenant(t *testing.T) {
 	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
-	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/ip", map[string]any{"key": "val"}))
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/ip", map[string]any{"max_failed_attempts": 5}))
 	w := httptest.NewRecorder()
 	h.UpdateLockoutConfig(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -494,7 +494,7 @@ func TestSecuritySettingHandler_UpdateLockoutConfig_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/ip", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/ip", map[string]any{"max_failed_attempts": 5}))
 	w := httptest.NewRecorder()
 	h.UpdateLockoutConfig(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -510,7 +510,7 @@ func TestSecuritySettingHandler_UpdateLockoutConfig_GetConfigError(t *testing.T)
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/ip", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/ip", map[string]any{"max_failed_attempts": 5}))
 	w := httptest.NewRecorder()
 	h.UpdateLockoutConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -523,7 +523,7 @@ func TestSecuritySettingHandler_UpdateLockoutConfig_Success(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/ip", map[string]any{"key": "val"})))
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/ip", map[string]any{"max_failed_attempts": 5})))
 	w := httptest.NewRecorder()
 	h.UpdateLockoutConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -605,7 +605,7 @@ func TestSecuritySettingHandler_GetTokenConfig_Success(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateRegistrationConfig_NoTenant(t *testing.T) {
 	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
-	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"key": "val"}))
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"default_role": "member"}))
 	w := httptest.NewRecorder()
 	h.UpdateRegistrationConfig(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -634,7 +634,7 @@ func TestSecuritySettingHandler_UpdateRegistrationConfig_ServiceError(t *testing
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"default_role": "member"}))
 	w := httptest.NewRecorder()
 	h.UpdateRegistrationConfig(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -650,7 +650,7 @@ func TestSecuritySettingHandler_UpdateRegistrationConfig_GetConfigError(t *testi
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"default_role": "member"}))
 	w := httptest.NewRecorder()
 	h.UpdateRegistrationConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -663,7 +663,7 @@ func TestSecuritySettingHandler_UpdateRegistrationConfig_Success(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"key": "val"})))
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"default_role": "member"})))
 	w := httptest.NewRecorder()
 	h.UpdateRegistrationConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -673,7 +673,7 @@ func TestSecuritySettingHandler_UpdateRegistrationConfig_Success(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateTokenConfig_NoTenant(t *testing.T) {
 	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
-	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"key": "val"}))
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"clock_skew_leeway_seconds": 30}))
 	w := httptest.NewRecorder()
 	h.UpdateTokenConfig(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -702,7 +702,7 @@ func TestSecuritySettingHandler_UpdateTokenConfig_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"clock_skew_leeway_seconds": 30}))
 	w := httptest.NewRecorder()
 	h.UpdateTokenConfig(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -718,7 +718,7 @@ func TestSecuritySettingHandler_UpdateTokenConfig_GetConfigError(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"key": "val"}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"clock_skew_leeway_seconds": 30}))
 	w := httptest.NewRecorder()
 	h.UpdateTokenConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -731,7 +731,7 @@ func TestSecuritySettingHandler_UpdateTokenConfig_Success(t *testing.T) {
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
-	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"key": "val"})))
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"clock_skew_leeway_seconds": 30})))
 	w := httptest.NewRecorder()
 	h.UpdateTokenConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)

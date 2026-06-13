@@ -129,8 +129,9 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Public login attempt (requires client_id and provider_id)
+	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
 	tokenResponse, err := h.loginService.LoginPublic(
-		r.Context(), req.Username, req.Password, q.ClientID, q.ProviderID,
+		ctx, req.Username, req.Password, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -189,8 +190,9 @@ func (h *LoginHandler) MFALoginVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientID, providerID := optionalClientQuery(r)
+	ctx := contextWithRememberDevice(r.Context(), req.RememberDevice)
 	tokenResponse, err := h.loginService.CompleteMFALogin(
-		r.Context(), req.ChallengeToken, req.Method, req.Code, req.Assertion, clientID, providerID,
+		ctx, req.ChallengeToken, req.Method, req.Code, req.Assertion, clientID, providerID,
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "MFA verification failed", err)
@@ -404,8 +406,9 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Internal login attempt (client_id/provider_id optional)
+	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
 	tokenResponse, err := h.loginService.Login(
-		r.Context(), req.Username, req.Password, clientIDPtr, providerIDPtr,
+		ctx, req.Username, req.Password, clientIDPtr, providerIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{

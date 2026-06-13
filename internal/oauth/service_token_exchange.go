@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -34,10 +35,11 @@ type OAuthTokenExchangeService interface {
 }
 
 type oauthTokenExchangeService struct {
-	db               *gorm.DB
-	clientRepo       ClientRepository
-	userRepo         UserRepository
-	authEventService authevent.AuthEventService
+	db                  *gorm.DB
+	clientRepo          ClientRepository
+	userRepo            UserRepository
+	authEventService    authevent.AuthEventService
+	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
 // NewOAuthTokenExchangeService creates a new OAuthTokenExchangeService.
@@ -46,12 +48,18 @@ func NewOAuthTokenExchangeService(
 	clientRepo ClientRepository,
 	userRepo UserRepository,
 	authEventService authevent.AuthEventService,
+	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) OAuthTokenExchangeService {
+	var settings secpolicy.SecuritySettingRepository
+	if len(securitySettingRepo) > 0 {
+		settings = securitySettingRepo[0]
+	}
 	return &oauthTokenExchangeService{
-		db:               db,
-		clientRepo:       clientRepo,
-		userRepo:         userRepo,
-		authEventService: authEventService,
+		db:                  db,
+		clientRepo:          clientRepo,
+		userRepo:            userRepo,
+		authEventService:    authEventService,
+		securitySettingRepo: settings,
 	}
 }
 
@@ -130,7 +138,7 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		return nil, oerr
 	}
 
-	accessTokenOpts := clientAccessTokenOpts(client)
+	accessTokenOpts := oauthAccessTokenOptions(s.securitySettingRepo, client)
 	accessTokenOpts.AMR = amrClaimValues(claims["amr"])
 	if acr, ok := claims["acr"].(string); ok {
 		accessTokenOpts.ACR = acr
@@ -168,7 +176,7 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		AccessToken:     newToken,
 		IssuedTokenType: issuedTokenType,
 		TokenType:       "Bearer",
-		ExpiresIn:       int64(jwt.AccessTokenTTL.Seconds()),
+		ExpiresIn:       oauthAccessTokenExpiresIn(s.securitySettingRepo, client),
 		Scope:           scope,
 	}, nil
 }

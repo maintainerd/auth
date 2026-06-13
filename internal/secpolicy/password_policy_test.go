@@ -29,8 +29,9 @@ func (m *mockPasswordHistoryRecorder) PruneExcess(userID int64, keep int) error 
 func TestLoadPasswordPolicy(t *testing.T) {
 	t.Run("nil repo returns default", func(t *testing.T) {
 		policy := LoadPasswordPolicy(nil, 1)
-		assert.Equal(t, 8, policy.MinLength)
-		assert.True(t, policy.RequireUpper)
+		assert.Equal(t, 12, policy.MinLength)
+		assert.False(t, policy.RequireUpper)
+		assert.Equal(t, 5, policy.HistoryCount)
 	})
 
 	t.Run("repo error returns default", func(t *testing.T) {
@@ -40,7 +41,7 @@ func TestLoadPasswordPolicy(t *testing.T) {
 			},
 		}
 		policy := LoadPasswordPolicy(repo, 1)
-		assert.Equal(t, 8, policy.MinLength)
+		assert.Equal(t, 12, policy.MinLength)
 	})
 
 	t.Run("nil setting returns default", func(t *testing.T) {
@@ -50,7 +51,7 @@ func TestLoadPasswordPolicy(t *testing.T) {
 			},
 		}
 		policy := LoadPasswordPolicy(repo, 1)
-		assert.Equal(t, 8, policy.MinLength)
+		assert.Equal(t, 12, policy.MinLength)
 	})
 
 	t.Run("success merged policy", func(t *testing.T) {
@@ -74,7 +75,7 @@ func TestLoadPasswordPolicy(t *testing.T) {
 			},
 		}
 		policy := LoadPasswordPolicy(repo, 1)
-		assert.Equal(t, 8, policy.MinLength)
+		assert.Equal(t, 12, policy.MinLength)
 	})
 }
 

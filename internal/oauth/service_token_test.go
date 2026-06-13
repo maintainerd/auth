@@ -1443,7 +1443,7 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 			GrantType: "client_credentials",
 		}, OAuthClientCredentials{ClientID: "m2m-client"})
 		require.Nil(t, oerr)
-		assert.Equal(t, int64(3600), result.ExpiresIn)
+		assert.Equal(t, int64(900), result.ExpiresIn)
 	})
 
 	t.Run("client auth failure", func(t *testing.T) {
@@ -2097,7 +2097,7 @@ func TestRefreshTokenTTL(t *testing.T) {
 
 	t.Run("falls back to default", func(t *testing.T) {
 		client := &Client{}
-		assert.Equal(t, 7*24*time.Hour, svc.refreshTokenTTL(client))
+		assert.Equal(t, 30*24*time.Hour, svc.refreshTokenTTL(client))
 	})
 }
 
@@ -2187,7 +2187,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, ttlClient, "openid profile", nil, "")
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
-		assert.Equal(t, int64(1800), result.ExpiresIn)
+		assert.Equal(t, int64(900), result.ExpiresIn)
 	})
 
 	t.Run("JWT generation error — keys not initialized", func(t *testing.T) {

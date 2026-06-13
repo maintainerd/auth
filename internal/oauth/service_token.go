@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -53,14 +54,15 @@ type OAuthTokenService interface {
 }
 
 type oauthTokenService struct {
-	db               *gorm.DB
-	clientRepo       ClientRepository
-	authCodeRepo     OAuthAuthorizationCodeRepository
-	refreshTokenRepo OAuthRefreshTokenRepository
-	userRepo         UserRepository
-	userIdentityRepo UserIdentityRepository
-	authEventService authevent.AuthEventService
-	jtiDenylist      cache.JTIDenylister
+	db                  *gorm.DB
+	clientRepo          ClientRepository
+	authCodeRepo        OAuthAuthorizationCodeRepository
+	refreshTokenRepo    OAuthRefreshTokenRepository
+	userRepo            UserRepository
+	userIdentityRepo    UserIdentityRepository
+	authEventService    authevent.AuthEventService
+	jtiDenylist         cache.JTIDenylister
+	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
 // NewOAuthTokenService creates a new OAuthTokenService.
@@ -73,16 +75,22 @@ func NewOAuthTokenService(
 	userIdentityRepo UserIdentityRepository,
 	authEventService authevent.AuthEventService,
 	jtiDenylist cache.JTIDenylister,
+	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) OAuthTokenService {
+	var settings secpolicy.SecuritySettingRepository
+	if len(securitySettingRepo) > 0 {
+		settings = securitySettingRepo[0]
+	}
 	return &oauthTokenService{
-		db:               db,
-		clientRepo:       clientRepo,
-		authCodeRepo:     authCodeRepo,
-		refreshTokenRepo: refreshTokenRepo,
-		userRepo:         userRepo,
-		userIdentityRepo: userIdentityRepo,
-		authEventService: authEventService,
-		jtiDenylist:      jtiDenylist,
+		db:                  db,
+		clientRepo:          clientRepo,
+		authCodeRepo:        authCodeRepo,
+		refreshTokenRepo:    refreshTokenRepo,
+		userRepo:            userRepo,
+		userIdentityRepo:    userIdentityRepo,
+		authEventService:    authEventService,
+		jtiDenylist:         jtiDenylist,
+		securitySettingRepo: settings,
 	}
 }
 
@@ -437,7 +445,7 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 		serviceName = client.Service.Name
 		subjectType = "service"
 	}
-	opts := clientAccessTokenOpts(client)
+	opts := s.clientAccessTokenOpts(client)
 	opts.Service = serviceName
 	opts.SubjectType = subjectType
 
@@ -469,10 +477,7 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 			identifier)),
 	})
 
-	expiresIn := int64(jwt.AccessTokenTTL.Seconds())
-	if client.AccessTokenTTL != nil {
-		expiresIn = int64(*client.AccessTokenTTL)
-	}
+	expiresIn := int64(oauthEffectiveSessionPolicy(s.securitySettingRepo, client).AccessTokenTTLSeconds)
 
 	span.SetStatus(codes.Ok, "")
 	return &OAuthTokenResult{
@@ -690,7 +695,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 		providerID = client.IdentityProvider.Identifier
 	}
 
-	accessTokenOpts := clientAccessTokenOpts(client)
+	accessTokenOpts := s.clientAccessTokenOpts(client)
 	if dpopThumbprint != "" {
 		accessTokenOpts.DPoPThumbprint = dpopThumbprint
 	}
@@ -709,7 +714,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 
 	profile := buildUserProfile(user)
 
-	idTokenParams := buildIDTokenParams(scope, client)
+	idTokenParams := s.buildIDTokenParams(scope, client, roleNames(user))
 
 	idToken, err := oauthTokenGenerateIDTokenWithContext(ctx, sub, issuer, identifier, providerID, profile, nonceStr, idTokenParams)
 	if err != nil {
@@ -741,10 +746,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 		}
 	}
 
-	expiresIn := int64(jwt.AccessTokenTTL.Seconds())
-	if client.AccessTokenTTL != nil {
-		expiresIn = int64(*client.AccessTokenTTL)
-	}
+	expiresIn := int64(oauthEffectiveSessionPolicy(s.securitySettingRepo, client).AccessTokenTTLSeconds)
 
 	tokenType := "Bearer"
 	if dpopThumbprint != "" {
@@ -780,8 +782,9 @@ func (s *oauthTokenService) resolveUserSub(userID, clientID int64) (string, erro
 // refreshTokenTTL returns the refresh token TTL for the client, falling back
 // to the global default from the jwt package.
 func (s *oauthTokenService) refreshTokenTTL(client *Client) time.Duration {
-	if client.RefreshTokenTTL != nil {
-		return time.Duration(*client.RefreshTokenTTL) * time.Second
+	policy := oauthEffectiveSessionPolicy(s.securitySettingRepo, client)
+	if policy.RefreshTokenTTLSeconds > 0 {
+		return time.Duration(policy.RefreshTokenTTLSeconds) * time.Second
 	}
 	return jwt.RefreshTokenTTL
 }
@@ -805,12 +808,8 @@ func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, erro
 	return &client, nil
 }
 
-func clientAccessTokenOpts(client *Client) *jwt.AccessTokenOptions {
-	opts := &jwt.AccessTokenOptions{}
-	if client != nil && client.AccessTokenTTL != nil && *client.AccessTokenTTL > 0 {
-		opts.AccessTokenTTL = time.Duration(*client.AccessTokenTTL) * time.Second
-	}
-	return opts
+func (s *oauthTokenService) clientAccessTokenOpts(client *Client) *jwt.AccessTokenOptions {
+	return oauthAccessTokenOptions(s.securitySettingRepo, client)
 }
 
 func buildUserProfile(user *User) *jwt.UserProfile {
@@ -849,16 +848,26 @@ func buildUserProfile(user *User) *jwt.UserProfile {
 	return p
 }
 
+func (s *oauthTokenService) buildIDTokenParams(scope string, client *Client, userRoles []string) *jwt.IDTokenParams {
+	return buildIDTokenParamsWithPolicy(s.securitySettingRepo, scope, client, userRoles)
+}
+
 func buildIDTokenParams(scope string, client *Client) *jwt.IDTokenParams {
+	return buildIDTokenParamsWithPolicy(nil, scope, client, nil)
+}
+
+func buildIDTokenParamsWithPolicy(repo secpolicy.SecuritySettingRepository, scope string, client *Client, userRoles []string) *jwt.IDTokenParams {
 	scopes := parseScopes(scope)
 	if len(scopes) == 0 {
 		return nil
 	}
+	tokenPolicy := oauthEffectiveTokenPolicy(repo, client)
 
 	params := &jwt.IDTokenParams{
-		RequestedScopes: scopes,
-		AMR:             []string{jwt.AMRPassword},
-		ACR:             jwt.ACRLevel1,
+		RequestedScopes:  scopes,
+		AMR:              []string{jwt.AMRPassword},
+		ACR:              jwt.ACRLevel1,
+		SigningAlgorithm: tokenPolicy.SigningAlgorithm,
 	}
 
 	if client.ScopeClaimMappings != nil {
@@ -872,6 +881,25 @@ func buildIDTokenParams(scope string, client *Client) *jwt.IDTokenParams {
 		var extraClaims map[string]any
 		if err := json.Unmarshal(client.ClaimMappers, &extraClaims); err == nil {
 			params.ExtraClaims = extraClaims
+		}
+	}
+
+	for _, claim := range tokenPolicy.AdditionalIDTokenClaims {
+		switch claim {
+		case "tenant_id":
+			if client != nil && client.TenantID > 0 {
+				if params.ExtraClaims == nil {
+					params.ExtraClaims = map[string]any{}
+				}
+				params.ExtraClaims["tenant_id"] = client.TenantID
+			}
+		case "roles":
+			if len(userRoles) > 0 {
+				if params.ExtraClaims == nil {
+					params.ExtraClaims = map[string]any{}
+				}
+				params.ExtraClaims["roles"] = userRoles
+			}
 		}
 	}
 
@@ -896,4 +924,15 @@ func hasOfflineAccess(scope string) bool {
 		}
 	}
 	return false
+}
+
+func roleNames(user *User) []string {
+	if user == nil || len(user.Roles) == 0 {
+		return nil
+	}
+	names := make([]string, len(user.Roles))
+	for i, r := range user.Roles {
+		names[i] = r.Name
+	}
+	return names
 }

@@ -95,7 +95,7 @@ func (m *mockSecuritySettingRepo) Paginate(map[string]any, int, int, ...string) 
 func TestLoadPolicy(t *testing.T) {
 	t.Run("nil repo returns default", func(t *testing.T) {
 		policy := secpolicy.LoadPasswordPolicy(nil, 1)
-		assert.Equal(t, security.DefaultPasswordPolicy(), policy)
+		assert.Equal(t, expectedBusinessPasswordPolicy(), policy)
 	})
 
 	t.Run("repo error returns default", func(t *testing.T) {
@@ -105,7 +105,7 @@ func TestLoadPolicy(t *testing.T) {
 			},
 		}
 		policy := secpolicy.LoadPasswordPolicy(repo, 1)
-		assert.Equal(t, security.DefaultPasswordPolicy(), policy)
+		assert.Equal(t, expectedBusinessPasswordPolicy(), policy)
 	})
 
 	t.Run("repo returns nil returns default", func(t *testing.T) {
@@ -115,8 +115,26 @@ func TestLoadPolicy(t *testing.T) {
 			},
 		}
 		policy := secpolicy.LoadPasswordPolicy(repo, 1)
-		assert.Equal(t, security.DefaultPasswordPolicy(), policy)
+		assert.Equal(t, expectedBusinessPasswordPolicy(), policy)
 	})
+}
+
+func expectedBusinessPasswordPolicy() security.PasswordPolicy {
+	return security.PasswordPolicy{
+		MinLength:                  12,
+		MaxLength:                  128,
+		RequireUpper:               false,
+		RequireLower:               false,
+		RequireDigit:               false,
+		RequireSpecial:             false,
+		BlocklistEnabled:           true,
+		HistoryCount:               5,
+		ExpiryDays:                 0,
+		CheckHIBP:                  true,
+		MinStrengthScore:           2,
+		HashAlgorithm:              "argon2id",
+		TempPasswordValidityHours:  72,
+	}
 }
 
 func TestCheckPasswordHistory(t *testing.T) {

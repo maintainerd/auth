@@ -14,6 +14,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -43,11 +44,12 @@ type OAuthCIBAService interface {
 }
 
 type oauthCIBAService struct {
-	db               *gorm.DB
-	clientRepo       ClientRepository
-	cibaRepo         OAuthCIBARequestRepository
-	userRepo         UserRepository
-	authEventService authevent.AuthEventService
+	db                  *gorm.DB
+	clientRepo          ClientRepository
+	cibaRepo            OAuthCIBARequestRepository
+	userRepo            UserRepository
+	authEventService    authevent.AuthEventService
+	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
 // NewOAuthCIBAService creates a new OAuthCIBAService.
@@ -57,13 +59,19 @@ func NewOAuthCIBAService(
 	cibaRepo OAuthCIBARequestRepository,
 	userRepo UserRepository,
 	authEventService authevent.AuthEventService,
+	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) OAuthCIBAService {
+	var settings secpolicy.SecuritySettingRepository
+	if len(securitySettingRepo) > 0 {
+		settings = securitySettingRepo[0]
+	}
 	return &oauthCIBAService{
-		db:               db,
-		clientRepo:       clientRepo,
-		cibaRepo:         cibaRepo,
-		userRepo:         userRepo,
-		authEventService: authEventService,
+		db:                  db,
+		clientRepo:          clientRepo,
+		cibaRepo:            cibaRepo,
+		userRepo:            userRepo,
+		authEventService:    authEventService,
+		securitySettingRepo: settings,
 	}
 }
 
@@ -316,7 +324,7 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 		issuer,
 		clientIdentifier,
 		providerID,
-		cibaAccessTokenOpts(record),
+		cibaAccessTokenOpts(s.securitySettingRepo, record),
 	)
 	if err != nil {
 		span.RecordError(err)
@@ -339,13 +347,13 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 	return &OAuthTokenResponseDTO{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
+		ExpiresIn:   oauthAccessTokenExpiresIn(s.securitySettingRepo, record.Client),
 		Scope:       record.Scope,
 	}, nil
 }
 
-func cibaAccessTokenOpts(record *OAuthCIBARequest) *jwt.AccessTokenOptions {
-	opts := clientAccessTokenOpts(record.Client)
+func cibaAccessTokenOpts(repo secpolicy.SecuritySettingRepository, record *OAuthCIBARequest) *jwt.AccessTokenOptions {
+	opts := oauthAccessTokenOptions(repo, record.Client)
 	acr, amr := persistedAuthContext(record.AuthACR, record.AuthAMR)
 	opts.ACR = acr
 	opts.AMR = amr

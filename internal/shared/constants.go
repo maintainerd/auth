@@ -28,6 +28,7 @@ const (
 	TokenTypePasswordReset     = "user:password:reset"
 	TokenTypeMagicLink         = "user:magic_link"
 	TokenTypeSession           = "user:session"
+	TokenTypeMFATrustedDevice  = "user:mfa:trusted_device"
 
 	// Default OAuth token response values.
 	DefaultAccessTokenExpiresIn = 3600

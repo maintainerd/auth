@@ -3,6 +3,7 @@ package mfa
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-webauthn/webauthn/protocol"
@@ -59,6 +60,44 @@ func (h *MFAHandler) RequireStepUpOrEnrolledMFA(next http.Handler) http.Handler 
 		}
 
 		resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
+	})
+}
+
+// RequirePolicyStepUp gates a sensitive self-service action (e.g. email change)
+// on a fresh step-up ONLY when the user's tenant policy
+// require_mfa_for_sensitive_actions is enabled AND the user has an enrolled MFA
+// factor. When the policy is off, or the user has no MFA enrolled, the request
+// passes through unchanged — so password-only users are never blocked. When the
+// gate applies, it enforces the same acr=2 + 5-minute freshness window as
+// middleware.RequireStepUp. It must run after JWTAuthMiddleware and
+// UserContextMiddleware so both the claims and the user context are present.
+func (h *MFAHandler) RequirePolicyStepUp(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := middleware.AuthFromRequest(r).User
+		if user == nil {
+			resp.Error(w, http.StatusUnauthorized, "No valid authentication found")
+			return
+		}
+
+		required, err := h.mfaSvc.SensitiveActionStepUpRequired(r.Context(), user.UserID)
+		if err != nil || !required {
+			// Not applicable (policy off, no MFA enrolled, or lookup failed): do
+			// not block. Fail-open keeps password-only flows and existing tests
+			// unaffected.
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		claims := middleware.JWTClaimsFromRequest(r)
+		if claims == nil || claims.ACR != jwt.ACRLevel2 {
+			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
+			return
+		}
+		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > 300 {
+			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication has expired; please re-authenticate")
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

@@ -22,7 +22,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var userHashPassword = security.HashPassword
+var userHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
 type UserServiceDataResult struct {
 	UserUUID           uuid.UUID
@@ -358,7 +358,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		}
 
 		// Hash password
-		hashedPassword, err := userHashPassword(ctx, []byte(password))
+		hashedPassword, err := userHashPasswordWithPolicy(ctx, []byte(password), policy)
 		if err != nil {
 			return err
 		}

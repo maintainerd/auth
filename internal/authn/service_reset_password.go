@@ -45,7 +45,7 @@ func NewResetPasswordService(
 	}
 }
 
-var resetHashPassword = security.HashPassword
+var resetHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
 func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*ResetPasswordResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "password.reset")
@@ -133,7 +133,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Hash the new password
-		hashedPassword, txErr := resetHashPassword(ctx, []byte(newPassword))
+		hashedPassword, txErr := resetHashPasswordWithPolicy(ctx, []byte(newPassword), policy)
 		if txErr != nil {
 			return apperror.NewInternal("failed to hash password", txErr)
 		}
@@ -152,9 +152,12 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		// Record new hash in history
 		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, user.UserID, policy.HistoryCount, string(hashedPassword))
 
-		// Revoke all sessions so existing logins are invalidated after password change.
-		if txErr = txUserTokenRepo.RevokeAllSessionsByUserID(user.UserID); txErr != nil {
-			return apperror.NewInternal("failed to revoke sessions on password reset", txErr)
+		// Revoke all sessions so existing logins are invalidated after password change,
+		// unless the tenant policy has opted out via revoke_sessions_on_password_change=false.
+		if secpolicy.ShouldRevokeSessionsOnPasswordChange(s.securitySettingRepo, tenantID) {
+			if txErr = txUserTokenRepo.RevokeAllSessionsByUserID(user.UserID); txErr != nil {
+				return apperror.NewInternal("failed to revoke sessions on password reset", txErr)
+			}
 		}
 
 		// Revoke the reset token

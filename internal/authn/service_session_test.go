@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -169,6 +170,26 @@ func TestSessionService_CreateSession(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
+
+	t.Run("uses policy idle and absolute timeouts", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			createFn: func(token *UserToken) (*UserToken, error) {
+				token.UserTokenUUID = uuid.New()
+				require.NotNil(t, token.IdleTimeoutSeconds)
+				assert.Equal(t, 600, *token.IdleTimeoutSeconds)
+				require.NotNil(t, token.AbsoluteExpiresAt)
+				assert.WithinDuration(t, time.Now().Add(2*time.Hour), *token.AbsoluteExpiresAt, 5*time.Second)
+				return token, nil
+			},
+		}
+		svc := NewSessionService(repo).(*sessionService)
+		result, err := svc.CreateSessionWithPolicy(context.Background(), 1, "", "", secpolicy.EffectiveSessionPolicy{
+			IdleTimeoutSeconds:     600,
+			AbsoluteTimeoutSeconds: 7200,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
 }
 
 func TestGenerateRandomToken(t *testing.T) {
@@ -202,6 +223,41 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 		svc := NewSessionService(repo)
 		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
 		require.NoError(t, err)
+	})
+
+	t.Run("policy limit of zero is unlimited", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			countActiveSessionsFn: func(int64) (int64, error) {
+				return 99, nil
+			},
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				t.Fatal("must not evict when policy allows unlimited sessions")
+				return nil, nil
+			},
+		}
+		svc := NewSessionService(repo).(*sessionService)
+		err := svc.EnforceConcurrentLimitWithPolicy(context.Background(), userUUID, 1, secpolicy.EffectiveSessionPolicy{MaxConcurrentSessions: 0})
+		require.NoError(t, err)
+	})
+
+	t.Run("policy evicts at custom limit", func(t *testing.T) {
+		var revoked bool
+		repo := &mockUserTokenRepo{
+			countActiveSessionsFn: func(int64) (int64, error) {
+				return 1, nil
+			},
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				return []UserToken{{UserTokenUUID: sessionUUID}}, nil
+			},
+			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+				revoked = true
+				return nil
+			},
+		}
+		svc := NewSessionService(repo).(*sessionService)
+		err := svc.EnforceConcurrentLimitWithPolicy(context.Background(), userUUID, 1, secpolicy.EffectiveSessionPolicy{MaxConcurrentSessions: 1})
+		require.NoError(t, err)
+		assert.True(t, revoked)
 	})
 
 	t.Run("count error", func(t *testing.T) {

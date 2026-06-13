@@ -38,19 +38,19 @@ func TestValidateTOTPAndStep(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	step, ok, err := validateTOTPAndStep(code, secret, at)
+	step, ok, err := validateTOTPAndStep(code, secret, at, totpDigits, totpPeriod)
 	require.NoError(t, err)
 	assert.True(t, ok)
-	assert.Equal(t, at.Unix()/totpPeriod, step)
+	assert.Equal(t, at.Unix()/int64(totpPeriod), step)
 }
 
 func TestValidateTOTPAndStepRejectsInvalidCode(t *testing.T) {
-	step, ok, err := validateTOTPAndStep("000000", "JBSWY3DPEHPK3PXP", time.Unix(1_700_000_000, 0).UTC())
+	step, ok, err := validateTOTPAndStep("000000", "JBSWY3DPEHPK3PXP", time.Unix(1_700_000_000, 0).UTC(), totpDigits, totpPeriod)
 	require.NoError(t, err)
 	assert.False(t, ok)
 	assert.Zero(t, step)
 
-	step, ok, err = validateTOTPAndStep("000000", "JBSWY3DPEHPK3PXP", time.Unix(-1, 0).UTC())
+	step, ok, err = validateTOTPAndStep("000000", "JBSWY3DPEHPK3PXP", time.Unix(-1, 0).UTC(), totpDigits, totpPeriod)
 	require.NoError(t, err)
 	assert.False(t, ok)
 	assert.Zero(t, step)
@@ -182,7 +182,7 @@ func TestMFAService_GetMFAPolicy(t *testing.T) {
 		{
 			name:    "repo miss uses default policy",
 			setting: nil,
-			want:    &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}},
+			want:    &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "webauthn", "backup_code"}},
 		},
 		{
 			name: "valid json policy",
@@ -196,19 +196,26 @@ func TestMFAService_GetMFAPolicy(t *testing.T) {
 			setting: &secpolicy.SecuritySetting{
 				MFAConfig: datatypes.JSON([]byte(`{bad json`)),
 			},
-			want: &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}},
+			want: &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "webauthn", "backup_code"}},
 		},
 		{
-			name: "missing allowed methods uses default policy",
+			name: "missing allowed methods keeps required flag with default methods",
 			setting: &secpolicy.SecuritySetting{
 				MFAConfig: datatypes.JSON([]byte(`{"required":true}`)),
 			},
-			want: &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}},
+			want: &MFAPolicyDTO{Required: true, AllowedMethods: []string{"totp", "webauthn", "backup_code"}},
+		},
+		{
+			name: "canonical mode and recovery code are normalized",
+			setting: &secpolicy.SecuritySetting{
+				MFAConfig: datatypes.JSON([]byte(`{"mode":"enforced","allowed_methods":["totp","recovery_code"]}`)),
+			},
+			want: &MFAPolicyDTO{Required: true, AllowedMethods: []string{"totp", "backup_code"}},
 		},
 		{
 			name: "repo error uses default policy",
 			err:  errors.New("db down"),
-			want: &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}},
+			want: &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "webauthn", "backup_code"}},
 		},
 	}
 

@@ -1,30 +1,44 @@
 package user
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 )
 
 // AccountRoute mounts authenticated self-service account management endpoints.
+//
+// sensitiveActionStepUp is a policy-aware step-up middleware (provided by the
+// mfa package). It gates sensitive identity changes (email change) on a fresh
+// step-up only when the tenant policy require_mfa_for_sensitive_actions is
+// enabled AND the user has an enrolled MFA factor; otherwise it is a pass-
+// through. When nil, the strict middleware.RequireStepUp is used as a safe
+// fallback (preserving prior behavior).
 func AccountRoute(
 	r chi.Router,
 	accountHandler *AccountHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	sensitiveActionStepUp func(http.Handler) http.Handler,
 ) {
+	if sensitiveActionStepUp == nil {
+		sensitiveActionStepUp = middleware.RequireStepUp
+	}
 	r.Route("/account", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
-		// Email change flow — updating the account's sign-in identity.
-		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+		// Email change flow — updating the account's sign-in identity. Gated on a
+		// policy-aware step-up (see sensitiveActionStepUp).
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), sensitiveActionStepUp).
 			Post("/email/change", accountHandler.InitiateEmailChange)
-		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), sensitiveActionStepUp).
 			Post("/email/verify", accountHandler.VerifyEmailChange)
 
 		// Username change
-		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), middleware.RequireStepUp).
 			Put("/username", accountHandler.ChangeUsername)
 
 		// Account deletion

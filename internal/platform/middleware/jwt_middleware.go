@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authctx"
@@ -43,6 +44,7 @@ type JWTClaims struct {
 	SessionID   string
 	AMR         []string
 	ACR         string
+	Iat         int64
 }
 
 // JWTClaimsFromRequest returns the JWTClaims stored in the request context
@@ -148,6 +150,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		subjectType, _ := rawClaims["sub_type"].(string)
 		acr, _ := rawClaims["acr"].(string)
 		amr := stringSliceClaim(rawClaims["amr"])
+		iat := numericDateClaim(rawClaims["iat"])
 
 		claims := &JWTClaims{
 			Sub:         sub,
@@ -163,6 +166,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			SessionID:   sessionID,
 			AMR:         amr,
 			ACR:         acr,
+			Iat:         iat,
 		}
 
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), jwtKey{}, claims)))
@@ -185,8 +189,9 @@ func stringSliceClaim(raw any) []string {
 	return out
 }
 
-// RequireStepUp requires an elevated token with acr=2. It must run after
-// JWTAuthMiddleware so JWTClaims are already present in the request context.
+// RequireStepUp requires an elevated token with acr=2 issued within the last
+// 5 minutes (step-up freshness window). It must run after JWTAuthMiddleware
+// so JWTClaims are already present in the request context.
 func RequireStepUp(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims := JWTClaimsFromRequest(r)
@@ -195,10 +200,11 @@ func RequireStepUp(next http.Handler) http.Handler {
 			return
 		}
 		if claims.ACR != jwt.ACRLevel2 {
-			// Emit a stable code so clients can detect the step-up requirement
-			// and run the challenge/verify handshake, then retry with the
-			// elevated (acr=2) token — rather than string-matching the message.
 			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
+			return
+		}
+		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > 300 {
+			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication has expired; please re-authenticate")
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -221,4 +227,16 @@ func GetProviderIDFromContext(r *http.Request) string {
 		return claims.ProviderID
 	}
 	return ""
+}
+
+func numericDateClaim(v any) int64 {
+	switch t := v.(type) {
+	case float64:
+		return int64(t)
+	case int64:
+		return t
+	case int:
+		return int64(t)
+	}
+	return 0
 }

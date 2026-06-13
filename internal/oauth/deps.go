@@ -75,8 +75,12 @@ type Client struct {
 	TokenEndpointAuthMethod string            `gorm:"column:token_endpoint_auth_method"`
 	GrantTypes              pq.StringArray    `gorm:"column:grant_types;type:text[]"`
 	ResponseTypes           pq.StringArray    `gorm:"column:response_types;type:text[]"`
+	RequirePKCE            *bool             `gorm:"column:require_pkce"`
 	AccessTokenTTL          *int              `gorm:"column:access_token_ttl"`
 	RefreshTokenTTL         *int              `gorm:"column:refresh_token_ttl"`
+	RequiredACR             *string           `gorm:"column:required_acr"`
+	SessionIdleTimeout      *int              `gorm:"column:session_idle_timeout"`
+	SessionAbsoluteTimeout  *int              `gorm:"column:session_absolute_timeout"`
 	RequireConsent          bool              `gorm:"column:require_consent"`
 	AllowedScopes           pq.StringArray    `gorm:"column:allowed_scopes;type:text[]"`
 	ClientURIs              *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`

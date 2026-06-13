@@ -124,6 +124,7 @@ func NewSecuritySettingService(
 }
 
 func toSecuritySettingServiceDataResult(ss *SecuritySetting) *SecuritySettingServiceDataResult {
+	ApplySecuritySettingDefaults(ss)
 	return &SecuritySettingServiceDataResult{
 		SecuritySettingUUID: ss.SecuritySettingUUID,
 		TenantID:            ss.TenantID,
@@ -206,7 +207,11 @@ func (s *securitySettingService) getConfig(ctx context.Context, tenantID int64, 
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(def.selectJSON(setting)), nil
+	config, err := NormalizeSecuritySettingConfig(configType, jsonutil.JSONToMap(def.selectJSON(setting)), nil)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
 }
 
 func (s *securitySettingService) UpdateMFAConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
@@ -264,24 +269,15 @@ func (s *securitySettingService) getOrCreateSecuritySetting(tenantID int64) (*Se
 	}
 
 	if setting == nil {
-		// Create default security setting
-		setting = &SecuritySetting{
-			TenantID:           tenantID,
-			MFAConfig:          datatypes.JSON([]byte("{}")),
-			PasswordConfig:     datatypes.JSON([]byte("{}")),
-			SessionConfig:      datatypes.JSON([]byte("{}")),
-			ThreatConfig:       datatypes.JSON([]byte("{}")),
-			LockoutConfig:      datatypes.JSON([]byte("{}")),
-			RegistrationConfig: datatypes.JSON([]byte("{}")),
-			TokenConfig:        datatypes.JSON([]byte("{}")),
-			Version:            1,
-		}
+		defaultSetting := NewDefaultSecuritySetting(tenantID)
+		setting = &defaultSetting
 		created, err := s.securitySettingRepo.Create(setting)
 		if err != nil {
 			return nil, err
 		}
 		return created, nil
 	}
+	ApplySecuritySettingDefaults(setting)
 
 	return setting, nil
 }
@@ -303,30 +299,26 @@ func (s *securitySettingService) updateConfig(tenantID int64, def securityConfig
 		var isNew bool
 
 		if setting == nil {
-			// Create new security setting
 			isNew = true
-			setting = &SecuritySetting{
-				TenantID:           tenantID,
-				MFAConfig:          datatypes.JSON([]byte("{}")),
-				PasswordConfig:     datatypes.JSON([]byte("{}")),
-				SessionConfig:      datatypes.JSON([]byte("{}")),
-				ThreatConfig:       datatypes.JSON([]byte("{}")),
-				LockoutConfig:      datatypes.JSON([]byte("{}")),
-				RegistrationConfig: datatypes.JSON([]byte("{}")),
-				TokenConfig:        datatypes.JSON([]byte("{}")),
-				Version:            1,
-				CreatedBy:          &updatedBy,
-			}
+			defaultSetting := NewDefaultSecuritySetting(tenantID)
+			setting = &defaultSetting
+			setting.CreatedBy = &updatedBy
+		} else {
+			ApplySecuritySettingDefaults(setting)
 		}
 
-		// Marshal new config
-		configBytes, err := json.Marshal(config)
+		oldConfigJSON = def.selectJSON(setting)
+		normalized, err := NormalizeSecuritySettingConfig(def.key, jsonutil.JSONToMap(oldConfigJSON), config)
+		if err != nil {
+			return err
+		}
+
+		configBytes, err := json.Marshal(normalized)
 		if err != nil {
 			return err
 		}
 		newConfigJSON := datatypes.JSON(configBytes)
 
-		oldConfigJSON = def.selectJSON(setting)
 		def.assignJSON(setting, newConfigJSON)
 
 		setting.UpdatedBy = &updatedBy

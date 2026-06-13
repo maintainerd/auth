@@ -1,6 +1,7 @@
 package secpolicy
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,15 +10,7 @@ import (
 
 func TestSecuritySettingUpdateConfigRequestDto_Validate(t *testing.T) {
 	t.Run("valid with data", func(t *testing.T) {
-		d := SecuritySettingUpdateConfigRequestDTO{
-			"max_login_attempts": 5,
-			"lockout_duration":   300,
-		}
-		assert.NoError(t, d.Validate())
-	})
-
-	t.Run("valid single key", func(t *testing.T) {
-		d := SecuritySettingUpdateConfigRequestDTO{"key": "value"}
+		d := SecuritySettingUpdateConfigRequestDTO{"min_length": 12}
 		assert.NoError(t, d.Validate())
 	})
 
@@ -29,5 +22,115 @@ func TestSecuritySettingUpdateConfigRequestDto_Validate(t *testing.T) {
 	t.Run("nil config is invalid", func(t *testing.T) {
 		var d SecuritySettingUpdateConfigRequestDTO
 		require.Error(t, d.Validate())
+	})
+}
+
+func TestDecodeSecuritySettingUpdateConfig(t *testing.T) {
+	t.Run("rejects unknown keys", func(t *testing.T) {
+		_, err := DecodeSecuritySettingUpdateConfig("password", strings.NewReader(`{"min_lenght":12}`))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown field")
+	})
+
+	t.Run("rejects empty body object", func(t *testing.T) {
+		_, err := DecodeSecuritySettingUpdateConfig("password", strings.NewReader(`{}`))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "empty")
+	})
+
+	t.Run("accepts typed partial body", func(t *testing.T) {
+		cfg, err := DecodeSecuritySettingUpdateConfig("session", strings.NewReader(`{"idle_timeout_minutes":20}`))
+		require.NoError(t, err)
+		assert.EqualValues(t, float64(20), cfg["idle_timeout_minutes"])
+	})
+}
+
+func TestNormalizeSecuritySettingConfig(t *testing.T) {
+	t.Run("merges defaults, existing config, and patch", func(t *testing.T) {
+		cfg, err := NormalizeSecuritySettingConfig(
+			"password",
+			map[string]any{"min_length": 14, "legacy_junk": true},
+			map[string]any{"max_age_days": 90},
+		)
+		require.NoError(t, err)
+		assert.EqualValues(t, float64(14), cfg["min_length"])
+		assert.EqualValues(t, float64(90), cfg["max_age_days"])
+		assert.EqualValues(t, float64(128), cfg["max_length"])
+		assert.NotContains(t, cfg, "legacy_junk")
+	})
+
+	t.Run("rejects cross-field validation after defaults are merged", func(t *testing.T) {
+		_, err := NormalizeSecuritySettingConfig("mfa", nil, map[string]any{"allowed_methods": []string{"totp"}})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "preferred_method")
+	})
+}
+
+func TestSecuritySettingValidationRules(t *testing.T) {
+	cases := []struct {
+		name       string
+		configType string
+		patch      map[string]any
+		want       string
+	}{
+		{name: "password min greater than max", configType: "password", patch: map[string]any{"min_length": 129}, want: "min_length"},
+		{name: "mfa sms requires gate", configType: "mfa", patch: map[string]any{"allow_sms": false, "allowed_methods": []string{"sms"}}, want: "allow_sms"},
+		{name: "session SameSite None requires secure cookie", configType: "session", patch: map[string]any{"cookie_same_site": "None", "cookie_secure": false}, want: "cookie_secure"},
+		{name: "token rejects unsupported algorithm", configType: "token", patch: map[string]any{"signing_algorithm": "HS256"}, want: "signing_algorithm"},
+		{name: "lockout max duration must cap duration", configType: "lockout", patch: map[string]any{"lockout_duration_minutes": 30, "max_lockout_duration_minutes": 10}, want: "max_lockout_duration_minutes"},
+		{name: "registration disallows auto-confirm with verification", configType: "registration", patch: map[string]any{"auto_confirm_enabled": true}, want: "auto_confirm_enabled"},
+		{name: "threat step up cannot exceed block", configType: "threat", patch: map[string]any{"risk_step_up_threshold": 90}, want: "risk_step_up_threshold"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NormalizeSecuritySettingConfig(tc.configType, nil, tc.patch)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
+}
+
+func TestResolveEffectiveSessionPolicy(t *testing.T) {
+	t.Run("client can tighten but not loosen tenant timeouts", func(t *testing.T) {
+		loose := 7200
+		tight := 600
+		policy, err := ResolveEffectiveSessionPolicy(
+			map[string]any{"idle_timeout_minutes": 30, "absolute_timeout_hours": 24, "access_token_ttl_minutes": 15, "refresh_token_ttl_days": 30},
+			map[string]any{"mode": "optional"},
+			SecuritySettingClientOverrides{
+				SessionIdleTimeout:     &loose,
+				SessionAbsoluteTimeout: &tight,
+				AccessTokenTTL:         &tight,
+			},
+		)
+		require.NoError(t, err)
+		assert.Equal(t, 1800, policy.IdleTimeoutSeconds)
+		assert.Equal(t, 600, policy.AbsoluteTimeoutSeconds)
+		assert.Equal(t, 600, policy.AccessTokenTTLSeconds)
+		assert.Equal(t, "1", policy.RequiredACR)
+	})
+
+	t.Run("client and tenant can strengthen required acr", func(t *testing.T) {
+		acr := "2"
+		policy, err := ResolveEffectiveSessionPolicy(nil, map[string]any{"mode": "optional"}, SecuritySettingClientOverrides{RequiredACR: &acr})
+		require.NoError(t, err)
+		assert.Equal(t, "2", policy.RequiredACR)
+	})
+}
+
+func TestResolveEffectiveTokenPolicy(t *testing.T) {
+	t.Run("true pkce wins over client false", func(t *testing.T) {
+		clientFalse := false
+		policy, err := ResolveEffectiveTokenPolicy(map[string]any{"require_pkce": true}, SecuritySettingClientOverrides{RequirePKCE: &clientFalse})
+		require.NoError(t, err)
+		assert.True(t, policy.RequirePKCE)
+	})
+
+	t.Run("client true strengthens tenant false", func(t *testing.T) {
+		clientTrue := true
+		policy, err := ResolveEffectiveTokenPolicy(map[string]any{"require_pkce": false}, SecuritySettingClientOverrides{RequirePKCE: &clientTrue})
+		require.NoError(t, err)
+		assert.True(t, policy.RequirePKCE)
 	})
 }

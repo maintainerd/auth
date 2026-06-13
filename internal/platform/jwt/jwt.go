@@ -32,6 +32,29 @@ const (
 	JTILength  = 32   // JTI entropy length
 )
 
+var (
+	// tokenLeewaySeconds is the clock-skew leeway applied to exp/nbf claims
+	// during token validation. Defaults to 0; configurable via SetTokenLeeway.
+	tokenLeewaySeconds int64
+	tokenLeewayMu      sync.RWMutex
+)
+
+// SetTokenLeeway sets the clock-skew leeway (in seconds) for token expiry
+// validation. This is used by ValidateToken to allow for clock drift between
+// servers. Default 0 seconds.
+func SetTokenLeeway(seconds int) {
+	tokenLeewayMu.Lock()
+	defer tokenLeewayMu.Unlock()
+	tokenLeewaySeconds = int64(seconds)
+}
+
+// TokenLeeway returns the current clock-skew leeway setting.
+func TokenLeeway() int {
+	tokenLeewayMu.RLock()
+	defer tokenLeewayMu.RUnlock()
+	return int(tokenLeewaySeconds)
+}
+
 // GenerateSecureID generates a cryptographically secure random ID
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func GenerateSecureID() string {
@@ -307,6 +330,26 @@ type AccessTokenOptions struct {
 
 	// SubjectType classifies the token subject, for example "user" or "service".
 	SubjectType string
+
+	// SigningAlgorithm selects the JWT signing algorithm for this token.
+	// Supported by the current key store: RS256 and PS256.
+	SigningAlgorithm string
+
+	// ExtraClaims are merged into the access token after standard claims.
+	ExtraClaims map[string]any
+}
+
+// RefreshTokenOptions carries optional per-issuance parameters for refresh tokens.
+type RefreshTokenOptions struct {
+	// RefreshTokenTTL overrides the default RefreshTokenTTL when > 0.
+	RefreshTokenTTL time.Duration
+
+	// SigningAlgorithm selects the JWT signing algorithm for this token.
+	// Supported with the current RSA key store: RS256 and PS256.
+	SigningAlgorithm string
+
+	// FamilyID groups rotated refresh tokens so reuse can revoke descendants.
+	FamilyID string
 }
 
 // GenerateAccessToken is the standard (Bearer) entry point for access token
@@ -421,7 +464,6 @@ func GenerateAccessTokenWithOptionsContext(
 		"client_id":   clientID,
 		"provider_id": providerID,
 	}
-
 	// Bind to the client's DPoP key when a thumbprint was provided (RFC 9449 §6.1).
 	if opts != nil && opts.DPoPThumbprint != "" {
 		claims["cnf"] = map[string]string{"jkt": opts.DPoPThumbprint}
@@ -441,6 +483,11 @@ func GenerateAccessTokenWithOptionsContext(
 	}
 	if opts != nil && opts.SubjectType != "" {
 		claims["sub_type"] = opts.SubjectType
+	}
+	if opts != nil {
+		for k, v := range opts.ExtraClaims {
+			claims[k] = v
+		}
 	}
 
 	tok, err := generateToken(claims)
@@ -495,6 +542,9 @@ type IDTokenParams struct {
 	// ACR is the Authentication Context Class Reference.
 	// "1" = single-factor, "2" = multi-factor.
 	ACR string
+	// SigningAlgorithm selects the JWT signing algorithm for this token.
+	// Supported by the current key store: RS256 and PS256.
+	SigningAlgorithm string
 }
 
 // buildAllowedClaimsSet returns the set of profile claim names that should be
@@ -653,7 +703,11 @@ func generateIDTokenWithContext(ctx context.Context, userUUID, issuer, clientID,
 		}
 	}
 
-	tok, err := generateToken(claims)
+	alg := ""
+	if params != nil {
+		alg = params.SigningAlgorithm
+	}
+	tok, err := generateTokenWithAlgorithm(claims, alg)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "generate id token failed")
@@ -674,10 +728,16 @@ func generateRefreshToken(userUUID, issuer, clientID, providerID string) (string
 // GenerateRefreshTokenWithContext issues a refresh token using the caller
 // context for tracing while preserving the swappable GenerateRefreshToken hook.
 func GenerateRefreshTokenWithContext(ctx context.Context, userUUID, issuer, clientID, providerID string) (string, error) {
-	return generateRefreshTokenWithContext(ctx, userUUID, issuer, clientID, providerID)
+	return GenerateRefreshTokenWithOptionsContext(ctx, userUUID, issuer, clientID, providerID, nil)
 }
 
 func generateRefreshTokenWithContext(ctx context.Context, userUUID, issuer, clientID, providerID string) (string, error) {
+	return GenerateRefreshTokenWithOptionsContext(ctx, userUUID, issuer, clientID, providerID, nil)
+}
+
+// GenerateRefreshTokenWithOptionsContext issues a refresh token using the caller
+// context and optional per-issuance lifetime overrides.
+func GenerateRefreshTokenWithOptionsContext(ctx context.Context, userUUID, issuer, clientID, providerID string, opts *RefreshTokenOptions) (string, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -710,13 +770,17 @@ func generateRefreshTokenWithContext(ctx context.Context, userUUID, issuer, clie
 	jti := generateSecureJTI()
 
 	now := time.Now()
+	ttl := RefreshTokenTTL
+	if opts != nil && opts.RefreshTokenTTL > 0 {
+		ttl = opts.RefreshTokenTTL
+	}
 	claims := jwtlib.MapClaims{
 		// Standard JWT claims
 		"sub":        userUUID,
 		"aud":        clientID,
 		"iss":        issuer,
 		"iat":        jwtlib.NewNumericDate(now),
-		"exp":        jwtlib.NewNumericDate(now.Add(RefreshTokenTTL)), // Configurable TTL
+		"exp":        jwtlib.NewNumericDate(now.Add(ttl)),
 		"nbf":        jwtlib.NewNumericDate(now),
 		"jti":        jti, // Secure unique identifier
 		"token_type": "refresh_token",
@@ -725,8 +789,17 @@ func generateRefreshTokenWithContext(ctx context.Context, userUUID, issuer, clie
 		"client_id":   clientID,
 		"provider_id": providerID,
 	}
+	if opts != nil && strings.TrimSpace(opts.FamilyID) != "" {
+		claims["rfid"] = strings.TrimSpace(opts.FamilyID)
+	} else {
+		claims["rfid"] = generateSecureJTI()
+	}
 
-	tok, err := generateToken(claims)
+	alg := ""
+	if opts != nil {
+		alg = opts.SigningAlgorithm
+	}
+	tok, err := generateTokenWithAlgorithm(claims, alg)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "generate refresh token failed")
@@ -739,6 +812,10 @@ func generateRefreshTokenWithContext(ctx context.Context, userUUID, issuer, clie
 // generateToken creates a JWT with enhanced security validation
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func generateToken(claims jwtlib.MapClaims) (string, error) {
+	return generateTokenWithAlgorithm(claims, "RS256")
+}
+
+func generateTokenWithAlgorithm(claims jwtlib.MapClaims, alg string) (string, error) {
 	priv, kid := defaultKeyStore.signingKey()
 	if priv == nil {
 		return "", errors.New("private key not initialized - call InitJWTKeys() first")
@@ -752,7 +829,19 @@ func generateToken(claims jwtlib.MapClaims) (string, error) {
 		}
 	}
 
-	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
+	var method jwtlib.SigningMethod
+	switch strings.ToUpper(strings.TrimSpace(alg)) {
+	case "", "RS256":
+		method = jwtlib.SigningMethodRS256
+	case "PS256":
+		method = jwtlib.SigningMethodPS256
+	case "ES256":
+		return "", errors.New("ES256 signing requires an ECDSA key store")
+	default:
+		return "", fmt.Errorf("unsupported signing algorithm: %s", alg)
+	}
+
+	token := jwtlib.NewWithClaims(method, claims)
 	token.Header["kid"] = kid
 
 	return token.SignedString(priv)
@@ -865,12 +954,25 @@ func ValidateTokenWithContext(ctx context.Context, tokenString string) (jwtlib.M
 	}
 
 	// Parse and validate token
-	token, err := jwtlib.Parse(tokenString, func(t *jwtlib.Token) (interface{}, error) {
+	tokenLeewayMu.RLock()
+	leeway := time.Duration(tokenLeewaySeconds) * time.Second
+	tokenLeewayMu.RUnlock()
+
+	parser := jwtlib.NewParser(
+		jwtlib.WithLeeway(leeway),
+	)
+	token, err := parser.Parse(tokenString, func(t *jwtlib.Token) (interface{}, error) {
 		// Validate signing method (prevent algorithm confusion attacks)
-		if method, ok := t.Method.(*jwtlib.SigningMethodRSA); !ok {
+		if method, ok := t.Method.(*jwtlib.SigningMethodRSA); ok {
+			if method != jwtlib.SigningMethodRS256 {
+				return nil, fmt.Errorf("unexpected RSA signing method: %v", method.Alg())
+			}
+		} else if method, ok := t.Method.(*jwtlib.SigningMethodRSAPSS); ok {
+			if method != jwtlib.SigningMethodPS256 {
+				return nil, fmt.Errorf("unexpected RSA-PSS signing method: %v", method.Alg())
+			}
+		} else {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		} else if method != jwtlib.SigningMethodRS256 {
-			return nil, fmt.Errorf("unexpected RSA signing method: %v", method.Alg())
 		}
 
 		// Look up the public key by KID. This supports both the active key and

@@ -13,6 +13,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -34,11 +35,12 @@ type EmailVerificationService interface {
 }
 
 type emailVerificationService struct {
-	db                *gorm.DB
-	userRepo          UserRepository
-	userTokenRepo     UserTokenRepository
-	clientRepo        ClientRepository
-	emailTemplateRepo branding.EmailTemplateRepository
+	db                  *gorm.DB
+	userRepo            UserRepository
+	userTokenRepo       UserTokenRepository
+	clientRepo          ClientRepository
+	emailTemplateRepo   branding.EmailTemplateRepository
+	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
 var generateEmailVerificationOTP = crypto.GenerateOTP
@@ -49,13 +51,19 @@ func NewEmailVerificationService(
 	userTokenRepo UserTokenRepository,
 	clientRepo ClientRepository,
 	emailTemplateRepo branding.EmailTemplateRepository,
+	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) EmailVerificationService {
+	var settings secpolicy.SecuritySettingRepository
+	if len(securitySettingRepo) > 0 {
+		settings = securitySettingRepo[0]
+	}
 	return &emailVerificationService{
-		db:                db,
-		userRepo:          userRepo,
-		userTokenRepo:     userTokenRepo,
-		clientRepo:        clientRepo,
-		emailTemplateRepo: emailTemplateRepo,
+		db:                  db,
+		userRepo:            userRepo,
+		userTokenRepo:       userTokenRepo,
+		clientRepo:          clientRepo,
+		emailTemplateRepo:   emailTemplateRepo,
+		securitySettingRepo: settings,
 	}
 }
 
@@ -65,6 +73,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 
 	var user *User
 	var otp string
+	var authClient *Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -75,11 +84,11 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		// caller is operating against a known client, mirroring the forgot-password flow.
 		var txErr error
 		if clientID != nil && providerID != nil {
-			if _, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID); txErr != nil {
+			if authClient, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID); txErr != nil {
 				return apperror.NewInternal("failed to find auth client", txErr)
 			}
 		} else {
-			if _, txErr = txClientRepo.FindSystem(); txErr != nil {
+			if authClient, txErr = txClientRepo.FindSystem(); txErr != nil {
 				return apperror.NewInternal("failed to find auth client", txErr)
 			}
 		}
@@ -93,8 +102,9 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 			return nil
 		}
 
-		// Skip if user is inactive — don't reveal status.
-		if user.Status != shared.StatusActive {
+		// Skip suspended/inactive users but allow pending accounts to complete
+		// their initial email verification.
+		if user.Status != shared.StatusActive && user.Status != shared.StatusPending {
 			user = nil
 			return nil
 		}
@@ -123,7 +133,12 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		}
 		otpHash := crypto.HashAuthorizationCode(otp)
 
-		expiresAt := time.Now().Add(EmailVerificationOTPTTL)
+		ttl := EmailVerificationOTPTTL
+		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, clientTenantID(authClient))
+		if regPolicy.VerificationTokenTTLHours > 0 {
+			ttl = time.Duration(regPolicy.VerificationTokenTTLHours) * time.Hour
+		}
+		expiresAt := time.Now().Add(ttl)
 		if _, txErr := txUserTokenRepo.Create(&UserToken{
 			UserID:    user.UserID,
 			TokenType: shared.TokenTypeEmailVerification,
@@ -186,7 +201,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 			return apperror.NewUnauthorized("invalid or expired verification code")
 		}
 
-		if user.Status != shared.StatusActive {
+		if user.Status != shared.StatusActive && user.Status != shared.StatusPending {
 			return apperror.NewUnauthorized("user account is not active")
 		}
 
@@ -219,6 +234,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 		// Mark email verified.
 		if _, txErr := txUserRepo.UpdateByID(user.UserID, map[string]any{
 			"is_email_verified": true,
+			"status":            shared.StatusActive,
 		}); txErr != nil {
 			return apperror.NewInternal("failed to update user verification status", txErr)
 		}

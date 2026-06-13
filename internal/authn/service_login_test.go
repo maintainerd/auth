@@ -1288,7 +1288,7 @@ func lockedRateLimiterLogin(t *testing.T, identifier string) func() {
 	security.InitRateLimiter(rdb)
 
 	// Pre-set the lock key so CheckRateLimit returns an error immediately.
-	require.NoError(t, mr.Set("rl:lock:"+identifier, "1"))
+	require.NoError(t, mr.Set("rl:lock:0:"+identifier, "1"))
 
 	return func() {
 		security.InitRateLimiter(nil)
@@ -1684,7 +1684,7 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 			},
 		}
 		svc := &loginService{securitySettingRepo: settingRepo}
-		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1, false)
 		assert.NoError(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1696,7 +1696,7 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 			},
 		}
 		svc := &loginService{securitySettingRepo: settingRepo}
-		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1, false)
 		assert.NoError(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1708,7 +1708,7 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 			},
 		}
 		svc := &loginService{securitySettingRepo: settingRepo}
-		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1, false)
 		assert.NoError(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1722,7 +1722,7 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 			},
 		}
 		svc := &loginService{securitySettingRepo: settingRepo}
-		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1, false)
 		assert.NoError(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1736,7 +1736,7 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 			},
 		}
 		svc := &loginService{securitySettingRepo: settingRepo}
-		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1, false)
 		assert.NoError(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1755,7 +1755,7 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"backup_code"}, nil }},
 		}
 		user := &User{UserID: 1, IsTOTPEnabled: false, IsWebAuthnEnabled: false}
-		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1)
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "MFA is required but no supported factors are enrolled")
 		assert.Nil(t, resp)
@@ -1778,7 +1778,7 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"totp", "backup_code"}, nil }},
 		}
 		user := &User{UserID: 1, IsTOTPEnabled: true, MFAEnabledAt: &now}
-		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1)
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1, false)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 	})

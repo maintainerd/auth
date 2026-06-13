@@ -34,24 +34,44 @@ func secureForCookieName(name string) bool {
 	return cookieSecure()
 }
 
-func sameSiteForCookie(secure bool) http.SameSite {
-	sameSite := cookieSameSite()
+func sameSiteString(value string) http.SameSite {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "lax":
+		return http.SameSiteLaxMode
+	case "none":
+		return http.SameSiteNoneMode
+	case "strict":
+		return http.SameSiteStrictMode
+	default:
+		return cookieSameSite()
+	}
+}
+
+func sameSiteForCookie(secure bool, override string) http.SameSite {
+	sameSite := sameSiteString(override)
 	if sameSite == http.SameSiteNoneMode && !secure {
 		return http.SameSiteLaxMode
 	}
 	return sameSite
 }
 
-func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int) {
+func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int, opts authCookieOptions) {
 	secure := secureForCookieName(name)
+	if opts.Secure != nil && !strings.HasPrefix(name, "__Host-") && !strings.HasPrefix(name, "__Secure-") {
+		secure = *opts.Secure
+	}
+	httpOnly := true
+	if opts.HTTPOnly != nil {
+		httpOnly = *opts.HTTPOnly
+	}
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- cookie attributes set per-name via helpers
 		Name:     name,
 		Value:    value,
 		Path:     path,
 		MaxAge:   maxAge,
-		HttpOnly: true,
+		HttpOnly: httpOnly,
 		Secure:   secure,
-		SameSite: sameSiteForCookie(secure),
+		SameSite: sameSiteForCookie(secure, opts.SameSite),
 	})
 }
 
@@ -70,6 +90,13 @@ func refreshTokenCookieName() string { return "__Secure-refresh_token" }
 // mounted route path (POST /api/v1/refresh-token).
 const refreshTokenCookiePath = "/api/v1/refresh-token"
 
+type authCookieOptions struct {
+	Secure       *bool
+	HTTPOnly     *bool
+	SameSite     string
+	RefreshMaxAge int
+}
+
 // SetAuthCookies sets authentication tokens as secure HTTP-only cookies.
 //
 // Cookie naming conventions:
@@ -82,6 +109,7 @@ const refreshTokenCookiePath = "/api/v1/refresh-token"
 func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 	var accessToken, idToken, refreshToken string
 	var expiresIn int64 = shared.DefaultAccessTokenExpiresIn
+	opts := authCookieOptions{RefreshMaxAge: 7 * 24 * 60 * 60}
 
 	if response, ok := authResponse.(map[string]interface{}); ok {
 		if at, exists := response["access_token"]; exists {
@@ -122,25 +150,39 @@ func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 			if f := v.FieldByName("ExpiresIn"); f.IsValid() && f.Kind() == reflect.Int64 {
 				expiresIn = f.Int()
 			}
+			if f := v.FieldByName("CookieSecure"); f.IsValid() && !f.IsNil() {
+				b := f.Elem().Bool()
+				opts.Secure = &b
+			}
+			if f := v.FieldByName("CookieHTTPOnly"); f.IsValid() && !f.IsNil() {
+				b := f.Elem().Bool()
+				opts.HTTPOnly = &b
+			}
+			if f := v.FieldByName("CookieSameSite"); f.IsValid() && f.Kind() == reflect.String {
+				opts.SameSite = f.String()
+			}
+			if f := v.FieldByName("RefreshTokenMaxAge"); f.IsValid() && f.Kind() == reflect.Int && f.Int() > 0 {
+				opts.RefreshMaxAge = int(f.Int())
+			}
 		}
 	}
 
 	if accessToken != "" {
-		setAuthCookie(w, accessTokenCookieName(), accessToken, "/", int(expiresIn))
+		setAuthCookie(w, accessTokenCookieName(), accessToken, "/", int(expiresIn), opts)
 	}
 
 	if idToken != "" {
-		setAuthCookie(w, idTokenCookieName(), idToken, "/", shared.DefaultAccessTokenExpiresIn)
+		setAuthCookie(w, idTokenCookieName(), idToken, "/", shared.DefaultAccessTokenExpiresIn, opts)
 	}
 
 	if refreshToken != "" {
-		setAuthCookie(w, refreshTokenCookieName(), refreshToken, refreshTokenCookiePath, 7*24*60*60)
+		setAuthCookie(w, refreshTokenCookieName(), refreshToken, refreshTokenCookiePath, opts.RefreshMaxAge, opts)
 	}
 }
 
 // ClearAuthCookies clears all authentication-related cookies.
 func ClearAuthCookies(w http.ResponseWriter) {
-	setAuthCookie(w, accessTokenCookieName(), "", "/", -1)
-	setAuthCookie(w, idTokenCookieName(), "", "/", -1)
-	setAuthCookie(w, refreshTokenCookieName(), "", refreshTokenCookiePath, -1)
+	setAuthCookie(w, accessTokenCookieName(), "", "/", -1, authCookieOptions{})
+	setAuthCookie(w, idTokenCookieName(), "", "/", -1, authCookieOptions{})
+	setAuthCookie(w, refreshTokenCookieName(), "", refreshTokenCookiePath, -1, authCookieOptions{})
 }

@@ -10,6 +10,7 @@ type MFALoginVerifyRequestDTO struct {
 	Method         string          `json:"method"`
 	Code           string          `json:"code,omitempty"`
 	Assertion      json.RawMessage `json:"assertion,omitempty"`
+	RememberDevice bool            `json:"remember_device,omitempty"`
 }
 
 // MFALoginChallengeRequestDTO carries just the login MFA challenge token, used
@@ -54,8 +55,9 @@ type ForgotPasswordResponseDTO struct {
 
 // Login request payload structure
 type LoginRequestDTO struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+	TrustedDeviceToken string `json:"trusted_device_token,omitempty"`
 }
 
 // LoginQueryDTO holds login query parameters.
@@ -84,6 +86,11 @@ type LoginResponseDTO struct {
 	MFARequired           bool     `json:"mfa_required,omitempty"`
 	MFAChallengeToken     *string  `json:"mfa_challenge_token,omitempty"`
 	MFAAllowedMethods     []string `json:"mfa_allowed_methods,omitempty"`
+	TrustedDeviceToken    string   `json:"trusted_device_token,omitempty"`
+	CookieSecure          *bool    `json:"-"`
+	CookieHTTPOnly        *bool    `json:"-"`
+	CookieSameSite        string   `json:"-"`
+	RefreshTokenMaxAge    int      `json:"-"`
 }
 
 // SendMagicLinkRequestDTO represents the request payload to send a passwordless
@@ -106,11 +113,12 @@ type VerifyMagicLinkRequestDTO struct {
 
 // Register request payload structure
 type RegisterRequestDTO struct {
-	Username string  `json:"username"`
-	Fullname string  `json:"fullname"`
-	Email    *string `json:"email,omitempty"`
-	Phone    *string `json:"phone,omitempty"`
-	Password string  `json:"password"`
+	Username     string  `json:"username"`
+	Fullname     string  `json:"fullname"`
+	Email        *string `json:"email,omitempty"`
+	Phone        *string `json:"phone,omitempty"`
+	Password     string  `json:"password"`
+	CaptchaToken string  `json:"captcha_token,omitempty"`
 }
 
 // Register query parameters structure
@@ -136,6 +144,10 @@ type RegisterResponseDTO struct {
 	ExpiresIn    int64  `json:"expires_in"`
 	TokenType    string `json:"token_type"`
 	IssuedAt     int64  `json:"issued_at"`
+	CookieSecure *bool  `json:"-"`
+	CookieHTTPOnly *bool `json:"-"`
+	CookieSameSite string `json:"-"`
+	RefreshTokenMaxAge int `json:"-"`
 }
 
 // ResetPasswordRequestDTO represents the request to reset a password

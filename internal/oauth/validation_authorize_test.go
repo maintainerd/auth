@@ -63,8 +63,7 @@ func TestOAuthAuthorizeRequestDTO_Validate(t *testing.T) {
 		r := validReq()
 		r.CodeChallenge = ""
 		err := r.Validate()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "code_challenge")
+		require.NoError(t, err)
 	})
 
 	t.Run("code_challenge too short", func(t *testing.T) {
@@ -87,8 +86,7 @@ func TestOAuthAuthorizeRequestDTO_Validate(t *testing.T) {
 		r := validReq()
 		r.CodeChallengeMethod = ""
 		err := r.Validate()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "code_challenge_method")
+		require.NoError(t, err)
 	})
 
 	t.Run("invalid code_challenge_method", func(t *testing.T) {
