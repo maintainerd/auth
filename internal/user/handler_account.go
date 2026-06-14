@@ -14,10 +14,101 @@ import (
 type AccountHandler struct {
 	accountService AccountService
 	sessionService SessionService
+	profileRepo    ProfileRepository
 }
 
-func NewAccountHandler(accountService AccountService, sessionService SessionService) *AccountHandler {
-	return &AccountHandler{accountService: accountService, sessionService: sessionService}
+func NewAccountHandler(accountService AccountService, sessionService SessionService, profileRepo ProfileRepository) *AccountHandler {
+	return &AccountHandler{accountService: accountService, sessionService: sessionService, profileRepo: profileRepo}
+}
+
+// GetAccount returns consolidated user information: profile, roles, permissions, tenant.
+//
+// GET /account
+func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.AuthFromRequest(r)
+	if auth.User == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var roleNames []string
+	permSet := map[string]bool{}
+
+	for _, role := range auth.User.Roles {
+		roleNames = append(roleNames, role.Name)
+		for _, perm := range role.Permissions {
+			permSet[perm.Name] = true
+		}
+	}
+
+	permissions := make([]string, 0, len(permSet))
+	for name := range permSet {
+		permissions = append(permissions, name)
+	}
+
+	tenant := AccountTenantDTO{}
+	if auth.Tenant != nil {
+		tenant = AccountTenantDTO{
+			UUID:        auth.Tenant.TenantUUID.String(),
+			Name:        auth.Tenant.Name,
+			DisplayName: auth.Tenant.DisplayName,
+			Identifier:  auth.Tenant.Identifier,
+		}
+	}
+
+	var profiles []AccountProfileDTO
+	if h.profileRepo != nil {
+		if result, err := h.profileRepo.FindAllByUserID(ProfileRepositoryGetFilter{UserID: auth.User.UserID}); err == nil {
+			for _, p := range result.Data {
+				profiles = append(profiles, AccountProfileDTO{
+					ProfileID:   p.ProfileUUID.String(),
+					FirstName:   p.FirstName,
+					LastName:    p.LastName,
+					DisplayName: p.DisplayName,
+					Default:     p.IsDefault,
+				})
+			}
+		}
+	}
+
+	resp.Success(w, AccountResponseDTO{
+		UserID:        auth.User.UserUUID.String(),
+		Email:         auth.User.Email,
+		Phone:         auth.User.Phone,
+		EmailVerified: auth.User.IsEmailVerified,
+		PhoneVerified: auth.User.IsPhoneVerified,
+		Profiles:      profiles,
+		Roles:           roleNames,
+		Permissions:     permissions,
+		Tenant:          tenant,
+	}, "Account retrieved")
+}
+
+type AccountResponseDTO struct {
+	UserID        string              `json:"user_id"`
+	Email         string              `json:"email"`
+	Phone         string              `json:"phone"`
+	EmailVerified bool                `json:"email_verified"`
+	PhoneVerified bool                `json:"phone_verified"`
+	Profiles      []AccountProfileDTO `json:"profiles"`
+	Roles         []string            `json:"roles"`
+	Permissions   []string            `json:"permissions"`
+	Tenant        AccountTenantDTO    `json:"tenant"`
+}
+
+type AccountProfileDTO struct {
+	ProfileID   string  `json:"profile_id"`
+	FirstName   string  `json:"first_name"`
+	LastName    *string `json:"last_name,omitempty"`
+	DisplayName *string `json:"display_name,omitempty"`
+	Default     bool    `json:"default"`
+}
+
+type AccountTenantDTO struct {
+	UUID        string `json:"tenant_id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	Identifier  string `json:"identifier"`
 }
 
 // InitiateEmailChange starts the email change flow by sending an OTP to the new address.

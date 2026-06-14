@@ -41,6 +41,7 @@ type svcs struct {
 	registerService              authn.RegisterService
 	loginService                 authn.LoginService
 	profileService               user.ProfileService
+	profileRepo                  user.ProfileRepository
 	userSettingService           user.UserSettingService
 	inviteService                invite.InviteService
 	forgotPasswordService        authn.ForgotPasswordService
@@ -220,7 +221,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	// Built before the login service so login can verify the MFA second step
 	// (acr=2 elevation) via the MFAFactorAuthenticator interface.
 	mfaSvc := mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.webAuthnCredRepo, webAuthnSvc, r.userBackupCodeRepo, r.smsPhoneRepo, r.smsOtpRepo, r.securitySettingRepo, authEventSvc)
-	emailVerificationSvc := authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo, r.securitySettingRepo)
+	emailVerificationSvc := authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo, newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), appCache, r.securitySettingRepo)
 
 	s := &svcs{
 		serviceService:           iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
@@ -236,6 +237,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		loginService:             authn.NewLoginService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo, appCache),
 		sessionService:           sessionSvc,
 		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo),
+		profileRepo:              r.profileRepo,
 		userSettingService:       user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
 		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), r.emailTemplateRepo, newInviteAuthFlowRepo(db)),
 		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),

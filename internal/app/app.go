@@ -42,6 +42,7 @@ type App struct {
 	RegisterService              authn.RegisterService
 	LoginService                 authn.LoginService
 	ProfileService               user.ProfileService
+	ProfileRepo                  user.ProfileRepository
 	UserSettingService           user.UserSettingService
 	InviteService                invite.InviteService
 	ForgotPasswordService        authn.ForgotPasswordService
@@ -118,6 +119,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		RegisterService:              s.registerService,
 		LoginService:                 s.loginService,
 		ProfileService:               s.profileService,
+		ProfileRepo:                  s.profileRepo,
 		UserSettingService:           s.userSettingService,
 		InviteService:                s.inviteService,
 		ForgotPasswordService:        s.forgotPasswordService,

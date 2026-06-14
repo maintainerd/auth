@@ -3,6 +3,7 @@ package setup
 import (
 	"testing"
 
+	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -138,7 +139,7 @@ func TestRegisterControlServiceRequestDTO_Validate(t *testing.T) {
 func TestCreateAdminRequestDto_Validate(t *testing.T) {
 	valid := CreateAdminRequestDTO{
 		Username: "adminuser",
-		Fullname: "Admin User",
+		Fullname: ptr.Ptr("Admin User"),
 		Password: "SecurePass1!",
 		Email:    "admin@example.com",
 	}

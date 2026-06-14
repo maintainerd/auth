@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestSetupGRPCHandler_GetSetupStatus(t *testing.T) {
@@ -100,14 +99,14 @@ func TestSetupGRPCHandler_CreateAdmin(t *testing.T) {
 	h := NewSetupGRPCHandler(&mockSetupService{
 		createAdminFn: func(req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error) {
 			assert.Equal(t, "admin", req.Username)
-			assert.Equal(t, "Admin User", req.Fullname)
+			assert.Equal(t, "Admin User", *req.Fullname)
 			assert.Equal(t, "secret123", req.Password)
 			assert.Equal(t, "admin@example.com", req.Email)
 			return &CreateAdminResponseDTO{
 				User: UserResponseDTO{
 					UserUUID: userUUID,
 					Username: req.Username,
-					Fullname: req.Fullname,
+					Fullname: *req.Fullname,
 					Email:    req.Email,
 					Status:   "active",
 				},
@@ -131,53 +130,6 @@ func TestSetupGRPCHandler_CreateAdmin(t *testing.T) {
 			return nil, apperror.NewValidation("bad admin")
 		},
 	}).CreateAdmin(context.Background(), &authv1.CreateAdminRequest{})
-	assert.Equal(t, codes.InvalidArgument, status.Code(err))
-}
-
-func TestSetupGRPCHandler_CreateProfile(t *testing.T) {
-	displayName := "Ada Lovelace"
-	h := NewSetupGRPCHandler(&mockSetupService{
-		createProfileFn: func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
-			require.NotNil(t, req.DisplayName)
-			require.NotNil(t, req.Metadata)
-			assert.Equal(t, "Ada", req.FirstName)
-			assert.Equal(t, displayName, *req.DisplayName)
-			assert.Equal(t, "math", req.Metadata["field"])
-			return &CreateProfileResponseDTO{
-				Profile: ProfileResponseDTO{
-					ProfileUUID: "profile-1",
-					FirstName:   req.FirstName,
-					DisplayName: req.DisplayName,
-				},
-			}, nil
-		},
-	})
-	metadata, err := structpb.NewStruct(map[string]any{"field": "math"})
-	require.NoError(t, err)
-
-	resp, err := h.CreateProfile(context.Background(), &authv1.CreateProfileRequest{
-		FirstName:   "Ada",
-		DisplayName: displayName,
-		Metadata:    metadata,
-	})
-
-	require.NoError(t, err)
-	assert.Equal(t, "profile-1", resp.ProfileUuid)
-	assert.Equal(t, displayName, resp.DisplayName)
-
-	nilDisplayResp, err := NewSetupGRPCHandler(&mockSetupService{
-		createProfileFn: func(CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
-			return &CreateProfileResponseDTO{Profile: ProfileResponseDTO{ProfileUUID: "profile-2", FirstName: "Ada"}}, nil
-		},
-	}).CreateProfile(context.Background(), &authv1.CreateProfileRequest{FirstName: "Ada"})
-	require.NoError(t, err)
-	assert.Empty(t, nilDisplayResp.DisplayName)
-
-	_, err = NewSetupGRPCHandler(&mockSetupService{
-		createProfileFn: func(CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
-			return nil, apperror.NewValidation("bad profile")
-		},
-	}).CreateProfile(context.Background(), &authv1.CreateProfileRequest{})
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 

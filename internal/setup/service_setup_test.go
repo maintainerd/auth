@@ -3,13 +3,13 @@ package setup
 import (
 	"context"
 	"errors"
-	"math"
 	"testing"
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -804,7 +804,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 func TestSetupService_CreateAdmin(t *testing.T) {
 	validReq := CreateAdminRequestDTO{
 		Username: "admin",
-		Fullname: "Admin User",
+		Fullname: ptr.Ptr("Admin User"),
 		Email:    "admin@test.com",
 		Password: "password123",
 	}
@@ -1121,188 +1121,4 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		assert.Equal(t, "Admin User", res.User.Fullname)
 	})
 
-}
-
-// ---------------------------------------------------------------------------
-// CreateProfile
-// ---------------------------------------------------------------------------
-
-func TestSetupService_CreateProfile(t *testing.T) {
-	superAdmin := &User{UserID: 1, UserUUID: uuid.New()}
-	validReq := CreateProfileRequestDTO{FirstName: "John"}
-
-	t.Run("FindSuperAdmin error", func(t *testing.T) {
-		svc := buildSetupService(t,
-			&mockTenantRepo{}, &mockUserRepo{findSuperAdminFn: func() (*User, error) { return nil, errors.New("db err") }},
-			&mockProfileRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
-		)
-		_, err := svc.CreateProfile(context.Background(), validReq)
-		require.Error(t, err)
-	})
-
-	t.Run("no admin user", func(t *testing.T) {
-		svc := buildSetupService(t,
-			&mockTenantRepo{}, &mockUserRepo{findSuperAdminFn: func() (*User, error) { return nil, nil }},
-			&mockProfileRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
-		)
-		_, err := svc.CreateProfile(context.Background(), validReq)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "no admin user found")
-	})
-
-	t.Run("FindByUserID error", func(t *testing.T) {
-		svc := buildSetupService(t,
-			&mockTenantRepo{},
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockProfileRepo{findByUserIDFn: func(_ int64) (*Profile, error) { return nil, errors.New("db err") }},
-			&mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
-		)
-		_, err := svc.CreateProfile(context.Background(), validReq)
-		require.Error(t, err)
-	})
-
-	t.Run("profile already exists", func(t *testing.T) {
-		svc := buildSetupService(t,
-			&mockTenantRepo{},
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockProfileRepo{findByUserIDFn: func(_ int64) (*Profile, error) { return &Profile{ProfileID: 1}, nil }},
-			&mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
-		)
-		_, err := svc.CreateProfile(context.Background(), validReq)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "profile already exists")
-	})
-
-	t.Run("invalid birthdate format", func(t *testing.T) {
-		bd := "not-a-date"
-		req := CreateProfileRequestDTO{FirstName: "John", Birthdate: &bd}
-		svc := buildSetupService(t,
-			&mockTenantRepo{},
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockProfileRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
-		)
-		_, err := svc.CreateProfile(context.Background(), req)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid birthdate format")
-	})
-
-	t.Run("empty birthdate string → treated as no birthdate", func(t *testing.T) {
-		bd := ""
-		req := CreateProfileRequestDTO{FirstName: "John", Birthdate: &bd}
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		svc := NewSetupService(db,
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{},
-			&mockUserIdentityRepo{}, &mockProfileRepo{},
-		)
-		res, err := svc.CreateProfile(context.Background(), req)
-		require.NoError(t, err)
-		assert.Equal(t, "John", res.Profile.FirstName)
-	})
-
-	t.Run("valid birthdate", func(t *testing.T) {
-		bd := "1990-01-15"
-		req := CreateProfileRequestDTO{FirstName: "John", Birthdate: &bd}
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		svc := NewSetupService(db,
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{},
-			&mockUserIdentityRepo{}, &mockProfileRepo{},
-		)
-		res, err := svc.CreateProfile(context.Background(), req)
-		require.NoError(t, err)
-		assert.Equal(t, "John", res.Profile.FirstName)
-	})
-
-	t.Run("metadata marshal error → rollback", func(t *testing.T) {
-		req := CreateProfileRequestDTO{FirstName: "John", Metadata: map[string]any{"bad": math.Inf(1)}}
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewSetupService(db,
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{},
-			&mockUserIdentityRepo{}, &mockProfileRepo{},
-		)
-		_, err := svc.CreateProfile(context.Background(), req)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid metadata format")
-	})
-
-	t.Run("with metadata → success", func(t *testing.T) {
-		req := CreateProfileRequestDTO{FirstName: "John", Metadata: map[string]any{"key": "val"}}
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		svc := NewSetupService(db,
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{},
-			&mockUserIdentityRepo{}, &mockProfileRepo{},
-		)
-		res, err := svc.CreateProfile(context.Background(), req)
-		require.NoError(t, err)
-		assert.Equal(t, "John", res.Profile.FirstName)
-	})
-
-	t.Run("TX: Create profile error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewSetupService(db,
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{},
-			&mockUserIdentityRepo{},
-			&mockProfileRepo{createFn: func(_ *Profile) (*Profile, error) { return nil, errors.New("create failed") }},
-		)
-		_, err := svc.CreateProfile(context.Background(), validReq)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "create failed")
-	})
-
-	t.Run("TX: UpdateByUUID error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewSetupService(db,
-			&mockUserRepo{
-				findSuperAdminFn: func() (*User, error) { return superAdmin, nil },
-				updateByUUIDFn:   func(_, _ any) (*User, error) { return nil, errors.New("update failed") },
-			},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{},
-			&mockUserIdentityRepo{}, &mockProfileRepo{},
-		)
-		_, err := svc.CreateProfile(context.Background(), validReq)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "update failed")
-	})
-
-	t.Run("success with nil birthdate and nil metadata → commit", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		svc := NewSetupService(db,
-			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{},
-			&mockUserIdentityRepo{}, &mockProfileRepo{},
-		)
-		res, err := svc.CreateProfile(context.Background(), validReq)
-		require.NoError(t, err)
-		assert.Equal(t, "John", res.Profile.FirstName)
-	})
 }

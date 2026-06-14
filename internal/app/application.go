@@ -26,6 +26,7 @@ func (a *App) ServerApplication() *server.Application {
 		RegisterService:              a.RegisterService,
 		LoginService:                 a.LoginService,
 		ProfileService:               a.ProfileService,
+		ProfileRepo:                  a.ProfileRepo,
 		UserSettingService:           a.UserSettingService,
 		InviteService:                a.InviteService,
 		ForgotPasswordService:        a.ForgotPasswordService,

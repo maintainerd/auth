@@ -127,6 +127,17 @@ func passwordChangeRequiredLoginResponse() *LoginResponseDTO {
 	return &LoginResponseDTO{RequirePasswordChange: true}
 }
 
+func (s *loginService) enforceLoginEmailVerification(user *User, tenantID int64) error {
+	if user == nil || user.IsEmailVerified || s.securitySettingRepo == nil {
+		return nil
+	}
+	regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantID)
+	if regPolicy.RequireEmailVerification {
+		return apperror.NewUnauthorized("email is not verified")
+	}
+	return nil
+}
+
 // LoginPublic authenticates users for public-facing applications.
 // Requires clientID and providerID to identify the auth client.
 // Used by external applications on port 8081.
@@ -297,6 +308,9 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		})
 
 		return nil, apperror.NewUnauthorized("account is not active")
+	}
+	if err := s.enforceLoginEmailVerification(user, client.IdentityProvider.TenantID); err != nil {
+		return nil, err
 	}
 
 	// Reset failed attempts on successful authentication.
@@ -513,6 +527,9 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		})
 
 		return nil, apperror.NewUnauthorized("account is not active")
+	}
+	if err := s.enforceLoginEmailVerification(user, client.IdentityProvider.TenantID); err != nil {
+		return nil, err
 	}
 
 	// Reset failed attempts on successful authentication

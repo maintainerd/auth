@@ -52,7 +52,7 @@ func (h *SetupGRPCHandler) CreateTenant(ctx context.Context, req *authv1.CreateT
 func (h *SetupGRPCHandler) CreateAdmin(ctx context.Context, req *authv1.CreateAdminRequest) (*authv1.CreateAdminResponse, error) {
 	resp, err := h.setupService.CreateAdmin(ctx, CreateAdminRequestDTO{
 		Username: req.GetUsername(),
-		Fullname: req.GetFullname(),
+		Fullname: func() *string { s := req.GetFullname(); return &s }(),
 		Password: req.GetPassword(),
 		Email:    req.GetEmail(),
 	})
@@ -65,36 +65,6 @@ func (h *SetupGRPCHandler) CreateAdmin(ctx context.Context, req *authv1.CreateAd
 		Fullname: resp.User.Fullname,
 		Email:    resp.User.Email,
 		Status:   resp.User.Status,
-	}, nil
-}
-
-func (h *SetupGRPCHandler) CreateProfile(ctx context.Context, req *authv1.CreateProfileRequest) (*authv1.CreateProfileResponse, error) {
-	resp, err := h.setupService.CreateProfile(ctx, CreateProfileRequestDTO{
-		FirstName:   req.GetFirstName(),
-		MiddleName:  optionalString(req.GetMiddleName()),
-		LastName:    optionalString(req.GetLastName()),
-		Suffix:      optionalString(req.GetSuffix()),
-		DisplayName: optionalString(req.GetDisplayName()),
-		Birthdate:   optionalString(req.GetBirthdate()),
-		Gender:      optionalString(req.GetGender()),
-		Bio:         optionalString(req.GetBio()),
-		Phone:       optionalString(req.GetPhone()),
-		Email:       optionalString(req.GetEmail()),
-		Address:     optionalString(req.GetAddress()),
-		City:        optionalString(req.GetCity()),
-		Country:     optionalString(req.GetCountry()),
-		Timezone:    optionalString(req.GetTimezone()),
-		Language:    optionalString(req.GetLanguage()),
-		ProfileURL:  optionalString(req.GetProfileUrl()),
-		Metadata:    structMap(req.GetMetadata()),
-	})
-	if err != nil {
-		return nil, apperror.ToGRPCError(err)
-	}
-	return &authv1.CreateProfileResponse{
-		ProfileUuid: resp.Profile.ProfileUUID,
-		FirstName:   resp.Profile.FirstName,
-		DisplayName: stringValue(resp.Profile.DisplayName),
 	}, nil
 }
 

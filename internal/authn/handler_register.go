@@ -10,17 +10,14 @@ import (
 )
 
 type RegisterHandler struct {
-	registerService          RegisterService
-	emailVerificationService EmailVerificationService
+	registerService RegisterService
 }
 
 func NewRegisterHandler(
 	registerService RegisterService,
-	emailVerificationService EmailVerificationService,
 ) *RegisterHandler {
 	return &RegisterHandler{
-		registerService:          registerService,
-		emailVerificationService: emailVerificationService,
+		registerService: registerService,
 	}
 }
 
@@ -144,27 +141,9 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 		Severity:  "LOW",
 	})
 
-	// Best-effort: send email verification OTP if an email was supplied.
-	// Failures here must not fail the registration response.
-	if req.Email != nil && *req.Email != "" && h.emailVerificationService != nil {
-		if _, sendErr := h.emailVerificationService.SendVerificationEmail(
-			r.Context(), *req.Email, clientIDPtr, providerIDPtr,
-		); sendErr != nil {
-			security.LogSecurityEvent(security.SecurityEvent{
-				EventType: "email_verification_send_failure",
-				UserID:    req.Username,
-				ClientID:  clientIDStr,
-				ClientIP:  clientIPStr,
-				UserAgent: userAgentStr,
-				RequestID: requestIDStr,
-				Endpoint:  "/register",
-				Method:    r.Method,
-				Timestamp: time.Now(),
-				Details:   "Failed to send verification email after registration: " + sendErr.Error(),
-				Severity:  "LOW",
-			})
-		}
-	}
+	// The verification email (when the tenant policy requires it) is sent by the
+	// registration service inside its transaction — see RegisterService.RegisterPublic.
+	// Sending it here as well would issue a second OTP and revoke the first.
 
 	// Response with optional cookie delivery based on X-Token-Delivery header
 	resp.CreatedWithCookies(w, r, tokenResponse, "Registration successful")

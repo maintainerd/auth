@@ -109,28 +109,3 @@ func (h *SetupHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 
 	resp.Created(w, response.User, "Admin user created successfully")
 }
-
-// CreateProfile creates the initial profile for the admin user
-func (h *SetupHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
-	var req CreateProfileRequestDTO
-
-	// Validate body payload
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.BadRequestBody(w)
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		resp.ValidationError(w, err)
-		return
-	}
-
-	// Create profile
-	response, err := h.setupService.CreateProfile(r.Context(), req)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to create profile", err)
-		return
-	}
-
-	resp.Created(w, response.Profile, "Profile created successfully")
-}

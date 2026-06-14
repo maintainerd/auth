@@ -49,7 +49,7 @@ func TestSendVerificationEmail(t *testing.T) {
 			findByEmailFn: func(_ string) (*User, error) { return nil, nil },
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 		require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestSendVerificationEmail(t *testing.T) {
 			},
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 		require.NoError(t, err)
@@ -117,7 +117,7 @@ func TestSendVerificationEmail(t *testing.T) {
 			},
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 		require.NoError(t, err)
@@ -171,7 +171,7 @@ func TestSendVerificationEmail(t *testing.T) {
 			},
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo)
+		svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo, nil, nil)
 		resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 		require.NoError(t, err)
@@ -199,7 +199,7 @@ func TestSendVerificationEmail_SystemClientLookupError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, nil, nil)
 
 	require.Error(t, err)
@@ -240,7 +240,7 @@ func TestSendVerificationEmail_UserLookupError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.NoError(t, err)
@@ -272,7 +272,7 @@ func TestVerifyEmail_TokenQueryError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 	require.Error(t, err)
@@ -310,7 +310,7 @@ func TestVerifyEmail_UpdateByIDError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 	require.Error(t, err)
@@ -350,7 +350,7 @@ func TestVerifyEmail_FindExistingTokensError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, &mockClientRepo{}, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 	require.Error(t, err)
@@ -398,7 +398,7 @@ func TestVerifyEmail_RevokeByUUIDIterationError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, &mockClientRepo{}, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 	require.Error(t, err)
@@ -454,7 +454,7 @@ func TestSendVerificationEmail_DefaultClient(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo)
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, nil, nil)
 
 	require.NoError(t, err)
@@ -483,7 +483,7 @@ func TestSendVerificationEmail_ClientIDProviderLookupError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.Error(t, err)
@@ -539,7 +539,7 @@ func TestSendVerificationEmail_RevokeError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.Error(t, err)
@@ -584,7 +584,7 @@ func TestSendVerificationEmail_TokenCreateError(t *testing.T) {
 		createFn:                   func(_ *UserToken) (*UserToken, error) { return nil, errors.New("create error") },
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, &mockEmailTemplateRepo{})
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.Error(t, err)
@@ -638,7 +638,7 @@ func TestSendVerificationEmail_TemplateFindByNameError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo)
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.NoError(t, err)
@@ -695,7 +695,7 @@ func TestSendVerificationEmail_TemplateParseError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo)
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.NoError(t, err)
@@ -752,7 +752,7 @@ func TestSendVerificationEmail_TemplateExecuteError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo)
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.NoError(t, err)
@@ -811,7 +811,7 @@ func TestSendVerificationEmail_PlaintextParseError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo)
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.NoError(t, err)
@@ -870,7 +870,7 @@ func TestSendVerificationEmail_PlaintextExecuteError(t *testing.T) {
 		},
 	}
 
-	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo)
+	svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, clientRepo, emailTemplateRepo, nil, nil)
 	resp, err := svc.SendVerificationEmail(context.Background(), emailAddr, clientID, providerID)
 
 	require.NoError(t, err)
@@ -899,7 +899,7 @@ func TestVerifyEmail(t *testing.T) {
 			findByEmailFn: func(_ string) (*User, error) { return nil, nil },
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 		require.Error(t, err)
@@ -919,7 +919,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 		require.Error(t, err)
@@ -939,7 +939,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 		require.Error(t, err)
@@ -959,7 +959,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 		require.NoError(t, err)
@@ -983,7 +983,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 		require.Error(t, err)
@@ -1008,7 +1008,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 		require.Error(t, err)
@@ -1039,7 +1039,7 @@ func TestVerifyEmail(t *testing.T) {
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
 		}
 
-		svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, &mockClientRepo{}, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
 		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
 
 		require.NoError(t, err)
@@ -1048,4 +1048,56 @@ func TestVerifyEmail(t *testing.T) {
 		assert.NotEmpty(t, resp.Message)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("success invalidates the user-context cache", func(t *testing.T) {
+		futureTime := time.Now().Add(1 * time.Hour)
+		gormDB, mock := newMockGormDBRegex(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+			WithArgs(userID, "user:email:verification", otpHash).
+			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), userID, "user:email:verification", otpHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+		mock.ExpectCommit()
+
+		userRepo := &mockUserRepo{
+			findByEmailFn: func(_ string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID, Email: emailAddr, Username: "testuser", Status: shared.StatusActive, IsEmailVerified: false}, nil
+			},
+			updateByIDFn: func(_ any, _ any) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID, Email: emailAddr, IsEmailVerified: true, Status: shared.StatusActive}, nil
+			},
+		}
+		userTokenRepo := &mockUserTokenRepo{
+			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		}
+		identityRepo := &mockUserIdentityRepo{
+			findByUserIDFn: func(_ int64) ([]UserIdentity, error) {
+				return []UserIdentity{{Sub: "sub-abc"}}, nil
+			},
+		}
+		inv := &recordingInvalidator{}
+
+		svc := NewEmailVerificationService(gormDB, userRepo, userTokenRepo, &mockClientRepo{}, &mockEmailTemplateRepo{}, identityRepo, inv)
+		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.Success)
+		// The freshly-verified user's cached context must be cleared so /account
+		// no longer returns the stale email_verified=false captured at register.
+		assert.Equal(t, []string{"sub-abc"}, inv.subs)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
+
+// recordingInvalidator is a cache.Invalidator test double that records the subs
+// passed to InvalidateUserAll.
+type recordingInvalidator struct {
+	subs []string
+}
+
+func (r *recordingInvalidator) InvalidateUser(_ context.Context, _, _ string) {}
+func (r *recordingInvalidator) InvalidateUserAll(_ context.Context, sub string) {
+	r.subs = append(r.subs, sub)
+}
+func (r *recordingInvalidator) InvalidateAllUsers(_ context.Context) {}

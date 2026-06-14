@@ -265,6 +265,21 @@ func TestRegister_RateLimited(t *testing.T) {
 
 func TestRegisterService_RegisterPublic(t *testing.T) {
 	cid, pid := "c", "p"
+	t.Run("self-registration disabled is forbidden", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		m := defaultRegPublicMocks()
+		secRepo := registrationPolicyRepo(`{"self_registration_enabled":false}`)
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "self-registration is disabled for this tenant")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("client not found", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -608,6 +623,80 @@ func TestRegisterService_Register(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "auth client lookup by client_id and provider_id failed")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("sends verification email when tenant policy requires it", func(t *testing.T) {
+		initTestJWTKeysService(t)
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		m := defaultRegInternalMocks()
+		m.user.createFn = func(u *User) (*User, error) { u.UserID = 1; u.UserUUID = uuid.New(); return u, nil }
+		secRepo := registrationPolicyRepo(`{"self_registration_enabled":true,"require_email_verification":true}`)
+
+		called := false
+		var gotEmail string
+		emailSvc := &mockEmailVerificationService{
+			sendVerificationEmailFn: func(_ context.Context, email string, _, _ *string) (*SendEmailVerificationResponseDTO, error) {
+				called = true
+				gotEmail = email
+				return &SendEmailVerificationResponseDTO{Success: true}, nil
+			},
+		}
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, emailSvc)
+
+		email := "verify@example.com"
+		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, &pid)
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.True(t, called, "expected verification email to be sent")
+		assert.Equal(t, email, gotEmail)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("does not send verification email when policy does not require it", func(t *testing.T) {
+		initTestJWTKeysService(t)
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		m := defaultRegInternalMocks()
+		m.user.createFn = func(u *User) (*User, error) { u.UserID = 1; u.UserUUID = uuid.New(); return u, nil }
+		secRepo := registrationPolicyRepo(`{"self_registration_enabled":true,"require_email_verification":false}`)
+
+		called := false
+		emailSvc := &mockEmailVerificationService{
+			sendVerificationEmailFn: func(_ context.Context, _ string, _, _ *string) (*SendEmailVerificationResponseDTO, error) {
+				called = true
+				return &SendEmailVerificationResponseDTO{Success: true}, nil
+			},
+		}
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, emailSvc)
+
+		email := "noverify@example.com"
+		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, &pid)
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.False(t, called, "expected no verification email when policy does not require it")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("self-registration disabled is forbidden", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		m := defaultRegInternalMocks()
+		secRepo := registrationPolicyRepo(`{"self_registration_enabled":false}`)
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil)
+		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "self-registration is disabled for this tenant")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 

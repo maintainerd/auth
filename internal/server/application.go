@@ -43,6 +43,7 @@ type Application struct {
 	RegisterService              authn.RegisterService
 	LoginService                 authn.LoginService
 	ProfileService               user.ProfileService
+	ProfileRepo                  user.ProfileRepository
 	UserSettingService           user.UserSettingService
 	InviteService                invite.InviteService
 	ForgotPasswordService        authn.ForgotPasswordService
