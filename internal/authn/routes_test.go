@@ -30,10 +30,10 @@ func TestAuthnRoutes_RegisterEndpoints(t *testing.T) {
 		{"magic link internal", func(r chi.Router) { MagicLinkRoute(r, NewMagicLinkHandler(&mockMagicLinkService{})) }, "/magic-link/send"},
 		{"magic link public", func(r chi.Router) { MagicLinkPublicRoute(r, NewMagicLinkHandler(&mockMagicLinkService{})) }, "/magic-link/send"},
 		{"register internal", func(r chi.Router) {
-			RegisterRoute(r, NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{}))
+			RegisterRoute(r, NewRegisterHandler(&mockRegisterService{}))
 		}, "/register"},
 		{"register public", func(r chi.Router) {
-			RegisterPublicRoute(r, NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{}))
+			RegisterPublicRoute(r, NewRegisterHandler(&mockRegisterService{}))
 		}, "/register"},
 		{"reset password internal", func(r chi.Router) { ResetPasswordRoute(r, NewResetPasswordHandler(&mockResetPasswordService{})) }, "/reset-password"},
 		{"reset password public", func(r chi.Router) { ResetPasswordPublicRoute(r, NewResetPasswordHandler(&mockResetPasswordService{})) }, "/reset-password"},

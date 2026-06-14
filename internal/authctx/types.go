@@ -58,8 +58,11 @@ type AuthPermission struct {
 }
 
 type AuthTenant struct {
-	TenantID   int64     `json:"tenant_id"`
-	TenantUUID uuid.UUID `json:"tenant_uuid"`
+	TenantID    int64     `json:"tenant_id"`
+	TenantUUID  uuid.UUID `json:"tenant_uuid"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"display_name"`
+	Identifier  string    `json:"identifier"`
 }
 
 type AuthProvider struct {

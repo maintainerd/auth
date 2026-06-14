@@ -22,10 +22,10 @@ type CreateTenantRequestDTO struct {
 
 // CreateAdminRequestDTO for initial admin user setup
 type CreateAdminRequestDTO struct {
-	Username string `json:"username"`
-	Fullname string `json:"fullname"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
+	Username string  `json:"username"`
+	Email    string  `json:"email"`
+	Password string  `json:"password"`
+	Fullname *string `json:"fullname,omitempty"`
 }
 
 // SetupStatusResponseDTO for checking setup status

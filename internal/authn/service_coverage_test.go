@@ -69,7 +69,7 @@ func TestEmailVerificationService_RemainingBranches(t *testing.T) {
 			},
 		}
 		clientRepo := &mockClientRepo{findSystemFn: func() (*Client, error) { return buildActiveClient(), nil }}
-		svc := NewEmailVerificationService(db, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(db, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 
 		resp, err := svc.SendVerificationEmail(context.Background(), "user@example.com", nil, nil)
 
@@ -93,7 +93,7 @@ func TestEmailVerificationService_RemainingBranches(t *testing.T) {
 			revokeByUUIDFn: func(uuid.UUID) error { return errors.New("revoke error") },
 		}
 		clientRepo := &mockClientRepo{findSystemFn: func() (*Client, error) { return buildActiveClient(), nil }}
-		svc := NewEmailVerificationService(db, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(db, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 
 		resp, err := svc.SendVerificationEmail(context.Background(), "user@example.com", nil, nil)
 
@@ -117,7 +117,7 @@ func TestEmailVerificationService_RemainingBranches(t *testing.T) {
 			return nil, nil
 		}}
 		clientRepo := &mockClientRepo{findSystemFn: func() (*Client, error) { return buildActiveClient(), nil }}
-		svc := NewEmailVerificationService(db, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{})
+		svc := NewEmailVerificationService(db, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{}, nil, nil)
 
 		resp, err := svc.SendVerificationEmail(context.Background(), "user@example.com", nil, nil)
 

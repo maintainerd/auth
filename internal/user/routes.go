@@ -30,6 +30,8 @@ func AccountRoute(
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
+		r.Get("/", accountHandler.GetAccount)
+
 		// Email change flow — updating the account's sign-in identity. Gated on a
 		// policy-aware step-up (see sensitiveActionStepUp).
 		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), sensitiveActionStepUp).

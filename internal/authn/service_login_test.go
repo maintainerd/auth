@@ -687,12 +687,21 @@ func buildActiveUser(t *testing.T, password string) *User {
 	require.NoError(t, err)
 	hashStr := string(hash)
 	return &User{
-		UserID:   1,
-		UserUUID: uuid.New(),
-		Username: "testuser",
-		Email:    "testuser@example.com",
-		Password: &hashStr,
-		Status:   shared.StatusActive,
+		UserID:          1,
+		UserUUID:        uuid.New(),
+		Username:        "testuser",
+		Email:           "testuser@example.com",
+		Password:        &hashStr,
+		Status:          shared.StatusActive,
+		IsEmailVerified: true,
+	}
+}
+
+func registrationPolicyRepo(config string) *mockSecuritySettingRepo {
+	return &mockSecuritySettingRepo{
+		findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+			return &secpolicy.SecuritySetting{RegistrationConfig: datatypes.JSON([]byte(config))}, nil
+		},
 	}
 }
 
@@ -791,6 +800,7 @@ func TestLoginPublic(t *testing.T) {
 		wantErr            bool
 		wantErrContain     string
 		wantPasswordChange bool
+		securitySettings   secpolicy.SecuritySettingRepository
 	}{
 		{
 			name:         "success",
@@ -970,6 +980,33 @@ func TestLoginPublic(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:             "requires verified email from registration config",
+			username:         "pub-unverified-email",
+			password:         correctPassword,
+			clientID:         "client-1",
+			providerID:       "provider-1",
+			expectCommit:     true,
+			wantErr:          true,
+			wantErrContain:   "email is not verified",
+			securitySettings: registrationPolicyRepo(`{"require_email_verification":true}`),
+			setup: func(t *testing.T, r repoSetup) {
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
+					return buildActiveIdentityProvider(), nil
+				}
+				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
+					return buildActiveClient(), nil
+				}
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
+					u := buildActiveUser(t, correctPassword)
+					u.IsEmailVerified = false
+					return u, nil
+				}
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-123"}, nil
+				}
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -992,7 +1029,7 @@ func TestLoginPublic(t *testing.T) {
 			}
 			tc.setup(t, repos)
 
-			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo, &mockAuthEventService{}, nil, nil)
+			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo, &mockAuthEventService{}, nil, tc.securitySettings)
 			resp, err := svc.LoginPublic(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
 
 			if tc.wantErr {
@@ -1115,15 +1152,16 @@ func TestLogin(t *testing.T) {
 	}
 
 	cases := []struct {
-		name           string
-		username       string
-		password       string
-		clientID       *string
-		providerID     *string
-		setup          func(t *testing.T, r repoSetup)
-		expectCommit   bool
-		wantErr        bool
-		wantErrContain string
+		name             string
+		username         string
+		password         string
+		clientID         *string
+		providerID       *string
+		setup            func(t *testing.T, r repoSetup)
+		expectCommit     bool
+		wantErr          bool
+		wantErrContain   string
+		securitySettings secpolicy.SecuritySettingRepository
 	}{
 		{
 			name:         "success with default client",
@@ -1231,6 +1269,28 @@ func TestLogin(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:             "requires verified email from registration config",
+			username:         "int-unverified-email",
+			password:         correctPassword,
+			clientID:         nil,
+			providerID:       nil,
+			expectCommit:     true,
+			wantErr:          true,
+			wantErrContain:   "email is not verified",
+			securitySettings: registrationPolicyRepo(`{"require_email_verification":true}`),
+			setup: func(t *testing.T, r repoSetup) {
+				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
+					u := buildActiveUser(t, correctPassword)
+					u.IsEmailVerified = false
+					return u, nil
+				}
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-456"}, nil
+				}
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -1252,7 +1312,7 @@ func TestLogin(t *testing.T) {
 			}
 			tc.setup(t, repos)
 
-			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, &mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
+			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, &mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, tc.securitySettings)
 			resp, err := svc.Login(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
 
 			if tc.wantErr {

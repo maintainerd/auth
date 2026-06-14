@@ -27,7 +27,6 @@ type SetupService interface {
 	GetSetupStatus(ctx context.Context) (*SetupStatusResponseDTO, error)
 	CreateTenant(ctx context.Context, req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
 	CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
-	CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
 	RegisterControlService(ctx context.Context, req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error)
 	CompleteSetup(ctx context.Context) (*CompleteSetupResponseDTO, error)
 }
@@ -320,9 +319,13 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 
 		// Create admin user
 		now := time.Now()
+		fullname := req.Username
+		if req.Fullname != nil && *req.Fullname != "" {
+			fullname = *req.Fullname
+		}
 		newUser := &User{
 			Username:          req.Username,
-			Fullname:          req.Fullname,
+			Fullname:          fullname,
 			Email:             req.Email,
 			Password:          ptr.Ptr(string(hashedPassword)),
 			IsEmailVerified:   true,
@@ -426,115 +429,6 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 }
 
 // Helper function to get string value from pointer
-func (s *setupService) CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
-	_, span := otel.Tracer("service").Start(ctx, "setup.createProfile")
-	defer span.End()
-
-	if err := s.ensureSetupOpen(); err != nil {
-		return nil, err
-	}
-
-	// Find the super admin user (the only user during setup)
-	user, err := s.userRepo.FindSuperAdmin()
-	if err != nil {
-		return nil, err
-	}
-
-	if user == nil {
-		return nil, apperror.NewNotFoundWithReason("no admin user found")
-	}
-
-	// Check if profile already exists for this user
-	existingProfile, err := s.profileRepo.FindByUserID(user.UserID)
-	if err != nil {
-		return nil, err
-	}
-
-	if existingProfile != nil {
-		return nil, apperror.NewConflict("profile already exists for this user")
-	}
-
-	// Parse birthdate if provided
-	var birthdate *time.Time
-	if req.Birthdate != nil && *req.Birthdate != "" {
-		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
-		if err != nil {
-			return nil, apperror.NewValidation("invalid birthdate format, must be YYYY-MM-DD")
-		}
-		birthdate = &parsed
-	}
-
-	var createdProfile *Profile
-	err = s.db.Transaction(func(tx *gorm.DB) error {
-		txProfileRepo := s.profileRepo.WithTx(tx)
-		txUserRepo := s.userRepo.WithTx(tx)
-
-		// Handle metadata (optional field with custom fields)
-		var metadataJSON datatypes.JSON
-		if req.Metadata != nil {
-			metadataBytes, err := json.Marshal(req.Metadata)
-			if err != nil {
-				return apperror.NewValidation("invalid metadata format")
-			}
-			metadataJSON = metadataBytes
-		} else {
-			metadataJSON = datatypes.JSON([]byte("{}"))
-		}
-
-		// Create new profile
-		newProfile := &Profile{
-			UserID:      user.UserID,
-			FirstName:   req.FirstName,
-			MiddleName:  req.MiddleName,
-			LastName:    req.LastName,
-			Suffix:      req.Suffix,
-			DisplayName: req.DisplayName,
-			Bio:         req.Bio,
-			IsDefault:   true, // First profile during setup is always default
-			Birthdate:   birthdate,
-			Gender:      req.Gender,
-			Phone:       req.Phone,
-			Email:       req.Email,
-			Address:     req.Address,
-			City:        req.City,
-			Country:     req.Country,
-			Timezone:    req.Timezone,
-			Language:    req.Language,
-			ProfileURL:  req.ProfileURL,
-			Metadata:    metadataJSON,
-		}
-
-		createdProfile, err = txProfileRepo.Create(newProfile)
-		if err != nil {
-			return err
-		}
-
-		// Update user's is_profile_completed flag
-		_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]any{
-			"is_profile_completed": true,
-			"is_account_completed": true,
-		})
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "create profile failed")
-		return nil, err
-	}
-
-	// Convert to response DTO using the existing helper function
-	profileResponse := NewProfileResponseDTO(createdProfile)
-
-	span.SetStatus(codes.Ok, "")
-	return &CreateProfileResponseDTO{
-		Profile: *profileResponse,
-	}, nil
-}
 
 func (s *setupService) RegisterControlService(ctx context.Context, req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.registerControlService")

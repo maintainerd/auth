@@ -10,6 +10,7 @@ import (
 
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/security"
@@ -40,6 +41,8 @@ type emailVerificationService struct {
 	userTokenRepo       UserTokenRepository
 	clientRepo          ClientRepository
 	emailTemplateRepo   branding.EmailTemplateRepository
+	userIdentityRepo    UserIdentityRepository
+	cacheInvalidator    cache.Invalidator
 	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
@@ -51,11 +54,16 @@ func NewEmailVerificationService(
 	userTokenRepo UserTokenRepository,
 	clientRepo ClientRepository,
 	emailTemplateRepo branding.EmailTemplateRepository,
+	userIdentityRepo UserIdentityRepository,
+	cacheInvalidator cache.Invalidator,
 	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) EmailVerificationService {
 	var settings secpolicy.SecuritySettingRepository
 	if len(securitySettingRepo) > 0 {
 		settings = securitySettingRepo[0]
+	}
+	if cacheInvalidator == nil {
+		cacheInvalidator = cache.NopInvalidator{}
 	}
 	return &emailVerificationService{
 		db:                  db,
@@ -63,6 +71,8 @@ func NewEmailVerificationService(
 		userTokenRepo:       userTokenRepo,
 		clientRepo:          clientRepo,
 		emailTemplateRepo:   emailTemplateRepo,
+		userIdentityRepo:    userIdentityRepo,
+		cacheInvalidator:    cacheInvalidator,
 		securitySettingRepo: settings,
 	}
 }
@@ -271,6 +281,12 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 	}
 
 	if user != nil {
+		// Clear the cached user context so /account (and downstream auth checks)
+		// immediately reflect the now-verified state instead of the stale value
+		// captured at registration. Without this the user keeps getting routed
+		// back to email verification until the cache TTL expires.
+		s.invalidateUserContextCache(ctx, user.UserID)
+
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "email_verification_success",
 			UserID:    user.UserUUID.String(),
@@ -285,6 +301,31 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 		Message: "Your email has been verified successfully.",
 		Success: true,
 	}, nil
+}
+
+// invalidateUserContextCache clears every cached user-context entry for the
+// user's identities (one per sub), so middleware-loaded auth state reflects the
+// latest user fields after a mutation. Best-effort: failures must not block the
+// verification response.
+func (s *emailVerificationService) invalidateUserContextCache(ctx context.Context, userID int64) {
+	if s.userIdentityRepo == nil || s.cacheInvalidator == nil {
+		return
+	}
+	identities, err := s.userIdentityRepo.FindByUserID(userID)
+	if err != nil {
+		return
+	}
+	seen := make(map[string]struct{})
+	for _, id := range identities {
+		if id.Sub == "" {
+			continue
+		}
+		if _, ok := seen[id.Sub]; ok {
+			continue
+		}
+		seen[id.Sub] = struct{}{}
+		s.cacheInvalidator.InvalidateUserAll(ctx, id.Sub)
+	}
 }
 
 func (s *emailVerificationService) sendVerificationEmail(ctx context.Context, to, otp string) error {

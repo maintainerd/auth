@@ -31,19 +31,19 @@ type RegisterService interface {
 }
 
 type registerService struct {
-	db                      *gorm.DB
-	clientRepo              ClientRepository
-	userRepo                UserRepository
-	userRoleRepo            UserRoleRepository
-	userTokenRepo           UserTokenRepository
-	userIdentityRepo        UserIdentityRepository
-	roleRepo                RoleRepository
-	inviteRepo              InviteRepository
-	identityProviderRepo    IdentityProviderRepository
-	securitySettingRepo     secpolicy.SecuritySettingRepository // nil → use defaults
-	passwordHistoryRepo     UserPasswordHistoryRepository       // nil → skip history
-	authFlowRoleRepo        AuthFlowRoleRepository
-	emailVerificationSvc    EmailVerificationService
+	db                   *gorm.DB
+	clientRepo           ClientRepository
+	userRepo             UserRepository
+	userRoleRepo         UserRoleRepository
+	userTokenRepo        UserTokenRepository
+	userIdentityRepo     UserIdentityRepository
+	roleRepo             RoleRepository
+	inviteRepo           InviteRepository
+	identityProviderRepo IdentityProviderRepository
+	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → use defaults
+	passwordHistoryRepo  UserPasswordHistoryRepository       // nil → skip history
+	authFlowRoleRepo     AuthFlowRoleRepository
+	emailVerificationSvc EmailVerificationService
 }
 
 func NewRegistrationService(
@@ -59,8 +59,13 @@ func NewRegistrationService(
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
 	authFlowRoleRepo AuthFlowRoleRepository,
-	emailVerificationSvc EmailVerificationService,
+	emailVerificationSvc ...EmailVerificationService,
 ) RegisterService {
+	var emailSvc EmailVerificationService
+	if len(emailVerificationSvc) > 0 {
+		emailSvc = emailVerificationSvc[0]
+	}
+
 	return &registerService{
 		db:                   db,
 		clientRepo:           clientRepo,
@@ -74,7 +79,7 @@ func NewRegistrationService(
 		securitySettingRepo:  securitySettingRepo,
 		passwordHistoryRepo:  passwordHistoryRepo,
 		authFlowRoleRepo:     authFlowRoleRepo,
-		emailVerificationSvc: emailVerificationSvc,
+		emailVerificationSvc: emailSvc,
 	}
 }
 
@@ -389,6 +394,7 @@ func (s *registerService) Register(
 	var createdUser *User
 	var Client *Client
 	var userIdentitySub string
+	var needEmailVerification bool
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -427,6 +433,7 @@ func (s *registerService) Register(
 
 		// Enforce tenant registration policy.
 		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId)
+		needEmailVerification = regPolicy.RequireEmailVerification
 		if !regPolicy.SelfRegistrationEnabled {
 			return apperror.NewForbidden("self-registration is disabled for this tenant")
 		}
@@ -531,6 +538,13 @@ func (s *registerService) Register(
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "register failed")
 		return nil, err
+	}
+
+	// Trigger email verification if the tenant policy requires it.
+	if email != nil && *email != "" && needEmailVerification && s.emailVerificationSvc != nil {
+		if _, err := s.emailVerificationSvc.SendVerificationEmail(ctx, *email, clientID, providerID); err != nil {
+			slog.Warn("failed to send verification email during registration", "email", *email, "err", err)
+		}
 	}
 
 	span.SetStatus(codes.Ok, "")

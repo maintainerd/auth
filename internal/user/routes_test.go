@@ -11,7 +11,7 @@ import (
 
 func TestAccountRoute(t *testing.T) {
 	r := chi.NewRouter()
-	h := NewAccountHandler(&mockAccountService{}, &mockSessionService{})
+	h := NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil)
 	AccountRoute(r, h, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/account/sessions", nil)
@@ -22,7 +22,7 @@ func TestAccountRoute(t *testing.T) {
 
 func TestRecoveryRoute(t *testing.T) {
 	r := chi.NewRouter()
-	h := NewAccountHandler(&mockAccountService{}, &mockSessionService{})
+	h := NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil)
 	RecoveryRoute(r, h)
 
 	req := jsonReq(t, http.MethodPost, "/recovery/backup-code", map[string]string{})
