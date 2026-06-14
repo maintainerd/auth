@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/platform/telemetry"
 	appserver "github.com/maintainerd/auth/internal/server"
 )
 
@@ -23,7 +24,15 @@ func run(ctx context.Context) error {
 	if err := config.Init(); err != nil {
 		return fmt.Errorf("load configuration: %w", err)
 	}
-	// Rebuild the logger once LOG_LEVEL and PII redaction settings are known.
+	// Bring up the OTel log provider before (re)building the logger so the
+	// slog→OTLP bridge has a provider to emit through. No-op when OTEL disabled.
+	logsShutdown, err := telemetry.InitLogs(ctx)
+	if err != nil {
+		return fmt.Errorf("initialize OpenTelemetry logging: %w", err)
+	}
+	defer shutdownWithTimeout("OpenTelemetry logging", logsShutdown)
+
+	// Rebuild the logger once LOG_LEVEL, PII redaction, and OTel logging are known.
 	initConfiguredLogger()
 
 	// Start tracing and metrics before downstream dependencies are initialized

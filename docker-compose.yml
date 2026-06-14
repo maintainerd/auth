@@ -1,3 +1,10 @@
+# Pull in the SigNoz observability stack (ClickHouse, collector, UI) so a single
+# `docker compose up --build -d` brings up everything. SigNoz's OTLP collector
+# listens on host ports 4317/4318; its UI is at http://localhost:8080.
+# Vendored from github.com/SigNoz/signoz (deploy/) at v0.128.0.
+include:
+  - deploy/signoz/docker/docker-compose.yaml
+
 services:
   auth:
     build:
@@ -15,9 +22,27 @@ services:
     environment:
       - ENV=local
       - CGO_ENABLED=0
+      # OpenTelemetry — vendor-neutral OTLP. Forced on for this local stack so
+      # telemetry flows to the bundled SigNoz with no extra setup. The app only
+      # ever speaks OTLP, so prod can point these elsewhere (Datadog/Grafana/...)
+      # with zero code changes. The local default resolves to the SigNoz
+      # collector over the Compose network instead of a host-published port.
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-maintainerd-auth}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      - OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+      - OTEL_EXPORTER_OTLP_INSECURE=${OTEL_EXPORTER_OTLP_INSECURE:-true}
+    # Lets the container reach a collector published on the host if you override
+    # OTEL_EXPORTER_OTLP_ENDPOINT to host.docker.internal for a different backend.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - postgres-db
       - redis-db
+      - otel-collector
+    networks:
+      - default
+      - signoz-net
     # Add restart policy for development
     restart: unless-stopped
 
@@ -84,6 +109,43 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - auth
+    networks:
+      - default
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - default
+    restart: unless-stopped
+
 networks:
   default:
     driver: bridge
@@ -95,3 +157,5 @@ volumes:
   postgres-data:
   redis-data:
   rabbitmq-data:
+  prometheus-data:
+  grafana-data:

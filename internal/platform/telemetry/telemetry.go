@@ -10,14 +10,18 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	promexporter "go.opentelemetry.io/otel/exporters/prometheus"
+	logglobal "go.opentelemetry.io/otel/log/global"
+	lognoop "go.opentelemetry.io/otel/log/noop"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
@@ -46,21 +50,13 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 	serviceName := config.GetEnvOrDefault("OTEL_SERVICE_NAME", defaultServiceName)
 	appVersion := config.AppVersion
 
-	otelEnabled, _ := strconv.ParseBool(config.GetEnvOrDefault("OTEL_ENABLED", "false"))
-	if !otelEnabled {
+	if !Enabled() {
 		otel.SetTracerProvider(noop.NewTracerProvider())
 		slog.Info("OpenTelemetry tracing disabled (OTEL_ENABLED != true)")
 		return noopShutdown, nil
 	}
 
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(appVersion),
-		),
-	)
+	res, err := buildResource(serviceName, appVersion)
 	if err != nil {
 		return noopShutdown, fmt.Errorf("telemetry: build resource: %w", err)
 	}
@@ -89,6 +85,70 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 	return tp.Shutdown, nil
 }
 
+// Enabled reports whether OpenTelemetry export is turned on (OTEL_ENABLED=true).
+// All three signal initializers (traces, metrics, logs) and the logging setup
+// branch on this so behaviour stays consistent.
+func Enabled() bool {
+	on, _ := strconv.ParseBool(config.GetEnvOrDefault("OTEL_ENABLED", "false"))
+	return on
+}
+
+// buildResource builds the OTel resource (service.name/version) shared by all
+// signal providers.
+func buildResource(serviceName, appVersion string) (*resource.Resource, error) {
+	return resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(serviceName),
+			semconv.ServiceVersion(appVersion),
+		),
+	)
+}
+
+// InitLogs bootstraps the OpenTelemetry LoggerProvider.
+//
+// When OTEL_ENABLED is "true" it connects an OTLP/gRPC log exporter to the same
+// collector as traces (OTEL_EXPORTER_OTLP_ENDPOINT) and installs the provider
+// as the global LoggerProvider, so the slog→OTel bridge in cmd/server ships
+// application logs over OTLP. Otherwise a no-op provider is installed.
+//
+// This keeps logging vendor-neutral: the app only ever speaks OTLP, configured
+// purely by the standard OTEL_* env vars.
+func InitLogs(ctx context.Context) (shutdown func(context.Context) error, err error) {
+	serviceName := config.GetEnvOrDefault("OTEL_SERVICE_NAME", defaultServiceName)
+	appVersion := config.AppVersion
+
+	if !Enabled() {
+		logglobal.SetLoggerProvider(lognoop.NewLoggerProvider())
+		slog.Info("OpenTelemetry logging disabled (OTEL_ENABLED != true)")
+		return noopShutdown, nil
+	}
+
+	res, err := buildResource(serviceName, appVersion)
+	if err != nil {
+		return noopShutdown, fmt.Errorf("telemetry: build resource for logs: %w", err)
+	}
+
+	exporter, err := otlploggrpc.New(ctx)
+	if err != nil {
+		return noopShutdown, fmt.Errorf("telemetry: create OTLP log exporter: %w", err)
+	}
+
+	lp := sdklog.NewLoggerProvider(
+		sdklog.WithResource(res),
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(exporter)),
+	)
+	logglobal.SetLoggerProvider(lp)
+
+	slog.Info("OpenTelemetry logging enabled (OTLP exporter)",
+		"service", serviceName,
+		"version", appVersion,
+	)
+
+	return lp.Shutdown, nil
+}
+
 // TraceIDFromContext extracts the W3C trace ID and span ID from the current
 // span in ctx. Returns empty strings when there is no active span.
 func TraceIDFromContext(ctx context.Context) (traceID, spanID string) {
@@ -115,14 +175,7 @@ func InitMetrics(ctx context.Context) (shutdown func(context.Context) error, err
 	serviceName := config.GetEnvOrDefault("OTEL_SERVICE_NAME", defaultServiceName)
 	appVersion := config.AppVersion
 
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(appVersion),
-		),
-	)
+	res, err := buildResource(serviceName, appVersion)
 	if err != nil {
 		return noopShutdown, fmt.Errorf("telemetry: build resource for metrics: %w", err)
 	}
