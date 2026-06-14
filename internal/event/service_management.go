@@ -23,18 +23,16 @@ import (
 // EventRouteService manages per-tenant broker route configurations.
 type EventRouteService interface {
 	ListByTenant(ctx context.Context, tenantID int64) ([]EventRouteServiceResult, error)
-	Create(ctx context.Context, tenantID int64, eventTypeID int64, destination string) (*EventRouteServiceResult, error)
-	Update(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID, destination string, enabled bool) (*EventRouteServiceResult, error)
+	Create(ctx context.Context, tenantID int64, eventTypeUUID string) (*EventRouteServiceResult, error)
+	Update(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID, enabled bool) (*EventRouteServiceResult, error)
 	Delete(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID) error
 }
 
 type EventRouteServiceResult struct {
 	EventRouteUUID string
-	TenantID       int64
-	EventTypeID    int64
+	EventTypeUUID  string
 	EventTypeKey   string
 	Channel        string
-	Destination    string
 	Enabled        bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -65,16 +63,16 @@ func (s *eventRouteServiceImpl) ListByTenant(ctx context.Context, tenantID int64
 	result := make([]EventRouteServiceResult, len(routes))
 	for i, r := range routes {
 		key := ""
+		eventTypeUUID := ""
 		if et, _ := s.eventTypeRepo.FindByID(r.EventTypeID); et != nil {
 			key = et.Key
+			eventTypeUUID = et.EventTypeUUID.String()
 		}
 		result[i] = EventRouteServiceResult{
 			EventRouteUUID: r.EventRouteUUID.String(),
-			TenantID:       r.TenantID,
-			EventTypeID:    r.EventTypeID,
+			EventTypeUUID:  eventTypeUUID,
 			EventTypeKey:   key,
 			Channel:        r.Channel,
-			Destination:    r.Destination,
 			Enabled:        r.Enabled,
 			CreatedAt:      r.CreatedAt,
 			UpdatedAt:      r.UpdatedAt,
@@ -84,25 +82,24 @@ func (s *eventRouteServiceImpl) ListByTenant(ctx context.Context, tenantID int64
 	return result, nil
 }
 
-func (s *eventRouteServiceImpl) Create(ctx context.Context, tenantID int64, eventTypeID int64, destination string) (*EventRouteServiceResult, error) {
+func (s *eventRouteServiceImpl) Create(ctx context.Context, tenantID int64, eventTypeUUID string) (*EventRouteServiceResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "eventRoute.create")
 	defer span.End()
 
-	et, err := s.eventTypeRepo.FindByID(eventTypeID)
+	et, err := s.eventTypeRepo.FindByUUID(eventTypeUUID)
 	if err != nil || et == nil {
 		span.SetStatus(codes.Error, "event type not found")
 		return nil, apperror.NewNotFound("event type")
 	}
-	// Do not allow routing a retired/disabled event type.
 	if !et.IsActive {
 		span.SetStatus(codes.Error, "event type is not active")
 		return nil, apperror.NewValidation("event type is not active and cannot be routed")
 	}
+	eventTypeID := et.EventTypeID
 
 	route := &EventRoute{
 		TenantID:    tenantID,
 		EventTypeID: eventTypeID,
-		Destination: destination,
 		Channel:     "rabbitmq",
 		Enabled:     true,
 	}
@@ -118,18 +115,16 @@ func (s *eventRouteServiceImpl) Create(ctx context.Context, tenantID int64, even
 	span.SetStatus(codes.Ok, "")
 	return &EventRouteServiceResult{
 		EventRouteUUID: created.EventRouteUUID.String(),
-		TenantID:       created.TenantID,
-		EventTypeID:    created.EventTypeID,
+		EventTypeUUID:  et.EventTypeUUID.String(),
 		EventTypeKey:   et.Key,
 		Channel:        created.Channel,
-		Destination:    created.Destination,
 		Enabled:        created.Enabled,
 		CreatedAt:      created.CreatedAt,
 		UpdatedAt:      created.UpdatedAt,
 	}, nil
 }
 
-func (s *eventRouteServiceImpl) Update(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID, destination string, enabled bool) (*EventRouteServiceResult, error) {
+func (s *eventRouteServiceImpl) Update(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID, enabled bool) (*EventRouteServiceResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "eventRoute.update")
 	defer span.End()
 
@@ -142,10 +137,9 @@ func (s *eventRouteServiceImpl) Update(ctx context.Context, tenantID int64, even
 		return nil, apperror.NewNotFound("event route")
 	}
 
-	route.Destination = destination
-	route.Enabled = enabled
-
-	updated, err := s.eventRouteRepo.UpdateByUUID(eventRouteUUID, route)
+	updated, err := s.eventRouteRepo.UpdateByUUID(eventRouteUUID, map[string]any{
+		"enabled": enabled,
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "update event route failed")
@@ -156,16 +150,16 @@ func (s *eventRouteServiceImpl) Update(ctx context.Context, tenantID int64, even
 	span.SetStatus(codes.Ok, "")
 
 	key := ""
+	eventTypeUUID := ""
 	if et, _ := s.eventTypeRepo.FindByID(updated.EventTypeID); et != nil {
 		key = et.Key
+		eventTypeUUID = et.EventTypeUUID.String()
 	}
 	return &EventRouteServiceResult{
 		EventRouteUUID: updated.EventRouteUUID.String(),
-		TenantID:       updated.TenantID,
-		EventTypeID:    updated.EventTypeID,
+		EventTypeUUID:  eventTypeUUID,
 		EventTypeKey:   key,
 		Channel:        updated.Channel,
-		Destination:    updated.Destination,
 		Enabled:        updated.Enabled,
 		CreatedAt:      updated.CreatedAt,
 		UpdatedAt:      updated.UpdatedAt,
@@ -212,18 +206,18 @@ func NewManagementHandler(eventRouteService EventRouteService) *ManagementHandle
 
 // eventRouteRequestDTO is the request body for creating/updating an event route.
 type eventRouteRequestDTO struct {
-	EventTypeID int64  `json:"event_type_id"`
-	Destination string `json:"destination"`
-	Enabled     *bool  `json:"enabled"`
+	EventTypeUUID string `json:"event_type_uuid"`
+	Enabled       *bool  `json:"enabled"`
 }
 
 type eventRouteResponseDTO struct {
-	UUID         string `json:"uuid"`
-	EventTypeID  int64  `json:"event_type_id"`
-	EventTypeKey string `json:"event_type_key"`
-	Channel      string `json:"channel"`
-	Destination  string `json:"destination"`
-	Enabled      bool   `json:"enabled"`
+	UUID          string    `json:"uuid"`
+	EventTypeUUID string    `json:"event_type_uuid"`
+	EventTypeKey  string    `json:"event_type_key"`
+	Channel       string    `json:"channel"`
+	Enabled       bool      `json:"enabled"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // ListEventRoutes returns all broker routes for the current tenant.
@@ -245,12 +239,13 @@ func (h *ManagementHandler) ListEventRoutes(w http.ResponseWriter, r *http.Reque
 	result := make([]eventRouteResponseDTO, len(routes))
 	for i, rt := range routes {
 		result[i] = eventRouteResponseDTO{
-			UUID:         rt.EventRouteUUID,
-			EventTypeID:  rt.EventTypeID,
-			EventTypeKey: rt.EventTypeKey,
-			Channel:      rt.Channel,
-			Destination:  rt.Destination,
-			Enabled:      rt.Enabled,
+			UUID:          rt.EventRouteUUID,
+			EventTypeUUID: rt.EventTypeUUID,
+			EventTypeKey:  rt.EventTypeKey,
+			Channel:       rt.Channel,
+			Enabled:       rt.Enabled,
+			CreatedAt:     rt.CreatedAt,
+			UpdatedAt:     rt.UpdatedAt,
 		}
 	}
 
@@ -273,24 +268,25 @@ func (h *ManagementHandler) CreateEventRoute(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if req.EventTypeID <= 0 || req.Destination == "" {
-		resp.Error(w, http.StatusBadRequest, "event_type_id and destination are required")
+	if req.EventTypeUUID == "" {
+		resp.Error(w, http.StatusBadRequest, "event_type_uuid is required")
 		return
 	}
 
-	result, err := h.eventRouteService.Create(r.Context(), tenant.TenantID, req.EventTypeID, req.Destination)
+	result, err := h.eventRouteService.Create(r.Context(), tenant.TenantID, req.EventTypeUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create event route", err)
 		return
 	}
 
 	resp.Created(w, eventRouteResponseDTO{
-		UUID:         result.EventRouteUUID,
-		EventTypeID:  result.EventTypeID,
-		EventTypeKey: result.EventTypeKey,
-		Channel:      result.Channel,
-		Destination:  result.Destination,
-		Enabled:      result.Enabled,
+		UUID:          result.EventRouteUUID,
+		EventTypeUUID: result.EventTypeUUID,
+		EventTypeKey:  result.EventTypeKey,
+		Channel:       result.Channel,
+		Enabled:       result.Enabled,
+		CreatedAt:     result.CreatedAt,
+		UpdatedAt:     result.UpdatedAt,
 	}, "Event route created successfully")
 }
 
@@ -322,19 +318,20 @@ func (h *ManagementHandler) UpdateEventRoute(w http.ResponseWriter, r *http.Requ
 		enabled = *req.Enabled
 	}
 
-	result, err := h.eventRouteService.Update(r.Context(), tenant.TenantID, routeUUID, req.Destination, enabled)
+	result, err := h.eventRouteService.Update(r.Context(), tenant.TenantID, routeUUID, enabled)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update event route", err)
 		return
 	}
 
 	resp.Success(w, eventRouteResponseDTO{
-		UUID:         result.EventRouteUUID,
-		EventTypeID:  result.EventTypeID,
-		EventTypeKey: result.EventTypeKey,
-		Channel:      result.Channel,
-		Destination:  result.Destination,
-		Enabled:      result.Enabled,
+		UUID:          result.EventRouteUUID,
+		EventTypeUUID: result.EventTypeUUID,
+		EventTypeKey:  result.EventTypeKey,
+		Channel:       result.Channel,
+		Enabled:       result.Enabled,
+		CreatedAt:     result.CreatedAt,
+		UpdatedAt:     result.UpdatedAt,
 	}, "Event route updated successfully")
 }
 

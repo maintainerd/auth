@@ -48,8 +48,8 @@ func (p *RabbitMQPublisher) Publish(ctx context.Context, outbox *Outbox) error {
 
 	return p.publishFunc(
 		ctx,
-		"maintainerd.events",
-		fmt.Sprintf("event.%s", outbox.EventType),
+		"maintainerd-auth.events",
+		outbox.EventType,
 		payload,
 		outbox.EventID.String(),
 		outbox.EventType,

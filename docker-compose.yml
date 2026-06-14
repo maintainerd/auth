@@ -32,6 +32,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
       - OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
       - OTEL_EXPORTER_OTLP_INSECURE=${OTEL_EXPORTER_OTLP_INSECURE:-true}
+      # RabbitMQ broker (optional — remove or leave empty to disable broker delivery)
+      - RABBITMQ_URL=amqp://devuser:Pass123@rabbitmq:5672/
     # Lets the container reach a collector published on the host if you override
     # OTEL_EXPORTER_OTLP_ENDPOINT to host.docker.internal for a different backend.
     extra_hosts:
@@ -39,6 +41,7 @@ services:
     depends_on:
       - postgres-db
       - redis-db
+      - rabbitmq
       - otel-collector
     networks:
       - default

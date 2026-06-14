@@ -14,7 +14,6 @@ type EventRoute struct {
 	TenantID       int64     `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	EventTypeID    int64     `gorm:"column:event_type_id;not null" json:"event_type_id"`
 	Channel        string    `gorm:"column:channel;type:varchar(50);not null;default:'rabbitmq'" json:"channel"`
-	Destination    string    `gorm:"column:destination;type:varchar(255);not null" json:"destination"`
 	Enabled        bool      `gorm:"column:enabled;not null;default:true" json:"enabled"`
 	CreatedAt      time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
