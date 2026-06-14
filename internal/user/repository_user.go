@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ type UserRepositoryGetFilter struct {
 	Username  *string
 	Email     *string
 	Phone     *string
+	Fullname  *string
 	Status    []string
 	TenantID  *int64
 	RoleID    *int64
@@ -311,6 +313,14 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	query = database.ApplyILike(query, "users.username", filter.Username)
 	query = database.ApplyILike(query, "users.email", filter.Email)
 	query = database.ApplyILike(query, "users.phone", filter.Phone)
+	if filter.Fullname != nil && *filter.Fullname != "" {
+		query = query.Joins("JOIN profiles ON users.user_id = profiles.user_id AND profiles.is_default = true")
+		like := "%" + strings.ToLower(*filter.Fullname) + "%"
+		query = query.Where(
+			"LOWER(profiles.first_name) LIKE ? OR LOWER(profiles.last_name) LIKE ?",
+			like, like,
+		)
+	}
 	if len(filter.Status) > 0 {
 		query = query.Where("users.status IN ?", filter.Status)
 	}

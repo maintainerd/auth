@@ -57,6 +57,7 @@ type UserServiceGetFilter struct {
 	Username   *string
 	Email      *string
 	Phone      *string
+	Fullname   *string
 	Status     []string
 	TenantID   int64
 	RoleUUID   *string
@@ -233,6 +234,7 @@ func (s *userService) Get(ctx context.Context, filter UserServiceGetFilter) (*Us
 		Username:  filter.Username,
 		Email:     filter.Email,
 		Phone:     filter.Phone,
+		Fullname:  filter.Fullname,
 		Status:    filter.Status,
 		TenantID:  &filter.TenantID,
 		RoleID:    roleID,

@@ -218,6 +218,7 @@ type UserFilterDTO struct {
 	Username   *string  `json:"username,omitempty"`
 	Email      *string  `json:"email,omitempty"`
 	Phone      *string  `json:"phone,omitempty"`
+	Fullname   *string  `json:"fullname,omitempty"`
 	Status     []string `json:"status,omitempty"`
 	TenantUUID *string  `json:"tenant_id,omitempty"`
 	RoleUUID   *string  `json:"role_id,omitempty"`
