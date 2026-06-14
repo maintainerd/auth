@@ -289,6 +289,13 @@ func (r *userRepository) FindByPendingEmail(email string) (*User, error) {
 func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[User], error) {
 	query := r.DB().Model(&User{})
 
+	// Preload the default Profile so the computed `fullname` (Profile.display_name
+	// → first_name/last_name) is populated on every listed user. The users.fullname
+	// column was removed; without this the derived name is always empty. Scoped to
+	// the default profile to match FindBySubAndClientID and keep the has-one load
+	// deterministic when a user has multiple profiles.
+	query = query.Preload("Profile", "is_default = ?", true)
+
 	// Filter by user_identities fields (tenant, client) — join once to avoid duplicates.
 	if filter.TenantID != nil || filter.ClientID != nil {
 		query = query.Joins("JOIN user_identities ON users.user_id = user_identities.user_id")
