@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS event_routes (
     tenant_id           BIGINT NOT NULL,
     event_type_id       BIGINT NOT NULL,
     channel             VARCHAR(50) NOT NULL DEFAULT 'rabbitmq',
-    destination         VARCHAR(255) NOT NULL,
     enabled             BOOLEAN NOT NULL DEFAULT true,
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now(),

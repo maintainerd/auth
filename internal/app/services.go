@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/authn"
@@ -128,12 +129,16 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		redisClient,
 	)
 
-	// RabbitMQ broker publisher. No AMQP publishFunc is configured in this
-	// deployment, so the publisher is disabled (a no-op) and activates the
-	// moment a publishFunc is injected — matching the "disables cleanly when
-	// RabbitMQ config is absent" contract. The broker arm still filters by the
-	// tenant's enabled event_routes.
-	brokerPublisher := event.NewRabbitMQPublisher(nil)
+	// RabbitMQ broker publisher. Reads RABBITMQ_URL from the environment.
+	// When the variable is absent the publisher is disabled (a no-op) and
+	// activates the moment RABBITMQ_URL is set — matching the "disables
+	// cleanly when RabbitMQ config is absent" contract.
+	amqpCfg := event.NewAMQPConfigFromEnv()
+	amqpPublish, _, amqpErr := event.ConnectAMQP(amqpCfg)
+	if amqpErr != nil {
+		return nil, fmt.Errorf("init services: amqp: %w", amqpErr)
+	}
+	brokerPublisher := event.NewRabbitMQPublisher(amqpPublish)
 
 	deliveryAdapter := event.NewDeliveryAdapter(
 		func(ctx context.Context, outbox *event.Outbox) error {
@@ -145,7 +150,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	// Webhook management handlers (subscription + replay) that the REST router
 	// wires onto /webhook-endpoints. Built here because they need the webhook
 	// repos and the shared replay delivery path.
-	webhookSubscriptionHandler := webhook.NewSubscriptionHandler(r.webhookEndpointEventRepo, r.webhookEndpointRepo)
+	webhookSubscriptionHandler := webhook.NewSubscriptionHandler(r.webhookEndpointEventRepo, r.webhookEndpointRepo, r.eventTypeRepo)
 	webhookReplayHandler := webhook.NewReplayHandler(
 		r.deliveryHistoryRepo,
 		r.webhookEndpointRepo,

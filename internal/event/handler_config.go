@@ -66,8 +66,8 @@ func (h *ConfigHandler) ListEventTypes(w http.ResponseWriter, r *http.Request) {
 
 // tenantEventTypeRequestDTO is the request body for toggling a tenant event type.
 type tenantEventTypeRequestDTO struct {
-	EventTypeID int64 `json:"event_type_id"`
-	Enabled     bool  `json:"enabled"`
+	EventTypeUUID string `json:"event_type_uuid"`
+	Enabled       bool   `json:"enabled"`
 }
 
 // GetTenantEventTypes returns per-tenant event type configurations.
@@ -78,7 +78,7 @@ func (h *ConfigHandler) GetTenantEventTypes(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	configs, err := h.tenantEventTypeConfigService.GetByTenant(r.Context(), tenant.TenantID)
+	configs, err := h.tenantEventTypeConfigService.GetByTenant(r.Context(), tenant.TenantID, tenant.TenantUUID.String())
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get tenant event types", err)
 		return
@@ -101,12 +101,12 @@ func (h *ConfigHandler) SetTenantEventType(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if req.EventTypeID <= 0 {
+	if req.EventTypeUUID == "" {
 		resp.ValidationError(w, nil)
 		return
 	}
 
-	result, err := h.tenantEventTypeConfigService.SetEnabled(r.Context(), tenant.TenantID, req.EventTypeID, req.Enabled)
+	result, err := h.tenantEventTypeConfigService.SetEnabled(r.Context(), tenant.TenantID, tenant.TenantUUID.String(), req.EventTypeUUID, req.Enabled)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update tenant event type", err)
 		return

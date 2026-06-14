@@ -124,6 +124,7 @@ require (
 	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
+	github.com/rabbitmq/amqp091-go v1.11.0 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.18.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect

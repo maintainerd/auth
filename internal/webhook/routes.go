@@ -46,6 +46,9 @@ func WebhookEndpointRoute(
 			Patch("/{webhook_endpoint_uuid}/status", webhookEndpointHandler.UpdateStatus)
 
 		// Manage endpoint subscriptions
+		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:read"})).
+			Get("/{webhook_endpoint_uuid}/subscriptions", subscriptionHandler.ListSubscriptions)
+
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:update"})).
 			Post("/{webhook_endpoint_uuid}/subscriptions", subscriptionHandler.AddSubscription)
 

@@ -85,16 +85,17 @@ func (s *eventTypeServiceImpl) ListByCategory(ctx context.Context, category stri
 
 // TenantEventTypeConfigService manages per-tenant event type toggles (master switch).
 type TenantEventTypeConfigService interface {
-	GetByTenant(ctx context.Context, tenantID int64) ([]TenantEventTypeConfigResult, error)
-	SetEnabled(ctx context.Context, tenantID int64, eventTypeID int64, enabled bool) (*TenantEventTypeConfigResult, error)
+	GetByTenant(ctx context.Context, tenantID int64, tenantUUID string) ([]TenantEventTypeConfigResult, error)
+	SetEnabled(ctx context.Context, tenantID int64, tenantUUID string, eventTypeUUID string, enabled bool) (*TenantEventTypeConfigResult, error)
 }
 
 type TenantEventTypeConfigResult struct {
-	TenantEventTypeUUID string
-	TenantID            int64
-	EventTypeID         int64
-	EventTypeKey        string
-	Enabled             bool
+	TenantEventTypeUUID string `json:"tenant_event_type_uuid"`
+	TenantUUID          string `json:"tenant_uuid"`
+	EventTypeUUID       string `json:"event_type_uuid"`
+	EventTypeKey        string `json:"event_type_key"`
+	Enabled             bool   `json:"enabled"`
+	TenantID            int64  `json:"-"`
 }
 
 type tenantEventTypeConfigService struct {
@@ -118,7 +119,7 @@ func NewTenantEventTypeConfigService(
 	}
 }
 
-func (s *tenantEventTypeConfigService) GetByTenant(ctx context.Context, tenantID int64) ([]TenantEventTypeConfigResult, error) {
+func (s *tenantEventTypeConfigService) GetByTenant(ctx context.Context, tenantID int64, tenantUUID string) ([]TenantEventTypeConfigResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenantEventTypeConfig.list")
 	defer span.End()
 
@@ -132,13 +133,16 @@ func (s *tenantEventTypeConfigService) GetByTenant(ctx context.Context, tenantID
 	result := make([]TenantEventTypeConfigResult, len(types))
 	for i, t := range types {
 		key := ""
+		eventTypeUUID := ""
 		if et, _ := s.eventTypeRepo.FindByID(t.EventTypeID); et != nil {
 			key = et.Key
+			eventTypeUUID = et.EventTypeUUID.String()
 		}
 		result[i] = TenantEventTypeConfigResult{
 			TenantEventTypeUUID: t.TenantEventTypeUUID.String(),
+			TenantUUID:          tenantUUID,
 			TenantID:            t.TenantID,
-			EventTypeID:         t.EventTypeID,
+			EventTypeUUID:       eventTypeUUID,
 			EventTypeKey:        key,
 			Enabled:             t.Enabled,
 		}
@@ -147,20 +151,21 @@ func (s *tenantEventTypeConfigService) GetByTenant(ctx context.Context, tenantID
 	return result, nil
 }
 
-func (s *tenantEventTypeConfigService) SetEnabled(ctx context.Context, tenantID int64, eventTypeID int64, enabled bool) (*TenantEventTypeConfigResult, error) {
+func (s *tenantEventTypeConfigService) SetEnabled(ctx context.Context, tenantID int64, tenantUUID string, eventTypeUUID string, enabled bool) (*TenantEventTypeConfigResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenantEventTypeConfig.set")
 	defer span.End()
 	span.SetAttributes(
 		attribute.Int64("tenant.id", tenantID),
-		attribute.Int64("event_type.id", eventTypeID),
+		attribute.String("event_type.uuid", eventTypeUUID),
 		attribute.Bool("enabled", enabled),
 	)
 
-	et, err := s.eventTypeRepo.FindByID(eventTypeID)
+	et, err := s.eventTypeRepo.FindByUUID(eventTypeUUID)
 	if err != nil || et == nil {
 		span.SetStatus(codes.Error, "event type not found")
 		return nil, apperror.NewNotFound("event type")
 	}
+	eventTypeID := et.EventTypeID
 
 	existing, err := s.tenantEventTypeRepo.FindByTenantIDAndEventTypeID(tenantID, eventTypeID)
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -172,8 +177,7 @@ func (s *tenantEventTypeConfigService) SetEnabled(ctx context.Context, tenantID 
 	var result *TenantEventType
 
 	if existing != nil {
-		existing.Enabled = enabled
-		updated, err := s.tenantEventTypeRepo.UpdateByID(existing.TenantEventTypeID, existing)
+		updated, err := s.tenantEventTypeRepo.UpdateByID(existing.TenantEventTypeID, map[string]any{"enabled": enabled})
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "update tenant config failed")
@@ -199,8 +203,9 @@ func (s *tenantEventTypeConfigService) SetEnabled(ctx context.Context, tenantID 
 	span.SetStatus(codes.Ok, "")
 	return &TenantEventTypeConfigResult{
 		TenantEventTypeUUID: result.TenantEventTypeUUID.String(),
+		TenantUUID:          tenantUUID,
 		TenantID:            result.TenantID,
-		EventTypeID:         result.EventTypeID,
+		EventTypeUUID:       et.EventTypeUUID.String(),
 		EventTypeKey:        et.Key,
 		Enabled:             result.Enabled,
 	}, nil
@@ -222,10 +227,10 @@ func toServiceResult(et *EventType) EventTypeServiceDataResult {
 // NoopTenantEventTypeConfigService returns a no-op implementation.
 type noopTenantEventTypeConfigService struct{}
 
-func (noopTenantEventTypeConfigService) GetByTenant(_ context.Context, _ int64) ([]TenantEventTypeConfigResult, error) {
+func (noopTenantEventTypeConfigService) GetByTenant(_ context.Context, _ int64, _ string) ([]TenantEventTypeConfigResult, error) {
 	return nil, nil
 }
-func (noopTenantEventTypeConfigService) SetEnabled(_ context.Context, _ int64, _ int64, _ bool) (*TenantEventTypeConfigResult, error) {
+func (noopTenantEventTypeConfigService) SetEnabled(_ context.Context, _ int64, _ string, _ string, _ bool) (*TenantEventTypeConfigResult, error) {
 	return nil, nil
 }
 

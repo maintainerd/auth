@@ -9,12 +9,50 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/event"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/gorm"
 )
+
+type mockEventTypeRepo struct {
+	findByUUIDFn func(uuid string) (*event.EventType, error)
+}
+
+func (m *mockEventTypeRepo) Create(entity *event.EventType) (*event.EventType, error)         { return entity, nil }
+func (m *mockEventTypeRepo) CreateOrUpdate(entity *event.EventType) (*event.EventType, error) { return entity, nil }
+func (m *mockEventTypeRepo) FindAll(preloads ...string) ([]event.EventType, error)            { return nil, nil }
+func (m *mockEventTypeRepo) FindByUUID(uuid any, preloads ...string) (*event.EventType, error) {
+	if m.findByUUIDFn != nil {
+		s, _ := uuid.(string)
+		return m.findByUUIDFn(s)
+	}
+	return nil, nil
+}
+func (m *mockEventTypeRepo) FindByUUIDs(uuids []string, preloads ...string) ([]event.EventType, error) {
+	return nil, nil
+}
+func (m *mockEventTypeRepo) FindByID(id any, preloads ...string) (*event.EventType, error)       { return nil, nil }
+func (m *mockEventTypeRepo) UpdateByUUID(uuid any, updatedData any) (*event.EventType, error)     { return nil, nil }
+func (m *mockEventTypeRepo) UpdateByID(id any, updatedData any) (*event.EventType, error)         { return nil, nil }
+func (m *mockEventTypeRepo) DeleteByUUID(uuid any) error                                          { return nil }
+func (m *mockEventTypeRepo) DeleteByID(id any) error                                              { return nil }
+func (m *mockEventTypeRepo) Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*database.PaginationResult[event.EventType], error) {
+	return nil, nil
+}
+func (m *mockEventTypeRepo) FindAllActive() ([]event.EventType, error)           { return nil, nil }
+func (m *mockEventTypeRepo) FindByKey(key string) (*event.EventType, error)      { return nil, nil }
+func (m *mockEventTypeRepo) FindByKeys(keys []string) ([]event.EventType, error) { return nil, nil }
+func (m *mockEventTypeRepo) FindByCategory(category string) ([]event.EventType, error) {
+	return nil, nil
+}
+func (m *mockEventTypeRepo) WithTx(tx *gorm.DB) event.EventTypeRepository { return m }
+
+func noopEventTypeRepo() *mockEventTypeRepo { return &mockEventTypeRepo{} }
 
 func TestSubscriptionHandler_AddSubscription(t *testing.T) {
 	t.Run("no tenant in context", func(t *testing.T) {
-		h := NewSubscriptionHandler(nil, nil)
+		h := NewSubscriptionHandler(nil, nil, noopEventTypeRepo())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("POST", "/webhook-endpoints/any/subscriptions", nil)
 		h.AddSubscription(w, r)
@@ -22,7 +60,7 @@ func TestSubscriptionHandler_AddSubscription(t *testing.T) {
 	})
 
 	t.Run("invalid endpoint UUID", func(t *testing.T) {
-		h := NewSubscriptionHandler(nil, nil)
+		h := NewSubscriptionHandler(nil, nil, noopEventTypeRepo())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("POST", "/webhook-endpoints/bad-uuid/subscriptions", nil)
 		r = withTenant(r)
@@ -38,9 +76,10 @@ func TestSubscriptionHandler_AddSubscription(t *testing.T) {
 			},
 		}
 		epUUID := uuid.New()
-		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo)
+		etUUID := uuid.New()
+		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo, noopEventTypeRepo())
 		w := httptest.NewRecorder()
-		body := subscriptionRequestDTO{EventTypeID: 5}
+		body := subscriptionRequestDTO{EventTypeUUID: etUUID.String()}
 		raw, _ := json.Marshal(body)
 		r := httptest.NewRequest("POST", "/webhook-endpoints/"+epUUID.String()+"/subscriptions", bytes.NewReader(raw))
 		r = withTenant(r)
@@ -49,16 +88,44 @@ func TestSubscriptionHandler_AddSubscription(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
-	t.Run("success", func(t *testing.T) {
+	t.Run("event type not found", func(t *testing.T) {
 		ep := &WebhookEndpoint{WebhookEndpointID: 1, WebhookEndpointUUID: uuid.New(), TenantID: 1}
 		repo := &mockWebhookEndpointRepo{
 			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) {
 				return ep, nil
 			},
 		}
-		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo)
+		etUUID := uuid.New()
+		etRepo := &mockEventTypeRepo{
+			findByUUIDFn: func(_ string) (*event.EventType, error) { return nil, nil },
+		}
+		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo, etRepo)
 		w := httptest.NewRecorder()
-		body := subscriptionRequestDTO{EventTypeID: 5}
+		body := subscriptionRequestDTO{EventTypeUUID: etUUID.String()}
+		raw, _ := json.Marshal(body)
+		r := httptest.NewRequest("POST", "/webhook-endpoints/"+ep.WebhookEndpointUUID.String()+"/subscriptions", bytes.NewReader(raw))
+		r = withTenant(r)
+		r = withChiParam(r, "webhook_endpoint_uuid", ep.WebhookEndpointUUID.String())
+		h.AddSubscription(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("success", func(t *testing.T) {
+		etUUID := uuid.New()
+		ep := &WebhookEndpoint{WebhookEndpointID: 1, WebhookEndpointUUID: uuid.New(), TenantID: 1}
+		repo := &mockWebhookEndpointRepo{
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) {
+				return ep, nil
+			},
+		}
+		etRepo := &mockEventTypeRepo{
+			findByUUIDFn: func(_ string) (*event.EventType, error) {
+				return &event.EventType{EventTypeID: 5, EventTypeUUID: etUUID, Key: "user.created"}, nil
+			},
+		}
+		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo, etRepo)
+		w := httptest.NewRecorder()
+		body := subscriptionRequestDTO{EventTypeUUID: etUUID.String()}
 		raw, _ := json.Marshal(body)
 		r := httptest.NewRequest("POST", "/webhook-endpoints/"+ep.WebhookEndpointUUID.String()+"/subscriptions", bytes.NewReader(raw))
 		r = withTenant(r)
@@ -70,7 +137,7 @@ func TestSubscriptionHandler_AddSubscription(t *testing.T) {
 
 func TestSubscriptionHandler_RemoveSubscription(t *testing.T) {
 	t.Run("no tenant", func(t *testing.T) {
-		h := NewSubscriptionHandler(nil, nil)
+		h := NewSubscriptionHandler(nil, nil, noopEventTypeRepo())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("DELETE", "/webhook-endpoints/any/subscriptions", nil)
 		h.RemoveSubscription(w, r)
@@ -84,13 +151,36 @@ func TestSubscriptionHandler_RemoveSubscription(t *testing.T) {
 			},
 		}
 		epUUID := uuid.New()
-		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo)
+		etUUID := uuid.New()
+		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo, noopEventTypeRepo())
 		w := httptest.NewRecorder()
-		body := subscriptionRequestDTO{EventTypeID: 5}
+		body := subscriptionRequestDTO{EventTypeUUID: etUUID.String()}
 		raw, _ := json.Marshal(body)
 		r := httptest.NewRequest("DELETE", "/webhook-endpoints/"+epUUID.String()+"/subscriptions", bytes.NewReader(raw))
 		r = withTenant(r)
 		r = withChiParam(r, "webhook_endpoint_uuid", epUUID.String())
+		h.RemoveSubscription(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("event type not found", func(t *testing.T) {
+		ep := &WebhookEndpoint{WebhookEndpointID: 1, WebhookEndpointUUID: uuid.New(), TenantID: 1}
+		repo := &mockWebhookEndpointRepo{
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) {
+				return ep, nil
+			},
+		}
+		etUUID := uuid.New()
+		etRepo := &mockEventTypeRepo{
+			findByUUIDFn: func(_ string) (*event.EventType, error) { return nil, nil },
+		}
+		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo, etRepo)
+		w := httptest.NewRecorder()
+		body := subscriptionRequestDTO{EventTypeUUID: etUUID.String()}
+		raw, _ := json.Marshal(body)
+		r := httptest.NewRequest("DELETE", "/webhook-endpoints/"+ep.WebhookEndpointUUID.String()+"/subscriptions", bytes.NewReader(raw))
+		r = withTenant(r)
+		r = withChiParam(r, "webhook_endpoint_uuid", ep.WebhookEndpointUUID.String())
 		h.RemoveSubscription(w, r)
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
