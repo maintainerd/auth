@@ -10,7 +10,6 @@ var grpcServicePermissions = map[string]string{
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "CreateTenant"):           "tenant:create",
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "UpdateTenant"):           "tenant:update",
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "SetTenantStatus"):        "tenant:update",
-	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "SetTenantPublic"):        "tenant:update",
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "DeleteTenant"):           "tenant:delete",
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "ListTenantMembers"):      "tenant:read",
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "AddTenantMember"):        "tenant:update",
@@ -176,7 +175,6 @@ var grpcServicePermissions = map[string]string{
 	grpcMethod(authv1.SMSTemplateService_ServiceDesc.ServiceName, "SetSMSTemplateStatus"): "sms-template:update",
 	grpcMethod(authv1.SMSTemplateService_ServiceDesc.ServiceName, "DeleteSMSTemplate"):    "sms-template:delete",
 
-
 	grpcMethod(authv1.EmailConfigService_ServiceDesc.ServiceName, "GetEmailConfig"):    "email-config:read",
 	grpcMethod(authv1.EmailConfigService_ServiceDesc.ServiceName, "UpdateEmailConfig"): "email-config:update",
 	grpcMethod(authv1.SMSConfigService_ServiceDesc.ServiceName, "GetSMSConfig"):        "sms-config:read",
@@ -198,7 +196,6 @@ var grpcServicePermissions = map[string]string{
 
 var grpcStepUpMethods = map[string]struct{}{
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "SetTenantStatus"):                   {},
-	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "SetTenantPublic"):                   {},
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "DeleteTenant"):                      {},
 	grpcMethod(authv1.ClientService_ServiceDesc.ServiceName, "GetClientSecret"):                   {},
 	grpcMethod(authv1.ClientService_ServiceDesc.ServiceName, "RotateClientSecret"):                {},

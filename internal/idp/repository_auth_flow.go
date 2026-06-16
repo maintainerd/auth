@@ -27,6 +27,7 @@ type AuthFlowRepository interface {
 	FindByUUIDAndTenantID(authFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*AuthFlow, error)
 	FindByIdentifierAndClientID(identifier string, clientID int64) (*AuthFlow, error)
 	FindByName(name string) (*AuthFlow, error)
+	FindByNameAndTenantID(name string, tenantID int64) (*AuthFlow, error)
 }
 
 type authFlowRepository struct {
@@ -104,6 +105,18 @@ func (r *authFlowRepository) FindByUUIDAndTenantID(authFlowUUID uuid.UUID, tenan
 func (r *authFlowRepository) FindByName(name string) (*AuthFlow, error) {
 	var authFlow AuthFlow
 	err := r.DB().Where("name = ?", name).First(&authFlow).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &authFlow, nil
+}
+
+func (r *authFlowRepository) FindByNameAndTenantID(name string, tenantID int64) (*AuthFlow, error) {
+	var authFlow AuthFlow
+	err := r.DB().Where("name = ? AND tenant_id = ?", name, tenantID).First(&authFlow).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

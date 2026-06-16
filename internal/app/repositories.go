@@ -12,7 +12,6 @@ import (
 	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/secpolicy"
-	"github.com/maintainerd/auth/internal/setup"
 	"github.com/maintainerd/auth/internal/tenant"
 	"github.com/maintainerd/auth/internal/user"
 	"github.com/maintainerd/auth/internal/webhook"
@@ -48,9 +47,9 @@ type repos struct {
 	apiKeyRepo                client.APIKeyRepository
 	apiKeyAPIRepo             client.APIKeyAPIRepository
 	apiKeyPermissionRepo      client.APIKeyPermissionRepository
-	authFlowRepo            idp.AuthFlowRepository
-	authFlowRoleRepo        idp.AuthFlowRoleRepository
-	authFlowCallbackURIRepo idp.AuthFlowCallbackURIRepository
+	authFlowRepo              idp.AuthFlowRepository
+	authFlowRoleRepo          idp.AuthFlowRoleRepository
+	authFlowCallbackURIRepo   idp.AuthFlowCallbackURIRepository
 	securitySettingRepo       secpolicy.SecuritySettingRepository
 	securitySettingsAuditRepo secpolicy.SecuritySettingsAuditRepository
 	ipRestrictionRuleRepo     secpolicy.IPRestrictionRuleRepository
@@ -79,7 +78,6 @@ type repos struct {
 	totpSecretRepo            mfa.UserTOTPSecretRepository
 	webAuthnCredRepo          mfa.UserWebAuthnCredentialRepository
 	userPasswordHistoryRepo   user.UserPasswordHistoryRepository
-	setupStateRepo            setup.SetupStateRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -110,9 +108,9 @@ func initRepos(db *gorm.DB) *repos {
 		apiKeyRepo:                client.NewAPIKeyRepository(db),
 		apiKeyAPIRepo:             client.NewAPIKeyAPIRepository(db),
 		apiKeyPermissionRepo:      client.NewAPIKeyPermissionRepository(db),
-		authFlowRepo:            idp.NewAuthFlowRepository(db),
-		authFlowRoleRepo:        idp.NewAuthFlowRoleRepository(db),
-		authFlowCallbackURIRepo: idp.NewAuthFlowCallbackURIRepository(db),
+		authFlowRepo:              idp.NewAuthFlowRepository(db),
+		authFlowRoleRepo:          idp.NewAuthFlowRoleRepository(db),
+		authFlowCallbackURIRepo:   idp.NewAuthFlowCallbackURIRepository(db),
 		securitySettingRepo:       secpolicy.NewSecuritySettingRepository(db),
 		securitySettingsAuditRepo: secpolicy.NewSecuritySettingsAuditRepository(db),
 		ipRestrictionRuleRepo:     secpolicy.NewIPRestrictionRuleRepository(db),
@@ -141,6 +139,5 @@ func initRepos(db *gorm.DB) *repos {
 		totpSecretRepo:            mfa.NewUserTOTPSecretRepository(db),
 		webAuthnCredRepo:          mfa.NewUserWebAuthnCredentialRepository(db),
 		userPasswordHistoryRepo:   user.NewUserPasswordHistoryRepository(db),
-		setupStateRepo:            setup.NewSetupStateRepository(db),
 	}
 }

@@ -144,6 +144,9 @@ func (m *mockEmailTemplateRepo) FindByName(name string) (*EmailTemplate, error) 
 	}
 	return nil, nil
 }
+func (m *mockEmailTemplateRepo) FindByNameAndTenantID(name string, tenantID int64) (*EmailTemplate, error) {
+	return m.FindByName(name)
+}
 
 // ---------------------------------------------------------------------------
 // Mock: SMSTemplateRepository

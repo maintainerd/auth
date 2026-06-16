@@ -11,15 +11,14 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockTenantService struct {
-	getFn                   func(TenantServiceGetFilter) (*TenantServiceGetResult, error)
-	getByUUIDFn             func(uuid.UUID) (*TenantServiceDataResult, error)
-	getSystemFn             func() (*TenantServiceDataResult, error)
-	getByIdentifierFn       func(string) (*TenantServiceDataResult, error)
-	createFn                func(string, string, string, string, bool) (*TenantServiceDataResult, error)
-	updateFn                func(uuid.UUID, string, string, string, string, bool) (*TenantServiceDataResult, error)
-	setStatusByUUIDFn       func(uuid.UUID, string) (*TenantServiceDataResult, error)
-	setActivePublicByUUIDFn func(uuid.UUID) (*TenantServiceDataResult, error)
-	deleteByUUIDFn          func(uuid.UUID) (*TenantServiceDataResult, error)
+	getFn             func(TenantServiceGetFilter) (*TenantServiceGetResult, error)
+	getByUUIDFn       func(uuid.UUID) (*TenantServiceDataResult, error)
+	getSystemFn       func() (*TenantServiceDataResult, error)
+	getByIdentifierFn func(string) (*TenantServiceDataResult, error)
+	createFn          func(string, string, string, string) (*TenantServiceDataResult, error)
+	updateFn          func(uuid.UUID, string, string, string, string) (*TenantServiceDataResult, error)
+	setStatusByUUIDFn func(uuid.UUID, string) (*TenantServiceDataResult, error)
+	deleteByUUIDFn    func(uuid.UUID) (*TenantServiceDataResult, error)
 }
 
 func (m *mockTenantService) Get(_ context.Context, f TenantServiceGetFilter) (*TenantServiceGetResult, error) {
@@ -46,27 +45,21 @@ func (m *mockTenantService) GetByIdentifier(_ context.Context, id string) (*Tena
 	}
 	return nil, nil
 }
-func (m *mockTenantService) Create(_ context.Context, n, dn, desc, s string, isPublic bool) (*TenantServiceDataResult, error) {
+func (m *mockTenantService) Create(_ context.Context, n, dn, desc, s string) (*TenantServiceDataResult, error) {
 	if m.createFn != nil {
-		return m.createFn(n, dn, desc, s, isPublic)
+		return m.createFn(n, dn, desc, s)
 	}
 	return nil, nil
 }
-func (m *mockTenantService) Update(_ context.Context, id uuid.UUID, n, dn, desc, s string, isPublic bool) (*TenantServiceDataResult, error) {
+func (m *mockTenantService) Update(_ context.Context, id uuid.UUID, n, dn, desc, s string) (*TenantServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(id, n, dn, desc, s, isPublic)
+		return m.updateFn(id, n, dn, desc, s)
 	}
 	return nil, nil
 }
 func (m *mockTenantService) SetStatusByUUID(_ context.Context, id uuid.UUID, s string) (*TenantServiceDataResult, error) {
 	if m.setStatusByUUIDFn != nil {
 		return m.setStatusByUUIDFn(id, s)
-	}
-	return nil, nil
-}
-func (m *mockTenantService) SetActivePublicByUUID(_ context.Context, id uuid.UUID) (*TenantServiceDataResult, error) {
-	if m.setActivePublicByUUIDFn != nil {
-		return m.setActivePublicByUUIDFn(id)
 	}
 	return nil, nil
 }
@@ -91,6 +84,7 @@ type mockTenantMemberService struct {
 	updateRoleFn         func(int64, uuid.UUID, string) (*TenantMemberServiceDataResult, error)
 	deleteByUUIDFn       func(int64, uuid.UUID) error
 	isUserInTenantFn     func(int64, uuid.UUID) (bool, error)
+	canManageTenantFn    func(int64, uuid.UUID) (bool, error)
 }
 
 func (m *mockTenantMemberService) Create(_ context.Context, tenantID, userID int64, role string) (*TenantMemberServiceDataResult, error) {
@@ -146,4 +140,13 @@ func (m *mockTenantMemberService) IsUserInTenant(_ context.Context, userID int64
 		return m.isUserInTenantFn(userID, tenantUUID)
 	}
 	return false, nil
+}
+
+// CanManageTenant defaults to allow so handler tests exercise the handler logic;
+// set canManageTenantFn to test the access-denied path explicitly.
+func (m *mockTenantMemberService) CanManageTenant(_ context.Context, userID int64, tenantUUID uuid.UUID) (bool, error) {
+	if m.canManageTenantFn != nil {
+		return m.canManageTenantFn(userID, tenantUUID)
+	}
+	return true, nil
 }

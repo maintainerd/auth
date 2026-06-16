@@ -38,6 +38,12 @@ func expectMFADelete(mock sqlmock.Sqlmock, table string) *sqlmock.ExpectedExec {
 	return mock.ExpectExec(`DELETE FROM "` + table + `".*`)
 }
 
+func expectUserTenantIDLookup(mock sqlmock.Sqlmock, tenantID int64) *sqlmock.ExpectedQuery {
+	return mock.ExpectQuery(`SELECT .* FROM "user_identities"`).
+		WithArgs(mfaTestUserID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"tenant_id"}).AddRow(tenantID))
+}
+
 func userBackupCodeRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
 		values = []driver.Value{int64(1), mfaTestCredentialUUID.String(), mfaTestUserID, "hash", false, nil, time.Now()}

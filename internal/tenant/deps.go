@@ -1,11 +1,22 @@
 package tenant
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
+
+// TenantSeeder seeds the per-tenant baseline (roles, permissions, client, idp,
+// branding, etc.) for a newly created tenant. It is implemented by an app-layer
+// adapter over internal/setup/seeder; the tenant package cannot call the seeder
+// directly because the seeder imports tenant (import cycle). The seed runs
+// inside the tenant-creation transaction, so it receives the active *gorm.DB.
+type TenantSeeder interface {
+	SeedTenant(ctx context.Context, tx *gorm.DB, tenantID int64) error
+}
 
 // Consumer-defined interfaces and projection types for upstream domains.
 // tenant declares the shape of data it needs from the user domain so it does
@@ -35,6 +46,14 @@ type MemberUser struct {
 type UserReader interface {
 	FindByUUID(userUUID uuid.UUID) (*MemberUser, error)
 	FindByID(userID int64) (*MemberUser, error)
+}
+
+// UserProvisioner copies a user record into a target tenant with the same
+// credentials. It is used when adding a member to a tenant: if the user does
+// not already have a record in the target tenant, a copy is created so the
+// user can log in there with the same credentials.
+type UserProvisioner interface {
+	EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID, targetTenantID int64) (userID int64, err error)
 }
 
 // AccessActor exposes the tenant-relevant identity data needed for access

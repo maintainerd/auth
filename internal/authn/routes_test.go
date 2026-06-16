@@ -32,9 +32,15 @@ func TestAuthnRoutes_RegisterEndpoints(t *testing.T) {
 		{"register internal", func(r chi.Router) {
 			RegisterRoute(r, NewRegisterHandler(&mockRegisterService{}))
 		}, "/register"},
+		{"register internal invite", func(r chi.Router) {
+			RegisterRoute(r, NewRegisterHandler(&mockRegisterService{}))
+		}, "/register/invite"},
 		{"register public", func(r chi.Router) {
 			RegisterPublicRoute(r, NewRegisterHandler(&mockRegisterService{}))
 		}, "/register"},
+		{"register public invite", func(r chi.Router) {
+			RegisterPublicRoute(r, NewRegisterHandler(&mockRegisterService{}))
+		}, "/register/invite"},
 		{"reset password internal", func(r chi.Router) { ResetPasswordRoute(r, NewResetPasswordHandler(&mockResetPasswordService{})) }, "/reset-password"},
 		{"reset password public", func(r chi.Router) { ResetPasswordPublicRoute(r, NewResetPasswordHandler(&mockResetPasswordService{})) }, "/reset-password"},
 		{"sms login", func(r chi.Router) { SMSLoginRoute(r, NewSMSLoginHandler(&mockSMSLoginService{})) }, "/sms-login/send"},

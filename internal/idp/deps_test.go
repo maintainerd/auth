@@ -45,11 +45,14 @@ func TestValidateTenantAccess(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("system tenant identity grants access to any tenant", func(t *testing.T) {
+	t.Run("system tenant identity denied cross-tenant", func(t *testing.T) {
+		// Lockdown: a system-tenant identity no longer grants cross-tenant
+		// access here. The system override is confined to the tenant package.
 		err := ValidateTenantAccess(&User{
 			UserIdentities: []UserIdentity{{TenantID: 99, Tenant: &Tenant{IsSystem: true}}},
 		}, &Tenant{TenantID: tenantID})
-		require.NoError(t, err)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant access denied")
 	})
 
 	t.Run("non-matching tenant without system access returns forbidden", func(t *testing.T) {
@@ -75,7 +78,6 @@ func TestToTenantServiceDataResult(t *testing.T) {
 			Description: "desc",
 			Identifier:  "tenant",
 			Status:      shared.StatusActive,
-			IsPublic:    true,
 			IsSystem:    true,
 			CreatedAt:   now,
 			UpdatedAt:   now,
@@ -88,7 +90,6 @@ func TestToTenantServiceDataResult(t *testing.T) {
 		assert.Equal(t, tnt.Description, dto.Description)
 		assert.Equal(t, tnt.Identifier, dto.Identifier)
 		assert.Equal(t, tnt.Status, dto.Status)
-		assert.True(t, dto.IsPublic)
 		assert.True(t, dto.IsSystem)
 		assert.Equal(t, now, dto.CreatedAt)
 		assert.Equal(t, now, dto.UpdatedAt)

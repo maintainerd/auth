@@ -112,6 +112,10 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			return apperror.NewNotFound("user not found")
 		}
 
+		if Client.IdentityProvider != nil && user.TenantID != Client.IdentityProvider.TenantID {
+			return apperror.NewUnauthorized("invalid or expired reset token")
+		}
+
 		// Check if user is active
 		if user.Status != shared.StatusActive {
 			return apperror.NewUnauthorized("user account is not active")

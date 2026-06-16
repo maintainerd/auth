@@ -45,12 +45,12 @@ func ConnectAMQP(cfg *AMQPConfig) (func(ctx context.Context, exchange, routingKe
 
 	if err := ch.ExchangeDeclare(
 		"maintainerd-auth.events",
-		"topic",  // topic exchange allows wildcard routing keys
-		true,     // durable
-		false,    // auto-delete
-		false,    // internal
-		false,    // no-wait
-		nil,      // args
+		"topic", // topic exchange allows wildcard routing keys
+		true,    // durable
+		false,   // auto-delete
+		false,   // internal
+		false,   // no-wait
+		nil,     // args
 	); err != nil {
 		ch.Close()
 		conn.Close()

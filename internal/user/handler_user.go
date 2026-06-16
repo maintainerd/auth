@@ -536,6 +536,12 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 //
 // Marks a user account so that they must change their password on next login.
 func (h *UserHandler) ForcePasswordChange(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -543,7 +549,7 @@ func (h *UserHandler) ForcePasswordChange(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := h.userService.ForcePasswordChange(r.Context(), userUUID, true); err != nil {
+	if err := h.userService.ForcePasswordChange(r.Context(), userUUID, tenant.TenantID, true); err != nil {
 		resp.HandleServiceError(w, r, "Failed to set force password change", err)
 		return
 	}
@@ -580,7 +586,6 @@ func toUserResponseDTO(u UserServiceDataResult) UserResponseDTO {
 			Description: u.Tenant.Description,
 			Identifier:  u.Tenant.Identifier,
 			Status:      u.Tenant.Status,
-			IsPublic:    u.Tenant.IsPublic,
 			IsSystem:    u.Tenant.IsSystem,
 			Metadata:    u.Tenant.Metadata,
 			CreatedAt:   u.Tenant.CreatedAt,

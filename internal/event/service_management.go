@@ -91,6 +91,10 @@ func (s *eventRouteServiceImpl) Create(ctx context.Context, tenantID int64, even
 		span.SetStatus(codes.Error, "event type not found")
 		return nil, apperror.NewNotFound("event type")
 	}
+	if et.TenantID != tenantID {
+		span.SetStatus(codes.Error, "event type tenant mismatch")
+		return nil, apperror.NewForbidden("event type does not belong to your tenant")
+	}
 	if !et.IsActive {
 		span.SetStatus(codes.Error, "event type is not active")
 		return nil, apperror.NewValidation("event type is not active and cannot be routed")

@@ -22,7 +22,6 @@ type Tenant struct {
 	Description string
 	Identifier  string
 	Status      string
-	IsPublic    bool
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -77,6 +76,7 @@ func (Client) TableName() string { return "clients" }
 type User struct {
 	UserID                     int64
 	UserUUID                   uuid.UUID
+	TenantID                   int64
 	Username                   string
 	Fullname                   string `gorm:"-"`
 	Email                      string
@@ -244,6 +244,9 @@ type UserRepository interface {
 	FindByUsername(username string) (*User, error)
 	FindByEmail(email string) (*User, error)
 	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
+	FindByUsernameAndTenantID(username string, tenantID int64) (*User, error)
+	FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error)
+	FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindByPhone(phone string) (*User, error)
 	FindSuperAdmin() (*User, error)
 	FindRoles(userID int64) ([]Role, error)

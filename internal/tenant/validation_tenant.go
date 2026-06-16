@@ -24,9 +24,6 @@ func (r TenantCreateRequestDTO) Validate() error {
 			validation.Required.Error("Status is required"),
 			validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended).Error("Status must be active, inactive, pending, or suspended"),
 		),
-		validation.Field(&r.IsPublic,
-			validation.In(true, false).Error("Is public is required"),
-		),
 	)
 }
 
@@ -44,9 +41,6 @@ func (r TenantUpdateRequestDTO) Validate() error {
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
 			validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended).Error("Status must be active, inactive, pending, or suspended"),
-		),
-		validation.Field(&r.IsPublic,
-			validation.In(true, false).Error("Is public is required"),
 		),
 	)
 }

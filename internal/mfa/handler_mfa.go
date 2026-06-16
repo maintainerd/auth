@@ -511,15 +511,21 @@ func (h *MFAHandler) VerifyStepUp(w http.ResponseWriter, r *http.Request) {
 //
 // POST /mfa/admin/users/{user_uuid}/reset
 func (h *MFAHandler) AdminResetMFA(w http.ResponseWriter, r *http.Request) {
-	actor := middleware.AuthFromRequest(r).User
+	auth := middleware.AuthFromRequest(r)
+	actor := auth.User
 	if actor == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	tenant := auth.Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	targetUUID := chi.URLParam(r, "user_uuid")
 
-	if err := h.mfaSvc.AdminResetMFA(r.Context(), targetUUID, actor.UserID); err != nil {
+	if err := h.mfaSvc.AdminResetMFA(r.Context(), targetUUID, actor.UserID, tenant.TenantID); err != nil {
 		resp.HandleServiceError(w, r, "Failed to reset MFA", err)
 		return
 	}
@@ -532,16 +538,22 @@ func (h *MFAHandler) AdminResetMFA(w http.ResponseWriter, r *http.Request) {
 // POST /mfa/admin/users/{user_uuid}/reset/{method}
 // where {method} is one of: totp, webauthn, sms, backup_code.
 func (h *MFAHandler) AdminResetMFAMethod(w http.ResponseWriter, r *http.Request) {
-	actor := middleware.AuthFromRequest(r).User
+	auth := middleware.AuthFromRequest(r)
+	actor := auth.User
 	if actor == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	tenant := auth.Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	targetUUID := chi.URLParam(r, "user_uuid")
 	method := chi.URLParam(r, "method")
 
-	if err := h.mfaSvc.AdminResetMFAMethod(r.Context(), targetUUID, method, actor.UserID); err != nil {
+	if err := h.mfaSvc.AdminResetMFAMethod(r.Context(), targetUUID, method, actor.UserID, tenant.TenantID); err != nil {
 		resp.HandleServiceError(w, r, "Failed to reset MFA method", err)
 		return
 	}

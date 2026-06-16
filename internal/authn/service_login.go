@@ -106,12 +106,16 @@ func (s *loginService) SetMFAFactorAuthenticator(a MFAFactorAuthenticator) {
 	s.mfaAuthenticator = a
 }
 
+// findLoginUser resolves the login subject within a single tenant. Lookups are
+// tenant-scoped because users are isolated per tenant — the same username/email
+// can exist in multiple tenants, so an unscoped lookup could authenticate
+// against the wrong tenant's account. A tenantID is therefore required.
 func findLoginUser(repo UserRepository, usernameOrEmail string, tenantID int64) (*User, error) {
-	user, err := repo.FindByUsername(usernameOrEmail)
+	user, err := repo.FindByUsernameAndTenantID(usernameOrEmail, tenantID)
 	if err == nil && user != nil {
 		return user, nil
 	}
-	if strings.Contains(usernameOrEmail, "@") && tenantID > 0 {
+	if strings.Contains(usernameOrEmail, "@") {
 		emailUser, emailErr := repo.FindByEmailAndTenantID(usernameOrEmail, tenantID)
 		if emailErr == nil && emailUser != nil {
 			return emailUser, nil

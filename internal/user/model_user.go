@@ -11,7 +11,11 @@ import (
 type User struct {
 	UserID   int64     `gorm:"column:user_id;primaryKey"`
 	UserUUID uuid.UUID `gorm:"column:user_uuid;unique"`
-	Username string    `gorm:"column:username"`
+	// TenantID scopes the user to a tenant. Users are isolated per tenant:
+	// email/username are unique per (tenant_id, ...), so the same address can
+	// exist as a separate account in different tenants.
+	TenantID int64  `gorm:"column:tenant_id"`
+	Username string `gorm:"column:username"`
 	// Fullname is not persisted on users; it lives in Profile.
 	Fullname                   string         `gorm:"-"`
 	Email                      string         `gorm:"column:email"`

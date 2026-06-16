@@ -91,6 +91,9 @@ type AuthFlow struct {
 	AuthFlowUUID uuid.UUID
 	TenantID     int64
 	Name         string
+	Identifier   string
+	Destination  string
+	IsSystem     bool
 	Status       string
 	CreatedAt    time.Time
 }
@@ -101,4 +104,5 @@ type AuthFlowRepository interface {
 	BaseRepositoryMethods[AuthFlow]
 	WithTx(tx *gorm.DB) AuthFlowRepository
 	FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, preloads ...string) (*AuthFlow, error)
+	FindByNameAndTenantID(name string, tenantID int64) (*AuthFlow, error)
 }

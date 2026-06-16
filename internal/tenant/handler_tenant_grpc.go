@@ -48,7 +48,6 @@ func (h *TenantGRPCHandler) ListTenants(ctx context.Context, req *authv1.ListTen
 		Description:          optionalString(req.GetDescription()),
 		Identifier:           optionalString(req.GetIdentifier()),
 		Status:               req.GetStatus(),
-		IsPublic:             optionalBool(req.IsPublic),
 		IsSystem:             optionalBool(req.IsSystem),
 		PaginationRequestDTO: paginationDTO(req.GetPagination()),
 	}
@@ -62,7 +61,6 @@ func (h *TenantGRPCHandler) ListTenants(ctx context.Context, req *authv1.ListTen
 		Description: dto.Description,
 		Identifier:  dto.Identifier,
 		Status:      dto.Status,
-		IsPublic:    dto.IsPublic,
 		IsSystem:    dto.IsSystem,
 		Page:        dto.Page,
 		Limit:       dto.Limit,
@@ -98,12 +96,11 @@ func (h *TenantGRPCHandler) CreateTenant(ctx context.Context, req *authv1.Tenant
 		DisplayName: req.GetDisplayName(),
 		Description: req.GetDescription(),
 		Status:      req.GetStatus(),
-		IsPublic:    req.GetIsPublic(),
 	}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	tenant, err := h.tenantService.Create(ctx, dto.Name, dto.DisplayName, dto.Description, dto.Status, dto.IsPublic)
+	tenant, err := h.tenantService.Create(ctx, dto.Name, dto.DisplayName, dto.Description, dto.Status)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -120,12 +117,11 @@ func (h *TenantGRPCHandler) UpdateTenant(ctx context.Context, req *authv1.Tenant
 		DisplayName: req.GetDisplayName(),
 		Description: req.GetDescription(),
 		Status:      req.GetStatus(),
-		IsPublic:    req.GetIsPublic(),
 	}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	tenant, err := h.tenantService.Update(ctx, tenantUUID, dto.Name, dto.DisplayName, dto.Description, dto.Status, dto.IsPublic)
+	tenant, err := h.tenantService.Update(ctx, tenantUUID, dto.Name, dto.DisplayName, dto.Description, dto.Status)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -146,18 +142,6 @@ func (h *TenantGRPCHandler) SetTenantStatus(ctx context.Context, req *authv1.Set
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.SetTenantStatusResponse{Tenant: tenantProto(tenant)}, nil
-}
-
-func (h *TenantGRPCHandler) SetTenantPublic(ctx context.Context, req *authv1.SetTenantPublicRequest) (*authv1.SetTenantPublicResponse, error) {
-	tenantUUID, err := parseGRPCUUID(req.GetTenantUuid(), "Tenant UUID")
-	if err != nil {
-		return nil, err
-	}
-	tenant, err := h.tenantService.SetActivePublicByUUID(ctx, tenantUUID)
-	if err != nil {
-		return nil, apperror.ToGRPCError(err)
-	}
-	return &authv1.SetTenantPublicResponse{Tenant: tenantProto(tenant)}, nil
 }
 
 func (h *TenantGRPCHandler) DeleteTenant(ctx context.Context, req *authv1.DeleteTenantRequest) (*authv1.DeleteTenantResponse, error) {
@@ -310,7 +294,6 @@ func tenantProto(tenant *TenantServiceDataResult) *authv1.Tenant {
 		Description: tenant.Description,
 		Identifier:  tenant.Identifier,
 		Status:      tenant.Status,
-		IsPublic:    tenant.IsPublic,
 		IsSystem:    tenant.IsSystem,
 		Metadata:    jsonStruct(tenant.Metadata),
 		CreatedAt:   timestamppb.New(tenant.CreatedAt),

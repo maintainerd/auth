@@ -588,7 +588,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
+				return &User{UserID: userID, UserUUID: userUUID, TenantID: 5, Status: shared.StatusActive, Email: "test@test.com"}, nil
 			},
 		}, &mockUserTokenRepo{
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {

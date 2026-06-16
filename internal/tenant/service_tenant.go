@@ -22,7 +22,6 @@ type TenantServiceDataResult struct {
 	Description string
 	Identifier  string
 	Status      string
-	IsPublic    bool
 	IsSystem    bool
 	Metadata    datatypes.JSON
 	CreatedAt   time.Time
@@ -35,12 +34,14 @@ type TenantServiceGetFilter struct {
 	Description *string
 	Identifier  *string
 	Status      []string
-	IsPublic    *bool
 	IsSystem    *bool
-	Page        int
-	Limit       int
-	SortBy      string
-	SortOrder   string
+	// TenantIDs, when non-empty, restricts results to these tenants. Used to
+	// scope a regular user's listing to the tenant(s) they belong to.
+	TenantIDs []int64
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
 }
 
 type TenantServiceGetResult struct {
@@ -56,10 +57,9 @@ type TenantService interface {
 	GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	GetSystem(ctx context.Context) (*TenantServiceDataResult, error)
 	GetByIdentifier(ctx context.Context, identifier string) (*TenantServiceDataResult, error)
-	Create(ctx context.Context, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error)
-	Update(ctx context.Context, tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error)
+	Create(ctx context.Context, name string, displayName string, description string, status string) (*TenantServiceDataResult, error)
+	Update(ctx context.Context, tenantUUID uuid.UUID, name string, displayName string, description string, status string) (*TenantServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error)
-	SetActivePublicByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 }
 
@@ -67,17 +67,27 @@ type tenantService struct {
 	tenantRepo   TenantRepository
 	uow          UnitOfWork
 	eventService event.EventService
+	seeder       TenantSeeder
 }
 
-func NewTenantService(tenantRepo TenantRepository, uow UnitOfWork, eventService event.EventService) TenantService {
+// NewTenantService builds the tenant service. The optional seeder, when
+// provided, runs the per-tenant baseline seed inside the create transaction so
+// a newly created tenant comes up fully provisioned (roles, permissions,
+// client, idp, branding, etc.). It is variadic so existing callers/tests that
+// do not need seeding remain unchanged.
+func NewTenantService(tenantRepo TenantRepository, uow UnitOfWork, eventService event.EventService, seeder ...TenantSeeder) TenantService {
 	if uow == nil {
 		uow = newDirectUnitOfWork(tenantRepo, nil)
 	}
-	return &tenantService{
+	s := &tenantService{
 		tenantRepo:   tenantRepo,
 		uow:          uow,
 		eventService: eventService,
 	}
+	if len(seeder) > 0 {
+		s.seeder = seeder[0]
+	}
+	return s
 }
 
 func (s *tenantService) Get(ctx context.Context, filter TenantServiceGetFilter) (*TenantServiceGetResult, error) {
@@ -163,7 +173,7 @@ func (s *tenantService) GetByIdentifier(ctx context.Context, identifier string) 
 	return toTenantServiceDataResult(tenant), nil
 }
 
-func (s *tenantService) Create(ctx context.Context, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error) {
+func (s *tenantService) Create(ctx context.Context, name string, displayName string, description string, status string) (*TenantServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenant.create")
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.name", name))
@@ -187,14 +197,16 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 			return err
 		}
 
-		// Create tenant
+		// Create tenant. Regular tenants are complete on creation (they are
+		// seeded with their own baseline); only the system tenant defers
+		// completion until its admin + owner exist.
 		newTenant := &Tenant{
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
 			Identifier:  identifier,
 			Status:      status,
-			IsPublic:    isPublic,
+			IsCompleted: true,
 		}
 
 		_, err = txTenantRepo.CreateOrUpdate(newTenant)
@@ -206,6 +218,20 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 		createdTenant, err = txTenantRepo.FindByUUID(newTenant.TenantUUID)
 		if err != nil {
 			return err
+		}
+
+		// Seed the per-tenant baseline (roles, permissions, client, idp,
+		// branding, etc.) inside the same transaction so the new tenant is
+		// fully provisioned or not created at all. Requires a transactional
+		// unit of work; the direct (non-tx) UoW cannot seed safely.
+		if s.seeder != nil {
+			tx := tx.Tx()
+			if tx == nil {
+				return apperror.NewInternal("tenant seeding requires a transactional unit of work", nil)
+			}
+			if err := s.seeder.SeedTenant(ctx, tx, createdTenant.TenantID); err != nil {
+				return err
+			}
 		}
 
 		// Emit tenant.created inside the transaction
@@ -230,7 +256,7 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 	return toTenantServiceDataResult(createdTenant), nil
 }
 
-func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error) {
+func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name string, displayName string, description string, status string) (*TenantServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenant.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID.String()))
@@ -273,16 +299,12 @@ func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name s
 		if tenant.Status != status {
 			changed = append(changed, "status")
 		}
-		if tenant.IsPublic != isPublic {
-			changed = append(changed, "is_public")
-		}
 
 		// Update tenant
 		tenant.Name = name
 		tenant.DisplayName = displayName
 		tenant.Description = description
 		tenant.Status = status
-		tenant.IsPublic = isPublic
 
 		updatedTenant, err = txTenantRepo.CreateOrUpdate(tenant)
 		if err != nil {
@@ -359,41 +381,6 @@ func (s *tenantService) SetStatusByUUID(ctx context.Context, tenantUUID uuid.UUI
 	return toTenantServiceDataResult(updatedTenant), nil
 }
 
-func (s *tenantService) SetActivePublicByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "tenant.setActivePublic")
-	defer span.End()
-	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID.String()))
-
-	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
-	if err != nil || tenant == nil {
-		if err != nil {
-			span.RecordError(err)
-		}
-		span.SetStatus(codes.Error, "tenant not found")
-		return nil, apperror.NewNotFound("tenant not found")
-	}
-
-	// Toggle public status
-	tenant.IsPublic = !tenant.IsPublic
-	_, err = s.tenantRepo.CreateOrUpdate(tenant)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "set active public failed")
-		return nil, err
-	}
-
-	// Fetch updated tenant
-	updatedTenant, err := s.tenantRepo.FindByUUID(tenantUUID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get updated tenant failed")
-		return nil, err
-	}
-
-	span.SetStatus(codes.Ok, "")
-	return toTenantServiceDataResult(updatedTenant), nil
-}
-
 func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenant.delete")
 	defer span.End()
@@ -456,7 +443,6 @@ func toTenantServiceDataResult(tenant *Tenant) *TenantServiceDataResult {
 		Description: tenant.Description,
 		Identifier:  tenant.Identifier,
 		Status:      tenant.Status,
-		IsPublic:    tenant.IsPublic,
 		IsSystem:    tenant.IsSystem,
 		Metadata:    tenant.Metadata,
 		CreatedAt:   tenant.CreatedAt,

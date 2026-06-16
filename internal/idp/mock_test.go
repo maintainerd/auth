@@ -192,6 +192,7 @@ type mockAuthFlowRepo struct {
 	findByUUIDAndTenantIDFn       func(uuid.UUID, int64, ...string) (*AuthFlow, error)
 	findByIdentifierAndClientIDFn func(string, int64) (*AuthFlow, error)
 	findByNameFn                  func(string) (*AuthFlow, error)
+	findByNameAndTenantIDFn       func(string, int64) (*AuthFlow, error)
 	createFn                      func(*AuthFlow) (*AuthFlow, error)
 	createOrUpdateFn              func(*AuthFlow) (*AuthFlow, error)
 	deleteByUUIDFn                func(any) error
@@ -246,6 +247,12 @@ func (m *mockAuthFlowRepo) FindByName(name string) (*AuthFlow, error) {
 	}
 	return nil, nil
 }
+func (m *mockAuthFlowRepo) FindByNameAndTenantID(name string, tenantID int64) (*AuthFlow, error) {
+	if m.findByNameAndTenantIDFn != nil {
+		return m.findByNameAndTenantIDFn(name, tenantID)
+	}
+	return nil, nil
+}
 
 type mockAuthFlowRoleRepo struct {
 	mockBaseRepo[AuthFlowRole]
@@ -253,7 +260,7 @@ type mockAuthFlowRoleRepo struct {
 	findByAuthFlowIDPaginatedFn   func(int64, int, int) ([]AuthFlowRole, int64, error)
 	deleteByAuthFlowIDAndRoleIDFn func(int64, int64) error
 	findByAuthFlowIDAndRoleIDFn   func(int64, int64) (*AuthFlowRole, error)
-	createFn                        func(*AuthFlowRole) (*AuthFlowRole, error)
+	createFn                      func(*AuthFlowRole) (*AuthFlowRole, error)
 }
 
 func (m *mockAuthFlowRoleRepo) WithTx(_ *gorm.DB) AuthFlowRoleRepository { return m }
@@ -505,7 +512,7 @@ func (m *mockAuthFlowService) GetByUUID(_ context.Context, id uuid.UUID, tenantI
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowService) Create(_ context.Context, tenantID int64, name, desc, status string, clientUUID uuid.UUID, _ *uuid.UUID, _, _ []uuid.UUID) (*AuthFlowServiceDataResult, error) {
+func (m *mockAuthFlowService) Create(_ context.Context, tenantID int64, name, desc, status, destination string, clientUUID uuid.UUID, _ *uuid.UUID, _, _ []uuid.UUID) (*AuthFlowServiceDataResult, error) {
 	if m.createFn != nil {
 		return m.createFn(tenantID, name, desc, status, clientUUID)
 	}

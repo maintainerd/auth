@@ -100,12 +100,12 @@ MANAGEMENT_PORT="8082"
 
 | Variable | Required | Description |
 |---|---|---|
-| `ACCOUNT_HOSTNAME` | ✅ | Production URL of the Account portal. Used for CORS and redirect URIs. Must use HTTPS. |
-| `AUTH_HOSTNAME` | ✅ | Production URL of the Auth portal. Must use HTTPS. |
+| `APP_FRONTEND_IDENTITY_HOSTNAME` | ✅ | Production URL of the Account portal. Used for CORS and redirect URIs. Must use HTTPS. |
+| `APP_FRONTEND_CONSOLE_HOSTNAME` | ✅ | Production URL of the Auth portal. Must use HTTPS. |
 
 ```env
-ACCOUNT_HOSTNAME="https://account.yourdomain.com"
-AUTH_HOSTNAME="https://auth.yourdomain.com"
+APP_FRONTEND_IDENTITY_HOSTNAME="https://account.yourdomain.com"
+APP_FRONTEND_CONSOLE_HOSTNAME="https://auth.yourdomain.com"
 ```
 
 ---

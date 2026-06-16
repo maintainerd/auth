@@ -25,9 +25,15 @@ func NewOAuthAuthorizeHandler(authorizeService OAuthAuthorizeService) *OAuthAuth
 // already authenticated (JWT in Authorization header). If consent is needed, the
 // response contains a consent_challenge identifier for the frontend to display.
 func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request) {
-	user := middleware.AuthFromRequest(r).User
+	auth := middleware.AuthFromRequest(r)
+	user := auth.User
 	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+	tenant := auth.Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant context required")
 		return
 	}
 
@@ -48,7 +54,7 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result, oerr := h.authorizeService.Authorize(r.Context(), req, user.UserID)
+	result, oerr := h.authorizeService.Authorize(r.Context(), req, user.UserID, tenant.TenantID)
 	if oerr != nil {
 		oerr.WriteJSON(w)
 		return

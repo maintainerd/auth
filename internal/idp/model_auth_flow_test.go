@@ -25,7 +25,7 @@ func TestAuthFlow_BeforeCreate(t *testing.T) {
 		existing := uuid.New()
 		flow := &AuthFlow{
 			AuthFlowUUID: existing,
-			Status:         shared.StatusInactive,
+			Status:       shared.StatusInactive,
 		}
 		require.NoError(t, flow.BeforeCreate(nil))
 		assert.Equal(t, existing, flow.AuthFlowUUID)

@@ -426,6 +426,9 @@ func TestClientService_RemainingBranches(t *testing.T) {
 	t.Run("validate tenant access edge cases", func(t *testing.T) {
 		assert.Error(t, ValidateTenantAccess(nil, &Tenant{TenantID: tenantID}))
 		assert.Error(t, ValidateTenantAccess(&User{}, nil))
-		assert.NoError(t, ValidateTenantAccess(&User{UserIdentities: []UserIdentity{{TenantID: 2, Tenant: &Tenant{TenantID: 2, IsSystem: true}}}}, &Tenant{TenantID: tenantID}))
+		// Same-tenant identity is allowed.
+		assert.NoError(t, ValidateTenantAccess(&User{UserIdentities: []UserIdentity{{TenantID: tenantID, Tenant: &Tenant{TenantID: tenantID}}}}, &Tenant{TenantID: tenantID}))
+		// Lockdown: a system-tenant identity no longer grants cross-tenant access.
+		assert.Error(t, ValidateTenantAccess(&User{UserIdentities: []UserIdentity{{TenantID: 2, Tenant: &Tenant{TenantID: 2, IsSystem: true}}}}, &Tenant{TenantID: tenantID}))
 	})
 }

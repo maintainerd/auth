@@ -19,9 +19,13 @@ type mockEventTypeRepo struct {
 	findByUUIDFn func(uuid string) (*event.EventType, error)
 }
 
-func (m *mockEventTypeRepo) Create(entity *event.EventType) (*event.EventType, error)         { return entity, nil }
-func (m *mockEventTypeRepo) CreateOrUpdate(entity *event.EventType) (*event.EventType, error) { return entity, nil }
-func (m *mockEventTypeRepo) FindAll(preloads ...string) ([]event.EventType, error)            { return nil, nil }
+func (m *mockEventTypeRepo) Create(entity *event.EventType) (*event.EventType, error) {
+	return entity, nil
+}
+func (m *mockEventTypeRepo) CreateOrUpdate(entity *event.EventType) (*event.EventType, error) {
+	return entity, nil
+}
+func (m *mockEventTypeRepo) FindAll(preloads ...string) ([]event.EventType, error) { return nil, nil }
 func (m *mockEventTypeRepo) FindByUUID(uuid any, preloads ...string) (*event.EventType, error) {
 	if m.findByUUIDFn != nil {
 		s, _ := uuid.(string)
@@ -32,16 +36,25 @@ func (m *mockEventTypeRepo) FindByUUID(uuid any, preloads ...string) (*event.Eve
 func (m *mockEventTypeRepo) FindByUUIDs(uuids []string, preloads ...string) ([]event.EventType, error) {
 	return nil, nil
 }
-func (m *mockEventTypeRepo) FindByID(id any, preloads ...string) (*event.EventType, error)       { return nil, nil }
-func (m *mockEventTypeRepo) UpdateByUUID(uuid any, updatedData any) (*event.EventType, error)     { return nil, nil }
-func (m *mockEventTypeRepo) UpdateByID(id any, updatedData any) (*event.EventType, error)         { return nil, nil }
-func (m *mockEventTypeRepo) DeleteByUUID(uuid any) error                                          { return nil }
-func (m *mockEventTypeRepo) DeleteByID(id any) error                                              { return nil }
+func (m *mockEventTypeRepo) FindByID(id any, preloads ...string) (*event.EventType, error) {
+	return nil, nil
+}
+func (m *mockEventTypeRepo) UpdateByUUID(uuid any, updatedData any) (*event.EventType, error) {
+	return nil, nil
+}
+func (m *mockEventTypeRepo) UpdateByID(id any, updatedData any) (*event.EventType, error) {
+	return nil, nil
+}
+func (m *mockEventTypeRepo) DeleteByUUID(uuid any) error { return nil }
+func (m *mockEventTypeRepo) DeleteByID(id any) error     { return nil }
 func (m *mockEventTypeRepo) Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*database.PaginationResult[event.EventType], error) {
 	return nil, nil
 }
-func (m *mockEventTypeRepo) FindAllActive() ([]event.EventType, error)           { return nil, nil }
-func (m *mockEventTypeRepo) FindByKey(key string) (*event.EventType, error)      { return nil, nil }
+func (m *mockEventTypeRepo) FindAllActive() ([]event.EventType, error)      { return nil, nil }
+func (m *mockEventTypeRepo) FindByKey(key string) (*event.EventType, error) { return nil, nil }
+func (m *mockEventTypeRepo) FindByKeyAndTenantID(key string, tenantID int64) (*event.EventType, error) {
+	return nil, nil
+}
 func (m *mockEventTypeRepo) FindByKeys(keys []string) ([]event.EventType, error) { return nil, nil }
 func (m *mockEventTypeRepo) FindByCategory(category string) ([]event.EventType, error) {
 	return nil, nil

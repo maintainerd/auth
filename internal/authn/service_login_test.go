@@ -171,6 +171,24 @@ func (m *mockUserRepo) FindByEmailAndTenantID(e string, tID int64) (*User, error
 	if m.findByEmailAndTenantIDFn != nil {
 		return m.findByEmailAndTenantIDFn(e, tID)
 	}
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(e)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByUsernameAndTenantID(u string, tID int64) (*User, error) {
+	if m.findByUsernameFn != nil {
+		return m.findByUsernameFn(u)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByPhoneAndTenantID(phone string, tID int64) (*User, error) {
+	if m.findByPhoneFn != nil {
+		return m.findByPhoneFn(phone)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByPendingEmailAndTenantID(_ string, _ int64) (*User, error) {
 	return nil, nil
 }
 func (m *mockUserRepo) Create(e *User) (*User, error) {

@@ -15,8 +15,11 @@ CREATE TABLE IF NOT EXISTS tenants (
     description    TEXT,
     identifier     VARCHAR(255) NOT NULL,
     status         VARCHAR(20) DEFAULT 'active',
-    is_public      BOOLEAN DEFAULT FALSE,
     is_system      BOOLEAN DEFAULT FALSE,
+    -- is_completed marks a tenant as fully provisioned. Regular tenants default
+    -- to TRUE (usable immediately on creation). The system tenant is created
+    -- with FALSE during bootstrap and flipped TRUE once it has an admin + owner.
+    is_completed   BOOLEAN NOT NULL DEFAULT TRUE,
     metadata       JSONB DEFAULT '{}',
     created_by     BIGINT,
     updated_by     BIGINT,
@@ -30,8 +33,9 @@ CREATE INDEX IF NOT EXISTS idx_tenants_uuid ON tenants (tenant_uuid);
 CREATE INDEX IF NOT EXISTS idx_tenants_name ON tenants (name);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_identifier ON tenants (identifier) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants (status);
-CREATE INDEX IF NOT EXISTS idx_tenants_is_public ON tenants (is_public);
 CREATE INDEX IF NOT EXISTS idx_tenants_is_system ON tenants (is_system);
+-- Singleton guarantee: at most one live system tenant can ever exist (the root).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_single_system ON tenants (is_system) WHERE is_system = TRUE AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tenants_metadata ON tenants USING GIN (metadata);
 CREATE INDEX IF NOT EXISTS idx_tenants_created_at ON tenants (created_at);
 CREATE INDEX IF NOT EXISTS idx_tenants_deleted_at ON tenants (deleted_at) WHERE deleted_at IS NULL;

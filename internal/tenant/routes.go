@@ -56,9 +56,6 @@ func TenantRoute(
 		r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
 			Put("/{tenant_uuid}/status", tenantHandler.SetStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
-			Put("/{tenant_uuid}/public", tenantHandler.SetPublic)
-
 		r.With(middleware.PermissionMiddleware([]string{"tenant:delete"}), middleware.RequireStepUp).
 			Delete("/{tenant_uuid}", tenantHandler.Delete)
 

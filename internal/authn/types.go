@@ -134,6 +134,7 @@ type RegisterInviteQueryDTO struct {
 	InviteToken string `json:"invite_token"`
 	Expires     string `json:"expires"`
 	Sig         string `json:"sig"`
+	AuthFlow    string `json:"auth_flow"`
 }
 
 // RegisterResponseDTO is the response structure for registration operations

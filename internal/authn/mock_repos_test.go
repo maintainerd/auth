@@ -180,6 +180,12 @@ func (m *mockEmailTemplateRepo) FindByName(name string) (*branding.EmailTemplate
 	}
 	return nil, nil
 }
+func (m *mockEmailTemplateRepo) FindByNameAndTenantID(name string, tenantID int64) (*branding.EmailTemplate, error) {
+	if m.findByNameFn != nil {
+		return m.findByNameFn(name)
+	}
+	return nil, nil
+}
 func (m *mockEmailTemplateRepo) FindPaginated(f branding.EmailTemplateRepositoryGetFilter) (*branding.PaginationResult[branding.EmailTemplate], error) {
 	return nil, nil
 }
@@ -287,6 +293,7 @@ type mockRegisterService struct {
 	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
 	registerFn             func(username, fullname, password string, email, phone, clientID, providerID *string) (*RegisterResponseDTO, error)
 	registerInvitePublicFn func(username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
+	registerInviteFn       func(username, password string, clientID, providerID *string, inviteToken string) (*RegisterResponseDTO, error)
 }
 
 func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error) {
@@ -306,6 +313,13 @@ func (m *mockRegisterService) Register(ctx context.Context, username, fullname, 
 func (m *mockRegisterService) RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error) {
 	if m.registerInvitePublicFn != nil {
 		return m.registerInvitePublicFn(username, password, clientID, providerID, inviteToken)
+	}
+	return nil, nil
+}
+
+func (m *mockRegisterService) RegisterInvite(ctx context.Context, username, password string, clientID, providerID *string, inviteToken string) (*RegisterResponseDTO, error) {
+	if m.registerInviteFn != nil {
+		return m.registerInviteFn(username, password, clientID, providerID, inviteToken)
 	}
 	return nil, nil
 }

@@ -165,6 +165,10 @@ func (s *tenantEventTypeConfigService) SetEnabled(ctx context.Context, tenantID 
 		span.SetStatus(codes.Error, "event type not found")
 		return nil, apperror.NewNotFound("event type")
 	}
+	if et.TenantID != tenantID {
+		span.SetStatus(codes.Error, "event type tenant mismatch")
+		return nil, apperror.NewForbidden("event type does not belong to your tenant")
+	}
 	eventTypeID := et.EventTypeID
 
 	existing, err := s.tenantEventTypeRepo.FindByTenantIDAndEventTypeID(tenantID, eventTypeID)

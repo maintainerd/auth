@@ -52,3 +52,12 @@ func (r *inviteAuthFlowRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64,
 	}
 	return &af, nil
 }
+
+func (r *inviteAuthFlowRepo) FindByNameAndTenantID(name string, tenantID int64) (*invite.AuthFlow, error) {
+	var af invite.AuthFlow
+	err := r.DB().Where("name = ? AND tenant_id = ?", name, tenantID).First(&af).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &af, nil
+}

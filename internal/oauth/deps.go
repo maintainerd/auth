@@ -27,7 +27,6 @@ type Tenant struct {
 	Description string
 	Identifier  string
 	Status      string
-	IsPublic    bool
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -75,7 +74,7 @@ type Client struct {
 	TokenEndpointAuthMethod string            `gorm:"column:token_endpoint_auth_method"`
 	GrantTypes              pq.StringArray    `gorm:"column:grant_types;type:text[]"`
 	ResponseTypes           pq.StringArray    `gorm:"column:response_types;type:text[]"`
-	RequirePKCE            *bool             `gorm:"column:require_pkce"`
+	RequirePKCE             *bool             `gorm:"column:require_pkce"`
 	AccessTokenTTL          *int              `gorm:"column:access_token_ttl"`
 	RefreshTokenTTL         *int              `gorm:"column:refresh_token_ttl"`
 	RequiredACR             *string           `gorm:"column:required_acr"`
@@ -162,6 +161,9 @@ type UserRepository interface {
 	BaseRepositoryMethods[User]
 	WithTx(tx *gorm.DB) UserRepository
 	FindByEmail(email string) (*User, error)
+	// FindByEmailAndTenantID scopes the lookup to a tenant; users are isolated
+	// per tenant so a bare email may match the wrong tenant's account.
+	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindBySubAndClientID(sub, clientID string) (*User, error)
 }
 

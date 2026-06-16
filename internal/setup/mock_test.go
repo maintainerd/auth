@@ -90,12 +90,6 @@ func (m *mockSetupService) CompleteSetup(_ context.Context) (*CompleteSetupRespo
 	return &CompleteSetupResponseDTO{}, nil
 }
 
-type mockSetupStateRepo struct {
-	complete       bool
-	isCompleteErr  error
-	markCompleteFn func(string, time.Time) (*SetupState, error)
-}
-
 type mockServiceRepo struct {
 	mockBaseRepo[Service]
 	findByNameAndTenantIDFn func(string, int64) (*Service, error)
@@ -175,28 +169,6 @@ func (m *mockServicePolicyRepo) Create(policy *ServicePolicy) (*ServicePolicy, e
 		return m.createFn(policy)
 	}
 	return policy, nil
-}
-
-func (m *mockSetupStateRepo) WithTx(_ *gorm.DB) SetupStateRepository { return m }
-func (m *mockSetupStateRepo) FindByKey(key string) (*SetupState, error) {
-	if m.complete {
-		now := time.Now()
-		return &SetupState{Key: key, IsComplete: true, CompletedAt: &now}, nil
-	}
-	return nil, nil
-}
-func (m *mockSetupStateRepo) IsComplete(_ string) (bool, error) {
-	if m.isCompleteErr != nil {
-		return false, m.isCompleteErr
-	}
-	return m.complete, nil
-}
-func (m *mockSetupStateRepo) MarkComplete(key string, completedAt time.Time) (*SetupState, error) {
-	if m.markCompleteFn != nil {
-		return m.markCompleteFn(key, completedAt)
-	}
-	m.complete = true
-	return &SetupState{Key: key, IsComplete: true, CompletedAt: &completedAt}, nil
 }
 
 type mockTenantRepo struct {
@@ -336,6 +308,27 @@ func (m *mockUserRepo) FindByEmail(email string) (*User, error) {
 func (m *mockUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*User, error) {
 	if m.findByEmailAndTenantIDFn != nil {
 		return m.findByEmailAndTenantIDFn(email, tenantID)
+	}
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(email)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByUsernameAndTenantID(username string, tenantID int64) (*User, error) {
+	if m.findByUsernameFn != nil {
+		return m.findByUsernameFn(username)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error) {
+	if m.findByPhoneFn != nil {
+		return m.findByPhoneFn(phone)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error) {
+	if m.findByPendingEmailFn != nil {
+		return m.findByPendingEmailFn(email)
 	}
 	return nil, nil
 }

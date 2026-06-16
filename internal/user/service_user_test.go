@@ -1754,19 +1754,58 @@ func TestToUserServiceDataResult(t *testing.T) {
 }
 
 func TestUserService_ForcePasswordChange(t *testing.T) {
+	t.Run("user not found", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByUUIDFn = func(any, ...string) (*User, error) { return nil, nil }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
+		err := svc.ForcePasswordChange(context.Background(), uuid.New(), 1, true)
+		require.Error(t, err)
+	})
+
+	t.Run("wrong tenant returns forbidden", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		userUUID := uuid.New()
+		ur.findByUUIDFn = func(any, ...string) (*User, error) {
+			return &User{UserUUID: userUUID, UserID: 100}, nil
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
+		err := svc.ForcePasswordChange(context.Background(), userUUID, 1, true)
+		require.Error(t, err)
+	})
+
 	t.Run("success", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		userUUID := uuid.New()
+		ur.findByUUIDFn = func(any, ...string) (*User, error) {
+			return &User{
+				UserUUID: userUUID,
+				UserID:   100,
+				UserIdentities: []UserIdentity{
+					{TenantID: 1},
+				},
+			}, nil
+		}
 		ur.setForcePasswordChangeFn = func(uuid.UUID, bool) error { return nil }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
-		err := svc.ForcePasswordChange(context.Background(), uuid.New(), true)
+		err := svc.ForcePasswordChange(context.Background(), userUUID, 1, true)
 		require.NoError(t, err)
 	})
 
 	t.Run("repo error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		userUUID := uuid.New()
+		ur.findByUUIDFn = func(any, ...string) (*User, error) {
+			return &User{
+				UserUUID: userUUID,
+				UserID:   100,
+				UserIdentities: []UserIdentity{
+					{TenantID: 1},
+				},
+			}, nil
+		}
 		ur.setForcePasswordChangeFn = func(uuid.UUID, bool) error { return errors.New("db error") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
-		err := svc.ForcePasswordChange(context.Background(), uuid.New(), true)
+		err := svc.ForcePasswordChange(context.Background(), userUUID, 1, true)
 		require.Error(t, err)
 	})
 }
@@ -1826,14 +1865,17 @@ func TestValidateTenantAccess(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("system tenant permits access", func(t *testing.T) {
+	t.Run("system tenant denied cross-tenant", func(t *testing.T) {
+		// Lockdown: a system-tenant identity no longer grants cross-tenant
+		// access. The system override lives only in the tenant package.
 		actor := &User{
 			UserIdentities: []UserIdentity{
 				{TenantID: 99, Tenant: &Tenant{TenantID: 99, IsSystem: true}},
 			},
 		}
 		err := ValidateTenantAccess(actor, &Tenant{TenantID: tenantID})
-		require.NoError(t, err)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant access denied")
 	})
 
 	t.Run("wrong tenant ID returns forbidden", func(t *testing.T) {

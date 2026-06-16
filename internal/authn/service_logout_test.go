@@ -49,6 +49,18 @@ func (m *mockLogoutUserRepo) FindByEmail(email string) (*User, error) {
 func (m *mockLogoutUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*User, error) {
 	return nil, nil
 }
+func (m *mockLogoutUserRepo) FindByUsernameAndTenantID(username string, tenantID int64) (*User, error) {
+	if m.findByUsernameFn != nil {
+		return m.findByUsernameFn(username)
+	}
+	return nil, nil
+}
+func (m *mockLogoutUserRepo) FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error) {
+	return nil, nil
+}
+func (m *mockLogoutUserRepo) FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error) {
+	return nil, nil
+}
 func (m *mockLogoutUserRepo) FindByPhone(phone string) (*User, error) { return nil, nil }
 func (m *mockLogoutUserRepo) FindSuperAdmin() (*User, error)          { return nil, nil }
 func (m *mockLogoutUserRepo) FindRoles(userID int64) ([]Role, error)  { return nil, nil }

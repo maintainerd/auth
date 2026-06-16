@@ -98,6 +98,7 @@ func (q *RegisterInviteQueryDTO) Validate() error {
 	q.InviteToken = security.SanitizeInput(q.InviteToken)
 	q.Expires = security.SanitizeInput(q.Expires)
 	q.Sig = security.SanitizeInput(q.Sig)
+	q.AuthFlow = security.SanitizeInput(q.AuthFlow)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
@@ -119,6 +120,43 @@ func (q *RegisterInviteQueryDTO) Validate() error {
 		validation.Field(&q.Sig,
 			validation.Required.Error("Signature is required"),
 			validation.Length(1, 500).Error("Signature must not exceed 500 characters"),
+		),
+		validation.Field(&q.AuthFlow,
+			validation.Length(0, 255).Error("Auth flow identifier must not exceed 255 characters"),
+		),
+	)
+}
+
+// ValidateInternal validates the query DTO for internal use (client_id/provider_id optional).
+func (q *RegisterInviteQueryDTO) ValidateInternal() error {
+	q.InviteToken = security.SanitizeInput(q.InviteToken)
+	q.Expires = security.SanitizeInput(q.Expires)
+	q.Sig = security.SanitizeInput(q.Sig)
+	q.AuthFlow = security.SanitizeInput(q.AuthFlow)
+	q.ClientID = security.SanitizeInput(q.ClientID)
+	q.ProviderID = security.SanitizeInput(q.ProviderID)
+
+	return validation.ValidateStruct(q,
+		validation.Field(&q.InviteToken,
+			validation.Required.Error("Invite token is required"),
+			validation.Length(1, 500).Error("Invite token must not exceed 500 characters"),
+		),
+		validation.Field(&q.Expires,
+			validation.Required.Error("Expires parameter is required"),
+			validation.Length(1, 50).Error("Expires parameter must not exceed 50 characters"),
+		),
+		validation.Field(&q.Sig,
+			validation.Required.Error("Signature is required"),
+			validation.Length(1, 500).Error("Signature must not exceed 500 characters"),
+		),
+		validation.Field(&q.AuthFlow,
+			validation.Length(0, 255).Error("Auth flow identifier must not exceed 255 characters"),
+		),
+		validation.Field(&q.ClientID,
+			validation.Length(0, 255).Error("Client ID must not exceed 255 characters"),
+		),
+		validation.Field(&q.ProviderID,
+			validation.Length(0, 255).Error("Provider ID must not exceed 255 characters"),
 		),
 	)
 }

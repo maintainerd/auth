@@ -212,7 +212,7 @@ func (h *UserGRPCHandler) DeleteUser(ctx context.Context, req *authv1.DeleteUser
 }
 
 func (h *UserGRPCHandler) ForceUserPasswordChange(ctx context.Context, req *authv1.ForceUserPasswordChangeRequest) (*authv1.ForceUserPasswordChangeResponse, error) {
-	_, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (h *UserGRPCHandler) ForceUserPasswordChange(ctx context.Context, req *auth
 	if err != nil {
 		return nil, err
 	}
-	if err := h.userService.ForcePasswordChange(ctx, userUUID, req.GetForce()); err != nil {
+	if err := h.userService.ForcePasswordChange(ctx, userUUID, tenant.TenantID, req.GetForce()); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.ForceUserPasswordChangeResponse{Success: true}, nil

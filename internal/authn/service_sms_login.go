@@ -96,8 +96,22 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 		return err
 	}
 
-	// Look up user by phone — respond generically so we don't leak user existence.
-	user, err := s.userRepo.FindByPhone(req.Phone)
+	// Resolve the client up front so the phone lookup is scoped to its tenant
+	// (users are tenant-isolated; the same phone may exist in other tenants).
+	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderID)
+	if err != nil {
+		return apperror.NewInternal("failed to find auth client", err)
+	}
+	if client == nil {
+		// Unknown client → respond generically to avoid enumeration.
+		span.SetStatus(codes.Ok, "")
+		return nil
+	}
+	tenantID := clientTenantID(client)
+
+	// Look up user by phone within the tenant — respond generically so we don't
+	// leak user existence.
+	user, err := s.userRepo.FindByPhoneAndTenantID(req.Phone, tenantID)
 	if err != nil {
 		return apperror.NewInternal("failed to look up user", err)
 	}
@@ -108,7 +122,6 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	}
 
 	// Threat check before sending SMS — block if velocity threshold is breached.
-	tenantID := userTenantID(ctx, s.db, user.UserID)
 	threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, tenantID)
 	threatDecision := security.AssessLoginThreat(ctx, tenantID, middleware.ClientIPFromContext(ctx), "", threatPolicy)
 	if threatDecision.Blocked {
@@ -197,8 +210,8 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 			return apperror.NewUnauthorized("authentication failed")
 		}
 
-		// Find user by phone.
-		user, txErr = txUserRepo.FindByPhone(req.Phone)
+		// Find user by phone, scoped to the resolved tenant.
+		user, txErr = txUserRepo.FindByPhoneAndTenantID(req.Phone, idp.TenantID)
 		if txErr != nil {
 			return apperror.NewInternal("failed to look up user", txErr)
 		}

@@ -102,7 +102,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Contains(t, result.RedirectURI, "code=")
@@ -137,7 +137,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Equal(t, challengeUUID.String(), result.ConsentChallenge)
@@ -165,7 +165,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.Nil(t, oerr)
 		assert.Contains(t, result.RedirectURI, "code=")
 	})
@@ -191,7 +191,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.Nil(t, oerr)
 		assert.NotEmpty(t, result.ConsentChallenge)
 	})
@@ -213,7 +213,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 	})
@@ -234,7 +234,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -257,7 +257,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 	})
@@ -280,7 +280,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "unauthorized_client", oerr.Code)
 	})
@@ -303,7 +303,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "unsupported_response_type", oerr.Code)
 	})
@@ -328,7 +328,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 		assert.Contains(t, oerr.Description, "redirect_uri")
@@ -352,7 +352,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "no redirect URIs")
 	})
@@ -378,7 +378,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -408,7 +408,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -434,7 +434,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -458,7 +458,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 	})
@@ -480,7 +480,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -505,7 +505,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		req := validAuthorizeRequest()
 		req.State = ""
 		req.Nonce = ""
-		_, oerr := svc.Authorize(ctx, req, 1)
+		_, oerr := svc.Authorize(ctx, req, 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 		assert.Contains(t, oerr.Description, "state")
@@ -542,7 +542,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		req := validAuthorizeRequest()
 		req.State = "mystate"
 		req.Nonce = "mynonce"
-		_, oerr := svc.Authorize(ctx, req, 1)
+		_, oerr := svc.Authorize(ctx, req, 1, 1)
 		require.Nil(t, oerr)
 		require.NotNil(t, capturedChallenge)
 		require.NotNil(t, capturedChallenge.State)
@@ -1156,7 +1156,7 @@ func TestOAuthAuthorizeService_Authorize_Additional(t *testing.T) {
 
 		req := validAuthorizeRequest()
 		req.Scope = "openid admin"
-		_, oerr := svc.Authorize(ctx, req, 1)
+		_, oerr := svc.Authorize(ctx, req, 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_scope", oerr.Code)
 	})
@@ -1182,7 +1182,7 @@ func TestOAuthAuthorizeService_Authorize_Additional(t *testing.T) {
 		req := validAuthorizeRequest()
 		req.ResponseType = "code id_token"
 		req.Nonce = "nonce123"
-		result, oerr := svc.Authorize(ctx, req, 1)
+		result, oerr := svc.Authorize(ctx, req, 1, 1)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Contains(t, result.RedirectURI, "code=")
@@ -1209,7 +1209,7 @@ func TestOAuthAuthorizeService_Authorize_Additional(t *testing.T) {
 		req := validAuthorizeRequest()
 		req.ResponseType = "code id_token"
 		req.Nonce = ""
-		_, oerr := svc.Authorize(ctx, req, 1)
+		_, oerr := svc.Authorize(ctx, req, 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 		assert.Contains(t, oerr.Description, "nonce")
@@ -1234,7 +1234,7 @@ func TestOAuthAuthorizeService_Authorize_Additional(t *testing.T) {
 
 		req := validAuthorizeRequest()
 		req.Nonce = ""
-		result, oerr := svc.Authorize(ctx, req, 1)
+		result, oerr := svc.Authorize(ctx, req, 1, 1)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Contains(t, result.RedirectURI, "code=")
@@ -1261,7 +1261,7 @@ func TestOAuthAuthorizeService_Authorize_Additional(t *testing.T) {
 			&mockAuthEventService{},
 		)
 
-		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})

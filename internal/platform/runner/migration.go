@@ -96,16 +96,14 @@ var migrations = []migrationEntry{
 	{"052_create_oauth_par_requests_table", migration.CreateOAuthPARRequestsTable},
 	{"053_create_oauth_device_codes_table", migration.CreateOAuthDeviceCodesTable},
 	{"054_create_oauth_ciba_requests_table", migration.CreateOAuthCIBARequestsTable},
-	// Block 13: Setup process state
-	{"055_create_setup_states_table", migration.CreateSetupStatesTable},
 	// Block 14: Webhooks & event-driven integration
-	{"056_create_event_types_table", migration.CreateEventTypesTable},
-	{"057_create_webhook_endpoints_table", migration.CreateWebhookEndpointsTable},
-	{"058_create_webhook_endpoint_events_table", migration.CreateWebhookEndpointEventsTable},
-	{"059_create_event_routes_table", migration.CreateEventRoutesTable},
-	{"060_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
-	{"061_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
-	{"062_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
+	{"055_create_event_types_table", migration.CreateEventTypesTable},
+	{"056_create_webhook_endpoints_table", migration.CreateWebhookEndpointsTable},
+	{"057_create_webhook_endpoint_events_table", migration.CreateWebhookEndpointEventsTable},
+	{"058_create_event_routes_table", migration.CreateEventRoutesTable},
+	{"059_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
+	{"060_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
+	{"061_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

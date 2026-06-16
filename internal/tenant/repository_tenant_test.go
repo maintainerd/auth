@@ -151,14 +151,13 @@ func TestTenantRepository_FindPaginated(t *testing.T) {
 	db, mock := newMockGormDB(t)
 	now := time.Now()
 	name := "acme"
-	public := true
 	system := false
 
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "tenants" WHERE.*name.*display_name.*description.*identifier.*status IN.*is_public.*is_system`).
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tenants" WHERE.*name.*display_name.*description.*identifier.*status IN.*is_system`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-	mock.ExpectQuery(`SELECT \* FROM "tenants" WHERE.*name.*display_name.*description.*identifier.*status IN.*is_public.*is_system.*ORDER BY name ASC LIMIT`).
-		WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "tenant_uuid", "name", "display_name", "description", "identifier", "status", "is_public", "is_system", "created_at", "updated_at"}).
-			AddRow(1, uuid.New(), "acme", "Acme", "desc", "acme", "active", true, false, now, now))
+	mock.ExpectQuery(`SELECT \* FROM "tenants" WHERE.*name.*display_name.*description.*identifier.*status IN.*is_system.*ORDER BY name ASC LIMIT`).
+		WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "tenant_uuid", "name", "display_name", "description", "identifier", "status", "is_system", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), "acme", "Acme", "desc", "acme", "active", false, now, now))
 
 	result, err := NewTenantRepository(db).FindPaginated(TenantRepositoryGetFilter{
 		Name:        &name,
@@ -166,7 +165,6 @@ func TestTenantRepository_FindPaginated(t *testing.T) {
 		Description: &name,
 		Identifier:  &name,
 		Status:      []string{"active"},
-		IsPublic:    &public,
 		IsSystem:    &system,
 		Page:        1,
 		Limit:       10,

@@ -15,7 +15,6 @@ type Tenant struct {
 	Description string
 	Identifier  string
 	Status      string
-	IsPublic    bool
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

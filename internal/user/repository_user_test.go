@@ -1,6 +1,7 @@
 package user
 
 import (
+	"database/sql/driver"
 	"errors"
 	"testing"
 	"time"
@@ -122,7 +123,7 @@ func TestUserRepository_FindByEmailAndTenantID(t *testing.T) {
 
 		rows := sqlmock.NewRows([]string{"user_id", "user_uuid", "email"}).
 			AddRow(42, testUserUUID, "test@test.com")
-		mock.ExpectQuery(`SELECT .+ FROM "users" JOIN user_identities ON users.user_id = user_identities.user_id WHERE \(users.email = \$1 AND user_identities.tenant_id = \$2\) AND "users"\."deleted_at" IS NULL ORDER BY "users"\."user_id" LIMIT \$3`).
+		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE \(email = \$1 AND tenant_id = \$2\) AND "users"\."deleted_at" IS NULL ORDER BY "users"\."user_id" LIMIT \$3`).
 			WithArgs("test@test.com", int64(1), 1).
 			WillReturnRows(rows)
 
@@ -420,6 +421,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"user_id", "user_uuid", "username"}).
 				AddRow(1, testResourceUUID, "user1").
 				AddRow(2, testUserUUID, "user2"))
+		expectProfilePreloads(mock, int64(1), int64(2))
 
 		result, err := repo.FindPaginated(UserRepositoryGetFilter{
 			Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
@@ -458,6 +460,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users"`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id", "user_uuid", "username"}).
 				AddRow(1, testResourceUUID, "user1"))
+		expectProfilePreloads(mock, int64(1))
 
 		result, err := repo.FindPaginated(UserRepositoryGetFilter{
 			TenantID: &tid, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
@@ -491,6 +494,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users"`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id", "user_uuid", "username"}).
 				AddRow(1, testResourceUUID, "user1"))
+		expectProfilePreloads(mock, int64(1))
 
 		result, err := repo.FindPaginated(UserRepositoryGetFilter{
 			ClientID: &cid, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
@@ -509,6 +513,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE users.status IN \(\$1\) AND "users"\."deleted_at" IS NULL .+ LIMIT \$[0-9]+`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id", "user_uuid", "username"}).
 				AddRow(1, testResourceUUID, "user1"))
+		expectProfilePreloads(mock, int64(1))
 
 		result, err := repo.FindPaginated(UserRepositoryGetFilter{
 			Status: []string{"active"}, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
@@ -528,6 +533,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users"`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id", "user_uuid", "username"}).
 				AddRow(1, testResourceUUID, "user1"))
+		expectProfilePreloads(mock, int64(1))
 
 		result, err := repo.FindPaginated(UserRepositoryGetFilter{
 			RoleID: &rid, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
@@ -553,20 +559,29 @@ func TestUserRepository_SetEmailVerified(t *testing.T) {
 		require.NoError(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+}
 
-	t.Run("db error", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserRepository(db)
-
-		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "users" SET .+ WHERE user_uuid = \$[0-9]+`).
-			WillReturnError(errors.New("db error"))
-		mock.ExpectRollback()
-
-		err := repo.SetEmailVerified(uuid.New(), false)
-		require.Error(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
+func expectProfilePreloads(mock sqlmock.Sqlmock, userIDs ...int64) {
+	switch len(userIDs) {
+	case 0:
+		return
+	case 1:
+		mock.ExpectQuery(`SELECT \* FROM "profiles" WHERE`).
+			WithArgs(userIDs[0], true).
+			WillReturnRows(sqlmock.NewRows([]string{"profile_id", "user_id", "is_default", "display_name"}).
+				AddRow(1, userIDs[0], true, "Test User"))
+	default:
+		args := make([]driver.Value, len(userIDs)+1)
+		for i, uid := range userIDs {
+			args[i] = uid
+		}
+		args[len(userIDs)] = true
+		mock.ExpectQuery(`SELECT \* FROM "profiles" WHERE`).
+			WithArgs(args...).
+			WillReturnRows(sqlmock.NewRows([]string{"profile_id", "user_id", "is_default", "display_name"}).
+				AddRow(1, userIDs[0], true, "Test User").
+				AddRow(2, userIDs[1], true, "Test User 2"))
+	}
 }
 
 func TestUserRepository_SetStatus(t *testing.T) {

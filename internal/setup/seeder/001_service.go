@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedService(db *gorm.DB, appVersion string) (*model.Service, error) {
+func SeedService(db *gorm.DB, tenantID int64, appVersion string) (*model.Service, error) {
 	var service model.Service
 
 	if appVersion == "" {
@@ -17,10 +17,13 @@ func SeedService(db *gorm.DB, appVersion string) (*model.Service, error) {
 		return &service, nil
 	}
 
-	err := db.Where("name = ?", "auth").First(&service).Error
+	// Services are tenant-scoped: look up (and seed) the "auth" service for THIS
+	// tenant. The same service name exists independently in every tenant.
+	err := db.Where("name = ? AND tenant_id = ?", "auth", tenantID).First(&service).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		service = model.Service{
 			ServiceUUID: uuid.New(),
+			TenantID:    tenantID,
 			Name:        "auth",
 			DisplayName: "Auth Service",
 			Description: "Auth system service",
@@ -34,7 +37,7 @@ func SeedService(db *gorm.DB, appVersion string) (*model.Service, error) {
 			return nil, err
 		}
 
-		slog.Info("Default Service seeded", "version", appVersion)
+		slog.Info("Default Service seeded", "tenant_id", tenantID, "version", appVersion)
 		return &service, nil
 	}
 	if err != nil {

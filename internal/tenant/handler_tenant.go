@@ -46,17 +46,11 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination
 
 	// Parse bools safely
-	var isSystem, isPublic *bool
+	var isSystem *bool
 	if v := q.Get("is_system"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
 			isSystem = &parsed
-		}
-	}
-	if v := q.Get("is_public"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err == nil {
-			isPublic = &parsed
 		}
 	}
 
@@ -73,7 +67,6 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description:          ptr.PtrOrNil(q.Get("description")),
 		Identifier:           ptr.PtrOrNil(q.Get("identifier")),
 		IsSystem:             isSystem,
-		IsPublic:             isPublic,
 		Status:               status,
 		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
@@ -90,12 +83,28 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: reqParams.Description,
 		Identifier:  reqParams.Identifier,
 		IsSystem:    reqParams.IsSystem,
-		IsPublic:    isPublic,
 		Status:      reqParams.Status,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
 		SortBy:      reqParams.SortBy,
 		SortOrder:   reqParams.SortOrder,
+	}
+
+	// Scope the listing: members of the system tenant see all tenants; everyone
+	// else sees only their own (context) tenant. This keeps tenant records
+	// tenant-bound while letting system-tenant admins enumerate every tenant.
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.Tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	systemTenant, err := h.tenantService.GetSystem(r.Context())
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to resolve system tenant", err)
+		return
+	}
+	if systemTenant == nil || auth.Tenant.TenantID != systemTenant.TenantID {
+		tenantFilter.TenantIDs = []int64{auth.Tenant.TenantID}
 	}
 
 	// Fetch Tenants
@@ -180,7 +189,6 @@ func (h *TenantHandler) toPublicResponse(ctx context.Context, tenant TenantServi
 		DisplayName: tenant.DisplayName,
 		Description: tenant.Description,
 		Status:      tenant.Status,
-		IsPublic:    tenant.IsPublic,
 		IsSystem:    tenant.IsSystem,
 	}
 
@@ -244,6 +252,25 @@ func boolFromMap(m map[string]any, key string) bool {
 
 // Create Tenant
 func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Only members of the system tenant may create tenants. A user's context
+	// tenant is resolved from their authenticated identity, so a regular-tenant
+	// user is forbidden here even if their own tenant's super-admin role carries
+	// the tenant:create permission.
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.Tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	systemTenant, err := h.tenantService.GetSystem(r.Context())
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to resolve system tenant", err)
+		return
+	}
+	if systemTenant == nil || auth.Tenant.TenantID != systemTenant.TenantID {
+		resp.Error(w, http.StatusForbidden, "Access denied", "Only members of the system tenant can create tenants")
+		return
+	}
+
 	var req TenantCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
@@ -255,7 +282,7 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Create(r.Context(), req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic)
+	tenant, err := h.tenantService.Create(r.Context(), req.Name, req.DisplayName, req.Description, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create tenant", err)
 		return
@@ -280,14 +307,14 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is a member of this tenant
-	isMember, err := h.tenantMemberService.IsUserInTenant(r.Context(), user.UserID, tenantUUID)
+	// Tenant-management access: a member of this tenant or of the system tenant.
+	canManage, err := h.tenantMemberService.CanManageTenant(r.Context(), user.UserID, tenantUUID)
 	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to verify tenant membership", err)
+		resp.HandleServiceError(w, r, "Failed to verify tenant access", err)
 		return
 	}
-	if !isMember {
-		resp.Error(w, http.StatusForbidden, "Access denied", "Only tenant members can update this tenant")
+	if !canManage {
+		resp.Error(w, http.StatusForbidden, "Access denied", "You do not have access to update this tenant")
 		return
 	}
 
@@ -302,7 +329,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Update(r.Context(), tenantUUID, req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic)
+	tenant, err := h.tenantService.Update(r.Context(), tenantUUID, req.Name, req.DisplayName, req.Description, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update tenant", err)
 		return
@@ -342,25 +369,6 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Tenant status updated successfully")
 }
 
-// Set Tenant public
-func (h *TenantHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
-	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
-	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
-		return
-	}
-
-	tenant, err := h.tenantService.SetActivePublicByUUID(r.Context(), tenantUUID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to update tenant", err)
-		return
-	}
-
-	dtoRes := toTenantResponseDTO(*tenant)
-
-	resp.Success(w, dtoRes, "Tenant public updated successfully")
-}
-
 // Delete Tenant
 func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	user := middleware.AuthFromRequest(r).User
@@ -375,14 +383,14 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is a member of this tenant
-	isMember, err := h.tenantMemberService.IsUserInTenant(r.Context(), user.UserID, tenantUUID)
+	// Tenant-management access: a member of this tenant or of the system tenant.
+	canManage, err := h.tenantMemberService.CanManageTenant(r.Context(), user.UserID, tenantUUID)
 	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to verify tenant membership", err)
+		resp.HandleServiceError(w, r, "Failed to verify tenant access", err)
 		return
 	}
-	if !isMember {
-		resp.Error(w, http.StatusForbidden, "Access denied", "Only tenant members can delete this tenant")
+	if !canManage {
+		resp.Error(w, http.StatusForbidden, "Access denied", "You do not have access to delete this tenant")
 		return
 	}
 
@@ -419,7 +427,6 @@ func toTenantResponseDTO(r TenantServiceDataResult) TenantResponseDTO {
 		Description: r.Description,
 		Identifier:  r.Identifier,
 		Status:      r.Status,
-		IsPublic:    r.IsPublic,
 		IsSystem:    r.IsSystem,
 		Metadata:    r.Metadata,
 		CreatedAt:   r.CreatedAt,

@@ -103,8 +103,12 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 			}
 		}
 
-		// Find user by email. Don't reveal whether the address is registered.
-		user, txErr = txUserRepo.FindByEmail(emailAddr)
+		if authClient == nil {
+			return nil
+		}
+		// Find user by email, scoped to the client's tenant. Don't reveal whether
+		// the address is registered.
+		user, txErr = txUserRepo.FindByEmailAndTenantID(emailAddr, clientTenantID(authClient))
 		if txErr != nil {
 			return nil
 		}
@@ -205,7 +209,6 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
 
-		// Resolve user by email. Use a generic error message to avoid email enumeration.
 		var txErr error
 		user, txErr = txUserRepo.FindByEmail(emailAddr)
 		if txErr != nil {
@@ -219,13 +222,22 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 			return apperror.NewUnauthorized("user account is not active")
 		}
 
+		otpHash := crypto.HashAuthorizationCode(otp)
+
 		if user.IsEmailVerified {
-			// Idempotent: already verified is treated as success at the handler layer.
-			return nil
+			var verifiedMatches []UserToken
+			if txErr := tx.Where(
+				"user_id = ? AND token_type = ? AND token = ? AND is_revoked = false",
+				user.UserID, shared.TokenTypeEmailVerification, otpHash,
+			).Find(&verifiedMatches).Error; txErr != nil {
+				return apperror.NewInternal("failed to find verification token", txErr)
+			}
+			if len(verifiedMatches) > 0 {
+				return nil
+			}
+			return apperror.NewUnauthorized("invalid or expired verification code")
 		}
 
-		// Find an active, non-revoked verification token matching the OTP hash.
-		otpHash := crypto.HashAuthorizationCode(otp)
 		var match *UserToken
 		var matches []UserToken
 		if txErr := tx.Where(
@@ -243,6 +255,10 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 
 		if match.ExpiresAt != nil && time.Now().After(*match.ExpiresAt) {
 			return apperror.NewUnauthorized("verification code has expired")
+		}
+
+		if user.IsEmailVerified {
+			return nil
 		}
 
 		// Mark email verified.

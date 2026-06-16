@@ -951,6 +951,11 @@ func TestVerifyEmail(t *testing.T) {
 	t.Run("already verified idempotent success", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		futureTime := time.Now().Add(1 * time.Hour)
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+			WithArgs(userID, "user:email:verification", otpHash).
+			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_id", "token_type", "token", "expires_at", "is_revoked"}).
+				AddRow(1, userID, "user:email:verification", otpHash, futureTime, false))
 		mock.ExpectCommit()
 
 		userRepo := &mockUserRepo{

@@ -120,13 +120,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_UserInactive(t *testing.T)
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -242,16 +242,16 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 
 	// Save original values and restore
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
-	origAccountHostname := config.AccountHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
+	origAccountHostname := config.AppFrontendIdentityHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
-		config.AccountHostname = origAccountHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
+		config.AppFrontendIdentityHostname = origAccountHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
-	config.AccountHostname = "https://account.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
+	config.AppFrontendIdentityHostname = "https://account.example.com"
 
 	// Mock SendEmail to capture the call
 	origSendEmail := email.SendEmail
@@ -301,18 +301,18 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 }
 
 func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) {
-	// Test the isInternal=false path → uses AccountHostname
+	// Test the isInternal=false path → uses AppFrontendIdentityHostname
 	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAccountHostname := config.AccountHostname
+	origAccountHostname := config.AppFrontendIdentityHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AccountHostname = origAccountHostname
+		config.AppFrontendIdentityHostname = origAccountHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AccountHostname = "https://account.example.com"
+	config.AppFrontendIdentityHostname = "https://account.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -358,13 +358,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -409,13 +409,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -454,13 +454,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -501,13 +501,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -550,13 +550,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testin
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -597,13 +597,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainExecuteError(t *testi
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -654,13 +654,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
@@ -717,13 +717,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origGenerateSignedURL := signedurl.GenerateSignedURL
 	defer func() { signedurl.GenerateSignedURL = origGenerateSignedURL }()
@@ -767,13 +767,13 @@ func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
-	origAuthHostname := config.AuthHostname
+	origAuthHostname := config.AppFrontendConsoleHostname
 	defer func() {
 		config.AppPublicHostname = origAppPublicHostname
-		config.AuthHostname = origAuthHostname
+		config.AppFrontendConsoleHostname = origAuthHostname
 	}()
 	config.AppPublicHostname = "https://api.example.com"
-	config.AuthHostname = "https://auth.example.com"
+	config.AppFrontendConsoleHostname = "https://auth.example.com"
 
 	origConvertToFrontendURL := signedurl.ConvertToFrontendURL
 	defer func() { signedurl.ConvertToFrontendURL = origConvertToFrontendURL }()

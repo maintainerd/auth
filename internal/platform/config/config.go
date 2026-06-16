@@ -32,8 +32,8 @@ var (
 	LogLevel string // "debug", "info", "warn", "error"; defaults "info"
 
 	// FRONTEND
-	AccountHostname string
-	AuthHostname    string
+	AppFrontendIdentityHostname string
+	AppFrontendConsoleHostname  string
 
 	// JWT Configuration
 	JWTPrivateKey               []byte
@@ -109,10 +109,10 @@ func Init() error {
 	GRPCRequireMTLS = strings.EqualFold(GetEnvOrDefault("GRPC_REQUIRE_MTLS", "false"), "true")
 
 	// Frontend Config
-	if AccountHostname, err = GetEnv("ACCOUNT_HOSTNAME"); err != nil {
+	if AppFrontendIdentityHostname, err = GetEnv("APP_FRONTEND_IDENTITY_HOSTNAME"); err != nil {
 		return err
 	}
-	if AuthHostname, err = GetEnv("AUTH_HOSTNAME"); err != nil {
+	if AppFrontendConsoleHostname, err = GetEnv("APP_FRONTEND_CONSOLE_HOSTNAME"); err != nil {
 		return err
 	}
 
@@ -196,8 +196,8 @@ type Config struct {
 
 	LogLevel string
 
-	AccountHostname string
-	AuthHostname    string
+	AppFrontendIdentityHostname string
+	AppFrontendConsoleHostname  string
 
 	JWTPrivateKey               []byte
 	JWTPublicKey                []byte
@@ -237,8 +237,8 @@ func GetConfig() Config {
 		GRPCRequireMTLS:             GRPCRequireMTLS,
 		AppEncryptionKey:            AppEncryptionKey,
 		LogLevel:                    LogLevel,
-		AccountHostname:             AccountHostname,
-		AuthHostname:                AuthHostname,
+		AppFrontendIdentityHostname: AppFrontendIdentityHostname,
+		AppFrontendConsoleHostname:  AppFrontendConsoleHostname,
 		JWTPrivateKey:               JWTPrivateKey,
 		JWTPublicKey:                JWTPublicKey,
 		JWTKeyRotationPeriodSeconds: JWTKeyRotationPeriodSeconds,

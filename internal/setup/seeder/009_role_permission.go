@@ -59,9 +59,18 @@ var registeredAccountPermissions = []string{
 }
 
 func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role) error {
-	// Get all permissions
+	// Permissions are tenant-bound. Scope to the tenant of the roles being
+	// seeded so a newly created tenant is granted ONLY its own permissions —
+	// without this filter a second tenant would inherit every other tenant's
+	// permissions (cross-tenant leak). All roles in the map share one tenant.
+	var tenantID int64
+	for _, r := range roles {
+		tenantID = r.TenantID
+		break
+	}
+
 	var permissions []model.Permission
-	if err := db.Find(&permissions).Error; err != nil {
+	if err := db.Where("tenant_id = ?", tenantID).Find(&permissions).Error; err != nil {
 		return fmt.Errorf("failed to fetch permissions: %w", err)
 	}
 

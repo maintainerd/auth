@@ -53,7 +53,7 @@ type OAuthAuthorizeService interface {
 	// redirect URI, and PKCE parameters. Depending on whether consent is needed,
 	// it either issues an authorization code immediately or creates a consent
 	// challenge for the frontend to resolve.
-	Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
+	Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
 
 	// GetConsentChallenge retrieves a pending consent challenge by its UUID.
 	GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*OAuthConsentChallengeResponseDTO, error)
@@ -103,7 +103,7 @@ func NewOAuthAuthorizeService(
 }
 
 // Authorize implements OAuthAuthorizeService.
-func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.authorize")
 	defer span.End()
 	span.SetAttributes(
@@ -134,6 +134,11 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 	if client == nil || client.Status != shared.StatusActive {
 		span.SetStatus(codes.Error, "client not found or inactive")
 		return nil, apperror.NewOAuthInvalidRequest("unknown or inactive client_id")
+	}
+
+	if client.IdentityProvider != nil && client.IdentityProvider.TenantID != tenantID {
+		span.SetStatus(codes.Error, "client tenant mismatch")
+		return nil, apperror.NewOAuthInvalidRequest("unknown client_id")
 	}
 
 	if oerr := validateOAuthPKCE(req.CodeChallenge, req.CodeChallengeMethod, oauthEffectiveTokenPolicy(s.securitySettingRepo, client).RequirePKCE); oerr != nil {

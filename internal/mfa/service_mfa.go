@@ -99,8 +99,8 @@ type MFAService interface {
 	EnrolledMFAMethods(ctx context.Context, userID int64) ([]string, error)
 
 	// Admin
-	AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error
-	AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64) error
+	AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64, tenantID int64) error
+	AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64, tenantID int64) error
 
 	// Self-service — reset all of the caller's own MFA factors. Scoped to the
 	// authenticated user (no target param), so a user can only reset their own.
@@ -697,7 +697,7 @@ func (s *mfaService) StepUpTTLSeconds(ctx context.Context, userID int64) int64 {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // AdminResetMFA clears all MFA factors for the target user identified by UUID.
-func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error {
+func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64, tenantID int64) error {
 	_, span := otel.Tracer("service").Start(ctx, "mfa.admin_reset")
 	defer span.End()
 	span.SetAttributes(
@@ -710,6 +710,11 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 		return apperror.NewNotFound("target user not found")
 	}
 	targetUserID := target.UserID
+
+	targetTenantID := mfaUserTenantID(ctx, s.db, targetUserID)
+	if targetTenantID != 0 && targetTenantID != tenantID {
+		return apperror.NewForbidden("target user does not belong to your tenant")
+	}
 
 	if err := s.totpRepo.Disable(targetUserID); err != nil {
 		span.RecordError(err)
@@ -768,7 +773,7 @@ const (
 // factor a user lost access to — e.g. wiping TOTP/SMS for a lost phone while
 // leaving a registered passkey intact. After removing the factor it reconciles
 // recovery state so the account is left clean when no primary factor remains.
-func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64) error {
+func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64, tenantID int64) error {
 	_, span := otel.Tracer("service").Start(ctx, "mfa.admin_reset_method")
 	defer span.End()
 	span.SetAttributes(
@@ -782,6 +787,11 @@ func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, me
 		return apperror.NewNotFound("target user not found")
 	}
 	targetUserID := target.UserID
+
+	targetTenantID := mfaUserTenantID(ctx, s.db, targetUserID)
+	if targetTenantID != 0 && targetTenantID != tenantID {
+		return apperror.NewForbidden("target user does not belong to your tenant")
+	}
 
 	switch method {
 	case mfaMethodTOTP:

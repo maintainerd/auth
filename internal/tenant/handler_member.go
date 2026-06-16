@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
@@ -153,6 +154,26 @@ func (h *TenantHandler) resolveTenantFromRoute(w http.ResponseWriter, r *http.Re
 		resp.HandleServiceError(w, r, "Tenant not found", err)
 		return nil, false
 	}
+
+	// Tenant-management access gate: the actor must be a member of this tenant
+	// or of the system tenant. This keeps members scoped per-tenant (a regular
+	// tenant's user cannot read or modify another tenant's members) while still
+	// letting system-tenant admins manage any tenant.
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.User == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return nil, false
+	}
+	allowed, err := h.tenantMemberService.CanManageTenant(r.Context(), auth.User.UserID, tenantUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to verify tenant access", err)
+		return nil, false
+	}
+	if !allowed {
+		resp.Error(w, http.StatusForbidden, "Access denied", "You do not have access to manage this tenant")
+		return nil, false
+	}
+
 	return tenant, true
 }
 

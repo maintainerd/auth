@@ -41,7 +41,7 @@ type handlers struct {
 	magicLink          *authn.MagicLinkHandler
 	setup              *setup.SetupHandler
 	apiKey             *client.APIKeyHandler
-	authFlow         *idp.AuthFlowHandler
+	authFlow           *idp.AuthFlowHandler
 	securitySetting    *secpolicy.SecuritySettingHandler
 	ipRestrictionRule  *secpolicy.IPRestrictionRuleHandler
 	emailTemplate      *branding.EmailTemplateHandler
@@ -94,7 +94,7 @@ func initHandlers(application *Application) *handlers {
 		magicLink:          authn.NewMagicLinkHandler(application.MagicLinkService),
 		setup:              setup.NewSetupHandler(application.SetupService),
 		apiKey:             client.NewAPIKeyHandler(application.APIKeyService),
-		authFlow:         idp.NewAuthFlowHandler(application.AuthFlowService),
+		authFlow:           idp.NewAuthFlowHandler(application.AuthFlowService),
 		securitySetting:    secpolicy.NewSecuritySettingHandler(application.SecuritySettingService),
 		ipRestrictionRule:  secpolicy.NewIPRestrictionRuleHandler(application.IPRestrictionRuleService),
 		emailTemplate:      branding.NewEmailTemplateHandler(application.EmailTemplateService),

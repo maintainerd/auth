@@ -98,7 +98,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Process forgot password request (external - use ACCOUNT_HOSTNAME)
+	// Process forgot password request (external - use APP_FRONTEND_IDENTITY_HOSTNAME)
 	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, &clientID, &providerID, false)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -202,7 +202,7 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Process forgot password request (internal - use AUTH_HOSTNAME)
+	// Process forgot password request (internal - use APP_FRONTEND_CONSOLE_HOSTNAME)
 	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, clientIDPtr, providerIDPtr, true)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{

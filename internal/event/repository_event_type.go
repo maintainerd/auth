@@ -10,6 +10,10 @@ type EventTypeRepository interface {
 	BaseRepositoryMethods[EventType]
 	FindAllActive() ([]EventType, error)
 	FindByKey(key string) (*EventType, error)
+	// FindByKeyAndTenantID scopes the lookup to a tenant. Event types are
+	// tenant-scoped, so the same key exists in every tenant — use this whenever
+	// a tenant is known to avoid resolving another tenant's event type.
+	FindByKeyAndTenantID(key string, tenantID int64) (*EventType, error)
 	FindByKeys(keys []string) ([]EventType, error)
 	FindByCategory(category string) ([]EventType, error)
 	WithTx(tx *gorm.DB) EventTypeRepository
@@ -40,6 +44,18 @@ func (r *eventTypeRepository) FindAllActive() ([]EventType, error) {
 func (r *eventTypeRepository) FindByKey(key string) (*EventType, error) {
 	var et EventType
 	err := r.DB().Where("key = ?", key).First(&et).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &et, nil
+}
+
+func (r *eventTypeRepository) FindByKeyAndTenantID(key string, tenantID int64) (*EventType, error) {
+	var et EventType
+	err := r.DB().Where("key = ? AND tenant_id = ?", key, tenantID).First(&et).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

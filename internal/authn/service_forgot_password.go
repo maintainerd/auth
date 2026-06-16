@@ -72,9 +72,15 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 		if txErr != nil {
 			return apperror.NewInternal("failed to find auth client", txErr)
 		}
+		if Client == nil {
+			// No client/tenant context → cannot scope the lookup; respond
+			// generically without revealing anything.
+			return nil
+		}
 
-		// Find user by email
-		user, txErr = txUserRepo.FindByEmail(email)
+		// Find user by email, scoped to the client's tenant (users are
+		// tenant-isolated, so the same email may exist in other tenants).
+		user, txErr = txUserRepo.FindByEmailAndTenantID(email, clientTenantID(Client))
 		if txErr != nil {
 			// Don't reveal if email exists or not for security
 			return nil
@@ -160,10 +166,13 @@ func generateSecureToken(length int) string {
 }
 
 func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, resetToken string, Client *Client, isInternal bool) error {
-	// Get email template from DB
-	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:password:reset")
-	if err != nil {
-		return apperror.NewInternal("failed to fetch password reset email template", err)
+	var templateEntity *branding.EmailTemplate
+	var err error
+	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID("internal:user:password:reset", Client.IdentityProvider.TenantID)
+	if err != nil || templateEntity == nil {
+		templateEntity, err = s.emailTemplateRepo.FindByName("internal:user:password:reset")
+	}
+	if err != nil {		return apperror.NewInternal("failed to fetch password reset email template", err)
 	}
 
 	// Create signed URL for password reset
@@ -180,9 +189,9 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 	// Convert to frontend URL - use different hostname based on request type
 	var frontendBaseURL string
 	if isInternal {
-		frontendBaseURL = config.AuthHostname + "/reset-password"
+		frontendBaseURL = config.AppFrontendConsoleHostname + "/reset-password"
 	} else {
-		frontendBaseURL = config.AccountHostname + "/reset-password"
+		frontendBaseURL = config.AppFrontendIdentityHostname + "/reset-password"
 	}
 	resetURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
@@ -195,7 +204,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 		LogoURL  string
 	}{
 		ResetURL: resetURL,
-		LogoURL: email.GetLogoURL(ctx, s.db),
+		LogoURL:  email.GetLogoURL(ctx, s.db),
 	}
 
 	// Parse HTML template

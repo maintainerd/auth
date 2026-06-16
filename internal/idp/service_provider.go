@@ -486,12 +486,12 @@ func toIdpServiceDataResult(idp *IdentityProvider) *IdentityProviderServiceDataR
 		Identifier:           idp.Identifier,
 		// Never expose the stored secret (encrypted at rest); GET responses carry
 		// a redaction sentinel the form treats as "unchanged" on save.
-		Config: redactIdpConfig(idp.Config),
-		Status:               idp.Status,
-		IsDefault:            idp.IsDefault,
-		IsSystem:             idp.IsSystem,
-		CreatedAt:            idp.CreatedAt,
-		UpdatedAt:            idp.UpdatedAt,
+		Config:    redactIdpConfig(idp.Config),
+		Status:    idp.Status,
+		IsDefault: idp.IsDefault,
+		IsSystem:  idp.IsSystem,
+		CreatedAt: idp.CreatedAt,
+		UpdatedAt: idp.UpdatedAt,
 	}
 
 	if idp.Tenant != nil {

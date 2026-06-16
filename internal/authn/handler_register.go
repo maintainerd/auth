@@ -249,6 +249,7 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 		InviteToken: r.URL.Query().Get("invite_token"),
 		Expires:     r.URL.Query().Get("expires"),
 		Sig:         r.URL.Query().Get("sig"),
+		AuthFlow:    r.URL.Query().Get("auth_flow"),
 	}
 
 	if err := q.Validate(); err != nil {
@@ -283,5 +284,59 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 	}
 
 	// Response with optional cookie delivery based on X-Token-Delivery header
+	resp.CreatedWithCookies(w, r, tokenResponse, "Registration successful")
+}
+
+func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request) {
+	// Parse optional query parameters (client_id and provider_id) and required invite params
+	var clientIDPtr, providerIDPtr *string
+	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
+		clientIDPtr = &clientID
+	}
+	if providerID := r.URL.Query().Get("provider_id"); providerID != "" {
+		providerIDPtr = &providerID
+	}
+
+	// Validate query parameters (client_id/provider_id optional for internal)
+	q := RegisterInviteQueryDTO{
+		ClientID:    r.URL.Query().Get("client_id"),
+		ProviderID:  r.URL.Query().Get("provider_id"),
+		InviteToken: r.URL.Query().Get("invite_token"),
+		Expires:     r.URL.Query().Get("expires"),
+		Sig:         r.URL.Query().Get("sig"),
+		AuthFlow:    r.URL.Query().Get("auth_flow"),
+	}
+
+	if err := q.ValidateInternal(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	// Validate body payload
+	var req LoginRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	// Internal register with invite (client_id/provider_id optional)
+	tokenResponse, err := h.registerService.RegisterInvite(
+		r.Context(),
+		req.Username,
+		req.Password,
+		clientIDPtr,
+		providerIDPtr,
+		q.InviteToken,
+	)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Registration failed", err)
+		return
+	}
+
 	resp.CreatedWithCookies(w, r, tokenResponse, "Registration successful")
 }

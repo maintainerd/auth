@@ -11,7 +11,8 @@ func CreateEventTypesTable(db *gorm.DB) error {
 CREATE TABLE IF NOT EXISTS event_types (
     event_type_id           BIGSERIAL PRIMARY KEY,
     event_type_uuid         UUID NOT NULL UNIQUE,
-    key                     VARCHAR(100) NOT NULL UNIQUE,
+    tenant_id               BIGINT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+    key                     VARCHAR(100) NOT NULL,
     category                VARCHAR(50) NOT NULL,
     description             TEXT,
     version                 INTEGER NOT NULL DEFAULT 1,
@@ -21,7 +22,9 @@ CREATE TABLE IF NOT EXISTS event_types (
 );
 
 -- CREATE INDEXES
-CREATE INDEX IF NOT EXISTS idx_event_types_key ON event_types (key);
+CREATE INDEX IF NOT EXISTS idx_event_types_tenant_id ON event_types (tenant_id);
+-- Event types are tenant-scoped: key is unique per tenant, not globally.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_event_types_tenant_key ON event_types (tenant_id, key);
 CREATE INDEX IF NOT EXISTS idx_event_types_category ON event_types (category);
 CREATE INDEX IF NOT EXISTS idx_event_types_is_active ON event_types (is_active);
 `

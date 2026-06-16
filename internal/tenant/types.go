@@ -15,7 +15,6 @@ type TenantResponseDTO struct {
 	Description string         `json:"description"`
 	Identifier  string         `json:"identifier"`
 	Status      string         `json:"status"`
-	IsPublic    bool           `json:"is_public"`
 	IsSystem    bool           `json:"is_system"`
 	Metadata    datatypes.JSON `json:"metadata"`
 	CreatedAt   time.Time      `json:"created_at"`
@@ -31,7 +30,6 @@ type TenantPublicResponseDTO struct {
 	DisplayName        string                    `json:"display_name"`
 	Description        string                    `json:"description"`
 	Status             string                    `json:"status"`
-	IsPublic           bool                      `json:"is_public"`
 	IsSystem           bool                      `json:"is_system"`
 	IsDefault          bool                      `json:"is_default"`
 	PasswordConfig     *PasswordConfigPublic     `json:"password_config,omitempty"`
@@ -49,9 +47,9 @@ type PasswordConfigPublic struct {
 }
 
 type RegistrationConfigPublic struct {
-	SelfRegistrationEnabled    bool `json:"self_registration_enabled"`
-	RequireEmailVerification   bool `json:"require_email_verification"`
-	CaptchaOnSignup            bool `json:"captcha_on_signup"`
+	SelfRegistrationEnabled  bool `json:"self_registration_enabled"`
+	RequireEmailVerification bool `json:"require_email_verification"`
+	CaptchaOnSignup          bool `json:"captcha_on_signup"`
 }
 
 type BrandingPublic struct {
@@ -70,7 +68,6 @@ type TenantCreateRequestDTO struct {
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
-	IsPublic    bool   `json:"is_public"`
 }
 
 // Update Tenant request DTO
@@ -79,7 +76,6 @@ type TenantUpdateRequestDTO struct {
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
-	IsPublic    bool   `json:"is_public"`
 }
 
 // TenantSetStatusRequestDTO is the request body for changing tenant status.
@@ -94,7 +90,6 @@ type TenantFilterDTO struct {
 	Description *string  `json:"description"`
 	Identifier  *string  `json:"identifier"`
 	Status      []string `json:"status"`
-	IsPublic    *bool    `json:"is_public"`
 	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting

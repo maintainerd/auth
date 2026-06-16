@@ -25,6 +25,7 @@ type EmailTemplateRepository interface {
 	BaseRepositoryMethods[EmailTemplate]
 	FindByUUIDAndTenantID(emailTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*EmailTemplate, error)
 	FindByName(name string) (*EmailTemplate, error)
+	FindByNameAndTenantID(name string, tenantID int64) (*EmailTemplate, error)
 	FindPaginated(filter EmailTemplateRepositoryGetFilter) (*PaginationResult[EmailTemplate], error)
 }
 
@@ -62,6 +63,20 @@ func (r *emailTemplateRepository) FindByName(name string) (*EmailTemplate, error
 	var template EmailTemplate
 	err := r.DB().
 		Where("name = ? AND status = ?", name, shared.StatusActive).
+		First(&template).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &template, nil
+}
+
+func (r *emailTemplateRepository) FindByNameAndTenantID(name string, tenantID int64) (*EmailTemplate, error) {
+	var template EmailTemplate
+	err := r.DB().
+		Where("name = ? AND tenant_id = ? AND status = ?", name, tenantID, shared.StatusActive).
 		First(&template).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

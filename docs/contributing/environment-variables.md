@@ -28,8 +28,8 @@ APP_PRIVATE_HOSTNAME="http://private.api.maintainerd.auth"
 # =============================================================================
 # FRONTEND
 # =============================================================================
-ACCOUNT_HOSTNAME="http://account.maintainerd.local"
-AUTH_HOSTNAME="http://auth.maintainerd.local"
+APP_FRONTEND_IDENTITY_HOSTNAME="http://account.maintainerd.local"
+APP_FRONTEND_CONSOLE_HOSTNAME="http://auth.maintainerd.local"
 
 # =============================================================================
 # DATABASE
@@ -154,20 +154,20 @@ Used internally for CORS policies, redirect URIs, and email link generation.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `ACCOUNT_HOSTNAME` | ✅ | — | Base URL of the **Account** portal (profile management, billing). |
-| `AUTH_HOSTNAME` | ✅ | — | Base URL of the **Auth** portal (login, registration, password reset). |
+| `APP_FRONTEND_IDENTITY_HOSTNAME` | ✅ | — | Base URL of the **Account** portal (profile management, billing). |
+| `APP_FRONTEND_CONSOLE_HOSTNAME` | ✅ | — | Base URL of the **Auth** portal (login, registration, password reset). |
 
 **Example**
 
 ```env
-ACCOUNT_HOSTNAME="http://localhost:3001"
-AUTH_HOSTNAME="http://localhost:3000"
+APP_FRONTEND_IDENTITY_HOSTNAME="http://localhost:3001"
+APP_FRONTEND_CONSOLE_HOSTNAME="http://localhost:3000"
 ```
 
 > For Docker Compose:
 > ```env
-> ACCOUNT_HOSTNAME="http://account.maintainerd.local"
-> AUTH_HOSTNAME="http://auth.maintainerd.local"
+> APP_FRONTEND_IDENTITY_HOSTNAME="http://account.maintainerd.local"
+> APP_FRONTEND_CONSOLE_HOSTNAME="http://auth.maintainerd.local"
 > ```
 
 ---

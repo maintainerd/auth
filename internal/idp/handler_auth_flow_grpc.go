@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/auth/internal/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -72,7 +73,7 @@ func (h *AuthFlowGRPCHandler) CreateSignupFlow(ctx context.Context, req *authv1.
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.authFlowService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), clientUUID, nil, nil, nil)
+	result, err := h.authFlowService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), shared.DestinationIdentity, clientUUID, nil, nil, nil)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -216,13 +217,13 @@ func toAuthFlowProto(result *AuthFlowServiceDataResult) *authv1.SignupFlow {
 	}
 	return &authv1.SignupFlow{
 		SignupFlowUuid: result.AuthFlowUUID.String(),
-		Name:         result.Name,
-		Description:  result.Description,
-		Identifier:   result.Identifier,
-		Status:       result.Status,
-		ClientUuid:   result.ClientUUID.String(),
-		CreatedAt:    timestamppb.New(result.CreatedAt),
-		UpdatedAt:    timestamppb.New(result.UpdatedAt),
+		Name:           result.Name,
+		Description:    result.Description,
+		Identifier:     result.Identifier,
+		Status:         result.Status,
+		ClientUuid:     result.ClientUUID.String(),
+		CreatedAt:      timestamppb.New(result.CreatedAt),
+		UpdatedAt:      timestamppb.New(result.UpdatedAt),
 	}
 }
 
@@ -232,13 +233,13 @@ func toAuthFlowRoleProto(result *AuthFlowRoleServiceDataResult) *authv1.SignupFl
 	}
 	return &authv1.SignupFlowRole{
 		SignupFlowRoleUuid: result.AuthFlowRoleUUID.String(),
-		RoleUuid:         result.RoleUUID.String(),
-		RoleName:         result.RoleName,
-		RoleDescription:  result.RoleDescription,
-		RoleIsDefault:    result.RoleIsDefault,
-		RoleIsSystem:     result.RoleIsSystem,
-		RoleStatus:       result.RoleStatus,
-		CreatedAt:        timestamppb.New(result.CreatedAt),
-		UpdatedAt:        timestamppb.New(result.UpdatedAt),
+		RoleUuid:           result.RoleUUID.String(),
+		RoleName:           result.RoleName,
+		RoleDescription:    result.RoleDescription,
+		RoleIsDefault:      result.RoleIsDefault,
+		RoleIsSystem:       result.RoleIsSystem,
+		RoleStatus:         result.RoleStatus,
+		CreatedAt:          timestamppb.New(result.CreatedAt),
+		UpdatedAt:          timestamppb.New(result.UpdatedAt),
 	}
 }

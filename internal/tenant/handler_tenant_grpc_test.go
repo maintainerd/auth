@@ -28,7 +28,6 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		Description: "Tenant description",
 		Identifier:  "tenant-identifier",
 		Status:      shared.StatusActive,
-		IsPublic:    true,
 		Metadata:    datatypes.JSON(`{"plan":"pro"}`),
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -68,19 +67,15 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 	})
 
 	t.Run("list validates filters and maps rows", func(t *testing.T) {
-		public := true
 		h := NewTenantGRPCHandler(&mockTenantService{getFn: func(filter TenantServiceGetFilter) (*TenantServiceGetResult, error) {
 			require.NotNil(t, filter.Name)
-			require.NotNil(t, filter.IsPublic)
 			assert.Equal(t, "tenant", *filter.Name)
-			assert.Equal(t, true, *filter.IsPublic)
 			assert.Equal(t, 2, filter.Page)
 			assert.Equal(t, 5, filter.Limit)
 			return &TenantServiceGetResult{Data: []TenantServiceDataResult{*sample}, Total: 1, Page: 2, Limit: 5, TotalPages: 3}, nil
 		}}, nil)
 		resp, err := h.ListTenants(context.Background(), &authv1.ListTenantsRequest{
 			Name:       "tenant",
-			IsPublic:   &public,
 			Status:     []string{shared.StatusActive},
 			Pagination: &authv1.Pagination{Page: 2, Limit: 5, SortBy: "name", SortOrder: SortOrderAsc},
 		})
@@ -116,13 +111,12 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 	})
 
 	t.Run("create tenant validates request and maps service", func(t *testing.T) {
-		h := NewTenantGRPCHandler(&mockTenantService{createFn: func(name, displayName, description, status string, isPublic bool) (*TenantServiceDataResult, error) {
+		h := NewTenantGRPCHandler(&mockTenantService{createFn: func(name, displayName, description, status string) (*TenantServiceDataResult, error) {
 			assert.Equal(t, "tenant-one", name)
-			assert.True(t, isPublic)
 			return sample, nil
 		}}, nil)
 		resp, err := h.CreateTenant(context.Background(), &authv1.TenantServiceCreateTenantRequest{
-			Name: "tenant-one", DisplayName: "Tenant One", Description: "Long enough description", Status: shared.StatusActive, IsPublic: true,
+			Name: "tenant-one", DisplayName: "Tenant One", Description: "Long enough description", Status: shared.StatusActive,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "tenant-one", resp.Tenant.Name)
@@ -130,7 +124,7 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		_, err = h.CreateTenant(context.Background(), &authv1.TenantServiceCreateTenantRequest{Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
-		_, err = NewTenantGRPCHandler(&mockTenantService{createFn: func(string, string, string, string, bool) (*TenantServiceDataResult, error) {
+		_, err = NewTenantGRPCHandler(&mockTenantService{createFn: func(string, string, string, string) (*TenantServiceDataResult, error) {
 			return nil, apperror.NewConflict("exists")
 		}}, nil).CreateTenant(context.Background(), &authv1.TenantServiceCreateTenantRequest{
 			Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive,
@@ -140,16 +134,12 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 
 	t.Run("update status public and delete", func(t *testing.T) {
 		h := NewTenantGRPCHandler(&mockTenantService{
-			updateFn: func(id uuid.UUID, name, displayName, description, status string, isPublic bool) (*TenantServiceDataResult, error) {
+			updateFn: func(id uuid.UUID, name, displayName, description, status string) (*TenantServiceDataResult, error) {
 				assert.Equal(t, tenantUUID, id)
 				return sample, nil
 			},
 			setStatusByUUIDFn: func(id uuid.UUID, status string) (*TenantServiceDataResult, error) {
 				assert.Equal(t, shared.StatusSuspended, status)
-				return sample, nil
-			},
-			setActivePublicByUUIDFn: func(id uuid.UUID) (*TenantServiceDataResult, error) {
-				assert.Equal(t, tenantUUID, id)
 				return sample, nil
 			},
 			deleteByUUIDFn: func(id uuid.UUID) (*TenantServiceDataResult, error) {
@@ -168,10 +158,6 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, sample.Name, statusResp.Tenant.Name)
 
-		publicResp, err := h.SetTenantPublic(context.Background(), &authv1.SetTenantPublicRequest{TenantUuid: tenantUUID.String()})
-		require.NoError(t, err)
-		assert.True(t, publicResp.Tenant.IsPublic)
-
 		deleteResp, err := h.DeleteTenant(context.Background(), &authv1.DeleteTenantRequest{TenantUuid: tenantUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, sample.Name, deleteResp.Tenant.Name)
@@ -184,25 +170,20 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.SetTenantStatus(context.Background(), &authv1.SetTenantStatusRequest{TenantUuid: "bad", Status: shared.StatusActive})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetTenantPublic(context.Background(), &authv1.SetTenantPublicRequest{TenantUuid: "bad"})
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.DeleteTenant(context.Background(), &authv1.DeleteTenantRequest{TenantUuid: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		errorSvc := &mockTenantService{
-			updateFn: func(uuid.UUID, string, string, string, string, bool) (*TenantServiceDataResult, error) {
+			updateFn: func(uuid.UUID, string, string, string, string) (*TenantServiceDataResult, error) {
 				return nil, errors.New("db")
 			},
-			setStatusByUUIDFn:       func(uuid.UUID, string) (*TenantServiceDataResult, error) { return nil, errors.New("db") },
-			setActivePublicByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("db") },
-			deleteByUUIDFn:          func(uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("db") },
+			setStatusByUUIDFn: func(uuid.UUID, string) (*TenantServiceDataResult, error) { return nil, errors.New("db") },
+			deleteByUUIDFn:    func(uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("db") },
 		}
 		errHandler := NewTenantGRPCHandler(errorSvc, nil)
 		_, err = errHandler.UpdateTenant(context.Background(), &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = errHandler.SetTenantStatus(context.Background(), &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: shared.StatusActive})
-		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = errHandler.SetTenantPublic(context.Background(), &authv1.SetTenantPublicRequest{TenantUuid: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = errHandler.DeleteTenant(context.Background(), &authv1.DeleteTenantRequest{TenantUuid: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))

@@ -105,8 +105,8 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 		return apperror.NewUnauthorized("invalid current password")
 	}
 
-	// Check new email is not already taken
-	existing, err := s.userRepo.FindByEmail(newEmail)
+	// Check new email is not already taken within the user's tenant
+	existing, err := s.userRepo.FindByEmailAndTenantID(newEmail, user.TenantID)
 	if err != nil {
 		return apperror.NewInternal("failed to check email availability", err)
 	}
@@ -206,8 +206,8 @@ func (s *accountService) ChangeUsername(ctx context.Context, userID int64, newUs
 		return apperror.NewUnauthorized("invalid current password")
 	}
 
-	// Check username not taken
-	existing, err := s.userRepo.FindByUsername(newUsername)
+	// Check username not taken within the user's tenant
+	existing, err := s.userRepo.FindByUsernameAndTenantID(newUsername, user.TenantID)
 	if err != nil {
 		return apperror.NewInternal("failed to check username availability", err)
 	}
@@ -394,8 +394,8 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 			return apperror.NewUnauthorized("backup code recovery is unavailable")
 		}
 
-		// Find user by email
-		user, txErr = txUserRepo.FindByEmail(req.Email)
+		// Find user by email, scoped to the client's tenant.
+		user, txErr = txUserRepo.FindByEmailAndTenantID(req.Email, client.IdentityProvider.TenantID)
 		if txErr != nil {
 			return apperror.NewInternal("failed to look up user", txErr)
 		}

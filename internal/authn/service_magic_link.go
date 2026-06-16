@@ -89,8 +89,9 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 			return apperror.NewInternal("auth client not found", nil)
 		}
 
-		// Find user by email. Don't reveal whether the address is registered.
-		user, txErr = txUserRepo.FindByEmail(emailAddr)
+		// Find user by email, scoped to the client's tenant. Don't reveal whether
+		// the address is registered.
+		user, txErr = txUserRepo.FindByEmailAndTenantID(emailAddr, clientTenantID(Client))
 		if txErr != nil || user == nil {
 			user = nil
 			return nil
@@ -209,6 +210,9 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		if txErr != nil || user == nil {
 			return apperror.NewUnauthorized("authentication failed")
 		}
+		if Client.IdentityProvider != nil && user.TenantID != Client.IdentityProvider.TenantID {
+			return apperror.NewUnauthorized("authentication failed")
+		}
 		if user.Status != shared.StatusActive {
 			return apperror.NewUnauthorized("account is not active")
 		}
@@ -270,7 +274,12 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 }
 
 func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token string, Client *Client, isInternal bool) error {
-	templateEntity, err := s.emailTemplateRepo.FindByName(MagicLinkTemplateName)
+	var templateEntity *branding.EmailTemplate
+	var err error
+	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID(MagicLinkTemplateName, Client.IdentityProvider.TenantID)
+	if err != nil || templateEntity == nil {
+		templateEntity, err = s.emailTemplateRepo.FindByName(MagicLinkTemplateName)
+	}
 	if err != nil {
 		return apperror.NewInternal("failed to fetch magic link email template", err)
 	}
@@ -288,9 +297,9 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 
 	var frontendBaseURL string
 	if isInternal {
-		frontendBaseURL = config.AuthHostname + "/magic-link"
+		frontendBaseURL = config.AppFrontendConsoleHostname + "/magic-link"
 	} else {
-		frontendBaseURL = config.AccountHostname + "/magic-link"
+		frontendBaseURL = config.AppFrontendIdentityHostname + "/magic-link"
 	}
 	magicLinkURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
@@ -302,7 +311,7 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 		LogoURL      string
 	}{
 		MagicLinkURL: magicLinkURL,
-		LogoURL: email.GetLogoURL(ctx, s.db),
+		LogoURL:      email.GetLogoURL(ctx, s.db),
 	}
 
 	tmpl, err := template.New("magic_link_html").Parse(templateEntity.BodyHTML)

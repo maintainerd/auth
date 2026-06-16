@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS auth_flows (
     name                   VARCHAR(100) NOT NULL,
     description            TEXT NOT NULL,
     identifier             VARCHAR(255) NOT NULL,
+    destination          VARCHAR(20) NOT NULL DEFAULT 'identity',
+    is_system             BOOLEAN NOT NULL DEFAULT FALSE,
     status                 VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     client_id              BIGINT,
     branding_id            BIGINT,
@@ -78,6 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_flow_client_id ON auth_flows (client_id);
 CREATE INDEX IF NOT EXISTS idx_auth_flow_branding_id ON auth_flows (branding_id);
 CREATE INDEX IF NOT EXISTS idx_auth_flow_created_at ON auth_flows (created_at);
 CREATE INDEX IF NOT EXISTS idx_auth_flow_deleted_at ON auth_flows (deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_auth_flows_is_system ON auth_flows (is_system) WHERE is_system = TRUE;
 `
 	return db.Exec(sql).Error
 }

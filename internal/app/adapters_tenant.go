@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/tenant"
 	"github.com/maintainerd/auth/internal/user"
@@ -12,6 +14,18 @@ type tenantUserReader struct {
 
 func newTenantUserReader(repo user.UserRepository) tenant.UserReader {
 	return &tenantUserReader{repo: repo}
+}
+
+type tenantUserProvisioner struct {
+	svc user.UserService
+}
+
+func newTenantUserProvisioner(svc user.UserService) tenant.UserProvisioner {
+	return &tenantUserProvisioner{svc: svc}
+}
+
+func (p *tenantUserProvisioner) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID, targetTenantID int64) (int64, error) {
+	return p.svc.EnsureUserInTenant(ctx, userUUID, targetTenantID)
 }
 
 func (r *tenantUserReader) FindByUUID(id uuid.UUID) (*tenant.MemberUser, error) {
