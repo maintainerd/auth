@@ -335,7 +335,6 @@ type TenantResponseDTO struct {
 	Description string         `json:"description"`
 	Identifier  string         `json:"identifier"`
 	Status      string         `json:"status"`
-	IsPublic    bool           `json:"is_public"`
 	IsSystem    bool           `json:"is_system"`
 	Metadata    datatypes.JSON `json:"metadata"`
 	CreatedAt   time.Time      `json:"created_at"`

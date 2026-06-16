@@ -95,6 +95,15 @@ func (r *oauthUserRepo) FindByEmail(email string) (*oauth.User, error) {
 	return &u, nil
 }
 
+func (r *oauthUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*oauth.User, error) {
+	var u oauth.User
+	err := r.DB().Where("email = ? AND tenant_id = ?", email, tenantID).First(&u).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &u, nil
+}
+
 func (r *oauthUserRepo) FindBySubAndClientID(sub, clientID string) (*oauth.User, error) {
 	var u oauth.User
 	err := r.DB().Joins("JOIN user_identities ON user_identities.user_id = users.user_id").

@@ -15,12 +15,13 @@ type TenantRepositoryGetFilter struct {
 	Description *string
 	Identifier  *string
 	Status      []string
-	IsPublic    *bool
 	IsSystem    *bool
-	Page        int
-	Limit       int
-	SortBy      string
-	SortOrder   string
+	// TenantIDs, when non-empty, restricts results to these tenant IDs.
+	TenantIDs []int64
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
 }
 
 type TenantRepository interface {
@@ -99,11 +100,11 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}
-	if filter.IsPublic != nil {
-		query = query.Where("is_public = ?", *filter.IsPublic)
-	}
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)
+	}
+	if len(filter.TenantIDs) > 0 {
+		query = query.Where("tenant_id IN ?", filter.TenantIDs)
 	}
 
 	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))

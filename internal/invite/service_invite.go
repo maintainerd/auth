@@ -75,6 +75,8 @@ func (s *inviteService) SendInvite(
 	defer span.End()
 
 	var invite *Invite
+	var authFlowDestination string
+	var authFlowIdentifier string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		clientRepo := s.clientRepo.WithTx(tx)
@@ -126,10 +128,22 @@ func (s *inviteService) SendInvite(
 			}
 			invite.AuthFlowID = &authFlow.AuthFlowID
 
-			// Privilege escalation guard: inviter must possess all roles the auth flow grants.
+			authFlowDestination = authFlow.Destination
+			authFlowIdentifier = authFlow.Identifier
+		} else {
+			defaultAuthFlow, err := authFlowRepo.FindByNameAndTenantID("system:onboarding:registered", systemTenantID)
+			if err == nil && defaultAuthFlow != nil {
+				invite.AuthFlowID = &defaultAuthFlow.AuthFlowID
+				authFlowDestination = defaultAuthFlow.Destination
+				authFlowIdentifier = defaultAuthFlow.Identifier
+			}
+		}
+
+		if invite.AuthFlowID != nil {
+			authFlowID := *invite.AuthFlowID
 			var flowRoleIDs []int64
 			if err := tx.Table("auth_flow_roles").
-				Where("auth_flow_id = ?", authFlow.AuthFlowID).
+				Where("auth_flow_id = ?", authFlowID).
 				Pluck("role_id", &flowRoleIDs).Error; err != nil {
 				return err
 			}
@@ -160,15 +174,27 @@ func (s *inviteService) SendInvite(
 	}
 
 	// Generate signed invite URL (API domain)
-	params := map[string]string{"invite_token": invite.InviteToken}
+	params := map[string]string{
+		"invite_token": invite.InviteToken,
+		"email":        invite.InvitedEmail,
+	}
+	if authFlowIdentifier != "" {
+		params["auth_flow"] = authFlowIdentifier
+	}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
 	if err != nil {
 		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
 	}
 
-	// Convert it to frontend URL
-	frontendBaseURL := config.AccountHostname + "/register/invite"
+	// Convert it to frontend URL — choose hostname based on auth flow's destination
+	var frontendBaseURL string
+	switch authFlowDestination {
+	case shared.DestinationConsole:
+		frontendBaseURL = config.AppFrontendConsoleHostname + "/register/invite"
+	default:
+		frontendBaseURL = config.AppFrontendIdentityHostname + "/register/invite"
+	}
 	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to convert invite URL", err)
@@ -208,13 +234,29 @@ func (s *inviteService) ResendInvite(
 		return nil, err
 	}
 
-	params := map[string]string{"invite_token": inviteToken}
+	params := map[string]string{
+		"invite_token": inviteToken,
+		"email":        existing.InvitedEmail,
+	}
+	var frontendBaseURL string
+	var authFlowIdentifier string
+	if existing.AuthFlowID != nil {
+		authFlow, afErr := s.authFlowRepo.FindByID(*existing.AuthFlowID)
+		if afErr == nil && authFlow != nil {
+			authFlowIdentifier = authFlow.Identifier
+			if authFlow.Destination == shared.DestinationConsole {
+				frontendBaseURL = config.AppFrontendConsoleHostname + "/register/invite"
+			}
+		}
+	}
+	if frontendBaseURL == "" {
+		frontendBaseURL = config.AppFrontendIdentityHostname + "/register/invite"
+	}
+	if authFlowIdentifier != "" {
+		params["auth_flow"] = authFlowIdentifier
+	}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
-	if err != nil {
-		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
-	}
-	frontendBaseURL := config.AccountHostname + "/register/invite"
 	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to convert invite URL", err)
@@ -233,7 +275,12 @@ func (s *inviteService) ResendInvite(
 }
 
 func (s *inviteService) sendInviteEmail(ctx context.Context, tenantID int64, to, inviteURL string) error {
-	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:invite")
+	var templateEntity *branding.EmailTemplate
+	var err error
+	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID("internal:user:invite", tenantID)
+	if err != nil || templateEntity == nil {
+		templateEntity, err = s.emailTemplateRepo.FindByName("internal:user:invite")
+	}
 	if err != nil {
 		return apperror.NewInternal("failed to fetch invite email template", err)
 	}

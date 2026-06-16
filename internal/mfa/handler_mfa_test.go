@@ -27,6 +27,8 @@ const mfaTestUserID int64 = 42
 var (
 	mfaTestUserUUID       = uuid.MustParse("00000000-0000-0000-0000-000000000042")
 	mfaTestCredentialUUID = uuid.MustParse("00000000-0000-0000-0000-000000000099")
+	mfaTestTenantID       = int64(1)
+	mfaTestTenantUUID     = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 )
 
 type mockMFAService struct {
@@ -143,14 +145,14 @@ func (m *mockMFAService) StepUpTTLSeconds(ctx context.Context, userID int64) int
 	return 300
 }
 
-func (m *mockMFAService) AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error {
+func (m *mockMFAService) AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64, tenantID int64) error {
 	if m.adminResetMFAFn != nil {
 		return m.adminResetMFAFn(ctx, targetUserUUID, actorUserID)
 	}
 	return nil
 }
 
-func (m *mockMFAService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64) error {
+func (m *mockMFAService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, method string, actorUserID int64, tenantID int64) error {
 	if m.adminResetMFAMethodFn != nil {
 		return m.adminResetMFAMethodFn(ctx, targetUserUUID, method, actorUserID)
 	}
@@ -891,7 +893,8 @@ func authenticatedMFARequestWithParam(t *testing.T, method, path string, body an
 
 func withMFAUser(req *http.Request) *http.Request {
 	user := &authctx.AuthUser{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}
-	return middleware.WithAuthContext(req, &authctx.AuthContext{User: user})
+	tenant := &authctx.AuthTenant{TenantID: mfaTestTenantID, TenantUUID: mfaTestTenantUUID}
+	return middleware.WithAuthContext(req, &authctx.AuthContext{User: user, Tenant: tenant})
 }
 
 func TestMFAHandler_RequireStepUpOrEnrolledMFA(t *testing.T) {

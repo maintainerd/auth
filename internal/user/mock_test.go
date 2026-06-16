@@ -190,6 +190,27 @@ func (m *mockUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*Us
 	if m.findByEmailAndTenantIDFn != nil {
 		return m.findByEmailAndTenantIDFn(email, tenantID)
 	}
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(email)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByUsernameAndTenantID(username string, tenantID int64) (*User, error) {
+	if m.findByUsernameFn != nil {
+		return m.findByUsernameFn(username)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error) {
+	if m.findByPhoneFn != nil {
+		return m.findByPhoneFn(phone)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error) {
+	if m.findByPendingEmailFn != nil {
+		return m.findByPendingEmailFn(email)
+	}
 	return nil, nil
 }
 func (m *mockUserRepo) FindByPhone(phone string) (*User, error) {
@@ -634,6 +655,7 @@ type mockUserService struct {
 	findBySubAndClientIDFn func(string, string) (*User, error)
 	forcePasswordChangeFn  func(uuid.UUID, bool) error
 	getUserMFAFn           func(uuid.UUID, int64) (*UserMFAResponseDTO, error)
+	ensureUserInTenantFn   func(uuid.UUID, int64) (int64, error)
 }
 
 func (m *mockUserService) Get(_ context.Context, f UserServiceGetFilter) (*UserServiceGetResult, error) {
@@ -729,7 +751,7 @@ func (m *mockUserService) FindBySubAndClientID(_ context.Context, sub string, cl
 	}
 	return nil, nil
 }
-func (m *mockUserService) ForcePasswordChange(_ context.Context, userUUID uuid.UUID, force bool) error {
+func (m *mockUserService) ForcePasswordChange(_ context.Context, userUUID uuid.UUID, tenantID int64, force bool) error {
 	if m.forcePasswordChangeFn != nil {
 		return m.forcePasswordChangeFn(userUUID, force)
 	}
@@ -740,6 +762,13 @@ func (m *mockUserService) GetUserMFA(_ context.Context, userUUID uuid.UUID, tena
 		return m.getUserMFAFn(userUUID, tenantID)
 	}
 	return &UserMFAResponseDTO{}, nil
+}
+
+func (m *mockUserService) EnsureUserInTenant(_ context.Context, userUUID uuid.UUID, tenantID int64) (int64, error) {
+	if m.ensureUserInTenantFn != nil {
+		return m.ensureUserInTenantFn(userUUID, tenantID)
+	}
+	return 0, nil
 }
 
 type mockProfileService struct {

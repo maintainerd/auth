@@ -16,14 +16,15 @@ import (
 
 type AuthFlowServiceDataResult struct {
 	AuthFlowUUID uuid.UUID
-	Name           string
-	Description    string
-	Identifier     string
-	Status         string
-	ClientUUID     uuid.UUID
-	BrandingUUID   *uuid.UUID
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	Name         string
+	Description  string
+	Identifier   string
+	Destination string
+	Status       string
+	ClientUUID   uuid.UUID
+	BrandingUUID *uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type AuthFlowCallbackURIServiceDataResult struct {
@@ -53,14 +54,14 @@ type AuthFlowServiceListResult struct {
 type AuthFlowRoleServiceDataResult struct {
 	AuthFlowRoleUUID uuid.UUID
 	AuthFlowUUID     uuid.UUID
-	RoleUUID           uuid.UUID
-	RoleName           string
-	RoleDescription    string
-	RoleStatus         string
-	RoleIsDefault      bool
-	RoleIsSystem       bool
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	RoleUUID         uuid.UUID
+	RoleName         string
+	RoleDescription  string
+	RoleStatus       string
+	RoleIsDefault    bool
+	RoleIsSystem     bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type AuthFlowRoleServiceListResult struct {
@@ -74,7 +75,7 @@ type AuthFlowRoleServiceListResult struct {
 type AuthFlowService interface {
 	GetAll(ctx context.Context, tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*AuthFlowServiceListResult, error)
 	GetByUUID(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64) (*AuthFlowServiceDataResult, error)
-	Create(ctx context.Context, tenantID int64, name, description, status string, ClientUUID uuid.UUID, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name, description, status, destination string, ClientUUID uuid.UUID, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error)
 	Update(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64, name, description, status string, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error)
 	UpdateStatus(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64, status string) (*AuthFlowServiceDataResult, error)
 	Delete(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64) (*AuthFlowServiceDataResult, error)
@@ -141,6 +142,9 @@ func (s *authFlowService) syncRoles(tx *gorm.DB, authFlow *AuthFlow, roleUUIDs [
 		role, err := txRoleRepo.FindByUUID(ru)
 		if err != nil || role == nil {
 			return apperror.NewNotFoundWithReason("role not found: " + ru.String())
+		}
+		if role.TenantID != authFlow.TenantID {
+			return apperror.NewForbidden("role does not belong to the same tenant as the auth flow")
 		}
 		desired[role.RoleID] = true
 	}
@@ -226,6 +230,9 @@ func (s *authFlowService) GetAll(ctx context.Context, tenantID int64, name, iden
 		if err != nil || Client == nil {
 			return nil, apperror.NewNotFoundWithReason("auth client not found")
 		}
+		if Client.TenantID != tenantID {
+			return nil, apperror.NewForbidden("client does not belong to your tenant")
+		}
 		ClientID = &Client.ClientID
 	}
 
@@ -278,7 +285,7 @@ func (s *authFlowService) GetByUUID(ctx context.Context, authFlowUUID uuid.UUID,
 	return toAuthFlowServiceDataResult(authFlow), nil
 }
 
-func (s *authFlowService) Create(ctx context.Context, tenantID int64, name, description, status string, ClientUUID uuid.UUID, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error) {
+func (s *authFlowService) Create(ctx context.Context, tenantID int64, name, description, status, destination string, ClientUUID uuid.UUID, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "authFlow.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
@@ -294,9 +301,12 @@ func (s *authFlowService) Create(ctx context.Context, tenantID int64, name, desc
 		if err != nil || Client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found")
 		}
+		if Client.TenantID != tenantID {
+			return apperror.NewForbidden("client does not belong to your tenant")
+		}
 
 		// Check if name already exists
-		existingName, err := txAuthFlowRepo.FindByName(name)
+		existingName, err := txAuthFlowRepo.FindByNameAndTenantID(name, tenantID)
 		if err != nil {
 			return err
 		}
@@ -328,13 +338,14 @@ func (s *authFlowService) Create(ctx context.Context, tenantID int64, name, desc
 
 		// Create auth flow
 		authFlow := &AuthFlow{
-			TenantID:    tenantID,
-			Name:        name,
-			Description: description,
-			Identifier:  identifier,
-			Status:      status,
-			ClientID:    &Client.ClientID,
-			BrandingID:  brandingID,
+			TenantID:     tenantID,
+			Name:         name,
+			Description:  description,
+			Identifier:   identifier,
+			Destination: destination,
+			Status:       status,
+			ClientID:     &Client.ClientID,
+			BrandingID:   brandingID,
 		}
 
 		created, err := txAuthFlowRepo.Create(authFlow)
@@ -386,7 +397,7 @@ func (s *authFlowService) Update(ctx context.Context, authFlowUUID uuid.UUID, te
 
 		// Check if name is being changed and if it conflicts
 		if name != authFlow.Name {
-			existingName, err := txAuthFlowRepo.FindByName(name)
+			existingName, err := txAuthFlowRepo.FindByNameAndTenantID(name, tenantID)
 			if err != nil {
 				return err
 			}
@@ -498,6 +509,10 @@ func (s *authFlowService) Delete(ctx context.Context, authFlowUUID uuid.UUID, te
 		return nil, apperror.NewConflict("cannot delete auth flow that is referenced by pending invites")
 	}
 
+	if authFlow.IsSystem {
+		return nil, apperror.NewValidation("cannot delete system auth flow")
+	}
+
 	result := toAuthFlowServiceDataResult(authFlow)
 
 	err = s.authFlowRepo.DeleteByUUID(authFlowUUID)
@@ -528,14 +543,15 @@ func toAuthFlowServiceDataResult(sf *AuthFlow) *AuthFlowServiceDataResult {
 
 	return &AuthFlowServiceDataResult{
 		AuthFlowUUID: sf.AuthFlowUUID,
-		Name:           sf.Name,
-		Description:    sf.Description,
-		Identifier:     sf.Identifier,
-		Status:         sf.Status,
-		ClientUUID:     ClientUUID,
-		BrandingUUID:   brandingUUID,
-		CreatedAt:      sf.CreatedAt,
-		UpdatedAt:      sf.UpdatedAt,
+		Name:         sf.Name,
+		Description:  sf.Description,
+		Identifier:   sf.Identifier,
+		Destination: sf.Destination,
+		Status:       sf.Status,
+		ClientUUID:   ClientUUID,
+		BrandingUUID: brandingUUID,
+		CreatedAt:    sf.CreatedAt,
+		UpdatedAt:    sf.UpdatedAt,
 	}
 }
 
@@ -563,6 +579,9 @@ func (s *authFlowService) AssignRoles(ctx context.Context, authFlowUUID uuid.UUI
 			if err != nil || role == nil {
 				return apperror.NewNotFoundWithReason("role not found: " + roleUUID.String())
 			}
+			if role.TenantID != authFlow.TenantID {
+				return apperror.NewForbidden("role does not belong to the same tenant as the auth flow")
+			}
 
 			// Check if already assigned
 			existing, err := txAuthFlowRoleRepo.FindByAuthFlowIDAndRoleID(authFlow.AuthFlowID, role.RoleID)
@@ -576,7 +595,7 @@ func (s *authFlowService) AssignRoles(ctx context.Context, authFlowUUID uuid.UUI
 			// Create signup flow role
 			authFlowRole := &AuthFlowRole{
 				AuthFlowID: authFlow.AuthFlowID,
-				RoleID:       role.RoleID,
+				RoleID:     role.RoleID,
 			}
 
 			created, err := txAuthFlowRoleRepo.Create(authFlowRole)
@@ -587,14 +606,14 @@ func (s *authFlowService) AssignRoles(ctx context.Context, authFlowUUID uuid.UUI
 			assignedRoles = append(assignedRoles, AuthFlowRoleServiceDataResult{
 				AuthFlowRoleUUID: created.AuthFlowRoleUUID,
 				AuthFlowUUID:     authFlow.AuthFlowUUID,
-				RoleUUID:           role.RoleUUID,
-				RoleName:           role.Name,
-				RoleDescription:    role.Description,
-				RoleStatus:         role.Status,
-				RoleIsDefault:      role.IsDefault,
-				RoleIsSystem:       role.IsSystem,
-				CreatedAt:          created.CreatedAt,
-				UpdatedAt:          role.UpdatedAt,
+				RoleUUID:         role.RoleUUID,
+				RoleName:         role.Name,
+				RoleDescription:  role.Description,
+				RoleStatus:       role.Status,
+				RoleIsDefault:    role.IsDefault,
+				RoleIsSystem:     role.IsSystem,
+				CreatedAt:        created.CreatedAt,
+				UpdatedAt:        role.UpdatedAt,
 			})
 		}
 
@@ -635,14 +654,14 @@ func (s *authFlowService) GetRoles(ctx context.Context, authFlowUUID uuid.UUID, 
 			roles[i] = AuthFlowRoleServiceDataResult{
 				AuthFlowRoleUUID: sfr.AuthFlowRoleUUID,
 				AuthFlowUUID:     authFlow.AuthFlowUUID,
-				RoleUUID:           sfr.Role.RoleUUID,
-				RoleName:           sfr.Role.Name,
-				RoleDescription:    sfr.Role.Description,
-				RoleStatus:         sfr.Role.Status,
-				RoleIsDefault:      sfr.Role.IsDefault,
-				RoleIsSystem:       sfr.Role.IsSystem,
-				CreatedAt:          sfr.CreatedAt,
-				UpdatedAt:          sfr.Role.UpdatedAt,
+				RoleUUID:         sfr.Role.RoleUUID,
+				RoleName:         sfr.Role.Name,
+				RoleDescription:  sfr.Role.Description,
+				RoleStatus:       sfr.Role.Status,
+				RoleIsDefault:    sfr.Role.IsDefault,
+				RoleIsSystem:     sfr.Role.IsSystem,
+				CreatedAt:        sfr.CreatedAt,
+				UpdatedAt:        sfr.Role.UpdatedAt,
 			}
 		}
 	}

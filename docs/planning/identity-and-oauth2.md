@@ -96,7 +96,7 @@ session) is separate from, and prior to, the OAuth2 code flow.** ✅
 - **Service** `service_invite.go` → `SendInvite(ctx, tenantID, email, userID, roleUUIDs)`:
   - tx: validate system client, validate roles belong to tenant, create `invite` + `invite_roles`.
   - **signed URL:** `signedurl.GenerateSignedURL(AppPrivateHostname + "/register/invite", {invite_token}, 72h)`
-    → `signedurl.ConvertToFrontendURL(…, AccountHostname + "/register/invite")`.
+    → `signedurl.ConvertToFrontendURL(…, AppFrontendIdentityHostname + "/register/invite")`.
   - sends email via template `internal:user:invite`.
   - **Signature only accepts email + roleUUIDs — no redirect/template parameter.**
 - **Repo** `repository_invite.go`: `FindByToken` (roles preloaded), `MarkAsUsed` (→ accepted +
@@ -201,7 +201,7 @@ Result: user registered with the right roles, dev app receives tokens, lands on 
   → backend: create invite (status=pending, token, 72h, auth_flow_id nullable). NO invite_roles.
        • with auth_flow  → its roles/branding/client/redirect apply on accept
        • without auth_flow → default registered role only, active branding, no redirect
-  → email with SIGNED URL → {AccountHostname}/register/invite?invite_token=…&expires=…&sig=…
+  → email with SIGNED URL → {AppFrontendIdentityHostname}/register/invite?invite_token=…&expires=…&sig=…
 
 [email] Invited user clicks link
   → opens auth-identity onboarding page (public app)

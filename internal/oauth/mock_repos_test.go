@@ -354,6 +354,12 @@ func (m *mockUserRepo) FindByEmail(email string) (*User, error) {
 	}
 	return nil, nil
 }
+func (m *mockUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*User, error) {
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(email)
+	}
+	return nil, nil
+}
 func (m *mockUserRepo) FindBySubAndClientID(sub, clientID string) (*User, error) {
 	if m.findBySubAndClientIDFn != nil {
 		return m.findBySubAndClientIDFn(sub, clientID)
@@ -498,7 +504,7 @@ type mockOAuthAuthorizeService struct {
 	handleConsentFn       func(context.Context, OAuthConsentDecisionDTO, int64) (*OAuthConsentDecisionResult, *apperror.OAuthError)
 }
 
-func (m *mockOAuthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+func (m *mockOAuthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
 	if m.authorizeFn != nil {
 		return m.authorizeFn(ctx, req, userID)
 	}

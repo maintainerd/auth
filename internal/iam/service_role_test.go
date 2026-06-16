@@ -1203,11 +1203,14 @@ func TestValidateTenantAccess(t *testing.T) {
 		{name: "no identities", actor: &User{UserID: 1}, target: target, wantErr: "no identities"},
 		{name: "same tenant", actor: roleActorUser(tenantID), target: target},
 		{
-			name: "system tenant identity",
+			// Lockdown: a system-tenant identity does NOT grant cross-tenant
+			// access here. The system override is confined to the tenant package.
+			name: "system tenant identity denied cross-tenant",
 			actor: &User{UserID: 1, UserIdentities: []UserIdentity{
 				{TenantID: 99, Tenant: &Tenant{TenantID: 99, IsSystem: true}},
 			}},
-			target: target,
+			target:  target,
+			wantErr: "tenant access denied",
 		},
 		{
 			name: "denied",

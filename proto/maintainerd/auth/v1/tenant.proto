@@ -15,7 +15,6 @@ service TenantService {
   rpc CreateTenant(TenantServiceCreateTenantRequest) returns (TenantServiceCreateTenantResponse);
   rpc UpdateTenant(TenantServiceUpdateTenantRequest) returns (TenantServiceUpdateTenantResponse);
   rpc SetTenantStatus(SetTenantStatusRequest) returns (SetTenantStatusResponse);
-  rpc SetTenantPublic(SetTenantPublicRequest) returns (SetTenantPublicResponse);
   rpc DeleteTenant(DeleteTenantRequest) returns (DeleteTenantResponse);
   rpc ListTenantMembers(ListTenantMembersRequest) returns (ListTenantMembersResponse);
   rpc AddTenantMember(AddTenantMemberRequest) returns (AddTenantMemberResponse);
@@ -41,7 +40,6 @@ message Tenant {
   string description = 4;
   string identifier = 5;
   string status = 6;
-  bool is_public = 7;
   bool is_system = 8;
   google.protobuf.Struct metadata = 9;
   google.protobuf.Timestamp created_at = 10;
@@ -106,7 +104,6 @@ message ListTenantsRequest {
   string description = 3;
   string identifier = 4;
   repeated string status = 5;
-  optional bool is_public = 6;
   optional bool is_system = 7;
   Pagination pagination = 8;
 }
@@ -129,7 +126,6 @@ message TenantServiceCreateTenantRequest {
   string display_name = 2;
   string description = 3;
   string status = 4;
-  bool is_public = 5;
 }
 
 message TenantServiceCreateTenantResponse {
@@ -142,7 +138,6 @@ message TenantServiceUpdateTenantRequest {
   string display_name = 3;
   string description = 4;
   string status = 5;
-  bool is_public = 6;
 }
 
 message TenantServiceUpdateTenantResponse {
@@ -155,14 +150,6 @@ message SetTenantStatusRequest {
 }
 
 message SetTenantStatusResponse {
-  Tenant tenant = 1;
-}
-
-message SetTenantPublicRequest {
-  string tenant_uuid = 1;
-}
-
-message SetTenantPublicResponse {
   Tenant tenant = 1;
 }
 

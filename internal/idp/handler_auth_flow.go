@@ -167,6 +167,11 @@ func (h *AuthFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 		status = *req.Status
 	}
 
+	destination := req.Destination
+	if destination == "" {
+		destination = shared.DestinationIdentity
+	}
+
 	// Create signup flow
 	authFlow, err := h.authFlowService.Create(
 		r.Context(),
@@ -174,6 +179,7 @@ func (h *AuthFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.Name,
 		req.Description,
 		status,
+		destination,
 		ClientUUID,
 		brandingUUID,
 		parseUUIDList(req.RoleIDs),
@@ -515,13 +521,14 @@ func (h *AuthFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 func toAuthFlowResponseDTO(sf AuthFlowServiceDataResult) AuthFlowResponseDTO {
 	dto := AuthFlowResponseDTO{
 		AuthFlowUUID: sf.AuthFlowUUID.String(),
-		Name:           sf.Name,
-		Description:    sf.Description,
-		Identifier:     sf.Identifier,
-		Status:         sf.Status,
-		ClientUUID:     sf.ClientUUID.String(),
-		CreatedAt:      sf.CreatedAt,
-		UpdatedAt:      sf.UpdatedAt,
+		Name:         sf.Name,
+		Description:  sf.Description,
+		Identifier:   sf.Identifier,
+		Destination: sf.Destination,
+		Status:       sf.Status,
+		ClientUUID:   sf.ClientUUID.String(),
+		CreatedAt:    sf.CreatedAt,
+		UpdatedAt:    sf.UpdatedAt,
 	}
 	if sf.BrandingUUID != nil {
 		dto.BrandingUUID = sf.BrandingUUID.String()

@@ -42,10 +42,13 @@ type UserRepository interface {
 	WithTx(tx *gorm.DB) UserRepository
 	FindByUsername(username string) (*User, error)
 	FindByEmail(email string) (*User, error)
-	// FindByEmailAndTenantID finds a user by email scoped to a specific tenant
-	// via user_identities. Use this in preference to FindByEmail whenever a
-	// tenantID is available to avoid cross-tenant data leakage.
+	// Tenant-scoped lookups. Users are isolated per tenant (email/username are
+	// unique per tenant), so these MUST be used wherever a tenant is known —
+	// the unscoped variants above can match the wrong tenant's user.
 	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
+	FindByUsernameAndTenantID(username string, tenantID int64) (*User, error)
+	FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error)
+	FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindByPhone(phone string) (*User, error)
 	FindSuperAdmin() (*User, error)
 	FindRoles(userID int64) ([]Role, error)
@@ -115,8 +118,55 @@ func (r *userRepository) FindByEmail(email string) (*User, error) {
 func (r *userRepository) FindByEmailAndTenantID(email string, tenantID int64) (*User, error) {
 	var user User
 	err := r.DB().
-		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
-		Where("users.email = ? AND user_identities.tenant_id = ?", email, tenantID).
+		Where("email = ? AND tenant_id = ?", email, tenantID).
+		First(&user).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) FindByUsernameAndTenantID(username string, tenantID int64) (*User, error) {
+	var user User
+	err := r.DB().
+		Where("username = ? AND tenant_id = ?", username, tenantID).
+		First(&user).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error) {
+	var user User
+	err := r.DB().
+		Where("phone = ? AND tenant_id = ?", phone, tenantID).
+		First(&user).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error) {
+	var user User
+	err := r.DB().
+		Where("pending_email = ? AND tenant_id = ?", email, tenantID).
 		First(&user).Error
 
 	if err != nil {

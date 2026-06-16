@@ -160,6 +160,7 @@ type AuthFlowResponseDTO struct {
 	Name         string    `json:"name"`
 	Description  string    `json:"description"`
 	Identifier   string    `json:"identifier"`
+	Destination string    `json:"destination"`
 	Status       string    `json:"status"`
 	ClientUUID   string    `json:"client_id,omitempty"`
 	BrandingUUID string    `json:"branding_id,omitempty"`
@@ -171,6 +172,7 @@ type AuthFlowResponseDTO struct {
 type AuthFlowCreateRequestDTO struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
+	Destination string   `json:"destination"`
 	Status       *string  `json:"status,omitempty"`
 	ClientUUID   string   `json:"client_id"`
 	BrandingUUID *string  `json:"branding_id,omitempty"`
@@ -212,9 +214,9 @@ type AuthFlowFilterDTO struct {
 type AuthFlowRoleResponseDTO struct {
 	AuthFlowRoleUUID string    `json:"auth_flow_role_id"`
 	AuthFlowUUID     string    `json:"auth_flow_id"`
-	RoleUUID           string    `json:"role_id"`
-	RoleName           string    `json:"role_name,omitempty"`
-	CreatedAt          time.Time `json:"created_at"`
+	RoleUUID         string    `json:"role_id"`
+	RoleName         string    `json:"role_name,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 // Assign roles to signup flow request dto
@@ -255,7 +257,6 @@ type TenantResponseDTO struct {
 	Description string    `json:"description"`
 	Identifier  string    `json:"identifier"`
 	Status      string    `json:"status"`
-	IsPublic    bool      `json:"is_public"`
 	IsSystem    bool      `json:"is_system,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

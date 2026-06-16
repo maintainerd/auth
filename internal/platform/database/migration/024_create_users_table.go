@@ -11,6 +11,7 @@ func CreateUserTable(db *gorm.DB) error {
 CREATE TABLE IF NOT EXISTS users (
     user_id                     BIGSERIAL PRIMARY KEY,
     user_uuid                   UUID NOT NULL UNIQUE,
+    tenant_id                   BIGINT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     username                    VARCHAR(255) NOT NULL,
     email                       VARCHAR(255),
     phone                       VARCHAR(20),
@@ -40,8 +41,11 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_users_uuid ON users (user_uuid);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username) WHERE deleted_at IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (email) WHERE deleted_at IS NULL AND email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users (tenant_id);
+-- Tenant-scoped uniqueness: users are isolated per tenant, so the same email
+-- or username may exist independently in different tenants ("separate worlds").
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_tenant_username ON users (tenant_id, username) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_tenant_email ON users (tenant_id, email) WHERE deleted_at IS NULL AND email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users (phone);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users (deleted_at) WHERE deleted_at IS NULL;

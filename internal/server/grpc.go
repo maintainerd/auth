@@ -244,7 +244,6 @@ func (r idpTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 		Description: t.Description,
 		Identifier:  t.Identifier,
 		Status:      t.Status,
-		IsPublic:    t.IsPublic,
 		IsSystem:    t.IsSystem,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
@@ -268,7 +267,6 @@ func (r clientTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUI
 		Description: t.Description,
 		Identifier:  t.Identifier,
 		Status:      t.Status,
-		IsPublic:    t.IsPublic,
 		IsSystem:    t.IsSystem,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
@@ -292,7 +290,6 @@ func (r userTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID)
 		Description: t.Description,
 		Identifier:  t.Identifier,
 		Status:      t.Status,
-		IsPublic:    t.IsPublic,
 		IsSystem:    t.IsSystem,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
@@ -321,7 +318,7 @@ func (r secpolicyTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.
 	return &secpolicy.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
-		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}, nil
 }
 
@@ -335,7 +332,7 @@ func (r brandingTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.U
 	return &branding.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
-		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}, nil
 }
 
@@ -349,7 +346,7 @@ func (r notifierTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.U
 	return &notifier.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
-		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}, nil
 }
 
@@ -363,7 +360,7 @@ func (r webhookTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UU
 	return &webhook.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
-		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}, nil
 }
 
@@ -377,6 +374,6 @@ func (r autheventTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.
 	return &authevent.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
-		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}, nil
 }

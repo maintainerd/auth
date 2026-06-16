@@ -56,8 +56,8 @@ func TestSendMagicLink(t *testing.T) {
 		mock.ExpectCommit()
 
 		config.AppPublicHostname = "http://localhost"
-		config.AccountHostname = "http://localhost"
-		config.AuthHostname = "http://localhost"
+		config.AppFrontendIdentityHostname = "http://localhost"
+		config.AppFrontendConsoleHostname = "http://localhost"
 
 		origSendEmail := email.SendEmail
 		email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
@@ -490,7 +490,7 @@ func TestSendMagicLink_DefaultClient(t *testing.T) {
 	mock.ExpectCommit()
 
 	config.AppPublicHostname = "http://localhost"
-	config.AccountHostname = "http://localhost"
+	config.AppFrontendIdentityHostname = "http://localhost"
 
 	origSendEmail := email.SendEmail
 	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
@@ -688,8 +688,8 @@ func TestSendMagicLink_Internal(t *testing.T) {
 	mock.ExpectCommit()
 
 	config.AppPublicHostname = "http://localhost"
-	config.AccountHostname = "http://localhost"
-	config.AuthHostname = "http://localhost"
+	config.AppFrontendIdentityHostname = "http://localhost"
+	config.AppFrontendConsoleHostname = "http://localhost"
 
 	origSendEmail := email.SendEmail
 	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }
@@ -1352,9 +1352,9 @@ func TestSendMagicLink_ConvertToFrontendURLError(t *testing.T) {
 	mock.ExpectCommit()
 
 	config.AppPublicHostname = "http://localhost"
-	origAccount := config.AccountHostname
-	config.AccountHostname = "://invalid-url"
-	defer func() { config.AccountHostname = origAccount }()
+	origAccount := config.AppFrontendIdentityHostname
+	config.AppFrontendIdentityHostname = "://invalid-url"
+	defer func() { config.AppFrontendIdentityHostname = origAccount }()
 
 	origSendEmail := email.SendEmail
 	email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error { return nil }

@@ -10,6 +10,7 @@ func CreateServiceTable(db *gorm.DB) error {
 CREATE TABLE IF NOT EXISTS services (
     service_id      BIGSERIAL PRIMARY KEY,
     service_uuid    UUID NOT NULL UNIQUE,
+    tenant_id       BIGINT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     name            VARCHAR(100) NOT NULL,
     display_name    TEXT NOT NULL,
     description     TEXT NOT NULL,
@@ -25,7 +26,9 @@ CREATE TABLE IF NOT EXISTS services (
 
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_services_uuid ON services (service_uuid);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_services_name ON services (name) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_services_tenant_id ON services (tenant_id);
+-- Services are tenant-scoped: name is unique per tenant, not globally.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_services_tenant_name ON services (tenant_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_services_display_name ON services (display_name);
 CREATE INDEX IF NOT EXISTS idx_services_status ON services (status);
 CREATE INDEX IF NOT EXISTS idx_services_is_system ON services (is_system);

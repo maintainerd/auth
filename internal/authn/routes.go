@@ -149,6 +149,9 @@ func RegisterRoute(r chi.Router, registerHandler *RegisterHandler) {
 
 		// Internal registration (no client_id/provider_id required)
 		r.Post("/register", registerHandler.Register)
+
+		// Internal registration with invite
+		r.Post("/register/invite", registerHandler.RegisterInvite)
 	})
 }
 

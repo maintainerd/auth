@@ -802,8 +802,15 @@ func TestUserHandler_GetUserIdentities(t *testing.T) {
 }
 
 func TestUserHandler_ForcePasswordChange(t *testing.T) {
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withChiParam(httptest.NewRequest(http.MethodPut, "/", nil), "user_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}).ForcePasswordChange(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid UUID returns 400", func(t *testing.T) {
-		r := withChiParam(httptest.NewRequest(http.MethodPut, "/", nil), "user_uuid", "bad")
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPut, "/", nil), "user_uuid", "bad"))
 		w := httptest.NewRecorder()
 		NewUserHandler(&mockUserService{}).ForcePasswordChange(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -813,14 +820,14 @@ func TestUserHandler_ForcePasswordChange(t *testing.T) {
 		svc := &mockUserService{
 			forcePasswordChangeFn: func(uuid.UUID, bool) error { return errors.New("db error") },
 		}
-		r := withChiParam(httptest.NewRequest(http.MethodPut, "/", nil), "user_uuid", testResourceUUID.String())
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPut, "/", nil), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		NewUserHandler(svc).ForcePasswordChange(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		r := withChiParam(httptest.NewRequest(http.MethodPut, "/", nil), "user_uuid", testResourceUUID.String())
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPut, "/", nil), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		NewUserHandler(&mockUserService{}).ForcePasswordChange(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)

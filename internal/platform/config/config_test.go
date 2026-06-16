@@ -16,8 +16,8 @@ func TestInit(t *testing.T) {
 		t.Setenv("APP_VERSION", "1.0.0")
 		t.Setenv("APP_PUBLIC_HOSTNAME", "https://pub.example.com")
 		t.Setenv("APP_PRIVATE_HOSTNAME", "https://priv.example.com")
-		t.Setenv("ACCOUNT_HOSTNAME", "https://account.example.com")
-		t.Setenv("AUTH_HOSTNAME", "https://auth.example.com")
+		t.Setenv("APP_FRONTEND_IDENTITY_HOSTNAME", "https://account.example.com")
+		t.Setenv("APP_FRONTEND_CONSOLE_HOSTNAME", "https://auth.example.com")
 		t.Setenv("JWT_PRIVATE_KEY", "private-key-data")
 		t.Setenv("JWT_PUBLIC_KEY", "public-key-data")
 		t.Setenv("APP_ENCRYPTION_KEY", "12345678901234567890123456789012")
@@ -38,8 +38,8 @@ func TestInit(t *testing.T) {
 		origAppPubHost := AppPublicHostname
 		origAppPrivHost := AppPrivateHostname
 		origManagementPort := ManagementPort
-		origAccountHost := AccountHostname
-		origAuthHost := AuthHostname
+		origAccountHost := AppFrontendIdentityHostname
+		origAuthHost := AppFrontendConsoleHostname
 		origJWTPriv := JWTPrivateKey
 		origJWTPub := JWTPublicKey
 		origDBHost := DBHost
@@ -58,8 +58,8 @@ func TestInit(t *testing.T) {
 			AppPublicHostname = origAppPubHost
 			AppPrivateHostname = origAppPrivHost
 			ManagementPort = origManagementPort
-			AccountHostname = origAccountHost
-			AuthHostname = origAuthHost
+			AppFrontendIdentityHostname = origAccountHost
+			AppFrontendConsoleHostname = origAuthHost
 			JWTPrivateKey = origJWTPriv
 			JWTPublicKey = origJWTPub
 			DBHost = origDBHost
@@ -84,8 +84,8 @@ func TestInit(t *testing.T) {
 		assert.Equal(t, "https://pub.example.com", AppPublicHostname)
 		assert.Equal(t, "https://priv.example.com", AppPrivateHostname)
 		assert.Equal(t, ":8082", ManagementPort)
-		assert.Equal(t, "https://account.example.com", AccountHostname)
-		assert.Equal(t, "https://auth.example.com", AuthHostname)
+		assert.Equal(t, "https://account.example.com", AppFrontendIdentityHostname)
+		assert.Equal(t, "https://auth.example.com", AppFrontendConsoleHostname)
 		assert.Equal(t, []byte("private-key-data"), JWTPrivateKey)
 		assert.Equal(t, []byte("public-key-data"), JWTPublicKey)
 		assert.Equal(t, "localhost", DBHost)
@@ -151,21 +151,21 @@ func TestInit(t *testing.T) {
 	t.Run("missing ACCOUNT_HOSTNAME", func(t *testing.T) {
 		saveGlobals(t)
 		setRequiredEnv(t)
-		t.Setenv("ACCOUNT_HOSTNAME", "")
+		t.Setenv("APP_FRONTEND_IDENTITY_HOSTNAME", "")
 
 		err := Init()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "ACCOUNT_HOSTNAME")
+		assert.Contains(t, err.Error(), "APP_FRONTEND_IDENTITY_HOSTNAME")
 	})
 
 	t.Run("missing AUTH_HOSTNAME", func(t *testing.T) {
 		saveGlobals(t)
 		setRequiredEnv(t)
-		t.Setenv("AUTH_HOSTNAME", "")
+		t.Setenv("APP_FRONTEND_CONSOLE_HOSTNAME", "")
 
 		err := Init()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "AUTH_HOSTNAME")
+		assert.Contains(t, err.Error(), "APP_FRONTEND_CONSOLE_HOSTNAME")
 	})
 
 	t.Run("missing JWT_PRIVATE_KEY", func(t *testing.T) {

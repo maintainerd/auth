@@ -259,7 +259,10 @@ func TestSMSLoginService_RemainingBranches(t *testing.T) {
 		userRepo := &mockUserRepo{findByPhoneFn: func(string) (*User, error) {
 			return &User{UserID: 1, Phone: "+1234567890", Status: shared.StatusActive}, nil
 		}}
-		svc := NewSMSLoginService(nil, userRepo, &mockSMSOtpRepo{}, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, nil)
+		clientRepo := &mockClientRepo{findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+			return &Client{TenantID: 1}, nil
+		}}
+		svc := NewSMSLoginService(nil, userRepo, &mockSMSOtpRepo{}, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, nil)
 
 		err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: "+1234567890"})
 

@@ -13,6 +13,7 @@ type AuthzRequest struct {
 	Principal string `json:"principal"`
 	Action    string `json:"action"`
 	Resource  string `json:"resource"`
+	TenantID  int64  `json:"tenant_id,omitempty"`
 }
 
 const (

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -37,18 +36,21 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 	policyUUID := uuid.New()
 	policy := &Policy{PolicyID: 88, PolicyUUID: policyUUID, TenantID: tenant.TenantID, Name: "auth-control", Version: "v1"}
 
-	newService := func(db *gorm.DB, stateRepo SetupStateRepository, serviceRepo ServiceRepository, policyRepo PolicyRepository, servicePolicyRepo ServicePolicyRepository, tenantRepo *mockTenantRepo) SetupService {
+	newService := func(db *gorm.DB, serviceRepo ServiceRepository, policyRepo PolicyRepository, servicePolicyRepo ServicePolicyRepository, tenantRepo *mockTenantRepo) SetupService {
 		if tenantRepo == nil {
 			tenantRepo = &mockTenantRepo{findSystemFn: func() (*Tenant, error) { return tenant, nil }}
 		}
 		return NewSetupService(db, &mockUserRepo{}, tenantRepo, &mockTenantMemberRepo{}, &mockClientRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
-			stateRepo,
 			ControlRegistrationDeps{ServiceRepo: serviceRepo, PolicyRepo: policyRepo, ServicePolicyRepo: servicePolicyRepo},
 		)
 	}
 
 	t.Run("setup locked", func(t *testing.T) {
-		svc := newService(nil, &mockSetupStateRepo{complete: true}, nil, nil, nil, nil)
+		// Locked = system tenant is marked completed.
+		lockedTenantRepo := &mockTenantRepo{findSystemFn: func() (*Tenant, error) {
+			return &Tenant{TenantID: tenant.TenantID, IsCompleted: true}, nil
+		}}
+		svc := newService(nil, nil, nil, nil, lockedTenantRepo)
 
 		_, err := svc.RegisterControlService(context.Background(), validReq)
 
@@ -57,7 +59,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 	})
 
 	t.Run("missing dependencies", func(t *testing.T) {
-		svc := newService(nil, &mockSetupStateRepo{}, nil, nil, nil, nil)
+		svc := newService(nil, nil, nil, nil, nil)
 
 		_, err := svc.RegisterControlService(context.Background(), validReq)
 
@@ -67,7 +69,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 
 	t.Run("tenant must exist", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{}, &mockPolicyRepo{}, &mockServicePolicyRepo{}, &mockTenantRepo{findSystemFn: func() (*Tenant, error) { return nil, nil }})
+		svc := newService(db, &mockServiceRepo{}, &mockPolicyRepo{}, &mockServicePolicyRepo{}, &mockTenantRepo{findSystemFn: func() (*Tenant, error) { return nil, nil }})
 
 		_, err := svc.RegisterControlService(context.Background(), validReq)
 
@@ -77,7 +79,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 
 	t.Run("tenant lookup error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{}, &mockPolicyRepo{}, &mockServicePolicyRepo{}, &mockTenantRepo{findSystemFn: func() (*Tenant, error) { return nil, assert.AnError }})
+		svc := newService(db, &mockServiceRepo{}, &mockPolicyRepo{}, &mockServicePolicyRepo{}, &mockTenantRepo{findSystemFn: func() (*Tenant, error) { return nil, assert.AnError }})
 
 		_, err := svc.RegisterControlService(context.Background(), validReq)
 
@@ -88,7 +90,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{}, &mockPolicyRepo{
+		svc := newService(db, &mockServiceRepo{}, &mockPolicyRepo{
 			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return nil, assert.AnError },
 		}, &mockServicePolicyRepo{}, nil)
 
@@ -102,7 +104,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{}, &mockPolicyRepo{
+		svc := newService(db, &mockServiceRepo{}, &mockPolicyRepo{
 			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return nil, nil },
 		}, &mockServicePolicyRepo{}, nil)
 
@@ -124,7 +126,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		req := validReq
 		req.Description = &desc
 		req.Version = "v2"
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+		svc := newService(db, &mockServiceRepo{
 			createOrUpdateFn: func(service *Service) (*Service, error) {
 				assert.Equal(t, desc, service.Description)
 				assert.Equal(t, "v2", service.Version)
@@ -160,7 +162,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+		svc := newService(db, &mockServiceRepo{
 			findByNameAndTenantIDFn: func(string, int64) (*Service, error) { return nil, assert.AnError },
 		}, &mockPolicyRepo{
 			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
@@ -176,7 +178,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+		svc := newService(db, &mockServiceRepo{
 			createOrUpdateFn: func(*Service) (*Service, error) { return nil, assert.AnError },
 		}, &mockPolicyRepo{
 			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
@@ -195,7 +197,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 			WithArgs(int64(0), int64(1), int64(77), sqlmock.AnyArg(), sqlmock.AnyArg()).
 			WillReturnError(assert.AnError)
 		mock.ExpectRollback()
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+		svc := newService(db, &mockServiceRepo{
 			createOrUpdateFn: func(service *Service) (*Service, error) {
 				service.ServiceID = 77
 				return service, nil
@@ -214,7 +216,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+		svc := newService(db, &mockServiceRepo{
 			findByNameAndTenantIDFn: func(string, int64) (*Service, error) {
 				return &Service{ServiceID: 77, ServiceUUID: uuid.New(), Name: "core", DisplayName: "Core"}, nil
 			},
@@ -234,7 +236,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+		svc := newService(db, &mockServiceRepo{
 			findByNameAndTenantIDFn: func(string, int64) (*Service, error) {
 				return &Service{ServiceID: 77, ServiceUUID: uuid.New(), Name: "core", DisplayName: "Core"}, nil
 			},
@@ -255,7 +257,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		serviceUUID := uuid.New()
-		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+		svc := newService(db, &mockServiceRepo{
 			findByNameAndTenantIDFn: func(name string, tenantID int64) (*Service, error) {
 				assert.Equal(t, "core", name)
 				assert.Equal(t, int64(1), tenantID)
@@ -425,13 +427,15 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 		assert.False(t, res.IsSetupComplete)
 	})
 
-	t.Run("setup complete from persisted lock", func(t *testing.T) {
+	t.Run("setup complete when system tenant is completed", func(t *testing.T) {
 		svc := NewSetupService(nil,
 			&mockUserRepo{},
-			&mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, nil }},
+			&mockTenantRepo{
+				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
+				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, IsCompleted: true}, nil },
+			},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
-			&mockSetupStateRepo{complete: true},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -446,7 +450,6 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 			&mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, nil }},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
-			&mockSetupStateRepo{},
 		)
 
 		_, err := svc.CompleteSetup(context.Background())
@@ -454,32 +457,38 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 		assert.Contains(t, err.Error(), "tenant, admin, and profile setup")
 	})
 
-	t.Run("marks persisted lock when bootstrap is ready", func(t *testing.T) {
-		stateRepo := &mockSetupStateRepo{}
+	t.Run("marks system tenant completed when bootstrap is ready", func(t *testing.T) {
+		var saved *Tenant
 		svc := NewSetupService(nil,
 			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return &User{UserID: 1}, nil }},
 			&mockTenantRepo{
 				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
 				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1}, nil },
+				createOrUpdateFn: func(t *Tenant) (*Tenant, error) {
+					saved = t
+					return t, nil
+				},
 			},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{},
 			&mockProfileRepo{findByUserIDFn: func(_ int64) (*Profile, error) { return &Profile{ProfileID: 1}, nil }},
-			stateRepo,
 		)
 
 		res, err := svc.CompleteSetup(context.Background())
 		require.NoError(t, err)
 		assert.True(t, res.IsSetupComplete)
-		assert.True(t, stateRepo.complete)
+		require.NotNil(t, saved)
+		assert.True(t, saved.IsCompleted)
 	})
 
 	t.Run("already complete is idempotent", func(t *testing.T) {
 		svc := NewSetupService(nil,
-			&mockUserRepo{}, &mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, nil }},
+			&mockUserRepo{}, &mockTenantRepo{
+				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
+				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, IsCompleted: true}, nil },
+			},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
-			&mockSetupStateRepo{complete: true},
 		)
 
 		res, err := svc.CompleteSetup(context.Background())
@@ -492,29 +501,23 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 			&mockUserRepo{}, &mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, assert.AnError }},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
-			&mockSetupStateRepo{},
 		)
 
 		_, err := svc.CompleteSetup(context.Background())
 		require.ErrorIs(t, err, assert.AnError)
 	})
 
-	t.Run("mark complete error is propagated", func(t *testing.T) {
-		stateRepo := &mockSetupStateRepo{
-			markCompleteFn: func(string, time.Time) (*SetupState, error) {
-				return nil, assert.AnError
-			},
-		}
+	t.Run("complete update error is propagated", func(t *testing.T) {
 		svc := NewSetupService(nil,
 			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return &User{UserID: 1}, nil }},
 			&mockTenantRepo{
-				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
-				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1}, nil },
+				findAllFn:        func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
+				findSystemFn:     func() (*Tenant, error) { return &Tenant{TenantID: 1}, nil },
+				createOrUpdateFn: func(*Tenant) (*Tenant, error) { return nil, assert.AnError },
 			},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{},
 			&mockProfileRepo{findByUserIDFn: func(_ int64) (*Profile, error) { return &Profile{ProfileID: 1}, nil }},
-			stateRepo,
 		)
 
 		_, err := svc.CompleteSetup(context.Background())
@@ -523,27 +526,16 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 
 	t.Run("locked setup rejects tenant creation", func(t *testing.T) {
 		svc := NewSetupService(nil,
-			&mockUserRepo{}, &mockTenantRepo{},
+			&mockUserRepo{}, &mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, IsCompleted: true}, nil },
+			},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
-			&mockSetupStateRepo{complete: true},
 		)
 
 		_, err := svc.CreateTenant(context.Background(), CreateTenantRequestDTO{Name: "maintainerd", DisplayName: "Maintainerd"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "setup is complete and locked")
-	})
-
-	t.Run("setup state error rejects mutating setup", func(t *testing.T) {
-		svc := NewSetupService(nil,
-			&mockUserRepo{}, &mockTenantRepo{},
-			&mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
-			&mockSetupStateRepo{isCompleteErr: assert.AnError},
-		)
-
-		_, err := svc.CreateTenant(context.Background(), CreateTenantRequestDTO{Name: "maintainerd", DisplayName: "Maintainerd"})
-		require.ErrorIs(t, err, assert.AnError)
 	})
 }
 

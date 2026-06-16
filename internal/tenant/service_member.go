@@ -49,23 +49,34 @@ type TenantMemberService interface {
 	UpdateRole(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID) error
 	IsUserInTenant(ctx context.Context, userID int64, tenantUUID uuid.UUID) (bool, error)
+	// CanManageTenant reports whether the user may perform tenant-management
+	// operations (update, members) on the target tenant: true when the user is a
+	// member of that tenant OR a member of the system tenant (the system-tenant
+	// override, scoped to tenant-management only).
+	CanManageTenant(ctx context.Context, userID int64, tenantUUID uuid.UUID) (bool, error)
 }
 
 type tenantMemberService struct {
 	tenantMemberRepo TenantMemberRepository
 	userRepo         UserReader
+	userProvisioner  UserProvisioner
 	tenantRepo       TenantRepository
 	uow              UnitOfWork
 	eventService     event.EventService
 }
 
-func NewTenantMemberService(tenantMemberRepo TenantMemberRepository, userRepo UserReader, tenantRepo TenantRepository, uow UnitOfWork, eventService event.EventService) TenantMemberService {
+func NewTenantMemberService(tenantMemberRepo TenantMemberRepository, userRepo UserReader, tenantRepo TenantRepository, uow UnitOfWork, eventService event.EventService, userProvisioner ...UserProvisioner) TenantMemberService {
 	if uow == nil {
 		uow = newDirectUnitOfWork(tenantRepo, tenantMemberRepo)
+	}
+	var up UserProvisioner
+	if len(userProvisioner) > 0 {
+		up = userProvisioner[0]
 	}
 	return &tenantMemberService{
 		tenantMemberRepo: tenantMemberRepo,
 		userRepo:         userRepo,
+		userProvisioner:  up,
 		tenantRepo:       tenantRepo,
 		uow:              uow,
 		eventService:     eventService,
@@ -126,8 +137,20 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 		return nil, apperror.NewNotFound("user not found")
 	}
 
+	// Ensure the user has a record in the target tenant (copy credentials if needed)
+	userID := user.UserID
+	if s.userProvisioner != nil {
+		provisionedID, err := s.userProvisioner.EnsureUserInTenant(ctx, userUUID, tenantID)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "user provisioning failed")
+			return nil, err
+		}
+		userID = provisionedID
+	}
+
 	// Check if user is already a member of this tenant
-	existing, err := s.tenantMemberRepo.FindByTenantAndUser(tenantID, user.UserID)
+	existing, err := s.tenantMemberRepo.FindByTenantAndUser(tenantID, userID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "tenant member duplicate check failed")
@@ -138,7 +161,7 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 		return nil, apperror.NewConflict("user is already a member of this tenant")
 	}
 
-	result, err := s.Create(ctx, tenantID, user.UserID, role)
+	result, err := s.Create(ctx, tenantID, userID, role)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "create tenant member failed")
@@ -347,6 +370,62 @@ func (s *tenantMemberService) IsUserInTenant(ctx context.Context, userID int64, 
 
 	span.SetStatus(codes.Ok, "")
 	return tenantMember != nil, nil
+}
+
+// CanManageTenant reports whether the user may manage the target tenant. Access
+// is granted when the user is a member of the target tenant OR a member of the
+// system tenant. The latter is the system-tenant override, deliberately scoped
+// to tenant-management operations only (create/update/members) — it does NOT
+// grant access to other tenants' non-tenant records (users, roles, clients,
+// idps), which each tenant's own members administer.
+func (s *tenantMemberService) CanManageTenant(ctx context.Context, userID int64, tenantUUID uuid.UUID) (bool, error) {
+	_, span := otel.Tracer("service").Start(ctx, "tenantMember.canManageTenant")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("user.id", userID), attribute.String("tenant.uuid", tenantUUID.String()))
+
+	target, err := s.tenantRepo.FindByUUID(tenantUUID)
+	if err != nil || target == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.SetStatus(codes.Error, "tenant not found")
+		return false, apperror.NewNotFound("tenant not found")
+	}
+
+	// Member of the target tenant?
+	member, err := s.tenantMemberRepo.FindByTenantAndUser(target.TenantID, userID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "check target membership failed")
+		return false, err
+	}
+	if member != nil {
+		span.SetStatus(codes.Ok, "")
+		return true, nil
+	}
+
+	// System-tenant override: members of the system tenant may manage any tenant.
+	systemTenant, err := s.tenantRepo.FindSystem()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "find system tenant failed")
+		return false, err
+	}
+	if systemTenant != nil && systemTenant.TenantID != target.TenantID {
+		systemMember, err := s.tenantMemberRepo.FindByTenantAndUser(systemTenant.TenantID, userID)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "check system membership failed")
+			return false, err
+		}
+		if systemMember != nil {
+			span.SetStatus(codes.Ok, "")
+			return true, nil
+		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return false, nil
 }
 
 func toTenantMemberServiceDataResult(tu *TenantMember) *TenantMemberServiceDataResult {

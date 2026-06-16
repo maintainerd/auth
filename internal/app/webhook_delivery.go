@@ -340,7 +340,7 @@ func newBrokerDeliverFn(
 		if !publisher.IsEnabled() {
 			return nil
 		}
-		et, err := eventTypeRepo.FindByKey(outbox.EventType)
+		et, err := eventTypeRepo.FindByKeyAndTenantID(outbox.EventType, outbox.TenantID)
 		if err != nil {
 			return err
 		}

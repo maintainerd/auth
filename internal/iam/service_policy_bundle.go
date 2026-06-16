@@ -24,6 +24,7 @@ type PolicyBundle struct {
 type ServiceIdentity struct {
 	ServiceName string
 	ClientID    string
+	TenantID    int64
 }
 
 // ServiceAuthorizationService resolves service policy bundles and evaluates
@@ -49,8 +50,13 @@ func NewServiceAuthorizationService(serviceRepo ServiceRepository, servicePolicy
 }
 
 func (s *serviceAuthorizationService) PolicyBundle(ctx context.Context, identity ServiceIdentity) (*PolicyBundle, string, error) {
-	_ = ctx
-	service, err := s.serviceRepo.FindByName(identity.ServiceName)
+	var service *Service
+	var err error
+	if identity.TenantID > 0 {
+		service, err = s.serviceRepo.FindByNameAndTenantID(identity.ServiceName, identity.TenantID)
+	} else {
+		service, err = s.serviceRepo.FindByName(identity.ServiceName)
+	}
 	if err != nil {
 		return nil, "", err
 	}
@@ -87,7 +93,7 @@ func (s *serviceAuthorizationService) PolicyBundle(ctx context.Context, identity
 }
 
 func (s *serviceAuthorizationService) Authorize(ctx context.Context, req AuthzRequest) Decision {
-	bundle, _, err := s.PolicyBundle(ctx, ServiceIdentity{ServiceName: req.Principal})
+	bundle, _, err := s.PolicyBundle(ctx, ServiceIdentity{ServiceName: req.Principal, TenantID: req.TenantID})
 	if err != nil {
 		return Decision{Allowed: false, Reason: "principal bundle unavailable"}
 	}

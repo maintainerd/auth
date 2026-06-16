@@ -31,7 +31,6 @@ type Tenant struct {
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	Identifier    string                 `protobuf:"bytes,5,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	IsPublic      bool                   `protobuf:"varint,7,opt,name=is_public,json=isPublic,proto3" json:"is_public,omitempty"`
 	IsSystem      bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
 	Metadata      *structpb.Struct       `protobuf:"bytes,9,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -110,13 +109,6 @@ func (x *Tenant) GetStatus() string {
 		return x.Status
 	}
 	return ""
-}
-
-func (x *Tenant) GetIsPublic() bool {
-	if x != nil {
-		return x.IsPublic
-	}
-	return false
 }
 
 func (x *Tenant) GetIsSystem() bool {
@@ -674,7 +666,6 @@ type ListTenantsRequest struct {
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Identifier    string                 `protobuf:"bytes,4,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	Status        []string               `protobuf:"bytes,5,rep,name=status,proto3" json:"status,omitempty"`
-	IsPublic      *bool                  `protobuf:"varint,6,opt,name=is_public,json=isPublic,proto3,oneof" json:"is_public,omitempty"`
 	IsSystem      *bool                  `protobuf:"varint,7,opt,name=is_system,json=isSystem,proto3,oneof" json:"is_system,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,8,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -744,13 +735,6 @@ func (x *ListTenantsRequest) GetStatus() []string {
 		return x.Status
 	}
 	return nil
-}
-
-func (x *ListTenantsRequest) GetIsPublic() bool {
-	if x != nil && x.IsPublic != nil {
-		return *x.IsPublic
-	}
-	return false
 }
 
 func (x *ListTenantsRequest) GetIsSystem() bool {
@@ -913,7 +897,6 @@ type TenantServiceCreateTenantRequest struct {
 	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	IsPublic      bool                   `protobuf:"varint,5,opt,name=is_public,json=isPublic,proto3" json:"is_public,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -976,13 +959,6 @@ func (x *TenantServiceCreateTenantRequest) GetStatus() string {
 	return ""
 }
 
-func (x *TenantServiceCreateTenantRequest) GetIsPublic() bool {
-	if x != nil {
-		return x.IsPublic
-	}
-	return false
-}
-
 type TenantServiceCreateTenantResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Tenant        *Tenant                `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
@@ -1034,7 +1010,6 @@ type TenantServiceUpdateTenantRequest struct {
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	IsPublic      bool                   `protobuf:"varint,6,opt,name=is_public,json=isPublic,proto3" json:"is_public,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1102,13 +1077,6 @@ func (x *TenantServiceUpdateTenantRequest) GetStatus() string {
 		return x.Status
 	}
 	return ""
-}
-
-func (x *TenantServiceUpdateTenantRequest) GetIsPublic() bool {
-	if x != nil {
-		return x.IsPublic
-	}
-	return false
 }
 
 type TenantServiceUpdateTenantResponse struct {
@@ -1251,94 +1219,6 @@ func (x *SetTenantStatusResponse) GetTenant() *Tenant {
 	return nil
 }
 
-type SetTenantPublicRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SetTenantPublicRequest) Reset() {
-	*x = SetTenantPublicRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetTenantPublicRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetTenantPublicRequest) ProtoMessage() {}
-
-func (x *SetTenantPublicRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetTenantPublicRequest.ProtoReflect.Descriptor instead.
-func (*SetTenantPublicRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *SetTenantPublicRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-type SetTenantPublicResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tenant        *Tenant                `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SetTenantPublicResponse) Reset() {
-	*x = SetTenantPublicResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[20]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetTenantPublicResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetTenantPublicResponse) ProtoMessage() {}
-
-func (x *SetTenantPublicResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[20]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetTenantPublicResponse.ProtoReflect.Descriptor instead.
-func (*SetTenantPublicResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{20}
-}
-
-func (x *SetTenantPublicResponse) GetTenant() *Tenant {
-	if x != nil {
-		return x.Tenant
-	}
-	return nil
-}
-
 type DeleteTenantRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
@@ -1348,7 +1228,7 @@ type DeleteTenantRequest struct {
 
 func (x *DeleteTenantRequest) Reset() {
 	*x = DeleteTenantRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[21]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1360,7 +1240,7 @@ func (x *DeleteTenantRequest) String() string {
 func (*DeleteTenantRequest) ProtoMessage() {}
 
 func (x *DeleteTenantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[21]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1373,7 +1253,7 @@ func (x *DeleteTenantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTenantRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTenantRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{21}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeleteTenantRequest) GetTenantUuid() string {
@@ -1392,7 +1272,7 @@ type DeleteTenantResponse struct {
 
 func (x *DeleteTenantResponse) Reset() {
 	*x = DeleteTenantResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[22]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1404,7 +1284,7 @@ func (x *DeleteTenantResponse) String() string {
 func (*DeleteTenantResponse) ProtoMessage() {}
 
 func (x *DeleteTenantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[22]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1417,7 +1297,7 @@ func (x *DeleteTenantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTenantResponse.ProtoReflect.Descriptor instead.
 func (*DeleteTenantResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{22}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteTenantResponse) GetTenant() *Tenant {
@@ -1438,7 +1318,7 @@ type ListTenantMembersRequest struct {
 
 func (x *ListTenantMembersRequest) Reset() {
 	*x = ListTenantMembersRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[23]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1450,7 +1330,7 @@ func (x *ListTenantMembersRequest) String() string {
 func (*ListTenantMembersRequest) ProtoMessage() {}
 
 func (x *ListTenantMembersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[23]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1463,7 +1343,7 @@ func (x *ListTenantMembersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTenantMembersRequest.ProtoReflect.Descriptor instead.
 func (*ListTenantMembersRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{23}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListTenantMembersRequest) GetTenantUuid() string {
@@ -1497,7 +1377,7 @@ type ListTenantMembersResponse struct {
 
 func (x *ListTenantMembersResponse) Reset() {
 	*x = ListTenantMembersResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[24]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1509,7 +1389,7 @@ func (x *ListTenantMembersResponse) String() string {
 func (*ListTenantMembersResponse) ProtoMessage() {}
 
 func (x *ListTenantMembersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[24]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1522,7 +1402,7 @@ func (x *ListTenantMembersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTenantMembersResponse.ProtoReflect.Descriptor instead.
 func (*ListTenantMembersResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{24}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListTenantMembersResponse) GetMembers() []*TenantMember {
@@ -1550,7 +1430,7 @@ type AddTenantMemberRequest struct {
 
 func (x *AddTenantMemberRequest) Reset() {
 	*x = AddTenantMemberRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[25]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1562,7 +1442,7 @@ func (x *AddTenantMemberRequest) String() string {
 func (*AddTenantMemberRequest) ProtoMessage() {}
 
 func (x *AddTenantMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[25]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1575,7 +1455,7 @@ func (x *AddTenantMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTenantMemberRequest.ProtoReflect.Descriptor instead.
 func (*AddTenantMemberRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{25}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AddTenantMemberRequest) GetTenantUuid() string {
@@ -1608,7 +1488,7 @@ type AddTenantMemberResponse struct {
 
 func (x *AddTenantMemberResponse) Reset() {
 	*x = AddTenantMemberResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[26]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1620,7 +1500,7 @@ func (x *AddTenantMemberResponse) String() string {
 func (*AddTenantMemberResponse) ProtoMessage() {}
 
 func (x *AddTenantMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[26]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1633,7 +1513,7 @@ func (x *AddTenantMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTenantMemberResponse.ProtoReflect.Descriptor instead.
 func (*AddTenantMemberResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{26}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AddTenantMemberResponse) GetMember() *TenantMember {
@@ -1654,7 +1534,7 @@ type UpdateTenantMemberRoleRequest struct {
 
 func (x *UpdateTenantMemberRoleRequest) Reset() {
 	*x = UpdateTenantMemberRoleRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[27]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1666,7 +1546,7 @@ func (x *UpdateTenantMemberRoleRequest) String() string {
 func (*UpdateTenantMemberRoleRequest) ProtoMessage() {}
 
 func (x *UpdateTenantMemberRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[27]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1679,7 +1559,7 @@ func (x *UpdateTenantMemberRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTenantMemberRoleRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTenantMemberRoleRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{27}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UpdateTenantMemberRoleRequest) GetTenantUuid() string {
@@ -1712,7 +1592,7 @@ type UpdateTenantMemberRoleResponse struct {
 
 func (x *UpdateTenantMemberRoleResponse) Reset() {
 	*x = UpdateTenantMemberRoleResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[28]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1724,7 +1604,7 @@ func (x *UpdateTenantMemberRoleResponse) String() string {
 func (*UpdateTenantMemberRoleResponse) ProtoMessage() {}
 
 func (x *UpdateTenantMemberRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[28]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1737,7 +1617,7 @@ func (x *UpdateTenantMemberRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTenantMemberRoleResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTenantMemberRoleResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{28}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *UpdateTenantMemberRoleResponse) GetMember() *TenantMember {
@@ -1757,7 +1637,7 @@ type RemoveTenantMemberRequest struct {
 
 func (x *RemoveTenantMemberRequest) Reset() {
 	*x = RemoveTenantMemberRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[29]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1769,7 +1649,7 @@ func (x *RemoveTenantMemberRequest) String() string {
 func (*RemoveTenantMemberRequest) ProtoMessage() {}
 
 func (x *RemoveTenantMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[29]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1782,7 +1662,7 @@ func (x *RemoveTenantMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveTenantMemberRequest.ProtoReflect.Descriptor instead.
 func (*RemoveTenantMemberRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{29}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RemoveTenantMemberRequest) GetTenantUuid() string {
@@ -1808,7 +1688,7 @@ type RemoveTenantMemberResponse struct {
 
 func (x *RemoveTenantMemberResponse) Reset() {
 	*x = RemoveTenantMemberResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[30]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1820,7 +1700,7 @@ func (x *RemoveTenantMemberResponse) String() string {
 func (*RemoveTenantMemberResponse) ProtoMessage() {}
 
 func (x *RemoveTenantMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[30]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1833,7 +1713,7 @@ func (x *RemoveTenantMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveTenantMemberResponse.ProtoReflect.Descriptor instead.
 func (*RemoveTenantMemberResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{30}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RemoveTenantMemberResponse) GetRemoved() bool {
@@ -1852,7 +1732,7 @@ type GetRateLimitConfigRequest struct {
 
 func (x *GetRateLimitConfigRequest) Reset() {
 	*x = GetRateLimitConfigRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[31]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1864,7 +1744,7 @@ func (x *GetRateLimitConfigRequest) String() string {
 func (*GetRateLimitConfigRequest) ProtoMessage() {}
 
 func (x *GetRateLimitConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[31]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1877,7 +1757,7 @@ func (x *GetRateLimitConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRateLimitConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetRateLimitConfigRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{31}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetRateLimitConfigRequest) GetTenantUuid() string {
@@ -1896,7 +1776,7 @@ type GetRateLimitConfigResponse struct {
 
 func (x *GetRateLimitConfigResponse) Reset() {
 	*x = GetRateLimitConfigResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[32]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1908,7 +1788,7 @@ func (x *GetRateLimitConfigResponse) String() string {
 func (*GetRateLimitConfigResponse) ProtoMessage() {}
 
 func (x *GetRateLimitConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[32]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1921,7 +1801,7 @@ func (x *GetRateLimitConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRateLimitConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetRateLimitConfigResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{32}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetRateLimitConfigResponse) GetConfig() *structpb.Struct {
@@ -1941,7 +1821,7 @@ type UpdateRateLimitConfigRequest struct {
 
 func (x *UpdateRateLimitConfigRequest) Reset() {
 	*x = UpdateRateLimitConfigRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[33]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1953,7 +1833,7 @@ func (x *UpdateRateLimitConfigRequest) String() string {
 func (*UpdateRateLimitConfigRequest) ProtoMessage() {}
 
 func (x *UpdateRateLimitConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[33]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1966,7 +1846,7 @@ func (x *UpdateRateLimitConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRateLimitConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateRateLimitConfigRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{33}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *UpdateRateLimitConfigRequest) GetTenantUuid() string {
@@ -1992,7 +1872,7 @@ type UpdateRateLimitConfigResponse struct {
 
 func (x *UpdateRateLimitConfigResponse) Reset() {
 	*x = UpdateRateLimitConfigResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[34]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2004,7 +1884,7 @@ func (x *UpdateRateLimitConfigResponse) String() string {
 func (*UpdateRateLimitConfigResponse) ProtoMessage() {}
 
 func (x *UpdateRateLimitConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[34]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2017,7 +1897,7 @@ func (x *UpdateRateLimitConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRateLimitConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateRateLimitConfigResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{34}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *UpdateRateLimitConfigResponse) GetConfig() *structpb.Struct {
@@ -2036,7 +1916,7 @@ type GetAuditConfigRequest struct {
 
 func (x *GetAuditConfigRequest) Reset() {
 	*x = GetAuditConfigRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[35]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2048,7 +1928,7 @@ func (x *GetAuditConfigRequest) String() string {
 func (*GetAuditConfigRequest) ProtoMessage() {}
 
 func (x *GetAuditConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[35]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2061,7 +1941,7 @@ func (x *GetAuditConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuditConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetAuditConfigRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{35}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetAuditConfigRequest) GetTenantUuid() string {
@@ -2080,7 +1960,7 @@ type GetAuditConfigResponse struct {
 
 func (x *GetAuditConfigResponse) Reset() {
 	*x = GetAuditConfigResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[36]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2092,7 +1972,7 @@ func (x *GetAuditConfigResponse) String() string {
 func (*GetAuditConfigResponse) ProtoMessage() {}
 
 func (x *GetAuditConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[36]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2105,7 +1985,7 @@ func (x *GetAuditConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuditConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetAuditConfigResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{36}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetAuditConfigResponse) GetConfig() *structpb.Struct {
@@ -2125,7 +2005,7 @@ type UpdateAuditConfigRequest struct {
 
 func (x *UpdateAuditConfigRequest) Reset() {
 	*x = UpdateAuditConfigRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[37]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2137,7 +2017,7 @@ func (x *UpdateAuditConfigRequest) String() string {
 func (*UpdateAuditConfigRequest) ProtoMessage() {}
 
 func (x *UpdateAuditConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[37]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2150,7 +2030,7 @@ func (x *UpdateAuditConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAuditConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAuditConfigRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{37}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *UpdateAuditConfigRequest) GetTenantUuid() string {
@@ -2176,7 +2056,7 @@ type UpdateAuditConfigResponse struct {
 
 func (x *UpdateAuditConfigResponse) Reset() {
 	*x = UpdateAuditConfigResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[38]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2188,7 +2068,7 @@ func (x *UpdateAuditConfigResponse) String() string {
 func (*UpdateAuditConfigResponse) ProtoMessage() {}
 
 func (x *UpdateAuditConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[38]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2201,7 +2081,7 @@ func (x *UpdateAuditConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAuditConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAuditConfigResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{38}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *UpdateAuditConfigResponse) GetConfig() *structpb.Struct {
@@ -2220,7 +2100,7 @@ type GetMaintenanceConfigRequest struct {
 
 func (x *GetMaintenanceConfigRequest) Reset() {
 	*x = GetMaintenanceConfigRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[39]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2232,7 +2112,7 @@ func (x *GetMaintenanceConfigRequest) String() string {
 func (*GetMaintenanceConfigRequest) ProtoMessage() {}
 
 func (x *GetMaintenanceConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[39]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2245,7 +2125,7 @@ func (x *GetMaintenanceConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMaintenanceConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetMaintenanceConfigRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{39}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetMaintenanceConfigRequest) GetTenantUuid() string {
@@ -2264,7 +2144,7 @@ type GetMaintenanceConfigResponse struct {
 
 func (x *GetMaintenanceConfigResponse) Reset() {
 	*x = GetMaintenanceConfigResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[40]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2276,7 +2156,7 @@ func (x *GetMaintenanceConfigResponse) String() string {
 func (*GetMaintenanceConfigResponse) ProtoMessage() {}
 
 func (x *GetMaintenanceConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[40]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2289,7 +2169,7 @@ func (x *GetMaintenanceConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMaintenanceConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetMaintenanceConfigResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{40}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetMaintenanceConfigResponse) GetConfig() *structpb.Struct {
@@ -2309,7 +2189,7 @@ type UpdateMaintenanceConfigRequest struct {
 
 func (x *UpdateMaintenanceConfigRequest) Reset() {
 	*x = UpdateMaintenanceConfigRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[41]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2321,7 +2201,7 @@ func (x *UpdateMaintenanceConfigRequest) String() string {
 func (*UpdateMaintenanceConfigRequest) ProtoMessage() {}
 
 func (x *UpdateMaintenanceConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[41]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2334,7 +2214,7 @@ func (x *UpdateMaintenanceConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMaintenanceConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMaintenanceConfigRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{41}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *UpdateMaintenanceConfigRequest) GetTenantUuid() string {
@@ -2360,7 +2240,7 @@ type UpdateMaintenanceConfigResponse struct {
 
 func (x *UpdateMaintenanceConfigResponse) Reset() {
 	*x = UpdateMaintenanceConfigResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[42]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2372,7 +2252,7 @@ func (x *UpdateMaintenanceConfigResponse) String() string {
 func (*UpdateMaintenanceConfigResponse) ProtoMessage() {}
 
 func (x *UpdateMaintenanceConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[42]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2385,7 +2265,7 @@ func (x *UpdateMaintenanceConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMaintenanceConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMaintenanceConfigResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{42}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *UpdateMaintenanceConfigResponse) GetConfig() *structpb.Struct {
@@ -2404,7 +2284,7 @@ type GetFeatureFlagsRequest struct {
 
 func (x *GetFeatureFlagsRequest) Reset() {
 	*x = GetFeatureFlagsRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[43]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2416,7 +2296,7 @@ func (x *GetFeatureFlagsRequest) String() string {
 func (*GetFeatureFlagsRequest) ProtoMessage() {}
 
 func (x *GetFeatureFlagsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[43]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2429,7 +2309,7 @@ func (x *GetFeatureFlagsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFeatureFlagsRequest.ProtoReflect.Descriptor instead.
 func (*GetFeatureFlagsRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{43}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *GetFeatureFlagsRequest) GetTenantUuid() string {
@@ -2448,7 +2328,7 @@ type GetFeatureFlagsResponse struct {
 
 func (x *GetFeatureFlagsResponse) Reset() {
 	*x = GetFeatureFlagsResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[44]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2460,7 +2340,7 @@ func (x *GetFeatureFlagsResponse) String() string {
 func (*GetFeatureFlagsResponse) ProtoMessage() {}
 
 func (x *GetFeatureFlagsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[44]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2473,7 +2353,7 @@ func (x *GetFeatureFlagsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFeatureFlagsResponse.ProtoReflect.Descriptor instead.
 func (*GetFeatureFlagsResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{44}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetFeatureFlagsResponse) GetConfig() *structpb.Struct {
@@ -2493,7 +2373,7 @@ type UpdateFeatureFlagsRequest struct {
 
 func (x *UpdateFeatureFlagsRequest) Reset() {
 	*x = UpdateFeatureFlagsRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[45]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2505,7 +2385,7 @@ func (x *UpdateFeatureFlagsRequest) String() string {
 func (*UpdateFeatureFlagsRequest) ProtoMessage() {}
 
 func (x *UpdateFeatureFlagsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[45]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2518,7 +2398,7 @@ func (x *UpdateFeatureFlagsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateFeatureFlagsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateFeatureFlagsRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{45}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *UpdateFeatureFlagsRequest) GetTenantUuid() string {
@@ -2544,7 +2424,7 @@ type UpdateFeatureFlagsResponse struct {
 
 func (x *UpdateFeatureFlagsResponse) Reset() {
 	*x = UpdateFeatureFlagsResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[46]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2556,7 +2436,7 @@ func (x *UpdateFeatureFlagsResponse) String() string {
 func (*UpdateFeatureFlagsResponse) ProtoMessage() {}
 
 func (x *UpdateFeatureFlagsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[46]
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2569,7 +2449,7 @@ func (x *UpdateFeatureFlagsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateFeatureFlagsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateFeatureFlagsResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{46}
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *UpdateFeatureFlagsResponse) GetConfig() *structpb.Struct {
@@ -2583,7 +2463,7 @@ var File_maintainerd_auth_v1_tenant_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\n" +
-	" maintainerd/auth/v1/tenant.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x03\n" +
+	" maintainerd/auth/v1/tenant.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x03\n" +
 	"\x06Tenant\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
@@ -2594,7 +2474,6 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"identifier\x18\x05 \x01(\tR\n" +
 	"identifier\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1b\n" +
-	"\tis_public\x18\a \x01(\bR\bisPublic\x12\x1b\n" +
 	"\tis_system\x18\b \x01(\bR\bisSystem\x123\n" +
 	"\bmetadata\x18\t \x01(\v2\x17.google.protobuf.StructR\bmetadata\x129\n" +
 	"\n" +
@@ -2648,7 +2527,7 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"identifier\x18\x01 \x01(\tR\n" +
 	"identifier\"T\n" +
 	"\x1dGetTenantByIdentifierResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\xc6\x02\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\x96\x02\n" +
 	"\x12ListTenantsRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
@@ -2657,13 +2536,10 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"identifier\x18\x04 \x01(\tR\n" +
 	"identifier\x12\x16\n" +
 	"\x06status\x18\x05 \x03(\tR\x06status\x12 \n" +
-	"\tis_public\x18\x06 \x01(\bH\x00R\bisPublic\x88\x01\x01\x12 \n" +
-	"\tis_system\x18\a \x01(\bH\x01R\bisSystem\x88\x01\x01\x12?\n" +
+	"\tis_system\x18\a \x01(\bH\x00R\bisSystem\x88\x01\x01\x12?\n" +
 	"\n" +
 	"pagination\x18\b \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
 	"paginationB\f\n" +
-	"\n" +
-	"_is_publicB\f\n" +
 	"\n" +
 	"_is_system\"\x83\x01\n" +
 	"\x13ListTenantsResponse\x125\n" +
@@ -2673,23 +2549,21 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\"H\n" +
 	"\x11GetTenantResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\xb0\x01\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\x93\x01\n" +
 	" TenantServiceCreateTenantRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1b\n" +
-	"\tis_public\x18\x05 \x01(\bR\bisPublic\"X\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\"X\n" +
 	"!TenantServiceCreateTenantResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\xd1\x01\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\xb4\x01\n" +
 	" TenantServiceUpdateTenantRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
-	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1b\n" +
-	"\tis_public\x18\x06 \x01(\bR\bisPublic\"X\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\"X\n" +
 	"!TenantServiceUpdateTenantResponse\x123\n" +
 	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"Q\n" +
 	"\x16SetTenantStatusRequest\x12\x1f\n" +
@@ -2697,11 +2571,6 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"tenantUuid\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"N\n" +
 	"\x17SetTenantStatusResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"9\n" +
-	"\x16SetTenantPublicRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"N\n" +
-	"\x17SetTenantPublicResponse\x123\n" +
 	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"6\n" +
 	"\x13DeleteTenantRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
@@ -2781,7 +2650,8 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"tenantUuid\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"M\n" +
 	"\x1aUpdateFeatureFlagsResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config2\xda\v\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config2\xec\n" +
+	"\n" +
 	"\rTenantService\x12o\n" +
 	"\x10GetDefaultTenant\x12,.maintainerd.auth.v1.GetDefaultTenantRequest\x1a-.maintainerd.auth.v1.GetDefaultTenantResponse\x12~\n" +
 	"\x15GetTenantByIdentifier\x121.maintainerd.auth.v1.GetTenantByIdentifierRequest\x1a2.maintainerd.auth.v1.GetTenantByIdentifierResponse\x12`\n" +
@@ -2789,8 +2659,7 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\tGetTenant\x12%.maintainerd.auth.v1.GetTenantRequest\x1a&.maintainerd.auth.v1.GetTenantResponse\x12}\n" +
 	"\fCreateTenant\x125.maintainerd.auth.v1.TenantServiceCreateTenantRequest\x1a6.maintainerd.auth.v1.TenantServiceCreateTenantResponse\x12}\n" +
 	"\fUpdateTenant\x125.maintainerd.auth.v1.TenantServiceUpdateTenantRequest\x1a6.maintainerd.auth.v1.TenantServiceUpdateTenantResponse\x12l\n" +
-	"\x0fSetTenantStatus\x12+.maintainerd.auth.v1.SetTenantStatusRequest\x1a,.maintainerd.auth.v1.SetTenantStatusResponse\x12l\n" +
-	"\x0fSetTenantPublic\x12+.maintainerd.auth.v1.SetTenantPublicRequest\x1a,.maintainerd.auth.v1.SetTenantPublicResponse\x12c\n" +
+	"\x0fSetTenantStatus\x12+.maintainerd.auth.v1.SetTenantStatusRequest\x1a,.maintainerd.auth.v1.SetTenantStatusResponse\x12c\n" +
 	"\fDeleteTenant\x12(.maintainerd.auth.v1.DeleteTenantRequest\x1a).maintainerd.auth.v1.DeleteTenantResponse\x12r\n" +
 	"\x11ListTenantMembers\x12-.maintainerd.auth.v1.ListTenantMembersRequest\x1a..maintainerd.auth.v1.ListTenantMembersResponse\x12l\n" +
 	"\x0fAddTenantMember\x12+.maintainerd.auth.v1.AddTenantMemberRequest\x1a,.maintainerd.auth.v1.AddTenantMemberResponse\x12\x81\x01\n" +
@@ -2818,7 +2687,7 @@ func file_maintainerd_auth_v1_tenant_proto_rawDescGZIP() []byte {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescData
 }
 
-var file_maintainerd_auth_v1_tenant_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
+var file_maintainerd_auth_v1_tenant_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
 var file_maintainerd_auth_v1_tenant_proto_goTypes = []any{
 	(*Tenant)(nil),                            // 0: maintainerd.auth.v1.Tenant
 	(*TenantMemberUser)(nil),                  // 1: maintainerd.auth.v1.TenantMemberUser
@@ -2839,47 +2708,45 @@ var file_maintainerd_auth_v1_tenant_proto_goTypes = []any{
 	(*TenantServiceUpdateTenantResponse)(nil), // 16: maintainerd.auth.v1.TenantServiceUpdateTenantResponse
 	(*SetTenantStatusRequest)(nil),            // 17: maintainerd.auth.v1.SetTenantStatusRequest
 	(*SetTenantStatusResponse)(nil),           // 18: maintainerd.auth.v1.SetTenantStatusResponse
-	(*SetTenantPublicRequest)(nil),            // 19: maintainerd.auth.v1.SetTenantPublicRequest
-	(*SetTenantPublicResponse)(nil),           // 20: maintainerd.auth.v1.SetTenantPublicResponse
-	(*DeleteTenantRequest)(nil),               // 21: maintainerd.auth.v1.DeleteTenantRequest
-	(*DeleteTenantResponse)(nil),              // 22: maintainerd.auth.v1.DeleteTenantResponse
-	(*ListTenantMembersRequest)(nil),          // 23: maintainerd.auth.v1.ListTenantMembersRequest
-	(*ListTenantMembersResponse)(nil),         // 24: maintainerd.auth.v1.ListTenantMembersResponse
-	(*AddTenantMemberRequest)(nil),            // 25: maintainerd.auth.v1.AddTenantMemberRequest
-	(*AddTenantMemberResponse)(nil),           // 26: maintainerd.auth.v1.AddTenantMemberResponse
-	(*UpdateTenantMemberRoleRequest)(nil),     // 27: maintainerd.auth.v1.UpdateTenantMemberRoleRequest
-	(*UpdateTenantMemberRoleResponse)(nil),    // 28: maintainerd.auth.v1.UpdateTenantMemberRoleResponse
-	(*RemoveTenantMemberRequest)(nil),         // 29: maintainerd.auth.v1.RemoveTenantMemberRequest
-	(*RemoveTenantMemberResponse)(nil),        // 30: maintainerd.auth.v1.RemoveTenantMemberResponse
-	(*GetRateLimitConfigRequest)(nil),         // 31: maintainerd.auth.v1.GetRateLimitConfigRequest
-	(*GetRateLimitConfigResponse)(nil),        // 32: maintainerd.auth.v1.GetRateLimitConfigResponse
-	(*UpdateRateLimitConfigRequest)(nil),      // 33: maintainerd.auth.v1.UpdateRateLimitConfigRequest
-	(*UpdateRateLimitConfigResponse)(nil),     // 34: maintainerd.auth.v1.UpdateRateLimitConfigResponse
-	(*GetAuditConfigRequest)(nil),             // 35: maintainerd.auth.v1.GetAuditConfigRequest
-	(*GetAuditConfigResponse)(nil),            // 36: maintainerd.auth.v1.GetAuditConfigResponse
-	(*UpdateAuditConfigRequest)(nil),          // 37: maintainerd.auth.v1.UpdateAuditConfigRequest
-	(*UpdateAuditConfigResponse)(nil),         // 38: maintainerd.auth.v1.UpdateAuditConfigResponse
-	(*GetMaintenanceConfigRequest)(nil),       // 39: maintainerd.auth.v1.GetMaintenanceConfigRequest
-	(*GetMaintenanceConfigResponse)(nil),      // 40: maintainerd.auth.v1.GetMaintenanceConfigResponse
-	(*UpdateMaintenanceConfigRequest)(nil),    // 41: maintainerd.auth.v1.UpdateMaintenanceConfigRequest
-	(*UpdateMaintenanceConfigResponse)(nil),   // 42: maintainerd.auth.v1.UpdateMaintenanceConfigResponse
-	(*GetFeatureFlagsRequest)(nil),            // 43: maintainerd.auth.v1.GetFeatureFlagsRequest
-	(*GetFeatureFlagsResponse)(nil),           // 44: maintainerd.auth.v1.GetFeatureFlagsResponse
-	(*UpdateFeatureFlagsRequest)(nil),         // 45: maintainerd.auth.v1.UpdateFeatureFlagsRequest
-	(*UpdateFeatureFlagsResponse)(nil),        // 46: maintainerd.auth.v1.UpdateFeatureFlagsResponse
-	(*structpb.Struct)(nil),                   // 47: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),             // 48: google.protobuf.Timestamp
+	(*DeleteTenantRequest)(nil),               // 19: maintainerd.auth.v1.DeleteTenantRequest
+	(*DeleteTenantResponse)(nil),              // 20: maintainerd.auth.v1.DeleteTenantResponse
+	(*ListTenantMembersRequest)(nil),          // 21: maintainerd.auth.v1.ListTenantMembersRequest
+	(*ListTenantMembersResponse)(nil),         // 22: maintainerd.auth.v1.ListTenantMembersResponse
+	(*AddTenantMemberRequest)(nil),            // 23: maintainerd.auth.v1.AddTenantMemberRequest
+	(*AddTenantMemberResponse)(nil),           // 24: maintainerd.auth.v1.AddTenantMemberResponse
+	(*UpdateTenantMemberRoleRequest)(nil),     // 25: maintainerd.auth.v1.UpdateTenantMemberRoleRequest
+	(*UpdateTenantMemberRoleResponse)(nil),    // 26: maintainerd.auth.v1.UpdateTenantMemberRoleResponse
+	(*RemoveTenantMemberRequest)(nil),         // 27: maintainerd.auth.v1.RemoveTenantMemberRequest
+	(*RemoveTenantMemberResponse)(nil),        // 28: maintainerd.auth.v1.RemoveTenantMemberResponse
+	(*GetRateLimitConfigRequest)(nil),         // 29: maintainerd.auth.v1.GetRateLimitConfigRequest
+	(*GetRateLimitConfigResponse)(nil),        // 30: maintainerd.auth.v1.GetRateLimitConfigResponse
+	(*UpdateRateLimitConfigRequest)(nil),      // 31: maintainerd.auth.v1.UpdateRateLimitConfigRequest
+	(*UpdateRateLimitConfigResponse)(nil),     // 32: maintainerd.auth.v1.UpdateRateLimitConfigResponse
+	(*GetAuditConfigRequest)(nil),             // 33: maintainerd.auth.v1.GetAuditConfigRequest
+	(*GetAuditConfigResponse)(nil),            // 34: maintainerd.auth.v1.GetAuditConfigResponse
+	(*UpdateAuditConfigRequest)(nil),          // 35: maintainerd.auth.v1.UpdateAuditConfigRequest
+	(*UpdateAuditConfigResponse)(nil),         // 36: maintainerd.auth.v1.UpdateAuditConfigResponse
+	(*GetMaintenanceConfigRequest)(nil),       // 37: maintainerd.auth.v1.GetMaintenanceConfigRequest
+	(*GetMaintenanceConfigResponse)(nil),      // 38: maintainerd.auth.v1.GetMaintenanceConfigResponse
+	(*UpdateMaintenanceConfigRequest)(nil),    // 39: maintainerd.auth.v1.UpdateMaintenanceConfigRequest
+	(*UpdateMaintenanceConfigResponse)(nil),   // 40: maintainerd.auth.v1.UpdateMaintenanceConfigResponse
+	(*GetFeatureFlagsRequest)(nil),            // 41: maintainerd.auth.v1.GetFeatureFlagsRequest
+	(*GetFeatureFlagsResponse)(nil),           // 42: maintainerd.auth.v1.GetFeatureFlagsResponse
+	(*UpdateFeatureFlagsRequest)(nil),         // 43: maintainerd.auth.v1.UpdateFeatureFlagsRequest
+	(*UpdateFeatureFlagsResponse)(nil),        // 44: maintainerd.auth.v1.UpdateFeatureFlagsResponse
+	(*structpb.Struct)(nil),                   // 45: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),             // 46: google.protobuf.Timestamp
 }
 var file_maintainerd_auth_v1_tenant_proto_depIdxs = []int32{
-	47, // 0: maintainerd.auth.v1.Tenant.metadata:type_name -> google.protobuf.Struct
-	48, // 1: maintainerd.auth.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
-	48, // 2: maintainerd.auth.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
-	47, // 3: maintainerd.auth.v1.TenantMemberUser.metadata:type_name -> google.protobuf.Struct
-	48, // 4: maintainerd.auth.v1.TenantMemberUser.created_at:type_name -> google.protobuf.Timestamp
-	48, // 5: maintainerd.auth.v1.TenantMemberUser.updated_at:type_name -> google.protobuf.Timestamp
+	45, // 0: maintainerd.auth.v1.Tenant.metadata:type_name -> google.protobuf.Struct
+	46, // 1: maintainerd.auth.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
+	46, // 2: maintainerd.auth.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
+	45, // 3: maintainerd.auth.v1.TenantMemberUser.metadata:type_name -> google.protobuf.Struct
+	46, // 4: maintainerd.auth.v1.TenantMemberUser.created_at:type_name -> google.protobuf.Timestamp
+	46, // 5: maintainerd.auth.v1.TenantMemberUser.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: maintainerd.auth.v1.TenantMember.user:type_name -> maintainerd.auth.v1.TenantMemberUser
-	48, // 7: maintainerd.auth.v1.TenantMember.created_at:type_name -> google.protobuf.Timestamp
-	48, // 8: maintainerd.auth.v1.TenantMember.updated_at:type_name -> google.protobuf.Timestamp
+	46, // 7: maintainerd.auth.v1.TenantMember.created_at:type_name -> google.protobuf.Timestamp
+	46, // 8: maintainerd.auth.v1.TenantMember.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: maintainerd.auth.v1.GetDefaultTenantResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
 	0,  // 10: maintainerd.auth.v1.GetTenantByIdentifierResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
 	3,  // 11: maintainerd.auth.v1.ListTenantsRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
@@ -2889,72 +2756,69 @@ var file_maintainerd_auth_v1_tenant_proto_depIdxs = []int32{
 	0,  // 15: maintainerd.auth.v1.TenantServiceCreateTenantResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
 	0,  // 16: maintainerd.auth.v1.TenantServiceUpdateTenantResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
 	0,  // 17: maintainerd.auth.v1.SetTenantStatusResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
-	0,  // 18: maintainerd.auth.v1.SetTenantPublicResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
-	0,  // 19: maintainerd.auth.v1.DeleteTenantResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
-	3,  // 20: maintainerd.auth.v1.ListTenantMembersRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
-	2,  // 21: maintainerd.auth.v1.ListTenantMembersResponse.members:type_name -> maintainerd.auth.v1.TenantMember
-	4,  // 22: maintainerd.auth.v1.ListTenantMembersResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
-	2,  // 23: maintainerd.auth.v1.AddTenantMemberResponse.member:type_name -> maintainerd.auth.v1.TenantMember
-	2,  // 24: maintainerd.auth.v1.UpdateTenantMemberRoleResponse.member:type_name -> maintainerd.auth.v1.TenantMember
-	47, // 25: maintainerd.auth.v1.GetRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
-	47, // 26: maintainerd.auth.v1.UpdateRateLimitConfigRequest.config:type_name -> google.protobuf.Struct
-	47, // 27: maintainerd.auth.v1.UpdateRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
-	47, // 28: maintainerd.auth.v1.GetAuditConfigResponse.config:type_name -> google.protobuf.Struct
-	47, // 29: maintainerd.auth.v1.UpdateAuditConfigRequest.config:type_name -> google.protobuf.Struct
-	47, // 30: maintainerd.auth.v1.UpdateAuditConfigResponse.config:type_name -> google.protobuf.Struct
-	47, // 31: maintainerd.auth.v1.GetMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
-	47, // 32: maintainerd.auth.v1.UpdateMaintenanceConfigRequest.config:type_name -> google.protobuf.Struct
-	47, // 33: maintainerd.auth.v1.UpdateMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
-	47, // 34: maintainerd.auth.v1.GetFeatureFlagsResponse.config:type_name -> google.protobuf.Struct
-	47, // 35: maintainerd.auth.v1.UpdateFeatureFlagsRequest.config:type_name -> google.protobuf.Struct
-	47, // 36: maintainerd.auth.v1.UpdateFeatureFlagsResponse.config:type_name -> google.protobuf.Struct
-	5,  // 37: maintainerd.auth.v1.TenantService.GetDefaultTenant:input_type -> maintainerd.auth.v1.GetDefaultTenantRequest
-	7,  // 38: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:input_type -> maintainerd.auth.v1.GetTenantByIdentifierRequest
-	9,  // 39: maintainerd.auth.v1.TenantService.ListTenants:input_type -> maintainerd.auth.v1.ListTenantsRequest
-	11, // 40: maintainerd.auth.v1.TenantService.GetTenant:input_type -> maintainerd.auth.v1.GetTenantRequest
-	13, // 41: maintainerd.auth.v1.TenantService.CreateTenant:input_type -> maintainerd.auth.v1.TenantServiceCreateTenantRequest
-	15, // 42: maintainerd.auth.v1.TenantService.UpdateTenant:input_type -> maintainerd.auth.v1.TenantServiceUpdateTenantRequest
-	17, // 43: maintainerd.auth.v1.TenantService.SetTenantStatus:input_type -> maintainerd.auth.v1.SetTenantStatusRequest
-	19, // 44: maintainerd.auth.v1.TenantService.SetTenantPublic:input_type -> maintainerd.auth.v1.SetTenantPublicRequest
-	21, // 45: maintainerd.auth.v1.TenantService.DeleteTenant:input_type -> maintainerd.auth.v1.DeleteTenantRequest
-	23, // 46: maintainerd.auth.v1.TenantService.ListTenantMembers:input_type -> maintainerd.auth.v1.ListTenantMembersRequest
-	25, // 47: maintainerd.auth.v1.TenantService.AddTenantMember:input_type -> maintainerd.auth.v1.AddTenantMemberRequest
-	27, // 48: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:input_type -> maintainerd.auth.v1.UpdateTenantMemberRoleRequest
-	29, // 49: maintainerd.auth.v1.TenantService.RemoveTenantMember:input_type -> maintainerd.auth.v1.RemoveTenantMemberRequest
-	31, // 50: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:input_type -> maintainerd.auth.v1.GetRateLimitConfigRequest
-	33, // 51: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:input_type -> maintainerd.auth.v1.UpdateRateLimitConfigRequest
-	35, // 52: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:input_type -> maintainerd.auth.v1.GetAuditConfigRequest
-	37, // 53: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:input_type -> maintainerd.auth.v1.UpdateAuditConfigRequest
-	39, // 54: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:input_type -> maintainerd.auth.v1.GetMaintenanceConfigRequest
-	41, // 55: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:input_type -> maintainerd.auth.v1.UpdateMaintenanceConfigRequest
-	43, // 56: maintainerd.auth.v1.TenantSettingService.GetFeatureFlags:input_type -> maintainerd.auth.v1.GetFeatureFlagsRequest
-	45, // 57: maintainerd.auth.v1.TenantSettingService.UpdateFeatureFlags:input_type -> maintainerd.auth.v1.UpdateFeatureFlagsRequest
-	6,  // 58: maintainerd.auth.v1.TenantService.GetDefaultTenant:output_type -> maintainerd.auth.v1.GetDefaultTenantResponse
-	8,  // 59: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:output_type -> maintainerd.auth.v1.GetTenantByIdentifierResponse
-	10, // 60: maintainerd.auth.v1.TenantService.ListTenants:output_type -> maintainerd.auth.v1.ListTenantsResponse
-	12, // 61: maintainerd.auth.v1.TenantService.GetTenant:output_type -> maintainerd.auth.v1.GetTenantResponse
-	14, // 62: maintainerd.auth.v1.TenantService.CreateTenant:output_type -> maintainerd.auth.v1.TenantServiceCreateTenantResponse
-	16, // 63: maintainerd.auth.v1.TenantService.UpdateTenant:output_type -> maintainerd.auth.v1.TenantServiceUpdateTenantResponse
-	18, // 64: maintainerd.auth.v1.TenantService.SetTenantStatus:output_type -> maintainerd.auth.v1.SetTenantStatusResponse
-	20, // 65: maintainerd.auth.v1.TenantService.SetTenantPublic:output_type -> maintainerd.auth.v1.SetTenantPublicResponse
-	22, // 66: maintainerd.auth.v1.TenantService.DeleteTenant:output_type -> maintainerd.auth.v1.DeleteTenantResponse
-	24, // 67: maintainerd.auth.v1.TenantService.ListTenantMembers:output_type -> maintainerd.auth.v1.ListTenantMembersResponse
-	26, // 68: maintainerd.auth.v1.TenantService.AddTenantMember:output_type -> maintainerd.auth.v1.AddTenantMemberResponse
-	28, // 69: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:output_type -> maintainerd.auth.v1.UpdateTenantMemberRoleResponse
-	30, // 70: maintainerd.auth.v1.TenantService.RemoveTenantMember:output_type -> maintainerd.auth.v1.RemoveTenantMemberResponse
-	32, // 71: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:output_type -> maintainerd.auth.v1.GetRateLimitConfigResponse
-	34, // 72: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:output_type -> maintainerd.auth.v1.UpdateRateLimitConfigResponse
-	36, // 73: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:output_type -> maintainerd.auth.v1.GetAuditConfigResponse
-	38, // 74: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:output_type -> maintainerd.auth.v1.UpdateAuditConfigResponse
-	40, // 75: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:output_type -> maintainerd.auth.v1.GetMaintenanceConfigResponse
-	42, // 76: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:output_type -> maintainerd.auth.v1.UpdateMaintenanceConfigResponse
-	44, // 77: maintainerd.auth.v1.TenantSettingService.GetFeatureFlags:output_type -> maintainerd.auth.v1.GetFeatureFlagsResponse
-	46, // 78: maintainerd.auth.v1.TenantSettingService.UpdateFeatureFlags:output_type -> maintainerd.auth.v1.UpdateFeatureFlagsResponse
-	58, // [58:79] is the sub-list for method output_type
-	37, // [37:58] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	0,  // 18: maintainerd.auth.v1.DeleteTenantResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
+	3,  // 19: maintainerd.auth.v1.ListTenantMembersRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	2,  // 20: maintainerd.auth.v1.ListTenantMembersResponse.members:type_name -> maintainerd.auth.v1.TenantMember
+	4,  // 21: maintainerd.auth.v1.ListTenantMembersResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	2,  // 22: maintainerd.auth.v1.AddTenantMemberResponse.member:type_name -> maintainerd.auth.v1.TenantMember
+	2,  // 23: maintainerd.auth.v1.UpdateTenantMemberRoleResponse.member:type_name -> maintainerd.auth.v1.TenantMember
+	45, // 24: maintainerd.auth.v1.GetRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
+	45, // 25: maintainerd.auth.v1.UpdateRateLimitConfigRequest.config:type_name -> google.protobuf.Struct
+	45, // 26: maintainerd.auth.v1.UpdateRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
+	45, // 27: maintainerd.auth.v1.GetAuditConfigResponse.config:type_name -> google.protobuf.Struct
+	45, // 28: maintainerd.auth.v1.UpdateAuditConfigRequest.config:type_name -> google.protobuf.Struct
+	45, // 29: maintainerd.auth.v1.UpdateAuditConfigResponse.config:type_name -> google.protobuf.Struct
+	45, // 30: maintainerd.auth.v1.GetMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
+	45, // 31: maintainerd.auth.v1.UpdateMaintenanceConfigRequest.config:type_name -> google.protobuf.Struct
+	45, // 32: maintainerd.auth.v1.UpdateMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
+	45, // 33: maintainerd.auth.v1.GetFeatureFlagsResponse.config:type_name -> google.protobuf.Struct
+	45, // 34: maintainerd.auth.v1.UpdateFeatureFlagsRequest.config:type_name -> google.protobuf.Struct
+	45, // 35: maintainerd.auth.v1.UpdateFeatureFlagsResponse.config:type_name -> google.protobuf.Struct
+	5,  // 36: maintainerd.auth.v1.TenantService.GetDefaultTenant:input_type -> maintainerd.auth.v1.GetDefaultTenantRequest
+	7,  // 37: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:input_type -> maintainerd.auth.v1.GetTenantByIdentifierRequest
+	9,  // 38: maintainerd.auth.v1.TenantService.ListTenants:input_type -> maintainerd.auth.v1.ListTenantsRequest
+	11, // 39: maintainerd.auth.v1.TenantService.GetTenant:input_type -> maintainerd.auth.v1.GetTenantRequest
+	13, // 40: maintainerd.auth.v1.TenantService.CreateTenant:input_type -> maintainerd.auth.v1.TenantServiceCreateTenantRequest
+	15, // 41: maintainerd.auth.v1.TenantService.UpdateTenant:input_type -> maintainerd.auth.v1.TenantServiceUpdateTenantRequest
+	17, // 42: maintainerd.auth.v1.TenantService.SetTenantStatus:input_type -> maintainerd.auth.v1.SetTenantStatusRequest
+	19, // 43: maintainerd.auth.v1.TenantService.DeleteTenant:input_type -> maintainerd.auth.v1.DeleteTenantRequest
+	21, // 44: maintainerd.auth.v1.TenantService.ListTenantMembers:input_type -> maintainerd.auth.v1.ListTenantMembersRequest
+	23, // 45: maintainerd.auth.v1.TenantService.AddTenantMember:input_type -> maintainerd.auth.v1.AddTenantMemberRequest
+	25, // 46: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:input_type -> maintainerd.auth.v1.UpdateTenantMemberRoleRequest
+	27, // 47: maintainerd.auth.v1.TenantService.RemoveTenantMember:input_type -> maintainerd.auth.v1.RemoveTenantMemberRequest
+	29, // 48: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:input_type -> maintainerd.auth.v1.GetRateLimitConfigRequest
+	31, // 49: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:input_type -> maintainerd.auth.v1.UpdateRateLimitConfigRequest
+	33, // 50: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:input_type -> maintainerd.auth.v1.GetAuditConfigRequest
+	35, // 51: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:input_type -> maintainerd.auth.v1.UpdateAuditConfigRequest
+	37, // 52: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:input_type -> maintainerd.auth.v1.GetMaintenanceConfigRequest
+	39, // 53: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:input_type -> maintainerd.auth.v1.UpdateMaintenanceConfigRequest
+	41, // 54: maintainerd.auth.v1.TenantSettingService.GetFeatureFlags:input_type -> maintainerd.auth.v1.GetFeatureFlagsRequest
+	43, // 55: maintainerd.auth.v1.TenantSettingService.UpdateFeatureFlags:input_type -> maintainerd.auth.v1.UpdateFeatureFlagsRequest
+	6,  // 56: maintainerd.auth.v1.TenantService.GetDefaultTenant:output_type -> maintainerd.auth.v1.GetDefaultTenantResponse
+	8,  // 57: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:output_type -> maintainerd.auth.v1.GetTenantByIdentifierResponse
+	10, // 58: maintainerd.auth.v1.TenantService.ListTenants:output_type -> maintainerd.auth.v1.ListTenantsResponse
+	12, // 59: maintainerd.auth.v1.TenantService.GetTenant:output_type -> maintainerd.auth.v1.GetTenantResponse
+	14, // 60: maintainerd.auth.v1.TenantService.CreateTenant:output_type -> maintainerd.auth.v1.TenantServiceCreateTenantResponse
+	16, // 61: maintainerd.auth.v1.TenantService.UpdateTenant:output_type -> maintainerd.auth.v1.TenantServiceUpdateTenantResponse
+	18, // 62: maintainerd.auth.v1.TenantService.SetTenantStatus:output_type -> maintainerd.auth.v1.SetTenantStatusResponse
+	20, // 63: maintainerd.auth.v1.TenantService.DeleteTenant:output_type -> maintainerd.auth.v1.DeleteTenantResponse
+	22, // 64: maintainerd.auth.v1.TenantService.ListTenantMembers:output_type -> maintainerd.auth.v1.ListTenantMembersResponse
+	24, // 65: maintainerd.auth.v1.TenantService.AddTenantMember:output_type -> maintainerd.auth.v1.AddTenantMemberResponse
+	26, // 66: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:output_type -> maintainerd.auth.v1.UpdateTenantMemberRoleResponse
+	28, // 67: maintainerd.auth.v1.TenantService.RemoveTenantMember:output_type -> maintainerd.auth.v1.RemoveTenantMemberResponse
+	30, // 68: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:output_type -> maintainerd.auth.v1.GetRateLimitConfigResponse
+	32, // 69: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:output_type -> maintainerd.auth.v1.UpdateRateLimitConfigResponse
+	34, // 70: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:output_type -> maintainerd.auth.v1.GetAuditConfigResponse
+	36, // 71: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:output_type -> maintainerd.auth.v1.UpdateAuditConfigResponse
+	38, // 72: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:output_type -> maintainerd.auth.v1.GetMaintenanceConfigResponse
+	40, // 73: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:output_type -> maintainerd.auth.v1.UpdateMaintenanceConfigResponse
+	42, // 74: maintainerd.auth.v1.TenantSettingService.GetFeatureFlags:output_type -> maintainerd.auth.v1.GetFeatureFlagsResponse
+	44, // 75: maintainerd.auth.v1.TenantSettingService.UpdateFeatureFlags:output_type -> maintainerd.auth.v1.UpdateFeatureFlagsResponse
+	56, // [56:76] is the sub-list for method output_type
+	36, // [36:56] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_maintainerd_auth_v1_tenant_proto_init() }
@@ -2969,7 +2833,7 @@ func file_maintainerd_auth_v1_tenant_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_maintainerd_auth_v1_tenant_proto_rawDesc), len(file_maintainerd_auth_v1_tenant_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   47,
+			NumMessages:   45,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

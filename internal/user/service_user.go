@@ -96,8 +96,12 @@ type UserService interface {
 	// Used by UserContextMiddleware to populate the request context.
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error)
 	// ForcePasswordChange sets or clears the force_password_change flag for a user.
-	ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, force bool) error
+	ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, tenantID int64, force bool) error
 	GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error)
+	// EnsureUserInTenant copies the user identified by userUUID into the target
+	// tenant if they do not already have a record there. Returns the userID in
+	// the target tenant (existing or newly created).
+	EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID, targetTenantID int64) (int64, error)
 }
 
 type userService struct {
@@ -333,8 +337,9 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		capturedTenantID = targetTenant.TenantID
 		capturedActorID = creatorUser.UserID
 
-		// Check if user already exists by username
-		existingUser, err := txUserRepo.FindByUsername(username)
+		// Uniqueness is scoped to the target tenant — the same username/email may
+		// exist in other tenants.
+		existingUser, err := txUserRepo.FindByUsernameAndTenantID(username, targetTenant.TenantID)
 		if err != nil {
 			return err
 		}
@@ -344,7 +349,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 
 		// Check if user already exists by email (only if email is provided)
 		if email != nil && *email != "" {
-			existingUser, err = txUserRepo.FindByEmail(*email)
+			existingUser, err = txUserRepo.FindByEmailAndTenantID(*email, targetTenant.TenantID)
 			if err != nil {
 				return err
 			}
@@ -381,6 +386,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		}
 
 		newUser := &User{
+			TenantID:                   targetTenant.TenantID,
 			Username:                   username,
 			Email:                      emailStr,
 			Phone:                      phoneStr,
@@ -517,9 +523,9 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 		}
 		capturedActorID = updaterUser.UserID
 
-		// Check if username is taken by another user
+		// Check if username is taken by another user in the same tenant
 		if username != user.Username {
-			existingUser, err := txUserRepo.FindByUsername(username)
+			existingUser, err := txUserRepo.FindByUsernameAndTenantID(username, user.TenantID)
 			if err != nil {
 				return err
 			}
@@ -538,9 +544,9 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 			phoneStr = *phone
 		}
 
-		// Check if email is taken by another user (only if email is provided and different)
+		// Check if email is taken by another user in the same tenant (only if email is provided and different)
 		if email != nil && *email != "" && *email != user.Email {
-			existingUser, err := txUserRepo.FindByEmail(*email)
+			existingUser, err := txUserRepo.FindByEmailAndTenantID(*email, user.TenantID)
 			if err != nil {
 				return err
 			}
@@ -1279,11 +1285,22 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID,
 	return identities, result.Total, nil
 }
 
-// ForcePasswordChange sets or clears the force_password_change flag for a user.
-func (s *userService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, force bool) error {
+func (s *userService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, tenantID int64, force bool) error {
 	_, span := otel.Tracer("service").Start(ctx, "user.forcePasswordChange")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "user not found")
+		return apperror.NewNotFound("user not found")
+	}
+
+	if !userHasTenantAccess(user, tenantID) {
+		span.SetStatus(codes.Error, "tenant access denied")
+		return apperror.NewForbidden("access denied: user does not belong to your tenant")
+	}
 
 	if err := s.userRepo.SetForcePasswordChange(userUUID, force); err != nil {
 		span.RecordError(err)
@@ -1408,11 +1425,11 @@ func ValidateTenantAccess(actor *User, target *Tenant) error {
 	if len(actor.UserIdentities) == 0 {
 		return apperror.NewForbidden("actor user has no identities")
 	}
+	// Tenant isolation: access is granted only to the actor's own tenant(s).
+	// System-tenant identities do NOT get a cross-tenant override here — that
+	// override is confined to the tenant package (tenant-management ops only).
 	for _, identity := range actor.UserIdentities {
 		if identity.TenantID == target.TenantID {
-			return nil
-		}
-		if identity.Tenant != nil && identity.Tenant.IsSystem {
 			return nil
 		}
 	}
@@ -1431,7 +1448,6 @@ func toTenantServiceDataResult(t *Tenant) *TenantServiceDataResult {
 		Description: t.Description,
 		Identifier:  t.Identifier,
 		Status:      t.Status,
-		IsPublic:    t.IsPublic,
 		IsSystem:    t.IsSystem,
 		Metadata:    t.Metadata,
 		CreatedAt:   t.CreatedAt,
@@ -1483,4 +1499,122 @@ func (s *userService) isSMSVerified(ctx context.Context, userID int64) bool {
 		return false
 	}
 	return verified
+}
+
+func (s *userService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID, targetTenantID int64) (int64, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.ensureInTenant")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("target.tenant.id", targetTenantID))
+
+	source, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || source == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.SetStatus(codes.Error, "source user not found")
+		return 0, apperror.NewNotFound("user not found")
+	}
+
+	existing, err := s.userRepo.FindByEmailAndTenantID(source.Email, targetTenantID)
+	if err != nil {
+		span.RecordError(err)
+		return 0, apperror.NewInternal("failed to check user existence", err)
+	}
+	if existing != nil {
+		span.SetStatus(codes.Ok, "")
+		return existing.UserID, nil
+	}
+
+	existingUsername, err := s.userRepo.FindByUsernameAndTenantID(source.Username, targetTenantID)
+	if err != nil {
+		span.RecordError(err)
+		return 0, apperror.NewInternal("failed to check username", err)
+	}
+	if existingUsername != nil && existingUsername.UserUUID != source.UserUUID {
+		span.SetStatus(codes.Error, "username taken in target tenant")
+		return 0, apperror.NewConflict("username '" + source.Username + "' is already taken in the target tenant")
+	}
+
+	var copiedUser *User
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUserRepo := s.userRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
+		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+		txRoleRepo := s.roleRepo.WithTx(tx)
+
+		// Look up the target tenant's default identity provider and client.
+		var idp IdentityProvider
+		if txErr := tx.Where("tenant_id = ? AND is_system = ?",
+			targetTenantID, true).First(&idp).Error; txErr != nil {
+			span.SetStatus(codes.Error, "identity provider not found in target tenant")
+			return apperror.NewInternal("failed to find identity provider in target tenant", txErr)
+		}
+
+		var defaultClient Client
+		if txErr := tx.Where("tenant_id = ? AND is_system = ?",
+			targetTenantID, true).First(&defaultClient).Error; txErr != nil {
+			span.SetStatus(codes.Error, "system client not found in target tenant")
+			return apperror.NewInternal("failed to find system client in target tenant", txErr)
+		}
+
+		copied := &User{
+			TenantID:           targetTenantID,
+			Username:           source.Username,
+			Email:              source.Email,
+			Phone:              source.Phone,
+			Password:           source.Password,
+			IsEmailVerified:    source.IsEmailVerified,
+			IsPhoneVerified:    source.IsPhoneVerified,
+			IsProfileCompleted: source.IsProfileCompleted,
+			IsAccountCompleted: source.IsAccountCompleted,
+			Status:             shared.StatusActive,
+			PasswordChangedAt:  source.PasswordChangedAt,
+		}
+
+		created, txErr := txUserRepo.Create(copied)
+		if txErr != nil {
+			return txErr
+		}
+		copiedUser = created
+
+		identity := &UserIdentity{
+			TenantID:           targetTenantID,
+			UserID:             created.UserID,
+			ClientID:           defaultClient.ClientID,
+			IdentityProviderID: &idp.IdentityProviderID,
+			Provider:           shared.ProviderDefault,
+			Sub:                uuid.New().String(),
+			Metadata:           datatypes.JSON([]byte(`{}`)),
+		}
+		if _, txErr := txUserIdentityRepo.Create(identity); txErr != nil {
+			return txErr
+		}
+
+		defaultRole, txErr := txRoleRepo.FindByNameAndTenantID(shared.RoleRegistered, targetTenantID)
+		if txErr != nil || defaultRole == nil {
+			if txErr != nil {
+				return txErr
+			}
+			span.SetStatus(codes.Error, "default role not found in target tenant")
+			return apperror.NewInternal("default role not found in target tenant", nil)
+		}
+
+		if _, txErr := txUserRoleRepo.Create(&UserRole{
+			UserID: created.UserID,
+			RoleID: defaultRole.RoleID,
+		}); txErr != nil {
+			return txErr
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "user copy failed")
+		return 0, apperror.NewInternal("failed to copy user to target tenant", err)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return copiedUser.UserID, nil
 }

@@ -26,6 +26,7 @@ import (
 var (
 	testUserUUID     = uuid.MustParse("00000000-0000-0000-0000-000000000002")
 	testResourceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000099")
+	testTenantUUID   = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 	errNotFound  = apperror.NewNotFoundWithReason("not found")
 	errForbidden = apperror.NewForbidden("access denied")
@@ -77,7 +78,8 @@ func initTestJWTKeysService(t *testing.T) {
 // withUser injects an authenticated user into the request context.
 func withUser(r *http.Request) *http.Request {
 	user := &authctx.AuthUser{UserID: 1, UserUUID: testUserUUID}
-	return middleware.WithAuthContext(r, &authctx.AuthContext{User: user})
+	tenant := &authctx.AuthTenant{TenantID: 1, TenantUUID: testTenantUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{User: user, Tenant: tenant})
 }
 
 // withChiParam injects a chi URL parameter into the request context.

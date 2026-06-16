@@ -92,6 +92,21 @@ func (a *authnUserRepoAdapter) FindByEmailAndTenantID(email string, tenantID int
 	return toAuthnUser(r), err
 }
 
+func (a *authnUserRepoAdapter) FindByUsernameAndTenantID(username string, tenantID int64) (*authn.User, error) {
+	r, err := a.repo.FindByUsernameAndTenantID(username, tenantID)
+	return toAuthnUser(r), err
+}
+
+func (a *authnUserRepoAdapter) FindByPhoneAndTenantID(phone string, tenantID int64) (*authn.User, error) {
+	r, err := a.repo.FindByPhoneAndTenantID(phone, tenantID)
+	return toAuthnUser(r), err
+}
+
+func (a *authnUserRepoAdapter) FindByPendingEmailAndTenantID(email string, tenantID int64) (*authn.User, error) {
+	r, err := a.repo.FindByPendingEmailAndTenantID(email, tenantID)
+	return toAuthnUser(r), err
+}
+
 func (a *authnUserRepoAdapter) FindByPhone(phone string) (*authn.User, error) {
 	r, err := a.repo.FindByPhone(phone)
 	return toAuthnUser(r), err

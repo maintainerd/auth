@@ -103,4 +103,8 @@ const (
 	// Transport/cache defaults.
 	DefaultGRPCAddr             = ":50051"
 	DefaultDiscoveryCacheMaxAge = "public, max-age=3600"
+
+	// Auth flow destinations (AuthFlow.Destination)
+	DestinationConsole  = "console"
+	DestinationIdentity = "identity"
 )

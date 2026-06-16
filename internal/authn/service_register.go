@@ -27,6 +27,7 @@ var secHashPasswordWithPolicy = security.HashPasswordWithPolicy
 type RegisterService interface {
 	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
 	RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
+	RegisterInvite(ctx context.Context, username, password string, clientID, providerID *string, inviteToken string) (*RegisterResponseDTO, error)
 	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
 }
 
@@ -238,8 +239,9 @@ func (s *registerService) RegisterPublic(
 			return apperror.NewValidation("phone number is required for registration")
 		}
 
-		// Check if username already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username)
+		// Uniqueness is scoped to the tenant: the same username/email/phone may
+		// exist independently in other tenants.
+		existingUser, txErr := txUserRepo.FindByUsernameAndTenantID(username, tenantId)
 		if txErr != nil {
 			return txErr
 		}
@@ -249,7 +251,7 @@ func (s *registerService) RegisterPublic(
 
 		// Check if email already exists (if provided)
 		if email != nil && *email != "" {
-			existingEmailUser, txErr := txUserRepo.FindByEmail(*email)
+			existingEmailUser, txErr := txUserRepo.FindByEmailAndTenantID(*email, tenantId)
 			if txErr != nil {
 				return txErr
 			}
@@ -260,7 +262,7 @@ func (s *registerService) RegisterPublic(
 
 		// Check if phone already exists (if provided)
 		if phone != nil && *phone != "" {
-			existingPhoneUser, txErr := txUserRepo.FindByPhone(*phone)
+			existingPhoneUser, txErr := txUserRepo.FindByPhoneAndTenantID(*phone, tenantId)
 			if txErr != nil {
 				return txErr
 			}
@@ -286,6 +288,7 @@ func (s *registerService) RegisterPublic(
 		// policy. Users start as "pending" when email verification is required
 		// so they must complete verification before proceeding.
 		newUser := &User{
+			TenantID:          tenantId,
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
@@ -447,8 +450,8 @@ func (s *registerService) Register(
 			return apperror.NewValidation("phone number is required for registration")
 		}
 
-		// Check if user already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username)
+		// Check if user already exists (scoped to this tenant)
+		existingUser, txErr := txUserRepo.FindByUsernameAndTenantID(username, tenantId)
 		if txErr != nil && txErr.Error() != "record not found" {
 			return txErr
 		}
@@ -471,6 +474,7 @@ func (s *registerService) Register(
 		now := time.Now()
 		// Email-verified state follows the tenant registration policy.
 		newUser := &User{
+			TenantID:          tenantId,
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
@@ -622,8 +626,8 @@ func (s *registerService) RegisterInvitePublic(
 			return apperror.NewUnauthorized("invite has expired")
 		}
 
-		// Check if username already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username)
+		// Check if username already exists (scoped to the invite's tenant)
+		existingUser, txErr := txUserRepo.FindByUsernameAndTenantID(username, tenantId)
 		if txErr != nil {
 			return txErr
 		}
@@ -631,8 +635,8 @@ func (s *registerService) RegisterInvitePublic(
 			return apperror.NewConflict("username already taken")
 		}
 
-		// Check if invited email already exists
-		existingEmailUser, txErr := txUserRepo.FindByEmail(invite.InvitedEmail)
+		// Check if invited email already exists (scoped to the invite's tenant)
+		existingEmailUser, txErr := txUserRepo.FindByEmailAndTenantID(invite.InvitedEmail, tenantId)
 		if txErr != nil {
 			return txErr
 		}
@@ -655,6 +659,7 @@ func (s *registerService) RegisterInvitePublic(
 		now := time.Now()
 		// Create user
 		newUser := &User{
+			TenantID:           tenantId,
 			Username:           username,
 			Email:              invite.InvitedEmail, // Always use the invited email
 			Password:           ptr.Ptr(string(hashed)),
@@ -751,6 +756,189 @@ func (s *registerService) RegisterInvitePublic(
 
 	span.SetStatus(codes.Ok, "")
 	// Return token response
+	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
+}
+
+// RegisterInvite registers new users via invite token for internal applications.
+// Unlike RegisterInvitePublic, clientID and providerID are optional (pointer params).
+// When nil, the system client is resolved from the invite's tenant.
+// Used by internal applications on port 8080.
+func (s *registerService) RegisterInvite(
+	ctx context.Context,
+	username,
+	password string,
+	clientID,
+	providerID *string,
+	inviteToken string,
+) (*RegisterResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "register.invite")
+	defer span.End()
+
+	var createdUser *User
+	var Client *Client
+	var userIdentitySub string
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txUserRepo := s.userRepo.WithTx(tx)
+		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
+		txInviteRepo := s.inviteRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txRoleRepo := s.roleRepo.WithTx(tx)
+
+		invite, txErr := txInviteRepo.FindByToken(inviteToken)
+		if txErr != nil {
+			return apperror.NewUnauthorized("invalid invite token")
+		}
+		if invite == nil {
+			return apperror.NewNotFound("invite not found")
+		}
+
+		if invite.Status != shared.StatusPending {
+			return apperror.NewUnauthorized("invite has already been used or is no longer valid")
+		}
+		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
+			return apperror.NewUnauthorized("invite has expired")
+		}
+
+		if clientID != nil && providerID != nil {
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			if txErr != nil {
+				return apperror.NewInternal("auth client lookup by client_id and provider_id failed", txErr)
+			}
+		} else {
+			Client, txErr = txClientRepo.FindSystem()
+			if txErr != nil {
+				return txErr
+			}
+		}
+
+		if Client == nil ||
+			Client.Status != shared.StatusActive ||
+			Client.Domain == nil || *Client.Domain == "" {
+			return apperror.NewValidation("invalid or inactive auth client")
+		}
+
+		tenantId := invite.TenantID
+
+		existingUser, txErr := txUserRepo.FindByUsernameAndTenantID(username, tenantId)
+		if txErr != nil {
+			return txErr
+		}
+		if existingUser != nil {
+			return apperror.NewConflict("username already taken")
+		}
+
+		existingEmailUser, txErr := txUserRepo.FindByEmailAndTenantID(invite.InvitedEmail, tenantId)
+		if txErr != nil {
+			return txErr
+		}
+		if existingEmailUser != nil {
+			return apperror.NewConflict("invited email already registered")
+		}
+
+		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
+		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
+			return apperror.NewValidation(txErr.Error())
+		}
+
+		hashed, txErr := secHashPasswordWithPolicy(ctx, []byte(password), policy)
+		if txErr != nil {
+			return txErr
+		}
+
+		now := time.Now()
+		newUser := &User{
+			TenantID:           tenantId,
+			Username:           username,
+			Email:              invite.InvitedEmail,
+			Password:           ptr.Ptr(string(hashed)),
+			Status:             shared.StatusActive,
+			IsEmailVerified:    true,
+			IsProfileCompleted: false,
+			IsAccountCompleted: false,
+			PasswordChangedAt:  &now,
+		}
+
+		createdUser, txErr = txUserRepo.Create(newUser)
+		if txErr != nil {
+			return txErr
+		}
+
+		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+
+		userIdentity := &UserIdentity{
+			TenantID:           tenantId,
+			UserID:             createdUser.UserID,
+			ClientID:           Client.ClientID,
+			IdentityProviderID: &Client.IdentityProviderID,
+			Provider:           shared.ProviderDefault,
+			Sub:                uuid.New().String(),
+			Metadata:           datatypes.JSON([]byte(`{}`)),
+		}
+
+		_, txErr = txUserIdentityRepo.Create(userIdentity)
+		if txErr != nil {
+			return txErr
+		}
+		userIdentitySub = userIdentity.Sub
+
+		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
+		if txErr != nil {
+			return txErr
+		}
+
+		defaultUserRole := &UserRole{
+			UserID: createdUser.UserID,
+			RoleID: defaultRole.RoleID,
+		}
+		_, txErr = txUserRoleRepo.Create(defaultUserRole)
+		if txErr != nil {
+			return txErr
+		}
+
+		if invite.AuthFlowID != nil && s.authFlowRoleRepo != nil {
+			txAuthFlowRoleRepo := s.authFlowRoleRepo.WithTx(tx)
+			roleIDs, txErr := txAuthFlowRoleRepo.FindRoleIDsByAuthFlowID(*invite.AuthFlowID)
+			if txErr != nil {
+				return txErr
+			}
+			for _, roleID := range roleIDs {
+				if roleID == defaultRole.RoleID {
+					continue
+				}
+				existingRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, roleID)
+				if txErr != nil {
+					return txErr
+				}
+				if existingRole != nil {
+					continue
+				}
+				_, txErr = txUserRoleRepo.Create(&UserRole{
+					UserID: createdUser.UserID,
+					RoleID: roleID,
+				})
+				if txErr != nil {
+					return txErr
+				}
+			}
+		}
+
+		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)
+		if txErr != nil {
+			return txErr
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register invite failed")
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "")
 	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 

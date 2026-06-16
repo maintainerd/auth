@@ -45,6 +45,10 @@ func (h *AuthorizationHandler) Authorize(w http.ResponseWriter, r *http.Request)
 		resp.BadRequestBody(w)
 		return
 	}
+	auth := middleware.AuthFromRequest(r)
+	if auth != nil && auth.Tenant != nil {
+		req.TenantID = auth.Tenant.TenantID
+	}
 	decision := h.service.Authorize(r.Context(), req)
 	resp.Success(w, decision, "Authorization decision evaluated")
 }
@@ -61,5 +65,10 @@ func serviceIdentityFromRequest(r *http.Request) (ServiceIdentity, bool) {
 	if serviceName == "" {
 		return ServiceIdentity{}, false
 	}
-	return ServiceIdentity{ServiceName: serviceName, ClientID: claims.ClientID}, true
+	identity := ServiceIdentity{ServiceName: serviceName, ClientID: claims.ClientID}
+	auth := middleware.AuthFromRequest(r)
+	if auth != nil && auth.Tenant != nil {
+		identity.TenantID = auth.Tenant.TenantID
+	}
+	return identity, true
 }

@@ -102,7 +102,7 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req OAuthCIBARequestDTO
 		return nil, apperror.NewOAuthInvalidRequest("login_hint is required")
 	}
 
-	user, err := s.userRepo.FindByEmail(req.LoginHint)
+	user, err := s.userRepo.FindByEmailAndTenantID(req.LoginHint, client.TenantID)
 	if err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")

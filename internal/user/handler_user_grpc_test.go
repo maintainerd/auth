@@ -93,7 +93,7 @@ func (m *testUserService) RevokeUserSession(_ context.Context, _ uuid.UUID, _ in
 func (m *testUserService) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error) {
 	return nil, nil
 }
-func (m *testUserService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, force bool) error {
+func (m *testUserService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, tenantID int64, force bool) error {
 	return m.forcePasswordChangeFn(ctx, userUUID, force)
 }
 func (m *testUserService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error) {
@@ -101,6 +101,10 @@ func (m *testUserService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, te
 		return m.getUserMFAFn(ctx, userUUID, tenantID)
 	}
 	return &UserMFAResponseDTO{}, nil
+}
+
+func (m *testUserService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID, tenantID int64) (int64, error) {
+	return 0, nil
 }
 
 func TestUserGRPCHandler_RPCS(t *testing.T) {

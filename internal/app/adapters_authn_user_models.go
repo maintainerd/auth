@@ -12,6 +12,7 @@ func toAuthnUser(u *user.User) *authn.User {
 	return &authn.User{
 		UserID:                     u.UserID,
 		UserUUID:                   u.UserUUID,
+		TenantID:                   u.TenantID,
 		Username:                   u.Username,
 		Fullname:                   u.Fullname,
 		Email:                      u.Email,
@@ -40,6 +41,7 @@ func toUserUser(u *authn.User) *user.User {
 	return &user.User{
 		UserID:                     u.UserID,
 		UserUUID:                   u.UserUUID,
+		TenantID:                   u.TenantID,
 		Username:                   u.Username,
 		Fullname:                   u.Fullname,
 		Email:                      u.Email,

@@ -17,7 +17,6 @@ type Tenant struct {
 	Description string
 	Identifier  string
 	Status      string
-	IsPublic    bool
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -33,7 +32,6 @@ type TenantServiceDataResult struct {
 	Description string
 	Identifier  string
 	Status      string
-	IsPublic    bool
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -219,11 +217,11 @@ func ValidateTenantAccess(actor *User, target *Tenant) error {
 	if len(actor.UserIdentities) == 0 {
 		return apperror.NewForbidden("actor user has no identities")
 	}
+	// Tenant isolation: access is granted only to the actor's own tenant(s).
+	// System-tenant identities do NOT get a cross-tenant override here — that
+	// override is confined to the tenant package (tenant-management ops only).
 	for _, identity := range actor.UserIdentities {
 		if identity.TenantID == target.TenantID {
-			return nil
-		}
-		if identity.Tenant != nil && identity.Tenant.IsSystem {
 			return nil
 		}
 	}
@@ -242,7 +240,6 @@ func toTenantServiceDataResult(t *Tenant) *TenantServiceDataResult {
 		Description: t.Description,
 		Identifier:  t.Identifier,
 		Status:      t.Status,
-		IsPublic:    t.IsPublic,
 		IsSystem:    t.IsSystem,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,

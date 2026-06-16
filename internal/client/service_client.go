@@ -1480,11 +1480,11 @@ func ValidateTenantAccess(actor *User, target *Tenant) error {
 	if target == nil {
 		return apperror.NewNotFoundWithReason("tenant not found")
 	}
+	// Tenant isolation: access is granted only to the actor's own tenant(s).
+	// System-tenant identities do NOT get a cross-tenant override here — that
+	// override is confined to the tenant package (tenant-management ops only).
 	for _, identity := range actor.UserIdentities {
 		if identity.TenantID == target.TenantID {
-			return nil
-		}
-		if identity.Tenant != nil && identity.Tenant.IsSystem {
 			return nil
 		}
 	}

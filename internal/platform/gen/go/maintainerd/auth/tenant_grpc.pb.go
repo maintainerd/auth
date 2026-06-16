@@ -26,7 +26,6 @@ const (
 	TenantService_CreateTenant_FullMethodName           = "/maintainerd.auth.v1.TenantService/CreateTenant"
 	TenantService_UpdateTenant_FullMethodName           = "/maintainerd.auth.v1.TenantService/UpdateTenant"
 	TenantService_SetTenantStatus_FullMethodName        = "/maintainerd.auth.v1.TenantService/SetTenantStatus"
-	TenantService_SetTenantPublic_FullMethodName        = "/maintainerd.auth.v1.TenantService/SetTenantPublic"
 	TenantService_DeleteTenant_FullMethodName           = "/maintainerd.auth.v1.TenantService/DeleteTenant"
 	TenantService_ListTenantMembers_FullMethodName      = "/maintainerd.auth.v1.TenantService/ListTenantMembers"
 	TenantService_AddTenantMember_FullMethodName        = "/maintainerd.auth.v1.TenantService/AddTenantMember"
@@ -45,7 +44,6 @@ type TenantServiceClient interface {
 	CreateTenant(ctx context.Context, in *TenantServiceCreateTenantRequest, opts ...grpc.CallOption) (*TenantServiceCreateTenantResponse, error)
 	UpdateTenant(ctx context.Context, in *TenantServiceUpdateTenantRequest, opts ...grpc.CallOption) (*TenantServiceUpdateTenantResponse, error)
 	SetTenantStatus(ctx context.Context, in *SetTenantStatusRequest, opts ...grpc.CallOption) (*SetTenantStatusResponse, error)
-	SetTenantPublic(ctx context.Context, in *SetTenantPublicRequest, opts ...grpc.CallOption) (*SetTenantPublicResponse, error)
 	DeleteTenant(ctx context.Context, in *DeleteTenantRequest, opts ...grpc.CallOption) (*DeleteTenantResponse, error)
 	ListTenantMembers(ctx context.Context, in *ListTenantMembersRequest, opts ...grpc.CallOption) (*ListTenantMembersResponse, error)
 	AddTenantMember(ctx context.Context, in *AddTenantMemberRequest, opts ...grpc.CallOption) (*AddTenantMemberResponse, error)
@@ -131,16 +129,6 @@ func (c *tenantServiceClient) SetTenantStatus(ctx context.Context, in *SetTenant
 	return out, nil
 }
 
-func (c *tenantServiceClient) SetTenantPublic(ctx context.Context, in *SetTenantPublicRequest, opts ...grpc.CallOption) (*SetTenantPublicResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SetTenantPublicResponse)
-	err := c.cc.Invoke(ctx, TenantService_SetTenantPublic_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *tenantServiceClient) DeleteTenant(ctx context.Context, in *DeleteTenantRequest, opts ...grpc.CallOption) (*DeleteTenantResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeleteTenantResponse)
@@ -202,7 +190,6 @@ type TenantServiceServer interface {
 	CreateTenant(context.Context, *TenantServiceCreateTenantRequest) (*TenantServiceCreateTenantResponse, error)
 	UpdateTenant(context.Context, *TenantServiceUpdateTenantRequest) (*TenantServiceUpdateTenantResponse, error)
 	SetTenantStatus(context.Context, *SetTenantStatusRequest) (*SetTenantStatusResponse, error)
-	SetTenantPublic(context.Context, *SetTenantPublicRequest) (*SetTenantPublicResponse, error)
 	DeleteTenant(context.Context, *DeleteTenantRequest) (*DeleteTenantResponse, error)
 	ListTenantMembers(context.Context, *ListTenantMembersRequest) (*ListTenantMembersResponse, error)
 	AddTenantMember(context.Context, *AddTenantMemberRequest) (*AddTenantMemberResponse, error)
@@ -238,9 +225,6 @@ func (UnimplementedTenantServiceServer) UpdateTenant(context.Context, *TenantSer
 }
 func (UnimplementedTenantServiceServer) SetTenantStatus(context.Context, *SetTenantStatusRequest) (*SetTenantStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetTenantStatus not implemented")
-}
-func (UnimplementedTenantServiceServer) SetTenantPublic(context.Context, *SetTenantPublicRequest) (*SetTenantPublicResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetTenantPublic not implemented")
 }
 func (UnimplementedTenantServiceServer) DeleteTenant(context.Context, *DeleteTenantRequest) (*DeleteTenantResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteTenant not implemented")
@@ -404,24 +388,6 @@ func _TenantService_SetTenantStatus_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TenantService_SetTenantPublic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetTenantPublicRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TenantServiceServer).SetTenantPublic(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TenantService_SetTenantPublic_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TenantServiceServer).SetTenantPublic(ctx, req.(*SetTenantPublicRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _TenantService_DeleteTenant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteTenantRequest)
 	if err := dec(in); err != nil {
@@ -546,10 +512,6 @@ var TenantService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetTenantStatus",
 			Handler:    _TenantService_SetTenantStatus_Handler,
-		},
-		{
-			MethodName: "SetTenantPublic",
-			Handler:    _TenantService_SetTenantPublic_Handler,
 		},
 		{
 			MethodName: "DeleteTenant",

@@ -12,7 +12,7 @@ func toAuthnTenantFromClient(t *client.Tenant) *authn.Tenant {
 	return &authn.Tenant{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name,
 		DisplayName: t.DisplayName, Description: t.Description, Identifier: t.Identifier,
-		Status: t.Status, IsPublic: t.IsPublic, IsSystem: t.IsSystem,
+		Status: t.Status, IsSystem: t.IsSystem,
 		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
 }
