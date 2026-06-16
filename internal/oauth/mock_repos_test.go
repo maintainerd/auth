@@ -33,6 +33,8 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, providerID 
 	}
 	return nil, nil
 }
+func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) { return nil, nil }
 func (m *mockClientRepo) Create(e *Client) (*Client, error) {
 	if m.createFn != nil {
 		return m.createFn(e)

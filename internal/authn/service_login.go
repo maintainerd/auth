@@ -26,9 +26,9 @@ import (
 )
 
 type LoginService interface {
-	LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
-	Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
-	CompleteMFALogin(ctx context.Context, challengeToken, method, code string, assertion []byte, clientID, providerID *string) (*LoginResponseDTO, error)
+	LoginPublic(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error)
+	Login(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error)
+	CompleteMFALogin(ctx context.Context, challengeToken, method, code string, assertion []byte, clientID, tenantID *string) (*LoginResponseDTO, error)
 	SendMFALoginSMS(ctx context.Context, challengeToken string) error
 	BeginMFALoginWebAuthn(ctx context.Context, challengeToken string) (json.RawMessage, error)
 	RefreshToken(ctx context.Context, refreshToken string, sessionID string) (*LoginResponseDTO, error)
@@ -143,9 +143,9 @@ func (s *loginService) enforceLoginEmailVerification(user *User, tenantID int64)
 }
 
 // LoginPublic authenticates users for public-facing applications.
-// Requires clientID and providerID to identify the auth client.
+// clientID and tenantID are optional (pointer params).  Priority: clientID > tenantID > system default.
 // Used by external applications on port 8081.
-func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (result *LoginResponseDTO, err error) {
+func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (result *LoginResponseDTO, err error) {
 	_, span := otel.Tracer("service").Start(ctx, "login.public")
 	defer func() {
 		if err != nil {
@@ -158,13 +158,18 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	}()
 	startTime := time.Now()
 
-	// Input validation is now handled at the DTO/handler level
+	// Resolve client early for rate-limiting scope and threat detection.
+	resolvedClient, resolveErr := resolveClient(s.clientRepo, clientID, tenantID)
+	clientIDStr := ""
+	if clientID != nil {
+		clientIDStr = *clientID
+	}
 
-	// Resolve tenant ID early for rate-limiting scope.
 	var lockoutPolicy *security.RateLimitConfig
 	var tenantIDForRL int64
-	if ip, ipErr := s.identityProviderRepo.FindByIdentifier(providerID); ipErr == nil && ip != nil {
-		tenantIDForRL = ip.TenantID
+	if resolveErr == nil && resolvedClient != nil &&
+		resolvedClient.IdentityProvider != nil {
+		tenantIDForRL = resolvedClient.IdentityProvider.TenantID
 		lockoutPolicy = secpolicy.LoadLockoutPolicy(s.securitySettingRepo, tenantIDForRL)
 	}
 	rateLimitIdentifier := fmt.Sprintf("%d:%s", tenantIDForRL, usernameOrEmail)
@@ -174,7 +179,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_rate_limited",
 			UserID:    usernameOrEmail,
-			ClientID:  clientID,
+			ClientID:  clientIDStr,
 			Timestamp: startTime,
 			Details:   err.Error(),
 		})
@@ -206,40 +211,15 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
-		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
-		// Look up identity provider by identifier to get auth container
-		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
-		if txErr != nil {
-			security.LogSecurityEvent(security.SecurityEvent{
-				EventType: "login_validation_failure",
-				UserID:    usernameOrEmail,
-				ClientID:  clientID,
-				Timestamp: startTime,
-				Details:   "Identity provider lookup failed",
-			})
-			return apperror.NewUnauthorized("authentication failed")
-		}
-
-		if identityProvider == nil {
-			security.LogSecurityEvent(security.SecurityEvent{
-				EventType: "login_validation_failure",
-				UserID:    usernameOrEmail,
-				ClientID:  clientID,
-				Timestamp: startTime,
-				Details:   "Identity provider not found",
-			})
-			return apperror.NewUnauthorized("authentication failed")
-		}
-
-		// Get and validate auth client with proper relationship preloading
-		client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
+		var txErr error
+		client, txErr = resolveClient(txClientRepo, clientID, tenantID)
 		if txErr != nil {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_client_lookup_failure",
 				UserID:    usernameOrEmail,
-				ClientID:  clientID,
+				ClientID:  clientIDStr,
 				Timestamp: startTime,
 				Details:   "Client lookup failed",
 			})
@@ -248,19 +228,20 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 		if client == nil ||
 			client.Status != shared.StatusActive ||
-			client.Domain == nil || *client.Domain == "" {
+			client.Domain == nil || *client.Domain == "" ||
+			client.IdentityProvider == nil {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_invalid_client",
 				UserID:    usernameOrEmail,
-				ClientID:  clientID,
+				ClientID:  clientIDStr,
 				Timestamp: startTime,
 				Details:   "Invalid or inactive client configuration",
 			})
 			return apperror.NewUnauthorized("authentication failed")
 		}
 
-		// Get user by username or tenant-scoped email (timing-safe user lookup)
-		user, userLookupErr = findLoginUser(txUserRepo, usernameOrEmail, identityProvider.TenantID)
+		// Get user by username or tenant-scoped email
+		user, userLookupErr = findLoginUser(txUserRepo, usernameOrEmail, client.IdentityProvider.TenantID)
 
 		// Fetch user identity to get the Sub claim
 		if userLookupErr == nil && user != nil {
@@ -281,7 +262,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
-		s.recordFailedLogin(ctx, rateLimitIdentifier, clientID, client, startTime, lockoutPolicy)
+		s.recordFailedLogin(ctx, rateLimitIdentifier, clientIDStr, client, startTime, lockoutPolicy)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -294,7 +275,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
-			ClientID:  clientID,
+			ClientID:  clientIDStr,
 			Timestamp: startTime,
 			Details:   "Attempt to login with inactive user account",
 		})
@@ -327,7 +308,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_success",
 		UserID:    user.UserUUID.String(),
-		ClientID:  clientID,
+		ClientID:  clientIDStr,
 		Timestamp: startTime,
 		Details:   fmt.Sprintf("Successful login for user %s", user.Username),
 	})
@@ -367,10 +348,10 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 }
 
 // Login authenticates users for internal applications.
-// If clientID and providerID are provided, uses the specified auth client.
+// If clientID and tenantID are provided, uses the specified auth client.
 // If not provided, uses the default auth client.
 // Used by internal applications on port 8080.
-func (s *loginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (result *LoginResponseDTO, err error) {
+func (s *loginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (result *LoginResponseDTO, err error) {
 	_, span := otel.Tracer("service").Start(ctx, "login.internal")
 	defer func() {
 		if err != nil {
@@ -386,11 +367,9 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	// Resolve tenant ID early for rate-limiting scope.
 	var lockoutPolicy *security.RateLimitConfig
 	var tenantIDForRL int64
-	if providerID != nil {
-		if ip, ipErr := s.identityProviderRepo.FindByIdentifier(*providerID); ipErr == nil && ip != nil {
-			tenantIDForRL = ip.TenantID
-			lockoutPolicy = secpolicy.LoadLockoutPolicy(s.securitySettingRepo, tenantIDForRL)
-		}
+	if resolvedClient, resolveErr := resolveClient(s.clientRepo, clientID, tenantID); resolveErr == nil && resolvedClient != nil && resolvedClient.IdentityProvider != nil {
+		tenantIDForRL = resolvedClient.IdentityProvider.TenantID
+		lockoutPolicy = secpolicy.LoadLockoutPolicy(s.securitySettingRepo, tenantIDForRL)
 	}
 	rateLimitIdentifier := fmt.Sprintf("%d:%s", tenantIDForRL, usernameOrEmail)
 
@@ -426,34 +405,17 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
-		// Get auth client - either by client_id and provider_id or default
 		var txErr error
-		if clientID != nil && providerID != nil {
-			// Get auth client by client_id and identity provider identifier
-			client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
-			if txErr != nil {
-				security.LogSecurityEvent(security.SecurityEvent{
-					EventType: "login_client_lookup_failure",
-					UserID:    usernameOrEmail,
-					ClientID:  *clientID,
-					Timestamp: startTime,
-					Details:   "Client lookup by client_id and provider_id failed",
-				})
-				return apperror.NewUnauthorized("authentication failed")
-			}
-		} else {
-			// Get system client for no-client_id authentication (always the system tenant)
-			client, txErr = txClientRepo.FindSystem()
-			if txErr != nil {
-				security.LogSecurityEvent(security.SecurityEvent{
-					EventType: "login_client_lookup_failure",
-					UserID:    usernameOrEmail,
-					ClientID:  "internal",
-					Timestamp: startTime,
-					Details:   "Default client lookup failed",
-				})
-				return apperror.NewUnauthorized("authentication failed")
-			}
+		client, txErr = resolveClient(txClientRepo, clientID, tenantID)
+		if txErr != nil {
+			security.LogSecurityEvent(security.SecurityEvent{
+				EventType: "login_client_lookup_failure",
+				UserID:    usernameOrEmail,
+				ClientID:  "internal",
+				Timestamp: startTime,
+				Details:   "Client lookup failed",
+			})
+			return apperror.NewUnauthorized("authentication failed")
 		}
 
 		if client == nil ||
@@ -889,8 +851,6 @@ func verifyLoginPassword(user *User, password string, lookupOK bool) bool {
 }
 
 func (s *loginService) recordFailedLogin(ctx context.Context, rateLimitIdentifier, clientID string, client *Client, at time.Time, lockoutPolicy *security.RateLimitConfig) {
-	security.RecordFailedAttemptWithConfig(rateLimitIdentifier, lockoutPolicy)
-
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_failure",
 		UserID:    rateLimitIdentifier,
@@ -1035,7 +995,7 @@ func (s *loginService) resolveMFAChallengeUser(challengeToken string) (*User, jw
 // CompleteMFALogin verifies the second factor for an in-flight login (identified
 // by the challenge token from step one) and, on success, issues a full session
 // elevated to acr=2.
-func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, method, code string, assertion []byte, clientID, providerID *string) (*LoginResponseDTO, error) {
+func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, method, code string, assertion []byte, clientID, tenantID *string) (*LoginResponseDTO, error) {
 	if s.mfaAuthenticator == nil {
 		return nil, apperror.NewInternal("MFA is not configured", nil)
 	}
@@ -1051,13 +1011,9 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 		return nil, apperror.NewUnauthorized("account is not active")
 	}
 
-	// Resolve the client the same way login does (explicit client or system).
+	// Resolve the client the same way login does.
 	var client *Client
-	if clientID != nil && providerID != nil {
-		client, err = s.clientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
-	} else {
-		client, err = s.clientRepo.FindSystem()
-	}
+	client, err = resolveClient(s.clientRepo, clientID, tenantID)
 	if err != nil || client == nil || client.Status != shared.StatusActive ||
 		client.Domain == nil || *client.Domain == "" {
 		return nil, apperror.NewUnauthorized("authentication failed")

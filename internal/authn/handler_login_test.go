@@ -51,14 +51,14 @@ func TestExtractSecurityContext_NonStringValue(t *testing.T) {
 	// Calling LoginPublic (which uses extractSecurityContext) with a non-string
 	// value at ClientIPKey triggers the ok==false branch → strVal returns "".
 	// The handler continues normally; we just care that no panic occurs and the
-	// request is processed (validation still fails because client_id is missing).
+	// request is processed (the mock returns nil, but nil-check prevents panic).
 	h := NewLoginHandler(&mockLoginService{})
 	r := withNonStringSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login",
 		map[string]string{"username": "u", "password": "p"}))
 	w := httptest.NewRecorder()
 	h.LoginPublic(w, r)
-	// client_id is missing → LoginQueryDTO.Validate fails → 400
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	// Service returns nil (mock), handler returns 500 rather than panicking
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 // ---------------------------------------------------------------------------
@@ -77,13 +77,15 @@ func TestLoginHandler_LoginPublic_BodyValidationError(t *testing.T) {
 }
 
 func TestLoginHandler_LoginPublic_MissingClientID(t *testing.T) {
+	// client_id and tenant_id are now optional. The mock returns nil, and the
+	// handler returns 500 rather than panicking.
 	h := NewLoginHandler(&mockLoginService{})
 	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login", map[string]string{
 		"username": "user1", "password": "pass1",
 	}))
 	w := httptest.NewRecorder()
 	h.LoginPublic(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestLoginHandler_LoginPublic_EmptyUserAgent(t *testing.T) {
@@ -114,7 +116,7 @@ func TestLoginHandler_LoginPublic_InvalidBody(t *testing.T) {
 
 func TestLoginHandler_LoginPublic_ServiceError(t *testing.T) {
 	svc := &mockLoginService{
-		loginPublicFn: func(u, p, c, pr string) (*LoginResponseDTO, error) {
+		loginPublicFn: func(u, p string, c, tn *string) (*LoginResponseDTO, error) {
 			return nil, errUnauthorized
 		},
 	}
@@ -128,7 +130,7 @@ func TestLoginHandler_LoginPublic_ServiceError(t *testing.T) {
 
 func TestLoginHandler_LoginPublic_Success(t *testing.T) {
 	svc := &mockLoginService{
-		loginPublicFn: func(u, p, c, pr string) (*LoginResponseDTO, error) {
+		loginPublicFn: func(u, p string, c, tn *string) (*LoginResponseDTO, error) {
 			return &LoginResponseDTO{AccessToken: "tok"}, nil
 		},
 	}
@@ -142,7 +144,7 @@ func TestLoginHandler_LoginPublic_Success(t *testing.T) {
 
 func TestLoginHandler_LoginPublic_MFARequired(t *testing.T) {
 	svc := &mockLoginService{
-		loginPublicFn: func(u, p, c, pr string) (*LoginResponseDTO, error) {
+		loginPublicFn: func(u, p string, c, tn *string) (*LoginResponseDTO, error) {
 			return &LoginResponseDTO{MFARequired: true}, nil
 		},
 	}
@@ -159,7 +161,7 @@ func TestLoginHandler_LoginPublic_MFARequired(t *testing.T) {
 
 func TestLoginHandler_LoginPublic_PasswordChangeRequired(t *testing.T) {
 	svc := &mockLoginService{
-		loginPublicFn: func(u, p, c, pr string) (*LoginResponseDTO, error) {
+		loginPublicFn: func(u, p string, c, tn *string) (*LoginResponseDTO, error) {
 			return &LoginResponseDTO{RequirePasswordChange: true}, nil
 		},
 	}

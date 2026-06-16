@@ -220,10 +220,10 @@ func (s *tenantSettingService) getOrCreate(tenantID int64) (*TenantSetting, erro
 
 	setting = &TenantSetting{
 		TenantID:          tenantID,
-		RateLimitConfig:   datatypes.JSON([]byte("{}")),
-		AuditConfig:       datatypes.JSON([]byte("{}")),
-		MaintenanceConfig: datatypes.JSON([]byte("{}")),
-		FeatureFlags:      datatypes.JSON([]byte("{}")),
+		RateLimitConfig:   DefaultTenantSettingJSON("rate_limit"),
+		AuditConfig:       DefaultTenantSettingJSON("audit"),
+		MaintenanceConfig: DefaultTenantSettingJSON("maintenance"),
+		FeatureFlags:      DefaultTenantSettingJSON("feature_flags"),
 	}
 	created, err := s.tenantSettingRepo.Create(setting)
 	if err != nil {

@@ -74,9 +74,9 @@ func TestRegisterQueryDto_Validate(t *testing.T) {
 		dto     RegisterQueryDTO
 		wantErr bool
 	}{
-		{name: "valid", dto: RegisterQueryDTO{ClientID: "c1", ProviderID: "p1"}, wantErr: false},
-		{name: "empty client_id ok", dto: RegisterQueryDTO{ProviderID: "p1"}, wantErr: false},
-		{name: "empty provider_id ok", dto: RegisterQueryDTO{ClientID: "c1"}, wantErr: false},
+		{name: "valid", dto: RegisterQueryDTO{ClientID: "c1", TenantID: "p1"}, wantErr: false},
+		{name: "empty client_id ok", dto: RegisterQueryDTO{TenantID: "p1"}, wantErr: false},
+		{name: "empty tenant_id ok", dto: RegisterQueryDTO{ClientID: "c1"}, wantErr: false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestRegisterQueryDto_Validate(t *testing.T) {
 func TestRegisterInviteQueryDto_Validate(t *testing.T) {
 	valid := RegisterInviteQueryDTO{
 		ClientID:    "c1",
-		ProviderID:  "p1",
+		TenantID:  "p1",
 		InviteToken: "token123",
 		Expires:     "1700000000",
 		Sig:         "abc123sig",
@@ -105,10 +105,16 @@ func TestRegisterInviteQueryDto_Validate(t *testing.T) {
 		assert.NoError(t, d.Validate())
 	})
 
-	t.Run("missing client_id", func(t *testing.T) {
+	t.Run("missing client_id (now optional, ok)", func(t *testing.T) {
 		d := valid
 		d.ClientID = ""
-		require.Error(t, d.Validate())
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("missing tenant_id (optional, ok)", func(t *testing.T) {
+		d := valid
+		d.TenantID = ""
+		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("missing invite_token", func(t *testing.T) {
@@ -200,23 +206,23 @@ func TestRegisterRequestDto_Validate_MaxLengths(t *testing.T) {
 
 func TestRegisterQueryDto_Validate_MaxLengths(t *testing.T) {
 	t.Run("client_id too long", func(t *testing.T) {
-		d := RegisterQueryDTO{ClientID: strings.Repeat("x", 256), ProviderID: "p1"}
+		d := RegisterQueryDTO{ClientID: strings.Repeat("x", 256), TenantID: "p1"}
 		err := d.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Client ID")
 	})
 
-	t.Run("provider_id too long", func(t *testing.T) {
-		d := RegisterQueryDTO{ClientID: "c1", ProviderID: strings.Repeat("x", 256)}
+	t.Run("tenant_id too long", func(t *testing.T) {
+		d := RegisterQueryDTO{ClientID: "c1", TenantID: strings.Repeat("x", 256)}
 		err := d.Validate()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Provider ID")
+		assert.Contains(t, err.Error(), "Tenant ID")
 	})
 }
 
 func TestRegisterInviteQueryDto_Validate_MaxLengths(t *testing.T) {
 	valid := RegisterInviteQueryDTO{
-		ClientID: "c1", ProviderID: "p1", InviteToken: "token", Expires: "1", Sig: "sig",
+		ClientID: "c1", TenantID: "p1", InviteToken: "token", Expires: "1", Sig: "sig",
 	}
 
 	t.Run("invite_token too long", func(t *testing.T) {

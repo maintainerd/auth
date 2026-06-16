@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -147,6 +148,16 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 			return nil, err
 		}
 		userID = provisionedID
+	}
+
+	// If the member role is "owner", grant super-admin IAM role in the target
+	// tenant so the user has administrative permissions.
+	if role == "owner" && s.userProvisioner != nil {
+		if err := s.userProvisioner.GrantRoleByName(ctx, userUUID, tenantID, shared.RoleSuperAdmin); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to grant super-admin role")
+			return nil, apperror.NewInternal("failed to assign super-admin role to owner", err)
+		}
 	}
 
 	// Check if user is already a member of this tenant

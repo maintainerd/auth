@@ -226,7 +226,9 @@ type ClientRepository interface {
 	BaseRepositoryMethods[Client]
 	WithTx(tx *gorm.DB) ClientRepository
 	FindByClientIDAndIdentityProvider(clientID, providerID string) (*Client, error)
+	FindByIdentifier(identifier string) (*Client, error)
 	FindSystem() (*Client, error)
+	FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error)
 	FindByUUIDAndTenantID(id uuid.UUID, tenantID int64) (*Client, error)
 	FindByNameAndIdentityProvider(name string, ipID, tenantID int64) (*Client, error)
 	FindByNameAndTenantID(name string, tenantID int64) (*Client, error)

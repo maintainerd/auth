@@ -28,6 +28,10 @@ func (p *tenantUserProvisioner) EnsureUserInTenant(ctx context.Context, userUUID
 	return p.svc.EnsureUserInTenant(ctx, userUUID, targetTenantID)
 }
 
+func (p *tenantUserProvisioner) GrantRoleByName(ctx context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error {
+	return p.svc.GrantRoleByName(ctx, userUUID, tenantID, roleName)
+}
+
 func (r *tenantUserReader) FindByUUID(id uuid.UUID) (*tenant.MemberUser, error) {
 	u, err := r.repo.FindByUUID(id)
 	if err != nil || u == nil {

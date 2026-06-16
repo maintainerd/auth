@@ -62,8 +62,8 @@ type LoginRequestDTO struct {
 
 // LoginQueryDTO holds login query parameters.
 type LoginQueryDTO struct {
-	ClientID   string `json:"client_id"`
-	ProviderID string `json:"provider_id"`
+	ClientID string `json:"client_id"`
+	TenantID string `json:"tenant_id"`
 }
 
 // RefreshTokenRequestDTO is the request body for the token refresh endpoint.
@@ -123,14 +123,14 @@ type RegisterRequestDTO struct {
 
 // Register query parameters structure
 type RegisterQueryDTO struct {
-	ClientID   string `json:"client_id"`
-	ProviderID string `json:"provider_id"`
+	ClientID string `json:"client_id"`
+	TenantID string `json:"tenant_id"`
 }
 
 // RegisterInviteQueryDTO holds signed invite registration query parameters.
 type RegisterInviteQueryDTO struct {
 	ClientID    string `json:"client_id"`
-	ProviderID  string `json:"provider_id"`
+	TenantID    string `json:"tenant_id"`
 	InviteToken string `json:"invite_token"`
 	Expires     string `json:"expires"`
 	Sig         string `json:"sig"`

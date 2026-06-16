@@ -79,14 +79,14 @@ func (r *RegisterRequestDTO) ValidateForRegistration() error {
 func (q *RegisterQueryDTO) Validate() error {
 	// Sanitize inputs first
 	q.ClientID = security.SanitizeInput(q.ClientID)
-	q.ProviderID = security.SanitizeInput(q.ProviderID)
+	q.TenantID = security.SanitizeInput(q.TenantID)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
 			validation.Length(0, 255).Error("Client ID must not exceed 255 characters"),
 		),
-		validation.Field(&q.ProviderID,
-			validation.Length(0, 255).Error("Provider ID must not exceed 255 characters"),
+		validation.Field(&q.TenantID,
+			validation.Length(0, 255).Error("Tenant ID must not exceed 255 characters"),
 		),
 	)
 }
@@ -94,7 +94,7 @@ func (q *RegisterQueryDTO) Validate() error {
 func (q *RegisterInviteQueryDTO) Validate() error {
 	// Sanitize inputs first
 	q.ClientID = security.SanitizeInput(q.ClientID)
-	q.ProviderID = security.SanitizeInput(q.ProviderID)
+	q.TenantID = security.SanitizeInput(q.TenantID)
 	q.InviteToken = security.SanitizeInput(q.InviteToken)
 	q.Expires = security.SanitizeInput(q.Expires)
 	q.Sig = security.SanitizeInput(q.Sig)
@@ -102,12 +102,10 @@ func (q *RegisterInviteQueryDTO) Validate() error {
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
-			validation.Required.Error("Client ID is required"),
-			validation.Length(1, 255).Error("Client ID must not exceed 255 characters"),
+			validation.Length(0, 255).Error("Client ID must not exceed 255 characters"),
 		),
-		validation.Field(&q.ProviderID,
-			validation.Required.Error("Provider ID is required"),
-			validation.Length(1, 255).Error("Provider ID must not exceed 255 characters"),
+		validation.Field(&q.TenantID,
+			validation.Length(0, 255).Error("Tenant ID must not exceed 255 characters"),
 		),
 		validation.Field(&q.InviteToken,
 			validation.Required.Error("Invite token is required"),
@@ -127,14 +125,14 @@ func (q *RegisterInviteQueryDTO) Validate() error {
 	)
 }
 
-// ValidateInternal validates the query DTO for internal use (client_id/provider_id optional).
+// ValidateInternal validates the query DTO for internal use (client_id/tenant_id optional).
 func (q *RegisterInviteQueryDTO) ValidateInternal() error {
 	q.InviteToken = security.SanitizeInput(q.InviteToken)
 	q.Expires = security.SanitizeInput(q.Expires)
 	q.Sig = security.SanitizeInput(q.Sig)
 	q.AuthFlow = security.SanitizeInput(q.AuthFlow)
 	q.ClientID = security.SanitizeInput(q.ClientID)
-	q.ProviderID = security.SanitizeInput(q.ProviderID)
+	q.TenantID = security.SanitizeInput(q.TenantID)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.InviteToken,
@@ -155,8 +153,8 @@ func (q *RegisterInviteQueryDTO) ValidateInternal() error {
 		validation.Field(&q.ClientID,
 			validation.Length(0, 255).Error("Client ID must not exceed 255 characters"),
 		),
-		validation.Field(&q.ProviderID,
-			validation.Length(0, 255).Error("Provider ID must not exceed 255 characters"),
+		validation.Field(&q.TenantID,
+			validation.Length(0, 255).Error("Tenant ID must not exceed 255 characters"),
 		),
 	)
 }

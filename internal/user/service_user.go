@@ -102,6 +102,10 @@ type UserService interface {
 	// tenant if they do not already have a record there. Returns the userID in
 	// the target tenant (existing or newly created).
 	EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID, targetTenantID int64) (int64, error)
+	// GrantRoleByName looks up a role by name within the tenant and assigns it to
+	// the user identified by userUUID. Used by tenant member provisioning to
+	// grant the super-admin role when a user is added as an owner.
+	GrantRoleByName(ctx context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error
 }
 
 type userService struct {
@@ -1617,4 +1621,60 @@ func (s *userService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID
 
 	span.SetStatus(codes.Ok, "")
 	return copiedUser.UserID, nil
+}
+
+func (s *userService) GrantRoleByName(ctx context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error {
+	_, span := otel.Tracer("service").Start(ctx, "user.grantRoleByName")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID), attribute.String("role.name", roleName))
+
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.SetStatus(codes.Error, "user not found")
+		return apperror.NewNotFound("user not found")
+	}
+
+	// Find the user's record in the target tenant (may differ from source userID).
+	targetUser, err := s.userRepo.FindByEmailAndTenantID(user.Email, tenantID)
+	if err != nil || targetUser == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.SetStatus(codes.Error, "user not found in target tenant")
+		return apperror.NewNotFound("user not found in target tenant")
+	}
+
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txRoleRepo := s.roleRepo.WithTx(tx)
+		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+
+		role, txErr := txRoleRepo.FindByNameAndTenantID(roleName, tenantID)
+		if txErr != nil || role == nil {
+			if txErr != nil {
+				return txErr
+			}
+			return apperror.NewNotFoundWithReason("role '" + roleName + "' not found in tenant")
+		}
+
+		existing, txErr := txUserRoleRepo.FindByUserIDAndRoleID(targetUser.UserID, role.RoleID)
+		if txErr != nil {
+			return txErr
+		}
+		if existing != nil {
+			span.SetStatus(codes.Ok, "")
+			return nil
+		}
+
+		if _, txErr := txUserRoleRepo.Create(&UserRole{
+			UserID: targetUser.UserID,
+			RoleID: role.RoleID,
+		}); txErr != nil {
+			return txErr
+		}
+
+		return nil
+	})
 }

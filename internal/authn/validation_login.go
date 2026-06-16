@@ -28,16 +28,14 @@ func (r *LoginRequestDTO) Validate() error {
 func (q *LoginQueryDTO) Validate() error {
 	// Sanitize inputs first
 	q.ClientID = security.SanitizeInput(q.ClientID)
-	q.ProviderID = security.SanitizeInput(q.ProviderID)
+	q.TenantID = security.SanitizeInput(q.TenantID)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
-			validation.Required.Error("Client ID is required"),
-			validation.Length(1, 255).Error("Client ID must not exceed 255 characters"),
+			validation.Length(0, 255).Error("Client ID must not exceed 255 characters"),
 		),
-		validation.Field(&q.ProviderID,
-			validation.Required.Error("Provider ID is required"),
-			validation.Length(1, 255).Error("Provider ID must not exceed 255 characters"),
+		validation.Field(&q.TenantID,
+			validation.Length(0, 255).Error("Tenant ID must not exceed 255 characters"),
 		),
 	)
 }

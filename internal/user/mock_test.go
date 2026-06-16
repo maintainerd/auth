@@ -513,6 +513,8 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, idpIdentifi
 	}
 	return nil, nil
 }
+func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) { return nil, nil }
 
 type mockIdentityProviderRepo struct {
 	mockBaseRepo[IdentityProvider]
@@ -656,6 +658,7 @@ type mockUserService struct {
 	forcePasswordChangeFn  func(uuid.UUID, bool) error
 	getUserMFAFn           func(uuid.UUID, int64) (*UserMFAResponseDTO, error)
 	ensureUserInTenantFn   func(uuid.UUID, int64) (int64, error)
+	grantRoleByNameFn      func(uuid.UUID, int64, string) error
 }
 
 func (m *mockUserService) Get(_ context.Context, f UserServiceGetFilter) (*UserServiceGetResult, error) {
@@ -769,6 +772,13 @@ func (m *mockUserService) EnsureUserInTenant(_ context.Context, userUUID uuid.UU
 		return m.ensureUserInTenantFn(userUUID, tenantID)
 	}
 	return 0, nil
+}
+
+func (m *mockUserService) GrantRoleByName(_ context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error {
+	if m.grantRoleByNameFn != nil {
+		return m.grantRoleByNameFn(userUUID, tenantID, roleName)
+	}
+	return nil
 }
 
 type mockProfileService struct {

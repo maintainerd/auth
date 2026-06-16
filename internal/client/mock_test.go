@@ -417,6 +417,8 @@ type mockClientRepo struct {
 	findPaginatedFn                     func(ClientRepositoryGetFilter) (*PaginationResult[Client], error)
 	setStatusByUUIDFn                   func(uuid.UUID, int64, string) error
 	findByClientIDAndIdentityProviderFn func(string, string) (*Client, error)
+	findByIdentifierFn                  func(string) (*Client, error)
+	findSystemByTenantIdentifierFn      func(string) (*Client, error)
 	deleteByUUIDAndTenantIDFn           func(uuid.UUID, int64) error
 	createFn                            func(*Client) (*Client, error)
 	createOrUpdateFn                    func(*Client) (*Client, error)
@@ -515,6 +517,21 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, idpIdentifi
 	}
 	return nil, nil
 }
+
+func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) {
+	if m.findByIdentifierFn != nil {
+		return m.findByIdentifierFn(identifier)
+	}
+	return nil, nil
+}
+
+func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
+	if m.findSystemByTenantIdentifierFn != nil {
+		return m.findSystemByTenantIdentifierFn(tenantIdentifier)
+	}
+	return nil, nil
+}
+
 func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tenantID int64) error {
 	if m.deleteByUUIDAndTenantIDFn != nil {
 		return m.deleteByUUIDAndTenantIDFn(id, tenantID)

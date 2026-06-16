@@ -552,6 +552,8 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, identityPro
 	}
 	return nil, nil
 }
+func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) { return nil, nil }
 func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tenantID int64) error {
 	if m.deleteByUUIDAndTenantIDFn != nil {
 		return m.deleteByUUIDAndTenantIDFn(id, tenantID)
