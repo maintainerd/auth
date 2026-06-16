@@ -43,6 +43,7 @@ type testUserService struct {
 
 	forcePasswordChangeFn func(ctx context.Context, userUUID uuid.UUID, force bool) error
 	getUserMFAFn          func(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error)
+	grantRoleByNameFn     func(ctx context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error
 }
 
 func (m *testUserService) Get(ctx context.Context, filter UserServiceGetFilter) (*UserServiceGetResult, error) {
@@ -105,6 +106,13 @@ func (m *testUserService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, te
 
 func (m *testUserService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID, tenantID int64) (int64, error) {
 	return 0, nil
+}
+
+func (m *testUserService) GrantRoleByName(ctx context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error {
+	if m.grantRoleByNameFn != nil {
+		return m.grantRoleByNameFn(ctx, userUUID, tenantID, roleName)
+	}
+	return nil
 }
 
 func TestUserGRPCHandler_RPCS(t *testing.T) {

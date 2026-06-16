@@ -81,24 +81,24 @@ func TestLoginQueryDto_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "valid query",
-			dto:     LoginQueryDTO{ClientID: "client-1", ProviderID: "provider-1"},
+			name:    "valid query with both",
+			dto:     LoginQueryDTO{ClientID: "client-1", TenantID: "tenant-1"},
 			wantErr: false,
 		},
 		{
-			name:    "missing client id",
-			dto:     LoginQueryDTO{ClientID: "", ProviderID: "provider-1"},
-			wantErr: true,
+			name:    "only client_id",
+			dto:     LoginQueryDTO{ClientID: "client-1"},
+			wantErr: false,
 		},
 		{
-			name:    "missing provider id",
-			dto:     LoginQueryDTO{ClientID: "client-1", ProviderID: ""},
-			wantErr: true,
+			name:    "only tenant_id",
+			dto:     LoginQueryDTO{TenantID: "tenant-1"},
+			wantErr: false,
 		},
 		{
-			name:    "both missing",
+			name:    "both missing (optional, ok)",
 			dto:     LoginQueryDTO{},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 
@@ -116,7 +116,7 @@ func TestLoginQueryDto_Validate(t *testing.T) {
 }
 
 func TestLoginQueryDto_ValidateSignedURL(t *testing.T) {
-	q := &LoginQueryDTO{ClientID: "c1", ProviderID: "p1"}
+	q := &LoginQueryDTO{ClientID: "c1", TenantID: "p1"}
 
 	t.Run("missing signed url params returns error", func(t *testing.T) {
 		values := url.Values{}
@@ -149,16 +149,16 @@ func TestLoginResponseDto_Fields(t *testing.T) {
 
 func TestLoginQueryDto_Validate_MaxLengths(t *testing.T) {
 	t.Run("client_id too long", func(t *testing.T) {
-		d := LoginQueryDTO{ClientID: strings.Repeat("x", 256), ProviderID: "p1"}
+		d := LoginQueryDTO{ClientID: strings.Repeat("x", 256), TenantID: "p1"}
 		err := d.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Client ID")
 	})
 
-	t.Run("provider_id too long", func(t *testing.T) {
-		d := LoginQueryDTO{ClientID: "c1", ProviderID: strings.Repeat("x", 256)}
+	t.Run("tenant_id too long", func(t *testing.T) {
+		d := LoginQueryDTO{ClientID: "c1", TenantID: strings.Repeat("x", 256)}
 		err := d.Validate()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Provider ID")
+		assert.Contains(t, err.Error(), "Tenant ID")
 	})
 }

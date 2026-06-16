@@ -31,8 +31,10 @@ type ClientRepository interface {
 	FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*Client, error)
 	FindByNameAndTenantID(name string, tenantID int64) (*Client, error)
 	FindByClientID(clientID string, tenantID int64) (*Client, error)
+	FindByIdentifier(identifier string) (*Client, error)
 	FindAllByTenantID(tenantID int64) ([]Client, error)
 	FindSystem() (*Client, error)
+	FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error)
 	FindDefaultByTenantID(tenantID int64) (*Client, error)
 	FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[Client], error)
 	SetStatusByUUID(clientUUID uuid.UUID, tenantID int64, status string) error
@@ -88,6 +90,24 @@ func (r *clientRepository) FindByNameAndIdentityProvider(name string, identityPr
 	return &client, nil
 }
 
+// FindByIdentifier returns the active client with the given globally-unique
+// identifier string, preloading its IdentityProvider and tenant chain.
+func (r *clientRepository) FindByIdentifier(identifier string) (*Client, error) {
+	var client Client
+	err := r.DB().
+		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
+		Preload("IdentityProvider").
+		Preload("IdentityProvider.Tenant").
+		First(&client).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &client, nil
+}
+
 func (r *clientRepository) FindByClientID(clientID string, tenantID int64) (*Client, error) {
 	var client Client
 	err := r.DB().Where("client_id = ? AND tenant_id = ?", clientID, tenantID).First(&client).Error
@@ -120,6 +140,30 @@ func (r *clientRepository) FindSystem() (*Client, error) {
 		Where("clients.is_system = ? AND clients.status = ?", true, shared.StatusActive).
 		Where("identity_providers.status = ?", shared.StatusActive).
 		Where("tenants.is_system = ?", true).
+		Preload("IdentityProvider").
+		Preload("IdentityProvider.Tenant").
+		First(&client).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &client, nil
+}
+
+// FindSystemByTenantIdentifier returns the active is_system client belonging
+// to the tenant identified by its identifier string. This is used when the
+// API consumer provides a tenant_id instead of a client_id.
+func (r *clientRepository) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
+	var client Client
+	err := r.DB().
+		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
+		Joins("JOIN tenants ON tenants.tenant_id = identity_providers.tenant_id").
+		Where("clients.is_system = ? AND clients.status = ?", true, shared.StatusActive).
+		Where("identity_providers.status = ?", shared.StatusActive).
+		Where("tenants.identifier = ?", tenantIdentifier).
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
 		First(&client).Error

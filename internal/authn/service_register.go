@@ -25,10 +25,10 @@ var secHashPassword = security.HashPassword
 var secHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
 type RegisterService interface {
-	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
-	RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
-	RegisterInvite(ctx context.Context, username, password string, clientID, providerID *string, inviteToken string) (*RegisterResponseDTO, error)
-	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
+	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error)
+	RegisterInvitePublic(ctx context.Context, username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error)
+	RegisterInvite(ctx context.Context, username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error)
+	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error)
 }
 
 type registerService struct {
@@ -135,10 +135,12 @@ func enforceRegistrationAbuseControls(ctx context.Context, tenantID int64, regPo
 	return nil
 }
 
-// RegisterPublic registers new users for public-facing applications.
-// clientID and providerID are optional. When absent, registers under the
-// default client of the system tenant (mirrors internal Register() fallback).
-// Used by external applications on port 8081.
+// RegisterPublic registers new users for public-facing applications.  clientID
+// and tenantID are optional (pointer params).  When omitted the system client
+// is used.  When clientID is set the tenant is derived from the client record
+// (clients.identifier is globally unique); when only tenantID is set the
+// is_system client under that tenant is selected.
+// Used on port 8081 (public).
 func (s *registerService) RegisterPublic(
 	ctx context.Context,
 	username,
@@ -147,15 +149,15 @@ func (s *registerService) RegisterPublic(
 	email,
 	phone *string,
 	clientID,
-	providerID *string,
+	tenantID *string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.public")
 	defer span.End()
 	if clientID != nil {
 		span.SetAttributes(attribute.String("client.id", *clientID))
 	}
-	if providerID != nil {
-		span.SetAttributes(attribute.String("provider.id", *providerID))
+	if tenantID != nil {
+		span.SetAttributes(attribute.String("tenant.id", *tenantID))
 	}
 
 	// Rate limiting check to prevent registration abuse
@@ -165,60 +167,30 @@ func (s *registerService) RegisterPublic(
 		return nil, err
 	}
 
-	isExplicitClient := clientID != nil && providerID != nil
-
 	var createdUser *User
 	var Client *Client
 	var userIdentitySub string
 	var needEmailVerification bool
 
-	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
-		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
 		var txErr error
-		var tenantId int64
-
-		if isExplicitClient {
-			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
-			if txErr != nil {
-				return txErr
-			}
-			if Client == nil ||
-				Client.Status != shared.StatusActive ||
-				Client.Domain == nil || *Client.Domain == "" {
-				return apperror.NewValidation("invalid or inactive auth client")
-			}
-
-			tenantId = clientTenantID(Client)
-			if tenantId == 0 {
-				identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(*providerID)
-				if txErr != nil {
-					return apperror.NewInternal("identity provider lookup failed", txErr)
-				}
-				if identityProvider == nil {
-					return apperror.NewNotFoundWithReason("identity provider not found")
-				}
-				tenantId = identityProvider.TenantID
-			}
-		} else {
-			Client, txErr = txClientRepo.FindSystem()
-			if txErr != nil {
-				return txErr
-			}
-			if Client == nil ||
-				Client.Status != shared.StatusActive ||
-				Client.Domain == nil || *Client.Domain == "" {
-				return apperror.NewNotFoundWithReason("auth client not found or inactive")
-			}
-
-			tenantId = clientTenantID(Client)
+		Client, txErr = resolveClient(txClientRepo, clientID, tenantID)
+		if txErr != nil {
+			return txErr
 		}
+		if Client == nil ||
+			Client.Status != shared.StatusActive ||
+			Client.Domain == nil || *Client.Domain == "" {
+			return apperror.NewValidation("invalid or inactive auth client")
+		}
+
+		tenantId := clientTenantID(Client)
 		if tenantId == 0 {
 			return apperror.NewValidation("auth client tenant could not be resolved")
 		}
@@ -239,8 +211,6 @@ func (s *registerService) RegisterPublic(
 			return apperror.NewValidation("phone number is required for registration")
 		}
 
-		// Uniqueness is scoped to the tenant: the same username/email/phone may
-		// exist independently in other tenants.
 		existingUser, txErr := txUserRepo.FindByUsernameAndTenantID(username, tenantId)
 		if txErr != nil {
 			return txErr
@@ -249,7 +219,6 @@ func (s *registerService) RegisterPublic(
 			return apperror.NewConflict("username already taken")
 		}
 
-		// Check if email already exists (if provided)
 		if email != nil && *email != "" {
 			existingEmailUser, txErr := txUserRepo.FindByEmailAndTenantID(*email, tenantId)
 			if txErr != nil {
@@ -260,7 +229,6 @@ func (s *registerService) RegisterPublic(
 			}
 		}
 
-		// Check if phone already exists (if provided)
 		if phone != nil && *phone != "" {
 			existingPhoneUser, txErr := txUserRepo.FindByPhoneAndTenantID(*phone, tenantId)
 			if txErr != nil {
@@ -271,22 +239,17 @@ func (s *registerService) RegisterPublic(
 			}
 		}
 
-		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
 		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
-		// Hash password
 		hashed, txErr := secHashPasswordWithPolicy(ctx, []byte(password), policy)
 		if txErr != nil {
 			return txErr
 		}
 
 		now := time.Now()
-		// Email/phone-verified state is governed by the tenant registration
-		// policy. Users start as "pending" when email verification is required
-		// so they must complete verification before proceeding.
 		newUser := &User{
 			TenantID:          tenantId,
 			Username:          username,
@@ -298,12 +261,10 @@ func (s *registerService) RegisterPublic(
 			PasswordChangedAt: &now,
 		}
 
-		// Set email if provided
 		if email != nil && *email != "" {
 			newUser.Email = *email
 		}
 
-		// Set phone if provided
 		if phone != nil && *phone != "" {
 			newUser.Phone = *phone
 		}
@@ -313,10 +274,8 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 
-		// Record password history
 		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
-		// Create user identity
 		userIdentity := &UserIdentity{
 			TenantID:           tenantId,
 			UserID:             createdUser.UserID,
@@ -333,13 +292,11 @@ func (s *registerService) RegisterPublic(
 		}
 		userIdentitySub = userIdentity.Sub
 
-		// Assign the system default registration role.
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
 		if txErr != nil {
 			return txErr
 		}
 
-		// Assign default role to user
 		userRole := &UserRole{
 			UserID: createdUser.UserID,
 			RoleID: defaultRole.RoleID,
@@ -349,7 +306,7 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 
-		return nil // commit transaction
+		return nil
 	})
 
 	if err != nil {
@@ -358,21 +315,19 @@ func (s *registerService) RegisterPublic(
 		return nil, err
 	}
 
-	// Trigger email verification if the tenant policy requires it.
 	if email != nil && *email != "" && needEmailVerification && s.emailVerificationSvc != nil {
-		if _, err := s.emailVerificationSvc.SendVerificationEmail(ctx, *email, clientID, providerID); err != nil {
+		if _, err := s.emailVerificationSvc.SendVerificationEmail(ctx, *email, clientID, tenantID); err != nil {
 			slog.Warn("failed to send verification email during registration", "email", *email, "err", err)
 		}
 	}
 
 	span.SetStatus(codes.Ok, "")
-	// Return token response
 	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 
 // Register registers new users for internal applications.
-// If clientID and providerID are provided, uses the specified auth client.
-// If not provided, uses the default auth client.
+// clientID and tenantID are optional (pointer params).  When omitted the
+// system client is used.  Resolution priority: clientID > tenantID > default.
 // Used by internal applications on port 8080.
 func (s *registerService) Register(
 	ctx context.Context,
@@ -382,7 +337,7 @@ func (s *registerService) Register(
 	email,
 	phone *string,
 	clientID,
-	providerID *string,
+	tenantID *string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.internal")
 	defer span.End()
@@ -407,20 +362,10 @@ func (s *registerService) Register(
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
-		// Get auth client - either by client_id and provider_id or default
 		var txErr error
-		if clientID != nil && providerID != nil {
-			// Get auth client by client_id and identity provider identifier
-			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
-			if txErr != nil {
-				return apperror.NewInternal("auth client lookup by client_id and provider_id failed", txErr)
-			}
-		} else {
-			// Get default auth client for internal authentication
-			Client, txErr = txClientRepo.FindSystem()
-			if txErr != nil {
-				return txErr
-			}
+		Client, txErr = resolveClient(txClientRepo, clientID, tenantID)
+		if txErr != nil {
+			return txErr
 		}
 
 		if Client == nil ||
@@ -546,7 +491,7 @@ func (s *registerService) Register(
 
 	// Trigger email verification if the tenant policy requires it.
 	if email != nil && *email != "" && needEmailVerification && s.emailVerificationSvc != nil {
-		if _, err := s.emailVerificationSvc.SendVerificationEmail(ctx, *email, clientID, providerID); err != nil {
+		if _, err := s.emailVerificationSvc.SendVerificationEmail(ctx, *email, clientID, tenantID); err != nil {
 			slog.Warn("failed to send verification email during registration", "email", *email, "err", err)
 		}
 	}
@@ -557,19 +502,20 @@ func (s *registerService) Register(
 }
 
 // RegisterInvitePublic registers new users via invite token for public-facing applications.
-// Requires clientID and providerID to identify the auth client.
+// clientID and tenantID identify the auth client (resolution priority: clientID > tenantID).
+// When both are empty the system client is used.
 // Used by external applications on port 8081.
 func (s *registerService) RegisterInvitePublic(
 	ctx context.Context,
 	username,
 	password,
 	clientID,
-	providerID,
+	tenantID,
 	inviteToken string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.invitePublic")
 	defer span.End()
-	span.SetAttributes(attribute.String("client.id", clientID), attribute.String("provider.id", providerID))
+	span.SetAttributes(attribute.String("client.id", clientID))
 
 	var createdUser *User
 	var Client *Client
@@ -582,12 +528,10 @@ func (s *registerService) RegisterInvitePublic(
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txInviteRepo := s.inviteRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
-		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 
-		// Get and validate auth client with proper relationship preloading
 		var txErr error
-		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
+		Client, txErr = resolveClient(txClientRepo, &clientID, &tenantID)
 		if txErr != nil {
 			return txErr
 		}
@@ -597,17 +541,10 @@ func (s *registerService) RegisterInvitePublic(
 			return apperror.NewValidation("invalid or inactive auth client")
 		}
 
-		// Look up identity provider by identifier to get tenant
-		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
-		if txErr != nil {
-			return apperror.NewInternal("identity provider lookup failed", txErr)
+		tenantId := clientTenantID(Client)
+		if tenantId == 0 {
+			return apperror.NewValidation("auth client tenant could not be resolved")
 		}
-
-		if identityProvider == nil {
-			return apperror.NewNotFoundWithReason("identity provider not found")
-		}
-
-		tenantId := identityProvider.TenantID
 
 		// Validate invite token
 		invite, txErr := txInviteRepo.FindByToken(inviteToken)
@@ -760,7 +697,7 @@ func (s *registerService) RegisterInvitePublic(
 }
 
 // RegisterInvite registers new users via invite token for internal applications.
-// Unlike RegisterInvitePublic, clientID and providerID are optional (pointer params).
+// Unlike RegisterInvitePublic, clientID and tenantID are optional (pointer params).
 // When nil, the system client is resolved from the invite's tenant.
 // Used by internal applications on port 8080.
 func (s *registerService) RegisterInvite(
@@ -768,7 +705,7 @@ func (s *registerService) RegisterInvite(
 	username,
 	password string,
 	clientID,
-	providerID *string,
+	tenantID *string,
 	inviteToken string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.invite")
@@ -801,10 +738,10 @@ func (s *registerService) RegisterInvite(
 			return apperror.NewUnauthorized("invite has expired")
 		}
 
-		if clientID != nil && providerID != nil {
-			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+		if clientID != nil || tenantID != nil {
+			Client, txErr = resolveClient(txClientRepo, clientID, tenantID)
 			if txErr != nil {
-				return apperror.NewInternal("auth client lookup by client_id and provider_id failed", txErr)
+				return txErr
 			}
 		} else {
 			Client, txErr = txClientRepo.FindSystem()

@@ -35,6 +35,8 @@ import (
 
 type mockClientRepo struct {
 	findByClientIDAndIdentityProviderFn func(clientID, providerID string) (*Client, error)
+	findByIdentifierFn                  func(string) (*Client, error)
+	findSystemByTenantIdentifierFn      func(string) (*Client, error)
 	findSystemFn                        func() (*Client, error)
 	findByUUIDFn                        func(any, ...string) (*Client, error)
 	findByUUIDAndTenantIDFn             func(uuid.UUID, int64) (*Client, error)
@@ -51,6 +53,21 @@ func (m *mockClientRepo) WithTx(_ *gorm.DB) ClientRepository { return m }
 func (m *mockClientRepo) FindByClientIDAndIdentityProvider(a, b string) (*Client, error) {
 	if m.findByClientIDAndIdentityProviderFn != nil {
 		return m.findByClientIDAndIdentityProviderFn(a, b)
+	}
+	return nil, nil
+}
+func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) {
+	if m.findByIdentifierFn != nil {
+		return m.findByIdentifierFn(identifier)
+	}
+	if m.findByClientIDAndIdentityProviderFn != nil {
+		return m.findByClientIDAndIdentityProviderFn(identifier, "")
+	}
+	return nil, nil
+}
+func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
+	if m.findSystemByTenantIdentifierFn != nil {
+		return m.findSystemByTenantIdentifierFn(tenantIdentifier)
 	}
 	return nil, nil
 }
@@ -1048,7 +1065,7 @@ func TestLoginPublic(t *testing.T) {
 			tc.setup(t, repos)
 
 			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo, &mockAuthEventService{}, nil, tc.securitySettings)
-			resp, err := svc.LoginPublic(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
+			resp, err := svc.LoginPublic(context.Background(), tc.username, tc.password, strPtr(tc.clientID), strPtr(tc.providerID))
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -1139,7 +1156,7 @@ func TestLoginPublic_TenantMFAPolicyRequiresChallengeBeforeTokens(t *testing.T) 
 		enrolledFn: func(int64) ([]string, error) { return []string{"totp", "backup_code"}, nil },
 	})
 
-	resp, err := svc.LoginPublic(context.Background(), "pub-mfa-required", correctPassword, "client-1", "provider-1")
+	resp, err := svc.LoginPublic(context.Background(), "pub-mfa-required", correctPassword, strPtr("client-1"), strPtr("provider-1"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.MFARequired)
@@ -1391,7 +1408,7 @@ func TestLoginPublic_RateLimited(t *testing.T) {
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), username, "pass", "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), username, "pass", strPtr("c1"), strPtr("p1"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locked")
 }
@@ -1416,7 +1433,7 @@ func TestLoginPublic_ClientLookupError(t *testing.T) {
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		idpRepo, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), "pub-client-err", "pass", "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), "pub-client-err", "pass", strPtr("c1"), strPtr("p1"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
 }
@@ -1446,7 +1463,7 @@ func TestLoginPublic_UserNotFound(t *testing.T) {
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		idpRepo, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), "pub-user-missing", "pass", "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), "pub-user-missing", "pass", strPtr("c1"), strPtr("p1"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid credentials")
 }
@@ -1551,7 +1568,7 @@ func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), "pub-token-err", correctPassword, "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), "pub-token-err", correctPassword, strPtr("c1"), strPtr("p1"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
 }
@@ -1666,7 +1683,7 @@ func TestLoginPublic_WithSession(t *testing.T) {
 
 		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 			userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc, nil)
-		_, err := svc.LoginPublic(context.Background(), "pub-session-limit", correctPassword, "c1", "p1")
+		_, err := svc.LoginPublic(context.Background(), "pub-session-limit", correctPassword, strPtr("c1"), strPtr("p1"))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "too many sessions")
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1706,7 +1723,7 @@ func TestLoginPublic_WithSession(t *testing.T) {
 
 		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 			userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc, nil)
-		_, err := svc.LoginPublic(context.Background(), "pub-session-create", correctPassword, "c1", "p1")
+		_, err := svc.LoginPublic(context.Background(), "pub-session-create", correctPassword, strPtr("c1"), strPtr("p1"))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create session failed")
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1741,7 +1758,7 @@ func TestLoginPublic_WithSession(t *testing.T) {
 
 		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 			userIdentityRepo, idpRepo, &mockAuthEventService{}, &mockSessionService{}, nil)
-		resp, err := svc.LoginPublic(context.Background(), "pub-session-ok", correctPassword, "c1", "p1")
+		resp, err := svc.LoginPublic(context.Background(), "pub-session-ok", correctPassword, strPtr("c1"), strPtr("p1"))
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.NotNil(t, resp.SessionID)
@@ -2153,3 +2170,4 @@ func TestLogin_ForcePasswordChange(t *testing.T) {
 	assert.Empty(t, resp.RefreshToken)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+

@@ -80,6 +80,16 @@ func (a *authnClientRepoAdapter) FindSystem() (*authn.Client, error) {
 	return toAuthnClient(r), err
 }
 
+func (a *authnClientRepoAdapter) FindByIdentifier(identifier string) (*authn.Client, error) {
+	r, err := a.repo.FindByIdentifier(identifier)
+	return toAuthnClient(r), err
+}
+
+func (a *authnClientRepoAdapter) FindSystemByTenantIdentifier(tenantIdentifier string) (*authn.Client, error) {
+	r, err := a.repo.FindSystemByTenantIdentifier(tenantIdentifier)
+	return toAuthnClient(r), err
+}
+
 func (a *authnClientRepoAdapter) FindByClientIDAndIdentityProvider(clientID, providerID string) (*authn.Client, error) {
 	r, err := a.repo.FindByClientIDAndIdentityProvider(clientID, providerID)
 	return toAuthnClient(r), err

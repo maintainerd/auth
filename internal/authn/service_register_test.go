@@ -314,6 +314,9 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 	})
 
 	t.Run("identity provider lookup error", func(t *testing.T) {
+		// The old identity provider lookup no longer exists as a separate step.
+		// resolveClient derives tenant from the preloaded IdentityProvider.
+		// Here we test a client with no IdentityProvider → tenant unresolved.
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -328,15 +331,12 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 				Identifier: &identifier,
 			}, nil
 		}
-		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
-			return nil, errors.New("idp db error")
-		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "identity provider lookup failed")
+		assert.Contains(t, err.Error(), "auth client tenant could not be resolved")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -345,17 +345,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		domain := "example.com"
-		identifier := "test-client"
 		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
-			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     &domain,
-				Identifier: &identifier,
-			}, nil
-		}
-		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -363,7 +353,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "identity provider not found")
+		assert.Contains(t, err.Error(), "invalid or inactive auth client")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -556,7 +546,6 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		identifier := "tenant-client"
 		m.client.findByClientIDAndIdentityProviderFn = func(clientID, providerID string) (*Client, error) {
 			assert.Equal(t, cid, clientID)
-			assert.Equal(t, pid, providerID)
 			return &Client{
 				ClientID:   99,
 				TenantID:   tenantID,
@@ -614,7 +603,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
+		m.client.findByIdentifierFn = func(_ string) (*Client, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -622,7 +611,6 @@ func TestRegisterService_Register(t *testing.T) {
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid)
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "auth client lookup by client_id and provider_id failed")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -999,28 +987,38 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 	})
 
 	t.Run("identity provider lookup error", func(t *testing.T) {
+		// The old identity provider lookup is no longer a separate code path.
+		// resolveClient derives the tenant from the client's preloaded
+		// IdentityProvider.  The test now verifies that a client without
+		// an identity provider fails with a tenant resolution error.
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
-			return nil, errors.New("db error")
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
+			domain := "example.com"
+			return &Client{
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				Domain:   &domain,
+			}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "identity provider lookup failed")
+		assert.Contains(t, err.Error(), "auth client tenant could not be resolved")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("identity provider not found", func(t *testing.T) {
+		// Same as above: tenant is now derived from the resolved client.
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1028,7 +1026,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "p", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "identity provider not found")
+		assert.Contains(t, err.Error(), "invalid or inactive auth client")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 

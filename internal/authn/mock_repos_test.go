@@ -217,9 +217,9 @@ var (
 // ---------------------------------------------------------------------------
 
 type mockLoginService struct {
-	loginPublicFn      func(usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
-	loginFn            func(usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
-	completeMFALoginFn func(challengeToken, method, code string, assertion []byte, clientID, providerID *string) (*LoginResponseDTO, error)
+	loginPublicFn      func(usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error)
+	loginFn            func(usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error)
+	completeMFALoginFn func(challengeToken, method, code string, assertion []byte, clientID, tenantID *string) (*LoginResponseDTO, error)
 	sendMFALoginSMSFn  func(challengeToken string) error
 	beginMFAWebAuthnFn func(challengeToken string) (json.RawMessage, error)
 	refreshTokenFn     func(refreshToken, sessionID string) (*LoginResponseDTO, error)
@@ -227,9 +227,9 @@ type mockLoginService struct {
 	logoutFn           func(ctx context.Context, accessToken string) error
 }
 
-func (m *mockLoginService) CompleteMFALogin(_ context.Context, challengeToken, method, code string, assertion []byte, clientID, providerID *string) (*LoginResponseDTO, error) {
+func (m *mockLoginService) CompleteMFALogin(_ context.Context, challengeToken, method, code string, assertion []byte, clientID, tenantID *string) (*LoginResponseDTO, error) {
 	if m.completeMFALoginFn != nil {
-		return m.completeMFALoginFn(challengeToken, method, code, assertion, clientID, providerID)
+		return m.completeMFALoginFn(challengeToken, method, code, assertion, clientID, tenantID)
 	}
 	return nil, nil
 }
@@ -250,16 +250,16 @@ func (m *mockLoginService) BeginMFALoginWebAuthn(_ context.Context, challengeTok
 
 func (m *mockLoginService) SetMFAFactorAuthenticator(MFAFactorAuthenticator) {}
 
-func (m *mockLoginService) LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error) {
+func (m *mockLoginService) LoginPublic(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error) {
 	if m.loginPublicFn != nil {
-		return m.loginPublicFn(usernameOrEmail, password, clientID, providerID)
+		return m.loginPublicFn(usernameOrEmail, password, clientID, tenantID)
 	}
 	return nil, nil
 }
 
-func (m *mockLoginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error) {
+func (m *mockLoginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error) {
 	if m.loginFn != nil {
-		return m.loginFn(usernameOrEmail, password, clientID, providerID)
+		return m.loginFn(usernameOrEmail, password, clientID, tenantID)
 	}
 	return nil, nil
 }
@@ -290,36 +290,36 @@ func (m *mockLoginService) Logout(ctx context.Context, accessToken string) error
 // ---------------------------------------------------------------------------
 
 type mockRegisterService struct {
-	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
-	registerFn             func(username, fullname, password string, email, phone, clientID, providerID *string) (*RegisterResponseDTO, error)
-	registerInvitePublicFn func(username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
-	registerInviteFn       func(username, password string, clientID, providerID *string, inviteToken string) (*RegisterResponseDTO, error)
+	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error)
+	registerFn             func(username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error)
+	registerInvitePublicFn func(username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error)
+	registerInviteFn       func(username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error)
 }
 
-func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error) {
+func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error) {
 	if m.registerPublicFn != nil {
-		return m.registerPublicFn(username, fullname, password, email, phone, clientID, providerID)
+		return m.registerPublicFn(username, fullname, password, email, phone, clientID, tenantID)
 	}
 	return nil, nil
 }
 
-func (m *mockRegisterService) Register(ctx context.Context, username, fullname, password string, email, phone, clientID, providerID *string) (*RegisterResponseDTO, error) {
+func (m *mockRegisterService) Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error) {
 	if m.registerFn != nil {
-		return m.registerFn(username, fullname, password, email, phone, clientID, providerID)
+		return m.registerFn(username, fullname, password, email, phone, clientID, tenantID)
 	}
 	return nil, nil
 }
 
-func (m *mockRegisterService) RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error) {
+func (m *mockRegisterService) RegisterInvitePublic(ctx context.Context, username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error) {
 	if m.registerInvitePublicFn != nil {
-		return m.registerInvitePublicFn(username, password, clientID, providerID, inviteToken)
+		return m.registerInvitePublicFn(username, password, clientID, tenantID, inviteToken)
 	}
 	return nil, nil
 }
 
-func (m *mockRegisterService) RegisterInvite(ctx context.Context, username, password string, clientID, providerID *string, inviteToken string) (*RegisterResponseDTO, error) {
+func (m *mockRegisterService) RegisterInvite(ctx context.Context, username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error) {
 	if m.registerInviteFn != nil {
-		return m.registerInviteFn(username, password, clientID, providerID, inviteToken)
+		return m.registerInviteFn(username, password, clientID, tenantID, inviteToken)
 	}
 	return nil, nil
 }

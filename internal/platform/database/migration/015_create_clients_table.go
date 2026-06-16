@@ -160,6 +160,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_tenant_name ON clients (tenant_id, 
 
 -- Single column indexes
 CREATE INDEX IF NOT EXISTS idx_clients_identifier ON clients (identifier) WHERE identifier IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_identifier ON clients (identifier) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_clients_identity_provider_id ON clients (identity_provider_id);
 CREATE INDEX IF NOT EXISTS idx_clients_is_system ON clients (is_system) WHERE is_system = TRUE;
 CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients (created_at);

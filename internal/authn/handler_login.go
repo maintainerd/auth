@@ -55,8 +55,8 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 
 	// Validate query parameters
 	q := LoginQueryDTO{
-		ClientID:   r.URL.Query().Get("client_id"),
-		ProviderID: r.URL.Query().Get("provider_id"),
+		ClientID: r.URL.Query().Get("client_id"),
+		TenantID: r.URL.Query().Get("tenant_id"),
 	}
 
 	if err := q.Validate(); err != nil {
@@ -128,10 +128,17 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Public login attempt (requires client_id and provider_id)
+	// Public login attempt (client_id/tenant_id optional)
 	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
+	var clIDPtr, tnIDPtr *string
+	if q.ClientID != "" {
+		clIDPtr = &q.ClientID
+	}
+	if q.TenantID != "" {
+		tnIDPtr = &q.TenantID
+	}
 	tokenResponse, err := h.loginService.LoginPublic(
-		ctx, req.Username, req.Password, q.ClientID, q.ProviderID,
+		ctx, req.Username, req.Password, clIDPtr, tnIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -148,6 +155,11 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 			Severity:  "MEDIUM",
 		})
 		resp.HandleServiceError(w, r, "Authentication failed", err)
+		return
+	}
+
+	if tokenResponse == nil {
+		resp.Error(w, http.StatusInternalServerError, "Login service returned an empty response")
 		return
 	}
 
@@ -181,7 +193,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 
 // MFALoginVerify completes the login MFA second step and, on success, issues an
 // acr=2 session. Works for both internal login (no client_id) and public login
-// (client_id/provider_id passed as query params).
+// (client_id/tenant_id passed as query params).
 func (h *LoginHandler) MFALoginVerify(w http.ResponseWriter, r *http.Request) {
 	var req MFALoginVerifyRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -189,10 +201,10 @@ func (h *LoginHandler) MFALoginVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientID, providerID := optionalClientQuery(r)
+	clientID, tenantID := optionalClientQuery(r)
 	ctx := contextWithRememberDevice(r.Context(), req.RememberDevice)
 	tokenResponse, err := h.loginService.CompleteMFALogin(
-		ctx, req.ChallengeToken, req.Method, req.Code, req.Assertion, clientID, providerID,
+		ctx, req.ChallengeToken, req.Method, req.Code, req.Assertion, clientID, tenantID,
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "MFA verification failed", err)
@@ -232,16 +244,16 @@ func (h *LoginHandler) MFALoginWebAuthnBegin(w http.ResponseWriter, r *http.Requ
 	resp.Success(w, options, "WebAuthn authentication ceremony started")
 }
 
-// optionalClientQuery extracts client_id/provider_id from the query string when
+// optionalClientQuery extracts client_id/tenant_id from the query string when
 // present (public login); returns nils for internal login (system client).
-func optionalClientQuery(r *http.Request) (clientID, providerID *string) {
+func optionalClientQuery(r *http.Request) (clientID, tenantID *string) {
 	if c := strings.TrimSpace(r.URL.Query().Get("client_id")); c != "" {
 		clientID = &c
 	}
-	if p := strings.TrimSpace(r.URL.Query().Get("provider_id")); p != "" {
-		providerID = &p
+	if t := strings.TrimSpace(r.URL.Query().Get("tenant_id")); t != "" {
+		tenantID = &t
 	}
-	return clientID, providerID
+	return clientID, tenantID
 }
 
 func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -371,13 +383,13 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// Parse optional query parameters (client_id and provider_id)
-	var clientIDPtr, providerIDPtr *string
+	// Parse optional query parameters (client_id and tenant_id)
+	var clientIDPtr, tenantIDPtr *string
 	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
 		clientIDPtr = &clientID
 	}
-	if providerID := r.URL.Query().Get("provider_id"); providerID != "" {
-		providerIDPtr = &providerID
+	if tenantID := r.URL.Query().Get("tenant_id"); tenantID != "" {
+		tenantIDPtr = &tenantID
 	}
 
 	// Validate body payload
@@ -405,10 +417,10 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Internal login attempt (client_id/provider_id optional)
+	// Internal login attempt (client_id/tenant_id optional)
 	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
 	tokenResponse, err := h.loginService.Login(
-		ctx, req.Username, req.Password, clientIDPtr, providerIDPtr,
+		ctx, req.Username, req.Password, clientIDPtr, tenantIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -425,6 +437,11 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Severity:  "MEDIUM",
 		})
 		resp.HandleServiceError(w, r, "Authentication failed", err)
+		return
+	}
+
+	if tokenResponse == nil {
+		resp.Error(w, http.StatusInternalServerError, "Login service returned an empty response")
 		return
 	}
 
