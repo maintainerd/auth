@@ -2,7 +2,7 @@ package security
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- HIBP API requires SHA-1 k-anonymity hashes
 	"fmt"
 	"io"
 	"net/http"
@@ -31,7 +31,7 @@ func CheckHIBPPassword(ctx context.Context, password []byte) bool {
 	_, span := otel.Tracer("security").Start(ctx, "security.hibp_check")
 	defer span.End()
 
-	sum := sha1.Sum(password)
+	sum := sha1.Sum(password) // #nosec G401 -- HIBP API requires SHA-1
 	hexHash := strings.ToUpper(fmt.Sprintf("%x", sum[:]))
 	prefix := hexHash[:5]
 	suffix := hexHash[5:]
