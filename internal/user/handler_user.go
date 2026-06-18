@@ -3,6 +3,7 @@ package user
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -52,7 +53,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	// Parse status filter
 	var status []string
 	if v := q.Get("status"); v != "" {
-		status = append(status, v)
+		status = strings.Split(v, ",")
 	}
 
 	// Parse role UUID filter
@@ -69,6 +70,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter DTO for validation
 	reqParams := UserFilterDTO{
+		Search:               ptr.PtrOrNil(q.Get("search")),
 		Username:             ptr.PtrOrNil(q.Get("username")),
 		Email:                ptr.PtrOrNil(q.Get("email")),
 		Phone:                ptr.PtrOrNil(q.Get("phone")),
@@ -87,6 +89,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Build service filter with tenant context
 	filter := UserServiceGetFilter{
+		Search:     reqParams.Search,
 		Username:   reqParams.Username,
 		Email:      reqParams.Email,
 		Phone:      reqParams.Phone,

@@ -41,7 +41,7 @@ func (f UserFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended).Error("Status must be 'active', 'inactive', 'pending', or 'suspended'")),
 			),
 		),
 		validation.Field(&f.TenantUUID, validation.When(f.TenantUUID != nil, is.UUID.Error("Tenant ID must be a valid UUID"))),
