@@ -167,8 +167,7 @@ jobs:
 
       - name: Install Gitleaks
         run: |
-          VERSION=$(curl -fsSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-            | grep '"tag_name"' | cut -d'"' -f4)
+          VERSION="v8.24.3"
           curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/${VERSION}/gitleaks_${VERSION#v}_linux_x64.tar.gz" \
             | tar -xz gitleaks
           sudo mv gitleaks /usr/local/bin/gitleaks

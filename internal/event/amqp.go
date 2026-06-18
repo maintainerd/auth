@@ -39,7 +39,7 @@ func ConnectAMQP(cfg *AMQPConfig) (func(ctx context.Context, exchange, routingKe
 
 	ch, err := conn.Channel()
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, nil, fmt.Errorf("amqp: open channel: %w", err)
 	}
 
@@ -52,8 +52,8 @@ func ConnectAMQP(cfg *AMQPConfig) (func(ctx context.Context, exchange, routingKe
 		false,   // no-wait
 		nil,     // args
 	); err != nil {
-		ch.Close()
-		conn.Close()
+		_ = ch.Close()
+		_ = conn.Close()
 		return nil, nil, fmt.Errorf("amqp: declare exchange: %w", err)
 	}
 
@@ -76,8 +76,8 @@ func ConnectAMQP(cfg *AMQPConfig) (func(ctx context.Context, exchange, routingKe
 	}
 
 	closeFn := func() {
-		ch.Close()
-		conn.Close()
+		_ = ch.Close()
+		_ = conn.Close()
 		slog.Info("amqp: disconnected from RabbitMQ")
 	}
 
