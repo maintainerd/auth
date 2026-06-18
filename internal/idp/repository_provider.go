@@ -115,10 +115,13 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 	// Search across name, display_name, identifier with OR
 	if filter.Search != nil && *filter.Search != "" {
 		like := "%" + strings.ToLower(*filter.Search) + "%"
-		query = query.Where("LOWER(name) LIKE ? OR LOWER(display_name) LIKE ? OR LOWER(identifier) LIKE ?", like, like, like)
+		query = query.Where(
+			"LOWER(identity_providers.name) LIKE ? OR LOWER(identity_providers.display_name) LIKE ? OR LOWER(identity_providers.identifier) LIKE ?",
+			like, like, like,
+		)
 	} else {
-		query = database.ApplyILike(query, "name", filter.Name)
-		query = database.ApplyILike(query, "display_name", filter.DisplayName)
+		query = database.ApplyILike(query, "identity_providers.name", filter.Name)
+		query = database.ApplyILike(query, "identity_providers.display_name", filter.DisplayName)
 	}
 
 	// Filters with exact match
