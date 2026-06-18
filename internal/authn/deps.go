@@ -242,6 +242,9 @@ type ClientRepository interface {
 
 type UserRepository interface {
 	BaseRepositoryMethods[User]
+	FindByID(id any, preloads ...string) (*User, error)
+	FindByUUID(uuid any, preloads ...string) (*User, error)
+	UpdateByID(id any, updatedData any) (*User, error)
 	WithTx(tx *gorm.DB) UserRepository
 	FindByUsername(username string) (*User, error)
 	FindByEmail(email string) (*User, error)

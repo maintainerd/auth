@@ -2,6 +2,7 @@ package secpolicy
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
@@ -20,6 +21,7 @@ type SecuritySettingRepositoryGetFilter struct {
 
 type SecuritySettingRepository interface {
 	BaseRepositoryMethods[SecuritySetting]
+	FindByUUID(uuid any, preloads ...string) (*SecuritySetting, error)
 	WithTx(tx *gorm.DB) SecuritySettingRepository
 	// FindByTenantID returns the tenant's security setting, or nil when not found.
 	FindByTenantID(tenantID int64) (*SecuritySetting, error)
@@ -56,6 +58,10 @@ func (r *securitySettingRepository) FindByTenantID(tenantID int64) (*SecuritySet
 }
 
 func (r *securitySettingRepository) FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[SecuritySetting], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&SecuritySetting{})
 
 	if filter.TenantID != nil {

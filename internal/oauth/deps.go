@@ -159,6 +159,7 @@ type TenantRepository interface {
 
 type UserRepository interface {
 	BaseRepositoryMethods[User]
+	FindByID(id any, preloads ...string) (*User, error)
 	WithTx(tx *gorm.DB) UserRepository
 	FindByEmail(email string) (*User, error)
 	// FindByEmailAndTenantID scopes the lookup to a tenant; users are isolated

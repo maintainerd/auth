@@ -8,6 +8,9 @@ import (
 // EventTypeRepository defines persistence operations for event_types.
 type EventTypeRepository interface {
 	BaseRepositoryMethods[EventType]
+	FindAll(preloads ...string) ([]EventType, error)
+	FindByID(id any, preloads ...string) (*EventType, error)
+	FindByUUID(uuid any, preloads ...string) (*EventType, error)
 	FindAllActive() ([]EventType, error)
 	FindByKey(key string) (*EventType, error)
 	// FindByKeyAndTenantID scopes the lookup to a tenant. Event types are

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -29,6 +30,10 @@ import (
 func buildInternalRouter(h *handlers, application *Application) http.Handler {
 	r := chi.NewRouter()
 	userProvider := newMiddlewareUserContextProvider(application.UserService)
+	tenantRateLimit := securityMiddleware.TenantRequestRateLimitMiddleware(
+		application.RedisClient,
+		application.TenantSettingService,
+	)
 
 	mountCommonMiddleware(r)
 
@@ -53,43 +58,43 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		authn.ResetPasswordRoute(api, h.resetPassword)
 		authn.EmailVerificationRoute(api, h.emailVerification)
 		authn.MagicLinkRoute(api, h.magicLink)
-		user.ProfileRoute(api, h.profile, userProvider, application.Cache)
-		user.UserSettingRoute(api, h.userSetting, userProvider, application.Cache)
+		user.ProfileRoute(api, h.profile, userProvider, application.Cache, tenantRateLimit)
+		user.UserSettingRoute(api, h.userSetting, userProvider, application.Cache, tenantRateLimit)
 
 		// Management Routes (internal access only)
-		tenant.TenantRoute(api, h.tenant, userProvider, application.Cache)
-		iam.ServiceRoute(api, h.service, h.authorization, userProvider, application.Cache)
-		iam.APIRoute(api, h.api, userProvider, application.Cache)
-		iam.PermissionRoute(api, h.permission, userProvider, application.Cache)
-		iam.PolicyRoute(api, h.policy, userProvider, application.Cache)
-		idp.IdentityProviderRoute(api, h.identityProvider, userProvider, application.Cache)
-		client.ClientRoute(api, h.client, userProvider, application.Cache)
-		iam.RoleRoute(api, h.role, userProvider, application.Cache)
-		user.UserRoute(api, h.user, h.profile, userProvider, application.Cache)
-		invite.InviteRoute(api, h.invite, userProvider, application.Cache)
-		client.APIKeyRoute(api, h.apiKey, userProvider, application.Cache)
-		idp.AuthFlowRoute(api, h.authFlow, userProvider, application.Cache)
-		secpolicy.SecuritySettingRoute(api, h.securitySetting, userProvider, application.Cache)
-		secpolicy.IPRestrictionRuleRoute(api, h.ipRestrictionRule, userProvider, application.Cache)
-		branding.EmailTemplateRoute(api, h.emailTemplate, userProvider, application.Cache)
-		branding.SMSTemplateRoute(api, h.smsTemplate, userProvider, application.Cache)
-		branding.BrandingRoute(api, h.branding, userProvider, application.Cache)
-		tenant.TenantSettingRoute(api, h.tenantSetting, userProvider, application.Cache)
-		notifier.EmailConfigRoute(api, h.emailConfig, userProvider, application.Cache)
-		notifier.SMSConfigRoute(api, h.smsConfig, userProvider, application.Cache)
-		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.WebhookReplayHandler, application.WebhookSubscriptionHandler, application.WebhookEndpointRepo, userProvider, application.Cache)
-		authevent.AuthEventRoute(api, h.authEvent, userProvider, application.Cache)
-		event.ConfigRoute(api, h.eventConfig, h.eventManagement, userProvider, application.Cache)
-		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache)
+		tenant.TenantRoute(api, h.tenant, userProvider, application.Cache, tenantRateLimit)
+		iam.ServiceRoute(api, h.service, h.authorization, userProvider, application.Cache, tenantRateLimit)
+		iam.APIRoute(api, h.api, userProvider, application.Cache, tenantRateLimit)
+		iam.PermissionRoute(api, h.permission, userProvider, application.Cache, tenantRateLimit)
+		iam.PolicyRoute(api, h.policy, userProvider, application.Cache, tenantRateLimit)
+		idp.IdentityProviderRoute(api, h.identityProvider, userProvider, application.Cache, tenantRateLimit)
+		client.ClientRoute(api, h.client, userProvider, application.Cache, tenantRateLimit)
+		iam.RoleRoute(api, h.role, userProvider, application.Cache, tenantRateLimit)
+		user.UserRoute(api, h.user, h.profile, userProvider, application.Cache, tenantRateLimit)
+		invite.InviteRoute(api, h.invite, userProvider, application.Cache, tenantRateLimit)
+		client.APIKeyRoute(api, h.apiKey, userProvider, application.Cache, tenantRateLimit)
+		idp.AuthFlowRoute(api, h.authFlow, userProvider, application.Cache, tenantRateLimit)
+		secpolicy.SecuritySettingRoute(api, h.securitySetting, userProvider, application.Cache, tenantRateLimit)
+		secpolicy.IPRestrictionRuleRoute(api, h.ipRestrictionRule, userProvider, application.Cache, tenantRateLimit)
+		branding.EmailTemplateRoute(api, h.emailTemplate, userProvider, application.Cache, tenantRateLimit)
+		branding.SMSTemplateRoute(api, h.smsTemplate, userProvider, application.Cache, tenantRateLimit)
+		branding.BrandingRoute(api, h.branding, userProvider, application.Cache, tenantRateLimit)
+		tenant.TenantSettingRoute(api, h.tenantSetting, userProvider, application.Cache, tenantRateLimit)
+		notifier.EmailConfigRoute(api, h.emailConfig, userProvider, application.Cache, tenantRateLimit)
+		notifier.SMSConfigRoute(api, h.smsConfig, userProvider, application.Cache, tenantRateLimit)
+		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.WebhookReplayHandler, application.WebhookSubscriptionHandler, application.WebhookEndpointRepo, userProvider, application.Cache, tenantRateLimit)
+		authevent.AuthEventRoute(api, h.authEvent, userProvider, application.Cache, tenantRateLimit)
+		event.ConfigRoute(api, h.eventConfig, h.eventManagement, userProvider, application.Cache, tenantRateLimit)
+		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache, tenantRateLimit)
 		iam.AuthorizationRoute(api, h.authorization)
 
 		// Account self-service routes (authenticated)
-		user.AccountRoute(api, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp)
+		user.AccountRoute(api, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRateLimit)
 		// MFA self-service routes (authenticated)
-		mfa.MFARoute(api, h.mfa, userProvider, application.Cache)
+		mfa.MFARoute(api, h.mfa, userProvider, application.Cache, tenantRateLimit)
 		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
 		idp.FederationPublicRoute(api, h.federation)
-		idp.FederationIdentityRoute(api, h.federation, userProvider, application.Cache)
+		idp.FederationIdentityRoute(api, h.federation, userProvider, application.Cache, tenantRateLimit)
 		// SMS login (unauthenticated)
 		authn.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
@@ -120,6 +125,13 @@ func buildManagementRouter(application *Application) http.Handler {
 func buildPublicRouter(h *handlers, application *Application) http.Handler {
 	r := chi.NewRouter()
 	userProvider := newMiddlewareUserContextProvider(application.UserService)
+	tenantRateLimit := securityMiddleware.TenantRequestRateLimitMiddleware(
+		application.RedisClient,
+		application.TenantSettingService,
+	)
+	tenantMaintenance := securityMiddleware.TenantMaintenanceMiddleware(application.TenantSettingService)
+	tenantIPRestriction := securityMiddleware.TenantIPRestrictionMiddleware(&ipRestrictionAdapter{repo: application.IPRestrictionRuleRepo})
+	tenantRuntimeMiddleware := []securityMiddleware.Middleware{tenantMaintenance, tenantIPRestriction, tenantRateLimit}
 
 	mountCommonMiddleware(r)
 
@@ -164,14 +176,14 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		// Cookie-auth state-changing routes — apply CSRF protection
 		api.Group(func(cookieAuth chi.Router) {
 			cookieAuth.Use(securityMiddleware.CSRFMiddleware)
-			user.ProfileRoute(cookieAuth, h.profile, userProvider, application.Cache)
-			user.UserSettingRoute(cookieAuth, h.userSetting, userProvider, application.Cache)
-			user.AccountRoute(cookieAuth, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp)
-			mfa.MFARoute(cookieAuth, h.mfa, userProvider, application.Cache)
-			idp.FederationIdentityRoute(cookieAuth, h.federation, userProvider, application.Cache)
+			user.ProfileRoute(cookieAuth, h.profile, userProvider, application.Cache, tenantRuntimeMiddleware...)
+			user.UserSettingRoute(cookieAuth, h.userSetting, userProvider, application.Cache, tenantRuntimeMiddleware...)
+			user.AccountRoute(cookieAuth, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRuntimeMiddleware...)
+			mfa.MFARoute(cookieAuth, h.mfa, userProvider, application.Cache, tenantRuntimeMiddleware...)
+			idp.FederationIdentityRoute(cookieAuth, h.federation, userProvider, application.Cache, tenantRuntimeMiddleware...)
 		})
 
-		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, userProvider, application.Cache, authRateLimit)
+		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, userProvider, application.Cache, authRateLimit, tenantRuntimeMiddleware...)
 
 		// Federation HRD (public, no cookie auth)
 		idp.FederationPublicRoute(api, h.federation)
@@ -205,4 +217,42 @@ func mountCommonMiddleware(r chi.Router) {
 	// CORS allow-list and Content-Type enforcement
 	r.Use(securityMiddleware.CORSMiddleware)
 	r.Use(securityMiddleware.EnforceJSONContentType)
+}
+
+type stepUpTTLAdapter struct {
+	svc secpolicy.SecuritySettingService
+}
+
+func (a *stepUpTTLAdapter) StepUpTTLSecondsByTenant(ctx context.Context, tenantID int64) int64 {
+	if a.svc == nil {
+		return 0
+	}
+	cfg, err := a.svc.GetMFAConfig(ctx, tenantID)
+	if err != nil || cfg == nil {
+		return 0
+	}
+	minutes, _ := cfg["step_up_ttl_minutes"].(float64)
+	if minutes <= 0 {
+		return 0
+	}
+	return int64(minutes) * 60
+}
+
+type ipRestrictionAdapter struct {
+	repo secpolicy.IPRestrictionRuleRepository
+}
+
+func (a *ipRestrictionAdapter) GetActiveIPRestrictions(ctx context.Context, tenantID int64) ([]securityMiddleware.IPRestriction, error) {
+	if a.repo == nil {
+		return nil, nil
+	}
+	rules, err := a.repo.FindByTenantIDAndStatus(tenantID, "active")
+	if err != nil {
+		return nil, err
+	}
+	result := make([]securityMiddleware.IPRestriction, len(rules))
+	for i, r := range rules {
+		result[i] = securityMiddleware.IPRestriction{Type: r.Type, IPAddress: r.IPAddress}
+	}
+	return result, nil
 }

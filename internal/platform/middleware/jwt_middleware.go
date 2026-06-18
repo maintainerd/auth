@@ -191,9 +191,26 @@ func stringSliceClaim(raw any) []string {
 
 const defaultStepUpTTLSeconds = 300
 
-// RequireStepUp requires an elevated token with acr=2 issued within the last
-// 5 minutes (step-up freshness window). It must run after JWTAuthMiddleware
-// so JWTClaims are already present in the request context.
+// StepUpTTLReader resolves the tenant-specific step-up TTL in seconds.
+// When set via SetStepUpTTLReader, RequireStepUp uses the tenant's
+// mfa_config.step_up_ttl_minutes instead of the hardcoded default.
+type StepUpTTLReader interface {
+	StepUpTTLSecondsByTenant(ctx context.Context, tenantID int64) int64
+}
+
+var stepUpTTLReader StepUpTTLReader
+
+// SetStepUpTTLReader installs a tenant-aware step-up TTL provider.
+// Call once during app startup before serving requests.
+func SetStepUpTTLReader(reader StepUpTTLReader) {
+	stepUpTTLReader = reader
+}
+
+// RequireStepUp requires an elevated token with acr=2 issued within the
+// tenant's configured step-up freshness window (mfa_config.step_up_ttl_minutes).
+// Falls back to 300 seconds when no reader is set or tenant is unavailable.
+// It must run after JWTAuthMiddleware so JWTClaims are already present in
+// the request context.
 func RequireStepUp(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims := JWTClaimsFromRequest(r)
@@ -205,7 +222,15 @@ func RequireStepUp(next http.Handler) http.Handler {
 			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
 			return
 		}
-		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > defaultStepUpTTLSeconds {
+		ttl := int64(defaultStepUpTTLSeconds)
+		if stepUpTTLReader != nil {
+			if auth := AuthFromRequest(r); auth != nil && auth.Tenant != nil {
+				if tenantTTL := stepUpTTLReader.StepUpTTLSecondsByTenant(r.Context(), auth.Tenant.TenantID); tenantTTL > 0 {
+					ttl = tenantTTL
+				}
+			}
+		}
+		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > ttl {
 			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication has expired; please re-authenticate")
 			return
 		}

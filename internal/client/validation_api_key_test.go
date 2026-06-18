@@ -31,11 +31,6 @@ func TestAPIKeyCreateRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("rate_limit negative", func(t *testing.T) {
-		// ozzo-validation treats 0 as "empty" for int, so use a negative value to trigger Min(1)
-		d := APIKeyCreateRequestDTO{Name: "key", RateLimit: intPtr(-1)}
-		require.Error(t, d.Validate())
-	})
 }
 
 func TestAPIKeyUpdateRequestDto_Validate(t *testing.T) {

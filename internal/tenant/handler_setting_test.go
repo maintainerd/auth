@@ -1,11 +1,14 @@
 package tenant
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,9 +22,31 @@ func tenantSettingResult() *TenantSettingServiceDataResult {
 		RateLimitConfig:   map[string]any{"max": 200},
 		AuditConfig:       map[string]any{"enabled": true},
 		MaintenanceConfig: map[string]any{"active": false},
-		FeatureFlags:      map[string]any{"beta": true},
 	}
 }
+
+type mockAuthEventService struct {
+	logFn func(authevent.AuthEventInput)
+}
+
+func (m *mockAuthEventService) Log(_ context.Context, input authevent.AuthEventInput) {
+	if m.logFn != nil {
+		m.logFn(input)
+	}
+}
+func (m *mockAuthEventService) FindPaginated(_ context.Context, _ authevent.AuthEventRepositoryGetFilter) (*authevent.PaginationResult[authevent.AuthEventServiceDataResult], error) {
+	return &authevent.PaginationResult[authevent.AuthEventServiceDataResult]{}, nil
+}
+func (m *mockAuthEventService) FindByUUID(_ context.Context, _ int64, _ uuid.UUID) (*authevent.AuthEventServiceDataResult, error) {
+	return nil, nil
+}
+func (m *mockAuthEventService) CountByEventType(_ context.Context, _ string, _ int64) (int64, error) {
+	return 0, nil
+}
+func (m *mockAuthEventService) DeleteOlderThan(_ context.Context, _ time.Time) (int64, error) {
+	return 0, nil
+}
+func (m *mockAuthEventService) Shutdown() {}
 
 // ---------------------------------------------------------------------------
 // RateLimit
@@ -82,6 +107,14 @@ func TestTenantSettingHandler_UpdateRateLimitConfig_ValidationError(t *testing.T
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestTenantSettingHandler_UpdateRateLimitConfig_RejectsUnknownFields(t *testing.T) {
+	h := NewTenantSettingHandler(&mockTenantSettingService{})
+	r := withTenant(jsonReq(t, http.MethodPut, "/tenant-settings/rate-limit", map[string]any{"unknown": true}))
+	w := httptest.NewRecorder()
+	h.UpdateRateLimitConfig(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 func TestTenantSettingHandler_UpdateRateLimitConfig_UpdateError(t *testing.T) {
 	svc := &mockTenantSettingService{
 		updateRateLimitConfigFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
@@ -89,7 +122,7 @@ func TestTenantSettingHandler_UpdateRateLimitConfig_UpdateError(t *testing.T) {
 		},
 	}
 	h := NewTenantSettingHandler(svc)
-	r := withTenant(jsonReq(t, http.MethodPut, "/tenant-settings/rate-limit", map[string]any{"k": "v"}))
+	r := withTenant(jsonReq(t, http.MethodPut, "/tenant-settings/rate-limit", map[string]any{"enabled": true}))
 	w := httptest.NewRecorder()
 	h.UpdateRateLimitConfig(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -102,7 +135,7 @@ func TestTenantSettingHandler_UpdateRateLimitConfig_Success(t *testing.T) {
 		},
 	}
 	h := NewTenantSettingHandler(svc)
-	r := withTenant(jsonReq(t, http.MethodPut, "/tenant-settings/rate-limit", map[string]any{"max": 200}))
+	r := withTenant(jsonReq(t, http.MethodPut, "/tenant-settings/rate-limit", map[string]any{"enabled": true}))
 	w := httptest.NewRecorder()
 	h.UpdateRateLimitConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -168,7 +201,7 @@ func TestTenantSettingHandler_UpdateAuditConfig_UpdateError(t *testing.T) {
 	}
 	h := NewTenantSettingHandler(svc)
 	w := httptest.NewRecorder()
-	h.UpdateAuditConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"k": "v"})))
+	h.UpdateAuditConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"enabled": true})))
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
@@ -180,7 +213,7 @@ func TestTenantSettingHandler_UpdateAuditConfig_Success(t *testing.T) {
 	}
 	h := NewTenantSettingHandler(svc)
 	w := httptest.NewRecorder()
-	h.UpdateAuditConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"k": "v"})))
+	h.UpdateAuditConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"enabled": true})))
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
@@ -244,7 +277,7 @@ func TestTenantSettingHandler_UpdateMaintenanceConfig_UpdateError(t *testing.T) 
 	}
 	h := NewTenantSettingHandler(svc)
 	w := httptest.NewRecorder()
-	h.UpdateMaintenanceConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"k": "v"})))
+	h.UpdateMaintenanceConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"enabled": true})))
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
@@ -256,82 +289,49 @@ func TestTenantSettingHandler_UpdateMaintenanceConfig_Success(t *testing.T) {
 	}
 	h := NewTenantSettingHandler(svc)
 	w := httptest.NewRecorder()
-	h.UpdateMaintenanceConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"k": "v"})))
+	h.UpdateMaintenanceConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"enabled": true})))
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-// ---------------------------------------------------------------------------
-// FeatureFlags
-// ---------------------------------------------------------------------------
-
-func TestTenantSettingHandler_GetFeatureFlags_NoTenant(t *testing.T) {
-	h := NewTenantSettingHandler(&mockTenantSettingService{})
+func TestTenantSettingHandler_UpdateMaintenanceConfig_RejectsRemovedFields(t *testing.T) {
+	h := NewTenantSettingHandler(&mockTenantSettingService{
+		updateMaintenanceConfigFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
+			t.Fatal("UpdateMaintenanceConfig should not be called for invalid config")
+			return nil, nil
+		},
+	})
 	w := httptest.NewRecorder()
-	h.GetFeatureFlags(w, httptest.NewRequest(http.MethodGet, "/", nil))
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestTenantSettingHandler_GetFeatureFlags_Success(t *testing.T) {
-	svc := &mockTenantSettingService{
-		getFeatureFlagsFn: func(_ int64) (map[string]any, error) { return map[string]any{}, nil },
-	}
-	h := NewTenantSettingHandler(svc)
-	w := httptest.NewRecorder()
-	h.GetFeatureFlags(w, withTenant(httptest.NewRequest(http.MethodGet, "/", nil)))
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestTenantSettingHandler_GetFeatureFlags_ServiceError(t *testing.T) {
-	svc := &mockTenantSettingService{
-		getFeatureFlagsFn: func(_ int64) (map[string]any, error) { return nil, assert.AnError },
-	}
-	h := NewTenantSettingHandler(svc)
-	w := httptest.NewRecorder()
-	h.GetFeatureFlags(w, withTenant(httptest.NewRequest(http.MethodGet, "/", nil)))
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestTenantSettingHandler_UpdateFeatureFlags_NoTenant(t *testing.T) {
-	h := NewTenantSettingHandler(&mockTenantSettingService{})
-	w := httptest.NewRecorder()
-	h.UpdateFeatureFlags(w, httptest.NewRequest(http.MethodPut, "/", nil))
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestTenantSettingHandler_UpdateFeatureFlags_BadJSON(t *testing.T) {
-	h := NewTenantSettingHandler(&mockTenantSettingService{})
-	w := httptest.NewRecorder()
-	h.UpdateFeatureFlags(w, withTenant(badJSONReq(t, http.MethodPut, "/")))
+	h.UpdateMaintenanceConfig(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{
+		"bypass_ips": []string{"127.0.0.1"},
+	})))
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestTenantSettingHandler_UpdateFeatureFlags_ValidationError(t *testing.T) {
-	h := NewTenantSettingHandler(&mockTenantSettingService{})
-	w := httptest.NewRecorder()
-	h.UpdateFeatureFlags(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{})))
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestTenantSettingHandler_UpdateFeatureFlags_UpdateError(t *testing.T) {
+func TestTenantSettingHandler_UpdateMaintenanceConfig_LogsAuditEvent(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateFeatureFlagsFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
-			return nil, assert.AnError
+		updateMaintenanceConfigFn: func(_ int64, cfg map[string]any) (*TenantSettingServiceDataResult, error) {
+			return &TenantSettingServiceDataResult{MaintenanceConfig: cfg}, nil
 		},
 	}
-	h := NewTenantSettingHandler(svc)
+	var logged *authevent.AuthEventInput
+	events := &mockAuthEventService{logFn: func(input authevent.AuthEventInput) {
+		logged = &input
+	}}
+	h := NewTenantSettingHandler(svc, events)
+	req := withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"enabled": true}))
+	req.RemoteAddr = "10.0.0.5:1234"
+	req.Header.Set("User-Agent", "tenant-test")
 	w := httptest.NewRecorder()
-	h.UpdateFeatureFlags(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"k": "v"})))
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
 
-func TestTenantSettingHandler_UpdateFeatureFlags_Success(t *testing.T) {
-	svc := &mockTenantSettingService{
-		updateFeatureFlagsFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
-			return tenantSettingResult(), nil
-		},
-	}
-	h := NewTenantSettingHandler(svc)
-	w := httptest.NewRecorder()
-	h.UpdateFeatureFlags(w, withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"k": "v"})))
+	h.UpdateMaintenanceConfig(w, req)
+
 	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, logged) {
+		assert.Equal(t, tenantID, logged.TenantID)
+		assert.Equal(t, authevent.AuthEventCategorySystem, logged.Category)
+		assert.Equal(t, authevent.AuthEventTypeMaintenanceConfigUpdated, logged.EventType)
+		assert.Equal(t, authevent.AuthEventSeverityWarn, logged.Severity)
+		assert.Equal(t, authevent.AuthEventResultSuccess, logged.Result)
+		assert.Equal(t, "10.0.0.5", logged.IPAddress)
+	}
 }

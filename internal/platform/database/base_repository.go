@@ -293,10 +293,6 @@ func SanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol string) string 
 	return sanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol)
 }
 
-func NormalizePagination(page, limit int) (int, int) {
-	return normalizePagination(page, limit)
-}
-
 func PaginateQuery[T any](query *gorm.DB, page, limit int) (*PaginationResult[T], error) {
 	page, limit = normalizePagination(page, limit)
 

@@ -2,6 +2,7 @@ package branding
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
@@ -22,6 +23,8 @@ type SMSTemplateRepositoryGetFilter struct {
 
 type SMSTemplateRepository interface {
 	BaseRepositoryMethods[SMSTemplate]
+	UpdateByUUID(uuid any, updatedData any) (*SMSTemplate, error)
+	DeleteByUUID(uuid any) error
 	FindByUUIDAndTenantID(uuid string, tenantID int64) (*SMSTemplate, error)
 	FindPaginated(filter SMSTemplateRepositoryGetFilter) (*PaginationResult[SMSTemplate], error)
 }
@@ -53,6 +56,10 @@ func (r *smsTemplateRepository) FindByUUIDAndTenantID(uuid string, tenantID int6
 
 // FindPaginated retrieves paginated SMS templates with filtering
 func (r *smsTemplateRepository) FindPaginated(filter SMSTemplateRepositoryGetFilter) (*PaginationResult[SMSTemplate], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&SMSTemplate{})
 
 	// Apply filters

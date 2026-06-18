@@ -545,8 +545,6 @@ const (
 	TenantSettingService_UpdateAuditConfig_FullMethodName       = "/maintainerd.auth.v1.TenantSettingService/UpdateAuditConfig"
 	TenantSettingService_GetMaintenanceConfig_FullMethodName    = "/maintainerd.auth.v1.TenantSettingService/GetMaintenanceConfig"
 	TenantSettingService_UpdateMaintenanceConfig_FullMethodName = "/maintainerd.auth.v1.TenantSettingService/UpdateMaintenanceConfig"
-	TenantSettingService_GetFeatureFlags_FullMethodName         = "/maintainerd.auth.v1.TenantSettingService/GetFeatureFlags"
-	TenantSettingService_UpdateFeatureFlags_FullMethodName      = "/maintainerd.auth.v1.TenantSettingService/UpdateFeatureFlags"
 )
 
 // TenantSettingServiceClient is the client API for TenantSettingService service.
@@ -559,8 +557,6 @@ type TenantSettingServiceClient interface {
 	UpdateAuditConfig(ctx context.Context, in *UpdateAuditConfigRequest, opts ...grpc.CallOption) (*UpdateAuditConfigResponse, error)
 	GetMaintenanceConfig(ctx context.Context, in *GetMaintenanceConfigRequest, opts ...grpc.CallOption) (*GetMaintenanceConfigResponse, error)
 	UpdateMaintenanceConfig(ctx context.Context, in *UpdateMaintenanceConfigRequest, opts ...grpc.CallOption) (*UpdateMaintenanceConfigResponse, error)
-	GetFeatureFlags(ctx context.Context, in *GetFeatureFlagsRequest, opts ...grpc.CallOption) (*GetFeatureFlagsResponse, error)
-	UpdateFeatureFlags(ctx context.Context, in *UpdateFeatureFlagsRequest, opts ...grpc.CallOption) (*UpdateFeatureFlagsResponse, error)
 }
 
 type tenantSettingServiceClient struct {
@@ -631,26 +627,6 @@ func (c *tenantSettingServiceClient) UpdateMaintenanceConfig(ctx context.Context
 	return out, nil
 }
 
-func (c *tenantSettingServiceClient) GetFeatureFlags(ctx context.Context, in *GetFeatureFlagsRequest, opts ...grpc.CallOption) (*GetFeatureFlagsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetFeatureFlagsResponse)
-	err := c.cc.Invoke(ctx, TenantSettingService_GetFeatureFlags_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *tenantSettingServiceClient) UpdateFeatureFlags(ctx context.Context, in *UpdateFeatureFlagsRequest, opts ...grpc.CallOption) (*UpdateFeatureFlagsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateFeatureFlagsResponse)
-	err := c.cc.Invoke(ctx, TenantSettingService_UpdateFeatureFlags_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // TenantSettingServiceServer is the server API for TenantSettingService service.
 // All implementations must embed UnimplementedTenantSettingServiceServer
 // for forward compatibility.
@@ -661,8 +637,6 @@ type TenantSettingServiceServer interface {
 	UpdateAuditConfig(context.Context, *UpdateAuditConfigRequest) (*UpdateAuditConfigResponse, error)
 	GetMaintenanceConfig(context.Context, *GetMaintenanceConfigRequest) (*GetMaintenanceConfigResponse, error)
 	UpdateMaintenanceConfig(context.Context, *UpdateMaintenanceConfigRequest) (*UpdateMaintenanceConfigResponse, error)
-	GetFeatureFlags(context.Context, *GetFeatureFlagsRequest) (*GetFeatureFlagsResponse, error)
-	UpdateFeatureFlags(context.Context, *UpdateFeatureFlagsRequest) (*UpdateFeatureFlagsResponse, error)
 	mustEmbedUnimplementedTenantSettingServiceServer()
 }
 
@@ -690,12 +664,6 @@ func (UnimplementedTenantSettingServiceServer) GetMaintenanceConfig(context.Cont
 }
 func (UnimplementedTenantSettingServiceServer) UpdateMaintenanceConfig(context.Context, *UpdateMaintenanceConfigRequest) (*UpdateMaintenanceConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateMaintenanceConfig not implemented")
-}
-func (UnimplementedTenantSettingServiceServer) GetFeatureFlags(context.Context, *GetFeatureFlagsRequest) (*GetFeatureFlagsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFeatureFlags not implemented")
-}
-func (UnimplementedTenantSettingServiceServer) UpdateFeatureFlags(context.Context, *UpdateFeatureFlagsRequest) (*UpdateFeatureFlagsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateFeatureFlags not implemented")
 }
 func (UnimplementedTenantSettingServiceServer) mustEmbedUnimplementedTenantSettingServiceServer() {}
 func (UnimplementedTenantSettingServiceServer) testEmbeddedByValue()                              {}
@@ -826,42 +794,6 @@ func _TenantSettingService_UpdateMaintenanceConfig_Handler(srv interface{}, ctx 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TenantSettingService_GetFeatureFlags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFeatureFlagsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TenantSettingServiceServer).GetFeatureFlags(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TenantSettingService_GetFeatureFlags_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TenantSettingServiceServer).GetFeatureFlags(ctx, req.(*GetFeatureFlagsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _TenantSettingService_UpdateFeatureFlags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateFeatureFlagsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TenantSettingServiceServer).UpdateFeatureFlags(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TenantSettingService_UpdateFeatureFlags_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TenantSettingServiceServer).UpdateFeatureFlags(ctx, req.(*UpdateFeatureFlagsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // TenantSettingService_ServiceDesc is the grpc.ServiceDesc for TenantSettingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -892,14 +824,6 @@ var TenantSettingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateMaintenanceConfig",
 			Handler:    _TenantSettingService_UpdateMaintenanceConfig_Handler,
-		},
-		{
-			MethodName: "GetFeatureFlags",
-			Handler:    _TenantSettingService_GetFeatureFlags_Handler,
-		},
-		{
-			MethodName: "UpdateFeatureFlags",
-			Handler:    _TenantSettingService_UpdateFeatureFlags_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

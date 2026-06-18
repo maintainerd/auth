@@ -497,7 +497,6 @@ permission string shown. Status is per-RPC.
 | `GetRateLimitConfig` / `UpdateRateLimitConfig` | `GET/PUT /tenant-settings/rate-limit` | `tenant-setting:read` / `:update` | ✅ done |
 | `GetAuditConfig` / `UpdateAuditConfig` | `GET/PUT /tenant-settings/audit` | `tenant-setting:read` / `:update` | ✅ done |
 | `GetMaintenanceConfig` / `UpdateMaintenanceConfig` | `GET/PUT /tenant-settings/maintenance` | `tenant-setting:read` / `:update` | ✅ done |
-| `GetFeatureFlags` / `UpdateFeatureFlags` | `GET/PUT /tenant-settings/feature-flags` | `tenant-setting:read` / `:update` | ✅ done |
 
 ### GRPC-110 · ServiceService — `service.proto`
 | RPC | REST origin | Permission | Status |

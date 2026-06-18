@@ -141,9 +141,3 @@ func (r *BackgroundRetrier) retryOne(ctx context.Context, record DeliveryRetryRe
 		)
 	}
 }
-
-// Shutdown stops the background retrier.
-func (r *BackgroundRetrier) Shutdown() {
-	close(r.stopCh)
-	r.wg.Wait()
-}

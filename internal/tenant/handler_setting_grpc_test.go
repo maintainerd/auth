@@ -35,7 +35,6 @@ func TestTenantSettingGRPCHandler_ConfigRPCs(t *testing.T) {
 			getMaintenanceConfigFn: func(tenantID int64) (map[string]any, error) {
 				return map[string]any{}, nil
 			},
-			getFeatureFlagsFn: func(tenantID int64) (map[string]any, error) { return cfg, nil },
 		}
 		h := NewTenantSettingGRPCHandler(baseTenant, settingSvc)
 
@@ -48,9 +47,6 @@ func TestTenantSettingGRPCHandler_ConfigRPCs(t *testing.T) {
 		maintenance, err := h.GetMaintenanceConfig(context.Background(), &authv1.GetMaintenanceConfigRequest{TenantUuid: tenantUUID.String()})
 		require.NoError(t, err)
 		assert.Empty(t, maintenance.Config.AsMap())
-		features, err := h.GetFeatureFlags(context.Background(), &authv1.GetFeatureFlagsRequest{TenantUuid: tenantUUID.String()})
-		require.NoError(t, err)
-		assert.Equal(t, true, features.Config.AsMap()["enabled"])
 	})
 
 	t.Run("update config rpc success", func(t *testing.T) {
@@ -65,9 +61,6 @@ func TestTenantSettingGRPCHandler_ConfigRPCs(t *testing.T) {
 			updateMaintenanceConfigFn: func(tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error) {
 				return &TenantSettingServiceDataResult{MaintenanceConfig: config}, nil
 			},
-			updateFeatureFlagsFn: func(tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error) {
-				return &TenantSettingServiceDataResult{FeatureFlags: config}, nil
-			},
 		}
 		h := NewTenantSettingGRPCHandler(baseTenant, settingSvc)
 
@@ -80,9 +73,6 @@ func TestTenantSettingGRPCHandler_ConfigRPCs(t *testing.T) {
 		maintenance, err := h.UpdateMaintenanceConfig(context.Background(), &authv1.UpdateMaintenanceConfigRequest{TenantUuid: tenantUUID.String(), Config: cfgStruct})
 		require.NoError(t, err)
 		assert.Equal(t, true, maintenance.Config.AsMap()["enabled"])
-		features, err := h.UpdateFeatureFlags(context.Background(), &authv1.UpdateFeatureFlagsRequest{TenantUuid: tenantUUID.String(), Config: cfgStruct})
-		require.NoError(t, err)
-		assert.Equal(t, true, features.Config.AsMap()["enabled"])
 	})
 
 	t.Run("tenant and service errors map to grpc", func(t *testing.T) {
@@ -93,13 +83,9 @@ func TestTenantSettingGRPCHandler_ConfigRPCs(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.GetMaintenanceConfig(context.Background(), &authv1.GetMaintenanceConfigRequest{TenantUuid: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.GetFeatureFlags(context.Background(), &authv1.GetFeatureFlagsRequest{TenantUuid: "bad"})
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.UpdateAuditConfig(context.Background(), &authv1.UpdateAuditConfigRequest{TenantUuid: "bad", Config: cfgStruct})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.UpdateMaintenanceConfig(context.Background(), &authv1.UpdateMaintenanceConfigRequest{TenantUuid: "bad", Config: cfgStruct})
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateFeatureFlags(context.Background(), &authv1.UpdateFeatureFlagsRequest{TenantUuid: "bad", Config: cfgStruct})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		h = NewTenantSettingGRPCHandler(&mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {

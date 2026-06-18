@@ -29,8 +29,6 @@ service TenantSettingService {
   rpc UpdateAuditConfig(UpdateAuditConfigRequest) returns (UpdateAuditConfigResponse);
   rpc GetMaintenanceConfig(GetMaintenanceConfigRequest) returns (GetMaintenanceConfigResponse);
   rpc UpdateMaintenanceConfig(UpdateMaintenanceConfigRequest) returns (UpdateMaintenanceConfigResponse);
-  rpc GetFeatureFlags(GetFeatureFlagsRequest) returns (GetFeatureFlagsResponse);
-  rpc UpdateFeatureFlags(UpdateFeatureFlagsRequest) returns (UpdateFeatureFlagsResponse);
 }
 
 message Tenant {
@@ -249,22 +247,5 @@ message UpdateMaintenanceConfigRequest {
 }
 
 message UpdateMaintenanceConfigResponse {
-  google.protobuf.Struct config = 1;
-}
-
-message GetFeatureFlagsRequest {
-  string tenant_uuid = 1;
-}
-
-message GetFeatureFlagsResponse {
-  google.protobuf.Struct config = 1;
-}
-
-message UpdateFeatureFlagsRequest {
-  string tenant_uuid = 1;
-  google.protobuf.Struct config = 2;
-}
-
-message UpdateFeatureFlagsResponse {
   google.protobuf.Struct config = 1;
 }

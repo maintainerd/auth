@@ -68,5 +68,6 @@ func (a *App) ServerApplication() *server.Application {
 		WebhookEndpointRepo:          a.WebhookEndpointRepo,
 		WebhookSubscriptionHandler:   a.WebhookSubscriptionHandler,
 		WebhookReplayHandler:         a.WebhookReplayHandler,
+		IPRestrictionRuleRepo:        a.IPRestrictionRuleRepo,
 	}
 }

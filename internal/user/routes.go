@@ -22,6 +22,7 @@ func AccountRoute(
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	sensitiveActionStepUp func(http.Handler) http.Handler,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	if sensitiveActionStepUp == nil {
 		sensitiveActionStepUp = middleware.RequireStepUp
@@ -29,6 +30,7 @@ func AccountRoute(
 	r.Route("/account", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.Get("/", accountHandler.GetAccount)
 
@@ -81,11 +83,13 @@ func ProfileRoute(
 	profileHandler *ProfileHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	// /profile - Default profile operations (shortcut for convenience)
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// Get default profile
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
@@ -108,6 +112,7 @@ func ProfileRoute(
 	r.Route("/profiles", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// Get all profiles with pagination and filtering
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
@@ -141,10 +146,12 @@ func UserRoute(
 	profileHandler *ProfileHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/users", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// Get users with pagination and filtering
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
@@ -248,10 +255,12 @@ func UserSettingRoute(
 	userSettingHandler *UserSettingHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/user-settings", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// Create or update user settings - requires settings update permission
 		r.With(middleware.PermissionMiddleware([]string{"settings:update:self"})).

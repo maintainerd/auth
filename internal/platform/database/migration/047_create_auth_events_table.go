@@ -88,10 +88,32 @@ CREATE INDEX IF NOT EXISTS idx_auth_events_failures ON auth_events (result, crea
 CREATE INDEX IF NOT EXISTS idx_auth_events_critical ON auth_events (severity, created_at DESC)
     WHERE severity IN ('WARN', 'CRITICAL');
 
--- Append-only audit records: UPDATEs are silently discarded. DELETE remains
--- allowed so the retention runner can prune old events.
-CREATE OR REPLACE RULE no_update_auth_events
-AS ON UPDATE TO auth_events DO INSTEAD NOTHING;
+-- Append-only audit records: UPDATE is always blocked. DELETE is blocked
+-- unless an explicit transaction-local maintenance flag is set by the
+-- retention runner or tenant deletion flow.
+DROP RULE IF EXISTS no_update_auth_events ON auth_events;
+
+CREATE OR REPLACE FUNCTION protect_auth_events_immutable()
+RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        RAISE EXCEPTION 'auth_events are immutable and cannot be updated';
+    END IF;
+
+    IF TG_OP = 'DELETE'
+       AND COALESCE(current_setting('maintainerd.allow_auth_event_delete', true), '') NOT IN ('retention', 'tenant_delete') THEN
+        RAISE EXCEPTION 'auth_events are immutable and can only be deleted by retention or tenant deletion';
+    END IF;
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_protect_auth_events_immutable ON auth_events;
+CREATE TRIGGER trg_protect_auth_events_immutable
+    BEFORE UPDATE OR DELETE ON auth_events
+    FOR EACH ROW
+    EXECUTE FUNCTION protect_auth_events_immutable();
 `
 	return db.Exec(sql).Error
 }

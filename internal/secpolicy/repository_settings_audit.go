@@ -1,6 +1,8 @@
 package secpolicy
 
 import (
+	"fmt"
+
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -59,6 +61,10 @@ func (r *securitySettingsAuditRepository) FindByTenantID(tenantID int64) ([]Secu
 }
 
 func (r *securitySettingsAuditRepository) FindPaginated(filter SecuritySettingsAuditRepositoryGetFilter) (*PaginationResult[SecuritySettingsAudit], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&SecuritySettingsAudit{})
 
 	if filter.TenantID != nil {

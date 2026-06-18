@@ -91,6 +91,10 @@ func SeedTenant(db *gorm.DB, tenantID int64) error {
 		return fmt.Errorf("seed branding: %w", err)
 	}
 
+	if err := SeedTenantSettings(db, tenantID); err != nil {
+		return fmt.Errorf("seed tenant settings: %w", err)
+	}
+
 	// Event types are tenant-scoped: each tenant gets its own catalog copy.
 	if err := SeedEventTypes(db, tenantID); err != nil {
 		return fmt.Errorf("seed event types: %w", err)

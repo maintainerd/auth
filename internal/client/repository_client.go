@@ -26,6 +26,15 @@ type ClientRepositoryGetFilter struct {
 
 type ClientRepository interface {
 	BaseRepositoryMethods[Client]
+	FindByUUID(uuid any, preloads ...string) (*Client, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]Client, error)
+	FindAll(preloads ...string) ([]Client, error)
+	FindByID(id any, preloads ...string) (*Client, error)
+	UpdateByUUID(uuid any, updatedData any) (*Client, error)
+	UpdateByID(id any, updatedData any) (*Client, error)
+	DeleteByUUID(uuid any) error
+	DeleteByID(id any) error
+	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[Client], error)
 	WithTx(tx *gorm.DB) ClientRepository
 	FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*Client, error)
 	FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*Client, error)

@@ -228,6 +228,9 @@ func TestTenantRepository_DeleteCascade(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		mock.ExpectExec(`SELECT set_config\('maintainerd\.allow_auth_event_delete', \$1, true\)`).
+			WithArgs("tenant_delete").
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectExec(`UPDATE "tenant_members" SET "deleted_at"=\$1 WHERE tenant_id = \$2 AND "tenant_members"."deleted_at" IS NULL`).
 			WithArgs(sqlmock.AnyArg(), int64(10)).
 			WillReturnResult(sqlmock.NewResult(0, 2))
@@ -247,6 +250,9 @@ func TestTenantRepository_DeleteCascade(t *testing.T) {
 	t.Run("delete error", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		mock.ExpectExec(`SELECT set_config\('maintainerd\.allow_auth_event_delete', \$1, true\)`).
+			WithArgs("tenant_delete").
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectExec(`UPDATE "tenant_members" SET "deleted_at"=\$1 WHERE tenant_id = \$2 AND "tenant_members"."deleted_at" IS NULL`).
 			WithArgs(sqlmock.AnyArg(), int64(10)).
 			WillReturnResult(sqlmock.NewResult(0, 2))

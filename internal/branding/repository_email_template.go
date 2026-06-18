@@ -2,6 +2,7 @@ package branding
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/database"
@@ -23,6 +24,8 @@ type EmailTemplateRepositoryGetFilter struct {
 
 type EmailTemplateRepository interface {
 	BaseRepositoryMethods[EmailTemplate]
+	UpdateByUUID(uuid any, updatedData any) (*EmailTemplate, error)
+	DeleteByUUID(uuid any) error
 	FindByUUIDAndTenantID(emailTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*EmailTemplate, error)
 	FindByName(name string) (*EmailTemplate, error)
 	FindByNameAndTenantID(name string, tenantID int64) (*EmailTemplate, error)
@@ -89,6 +92,10 @@ func (r *emailTemplateRepository) FindByNameAndTenantID(name string, tenantID in
 
 // FindPaginated retrieves paginated email templates with filtering
 func (r *emailTemplateRepository) FindPaginated(filter EmailTemplateRepositoryGetFilter) (*PaginationResult[EmailTemplate], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&EmailTemplate{})
 
 	// Apply filters

@@ -44,6 +44,7 @@ func OAuthPublicRoute(
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	tokenRateLimit func(http.Handler) http.Handler,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/oauth", func(r chi.Router) {
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
@@ -54,6 +55,7 @@ func OAuthPublicRoute(
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuthMiddleware)
 			r.Use(middleware.UserContextMiddleware(userService, appCache))
+			r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 			r.Get("/authorize", authorizeHandler.Authorize)
 			r.Get("/consent/{challenge_id}", authorizeHandler.GetConsentChallenge)
@@ -140,10 +142,12 @@ func OAuthInternalRoute(
 	tokenHandler *OAuthTokenHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/oauth", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// Token introspection (RFC 7662) — management-only
 		r.Post("/introspect", tokenHandler.Introspect)

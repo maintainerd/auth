@@ -76,7 +76,7 @@ Initial production release.
 ### Tenancy & RBAC
 - Multi-tenant isolation, tenant members, services, settings
 - Roles, permissions, policies with middleware enforcement
-- API keys with scoping, invite system, feature flags
+- API keys with scoping and invite system
 
 ### Security
 - Bcrypt password hashing (cost ≥ 12), constant-time comparison

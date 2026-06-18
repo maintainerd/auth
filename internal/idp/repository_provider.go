@@ -2,6 +2,7 @@ package idp
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
@@ -25,6 +26,15 @@ type IdentityProviderRepositoryGetFilter struct {
 
 type IdentityProviderRepository interface {
 	BaseRepositoryMethods[IdentityProvider]
+	FindByUUID(uuid any, preloads ...string) (*IdentityProvider, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]IdentityProvider, error)
+	FindAll(preloads ...string) ([]IdentityProvider, error)
+	FindByID(id any, preloads ...string) (*IdentityProvider, error)
+	UpdateByUUID(uuid any, updatedData any) (*IdentityProvider, error)
+	UpdateByID(id any, updatedData any) (*IdentityProvider, error)
+	DeleteByUUID(uuid any) error
+	DeleteByID(id any) error
+	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[IdentityProvider], error)
 	WithTx(tx *gorm.DB) IdentityProviderRepository
 	FindByName(name string, tenantID int64) (*IdentityProvider, error)
 	FindByIdentifier(identifier string) (*IdentityProvider, error)
@@ -94,6 +104,10 @@ func (r *identityProviderRepository) FindDefaultByTenantID(tenantID int64) (*Ide
 }
 
 func (r *identityProviderRepository) FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&IdentityProvider{})
 
 	// Filters with LIKE

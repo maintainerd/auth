@@ -104,7 +104,7 @@ This frontend is fully customizable per tenant through `login_templates`.
 TENANT  (one record per running instance)
 │
 ├── branding                — auth-console UI identity (logo, colors, URLs)
-├── tenant_settings         — rate limits, audit/compliance, maintenance mode, feature flags
+├── tenant_settings         — rate limits, audit/compliance, maintenance mode
 ├── email_config            — SMTP / transactional email delivery
 ├── sms_config              — SMS delivery provider
 ├── webhook_endpoints       — outbound event notifications (many per tenant)

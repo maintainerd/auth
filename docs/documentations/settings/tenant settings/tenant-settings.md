@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tenant settings is a centralized configuration resource that holds four major operational JSONB settings for the tenant: **rate limit configuration**, **audit configuration**, **maintenance configuration**, and **feature flags**. Each sub-config is independently readable and updatable via the admin API.
+Tenant settings is a centralized configuration resource that holds three major operational JSONB settings for the tenant: **rate limit configuration**, **audit configuration**, and **maintenance configuration**. Each sub-config is independently readable and updatable via the admin API.
 
 ---
 
@@ -70,7 +70,7 @@ Audit configuration controls how the system records and retains security-relevan
 
 ### What It Is
 
-Maintenance mode allows administrators to temporarily take the authentication service offline for planned updates, database migrations, or emergency interventions. While active, all non-admin requests receive a standardized maintenance response, preventing user-facing errors during system changes.
+Maintenance mode allows administrators to temporarily take the public authentication surface offline for planned updates, database migrations, or emergency interventions. While active, tenant-aware public requests receive a standardized maintenance response, preventing user-facing errors during system changes while the internal/admin surface remains available for control operations.
 
 ### Relevant Standards & Patterns
 
@@ -79,42 +79,16 @@ Maintenance mode allows administrators to temporarily take the authentication se
 | **RFC 9110** | HTTP 503 Service Unavailable | The standard status code for temporary unavailability; should include `Retry-After` header. |
 | **ISO 27001:2022** | A.8.32 — Change Management | Requires planned, controlled, and documented changes to IT systems. |
 | **ITIL Change Management** | Service Transition | Defines pre-approved (standard), normal, and emergency change types with approval workflows. |
-| **SRE Best Practices** | Google SRE Book, Ch. 8 | Release engineering: gradual rollouts, feature flags as an alternative to full maintenance windows. |
+| **SRE Best Practices** | Google SRE Book, Ch. 8 | Release engineering: planned changes and controlled rollout processes as alternatives to full maintenance windows. |
 
 ### How Maintenance Mode Typically Works
 
-1. Admin toggles maintenance mode via API or config.
-2. All non-admin requests receive `503 Service Unavailable` with `Retry-After` header.
-3. A human-readable maintenance page/message is returned for browser requests.
-4. Admin/internal requests continue to work (bypass mode).
-5. Planned maintenance can be scheduled (start/end time) with advance HTTP `Retry-After` headers.
-6. Monitoring alerts are suppressed during planned windows.
-
----
-
-## 4. Feature Flags
-
-### What It Is
-
-Feature flags (feature toggles) allow enabling or disabling specific functionality at runtime without deploying new code. In an auth service, they control which features are available — such as social login, MFA enforcement, passwordless auth, or new registration flows.
-
-### Relevant Standards & Patterns
-
-| Standard | Reference | Key Guidance |
-|----------|-----------|-------------|
-| **OpenFeature** | [openfeature.dev](https://openfeature.dev/) | CNCF project defining a vendor-neutral API for feature flag evaluation. |
-| **Martin Fowler** | Feature Toggles (original article) | Categorizes toggles: release, experiment, ops, permission. Recommends minimizing toggle debt. |
-| **OWASP ASVS v4** | V1.2.2 | Security controls should not be feature-flagged off in production. |
-| **LaunchDarkly Patterns** | Feature Flag Best Practices | Lifecycle: create → enable → test → default-on → remove. Avoid permanent flags. |
-
-### Feature Flag Categories
-
-| Category | Description | Example |
-|----------|-------------|---------|
-| **Release toggle** | Control rollout of new features | `enable_passwordless_login` |
-| **Ops toggle** | Circuit breaker for operational control | `enable_email_sending` |
-| **Experiment toggle** | A/B testing for different flows | `enable_new_registration_flow` |
-| **Permission toggle** | Feature availability per plan/tier | `enable_custom_domains` |
+1. Admin toggles maintenance mode via the internal admin API.
+2. Tenant-aware public requests receive `503 Service Unavailable`.
+3. The configured maintenance message is returned in the JSON response.
+4. Admin/internal requests continue to work so maintenance can be disabled without direct database access.
+5. Planned maintenance can be scheduled with `scheduled_start` / `scheduled_end`; active windows include a `Retry-After` header when an end time is available.
+6. Health/readiness endpoints remain available for monitoring.
 
 ---
 
@@ -122,7 +96,7 @@ Feature flags (feature toggles) allow enabling or disabling specific functionali
 
 ### Architecture
 
-Tenant settings is a **tenant-level** singleton resource (one row per tenant) with four JSONB columns, each holding a structured configuration object. The row is enforced as unique per tenant via a unique index on `tenant_id`.
+Tenant settings is a **tenant-level** singleton resource (one row per tenant) with three JSONB columns, each holding a structured configuration object. The row is enforced as unique per tenant via a unique index on `tenant_id`.
 
 ### Data Model
 
@@ -133,7 +107,6 @@ Tenant settings is a **tenant-level** singleton resource (one row per tenant) wi
 | `rate_limit_config` | JSONB | Rate limiting configuration |
 | `audit_config` | JSONB | Audit/logging configuration |
 | `maintenance_config` | JSONB | Maintenance mode configuration |
-| `feature_flags` | JSONB | Feature flag key-value pairs |
 | `created_at` | timestamp | Creation time |
 | `updated_at` | timestamp | Last update time |
 | `deleted_at` | timestamp | Soft-delete time (nullable) |
@@ -152,8 +125,6 @@ Tenant settings is a **tenant-level** singleton resource (one row per tenant) wi
 | `PUT` | `/tenant-settings/audit` | Update audit configuration |
 | `GET` | `/tenant-settings/maintenance` | Get maintenance configuration |
 | `PUT` | `/tenant-settings/maintenance` | Update maintenance configuration |
-| `GET` | `/tenant-settings/feature-flags` | Get feature flags |
-| `PUT` | `/tenant-settings/feature-flags` | Update feature flags |
 
 **Source files:**
 - Handler: `internal/rest/tenant_setting_handler.go`
@@ -161,11 +132,10 @@ Tenant settings is a **tenant-level** singleton resource (one row per tenant) wi
 
 ### Service Layer
 
-The service provides nine operations:
+The service provides seven operations:
 - `GetRateLimitConfig` / `UpdateRateLimitConfig`
 - `GetAuditConfig` / `UpdateAuditConfig`
 - `GetMaintenanceConfig` / `UpdateMaintenanceConfig`
-- `GetFeatureFlags` / `UpdateFeatureFlags`
 - `ensureTenantSetting` (internal helper — creates the row on first access)
 
 All operations are traced with OpenTelemetry spans. The service uses a unified internal helper `updateConfig` that reads the current row, patches the specific JSONB column, and writes back within a transaction.
@@ -198,44 +168,30 @@ All operations are traced with OpenTelemetry spans. The service uses a unified i
 - [x] Get audit config
 - [x] Update audit config
 - [x] Store as JSONB for flexible schema
-- [ ] Define audit config schema (enabled events, retention period, log level, export format)
-- [ ] Audit event producer (hook into auth/admin operations)
-- [ ] Audit event storage (append-only table or external log service)
-- [ ] Audit log retention policy enforcement
-- [ ] Audit log query API (filter by user, action, date range)
-- [ ] Audit log export (CSV, JSON)
-- [ ] Audit log immutability protections (prevent modification/deletion)
-- [ ] Configurable audit verbosity (minimal → verbose)
-- [ ] PII handling in audit logs (mask sensitive fields)
-- [ ] Audit config validation (valid event types, sane retention range)
+- [x] Define audit config schema (enabled events, retention period, log level, export format)
+- [x] Audit event producer (hook into auth/admin operations)
+- [x] Audit event storage (append-only table or external log service)
+- [x] Audit log retention policy enforcement
+- [x] Audit log query API (filter by user, action, date range)
+- [x] Audit log export (CSV, JSON)
+- [x] Audit log immutability protections (prevent modification/deletion)
+- [x] Configurable audit verbosity (minimal → verbose)
+- [x] PII handling in audit logs (mask sensitive fields)
+- [x] Audit config validation (valid event types, sane retention range)
 
 ### Maintenance Configuration
 - [x] Get maintenance config
 - [x] Update maintenance config
 - [x] Store as JSONB for flexible schema
-- [ ] Define maintenance config schema (enabled, message, start_time, end_time, bypass_roles)
-- [ ] Maintenance middleware (intercept requests, return 503)
-- [ ] `Retry-After` header in 503 responses
-- [ ] Custom maintenance page/message
-- [ ] Admin bypass (admin API unaffected during maintenance)
-- [ ] Scheduled maintenance (auto-enable/disable at specified times)
-- [ ] Maintenance notification to connected clients
-- [ ] Maintenance mode audit log (who enabled/disabled, when)
-- [ ] Health check endpoint excluded from maintenance block
-
-### Feature Flags
-- [x] Get feature flags
-- [x] Update feature flags
-- [x] Store as JSONB for flexible schema
-- [ ] Define feature flag schema (key, value, description, created_at)
-- [ ] Feature flag evaluation helper (check flag at runtime)
-- [ ] Feature flag types (boolean, percentage rollout, user-segment)
-- [ ] Default values (fallback when flag is undefined)
-- [ ] Feature flag middleware integration
-- [ ] Feature flag change audit log
-- [ ] Prevent disabling security-critical features in production (OWASP ASVS V1.2.2)
-- [ ] Feature flag cleanup / deprecation workflow
-- [ ] OpenFeature SDK compatibility
+- [x] Define maintenance config schema (`enabled`, `message`, `scheduled_start`, `scheduled_end`)
+- [x] Maintenance middleware (intercept tenant-aware public requests, return 503)
+- [x] `Retry-After` header in scheduled 503 responses
+- [x] Custom maintenance response message
+- [x] Internal/admin API unaffected during maintenance
+- [x] Scheduled maintenance window evaluation
+- [x] Maintenance mode audit log (who changed it, when)
+- [x] Health check endpoint excluded from maintenance block
+- [ ] Maintenance notification to connected clients (handled by notification/event features, not `maintenance_config`)
 
 ### Shared / Cross-Cutting
 - [x] Singleton per tenant (unique index on tenant_id)

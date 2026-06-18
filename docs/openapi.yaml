@@ -3720,10 +3720,6 @@ components:
         expires_at:
           type: string
           format: date-time
-        rate_limit:
-          type: integer
-          minimum: 1
-          description: Maximum requests per minute
         status:
           type: string
           enum: [active, inactive]
@@ -3750,8 +3746,6 @@ components:
         expires_at:
           type: string
           format: date-time
-        rate_limit:
-          type: integer
         status:
           type: string
         created_at:
@@ -3776,8 +3770,6 @@ components:
         expires_at:
           type: string
           format: date-time
-        rate_limit:
-          type: integer
         status:
           type: string
         created_at:

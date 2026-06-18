@@ -9,6 +9,8 @@ import (
 
 type UserSettingRepository interface {
 	BaseRepositoryMethods[UserSetting]
+	FindByUUID(uuid any, preloads ...string) (*UserSetting, error)
+	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) UserSettingRepository
 	FindByUserID(userID int64) (*UserSetting, error)
 	UpdateByUserID(userID int64, updatedUserSetting *UserSetting) error

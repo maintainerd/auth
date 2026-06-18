@@ -2,20 +2,29 @@ package tenant
 
 import (
 	"context"
+	"encoding/json"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/types/known/structpb"
+	"gorm.io/datatypes"
 )
 
 type TenantSettingGRPCHandler struct {
 	authv1.UnimplementedTenantSettingServiceServer
 	tenantService        TenantService
 	tenantSettingService TenantSettingService
+	authEventService     authevent.AuthEventService
 }
 
-func NewTenantSettingGRPCHandler(tenantService TenantService, tenantSettingService TenantSettingService) *TenantSettingGRPCHandler {
-	return &TenantSettingGRPCHandler{tenantService: tenantService, tenantSettingService: tenantSettingService}
+func NewTenantSettingGRPCHandler(tenantService TenantService, tenantSettingService TenantSettingService, authEventService ...authevent.AuthEventService) *TenantSettingGRPCHandler {
+	var eventService authevent.AuthEventService
+	if len(authEventService) > 0 {
+		eventService = authEventService[0]
+	}
+	return &TenantSettingGRPCHandler{tenantService: tenantService, tenantSettingService: tenantSettingService, authEventService: eventService}
 }
 
 func (h *TenantSettingGRPCHandler) GetRateLimitConfig(ctx context.Context, req *authv1.GetRateLimitConfigRequest) (*authv1.GetRateLimitConfigResponse, error) {
@@ -27,7 +36,9 @@ func (h *TenantSettingGRPCHandler) GetRateLimitConfig(ctx context.Context, req *
 }
 
 func (h *TenantSettingGRPCHandler) UpdateRateLimitConfig(ctx context.Context, req *authv1.UpdateRateLimitConfigRequest) (*authv1.UpdateRateLimitConfigResponse, error) {
-	config, err := h.updateConfig(ctx, req.GetTenantUuid(), req.GetConfig(), h.tenantSettingService.UpdateRateLimitConfig, func(result *TenantSettingServiceDataResult) map[string]any {
+	config, err := h.updateConfig(ctx, req.GetTenantUuid(), req.GetConfig(), h.tenantSettingService.UpdateRateLimitConfig, func(dto TenantSettingUpdateConfigRequestDTO) error {
+		return dto.ValidateRateLimitConfig()
+	}, func(result *TenantSettingServiceDataResult) map[string]any {
 		return result.RateLimitConfig
 	})
 	if err != nil {
@@ -45,7 +56,9 @@ func (h *TenantSettingGRPCHandler) GetAuditConfig(ctx context.Context, req *auth
 }
 
 func (h *TenantSettingGRPCHandler) UpdateAuditConfig(ctx context.Context, req *authv1.UpdateAuditConfigRequest) (*authv1.UpdateAuditConfigResponse, error) {
-	config, err := h.updateConfig(ctx, req.GetTenantUuid(), req.GetConfig(), h.tenantSettingService.UpdateAuditConfig, func(result *TenantSettingServiceDataResult) map[string]any {
+	config, err := h.updateConfig(ctx, req.GetTenantUuid(), req.GetConfig(), h.tenantSettingService.UpdateAuditConfig, func(dto TenantSettingUpdateConfigRequestDTO) error {
+		return dto.ValidateAuditConfig()
+	}, func(result *TenantSettingServiceDataResult) map[string]any {
 		return result.AuditConfig
 	})
 	if err != nil {
@@ -63,31 +76,16 @@ func (h *TenantSettingGRPCHandler) GetMaintenanceConfig(ctx context.Context, req
 }
 
 func (h *TenantSettingGRPCHandler) UpdateMaintenanceConfig(ctx context.Context, req *authv1.UpdateMaintenanceConfigRequest) (*authv1.UpdateMaintenanceConfigResponse, error) {
-	config, err := h.updateConfig(ctx, req.GetTenantUuid(), req.GetConfig(), h.tenantSettingService.UpdateMaintenanceConfig, func(result *TenantSettingServiceDataResult) map[string]any {
+	config, err := h.updateConfig(ctx, req.GetTenantUuid(), req.GetConfig(), h.tenantSettingService.UpdateMaintenanceConfig, func(dto TenantSettingUpdateConfigRequestDTO) error {
+		return dto.ValidateMaintenanceConfig()
+	}, func(result *TenantSettingServiceDataResult) map[string]any {
 		return result.MaintenanceConfig
 	})
 	if err != nil {
 		return nil, err
 	}
+	h.logMaintenanceConfigUpdatedGRPC(ctx, req.GetTenantUuid(), config)
 	return &authv1.UpdateMaintenanceConfigResponse{Config: config}, nil
-}
-
-func (h *TenantSettingGRPCHandler) GetFeatureFlags(ctx context.Context, req *authv1.GetFeatureFlagsRequest) (*authv1.GetFeatureFlagsResponse, error) {
-	config, err := h.getConfig(ctx, req.GetTenantUuid(), h.tenantSettingService.GetFeatureFlags)
-	if err != nil {
-		return nil, err
-	}
-	return &authv1.GetFeatureFlagsResponse{Config: config}, nil
-}
-
-func (h *TenantSettingGRPCHandler) UpdateFeatureFlags(ctx context.Context, req *authv1.UpdateFeatureFlagsRequest) (*authv1.UpdateFeatureFlagsResponse, error) {
-	config, err := h.updateConfig(ctx, req.GetTenantUuid(), req.GetConfig(), h.tenantSettingService.UpdateFeatureFlags, func(result *TenantSettingServiceDataResult) map[string]any {
-		return result.FeatureFlags
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &authv1.UpdateFeatureFlagsResponse{Config: config}, nil
 }
 
 func (h *TenantSettingGRPCHandler) getConfig(ctx context.Context, tenantUUID string, getter func(context.Context, int64) (map[string]any, error)) (*structpb.Struct, error) {
@@ -107,6 +105,7 @@ func (h *TenantSettingGRPCHandler) updateConfig(
 	tenantUUID string,
 	config *structpb.Struct,
 	updater func(context.Context, int64, map[string]any) (*TenantSettingServiceDataResult, error),
+	validator func(TenantSettingUpdateConfigRequestDTO) error,
 	selector func(*TenantSettingServiceDataResult) map[string]any,
 ) (*structpb.Struct, error) {
 	tenant, err := h.resolveTenant(ctx, tenantUUID)
@@ -115,7 +114,10 @@ func (h *TenantSettingGRPCHandler) updateConfig(
 	}
 	payload := structMap(config)
 	dto := TenantSettingUpdateConfigRequestDTO(payload)
-	if err := dto.Validate(); err != nil {
+	if validator == nil {
+		validator = TenantSettingUpdateConfigRequestDTO.Validate
+	}
+	if err := validator(dto); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
 	result, err := updater(ctx, tenant.TenantID, payload)
@@ -150,4 +152,30 @@ func configProto(config map[string]any) *structpb.Struct {
 	}
 	result, _ := structpb.NewStruct(config)
 	return result
+}
+
+func (h *TenantSettingGRPCHandler) logMaintenanceConfigUpdatedGRPC(ctx context.Context, tenantUUID string, config *structpb.Struct) {
+	if h.authEventService == nil {
+		return
+	}
+	tenant, err := h.resolveTenant(ctx, tenantUUID)
+	if err != nil {
+		return
+	}
+	var ip string
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		ip = p.Addr.String()
+	}
+	description := "Maintenance config updated"
+	metadata, _ := json.Marshal(map[string]any{"config": config.AsMap()})
+	h.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenant.TenantID,
+		IPAddress:   ip,
+		Category:    authevent.AuthEventCategorySystem,
+		EventType:   authevent.AuthEventTypeMaintenanceConfigUpdated,
+		Severity:    authevent.AuthEventSeverityWarn,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: &description,
+		Metadata:    datatypes.JSON(metadata),
+	})
 }

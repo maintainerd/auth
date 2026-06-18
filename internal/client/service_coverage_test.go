@@ -36,7 +36,7 @@ func TestAPIKeyService_RemainingBranches(t *testing.T) {
 		mock.ExpectRollback()
 
 		svc := NewAPIKeyService(db, &mockAPIKeyRepo{}, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
-		result, plain, err := svc.Create(context.Background(), tenantID, "key", "desc", nil, nil, nil, shared.StatusActive)
+		result, plain, err := svc.Create(context.Background(), tenantID, "key", "desc", nil, nil, shared.StatusActive)
 
 		require.Error(t, err)
 		assert.Nil(t, result)

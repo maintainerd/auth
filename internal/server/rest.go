@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/platform/config"
+	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -25,6 +26,8 @@ const (
 // Returns an error if either server fails to start or shut down cleanly.
 func StartRESTServer(application *Application) error {
 	h := initHandlers(application)
+
+	securityMiddleware.SetStepUpTTLReader(&stepUpTTLAdapter{svc: application.SecuritySettingService})
 
 	internalSrv := &http.Server{
 		Addr:         defaultInternalPort,

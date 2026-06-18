@@ -43,6 +43,14 @@ func withUser(r *http.Request) *http.Request {
 	return middleware.WithAuthContext(r, &authctx.AuthContext{User: user})
 }
 
+// withTenantAndUser injects both an authenticated tenant and user.
+func withTenantAndUser(r *http.Request) *http.Request {
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
+		User:   &authctx.AuthUser{UserUUID: testUserUUID},
+	})
+}
+
 // withChiParam injects a chi URL parameter into the request context.
 func withChiParam(r *http.Request, key, val string) *http.Request {
 	rctx := chi.RouteContext(r.Context())

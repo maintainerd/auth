@@ -519,28 +519,6 @@ func effectiveLockoutDuration(ctx context.Context, identifier string, base time.
 	return duration
 }
 
-// RecordFailedAttemptWithConfig increments the failure counter in Redis using
-// tenant-specific observation window.
-func RecordFailedAttemptWithConfig(identifier string, cfg *RateLimitConfig) {
-	window := LoginAttemptWindow
-	if cfg != nil && cfg.ObservationWindow > 0 {
-		window = cfg.ObservationWindow
-	}
-	_, span := otel.Tracer("security").Start(context.Background(), "security.record_failed_attempt")
-	defer span.End()
-	span.SetAttributes(attribute.String("identifier", identifier))
-
-	if rateLimiterClient == nil {
-		return
-	}
-	ctx := context.Background()
-	key := rateLimitCountKey(identifier)
-	pipe := rateLimiterClient.Pipeline()
-	pipe.Incr(ctx, key)
-	pipe.Expire(ctx, key, window)
-	_, _ = pipe.Exec(ctx)
-}
-
 // ResetFailedAttemptsWithConfig clears rate-limit state when reset-on-success is enabled.
 func ResetFailedAttemptsWithConfig(identifier string, cfg *RateLimitConfig) {
 	if cfg != nil && !cfg.ResetCountOnSuccess {

@@ -2874,10 +2874,9 @@ type APIKey struct {
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	KeyPrefix     string                 `protobuf:"bytes,4,opt,name=key_prefix,json=keyPrefix,proto3" json:"key_prefix,omitempty"`
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	RateLimit     *int32                 `protobuf:"varint,6,opt,name=rate_limit,json=rateLimit,proto3,oneof" json:"rate_limit,omitempty"`
-	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2945,13 +2944,6 @@ func (x *APIKey) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
-}
-
-func (x *APIKey) GetRateLimit() int32 {
-	if x != nil && x.RateLimit != nil {
-		return *x.RateLimit
-	}
-	return 0
 }
 
 func (x *APIKey) GetStatus() string {
@@ -3370,9 +3362,8 @@ type CreateAPIKeyRequest struct {
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	RateLimit     *int32                 `protobuf:"varint,6,opt,name=rate_limit,json=rateLimit,proto3,oneof" json:"rate_limit,omitempty"`
-	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,8,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	ActorUserUuid string                 `protobuf:"bytes,7,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3440,13 +3431,6 @@ func (x *CreateAPIKeyRequest) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
-}
-
-func (x *CreateAPIKeyRequest) GetRateLimit() int32 {
-	if x != nil && x.RateLimit != nil {
-		return *x.RateLimit
-	}
-	return 0
 }
 
 func (x *CreateAPIKeyRequest) GetStatus() string {
@@ -3523,9 +3507,8 @@ type UpdateAPIKeyRequest struct {
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	RateLimit     *int32                 `protobuf:"varint,7,opt,name=rate_limit,json=rateLimit,proto3,oneof" json:"rate_limit,omitempty"`
-	Status        *string                `protobuf:"bytes,8,opt,name=status,proto3,oneof" json:"status,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,9,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	Status        *string                `protobuf:"bytes,7,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	ActorUserUuid string                 `protobuf:"bytes,8,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3600,13 +3583,6 @@ func (x *UpdateAPIKeyRequest) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
-}
-
-func (x *UpdateAPIKeyRequest) GetRateLimit() int32 {
-	if x != nil && x.RateLimit != nil {
-		return *x.RateLimit
-	}
-	return 0
 }
 
 func (x *UpdateAPIKeyRequest) GetStatus() string {
@@ -4806,7 +4782,7 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\x12'\n" +
 	"\x0fpermission_uuid\x18\x04 \x01(\tR\x0epermissionUuid\"=\n" +
 	"!RemoveClientAPIPermissionResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\xfb\x02\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\xc8\x02\n" +
 	"\x06APIKey\x12 \n" +
 	"\fapi_key_uuid\x18\x01 \x01(\tR\n" +
 	"apiKeyUuid\x12\x12\n" +
@@ -4815,15 +4791,12 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\n" +
 	"key_prefix\x18\x04 \x01(\tR\tkeyPrefix\x129\n" +
 	"\n" +
-	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\"\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x129\n" +
 	"\n" +
-	"rate_limit\x18\x06 \x01(\x05H\x00R\trateLimit\x88\x01\x01\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\x129\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
-	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\r\n" +
-	"\v_rate_limit\"\xf3\x01\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf3\x01\n" +
 	"\tAPIKeyAPI\x12'\n" +
 	"\x10api_key_api_uuid\x18\x01 \x01(\tR\rapiKeyApiUuid\x126\n" +
 	"\x03api\x18\x02 \x01(\v2$.maintainerd.auth.v1.ClientAPIDetailR\x03api\x12J\n" +
@@ -4855,7 +4828,7 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\fapi_key_uuid\x18\x02 \x01(\tR\n" +
 	"apiKeyUuid\"J\n" +
 	"\x17GetAPIKeyConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xcb\x02\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\x98\x02\n" +
 	"\x13CreateAPIKeyRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
@@ -4863,15 +4836,12 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12/\n" +
 	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x129\n" +
 	"\n" +
-	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\"\n" +
-	"\n" +
-	"rate_limit\x18\x06 \x01(\x05H\x00R\trateLimit\x88\x01\x01\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\b \x01(\tR\ractorUserUuidB\r\n" +
-	"\v_rate_limit\"^\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12&\n" +
+	"\x0factor_user_uuid\x18\a \x01(\tR\ractorUserUuid\"^\n" +
 	"\x14CreateAPIKeyResponse\x124\n" +
 	"\aapi_key\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.APIKeyR\x06apiKey\x12\x10\n" +
-	"\x03key\x18\x02 \x01(\tR\x03key\"\xa0\x03\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\"\xed\x02\n" +
 	"\x13UpdateAPIKeyRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12 \n" +
@@ -4881,14 +4851,11 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01\x12/\n" +
 	"\x06config\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x06config\x129\n" +
 	"\n" +
-	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\"\n" +
-	"\n" +
-	"rate_limit\x18\a \x01(\x05H\x02R\trateLimit\x88\x01\x01\x12\x1b\n" +
-	"\x06status\x18\b \x01(\tH\x03R\x06status\x88\x01\x01\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuidB\a\n" +
+	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1b\n" +
+	"\x06status\x18\a \x01(\tH\x02R\x06status\x88\x01\x01\x12&\n" +
+	"\x0factor_user_uuid\x18\b \x01(\tR\ractorUserUuidB\a\n" +
 	"\x05_nameB\x0e\n" +
-	"\f_descriptionB\r\n" +
-	"\v_rate_limitB\t\n" +
+	"\f_descriptionB\t\n" +
 	"\a_status\"L\n" +
 	"\x14UpdateAPIKeyResponse\x124\n" +
 	"\aapi_key\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.APIKeyR\x06apiKey\"s\n" +
@@ -5225,8 +5192,6 @@ func file_maintainerd_auth_v1_client_proto_init() {
 	}
 	file_maintainerd_auth_v1_tenant_proto_init()
 	file_maintainerd_auth_v1_client_proto_msgTypes[6].OneofWrappers = []any{}
-	file_maintainerd_auth_v1_client_proto_msgTypes[45].OneofWrappers = []any{}
-	file_maintainerd_auth_v1_client_proto_msgTypes[53].OneofWrappers = []any{}
 	file_maintainerd_auth_v1_client_proto_msgTypes[55].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

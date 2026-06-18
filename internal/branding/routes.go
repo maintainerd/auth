@@ -12,10 +12,12 @@ func BrandingRoute(
 	brandingHandler *BrandingHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/branding", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"branding:read"})).
 			Get("/", brandingHandler.List)
@@ -41,10 +43,12 @@ func EmailTemplateRoute(
 	emailTemplateHandler *EmailTemplateHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/email_templates", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"email-template:read"})).
 			Get("/", emailTemplateHandler.GetAll)
@@ -66,10 +70,12 @@ func SMSTemplateRoute(
 	smsTemplateHandler *SMSTemplateHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/sms_templates", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"sms-template:read"})).
 			Get("/", smsTemplateHandler.GetAll)

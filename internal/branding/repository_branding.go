@@ -10,6 +10,8 @@ import (
 // BrandingRepository defines persistence operations for the branding entity.
 type BrandingRepository interface {
 	BaseRepositoryMethods[Branding]
+	FindByUUID(uuid any, preloads ...string) (*Branding, error)
+	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) BrandingRepository
 	FindByTenantID(tenantID int64) (*Branding, error)
 	FindAllByTenantID(tenantID int64) ([]Branding, error)

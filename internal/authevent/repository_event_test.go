@@ -150,6 +150,9 @@ func TestAuthEventRepository_DeleteOlderThan(t *testing.T) {
 	cutoff := time.Now().Add(-365 * 24 * time.Hour).UTC()
 
 	mock.ExpectBegin()
+	mock.ExpectExec(`SELECT set_config\('maintainerd\.allow_auth_event_delete', \$1, true\)`).
+		WithArgs("retention").
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`DELETE FROM "auth_events" WHERE created_at < \$1`).
 		WithArgs(cutoff).
 		WillReturnResult(sqlmock.NewResult(0, 3))
@@ -160,6 +163,51 @@ func TestAuthEventRepository_DeleteOlderThan(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), count)
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthEventRepository_DeleteExpiredByAuditConfig(t *testing.T) {
+	db, mock := newAuthEventMockGormDB(t)
+	now := time.Now().UTC()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`SELECT set_config\('maintainerd\.allow_auth_event_delete', \$1, true\)`).
+		WithArgs("retention").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`DELETE FROM auth_events\s+WHERE auth_events\.created_at < \$1 - \(`).
+		WithArgs(now, 90).
+		WillReturnResult(sqlmock.NewResult(0, 4))
+	mock.ExpectCommit()
+
+	count, err := NewAuthEventRepository(db).DeleteExpiredByAuditConfig(now, 90)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(4), count)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthEventRepository_ImmutableGenericMutations(t *testing.T) {
+	db, _ := newAuthEventMockGormDB(t)
+	repo := NewAuthEventRepository(db)
+
+	_, err := repo.CreateOrUpdate(&AuthEvent{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "append-only")
+
+	_, err = repo.UpdateByUUID(uuid.New(), map[string]any{"result": AuthEventResultFailure})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "immutable")
+
+	_, err = repo.UpdateByID(1, map[string]any{"result": AuthEventResultFailure})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "immutable")
+
+	err = repo.DeleteByUUID(uuid.New())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "retention or tenant deletion")
+
+	err = repo.DeleteByID(1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "retention or tenant deletion")
 }
 
 func TestAuthEventRepository_CountByEventType(t *testing.T) {

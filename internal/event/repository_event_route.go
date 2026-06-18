@@ -8,6 +8,9 @@ import (
 // EventRouteRepository defines persistence operations for event_routes.
 type EventRouteRepository interface {
 	BaseRepositoryMethods[EventRoute]
+	FindByUUID(uuid any, preloads ...string) (*EventRoute, error)
+	UpdateByUUID(uuid any, updatedData any) (*EventRoute, error)
+	DeleteByUUID(uuid any) error
 	FindByTenantID(tenantID int64) ([]EventRoute, error)
 	FindEnabledByTenantID(tenantID int64) ([]EventRoute, error)
 	FindByTenantIDAndEventTypeID(tenantID, eventTypeID int64) (*EventRoute, error)

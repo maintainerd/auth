@@ -2,6 +2,10 @@ package authevent
 
 import (
 	"context"
+	"encoding/csv"
+	"encoding/json"
+	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,14 +85,26 @@ type AuthEventService interface {
 }
 
 type authEventService struct {
-	authEventRepo AuthEventRepository
-	dispatcher    WebhookDispatcher
+	authEventRepo     AuthEventRepository
+	dispatcher        WebhookDispatcher
+	auditConfigReader AuditConfigReader
+	auditConfigCache  map[int64]auditConfigCacheEntry
+	auditConfigMu     sync.RWMutex
 }
 
 // NewAuthEventService creates a new AuthEventService.
 // Pass nil for dispatcher to disable webhook delivery (e.g. in tests).
-func NewAuthEventService(authEventRepo AuthEventRepository, dispatcher WebhookDispatcher) AuthEventService {
-	return &authEventService{authEventRepo: authEventRepo, dispatcher: dispatcher}
+func NewAuthEventService(authEventRepo AuthEventRepository, dispatcher WebhookDispatcher, readers ...AuditConfigReader) AuthEventService {
+	var reader AuditConfigReader
+	if len(readers) > 0 {
+		reader = readers[0]
+	}
+	return &authEventService{
+		authEventRepo:     authEventRepo,
+		dispatcher:        dispatcher,
+		auditConfigReader: reader,
+		auditConfigCache:  map[int64]auditConfigCacheEntry{},
+	}
 }
 
 // noopAuthEventService is a silent implementation used when no real service is
@@ -126,10 +142,25 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 		attribute.String("auth_event.result", input.Result),
 	)
 
+	cfg := s.getAuditConfig(ctx, input.TenantID)
+	if !cfg.Enabled || !cfg.allowsEvent(input.EventType) || !cfg.allowsSeverity(input.Severity) {
+		span.SetStatus(codes.Ok, "auth event skipped by audit_config")
+		return
+	}
+
 	var traceID *string
 	if sc := trace.SpanContextFromContext(ctx); sc.HasTraceID() {
 		tid := sc.TraceID().String()
 		traceID = &tid
+	}
+
+	description := input.Description
+	errorReason := input.ErrorReason
+	metadata := input.Metadata
+	if cfg.masksPII() {
+		description = logging.RedactString(input.Description)
+		errorReason = logging.RedactString(input.ErrorReason)
+		metadata = datatypes.JSON(logging.RedactJSON(input.Metadata))
 	}
 
 	event := &AuthEvent{
@@ -142,10 +173,10 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 		EventType:    input.EventType,
 		Severity:     input.Severity,
 		Result:       input.Result,
-		Description:  logging.RedactString(input.Description),
-		ErrorReason:  logging.RedactString(input.ErrorReason),
+		Description:  description,
+		ErrorReason:  errorReason,
 		TraceID:      traceID,
-		Metadata:     datatypes.JSON(logging.RedactJSON(input.Metadata)),
+		Metadata:     metadata,
 	}
 
 	created, err := s.authEventRepo.Create(event)
@@ -246,11 +277,186 @@ func (s *authEventService) DeleteOlderThan(ctx context.Context, cutoff time.Time
 	return count, nil
 }
 
+// DeleteExpiredByAuditConfig removes events using each tenant's audit_config
+// retention_days value.
+func (s *authEventService) DeleteExpiredByAuditConfig(ctx context.Context, now time.Time) (int64, error) {
+	_, span := otel.Tracer("service").Start(ctx, "auth_event.delete_expired_by_audit_config")
+	defer span.End()
+
+	count, err := s.authEventRepo.DeleteExpiredByAuditConfig(now, defaultAuditRetention)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete expired by audit config failed")
+		return 0, apperror.NewInternal("failed to delete expired auth events", err)
+	}
+
+	span.SetAttributes(attribute.Int64("deleted_count", count))
+	span.SetStatus(codes.Ok, "")
+	return count, nil
+}
+
+type AuthEventExport struct {
+	Format      string
+	ContentType string
+	Filename    string
+	Data        []byte
+}
+
+// Export renders auth events as JSON or CSV. Empty format defaults to JSON.
+func (s *authEventService) Export(ctx context.Context, filter AuthEventRepositoryGetFilter, format string) (*AuthEventExport, error) {
+	_, span := otel.Tracer("service").Start(ctx, "auth_event.export")
+	defer span.End()
+
+	normalizedFormat, err := normalizeExportFormat(format)
+	if err != nil {
+		return nil, apperror.NewValidation(err.Error())
+	}
+
+	filter.Page = 1
+	filter.Limit = maxAuthEventExportLimit
+	result, err := s.FindPaginated(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	switch normalizedFormat {
+	case "csv":
+		return s.exportCSV(result.Data)
+	default:
+		return s.exportJSON(result.Data)
+	}
+}
+
 // Shutdown waits for all in-flight webhook dispatches to complete.
 func (s *authEventService) Shutdown() {
 	if s.dispatcher != nil {
 		s.dispatcher.Shutdown()
 	}
+}
+
+func (s *authEventService) getAuditConfig(ctx context.Context, tenantID int64) auditConfig {
+	if s.auditConfigReader == nil || tenantID == 0 {
+		return legacyAuditConfig()
+	}
+
+	now := time.Now()
+	s.auditConfigMu.RLock()
+	entry, ok := s.auditConfigCache[tenantID]
+	s.auditConfigMu.RUnlock()
+	if ok && now.Before(entry.expiresAt) {
+		return entry.config
+	}
+
+	raw, err := s.auditConfigReader.GetAuditConfig(ctx, tenantID)
+	if err != nil {
+		return legacyAuditConfig()
+	}
+	cfg := parseAuditConfig(raw)
+
+	s.auditConfigMu.Lock()
+	s.auditConfigCache[tenantID] = auditConfigCacheEntry{
+		config:    cfg,
+		expiresAt: now.Add(auditConfigCacheTTL),
+	}
+	s.auditConfigMu.Unlock()
+	return cfg
+}
+
+func (s *authEventService) exportJSON(events []AuthEventServiceDataResult) (*AuthEventExport, error) {
+	data, err := json.MarshalIndent(toAuthEventResponseDTOList(events), "", "  ")
+	if err != nil {
+		return nil, apperror.NewInternal("failed to export auth events", err)
+	}
+	return &AuthEventExport{
+		Format:      "json",
+		ContentType: "application/json",
+		Filename:    "auth-events.json",
+		Data:        data,
+	}, nil
+}
+
+func (s *authEventService) exportCSV(events []AuthEventServiceDataResult) (*AuthEventExport, error) {
+	var buffer csvBuffer
+	writer := csv.NewWriter(&buffer)
+	if err := writer.Write([]string{
+		"auth_event_id",
+		"tenant_id",
+		"actor_user_id",
+		"target_user_id",
+		"ip_address",
+		"user_agent",
+		"category",
+		"event_type",
+		"severity",
+		"result",
+		"description",
+		"error_reason",
+		"trace_id",
+		"metadata",
+		"created_at",
+	}); err != nil {
+		return nil, apperror.NewInternal("failed to export auth events", err)
+	}
+	for _, event := range events {
+		if err := writer.Write(authEventCSVRow(event)); err != nil {
+			return nil, apperror.NewInternal("failed to export auth events", err)
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, apperror.NewInternal("failed to export auth events", err)
+	}
+	return &AuthEventExport{
+		Format:      "csv",
+		ContentType: "text/csv",
+		Filename:    "auth-events.csv",
+		Data:        buffer.Bytes(),
+	}, nil
+}
+
+type csvBuffer []byte
+
+func (b *csvBuffer) Write(p []byte) (int, error) {
+	*b = append(*b, p...)
+	return len(p), nil
+}
+
+func (b *csvBuffer) Bytes() []byte {
+	return []byte(*b)
+}
+
+func authEventCSVRow(event AuthEventServiceDataResult) []string {
+	return []string{
+		event.AuthEventUUID.String(),
+		fmt.Sprintf("%d", event.TenantID),
+		int64PtrString(event.ActorUserID),
+		int64PtrString(event.TargetUserID),
+		event.IPAddress,
+		stringPtrValue(event.UserAgent),
+		event.Category,
+		event.EventType,
+		event.Severity,
+		event.Result,
+		stringPtrValue(event.Description),
+		stringPtrValue(event.ErrorReason),
+		stringPtrValue(event.TraceID),
+		string(event.Metadata),
+		event.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+func int64PtrString(value *int64) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d", *value)
+}
+
+func stringPtrValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func toAuthEventServiceDataResult(e *AuthEvent) AuthEventServiceDataResult {

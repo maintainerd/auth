@@ -35,8 +35,6 @@ var (
 	testResourceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000099")
 )
 
-func intPtr(v int) *int { return &v }
-
 func validPagination() PaginationRequestDTO {
 	return PaginationRequestDTO{Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc}
 }
@@ -91,8 +89,8 @@ type mockAPIKeyService struct {
 	getFn                 func(APIKeyServiceGetFilter, uuid.UUID) (*APIKeyServiceGetResult, error)
 	getByUUIDFn           func(uuid.UUID, int64, uuid.UUID) (*APIKeyServiceDataResult, error)
 	getConfigByUUIDFn     func(uuid.UUID, int64) (datatypes.JSON, error)
-	createFn              func(int64, string, string, datatypes.JSON, *time.Time, *int, string) (*APIKeyServiceDataResult, string, error)
-	updateFn              func(uuid.UUID, int64, *string, *string, datatypes.JSON, *time.Time, *int, *string, uuid.UUID) (*APIKeyServiceDataResult, error)
+	createFn              func(int64, string, string, datatypes.JSON, *time.Time, string) (*APIKeyServiceDataResult, string, error)
+	updateFn              func(uuid.UUID, int64, *string, *string, datatypes.JSON, *time.Time, *string, uuid.UUID) (*APIKeyServiceDataResult, error)
 	setStatusByUUIDFn     func(uuid.UUID, int64, string) (*APIKeyServiceDataResult, error)
 	deleteFn              func(uuid.UUID, int64, uuid.UUID) (*APIKeyServiceDataResult, error)
 	getAPIKeyAPIsFn       func(int64, uuid.UUID, int, int, string, string) (*APIKeyAPIServicePaginatedResult, error)
@@ -121,15 +119,15 @@ func (m *mockAPIKeyService) GetConfigByUUID(_ context.Context, id uuid.UUID, tid
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyService) Create(_ context.Context, tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*APIKeyServiceDataResult, string, error) {
+func (m *mockAPIKeyService) Create(_ context.Context, tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, s string) (*APIKeyServiceDataResult, string, error) {
 	if m.createFn != nil {
-		return m.createFn(tid, n, desc, cfg, exp, rl, s)
+		return m.createFn(tid, n, desc, cfg, exp, s)
 	}
 	return nil, "", nil
 }
-func (m *mockAPIKeyService) Update(_ context.Context, id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
+func (m *mockAPIKeyService) Update(_ context.Context, id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(id, tid, n, desc, cfg, exp, rl, s, u)
+		return m.updateFn(id, tid, n, desc, cfg, exp, s, u)
 	}
 	return nil, nil
 }

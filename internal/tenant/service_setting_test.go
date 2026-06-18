@@ -23,7 +23,6 @@ func newTenantSetting(tenantID int64) *TenantSetting {
 		RateLimitConfig:   datatypes.JSON([]byte(`{"max_rps":100}`)),
 		AuditConfig:       datatypes.JSON([]byte(`{"enabled":true}`)),
 		MaintenanceConfig: datatypes.JSON([]byte(`{"active":false}`)),
-		FeatureFlags:      datatypes.JSON([]byte(`{"dark_mode":true}`)),
 	}
 }
 
@@ -77,7 +76,7 @@ func TestTenantSettingService_Get(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// GetRateLimitConfig / GetAuditConfig / GetMaintenanceConfig / GetFeatureFlags
+// GetRateLimitConfig / GetAuditConfig / GetMaintenanceConfig
 // ---------------------------------------------------------------------------
 
 func TestTenantSettingService_GetRateLimitConfig(t *testing.T) {
@@ -153,29 +152,8 @@ func TestTenantSettingService_GetMaintenanceConfig(t *testing.T) {
 	})
 }
 
-func TestTenantSettingService_GetFeatureFlags(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		ts := newTenantSetting(1)
-		svc := newTenantSettingSvc(&mockTenantSettingRepo{
-			findByTenantIDFn: func(_ int64) (*TenantSetting, error) { return ts, nil },
-		})
-		cfg, err := svc.GetFeatureFlags(context.Background(), 1)
-		require.NoError(t, err)
-		assert.Equal(t, true, cfg["dark_mode"])
-	})
-
-	t.Run("repo error", func(t *testing.T) {
-		svc := newTenantSettingSvc(&mockTenantSettingRepo{
-			findByTenantIDFn: func(_ int64) (*TenantSetting, error) { return nil, errors.New("fail") },
-		})
-		_, err := svc.GetFeatureFlags(context.Background(), 1)
-		require.Error(t, err)
-	})
-}
-
 // ---------------------------------------------------------------------------
-// UpdateRateLimitConfig / UpdateAuditConfig / UpdateMaintenanceConfig /
-// UpdateFeatureFlags
+// UpdateRateLimitConfig / UpdateAuditConfig / UpdateMaintenanceConfig
 // ---------------------------------------------------------------------------
 
 func TestTenantSettingService_UpdateRateLimitConfig(t *testing.T) {
@@ -273,39 +251,6 @@ func TestTenantSettingService_UpdateMaintenanceConfig(t *testing.T) {
 			},
 		})
 		_, err := svc.UpdateMaintenanceConfig(context.Background(), 1, map[string]any{})
-		require.Error(t, err)
-	})
-}
-
-func TestTenantSettingService_UpdateFeatureFlags(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		ts := newTenantSetting(1)
-		svc := newTenantSettingSvc(&mockTenantSettingRepo{
-			findByTenantIDFn: func(_ int64) (*TenantSetting, error) { return ts, nil },
-			createOrUpdateFn: func(e *TenantSetting) (*TenantSetting, error) { return e, nil },
-		})
-		res, err := svc.UpdateFeatureFlags(context.Background(), 1, map[string]any{"dark_mode": false})
-		require.NoError(t, err)
-		assert.NotNil(t, res)
-	})
-
-	t.Run("getOrCreate error", func(t *testing.T) {
-		svc := newTenantSettingSvc(&mockTenantSettingRepo{
-			findByTenantIDFn: func(_ int64) (*TenantSetting, error) { return nil, errors.New("db") },
-		})
-		_, err := svc.UpdateFeatureFlags(context.Background(), 1, map[string]any{})
-		require.Error(t, err)
-	})
-
-	t.Run("CreateOrUpdate error", func(t *testing.T) {
-		ts := newTenantSetting(1)
-		svc := newTenantSettingSvc(&mockTenantSettingRepo{
-			findByTenantIDFn: func(_ int64) (*TenantSetting, error) { return ts, nil },
-			createOrUpdateFn: func(_ *TenantSetting) (*TenantSetting, error) {
-				return nil, errors.New("save")
-			},
-		})
-		_, err := svc.UpdateFeatureFlags(context.Background(), 1, map[string]any{})
 		require.Error(t, err)
 	})
 }

@@ -86,6 +86,7 @@ type App struct {
 	WebhookEndpointRepo        webhook.WebhookEndpointRepository
 	WebhookSubscriptionHandler *webhook.SubscriptionHandler
 	WebhookReplayHandler       *webhook.ReplayHandler
+	IPRestrictionRuleRepo      secpolicy.IPRestrictionRuleRepository
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -162,5 +163,6 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		WebhookEndpointRepo:          s.webhookEndpointRepo,
 		WebhookSubscriptionHandler:   s.webhookSubscriptionHandler,
 		WebhookReplayHandler:         s.webhookReplayHandler,
+		IPRestrictionRuleRepo:        s.ipRestrictionRuleRepo,
 	}, nil
 }

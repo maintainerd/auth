@@ -81,7 +81,8 @@ const (
 
 // OWASP Logging Vocabulary event type constants for the SYSTEM category.
 const (
-	AuthEventTypeSystemStartup  = "sys_startup"
-	AuthEventTypeSystemShutdown = "sys_shutdown"
-	AuthEventTypeSystemCrash    = "sys_crash"
+	AuthEventTypeSystemStartup            = "sys_startup"
+	AuthEventTypeSystemShutdown           = "sys_shutdown"
+	AuthEventTypeSystemCrash              = "sys_crash"
+	AuthEventTypeMaintenanceConfigUpdated = "sys_maintenance_config_updated"
 )

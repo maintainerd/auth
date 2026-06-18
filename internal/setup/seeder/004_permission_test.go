@@ -42,6 +42,9 @@ func TestDefaultPermissionsIncludesGRPCManagementPermissions(t *testing.T) {
 func TestSeedPermissions(t *testing.T) {
 	t.Run("skips existing permissions", func(t *testing.T) {
 		db, mock := newSeederMockDB(t)
+		mock.ExpectQuery(isSystemTenantQuery()).
+			WithArgs(int64(1)).
+			WillReturnRows(sqlmock.NewRows([]string{"is_system"}).AddRow(true))
 		permissions := defaultPermissions(1, 2)
 		for i, permission := range permissions {
 			mock.ExpectQuery(permissionExistsQuery()).
@@ -55,6 +58,9 @@ func TestSeedPermissions(t *testing.T) {
 
 	t.Run("creates missing permissions", func(t *testing.T) {
 		db, mock := newSeederMockDB(t)
+		mock.ExpectQuery(isSystemTenantQuery()).
+			WithArgs(int64(1)).
+			WillReturnRows(sqlmock.NewRows([]string{"is_system"}).AddRow(true))
 		permissions := defaultPermissions(1, 2)
 		for i, permission := range permissions {
 			mock.ExpectQuery(permissionExistsQuery()).
@@ -72,6 +78,9 @@ func TestSeedPermissions(t *testing.T) {
 
 	t.Run("check error is returned", func(t *testing.T) {
 		db, mock := newSeederMockDB(t)
+		mock.ExpectQuery(isSystemTenantQuery()).
+			WithArgs(int64(1)).
+			WillReturnRows(sqlmock.NewRows([]string{"is_system"}).AddRow(true))
 		permission := defaultPermissions(1, 2)[0]
 		mock.ExpectQuery(permissionExistsQuery()).
 			WithArgs(permission.Name, int64(1), 1).
@@ -85,6 +94,9 @@ func TestSeedPermissions(t *testing.T) {
 
 	t.Run("create error is returned", func(t *testing.T) {
 		db, mock := newSeederMockDB(t)
+		mock.ExpectQuery(isSystemTenantQuery()).
+			WithArgs(int64(1)).
+			WillReturnRows(sqlmock.NewRows([]string{"is_system"}).AddRow(true))
 		permission := defaultPermissions(1, 2)[0]
 		mock.ExpectQuery(permissionExistsQuery()).
 			WithArgs(permission.Name, int64(1), 1).
@@ -103,4 +115,8 @@ func TestSeedPermissions(t *testing.T) {
 
 func permissionExistsQuery() string {
 	return regexp.QuoteMeta(`SELECT * FROM "permissions" WHERE (name = $1 AND tenant_id = $2) AND "permissions"."deleted_at" IS NULL ORDER BY "permissions"."permission_id" LIMIT $3`)
+}
+
+func isSystemTenantQuery() string {
+	return regexp.QuoteMeta(`SELECT is_system FROM "tenants" WHERE tenant_id = $1`)
 }

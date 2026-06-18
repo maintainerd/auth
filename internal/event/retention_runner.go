@@ -99,32 +99,3 @@ func (r *RetentionRunner) run(ctx context.Context) {
 
 	span.SetStatus(codes.Ok, "")
 }
-
-// EraseSubject purges all outbox and delivery-history rows referencing the
-// given subject UUID. Called when a user is hard-deleted (right-to-erasure).
-func (r *RetentionRunner) EraseSubject(ctx context.Context, subjectUUID uuid.UUID) {
-	// Purge delivery history first — it resolves the subject through the outbox
-	// table, so the outbox rows must still exist at this point.
-	if r.historyRepo != nil {
-		hDeleted, hErr := r.historyRepo.DeleteBySubjectUUID(subjectUUID)
-		if hErr != nil {
-			slog.Error("retention: subject erasure (delivery history) failed", "subject_uuid", subjectUUID, "err", hErr)
-		} else if hDeleted > 0 {
-			slog.Info("retention: subject erased from delivery history", "subject_uuid", subjectUUID, "deleted", hDeleted)
-		}
-	}
-
-	deleted, err := r.outboxRepo.DeleteBySubjectUUID(subjectUUID)
-	if err != nil {
-		slog.Error("retention: subject erasure (outbox) failed", "subject_uuid", subjectUUID, "err", err)
-	} else if deleted > 0 {
-		slog.Info("retention: subject erased from outbox", "subject_uuid", subjectUUID, "deleted", deleted)
-	}
-}
-
-// Shutdown stops the retention loop gracefully.
-func (r *RetentionRunner) Shutdown() {
-	close(r.stopCh)
-	r.wg.Wait()
-	slog.Info("retention runner: stopped")
-}

@@ -20,8 +20,8 @@ type testAPIKeyService struct {
 	getFn                       func(ctx context.Context, filter APIKeyServiceGetFilter, requestingUserUUID uuid.UUID) (*APIKeyServiceGetResult, error)
 	getByUUIDFn                 func(ctx context.Context, akUUID uuid.UUID, tenantID int64, requestingUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 	getConfigByUUIDFn           func(ctx context.Context, akUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	createFn                    func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error)
-	updateFn                    func(ctx context.Context, akUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
+	createFn                    func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, status string) (*APIKeyServiceDataResult, string, error)
+	updateFn                    func(ctx context.Context, akUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 	setStatusByUUIDFn           func(ctx context.Context, akUUID uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error)
 	deleteFn                    func(ctx context.Context, akUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 	getAPIKeyAPIsFn             func(ctx context.Context, tenantID int64, akUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*APIKeyAPIServicePaginatedResult, error)
@@ -41,11 +41,11 @@ func (m *testAPIKeyService) GetByUUID(ctx context.Context, akUUID uuid.UUID, ten
 func (m *testAPIKeyService) GetConfigByUUID(ctx context.Context, akUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
 	return m.getConfigByUUIDFn(ctx, akUUID, tenantID)
 }
-func (m *testAPIKeyService) Create(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) {
-	return m.createFn(ctx, tenantID, name, description, config, expiresAt, rateLimit, status)
+func (m *testAPIKeyService) Create(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, status string) (*APIKeyServiceDataResult, string, error) {
+	return m.createFn(ctx, tenantID, name, description, config, expiresAt, status)
 }
-func (m *testAPIKeyService) Update(ctx context.Context, akUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
-	return m.updateFn(ctx, akUUID, tenantID, name, description, config, expiresAt, rateLimit, status, updaterUserUUID)
+func (m *testAPIKeyService) Update(ctx context.Context, akUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
+	return m.updateFn(ctx, akUUID, tenantID, name, description, config, expiresAt, status, updaterUserUUID)
 }
 func (m *testAPIKeyService) SetStatusByUUID(ctx context.Context, akUUID uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error) {
 	return m.setStatusByUUIDFn(ctx, akUUID, tenantID, status)
@@ -117,7 +117,7 @@ func TestAPIKeyGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create success", func(t *testing.T) {
 		svc := &testAPIKeyService{
-			createFn: func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, status string) (*APIKeyServiceDataResult, string, error) {
 				return &akResult, "raw-key", nil
 			},
 		}
@@ -254,7 +254,7 @@ func TestAPIKeyGRPCHandler_AllMissingHandlers(t *testing.T) {
 
 	t.Run("UpdateAPIKey success", func(t *testing.T) {
 		svc := &testAPIKeyService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updater uuid.UUID) (*APIKeyServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, status *string, updater uuid.UUID) (*APIKeyServiceDataResult, error) {
 				return &akResult, nil
 			},
 		}
@@ -268,12 +268,11 @@ func TestAPIKeyGRPCHandler_AllMissingHandlers(t *testing.T) {
 		}
 	})
 
-	t.Run("UpdateAPIKey with config, expiresAt, rateLimit, actor", func(t *testing.T) {
+	t.Run("UpdateAPIKey with config, expiresAt, actor", func(t *testing.T) {
 		expiry := time.Now().Add(24 * time.Hour)
-		rl := int32(100)
 		actorUUID := uuid.New()
 		svc := &testAPIKeyService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updater uuid.UUID) (*APIKeyServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, status *string, updater uuid.UUID) (*APIKeyServiceDataResult, error) {
 				return &akResult, nil
 			},
 		}
@@ -282,7 +281,6 @@ func TestAPIKeyGRPCHandler_AllMissingHandlers(t *testing.T) {
 			TenantUuid: tUUID.String(), ApiKeyUuid: akUUID.String(),
 			Config:        cfgStruct,
 			ExpiresAt:     timestamppb.New(expiry),
-			RateLimit:     &rl,
 			ActorUserUuid: actorUUID.String(),
 			Status:        strptr("inactive"),
 		})
@@ -434,18 +432,17 @@ func TestAPIKeyGRPCHandler_AllMissingHandlers(t *testing.T) {
 		}
 	})
 
-	t.Run("CreateAPIKey with expiresAt and rateLimit", func(t *testing.T) {
+	t.Run("CreateAPIKey with expiresAt", func(t *testing.T) {
 		expiry := time.Now().Add(24 * time.Hour)
-		rl := int32(200)
 		svc := &testAPIKeyService{
-			createFn: func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, status string) (*APIKeyServiceDataResult, string, error) {
 				return &akResult, "raw-key", nil
 			},
 		}
 		h := NewAPIKeyGRPCHandler(okResolver, svc)
 		res, err := h.CreateAPIKey(ctx, &authv1.CreateAPIKeyRequest{
 			TenantUuid: tUUID.String(), Name: "my-key", Status: "active",
-			ExpiresAt: timestamppb.New(expiry), RateLimit: &rl,
+			ExpiresAt: timestamppb.New(expiry),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -592,10 +589,10 @@ func TestAPIKeyGRPCHandler_AllErrorPaths(t *testing.T) {
 				return nil, svcErr
 			},
 			getConfigByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64) (datatypes.JSON, error) { return nil, svcErr },
-			createFn: func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, status string) (*APIKeyServiceDataResult, string, error) {
 				return nil, "", svcErr
 			},
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updater uuid.UUID) (*APIKeyServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, status *string, updater uuid.UUID) (*APIKeyServiceDataResult, error) {
 				return nil, svcErr
 			},
 			setStatusByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error) {
@@ -683,18 +680,6 @@ func TestAPIKeyHelpersFull(t *testing.T) {
 		proto := toAPIKeyProto(result)
 		if proto.ExpiresAt == nil {
 			t.Error("expected non-nil ExpiresAt")
-		}
-	})
-
-	t.Run("toAPIKeyProto with rateLimit", func(t *testing.T) {
-		rl := 100
-		result := &APIKeyServiceDataResult{
-			APIKeyUUID: id, Name: "test", Status: "active",
-			RateLimit: &rl, CreatedAt: now, UpdatedAt: now,
-		}
-		proto := toAPIKeyProto(result)
-		if proto.RateLimit == nil {
-			t.Error("expected non-nil RateLimit")
 		}
 	})
 

@@ -12,6 +12,15 @@ import (
 
 type UserTokenRepository interface {
 	BaseRepositoryMethods[UserToken]
+	FindAll(preloads ...string) ([]UserToken, error)
+	FindByUUID(uuid any, preloads ...string) (*UserToken, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]UserToken, error)
+	FindByID(id any, preloads ...string) (*UserToken, error)
+	UpdateByUUID(uuid any, updatedData any) (*UserToken, error)
+	UpdateByID(id any, updatedData any) (*UserToken, error)
+	DeleteByUUID(uuid any) error
+	DeleteByID(id any) error
+	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[UserToken], error)
 	WithTx(tx *gorm.DB) UserTokenRepository
 	FindByUserID(userID int64) ([]UserToken, error)
 	FindActiveTokensByUserID(userID int64) ([]UserToken, error)

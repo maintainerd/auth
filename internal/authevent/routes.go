@@ -12,15 +12,19 @@ func AuthEventRoute(
 	authEventHandler *AuthEventHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/auth-events", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"auth_event:read"})).
 			Get("/", authEventHandler.GetAll)
 		r.With(middleware.PermissionMiddleware([]string{"auth_event:read"})).
 			Get("/count", authEventHandler.CountByType)
+		r.With(middleware.PermissionMiddleware([]string{"auth_event:read"})).
+			Get("/export", authEventHandler.Export)
 		r.With(middleware.PermissionMiddleware([]string{"auth_event:read"})).
 			Get("/{auth_event_uuid}", authEventHandler.Get)
 	})

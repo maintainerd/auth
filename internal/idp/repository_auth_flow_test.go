@@ -79,9 +79,9 @@ func TestAuthFlowRepository_FindPaginated(t *testing.T) {
 
 	t.Run("success with status filter", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "auth_flows" WHERE status IN`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "auth_flows" WHERE .*status IN`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "auth_flows" WHERE status IN.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT \* FROM "auth_flows" WHERE .*status IN.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"auth_flow_id", "auth_flow_uuid", "tenant_id", "name", "client_id", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "flow1", int64(1), now, now))
 		mock.ExpectQuery(`SELECT \* FROM "clients"`).
@@ -89,7 +89,9 @@ func TestAuthFlowRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "client1", now, now))
 
 		repo := NewAuthFlowRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(AuthFlowRepositoryGetFilter{
+			TenantID:  &tenantID,
 			Status:    []string{"active"},
 			Page:      1,
 			Limit:     10,
@@ -104,9 +106,9 @@ func TestAuthFlowRepository_FindPaginated(t *testing.T) {
 	t.Run("success with client_id filter", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		clientID := int64(1)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "auth_flows" WHERE client_id`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "auth_flows" WHERE .*client_id`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "auth_flows" WHERE client_id.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT \* FROM "auth_flows" WHERE .*client_id.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"auth_flow_id", "auth_flow_uuid", "tenant_id", "name", "client_id", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "flow1", int64(1), now, now))
 		mock.ExpectQuery(`SELECT \* FROM "clients"`).
@@ -114,7 +116,9 @@ func TestAuthFlowRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "client1", now, now))
 
 		repo := NewAuthFlowRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(AuthFlowRepositoryGetFilter{
+			TenantID:  &tenantID,
 			ClientID:  &clientID,
 			Page:      1,
 			Limit:     10,
@@ -140,7 +144,9 @@ func TestAuthFlowRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "client1"))
 
 		repo := NewAuthFlowRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(AuthFlowRepositoryGetFilter{
+			TenantID:   &tenantID,
 			Identifier: &identifier,
 			Page:       1,
 			Limit:      10,
@@ -166,7 +172,9 @@ func TestAuthFlowRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "client1"))
 
 		repo := NewAuthFlowRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(AuthFlowRepositoryGetFilter{
+			TenantID:  &tenantID,
 			Name:      &name,
 			Page:      1,
 			Limit:     10,
@@ -192,7 +200,9 @@ func TestAuthFlowRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "client1"))
 
 		repo := NewAuthFlowRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(AuthFlowRepositoryGetFilter{
+			TenantID:  &tenantID,
 			Name:      &emptyName,
 			Page:      1,
 			Limit:     10,

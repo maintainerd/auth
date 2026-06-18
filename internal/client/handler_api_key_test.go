@@ -196,7 +196,7 @@ func TestAPIKeyHandler_Create(t *testing.T) {
 
 	t.Run("custom status is passed to service", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*APIKeyServiceDataResult, string, error) {
+			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, s string) (*APIKeyServiceDataResult, string, error) {
 				return &APIKeyServiceDataResult{APIKeyUUID: uuid.New(), Name: n, Status: s}, "plainkey", nil
 			},
 		}
@@ -209,7 +209,7 @@ func TestAPIKeyHandler_Create(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*APIKeyServiceDataResult, string, error) {
+			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, s string) (*APIKeyServiceDataResult, string, error) {
 				return nil, "", errors.New("db error")
 			},
 		}
@@ -222,7 +222,7 @@ func TestAPIKeyHandler_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*APIKeyServiceDataResult, string, error) {
+			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, s string) (*APIKeyServiceDataResult, string, error) {
 				return &APIKeyServiceDataResult{APIKeyUUID: uuid.New(), Name: n}, "plainkey", nil
 			},
 		}
@@ -277,7 +277,7 @@ func TestAPIKeyHandler_Update(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			updateFn: func(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
+			updateFn: func(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -291,7 +291,7 @@ func TestAPIKeyHandler_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			updateFn: func(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
+			updateFn: func(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
 				return &APIKeyServiceDataResult{APIKeyUUID: id}, nil
 			},
 		}

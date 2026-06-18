@@ -3,8 +3,6 @@ package event
 import (
 	"context"
 	"encoding/json"
-
-	"gorm.io/datatypes"
 )
 
 // DeliveryAdapter provides the delivery functions called by the relay.
@@ -57,14 +55,4 @@ func OutboxPayload(outbox *Outbox) map[string]any {
 		"trace_id":       outbox.TraceID,
 		"request_id":     outbox.RequestID,
 	}
-}
-
-// OutboxPayloadJSON returns the outbox payload as JSON bytes.
-func OutboxPayloadJSON(outbox *Outbox) (datatypes.JSON, error) {
-	p := OutboxPayload(outbox)
-	raw, err := json.Marshal(p)
-	if err != nil {
-		return nil, err
-	}
-	return datatypes.JSON(raw), nil
 }

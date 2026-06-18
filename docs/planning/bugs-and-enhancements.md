@@ -613,7 +613,7 @@ gaps rather than classic bugs — either finish the wiring or downgrade the chec
   middleware reading an inbound key, so a created key can't call the API. **Fix:** add API-key auth
   middleware that resolves key → scopes and populates the auth context.
   **Fixed:** `JWTAuthMiddleware` now accepts `X-API-Key` or `Bearer ak_...`, resolves the key hash,
-  validates status/expiry/tenant feature flag, loads granted permissions, and populates
+  validates status/expiry, loads granted permissions, and populates
   `AuthContext` for the existing permission middleware.
 
 - [x] **FC-07** 🟠 — **Idle / absolute session timeout is dead code.**
@@ -631,12 +631,6 @@ gaps rather than classic bugs — either finish the wiring or downgrade the chec
   **Fixed:** password, SMS, and federation login flows now enforce the concurrent-session limit before
   creating session-bound access tokens; OAuth polling/token-exchange flows replay existing auth context
   rather than creating independent user sessions.
-
-- [x] **FC-09** 🟠 — **Per-tenant feature flags have zero consumers.**
-  `tenant/service_setting.go` stores/gets/updates `feature_flags` JSON but nothing reads them to
-  gate behavior. **Fix:** add a `feature.Enabled(ctx, tenantID, key)` helper and gate features, or mark 🔨.
-  **Fixed:** added a shared feature flag reader and gated API-key request authentication with
-  `api_key_authentication` (default enabled).
 
 - [x] **FC-10** 🟠 — **Named social connectors don't all work via the generic-OIDC path.**
   [`idp/service_federation.go:535`](../../internal/idp/service_federation.go#L535) relies on

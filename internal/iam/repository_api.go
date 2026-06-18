@@ -24,6 +24,7 @@ type APIRepositoryGetFilter struct {
 
 type APIRepository interface {
 	BaseRepositoryMethods[API]
+	FindByUUID(uuid any, preloads ...string) (*API, error)
 	WithTx(tx *gorm.DB) APIRepository
 	FindByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) (*API, error)
 	FindByName(apiName string, tenantID int64) (*API, error)

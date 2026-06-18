@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,10 +12,21 @@ import (
 	"gorm.io/gorm"
 )
 
+var systemOnlyPermissions = []string{
+	"tenant:create",
+	"tenant:delete",
+}
+
 func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
+	sysCheck := isSystemTenant(db, tenantID)
 	permissions := defaultPermissions(tenantID, apiID)
 
 	for _, perm := range permissions {
+		if !sysCheck && slices.Contains(systemOnlyPermissions, perm.Name) {
+			slog.Info("Skipping system-only permission for non-system tenant", "name", perm.Name, "tenant_id", tenantID)
+			continue
+		}
+
 		exists, err := permissionExists(db, perm.Name, tenantID)
 		if err != nil {
 			return fmt.Errorf("failed to check permission %q: %w", perm.Name, err)
@@ -32,6 +44,14 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 	}
 
 	return nil
+}
+
+func isSystemTenant(db *gorm.DB, tenantID int64) bool {
+	var result struct{ IsSystem bool }
+	if err := db.Table("tenants").Select("is_system").Where("tenant_id = ?", tenantID).Scan(&result).Error; err != nil {
+		return false
+	}
+	return result.IsSystem
 }
 
 func defaultPermissions(tenantID, apiID int64) []model.Permission {

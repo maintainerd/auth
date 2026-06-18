@@ -19,7 +19,6 @@ type APIKey struct {
 	Config      datatypes.JSON `gorm:"column:config"`
 	ExpiresAt   *time.Time     `gorm:"column:expires_at"`
 
-	RateLimit *int           `gorm:"column:rate_limit"`
 	Status    string         `gorm:"column:status;default:'active'"`
 	CreatedBy *int64         `gorm:"column:created_by"`
 	UpdatedBy *int64         `gorm:"column:updated_by"`

@@ -11,10 +11,12 @@ func APIRoute(
 	apiHandler *APIHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/apis", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"api:read"})).
 			Get("/", apiHandler.Get)
@@ -41,10 +43,12 @@ func PermissionRoute(
 	oermissionHandler *PermissionHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/permissions", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"permission:read"})).
 			Get("/", oermissionHandler.Get)
@@ -71,10 +75,12 @@ func PolicyRoute(
 	policyHandler *PolicyHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/policies", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
 			Get("/", policyHandler.Get)
@@ -104,10 +110,12 @@ func RoleRoute(
 	roleHandler *RoleHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/roles", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"role:read"})).
 			Get("/", roleHandler.Get)
@@ -144,6 +152,7 @@ func ServiceRoute(
 	authorizationHandler *AuthorizationHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/services", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
@@ -154,6 +163,7 @@ func ServiceRoute(
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuthMiddleware)
 			r.Use(middleware.UserContextMiddleware(userService, appCache))
+			r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 			r.With(middleware.PermissionMiddleware([]string{"service:read"})).
 				Get("/", serviceHandler.Get)

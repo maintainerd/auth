@@ -9,6 +9,15 @@ import (
 
 type UserRoleRepository interface {
 	BaseRepositoryMethods[UserRole]
+	FindAll(preloads ...string) ([]UserRole, error)
+	FindByUUID(uuid any, preloads ...string) (*UserRole, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]UserRole, error)
+	FindByID(id any, preloads ...string) (*UserRole, error)
+	UpdateByUUID(uuid any, updatedData any) (*UserRole, error)
+	UpdateByID(id any, updatedData any) (*UserRole, error)
+	DeleteByUUID(uuid any) error
+	DeleteByID(id any) error
+	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[UserRole], error)
 	WithTx(tx *gorm.DB) UserRoleRepository
 	FindByUserID(userID int64) ([]UserRole, error)
 	FindByUserIDAndRoleID(userID int64, roleID int64) (*UserRole, error)

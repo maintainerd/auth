@@ -227,15 +227,3 @@ func toServiceResult(et *EventType) EventTypeServiceDataResult {
 		UpdatedAt:     et.UpdatedAt,
 	}
 }
-
-// NoopTenantEventTypeConfigService returns a no-op implementation.
-type noopTenantEventTypeConfigService struct{}
-
-func (noopTenantEventTypeConfigService) GetByTenant(_ context.Context, _ int64, _ string) ([]TenantEventTypeConfigResult, error) {
-	return nil, nil
-}
-func (noopTenantEventTypeConfigService) SetEnabled(_ context.Context, _ int64, _ string, _ string, _ bool) (*TenantEventTypeConfigResult, error) {
-	return nil, nil
-}
-
-var _ TenantEventTypeConfigService = noopTenantEventTypeConfigService{}

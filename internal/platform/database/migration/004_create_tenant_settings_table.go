@@ -5,7 +5,7 @@ import (
 )
 
 // CreateTenantSettingsTable creates the tenant_settings table for tenant-level
-// operational configuration (rate limits, audit, maintenance, feature flags).
+// operational configuration (rate limits, audit, maintenance).
 // This is a 1:1 config row per tenant — no soft delete or audit columns since
 // the row's lifecycle is bound to the parent tenant via ON DELETE CASCADE.
 func CreateTenantSettingsTable(db *gorm.DB) error {
@@ -15,10 +15,9 @@ CREATE TABLE IF NOT EXISTS tenant_settings (
     tenant_setting_id   BIGSERIAL PRIMARY KEY,
     tenant_setting_uuid UUID NOT NULL UNIQUE,
     tenant_id           BIGINT NOT NULL,
-    rate_limit_config   JSONB DEFAULT '{}',
-    audit_config        JSONB DEFAULT '{}',
-    maintenance_config  JSONB DEFAULT '{}',
-    feature_flags       JSONB DEFAULT '{}',
+    rate_limit_config   JSONB DEFAULT '{"enabled":false,"requests_per_window":100,"window_duration_seconds":60,"per_ip":true,"per_api_key":true,"exempt_ips":[],"endpoint_overrides":{}}',
+    audit_config        JSONB DEFAULT '{"enabled":true,"retention_days":90,"pii_masking":true,"log_level":"info","event_types":[]}',
+    maintenance_config  JSONB DEFAULT '{"enabled":false,"message":"The system is currently undergoing maintenance. Please try again later.","scheduled_start":null,"scheduled_end":null}',
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
 );

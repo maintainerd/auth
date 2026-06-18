@@ -48,13 +48,6 @@ func SetTokenLeeway(seconds int) {
 	tokenLeewaySeconds = int64(seconds)
 }
 
-// TokenLeeway returns the current clock-skew leeway setting.
-func TokenLeeway() int {
-	tokenLeewayMu.RLock()
-	defer tokenLeewayMu.RUnlock()
-	return int(tokenLeewaySeconds)
-}
-
 // GenerateSecureID generates a cryptographically secure random ID
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func GenerateSecureID() string {

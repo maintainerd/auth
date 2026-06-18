@@ -21,7 +21,6 @@ type TenantSettingServiceDataResult struct {
 	RateLimitConfig   map[string]any
 	AuditConfig       map[string]any
 	MaintenanceConfig map[string]any
-	FeatureFlags      map[string]any
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }
@@ -32,11 +31,9 @@ type TenantSettingService interface {
 	GetRateLimitConfig(ctx context.Context, tenantID int64) (map[string]any, error)
 	GetAuditConfig(ctx context.Context, tenantID int64) (map[string]any, error)
 	GetMaintenanceConfig(ctx context.Context, tenantID int64) (map[string]any, error)
-	GetFeatureFlags(ctx context.Context, tenantID int64) (map[string]any, error)
 	UpdateRateLimitConfig(ctx context.Context, tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error)
 	UpdateAuditConfig(ctx context.Context, tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error)
 	UpdateMaintenanceConfig(ctx context.Context, tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error)
-	UpdateFeatureFlags(ctx context.Context, tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error)
 }
 
 type tenantSettingService struct {
@@ -56,7 +53,6 @@ func toTenantSettingServiceDataResult(ts *TenantSetting) *TenantSettingServiceDa
 		RateLimitConfig:   jsonutil.JSONToMap(ts.RateLimitConfig),
 		AuditConfig:       jsonutil.JSONToMap(ts.AuditConfig),
 		MaintenanceConfig: jsonutil.JSONToMap(ts.MaintenanceConfig),
-		FeatureFlags:      jsonutil.JSONToMap(ts.FeatureFlags),
 		CreatedAt:         ts.CreatedAt,
 		UpdatedAt:         ts.UpdatedAt,
 	}
@@ -127,22 +123,6 @@ func (s *tenantSettingService) GetMaintenanceConfig(ctx context.Context, tenantI
 	return jsonutil.JSONToMap(setting.MaintenanceConfig), nil
 }
 
-// GetFeatureFlags retrieves the feature_flags JSONB section.
-func (s *tenantSettingService) GetFeatureFlags(ctx context.Context, tenantID int64) (map[string]any, error) {
-	_, span := otel.Tracer("service").Start(ctx, "tenantSetting.getFeatureFlags")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
-
-	setting, err := s.getOrCreate(tenantID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get feature flags failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(setting.FeatureFlags), nil
-}
-
 // UpdateRateLimitConfig updates the rate_limit_config JSONB section.
 func (s *tenantSettingService) UpdateRateLimitConfig(ctx context.Context, tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error) {
 	return s.updateConfig(ctx, tenantID, "rate_limit", config)
@@ -156,11 +136,6 @@ func (s *tenantSettingService) UpdateAuditConfig(ctx context.Context, tenantID i
 // UpdateMaintenanceConfig updates the maintenance_config JSONB section.
 func (s *tenantSettingService) UpdateMaintenanceConfig(ctx context.Context, tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error) {
 	return s.updateConfig(ctx, tenantID, "maintenance", config)
-}
-
-// UpdateFeatureFlags updates the feature_flags JSONB section.
-func (s *tenantSettingService) UpdateFeatureFlags(ctx context.Context, tenantID int64, config map[string]any) (*TenantSettingServiceDataResult, error) {
-	return s.updateConfig(ctx, tenantID, "feature_flags", config)
 }
 
 func (s *tenantSettingService) updateConfig(ctx context.Context, tenantID int64, configType string, config map[string]any) (*TenantSettingServiceDataResult, error) {
@@ -190,8 +165,6 @@ func (s *tenantSettingService) updateConfig(ctx context.Context, tenantID int64,
 		setting.AuditConfig = jsonData
 	case "maintenance":
 		setting.MaintenanceConfig = jsonData
-	case "feature_flags":
-		setting.FeatureFlags = jsonData
 	default:
 		return nil, apperror.NewValidation("invalid config type")
 	}
@@ -223,7 +196,6 @@ func (s *tenantSettingService) getOrCreate(tenantID int64) (*TenantSetting, erro
 		RateLimitConfig:   DefaultTenantSettingJSON("rate_limit"),
 		AuditConfig:       DefaultTenantSettingJSON("audit"),
 		MaintenanceConfig: DefaultTenantSettingJSON("maintenance"),
-		FeatureFlags:      DefaultTenantSettingJSON("feature_flags"),
 	}
 	created, err := s.tenantSettingRepo.Create(setting)
 	if err != nil {
