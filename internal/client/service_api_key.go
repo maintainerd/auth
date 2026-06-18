@@ -26,7 +26,6 @@ type APIKeyServiceDataResult struct {
 	Config      datatypes.JSON
 	ExpiresAt   *time.Time
 
-	RateLimit *int
 	Status    string
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -72,8 +71,8 @@ type APIKeyService interface {
 	GetByUUID(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, requestingUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 
 	GetConfigByUUID(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	Create(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error)
-	Update(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, status string) (*APIKeyServiceDataResult, string, error)
+	Update(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error)
 	Delete(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 
@@ -198,7 +197,6 @@ func (s *apiKeyService) toServiceDataResult(apiKey APIKey) APIKeyServiceDataResu
 		Config:      apiKey.Config,
 		ExpiresAt:   apiKey.ExpiresAt,
 
-		RateLimit: apiKey.RateLimit,
 		Status:    apiKey.Status,
 		CreatedAt: apiKey.CreatedAt,
 		UpdatedAt: apiKey.UpdatedAt,
@@ -237,7 +235,6 @@ func (s *apiKeyService) GetByUUID(ctx context.Context, apiKeyUUID uuid.UUID, ten
 			KeyPrefix:   apiKey.KeyPrefix,
 			Config:      apiKey.Config,
 			ExpiresAt:   apiKey.ExpiresAt,
-			RateLimit:   apiKey.RateLimit,
 			Status:      apiKey.Status,
 			CreatedAt:   apiKey.CreatedAt,
 			UpdatedAt:   apiKey.UpdatedAt,
@@ -274,7 +271,7 @@ func (s *apiKeyService) GetConfigByUUID(ctx context.Context, apiKeyUUID uuid.UUI
 	return apiKey.Config, nil
 }
 
-func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) {
+func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, status string) (*APIKeyServiceDataResult, string, error) {
 	_, span := otel.Tracer("service").Start(ctx, "api_key.create")
 	defer span.End()
 	span.SetAttributes(
@@ -305,7 +302,6 @@ func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, descri
 			KeyPrefix:   keyPrefix,
 			Config:      config,
 			ExpiresAt:   expiresAt,
-			RateLimit:   rateLimit,
 			Status:      status,
 		}
 
@@ -342,7 +338,6 @@ func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, descri
 		KeyPrefix:   createdAPIKey.KeyPrefix,
 		Config:      createdAPIKey.Config,
 		ExpiresAt:   createdAPIKey.ExpiresAt,
-		RateLimit:   createdAPIKey.RateLimit,
 		Status:      createdAPIKey.Status,
 		CreatedAt:   createdAPIKey.CreatedAt,
 		UpdatedAt:   createdAPIKey.UpdatedAt,
@@ -352,7 +347,7 @@ func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, descri
 	return result, plainKey, nil
 }
 
-func (s *apiKeyService) Update(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
+func (s *apiKeyService) Update(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "api_key.update")
 	defer span.End()
 	span.SetAttributes(
@@ -389,9 +384,6 @@ func (s *apiKeyService) Update(ctx context.Context, apiKeyUUID uuid.UUID, tenant
 		if expiresAt != nil {
 			updateData["expires_at"] = expiresAt
 		}
-		if rateLimit != nil {
-			updateData["rate_limit"] = rateLimit
-		}
 		if status != nil {
 			updateData["status"] = *status
 		}
@@ -410,7 +402,6 @@ func (s *apiKeyService) Update(ctx context.Context, apiKeyUUID uuid.UUID, tenant
 			KeyPrefix:   updatedAPIKey.KeyPrefix,
 			Config:      updatedAPIKey.Config,
 			ExpiresAt:   updatedAPIKey.ExpiresAt,
-			RateLimit:   updatedAPIKey.RateLimit,
 			Status:      updatedAPIKey.Status,
 			CreatedAt:   updatedAPIKey.CreatedAt,
 			UpdatedAt:   updatedAPIKey.UpdatedAt,
@@ -458,7 +449,6 @@ func (s *apiKeyService) Delete(ctx context.Context, apiKeyUUID uuid.UUID, tenant
 			KeyPrefix:   apiKey.KeyPrefix,
 			Config:      apiKey.Config,
 			ExpiresAt:   apiKey.ExpiresAt,
-			RateLimit:   apiKey.RateLimit,
 			Status:      apiKey.Status,
 			CreatedAt:   apiKey.CreatedAt,
 			UpdatedAt:   apiKey.UpdatedAt,
@@ -530,7 +520,6 @@ func (s *apiKeyService) SetStatusByUUID(ctx context.Context, apiKeyUUID uuid.UUI
 			KeyPrefix:   updatedAPIKey.KeyPrefix,
 			Config:      updatedAPIKey.Config,
 			ExpiresAt:   updatedAPIKey.ExpiresAt,
-			RateLimit:   updatedAPIKey.RateLimit,
 			Status:      updatedAPIKey.Status,
 			CreatedAt:   updatedAPIKey.CreatedAt,
 			UpdatedAt:   updatedAPIKey.UpdatedAt,

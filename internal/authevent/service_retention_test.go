@@ -17,10 +17,22 @@ type mockRetentionDeleter struct {
 	count int64
 }
 
+type mockAuditConfigRetentionDeleter struct {
+	mockRetentionDeleter
+	configuredCalls []time.Time
+}
+
 func (m *mockRetentionDeleter) DeleteOlderThan(_ context.Context, cutoff time.Time) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls = append(m.calls, cutoff)
+	return m.count, m.err
+}
+
+func (m *mockAuditConfigRetentionDeleter) DeleteExpiredByAuditConfig(_ context.Context, now time.Time) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.configuredCalls = append(m.configuredCalls, now)
 	return m.count, m.err
 }
 
@@ -89,4 +101,17 @@ func TestStartRetentionRunner_ZeroCount(t *testing.T) {
 
 	cancel()
 	<-done
+}
+
+func TestDeleteExpiredAuthEvents_UsesAuditConfigRetentionWhenAvailable(t *testing.T) {
+	now := time.Now().UTC()
+	deleter := &mockAuditConfigRetentionDeleter{}
+
+	count, cutoff, err := deleteExpiredAuthEvents(context.Background(), deleter, now, 24*time.Hour)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), count)
+	assert.True(t, cutoff.IsZero())
+	assert.Len(t, deleter.configuredCalls, 1)
+	assert.Empty(t, deleter.calls)
 }

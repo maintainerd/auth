@@ -257,6 +257,9 @@ func (s *inviteService) ResendInvite(
 	}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
+	if err != nil {
+		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
+	}
 	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to convert invite URL", err)

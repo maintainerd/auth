@@ -12,10 +12,12 @@ func EmailConfigRoute(
 	emailConfigHandler *EmailConfigHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/email-config", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"email-config:read"})).
 			Get("/", emailConfigHandler.Get)
@@ -32,10 +34,12 @@ func SMSConfigRoute(
 	smsConfigHandler *SMSConfigHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/sms-config", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"sms-config:read"})).
 			Get("/", smsConfigHandler.Get)

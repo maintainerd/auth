@@ -2275,190 +2275,6 @@ func (x *UpdateMaintenanceConfigResponse) GetConfig() *structpb.Struct {
 	return nil
 }
 
-type GetFeatureFlagsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetFeatureFlagsRequest) Reset() {
-	*x = GetFeatureFlagsRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[41]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetFeatureFlagsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetFeatureFlagsRequest) ProtoMessage() {}
-
-func (x *GetFeatureFlagsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[41]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetFeatureFlagsRequest.ProtoReflect.Descriptor instead.
-func (*GetFeatureFlagsRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{41}
-}
-
-func (x *GetFeatureFlagsRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-type GetFeatureFlagsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetFeatureFlagsResponse) Reset() {
-	*x = GetFeatureFlagsResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[42]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetFeatureFlagsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetFeatureFlagsResponse) ProtoMessage() {}
-
-func (x *GetFeatureFlagsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[42]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetFeatureFlagsResponse.ProtoReflect.Descriptor instead.
-func (*GetFeatureFlagsResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{42}
-}
-
-func (x *GetFeatureFlagsResponse) GetConfig() *structpb.Struct {
-	if x != nil {
-		return x.Config
-	}
-	return nil
-}
-
-type UpdateFeatureFlagsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateFeatureFlagsRequest) Reset() {
-	*x = UpdateFeatureFlagsRequest{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[43]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateFeatureFlagsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateFeatureFlagsRequest) ProtoMessage() {}
-
-func (x *UpdateFeatureFlagsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[43]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateFeatureFlagsRequest.ProtoReflect.Descriptor instead.
-func (*UpdateFeatureFlagsRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{43}
-}
-
-func (x *UpdateFeatureFlagsRequest) GetTenantUuid() string {
-	if x != nil {
-		return x.TenantUuid
-	}
-	return ""
-}
-
-func (x *UpdateFeatureFlagsRequest) GetConfig() *structpb.Struct {
-	if x != nil {
-		return x.Config
-	}
-	return nil
-}
-
-type UpdateFeatureFlagsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateFeatureFlagsResponse) Reset() {
-	*x = UpdateFeatureFlagsResponse{}
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[44]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateFeatureFlagsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateFeatureFlagsResponse) ProtoMessage() {}
-
-func (x *UpdateFeatureFlagsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[44]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateFeatureFlagsResponse.ProtoReflect.Descriptor instead.
-func (*UpdateFeatureFlagsResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{44}
-}
-
-func (x *UpdateFeatureFlagsResponse) GetConfig() *structpb.Struct {
-	if x != nil {
-		return x.Config
-	}
-	return nil
-}
-
 var File_maintainerd_auth_v1_tenant_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
@@ -2639,17 +2455,6 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"tenantUuid\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"R\n" +
 	"\x1fUpdateMaintenanceConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"9\n" +
-	"\x16GetFeatureFlagsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"J\n" +
-	"\x17GetFeatureFlagsResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"m\n" +
-	"\x19UpdateFeatureFlagsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12/\n" +
-	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"M\n" +
-	"\x1aUpdateFeatureFlagsResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config2\xec\n" +
 	"\n" +
 	"\rTenantService\x12o\n" +
@@ -2664,16 +2469,14 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\x11ListTenantMembers\x12-.maintainerd.auth.v1.ListTenantMembersRequest\x1a..maintainerd.auth.v1.ListTenantMembersResponse\x12l\n" +
 	"\x0fAddTenantMember\x12+.maintainerd.auth.v1.AddTenantMemberRequest\x1a,.maintainerd.auth.v1.AddTenantMemberResponse\x12\x81\x01\n" +
 	"\x16UpdateTenantMemberRole\x122.maintainerd.auth.v1.UpdateTenantMemberRoleRequest\x1a3.maintainerd.auth.v1.UpdateTenantMemberRoleResponse\x12u\n" +
-	"\x12RemoveTenantMember\x12..maintainerd.auth.v1.RemoveTenantMemberRequest\x1a/.maintainerd.auth.v1.RemoveTenantMemberResponse2\xd5\a\n" +
+	"\x12RemoveTenantMember\x12..maintainerd.auth.v1.RemoveTenantMemberRequest\x1a/.maintainerd.auth.v1.RemoveTenantMemberResponse2\xf0\x05\n" +
 	"\x14TenantSettingService\x12u\n" +
 	"\x12GetRateLimitConfig\x12..maintainerd.auth.v1.GetRateLimitConfigRequest\x1a/.maintainerd.auth.v1.GetRateLimitConfigResponse\x12~\n" +
 	"\x15UpdateRateLimitConfig\x121.maintainerd.auth.v1.UpdateRateLimitConfigRequest\x1a2.maintainerd.auth.v1.UpdateRateLimitConfigResponse\x12i\n" +
 	"\x0eGetAuditConfig\x12*.maintainerd.auth.v1.GetAuditConfigRequest\x1a+.maintainerd.auth.v1.GetAuditConfigResponse\x12r\n" +
 	"\x11UpdateAuditConfig\x12-.maintainerd.auth.v1.UpdateAuditConfigRequest\x1a..maintainerd.auth.v1.UpdateAuditConfigResponse\x12{\n" +
 	"\x14GetMaintenanceConfig\x120.maintainerd.auth.v1.GetMaintenanceConfigRequest\x1a1.maintainerd.auth.v1.GetMaintenanceConfigResponse\x12\x84\x01\n" +
-	"\x17UpdateMaintenanceConfig\x123.maintainerd.auth.v1.UpdateMaintenanceConfigRequest\x1a4.maintainerd.auth.v1.UpdateMaintenanceConfigResponse\x12l\n" +
-	"\x0fGetFeatureFlags\x12+.maintainerd.auth.v1.GetFeatureFlagsRequest\x1a,.maintainerd.auth.v1.GetFeatureFlagsResponse\x12u\n" +
-	"\x12UpdateFeatureFlags\x12..maintainerd.auth.v1.UpdateFeatureFlagsRequest\x1a/.maintainerd.auth.v1.UpdateFeatureFlagsResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x17UpdateMaintenanceConfig\x123.maintainerd.auth.v1.UpdateMaintenanceConfigRequest\x1a4.maintainerd.auth.v1.UpdateMaintenanceConfigResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_tenant_proto_rawDescOnce sync.Once
@@ -2687,7 +2490,7 @@ func file_maintainerd_auth_v1_tenant_proto_rawDescGZIP() []byte {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescData
 }
 
-var file_maintainerd_auth_v1_tenant_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_maintainerd_auth_v1_tenant_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_maintainerd_auth_v1_tenant_proto_goTypes = []any{
 	(*Tenant)(nil),                            // 0: maintainerd.auth.v1.Tenant
 	(*TenantMemberUser)(nil),                  // 1: maintainerd.auth.v1.TenantMemberUser
@@ -2730,23 +2533,19 @@ var file_maintainerd_auth_v1_tenant_proto_goTypes = []any{
 	(*GetMaintenanceConfigResponse)(nil),      // 38: maintainerd.auth.v1.GetMaintenanceConfigResponse
 	(*UpdateMaintenanceConfigRequest)(nil),    // 39: maintainerd.auth.v1.UpdateMaintenanceConfigRequest
 	(*UpdateMaintenanceConfigResponse)(nil),   // 40: maintainerd.auth.v1.UpdateMaintenanceConfigResponse
-	(*GetFeatureFlagsRequest)(nil),            // 41: maintainerd.auth.v1.GetFeatureFlagsRequest
-	(*GetFeatureFlagsResponse)(nil),           // 42: maintainerd.auth.v1.GetFeatureFlagsResponse
-	(*UpdateFeatureFlagsRequest)(nil),         // 43: maintainerd.auth.v1.UpdateFeatureFlagsRequest
-	(*UpdateFeatureFlagsResponse)(nil),        // 44: maintainerd.auth.v1.UpdateFeatureFlagsResponse
-	(*structpb.Struct)(nil),                   // 45: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),             // 46: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                   // 41: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),             // 42: google.protobuf.Timestamp
 }
 var file_maintainerd_auth_v1_tenant_proto_depIdxs = []int32{
-	45, // 0: maintainerd.auth.v1.Tenant.metadata:type_name -> google.protobuf.Struct
-	46, // 1: maintainerd.auth.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
-	46, // 2: maintainerd.auth.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
-	45, // 3: maintainerd.auth.v1.TenantMemberUser.metadata:type_name -> google.protobuf.Struct
-	46, // 4: maintainerd.auth.v1.TenantMemberUser.created_at:type_name -> google.protobuf.Timestamp
-	46, // 5: maintainerd.auth.v1.TenantMemberUser.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 0: maintainerd.auth.v1.Tenant.metadata:type_name -> google.protobuf.Struct
+	42, // 1: maintainerd.auth.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
+	42, // 2: maintainerd.auth.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 3: maintainerd.auth.v1.TenantMemberUser.metadata:type_name -> google.protobuf.Struct
+	42, // 4: maintainerd.auth.v1.TenantMemberUser.created_at:type_name -> google.protobuf.Timestamp
+	42, // 5: maintainerd.auth.v1.TenantMemberUser.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: maintainerd.auth.v1.TenantMember.user:type_name -> maintainerd.auth.v1.TenantMemberUser
-	46, // 7: maintainerd.auth.v1.TenantMember.created_at:type_name -> google.protobuf.Timestamp
-	46, // 8: maintainerd.auth.v1.TenantMember.updated_at:type_name -> google.protobuf.Timestamp
+	42, // 7: maintainerd.auth.v1.TenantMember.created_at:type_name -> google.protobuf.Timestamp
+	42, // 8: maintainerd.auth.v1.TenantMember.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: maintainerd.auth.v1.GetDefaultTenantResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
 	0,  // 10: maintainerd.auth.v1.GetTenantByIdentifierResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
 	3,  // 11: maintainerd.auth.v1.ListTenantsRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
@@ -2762,63 +2561,56 @@ var file_maintainerd_auth_v1_tenant_proto_depIdxs = []int32{
 	4,  // 21: maintainerd.auth.v1.ListTenantMembersResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
 	2,  // 22: maintainerd.auth.v1.AddTenantMemberResponse.member:type_name -> maintainerd.auth.v1.TenantMember
 	2,  // 23: maintainerd.auth.v1.UpdateTenantMemberRoleResponse.member:type_name -> maintainerd.auth.v1.TenantMember
-	45, // 24: maintainerd.auth.v1.GetRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
-	45, // 25: maintainerd.auth.v1.UpdateRateLimitConfigRequest.config:type_name -> google.protobuf.Struct
-	45, // 26: maintainerd.auth.v1.UpdateRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
-	45, // 27: maintainerd.auth.v1.GetAuditConfigResponse.config:type_name -> google.protobuf.Struct
-	45, // 28: maintainerd.auth.v1.UpdateAuditConfigRequest.config:type_name -> google.protobuf.Struct
-	45, // 29: maintainerd.auth.v1.UpdateAuditConfigResponse.config:type_name -> google.protobuf.Struct
-	45, // 30: maintainerd.auth.v1.GetMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
-	45, // 31: maintainerd.auth.v1.UpdateMaintenanceConfigRequest.config:type_name -> google.protobuf.Struct
-	45, // 32: maintainerd.auth.v1.UpdateMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
-	45, // 33: maintainerd.auth.v1.GetFeatureFlagsResponse.config:type_name -> google.protobuf.Struct
-	45, // 34: maintainerd.auth.v1.UpdateFeatureFlagsRequest.config:type_name -> google.protobuf.Struct
-	45, // 35: maintainerd.auth.v1.UpdateFeatureFlagsResponse.config:type_name -> google.protobuf.Struct
-	5,  // 36: maintainerd.auth.v1.TenantService.GetDefaultTenant:input_type -> maintainerd.auth.v1.GetDefaultTenantRequest
-	7,  // 37: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:input_type -> maintainerd.auth.v1.GetTenantByIdentifierRequest
-	9,  // 38: maintainerd.auth.v1.TenantService.ListTenants:input_type -> maintainerd.auth.v1.ListTenantsRequest
-	11, // 39: maintainerd.auth.v1.TenantService.GetTenant:input_type -> maintainerd.auth.v1.GetTenantRequest
-	13, // 40: maintainerd.auth.v1.TenantService.CreateTenant:input_type -> maintainerd.auth.v1.TenantServiceCreateTenantRequest
-	15, // 41: maintainerd.auth.v1.TenantService.UpdateTenant:input_type -> maintainerd.auth.v1.TenantServiceUpdateTenantRequest
-	17, // 42: maintainerd.auth.v1.TenantService.SetTenantStatus:input_type -> maintainerd.auth.v1.SetTenantStatusRequest
-	19, // 43: maintainerd.auth.v1.TenantService.DeleteTenant:input_type -> maintainerd.auth.v1.DeleteTenantRequest
-	21, // 44: maintainerd.auth.v1.TenantService.ListTenantMembers:input_type -> maintainerd.auth.v1.ListTenantMembersRequest
-	23, // 45: maintainerd.auth.v1.TenantService.AddTenantMember:input_type -> maintainerd.auth.v1.AddTenantMemberRequest
-	25, // 46: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:input_type -> maintainerd.auth.v1.UpdateTenantMemberRoleRequest
-	27, // 47: maintainerd.auth.v1.TenantService.RemoveTenantMember:input_type -> maintainerd.auth.v1.RemoveTenantMemberRequest
-	29, // 48: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:input_type -> maintainerd.auth.v1.GetRateLimitConfigRequest
-	31, // 49: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:input_type -> maintainerd.auth.v1.UpdateRateLimitConfigRequest
-	33, // 50: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:input_type -> maintainerd.auth.v1.GetAuditConfigRequest
-	35, // 51: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:input_type -> maintainerd.auth.v1.UpdateAuditConfigRequest
-	37, // 52: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:input_type -> maintainerd.auth.v1.GetMaintenanceConfigRequest
-	39, // 53: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:input_type -> maintainerd.auth.v1.UpdateMaintenanceConfigRequest
-	41, // 54: maintainerd.auth.v1.TenantSettingService.GetFeatureFlags:input_type -> maintainerd.auth.v1.GetFeatureFlagsRequest
-	43, // 55: maintainerd.auth.v1.TenantSettingService.UpdateFeatureFlags:input_type -> maintainerd.auth.v1.UpdateFeatureFlagsRequest
-	6,  // 56: maintainerd.auth.v1.TenantService.GetDefaultTenant:output_type -> maintainerd.auth.v1.GetDefaultTenantResponse
-	8,  // 57: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:output_type -> maintainerd.auth.v1.GetTenantByIdentifierResponse
-	10, // 58: maintainerd.auth.v1.TenantService.ListTenants:output_type -> maintainerd.auth.v1.ListTenantsResponse
-	12, // 59: maintainerd.auth.v1.TenantService.GetTenant:output_type -> maintainerd.auth.v1.GetTenantResponse
-	14, // 60: maintainerd.auth.v1.TenantService.CreateTenant:output_type -> maintainerd.auth.v1.TenantServiceCreateTenantResponse
-	16, // 61: maintainerd.auth.v1.TenantService.UpdateTenant:output_type -> maintainerd.auth.v1.TenantServiceUpdateTenantResponse
-	18, // 62: maintainerd.auth.v1.TenantService.SetTenantStatus:output_type -> maintainerd.auth.v1.SetTenantStatusResponse
-	20, // 63: maintainerd.auth.v1.TenantService.DeleteTenant:output_type -> maintainerd.auth.v1.DeleteTenantResponse
-	22, // 64: maintainerd.auth.v1.TenantService.ListTenantMembers:output_type -> maintainerd.auth.v1.ListTenantMembersResponse
-	24, // 65: maintainerd.auth.v1.TenantService.AddTenantMember:output_type -> maintainerd.auth.v1.AddTenantMemberResponse
-	26, // 66: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:output_type -> maintainerd.auth.v1.UpdateTenantMemberRoleResponse
-	28, // 67: maintainerd.auth.v1.TenantService.RemoveTenantMember:output_type -> maintainerd.auth.v1.RemoveTenantMemberResponse
-	30, // 68: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:output_type -> maintainerd.auth.v1.GetRateLimitConfigResponse
-	32, // 69: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:output_type -> maintainerd.auth.v1.UpdateRateLimitConfigResponse
-	34, // 70: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:output_type -> maintainerd.auth.v1.GetAuditConfigResponse
-	36, // 71: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:output_type -> maintainerd.auth.v1.UpdateAuditConfigResponse
-	38, // 72: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:output_type -> maintainerd.auth.v1.GetMaintenanceConfigResponse
-	40, // 73: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:output_type -> maintainerd.auth.v1.UpdateMaintenanceConfigResponse
-	42, // 74: maintainerd.auth.v1.TenantSettingService.GetFeatureFlags:output_type -> maintainerd.auth.v1.GetFeatureFlagsResponse
-	44, // 75: maintainerd.auth.v1.TenantSettingService.UpdateFeatureFlags:output_type -> maintainerd.auth.v1.UpdateFeatureFlagsResponse
-	56, // [56:76] is the sub-list for method output_type
-	36, // [36:56] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	41, // 24: maintainerd.auth.v1.GetRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
+	41, // 25: maintainerd.auth.v1.UpdateRateLimitConfigRequest.config:type_name -> google.protobuf.Struct
+	41, // 26: maintainerd.auth.v1.UpdateRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
+	41, // 27: maintainerd.auth.v1.GetAuditConfigResponse.config:type_name -> google.protobuf.Struct
+	41, // 28: maintainerd.auth.v1.UpdateAuditConfigRequest.config:type_name -> google.protobuf.Struct
+	41, // 29: maintainerd.auth.v1.UpdateAuditConfigResponse.config:type_name -> google.protobuf.Struct
+	41, // 30: maintainerd.auth.v1.GetMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
+	41, // 31: maintainerd.auth.v1.UpdateMaintenanceConfigRequest.config:type_name -> google.protobuf.Struct
+	41, // 32: maintainerd.auth.v1.UpdateMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
+	5,  // 33: maintainerd.auth.v1.TenantService.GetDefaultTenant:input_type -> maintainerd.auth.v1.GetDefaultTenantRequest
+	7,  // 34: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:input_type -> maintainerd.auth.v1.GetTenantByIdentifierRequest
+	9,  // 35: maintainerd.auth.v1.TenantService.ListTenants:input_type -> maintainerd.auth.v1.ListTenantsRequest
+	11, // 36: maintainerd.auth.v1.TenantService.GetTenant:input_type -> maintainerd.auth.v1.GetTenantRequest
+	13, // 37: maintainerd.auth.v1.TenantService.CreateTenant:input_type -> maintainerd.auth.v1.TenantServiceCreateTenantRequest
+	15, // 38: maintainerd.auth.v1.TenantService.UpdateTenant:input_type -> maintainerd.auth.v1.TenantServiceUpdateTenantRequest
+	17, // 39: maintainerd.auth.v1.TenantService.SetTenantStatus:input_type -> maintainerd.auth.v1.SetTenantStatusRequest
+	19, // 40: maintainerd.auth.v1.TenantService.DeleteTenant:input_type -> maintainerd.auth.v1.DeleteTenantRequest
+	21, // 41: maintainerd.auth.v1.TenantService.ListTenantMembers:input_type -> maintainerd.auth.v1.ListTenantMembersRequest
+	23, // 42: maintainerd.auth.v1.TenantService.AddTenantMember:input_type -> maintainerd.auth.v1.AddTenantMemberRequest
+	25, // 43: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:input_type -> maintainerd.auth.v1.UpdateTenantMemberRoleRequest
+	27, // 44: maintainerd.auth.v1.TenantService.RemoveTenantMember:input_type -> maintainerd.auth.v1.RemoveTenantMemberRequest
+	29, // 45: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:input_type -> maintainerd.auth.v1.GetRateLimitConfigRequest
+	31, // 46: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:input_type -> maintainerd.auth.v1.UpdateRateLimitConfigRequest
+	33, // 47: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:input_type -> maintainerd.auth.v1.GetAuditConfigRequest
+	35, // 48: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:input_type -> maintainerd.auth.v1.UpdateAuditConfigRequest
+	37, // 49: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:input_type -> maintainerd.auth.v1.GetMaintenanceConfigRequest
+	39, // 50: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:input_type -> maintainerd.auth.v1.UpdateMaintenanceConfigRequest
+	6,  // 51: maintainerd.auth.v1.TenantService.GetDefaultTenant:output_type -> maintainerd.auth.v1.GetDefaultTenantResponse
+	8,  // 52: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:output_type -> maintainerd.auth.v1.GetTenantByIdentifierResponse
+	10, // 53: maintainerd.auth.v1.TenantService.ListTenants:output_type -> maintainerd.auth.v1.ListTenantsResponse
+	12, // 54: maintainerd.auth.v1.TenantService.GetTenant:output_type -> maintainerd.auth.v1.GetTenantResponse
+	14, // 55: maintainerd.auth.v1.TenantService.CreateTenant:output_type -> maintainerd.auth.v1.TenantServiceCreateTenantResponse
+	16, // 56: maintainerd.auth.v1.TenantService.UpdateTenant:output_type -> maintainerd.auth.v1.TenantServiceUpdateTenantResponse
+	18, // 57: maintainerd.auth.v1.TenantService.SetTenantStatus:output_type -> maintainerd.auth.v1.SetTenantStatusResponse
+	20, // 58: maintainerd.auth.v1.TenantService.DeleteTenant:output_type -> maintainerd.auth.v1.DeleteTenantResponse
+	22, // 59: maintainerd.auth.v1.TenantService.ListTenantMembers:output_type -> maintainerd.auth.v1.ListTenantMembersResponse
+	24, // 60: maintainerd.auth.v1.TenantService.AddTenantMember:output_type -> maintainerd.auth.v1.AddTenantMemberResponse
+	26, // 61: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:output_type -> maintainerd.auth.v1.UpdateTenantMemberRoleResponse
+	28, // 62: maintainerd.auth.v1.TenantService.RemoveTenantMember:output_type -> maintainerd.auth.v1.RemoveTenantMemberResponse
+	30, // 63: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:output_type -> maintainerd.auth.v1.GetRateLimitConfigResponse
+	32, // 64: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:output_type -> maintainerd.auth.v1.UpdateRateLimitConfigResponse
+	34, // 65: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:output_type -> maintainerd.auth.v1.GetAuditConfigResponse
+	36, // 66: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:output_type -> maintainerd.auth.v1.UpdateAuditConfigResponse
+	38, // 67: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:output_type -> maintainerd.auth.v1.GetMaintenanceConfigResponse
+	40, // 68: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:output_type -> maintainerd.auth.v1.UpdateMaintenanceConfigResponse
+	51, // [51:69] is the sub-list for method output_type
+	33, // [33:51] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_maintainerd_auth_v1_tenant_proto_init() }
@@ -2833,7 +2625,7 @@ func file_maintainerd_auth_v1_tenant_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_maintainerd_auth_v1_tenant_proto_rawDesc), len(file_maintainerd_auth_v1_tenant_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   45,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

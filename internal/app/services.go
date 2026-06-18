@@ -90,6 +90,7 @@ type svcs struct {
 	webhookEndpointRepo          webhook.WebhookEndpointRepository
 	webhookSubscriptionHandler   *webhook.SubscriptionHandler
 	webhookReplayHandler         *webhook.ReplayHandler
+	ipRestrictionRuleRepo        secpolicy.IPRestrictionRuleRepository
 }
 
 // listenerChecker adapts webhook and event-route repos for the write gate.
@@ -181,10 +182,12 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	tenantEventTypeConfigSvc := event.NewTenantEventTypeConfigService(db, r.tenantEventTypeRepo, r.eventTypeRepo, writeGate)
 	eventRouteSvc := event.NewEventRouteService(db, r.eventRouteRepo, r.eventTypeRepo, writeGate)
 
+	tenantSettingSvc := tenant.NewTenantSettingService(r.tenantSettingRepo)
+
 	// Create authEventService — it is injected into other services that
 	// need structured audit logging.
 	// The old webhook dispatcher is deprecated; integration events are now delivered via outbox.
-	authEventSvc := authevent.NewAuthEventService(r.authEventRepo, webhook.NewDispatcher(r.webhookEndpointRepo))
+	authEventSvc := authevent.NewAuthEventService(r.authEventRepo, webhook.NewDispatcher(r.webhookEndpointRepo), tenantSettingSvc)
 
 	sessionSvc := authn.NewSessionService(newAuthnUserTokenRepoAdapter(r.userTokenRepo))
 	iamTenantServiceRepo := newIAMTenantServiceRepo(db)
@@ -215,7 +218,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	oauthUserIdentityRepo := newOAuthUserIdentityRepo(db)
 	authzInvalidator := iam.NewDBAuthorizationTokenInvalidator(db, appCache)
 	tenantUOW := tenant.NewGormUnitOfWork(db, r.tenantRepo, r.tenantMemberRepo, tenantCascadeModels())
-	middleware.SetAPIKeyAuthenticator(client.NewAPIKeyAuthenticator(r.apiKeyRepo, r.apiKeyAPIRepo, featureSettingReader{repo: r.tenantSettingRepo}))
+	middleware.SetAPIKeyAuthenticator(client.NewAPIKeyAuthenticator(r.apiKeyRepo, r.apiKeyAPIRepo))
 	middleware.SetSessionValidator(sessionSvc)
 
 	webAuthnSvc, err := mfa.NewWebAuthnService(db, mfaUserRepo, r.webAuthnCredRepo, appCache, authEventSvc)
@@ -265,7 +268,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		emailTemplateService:         branding.NewEmailTemplateService(r.emailTemplateRepo),
 		smsTemplateService:           branding.NewSMSTemplateService(r.smsTemplateRepo),
 		brandingService:              branding.NewBrandingService(r.brandingRepo),
-		tenantSettingService:         tenant.NewTenantSettingService(r.tenantSettingRepo),
+		tenantSettingService:         tenantSettingSvc,
 		emailConfigService:           notifier.NewEmailConfigService(r.emailConfigRepo),
 		smsConfigService:             notifier.NewSMSConfigService(r.smsConfigRepo),
 		webhookEndpointService:       webhook.NewWebhookEndpointService(r.webhookEndpointRepo),
@@ -296,6 +299,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		webhookEndpointRepo:          r.webhookEndpointRepo,
 		webhookSubscriptionHandler:   webhookSubscriptionHandler,
 		webhookReplayHandler:         webhookReplayHandler,
+		ipRestrictionRuleRepo:        r.ipRestrictionRuleRepo,
 	}
 	// Inject event service into ServiceService (uses setter to avoid breaking test constructors)
 	iam.SetServiceEventService(s.serviceService, eventSvc)

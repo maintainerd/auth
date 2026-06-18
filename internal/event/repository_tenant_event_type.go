@@ -8,6 +8,7 @@ import (
 // TenantEventTypeRepository defines persistence operations for tenant_event_types.
 type TenantEventTypeRepository interface {
 	BaseRepositoryMethods[TenantEventType]
+	UpdateByID(id any, updatedData any) (*TenantEventType, error)
 	FindByTenantID(tenantID int64) ([]TenantEventType, error)
 	FindByTenantIDAndEventTypeID(tenantID, eventTypeID int64) (*TenantEventType, error)
 	FindDisabledByTenantID(tenantID int64) ([]TenantEventType, error)

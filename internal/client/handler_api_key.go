@@ -182,7 +182,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		status = req.Status
 	}
 
-	apiKey, plainKey, err := h.apiKeyService.Create(r.Context(), tenant.TenantID, req.Name, req.Description, req.Config, req.ExpiresAt, req.RateLimit, status)
+	apiKey, plainKey, err := h.apiKeyService.Create(r.Context(), tenant.TenantID, req.Name, req.Description, req.Config, req.ExpiresAt, status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create API key", err)
 		return
@@ -196,7 +196,6 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		KeyPrefix:   apiKey.KeyPrefix,
 		Key:         plainKey, // This is the actual API key that should be stored securely
 		ExpiresAt:   apiKey.ExpiresAt,
-		RateLimit:   apiKey.RateLimit,
 		Status:      apiKey.Status,
 		CreatedAt:   apiKey.CreatedAt,
 		UpdatedAt:   apiKey.UpdatedAt,
@@ -235,7 +234,7 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, err := h.apiKeyService.Update(r.Context(), apiKeyUUID, tenant.TenantID, req.Name, req.Description, req.Config, req.ExpiresAt, req.RateLimit, req.Status, updaterUser.UserUUID)
+	apiKey, err := h.apiKeyService.Update(r.Context(), apiKeyUUID, tenant.TenantID, req.Name, req.Description, req.Config, req.ExpiresAt, req.Status, updaterUser.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update API key", err)
 		return
@@ -325,7 +324,6 @@ func toAPIKeyResponseDTO(r APIKeyServiceDataResult) APIKeyResponseDTO {
 		Description: r.Description,
 		KeyPrefix:   r.KeyPrefix,
 		ExpiresAt:   r.ExpiresAt,
-		RateLimit:   r.RateLimit,
 		Status:      r.Status,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,

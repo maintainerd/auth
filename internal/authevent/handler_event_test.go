@@ -363,3 +363,52 @@ func TestAuthEventHandler_CountByType_Success(t *testing.T) {
 	h.CountByType(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+func TestAuthEventHandler_Export_NoTenant(t *testing.T) {
+	h := NewAuthEventHandler(&mockAuthEventService{})
+	r := httptest.NewRequest(http.MethodGet, "/auth-events/export", nil)
+	w := httptest.NewRecorder()
+	h.Export(w, r)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestAuthEventHandler_Export_Success(t *testing.T) {
+	svc := &mockAuthEventService{
+		exportFn: func(_ context.Context, filter AuthEventRepositoryGetFilter, format string) (*AuthEventExport, error) {
+			assert.NotNil(t, filter.TenantID)
+			assert.Equal(t, "csv", format)
+			assert.Equal(t, "AUTHN", *filter.Category)
+			return &AuthEventExport{
+				Format:      "csv",
+				ContentType: "text/csv",
+				Filename:    "auth-events.csv",
+				Data:        []byte("auth_event_id\n"),
+			}, nil
+		},
+	}
+	h := NewAuthEventHandler(svc)
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/auth-events/export?format=csv&category=AUTHN", nil))
+	w := httptest.NewRecorder()
+	h.Export(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "text/csv", w.Header().Get("Content-Type"))
+	assert.Contains(t, w.Body.String(), "auth_event_id")
+}
+
+func TestAuthEventHandler_Export_ServiceError(t *testing.T) {
+	svc := &mockAuthEventService{
+		exportFn: func(_ context.Context, _ AuthEventRepositoryGetFilter, _ string) (*AuthEventExport, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewAuthEventHandler(svc)
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/auth-events/export", nil))
+	w := httptest.NewRecorder()
+	h.Export(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}

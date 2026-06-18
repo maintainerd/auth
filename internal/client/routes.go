@@ -11,10 +11,12 @@ func APIKeyRoute(
 	apiKeyHandler *APIKeyHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/api_keys", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// API Key CRUD operations
 		r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
@@ -69,10 +71,12 @@ func ClientRoute(
 	ClientHandler *ClientHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/clients", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"client:read"})).
 			Get("/", ClientHandler.Get)

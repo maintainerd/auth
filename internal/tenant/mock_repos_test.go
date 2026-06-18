@@ -222,11 +222,9 @@ type mockTenantSettingService struct {
 	getRateLimitConfigFn      func(int64) (map[string]any, error)
 	getAuditConfigFn          func(int64) (map[string]any, error)
 	getMaintenanceConfigFn    func(int64) (map[string]any, error)
-	getFeatureFlagsFn         func(int64) (map[string]any, error)
 	updateRateLimitConfigFn   func(int64, map[string]any) (*TenantSettingServiceDataResult, error)
 	updateAuditConfigFn       func(int64, map[string]any) (*TenantSettingServiceDataResult, error)
 	updateMaintenanceConfigFn func(int64, map[string]any) (*TenantSettingServiceDataResult, error)
-	updateFeatureFlagsFn      func(int64, map[string]any) (*TenantSettingServiceDataResult, error)
 }
 
 func (m *mockTenantSettingService) Get(_ context.Context, tid int64) (*TenantSettingServiceDataResult, error) {
@@ -253,12 +251,6 @@ func (m *mockTenantSettingService) GetMaintenanceConfig(_ context.Context, tid i
 	}
 	return nil, nil
 }
-func (m *mockTenantSettingService) GetFeatureFlags(_ context.Context, tid int64) (map[string]any, error) {
-	if m.getFeatureFlagsFn != nil {
-		return m.getFeatureFlagsFn(tid)
-	}
-	return nil, nil
-}
 func (m *mockTenantSettingService) UpdateRateLimitConfig(_ context.Context, tid int64, cfg map[string]any) (*TenantSettingServiceDataResult, error) {
 	if m.updateRateLimitConfigFn != nil {
 		return m.updateRateLimitConfigFn(tid, cfg)
@@ -274,12 +266,6 @@ func (m *mockTenantSettingService) UpdateAuditConfig(_ context.Context, tid int6
 func (m *mockTenantSettingService) UpdateMaintenanceConfig(_ context.Context, tid int64, cfg map[string]any) (*TenantSettingServiceDataResult, error) {
 	if m.updateMaintenanceConfigFn != nil {
 		return m.updateMaintenanceConfigFn(tid, cfg)
-	}
-	return nil, nil
-}
-func (m *mockTenantSettingService) UpdateFeatureFlags(_ context.Context, tid int64, cfg map[string]any) (*TenantSettingServiceDataResult, error) {
-	if m.updateFeatureFlagsFn != nil {
-		return m.updateFeatureFlagsFn(tid, cfg)
 	}
 	return nil, nil
 }

@@ -1,6 +1,8 @@
 package secpolicy
 
 import (
+	"fmt"
+
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -25,6 +27,9 @@ type IPRestrictionRuleRepositoryGetFilter struct {
 // rules.
 type IPRestrictionRuleRepository interface {
 	BaseRepositoryMethods[IPRestrictionRule]
+	FindByUUID(uuid any, preloads ...string) (*IPRestrictionRule, error)
+	UpdateByUUID(uuid any, updatedData any) (*IPRestrictionRule, error)
+	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) IPRestrictionRuleRepository
 	FindByTenantID(tenantID int64) ([]IPRestrictionRule, error)
 	FindByTenantIDAndStatus(tenantID int64, status string) ([]IPRestrictionRule, error)
@@ -86,6 +91,10 @@ func (r *ipRestrictionRuleRepository) FindByTenantIDAndType(tenantID int64, rule
 // FindPaginated returns a paginated, filtered, and sorted list of IP
 // restriction rules.
 func (r *ipRestrictionRuleRepository) FindPaginated(filter IPRestrictionRuleRepositoryGetFilter) (*PaginationResult[IPRestrictionRule], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&IPRestrictionRule{})
 
 	// Apply filters

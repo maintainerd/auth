@@ -458,7 +458,8 @@ func knownTokenClaim(claim string) bool {
 	switch claim {
 	case "roles", "tenant_id", "email", "email_verified", "phone", "phone_verified",
 		"name", "given_name", "family_name", "picture", "locale", "auth_time",
-		"nonce", "at_hash", "acr", "amr", "sid":
+		"nonce", "at_hash", "acr", "amr", "sid",
+		"permissions", "fullname":
 		return true
 	default:
 		return false

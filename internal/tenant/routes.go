@@ -25,6 +25,7 @@ func TenantRoute(
 	tenantHandler *TenantHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	// Single tenant endpoints (public - no authentication required)
 	// Used by the admin console to look up tenant info
@@ -40,6 +41,7 @@ func TenantRoute(
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"tenant:read"})).
 			Get("/", tenantHandler.Get)
@@ -86,10 +88,12 @@ func TenantSettingRoute(
 	tenantSettingHandler *TenantSettingHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/tenant-settings", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// Rate limit config
 		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:read"})).
@@ -109,10 +113,5 @@ func TenantSettingRoute(
 		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:update"})).
 			Put("/maintenance", tenantSettingHandler.UpdateMaintenanceConfig)
 
-		// Feature flags
-		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:read"})).
-			Get("/feature-flags", tenantSettingHandler.GetFeatureFlags)
-		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:update"})).
-			Put("/feature-flags", tenantSettingHandler.UpdateFeatureFlags)
 	})
 }

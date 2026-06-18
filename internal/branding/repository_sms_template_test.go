@@ -99,7 +99,7 @@ func TestSMSTemplateRepository_FindPaginated(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"sms_template_id", "sms_template_uuid", "name", "status", "created_at", "updated_at"}))
 
 	repo := NewSMSTemplateRepository(gdb)
-	result, err := repo.FindPaginated(SMSTemplateRepositoryGetFilter{Page: 1, Limit: 10})
+	result, err := repo.FindPaginated(SMSTemplateRepositoryGetFilter{TenantID: ptrI64(1), Page: 1, Limit: 10})
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)

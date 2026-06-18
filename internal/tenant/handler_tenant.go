@@ -134,9 +134,20 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Get Tenant by UUID
 func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.Tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid Tenant UUID")
+		return
+	}
+
+	if !h.isSystemTenantMember(r) && auth.Tenant.TenantUUID != tenantUUID {
+		resp.Error(w, http.StatusForbidden, "Access denied", "You can only view your own tenant")
 		return
 	}
 
@@ -342,9 +353,25 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Set Tenant status
 func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
+		return
+	}
+
+	canManage, err := h.tenantMemberService.CanManageTenant(r.Context(), user.UserID, tenantUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to verify tenant access", err)
+		return
+	}
+	if !canManage {
+		resp.Error(w, http.StatusForbidden, "Access denied", "You do not have access to update this tenant")
 		return
 	}
 
@@ -371,8 +398,8 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 // Delete Tenant
 func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	user := middleware.AuthFromRequest(r).User
-	if user == nil {
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.Tenant == nil || auth.User == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -383,18 +410,16 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Tenant-management access: a member of this tenant or of the system tenant.
-	canManage, err := h.tenantMemberService.CanManageTenant(r.Context(), user.UserID, tenantUUID)
+	systemTenant, err := h.tenantService.GetSystem(r.Context())
 	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to verify tenant access", err)
+		resp.HandleServiceError(w, r, "Failed to resolve system tenant", err)
 		return
 	}
-	if !canManage {
-		resp.Error(w, http.StatusForbidden, "Access denied", "You do not have access to delete this tenant")
+	if systemTenant == nil || auth.Tenant.TenantID != systemTenant.TenantID {
+		resp.Error(w, http.StatusForbidden, "Access denied", "Only members of the system tenant can delete tenants")
 		return
 	}
 
-	// Get tenant to check if it's a system tenant
 	tenant, err := h.tenantService.GetByUUID(r.Context(), tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Tenant not found", err)
@@ -416,6 +441,18 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	dtoRes := toTenantResponseDTO(*deletedTenant)
 
 	resp.Success(w, dtoRes, "Tenant deleted successfully")
+}
+
+func (h *TenantHandler) isSystemTenantMember(r *http.Request) bool {
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.Tenant == nil {
+		return false
+	}
+	systemTenant, err := h.tenantService.GetSystem(r.Context())
+	if err != nil || systemTenant == nil {
+		return false
+	}
+	return auth.Tenant.TenantID == systemTenant.TenantID
 }
 
 // Convert service result to DTO

@@ -341,10 +341,9 @@ message APIKey {
   string description = 3;
   string key_prefix = 4;
   google.protobuf.Timestamp expires_at = 5;
-  optional int32 rate_limit = 6;
-  string status = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
 }
 
 message APIKeyAPI {
@@ -391,9 +390,8 @@ message CreateAPIKeyRequest {
   string description = 3;
   google.protobuf.Struct config = 4;
   google.protobuf.Timestamp expires_at = 5;
-  optional int32 rate_limit = 6;
-  string status = 7;
-  string actor_user_uuid = 8;
+  string status = 6;
+  string actor_user_uuid = 7;
 }
 
 message CreateAPIKeyResponse {
@@ -408,9 +406,8 @@ message UpdateAPIKeyRequest {
   optional string description = 4;
   google.protobuf.Struct config = 5;
   google.protobuf.Timestamp expires_at = 6;
-  optional int32 rate_limit = 7;
-  optional string status = 8;
-  string actor_user_uuid = 9;
+  optional string status = 7;
+  string actor_user_uuid = 8;
 }
 
 message UpdateAPIKeyResponse {

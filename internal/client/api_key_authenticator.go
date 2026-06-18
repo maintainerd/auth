@@ -10,25 +10,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/feature"
 	"github.com/maintainerd/auth/internal/shared"
 )
 
 type APIKeyAuthenticator struct {
 	apiKeyRepo    APIKeyRepository
 	apiKeyAPIRepo APIKeyAPIRepository
-	featureReader feature.Reader
 }
 
-func NewAPIKeyAuthenticator(apiKeyRepo APIKeyRepository, apiKeyAPIRepo APIKeyAPIRepository, featureReader ...feature.Reader) *APIKeyAuthenticator {
-	var reader feature.Reader
-	if len(featureReader) > 0 {
-		reader = featureReader[0]
-	}
+func NewAPIKeyAuthenticator(apiKeyRepo APIKeyRepository, apiKeyAPIRepo APIKeyAPIRepository) *APIKeyAuthenticator {
 	return &APIKeyAuthenticator{
 		apiKeyRepo:    apiKeyRepo,
 		apiKeyAPIRepo: apiKeyAPIRepo,
-		featureReader: reader,
 	}
 }
 
@@ -49,9 +42,6 @@ func (a *APIKeyAuthenticator) AuthenticateAPIKey(_ context.Context, rawKey strin
 	}
 	if apiKey.ExpiresAt != nil && time.Now().After(*apiKey.ExpiresAt) {
 		return nil, errors.New("API key has expired")
-	}
-	if !feature.Enabled(a.featureReader, apiKey.TenantID, "api_key_authentication", true) {
-		return nil, errors.New("API key authentication is disabled")
 	}
 
 	grants, err := a.apiKeyAPIRepo.FindByAPIKeyUUID(apiKey.APIKeyUUID)

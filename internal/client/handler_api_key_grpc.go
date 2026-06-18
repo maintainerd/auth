@@ -97,12 +97,7 @@ func (h *APIKeyGRPCHandler) CreateAPIKey(ctx context.Context, req *authv1.Create
 		t := req.GetExpiresAt().AsTime()
 		expiresAt = &t
 	}
-	var rateLimit *int
-	if req.RateLimit != nil {
-		v := int(req.GetRateLimit())
-		rateLimit = &v
-	}
-	result, rawKey, err := h.apiKeyService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDescription(), configJSON, expiresAt, rateLimit, req.GetStatus())
+	result, rawKey, err := h.apiKeyService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDescription(), configJSON, expiresAt, req.GetStatus())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -125,11 +120,6 @@ func (h *APIKeyGRPCHandler) UpdateAPIKey(ctx context.Context, req *authv1.Update
 		t := req.GetExpiresAt().AsTime()
 		expiresAt = &t
 	}
-	var rateLimit *int
-	if req.RateLimit != nil {
-		v := int(req.GetRateLimit())
-		rateLimit = &v
-	}
 	actorUUID := uuid.Nil
 	if req.GetActorUserUuid() != "" {
 		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
@@ -137,7 +127,7 @@ func (h *APIKeyGRPCHandler) UpdateAPIKey(ctx context.Context, req *authv1.Update
 			return nil, err
 		}
 	}
-	result, err := h.apiKeyService.Update(ctx, akUUID, tenant.TenantID, optionalStr(req.GetName()), optionalStr(req.GetDescription()), configJSON, expiresAt, rateLimit, optionalStr(req.GetStatus()), actorUUID)
+	result, err := h.apiKeyService.Update(ctx, akUUID, tenant.TenantID, optionalStr(req.GetName()), optionalStr(req.GetDescription()), configJSON, expiresAt, optionalStr(req.GetStatus()), actorUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -358,18 +348,12 @@ func toAPIKeyProto(result *APIKeyServiceDataResult) *authv1.APIKey {
 	if result.ExpiresAt != nil {
 		expiresAt = timestamppb.New(*result.ExpiresAt)
 	}
-	var rateLimit *int32
-	if result.RateLimit != nil {
-		v := int32(*result.RateLimit)
-		rateLimit = &v
-	}
 	return &authv1.APIKey{
 		ApiKeyUuid:  result.APIKeyUUID.String(),
 		Name:        result.Name,
 		Description: result.Description,
 		KeyPrefix:   result.KeyPrefix,
 		ExpiresAt:   expiresAt,
-		RateLimit:   rateLimit,
 		Status:      result.Status,
 		CreatedAt:   timestamppb.New(result.CreatedAt),
 		UpdatedAt:   timestamppb.New(result.UpdatedAt),

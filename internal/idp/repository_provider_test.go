@@ -214,7 +214,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "tenant1"))
 
 		repo := NewIdentityProviderRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(IdentityProviderRepositoryGetFilter{
+			TenantID:  &tenantID,
 			Provider:  []string{"google"},
 			Page:      1,
 			Limit:     10,
@@ -228,9 +230,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 
 	t.Run("success with status filter", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE status IN`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE .*status IN`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE status IN.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*status IN.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -238,7 +240,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "tenant1"))
 
 		repo := NewIdentityProviderRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(IdentityProviderRepositoryGetFilter{
+			TenantID:  &tenantID,
 			Status:    []string{"active"},
 			Page:      1,
 			Limit:     10,
@@ -253,9 +257,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 	t.Run("success with is_default filter", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		defaultVal := true
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE is_default`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE .*is_default`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE is_default.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*is_default.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "is_default", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", true, now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -263,7 +267,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "tenant1"))
 
 		repo := NewIdentityProviderRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(IdentityProviderRepositoryGetFilter{
+			TenantID:  &tenantID,
 			IsDefault: &defaultVal,
 			Page:      1,
 			Limit:     10,
@@ -278,9 +284,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 	t.Run("success with is_system filter", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		systemVal := false
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE is_system`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE .*is_system`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE is_system.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*is_system.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "is_system", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", false, now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -288,7 +294,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "tenant1"))
 
 		repo := NewIdentityProviderRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(IdentityProviderRepositoryGetFilter{
+			TenantID:  &tenantID,
 			IsSystem:  &systemVal,
 			Page:      1,
 			Limit:     10,
@@ -313,7 +321,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "tenant1"))
 
 		repo := NewIdentityProviderRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(IdentityProviderRepositoryGetFilter{
+			TenantID:     &tenantID,
 			ProviderType: &ptype,
 			Page:         1,
 			Limit:        10,
@@ -338,7 +348,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "tenant1"))
 
 		repo := NewIdentityProviderRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(IdentityProviderRepositoryGetFilter{
+			TenantID:   &tenantID,
 			Identifier: &id,
 			Page:       1,
 			Limit:      10,
@@ -363,7 +375,9 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 				AddRow(1, uuid.New(), "tenant1"))
 
 		repo := NewIdentityProviderRepository(gdb)
+		tenantID := int64(1)
 		result, err := repo.FindPaginated(IdentityProviderRepositoryGetFilter{
+			TenantID:  &tenantID,
 			Name:      &name,
 			Page:      1,
 			Limit:     10,

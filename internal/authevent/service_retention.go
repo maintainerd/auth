@@ -21,6 +21,10 @@ type RetentionDeleter interface {
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
+type auditConfigRetentionDeleter interface {
+	DeleteExpiredByAuditConfig(ctx context.Context, now time.Time) (int64, error)
+}
+
 // StartRetentionRunner starts a background goroutine that periodically deletes
 // auth events older than the configured retention period. It respects context
 // cancellation for graceful shutdown.
@@ -46,8 +50,8 @@ func StartRetentionRunner(ctx context.Context, deleter RetentionDeleter, retenti
 			slog.Info("retention: shutting down")
 			return
 		case <-ticker.C:
-			cutoff := time.Now().UTC().Add(-retention)
-			count, err := deleter.DeleteOlderThan(ctx, cutoff)
+			now := time.Now().UTC()
+			count, cutoff, err := deleteExpiredAuthEvents(ctx, deleter, now, retention)
 			if err != nil {
 				slog.Error("retention: failed to delete old auth events", "error", err)
 				continue
@@ -60,4 +64,15 @@ func StartRetentionRunner(ctx context.Context, deleter RetentionDeleter, retenti
 			}
 		}
 	}
+}
+
+func deleteExpiredAuthEvents(ctx context.Context, deleter RetentionDeleter, now time.Time, retention time.Duration) (int64, time.Time, error) {
+	if configured, ok := deleter.(auditConfigRetentionDeleter); ok {
+		count, err := configured.DeleteExpiredByAuditConfig(ctx, now)
+		return count, time.Time{}, err
+	}
+
+	cutoff := now.Add(-retention)
+	count, err := deleter.DeleteOlderThan(ctx, cutoff)
+	return count, cutoff, err
 }

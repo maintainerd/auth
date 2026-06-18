@@ -182,7 +182,13 @@ func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 
 // ClearAuthCookies clears all authentication-related cookies.
 func ClearAuthCookies(w http.ResponseWriter) {
-	setAuthCookie(w, accessTokenCookieName(), "", "/", -1, authCookieOptions{})
-	setAuthCookie(w, idTokenCookieName(), "", "/", -1, authCookieOptions{})
-	setAuthCookie(w, refreshTokenCookieName(), "", refreshTokenCookiePath, -1, authCookieOptions{})
+	for _, name := range []string{accessTokenCookieName(), "access_token"} {
+		setAuthCookie(w, name, "", "/", -1, authCookieOptions{})
+	}
+	for _, name := range []string{idTokenCookieName(), "id_token"} {
+		setAuthCookie(w, name, "", "/", -1, authCookieOptions{})
+	}
+	for _, name := range []string{refreshTokenCookieName(), "refresh_token"} {
+		setAuthCookie(w, name, "", refreshTokenCookiePath, -1, authCookieOptions{})
+	}
 }

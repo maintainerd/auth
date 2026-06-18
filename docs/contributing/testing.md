@@ -82,7 +82,7 @@ unit-test it. Everything else under `internal/` is in scope.
 
 **Success cases (cover all of them)**
 - Primary happy path returns the expected value/DTO with every field populated correctly
-- Each alternative success branch (optional inputs present/absent, defaults applied, feature flag on/off)
+- Each alternative success branch (optional inputs present/absent, defaults applied)
 - Idempotent operations succeed on repeat where the contract promises idempotency
 - Returned object excludes sensitive fields (secrets/hashes/tokens redacted)
 

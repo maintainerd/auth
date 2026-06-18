@@ -7,38 +7,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/feature"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockFeatureReader struct {
-	findFn func(int64) (*feature.Setting, error)
-}
-
-func (m *mockFeatureReader) FindByTenantID(tenantID int64) (*feature.Setting, error) {
-	if m.findFn != nil {
-		return m.findFn(tenantID)
-	}
-	return nil, nil
-}
-
 func int64Ptr(v int64) *int64         { return &v }
 func timePtr(tp time.Time) *time.Time { return &tp }
 
 func TestNewAPIKeyAuthenticator(t *testing.T) {
-	t.Run("without featureReader returns nil reader", func(t *testing.T) {
-		a := NewAPIKeyAuthenticator(&mockAPIKeyRepo{}, &mockAPIKeyAPIRepo{})
-		require.NotNil(t, a)
-		assert.Nil(t, a.featureReader)
-	})
-	t.Run("with featureReader uses it", func(t *testing.T) {
-		fr := &mockFeatureReader{}
-		a := NewAPIKeyAuthenticator(&mockAPIKeyRepo{}, &mockAPIKeyAPIRepo{}, fr)
-		require.NotNil(t, a)
-		assert.Same(t, fr, a.featureReader)
-	})
+	a := NewAPIKeyAuthenticator(&mockAPIKeyRepo{}, &mockAPIKeyAPIRepo{})
+	require.NotNil(t, a)
+	assert.NotNil(t, a.apiKeyRepo)
+	assert.NotNil(t, a.apiKeyAPIRepo)
 }
 
 func TestAuthenticateAPIKey(t *testing.T) {
@@ -116,21 +97,6 @@ func TestAuthenticateAPIKey(t *testing.T) {
 		_, err := a.AuthenticateAPIKey(context.Background(), testKey)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "API key has expired")
-	})
-
-	t.Run("feature disabled", func(t *testing.T) {
-		repo := &mockAPIKeyRepo{
-			findByKeyHashFn: func(string) (*APIKey, error) { return activeKey, nil },
-		}
-		fr := &mockFeatureReader{
-			findFn: func(int64) (*feature.Setting, error) {
-				return &feature.Setting{FeatureFlags: []byte(`{"api_key_authentication":false}`)}, nil
-			},
-		}
-		a := NewAPIKeyAuthenticator(repo, &mockAPIKeyAPIRepo{}, fr)
-		_, err := a.AuthenticateAPIKey(context.Background(), testKey)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "API key authentication is disabled")
 	})
 
 	t.Run("FindByAPIKeyUUID error", func(t *testing.T) {

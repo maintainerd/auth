@@ -87,4 +87,5 @@ type Application struct {
 	WebhookEndpointRepo        webhook.WebhookEndpointRepository
 	WebhookSubscriptionHandler *webhook.SubscriptionHandler
 	WebhookReplayHandler       *webhook.ReplayHandler
+	IPRestrictionRuleRepo      secpolicy.IPRestrictionRuleRepository
 }

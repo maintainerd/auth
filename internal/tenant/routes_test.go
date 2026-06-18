@@ -58,13 +58,12 @@ func TestTenantRoute_PublicAndProtectedRoutes(t *testing.T) {
 
 func TestTenantSettingRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 	router := chi.NewRouter()
-	TenantSettingRoute(router, NewTenantSettingHandler(&mockTenantSettingService{}), nil, nil)
+	TenantSettingRoute(router, NewTenantSettingHandler(&mockTenantSettingService{}), nil, nil, nil)
 
 	for _, path := range []string{
 		"/tenant-settings/rate-limit",
 		"/tenant-settings/audit",
 		"/tenant-settings/maintenance",
-		"/tenant-settings/feature-flags",
 	} {
 		t.Run(path, func(t *testing.T) {
 			w := httptest.NewRecorder()

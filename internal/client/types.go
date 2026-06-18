@@ -15,7 +15,6 @@ type APIKeyResponseDTO struct {
 	KeyPrefix   string     `json:"key_prefix"`
 	ExpiresAt   *time.Time `json:"expires_at"`
 
-	RateLimit *int      `json:"rate_limit"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -69,7 +68,6 @@ type APIKeyCreateResponseDTO struct {
 	Key         string     `json:"key"` // The actual API key that should be stored securely
 	ExpiresAt   *time.Time `json:"expires_at"`
 
-	RateLimit *int      `json:"rate_limit"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -86,7 +84,6 @@ type APIKeyCreateRequestDTO struct {
 	Description string         `json:"description"`
 	Config      datatypes.JSON `json:"config,omitempty"`
 	ExpiresAt   *time.Time     `json:"expires_at,omitempty"`
-	RateLimit   *int           `json:"rate_limit,omitempty"`
 	Status      string         `json:"status,omitempty"`
 }
 
@@ -95,7 +92,6 @@ type APIKeyUpdateRequestDTO struct {
 	Description *string        `json:"description,omitempty"`
 	Config      datatypes.JSON `json:"config,omitempty"`
 	ExpiresAt   *time.Time     `json:"expires_at,omitempty"`
-	RateLimit   *int           `json:"rate_limit,omitempty"`
 	Status      *string        `json:"status,omitempty"`
 }
 

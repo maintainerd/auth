@@ -100,7 +100,7 @@ func initHandlers(application *Application) *handlers {
 		emailTemplate:      branding.NewEmailTemplateHandler(application.EmailTemplateService),
 		smsTemplate:        branding.NewSMSTemplateHandler(application.SMSTemplateService),
 		branding:           branding.NewBrandingHandler(application.BrandingService),
-		tenantSetting:      tenant.NewTenantSettingHandler(application.TenantSettingService),
+		tenantSetting:      tenant.NewTenantSettingHandler(application.TenantSettingService, application.AuthEventService),
 		emailConfig:        notifier.NewEmailConfigHandler(application.EmailConfigService),
 		smsConfig:          notifier.NewSMSConfigHandler(application.SMSConfigService),
 		webhookEndpoint:    webhook.NewWebhookEndpointHandler(application.WebhookEndpointService),

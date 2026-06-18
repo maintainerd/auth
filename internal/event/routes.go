@@ -13,10 +13,12 @@ func ConfigRoute(
 	managementHandler *ManagementHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/event-types", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:read"})).
 			Get("/", configHandler.ListEventTypes)
@@ -25,6 +27,7 @@ func ConfigRoute(
 	r.Route("/tenant-event-types", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:read"})).
 			Get("/", configHandler.GetTenantEventTypes)
@@ -36,6 +39,7 @@ func ConfigRoute(
 	r.Route("/event-routes", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:read"})).
 			Get("/", managementHandler.ListEventRoutes)

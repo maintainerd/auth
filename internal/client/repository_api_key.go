@@ -20,6 +20,8 @@ type APIKeyRepositoryGetFilter struct {
 
 type APIKeyRepository interface {
 	BaseRepositoryMethods[APIKey]
+	UpdateByUUID(uuid any, updatedData any) (*APIKey, error)
+	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) APIKeyRepository
 	FindByUUIDAndTenantID(uuid string, tenantID int64) (*APIKey, error)
 	FindByKeyHash(keyHash string) (*APIKey, error)

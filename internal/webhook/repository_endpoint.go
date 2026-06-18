@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,6 +27,9 @@ type WebhookEndpointRepositoryGetFilter struct {
 // webhook_endpoints entity.
 type WebhookEndpointRepository interface {
 	BaseRepositoryMethods[WebhookEndpoint]
+	UpdateByUUID(uuid any, updatedData any) (*WebhookEndpoint, error)
+	DeleteByUUID(uuid any) error
+	FindByID(id any, preloads ...string) (*WebhookEndpoint, error)
 	WithTx(tx *gorm.DB) WebhookEndpointRepository
 	FindByTenantID(tenantID int64) ([]WebhookEndpoint, error)
 	FindActiveByTenantID(tenantID int64) ([]WebhookEndpoint, error)
@@ -87,6 +91,10 @@ func (r *webhookEndpointRepository) FindByUUIDAndTenantID(webhookEndpointUUID uu
 
 // FindPaginated retrieves paginated webhook endpoints with filtering.
 func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointRepositoryGetFilter) (*PaginationResult[WebhookEndpoint], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&WebhookEndpoint{})
 
 	if filter.TenantID != nil {

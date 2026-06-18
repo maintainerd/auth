@@ -698,8 +698,6 @@ func (s *loginService) checkTemporaryPasswordExpiry(ctx context.Context, user *U
 	return apperror.NewUnauthorized("temporary password has expired")
 }
 
-const loginMFAChallengeTTL = 5 * time.Minute
-
 func mfaStepUpTTLSeconds(policy *secpolicy.MFAPolicy) int64 {
 	return policy.StepUpTTLSeconds()
 }

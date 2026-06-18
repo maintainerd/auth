@@ -33,6 +33,15 @@ type RoleRepositoryGetPermissionsFilter struct {
 
 type RoleRepository interface {
 	BaseRepositoryMethods[Role]
+	FindByUUID(uuid any, preloads ...string) (*Role, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]Role, error)
+	FindAll(preloads ...string) ([]Role, error)
+	FindByID(id any, preloads ...string) (*Role, error)
+	UpdateByUUID(uuid any, updatedData any) (*Role, error)
+	UpdateByID(id any, updatedData any) (*Role, error)
+	DeleteByUUID(uuid any) error
+	DeleteByID(id any) error
+	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[Role], error)
 	WithTx(tx *gorm.DB) RoleRepository
 	FindByNameAndTenantID(name string, tenantID int64) (*Role, error)
 	FindAllByTenantID(tenantID int64) ([]Role, error)

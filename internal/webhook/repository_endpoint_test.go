@@ -183,10 +183,11 @@ func TestWebhookEndpointRepository_FindPaginated(t *testing.T) {
 
 	t.Run("count error", func(t *testing.T) {
 		db, mock := newWebhookEndpointMockGormDB(t)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "webhook_endpoints" WHERE "webhook_endpoints"."deleted_at" IS NULL`).
+		tenantID := int64(1)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "webhook_endpoints" WHERE .*"webhook_endpoints"\."deleted_at" IS NULL`).
 			WillReturnError(assert.AnError)
 
-		page, err := NewWebhookEndpointRepository(db).FindPaginated(WebhookEndpointRepositoryGetFilter{})
+		page, err := NewWebhookEndpointRepository(db).FindPaginated(WebhookEndpointRepositoryGetFilter{TenantID: &tenantID})
 
 		require.Error(t, err)
 		assert.Nil(t, page)

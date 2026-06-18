@@ -221,7 +221,8 @@ func TestLoginHandler_Logout_ServiceError(t *testing.T) {
 
 	h.Logout(w, r)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.NotEmpty(t, w.Result().Cookies(), "cookies should still be cleared on service error")
 }
 
 func TestExtractAccessToken_WithCookie(t *testing.T) {

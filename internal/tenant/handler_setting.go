@@ -2,21 +2,30 @@ package tenant
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
+	"strings"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"gorm.io/datatypes"
 )
 
 // TenantSettingHandler handles tenant-level settings endpoints with JSONB
-// sub-configs (rate_limit, audit, maintenance, feature_flags).
+// sub-configs (rate_limit, audit, maintenance).
 type TenantSettingHandler struct {
 	tenantSettingService TenantSettingService
+	authEventService     authevent.AuthEventService
 }
 
 // NewTenantSettingHandler creates a new TenantSettingHandler.
-func NewTenantSettingHandler(tenantSettingService TenantSettingService) *TenantSettingHandler {
-	return &TenantSettingHandler{tenantSettingService: tenantSettingService}
+func NewTenantSettingHandler(tenantSettingService TenantSettingService, authEventService ...authevent.AuthEventService) *TenantSettingHandler {
+	var eventService authevent.AuthEventService
+	if len(authEventService) > 0 {
+		eventService = authEventService[0]
+	}
+	return &TenantSettingHandler{tenantSettingService: tenantSettingService, authEventService: eventService}
 }
 
 // GetRateLimitConfig retrieves the rate limit configuration for the tenant.
@@ -55,6 +64,10 @@ func (h *TenantSettingHandler) UpdateRateLimitConfig(w http.ResponseWriter, r *h
 	}
 
 	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+	if err := req.ValidateRateLimitConfig(); err != nil {
 		resp.ValidationError(w, err)
 		return
 	}
@@ -107,6 +120,10 @@ func (h *TenantSettingHandler) UpdateAuditConfig(w http.ResponseWriter, r *http.
 		resp.ValidationError(w, err)
 		return
 	}
+	if err := req.ValidateAuditConfig(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
 
 	result, err := h.tenantSettingService.UpdateAuditConfig(r.Context(), tenant.TenantID, map[string]any(req))
 	if err != nil {
@@ -156,6 +173,10 @@ func (h *TenantSettingHandler) UpdateMaintenanceConfig(w http.ResponseWriter, r 
 		resp.ValidationError(w, err)
 		return
 	}
+	if err := req.ValidateMaintenanceConfig(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
 
 	result, err := h.tenantSettingService.UpdateMaintenanceConfig(r.Context(), tenant.TenantID, map[string]any(req))
 	if err != nil {
@@ -163,54 +184,58 @@ func (h *TenantSettingHandler) UpdateMaintenanceConfig(w http.ResponseWriter, r 
 		return
 	}
 
+	h.logMaintenanceConfigUpdated(r, result.MaintenanceConfig)
 	resp.Success(w, TenantSettingConfigResponseDTO(result.MaintenanceConfig), "Maintenance config updated successfully")
 }
 
-// GetFeatureFlags retrieves the feature flags for the tenant.
-//
-// GET /tenant-settings/feature-flags
-func (h *TenantSettingHandler) GetFeatureFlags(w http.ResponseWriter, r *http.Request) {
-	tenant := middleware.AuthFromRequest(r).Tenant
-	if tenant == nil {
-		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+func (h *TenantSettingHandler) logMaintenanceConfigUpdated(r *http.Request, config map[string]any) {
+	if h.authEventService == nil {
+		return
+	}
+	auth := middleware.AuthFromRequest(r)
+	if auth.Tenant == nil {
 		return
 	}
 
-	config, err := h.tenantSettingService.GetFeatureFlags(r.Context(), tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to get feature flags", err)
-		return
+	var actorUserID *int64
+	if auth.User != nil && auth.User.UserID > 0 {
+		actorUserID = &auth.User.UserID
 	}
+	userAgent := r.UserAgent()
+	description := "Maintenance config updated"
+	metadata, _ := json.Marshal(map[string]any{"config": config})
 
-	resp.Success(w, TenantSettingConfigResponseDTO(config), "Feature flags retrieved successfully")
+	h.authEventService.Log(r.Context(), authevent.AuthEventInput{
+		TenantID:    auth.Tenant.TenantID,
+		ActorUserID: actorUserID,
+		IPAddress:   requestIP(r),
+		UserAgent:   &userAgent,
+		Category:    authevent.AuthEventCategorySystem,
+		EventType:   authevent.AuthEventTypeMaintenanceConfigUpdated,
+		Severity:    authevent.AuthEventSeverityWarn,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: &description,
+		Metadata:    datatypes.JSON(metadata),
+	})
 }
 
-// UpdateFeatureFlags updates the feature flags for the tenant.
-//
-// PUT /tenant-settings/feature-flags
-func (h *TenantSettingHandler) UpdateFeatureFlags(w http.ResponseWriter, r *http.Request) {
-	tenant := middleware.AuthFromRequest(r).Tenant
-	if tenant == nil {
-		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
-		return
+func requestIP(r *http.Request) string {
+	for _, header := range []string{"X-Forwarded-For", "X-Real-IP"} {
+		value := r.Header.Get(header)
+		if value == "" {
+			continue
+		}
+		ip := strings.TrimSpace(strings.Split(value, ",")[0])
+		if net.ParseIP(ip) != nil {
+			return ip
+		}
 	}
-
-	var req TenantSettingUpdateConfigRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.BadRequestBody(w)
-		return
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && net.ParseIP(host) != nil {
+		return host
 	}
-
-	if err := req.Validate(); err != nil {
-		resp.ValidationError(w, err)
-		return
+	if net.ParseIP(r.RemoteAddr) != nil {
+		return r.RemoteAddr
 	}
-
-	result, err := h.tenantSettingService.UpdateFeatureFlags(r.Context(), tenant.TenantID, map[string]any(req))
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to update feature flags", err)
-		return
-	}
-
-	resp.Success(w, TenantSettingConfigResponseDTO(result.FeatureFlags), "Feature flags updated successfully")
+	return "0.0.0.0"
 }

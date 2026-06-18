@@ -12,6 +12,15 @@ import (
 
 type InviteRepository interface {
 	BaseRepositoryMethods[Invite]
+	FindAll(preloads ...string) ([]Invite, error)
+	FindByUUID(uuid any, preloads ...string) (*Invite, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]Invite, error)
+	FindByID(id any, preloads ...string) (*Invite, error)
+	UpdateByUUID(uuid any, updatedData any) (*Invite, error)
+	UpdateByID(id any, updatedData any) (*Invite, error)
+	DeleteByUUID(uuid any) error
+	DeleteByID(id any) error
+	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[Invite], error)
 	WithTx(tx *gorm.DB) InviteRepository
 	FindByUUIDAndTenantID(inviteUUID uuid.UUID, tenantID int64, preloads ...string) (*Invite, error)
 	FindByToken(token string) (*Invite, error)

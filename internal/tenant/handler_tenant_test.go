@@ -96,38 +96,52 @@ func TestTenantHandler_Get(t *testing.T) {
 }
 
 func TestTenantHandler_GetByUUID(t *testing.T) {
+	systemSvc := func(byUUID func(uuid.UUID) (*TenantServiceDataResult, error)) *mockTenantService {
+		return &mockTenantService{
+			getByUUIDFn: byUUID,
+			getSystemFn: func() (*TenantServiceDataResult, error) { return &TenantServiceDataResult{TenantID: tenantID}, nil },
+		}
+	}
+
+	t.Run("no auth tenant returns 401", func(t *testing.T) {
+		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(nil, nil).GetByUUID(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid UUID returns 400", func(t *testing.T) {
-		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", "bad")
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", "bad"))
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, nil).GetByUUID(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+		svc := systemSvc(func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, errors.New("db error")
-		}}
-		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String())
+		})
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		newTenantHandler(svc, nil).GetByUUID(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
 	t.Run("not found returns 404", func(t *testing.T) {
-		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+		svc := systemSvc(func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, errNotFound
-		}}
-		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String())
+		})
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		newTenantHandler(svc, nil).GetByUUID(w, r)
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+		svc := systemSvc(func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{Name: "tenant1"}, nil
-		}}
-		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String())
+		})
+		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		newTenantHandler(svc, nil).GetByUUID(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -323,22 +337,29 @@ func TestTenantHandler_Update(t *testing.T) {
 }
 
 func TestTenantHandler_SetStatus(t *testing.T) {
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(nil, nil).SetStatus(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid UUID returns 400", func(t *testing.T) {
-		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", "bad")
+		r := withUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", "bad"))
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, nil).SetStatus(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("bad JSON returns 400", func(t *testing.T) {
-		r := withChiParam(badJSONReq(t, http.MethodPatch, "/"), "tenant_uuid", testResourceUUID.String())
+		r := withUser(withChiParam(badJSONReq(t, http.MethodPatch, "/"), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, nil).SetStatus(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("invalid status returns 400", func(t *testing.T) {
-		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "deleted"}), "tenant_uuid", testResourceUUID.String())
+		r := withUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "deleted"}), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, nil).SetStatus(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -348,7 +369,7 @@ func TestTenantHandler_SetStatus(t *testing.T) {
 		ts := &mockTenantService{setStatusByUUIDFn: func(uuid.UUID, string) (*TenantServiceDataResult, error) {
 			return nil, errors.New("status error")
 		}}
-		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", testResourceUUID.String())
+		r := withUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		newTenantHandler(ts, nil).SetStatus(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -358,7 +379,7 @@ func TestTenantHandler_SetStatus(t *testing.T) {
 		ts := &mockTenantService{setStatusByUUIDFn: func(id uuid.UUID, s string) (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{Status: s}, nil
 		}}
-		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", testResourceUUID.String())
+		r := withUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		newTenantHandler(ts, nil).SetStatus(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -366,6 +387,12 @@ func TestTenantHandler_SetStatus(t *testing.T) {
 }
 
 func TestTenantHandler_Delete(t *testing.T) {
+	systemSvc := func() *mockTenantService {
+		return &mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{TenantID: tenantID}, nil
+		}}
+	}
+
 	t.Run("no user returns 401", func(t *testing.T) {
 		r := withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -374,79 +401,77 @@ func TestTenantHandler_Delete(t *testing.T) {
 	})
 
 	t.Run("invalid UUID returns 400", func(t *testing.T) {
-		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", "bad"))
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", "bad"))
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, nil).Delete(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("IsUserInTenant error returns 500", func(t *testing.T) {
-		ms := &mockTenantMemberService{canManageTenantFn: func(int64, uuid.UUID) (bool, error) {
-			return false, errors.New("db error")
+	t.Run("GetSystem error returns 500", func(t *testing.T) {
+		ts := &mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
+			return nil, errors.New("db error")
 		}}
-		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
-		newTenantHandler(nil, ms).Delete(w, r)
+		newTenantHandler(ts, nil).Delete(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
-	t.Run("not a member returns 403", func(t *testing.T) {
-		ms := &mockTenantMemberService{canManageTenantFn: func(int64, uuid.UUID) (bool, error) { return false, nil }}
-		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
+	t.Run("non-system tenant returns 403", func(t *testing.T) {
+		ts := &mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{TenantID: tenantID + 999}, nil
+		}}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
-		newTenantHandler(nil, ms).Delete(w, r)
+		newTenantHandler(ts, nil).Delete(w, r)
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 
 	t.Run("GetByUUID error returns 404", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+		ts := systemSvc()
+		ts.getByUUIDFn = func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, errNotFound
-		}}
-		ms := &mockTenantMemberService{canManageTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
-		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
+		}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
-		newTenantHandler(ts, ms).Delete(w, r)
+		newTenantHandler(ts, nil).Delete(w, r)
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
 	t.Run("system tenant returns 403", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+		ts := systemSvc()
+		ts.getByUUIDFn = func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{IsSystem: true}, nil
-		}}
-		ms := &mockTenantMemberService{canManageTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
-		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
+		}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
-		newTenantHandler(ts, ms).Delete(w, r)
+		newTenantHandler(ts, nil).Delete(w, r)
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 
 	t.Run("DeleteByUUID error returns 500", func(t *testing.T) {
-		ts := &mockTenantService{
-			getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
-				return &TenantServiceDataResult{}, nil
-			},
-			deleteByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("delete error") },
+		ts := systemSvc()
+		ts.getByUUIDFn = func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{}, nil
 		}
-		ms := &mockTenantMemberService{canManageTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
-		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
+		ts.deleteByUUIDFn = func(uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("delete error") }
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
-		newTenantHandler(ts, ms).Delete(w, r)
+		newTenantHandler(ts, nil).Delete(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		ts := &mockTenantService{
-			getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
-				return &TenantServiceDataResult{IsSystem: false}, nil
-			},
-			deleteByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
-				return &TenantServiceDataResult{Name: "t1"}, nil
-			},
+		ts := systemSvc()
+		ts.getByUUIDFn = func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{IsSystem: false}, nil
 		}
-		ms := &mockTenantMemberService{canManageTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
-		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
+		ts.deleteByUUIDFn = func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: "t1"}, nil
+		}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
-		newTenantHandler(ts, ms).Delete(w, r)
+		newTenantHandler(ts, nil).Delete(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }

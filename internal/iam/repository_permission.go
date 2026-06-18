@@ -24,6 +24,8 @@ type PermissionRepositoryGetFilter struct {
 
 type PermissionRepository interface {
 	BaseRepositoryMethods[Permission]
+	FindByUUID(uuid any, preloads ...string) (*Permission, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]Permission, error)
 	WithTx(tx *gorm.DB) PermissionRepository
 	FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*Permission, error)
 	FindByName(name string, tenantID int64) (*Permission, error)

@@ -68,7 +68,7 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 
 	authv1.RegisterSetupServiceServer(s, setup.NewSetupGRPCHandler(application.SetupService))
 	authv1.RegisterTenantServiceServer(s, tenant.NewTenantGRPCHandler(application.TenantService, application.TenantMemberService))
-	authv1.RegisterTenantSettingServiceServer(s, tenant.NewTenantSettingGRPCHandler(application.TenantService, application.TenantSettingService))
+	authv1.RegisterTenantSettingServiceServer(s, tenant.NewTenantSettingGRPCHandler(application.TenantService, application.TenantSettingService, application.AuthEventService))
 	authv1.RegisterServiceServiceServer(s, iam.NewServiceGRPCHandler(application.TenantService, application.ServiceService, application.AuthorizationService))
 	authv1.RegisterAPIServiceServer(s, iam.NewAPIGRPCHandler(application.TenantService, application.APIService))
 	authv1.RegisterPermissionServiceServer(s, iam.NewPermissionGRPCHandler(application.TenantService, application.PermissionService))

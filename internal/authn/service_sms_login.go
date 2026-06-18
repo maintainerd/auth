@@ -293,23 +293,6 @@ func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub stri
 	return resp, nil
 }
 
-func userTenantID(ctx context.Context, db *gorm.DB, userID int64) int64 {
-	if db == nil {
-		return 0
-	}
-	var tenantID int64
-	if err := db.WithContext(ctx).
-		Table("user_identities").
-		Select("tenant_id").
-		Where("user_id = ?", userID).
-		Order("tenant_id ASC").
-		Limit(1).
-		Scan(&tenantID).Error; err != nil || tenantID == 0 {
-		return 0
-	}
-	return tenantID
-}
-
 var smsDailySendLimit = smsDailySendLimitFromDB
 
 func smsDailySendLimitFromDB(db *gorm.DB, tenantID int64) int {

@@ -25,6 +25,8 @@ type ProfileRepositoryGetFilter struct {
 
 type ProfileRepository interface {
 	BaseRepositoryMethods[Profile]
+	FindByUUID(uuid any, preloads ...string) (*Profile, error)
+	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) ProfileRepository
 	FindByUserID(userID int64) (*Profile, error)
 	FindDefaultByUserID(userID int64) (*Profile, error)

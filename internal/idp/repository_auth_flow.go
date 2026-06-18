@@ -2,6 +2,7 @@ package idp
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/database"
@@ -22,6 +23,7 @@ type AuthFlowRepositoryGetFilter struct {
 
 type AuthFlowRepository interface {
 	BaseRepositoryMethods[AuthFlow]
+	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) AuthFlowRepository
 	FindPaginated(filter AuthFlowRepositoryGetFilter) (*PaginationResult[AuthFlow], error)
 	FindByUUIDAndTenantID(authFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*AuthFlow, error)
@@ -47,6 +49,10 @@ func (r *authFlowRepository) WithTx(tx *gorm.DB) AuthFlowRepository {
 }
 
 func (r *authFlowRepository) FindPaginated(filter AuthFlowRepositoryGetFilter) (*PaginationResult[AuthFlow], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&AuthFlow{})
 
 	// Apply filters

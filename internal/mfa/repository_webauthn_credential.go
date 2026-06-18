@@ -10,6 +10,7 @@ import (
 
 type UserWebAuthnCredentialRepository interface {
 	BaseRepositoryMethods[UserWebAuthnCredential]
+	FindByUUID(uuid any, preloads ...string) (*UserWebAuthnCredential, error)
 	WithTx(tx *gorm.DB) UserWebAuthnCredentialRepository
 	FindByUserID(userID int64) ([]UserWebAuthnCredential, error)
 	FindByCredentialKeyID(credentialKeyID string) (*UserWebAuthnCredential, error)

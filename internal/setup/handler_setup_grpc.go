@@ -104,13 +104,6 @@ func optionalString(value string) *string {
 	return &value
 }
 
-func stringValue(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
-}
-
 func tenantMetadataDTO(metadata *authv1.TenantMetadata) *TenantMetadataDTO {
 	if metadata == nil {
 		return nil

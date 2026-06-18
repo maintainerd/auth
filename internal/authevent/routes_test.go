@@ -16,6 +16,7 @@ func TestAuthEventRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 	for _, path := range []string{
 		"/auth-events/",
 		"/auth-events/count",
+		"/auth-events/export",
 		"/auth-events/" + testResourceUUID.String(),
 	} {
 		t.Run(path, func(t *testing.T) {

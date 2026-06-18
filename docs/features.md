@@ -142,7 +142,7 @@ This file is intentionally an implementation-facing checklist. Marketing copy an
 - [x] Signup flows with automatic role assignment
 - [x] Invite system with pre-assigned roles
 - [x] Permission middleware on management routes
-- [x] Per-tenant settings for rate limits, audit config, maintenance mode, and feature flags
+- [x] Per-tenant settings for rate limits, audit config, and maintenance mode
 - [x] Per-tenant branding
 - [x] Per-tenant security settings for MFA, password, session, lockout, threat, and token config
 

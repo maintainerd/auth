@@ -275,10 +275,7 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	accessToken := extractAccessToken(r)
 	if accessToken != "" {
-		if err := h.loginService.Logout(r.Context(), accessToken); err != nil {
-			resp.Error(w, http.StatusInternalServerError, "Logout failed")
-			return
-		}
+		_ = h.loginService.Logout(r.Context(), accessToken)
 	}
 
 	cookie.ClearAuthCookies(w)

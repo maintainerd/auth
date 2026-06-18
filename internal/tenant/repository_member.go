@@ -10,6 +10,7 @@ import (
 
 type TenantMemberRepository interface {
 	BaseRepositoryMethods[TenantMember]
+	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) TenantMemberRepository
 	FindByTenantMemberUUID(uuid uuid.UUID) (*TenantMember, error)
 	FindByTenantAndUser(tenantID int64, userID int64) (*TenantMember, error)

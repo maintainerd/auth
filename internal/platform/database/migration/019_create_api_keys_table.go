@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS api_keys (
     key_prefix      VARCHAR(20) NOT NULL,
     config          JSONB,
     expires_at      TIMESTAMPTZ,
-    rate_limit      INTEGER,
     status          TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     created_by      BIGINT,
     updated_by      BIGINT,

@@ -25,5 +25,7 @@ func (User) TableName() string { return "users" }
 
 type UserRepository interface {
 	BaseRepositoryMethods[User]
+	FindByID(id any, preloads ...string) (*User, error)
+	FindByUUID(uuid any, preloads ...string) (*User, error)
 	WithTx(tx *gorm.DB) UserRepository
 }

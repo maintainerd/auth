@@ -38,7 +38,6 @@ func (dto APIKeyCreateRequestDTO) Validate() error {
 		validation.Field(&dto.Name, validation.Required, validation.Length(1, 100)),
 		validation.Field(&dto.Description, validation.Length(0, 500)),
 		validation.Field(&dto.Status, validation.In(shared.StatusActive, shared.StatusInactive)),
-		validation.Field(&dto.RateLimit, validation.Min(1)),
 	)
 }
 
@@ -47,7 +46,6 @@ func (dto APIKeyUpdateRequestDTO) Validate() error {
 		validation.Field(&dto.Name, validation.Length(1, 100)),
 		validation.Field(&dto.Description, validation.Length(0, 500)),
 		validation.Field(&dto.Status, validation.In(shared.StatusActive, shared.StatusInactive)),
-		validation.Field(&dto.RateLimit, validation.Min(1)),
 	)
 }
 

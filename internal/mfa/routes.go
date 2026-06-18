@@ -12,10 +12,12 @@ func MFARoute(
 	mfaHandler *MFAHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
 ) {
 	r.Route("/mfa", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// All routes below are self-service: they act only on the authenticated
 		// user's own MFA, so each is gated by an "account:mfa:*:self" permission

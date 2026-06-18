@@ -1,6 +1,7 @@
 package authevent
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -33,45 +34,9 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-
-	filter := AuthEventFilterDTO{
-		Category:             ptr.PtrOrNil(q.Get("category")),
-		EventType:            ptr.PtrOrNil(q.Get("event_type")),
-		Severity:             ptr.PtrOrNil(q.Get("severity")),
-		Result:               ptr.PtrOrNil(q.Get("result")),
-		DateFrom:             ptr.PtrOrNil(q.Get("date_from")),
-		DateTo:               ptr.PtrOrNil(q.Get("date_to")),
-		PaginationRequestDTO: pagination.ParseQuery(r),
-	}
-
-	if err := filter.Validate(); err != nil {
-		resp.ValidationError(w, err)
+	repoFilter, ok := h.repositoryFilterFromRequest(w, r, tenant.TenantID, pagination.ParseQuery(r))
+	if !ok {
 		return
-	}
-
-	repoFilter := AuthEventRepositoryGetFilter{
-		TenantID:  &tenant.TenantID,
-		UserUUID:  ptr.PtrOrNil(q.Get("user")),
-		Category:  filter.Category,
-		EventType: filter.EventType,
-		Severity:  filter.Severity,
-		Result:    filter.Result,
-		SortBy:    filter.SortBy,
-		SortOrder: filter.SortOrder,
-		Page:      filter.Page,
-		Limit:     filter.Limit,
-	}
-
-	if filter.DateFrom != nil {
-		if t, err := time.Parse(time.RFC3339, *filter.DateFrom); err == nil {
-			repoFilter.DateFrom = &t
-		}
-	}
-	if filter.DateTo != nil {
-		if t, err := time.Parse(time.RFC3339, *filter.DateTo); err == nil {
-			repoFilter.DateTo = &t
-		}
 	}
 
 	result, err := h.authEventService.FindPaginated(r.Context(), repoFilter)
@@ -89,6 +54,47 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp.Success(w, response, "Auth events retrieved successfully")
+}
+
+// Export returns auth events as CSV or JSON for the authenticated tenant.
+//
+// GET /auth-events/export?format=csv
+func (h *AuthEventHandler) Export(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	exporter, ok := h.authEventService.(interface {
+		Export(context.Context, AuthEventRepositoryGetFilter, string) (*AuthEventExport, error)
+	})
+	if !ok {
+		resp.Error(w, http.StatusNotImplemented, "Auth event export is not available")
+		return
+	}
+
+	paginationRequest := pagination.PaginationRequestDTO{
+		Page:      1,
+		Limit:     1,
+		SortBy:    r.URL.Query().Get("sort_by"),
+		SortOrder: r.URL.Query().Get("sort_order"),
+	}
+	repoFilter, ok := h.repositoryFilterFromRequest(w, r, tenant.TenantID, paginationRequest)
+	if !ok {
+		return
+	}
+
+	export, err := exporter.Export(r.Context(), repoFilter, r.URL.Query().Get("format"))
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to export auth events", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", export.ContentType)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+export.Filename+`"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(export.Data)
 }
 
 // Get returns a single auth event by UUID for the authenticated tenant.
@@ -140,6 +146,55 @@ func (h *AuthEventHandler) CountByType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp.Success(w, map[string]int64{"count": count}, "Auth event count retrieved successfully")
+}
+
+func (h *AuthEventHandler) repositoryFilterFromRequest(
+	w http.ResponseWriter,
+	r *http.Request,
+	tenantID int64,
+	paginationRequest pagination.PaginationRequestDTO,
+) (AuthEventRepositoryGetFilter, bool) {
+	q := r.URL.Query()
+	filter := AuthEventFilterDTO{
+		Category:             ptr.PtrOrNil(q.Get("category")),
+		EventType:            ptr.PtrOrNil(q.Get("event_type")),
+		Severity:             ptr.PtrOrNil(q.Get("severity")),
+		Result:               ptr.PtrOrNil(q.Get("result")),
+		DateFrom:             ptr.PtrOrNil(q.Get("date_from")),
+		DateTo:               ptr.PtrOrNil(q.Get("date_to")),
+		PaginationRequestDTO: paginationRequest,
+	}
+
+	if err := filter.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return AuthEventRepositoryGetFilter{}, false
+	}
+
+	repoFilter := AuthEventRepositoryGetFilter{
+		TenantID:  &tenantID,
+		UserUUID:  ptr.PtrOrNil(q.Get("user")),
+		Category:  filter.Category,
+		EventType: filter.EventType,
+		Severity:  filter.Severity,
+		Result:    filter.Result,
+		SortBy:    filter.SortBy,
+		SortOrder: filter.SortOrder,
+		Page:      filter.Page,
+		Limit:     filter.Limit,
+	}
+
+	if filter.DateFrom != nil {
+		if t, err := time.Parse(time.RFC3339, *filter.DateFrom); err == nil {
+			repoFilter.DateFrom = &t
+		}
+	}
+	if filter.DateTo != nil {
+		if t, err := time.Parse(time.RFC3339, *filter.DateTo); err == nil {
+			repoFilter.DateTo = &t
+		}
+	}
+
+	return repoFilter, true
 }
 
 func toAuthEventResponseDTO(e AuthEventServiceDataResult) AuthEventResponseDTO {

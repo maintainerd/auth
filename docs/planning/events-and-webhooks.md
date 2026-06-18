@@ -498,7 +498,7 @@ Exposing every action would flood consumers with data they never use.
 | --- | --- | --- |
 | Authentication activity | login, logout, token issue/refresh, MFA enroll/verify, OAuth authorize/consent | Audit-plane concern (`auth_events`), for the tenant's SIEM. (Revocation is the exception: `session.revoked`/`token.revoked` are exposed as cache-eviction events in Group 5; the audit record stays in `auth_events`.) |
 | Account recovery & verification | password reset, email verification, magic link | Security/audit-plane; carries sensitive tokens; redacted audit only |
-| Tenant & security settings | rate-limit, audit, maintenance, feature-flags, password/session/lockout/threat policy | Internal configuration; no external service mirrors it |
+| Tenant & security settings | rate-limit, audit, maintenance, password/session/lockout/threat policy | Internal configuration; no external service mirrors it |
 | Notifier config | email config, SMS config | Internal delivery config; secret-bearing |
 | Branding & templates | branding, email/login/SMS templates | Presentation config; nothing external syncs it |
 | Signup flows & IP rules | signup flow config, IP restriction rules | Internal policy/config |

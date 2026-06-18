@@ -177,6 +177,7 @@ type UserRepository interface {
 
 type UserIdentityRepository interface {
 	BaseRepositoryMethods[UserIdentity]
+	DeleteByID(id any) error
 	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserID(userID int64) ([]UserIdentity, error)
 	FindByProviderAndSub(provider, sub string) (*UserIdentity, error)

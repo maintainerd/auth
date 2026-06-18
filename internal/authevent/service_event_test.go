@@ -20,18 +20,23 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockAuthEventRepo struct {
-	createFn           func(e *AuthEvent) (*AuthEvent, error)
-	findPaginatedFn    func(filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error)
-	findByUUIDAndTIDFn func(uuid string, tenantID int64) (*AuthEvent, error)
-	findByDateRangeFn  func(tenantID int64, from, to time.Time) ([]AuthEvent, error)
-	deleteOlderThanFn  func(cutoff time.Time) (int64, error)
-	countByEventTypeFn func(eventType string, tenantID int64) (int64, error)
+	createFn                     func(e *AuthEvent) (*AuthEvent, error)
+	findPaginatedFn              func(filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error)
+	findByUUIDAndTIDFn           func(uuid string, tenantID int64) (*AuthEvent, error)
+	findByDateRangeFn            func(tenantID int64, from, to time.Time) ([]AuthEvent, error)
+	deleteOlderThanFn            func(cutoff time.Time) (int64, error)
+	deleteExpiredByAuditConfigFn func(now time.Time, defaultRetentionDays int) (int64, error)
+	countByEventTypeFn           func(eventType string, tenantID int64) (int64, error)
 }
 
 type mockWebhookDispatcher struct {
 	mu             sync.Mutex
 	dispatched     []*AuthEvent
 	shutdownCalled bool
+}
+
+type mockAuditConfigReader struct {
+	getFn func(ctx context.Context, tenantID int64) (map[string]any, error)
 }
 
 func (m *mockWebhookDispatcher) Dispatch(_ context.Context, event *AuthEvent) {
@@ -97,11 +102,24 @@ func (m *mockAuthEventRepo) DeleteOlderThan(cutoff time.Time) (int64, error) {
 	}
 	return 0, nil
 }
+func (m *mockAuthEventRepo) DeleteExpiredByAuditConfig(now time.Time, defaultRetentionDays int) (int64, error) {
+	if m.deleteExpiredByAuditConfigFn != nil {
+		return m.deleteExpiredByAuditConfigFn(now, defaultRetentionDays)
+	}
+	return 0, nil
+}
 func (m *mockAuthEventRepo) CountByEventType(eventType string, tenantID int64) (int64, error) {
 	if m.countByEventTypeFn != nil {
 		return m.countByEventTypeFn(eventType, tenantID)
 	}
 	return 0, nil
+}
+
+func (m *mockAuditConfigReader) GetAuditConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	if m.getFn != nil {
+		return m.getFn(ctx, tenantID)
+	}
+	return map[string]any{"enabled": true, "pii_masking": true, "log_level": "info"}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +260,95 @@ func TestAuthEventService_Log(t *testing.T) {
 
 		require.Len(t, dispatcher.dispatched, 1)
 		assert.Equal(t, eventUUID, dispatcher.dispatched[0].AuthEventUUID)
+	})
+
+	t.Run("tenant audit config disabled skips persistence", func(t *testing.T) {
+		repo := &mockAuthEventRepo{
+			createFn: func(_ *AuthEvent) (*AuthEvent, error) {
+				t.Fatal("Create should not be called when audit logging is disabled")
+				return nil, nil
+			},
+		}
+		reader := &mockAuditConfigReader{
+			getFn: func(context.Context, int64) (map[string]any, error) {
+				return map[string]any{"enabled": false}, nil
+			},
+		}
+		svc := NewAuthEventService(repo, nil, reader)
+
+		svc.Log(context.Background(), AuthEventInput{
+			TenantID:  1,
+			Category:  AuthEventCategoryAuthn,
+			EventType: AuthEventTypeLoginSuccess,
+			Severity:  AuthEventSeverityInfo,
+			Result:    AuthEventResultSuccess,
+		})
+	})
+
+	t.Run("tenant audit config filters event type and severity", func(t *testing.T) {
+		repo := &mockAuthEventRepo{
+			createFn: func(_ *AuthEvent) (*AuthEvent, error) {
+				t.Fatal("Create should not be called for filtered events")
+				return nil, nil
+			},
+		}
+		reader := &mockAuditConfigReader{
+			getFn: func(context.Context, int64) (map[string]any, error) {
+				return map[string]any{
+					"enabled":     true,
+					"event_types": []any{AuthEventTypeLoginSuccess},
+					"log_level":   "warn",
+				}, nil
+			},
+		}
+		svc := NewAuthEventService(repo, nil, reader)
+
+		svc.Log(context.Background(), AuthEventInput{
+			TenantID:  1,
+			Category:  AuthEventCategoryAuthn,
+			EventType: AuthEventTypeLoginFail,
+			Severity:  AuthEventSeverityCritical,
+			Result:    AuthEventResultFailure,
+		})
+		svc.Log(context.Background(), AuthEventInput{
+			TenantID:  1,
+			Category:  AuthEventCategoryAuthn,
+			EventType: AuthEventTypeLoginSuccess,
+			Severity:  AuthEventSeverityInfo,
+			Result:    AuthEventResultSuccess,
+		})
+	})
+
+	t.Run("tenant audit config controls pii masking", func(t *testing.T) {
+		var created *AuthEvent
+		desc := "user alice@example.com logged in"
+		repo := &mockAuthEventRepo{
+			createFn: func(e *AuthEvent) (*AuthEvent, error) {
+				created = e
+				return e, nil
+			},
+		}
+		reader := &mockAuditConfigReader{
+			getFn: func(context.Context, int64) (map[string]any, error) {
+				return map[string]any{"enabled": true, "pii_masking": false}, nil
+			},
+		}
+		svc := NewAuthEventService(repo, nil, reader)
+
+		svc.Log(context.Background(), AuthEventInput{
+			TenantID:    1,
+			Category:    AuthEventCategoryAuthn,
+			EventType:   AuthEventTypeLoginSuccess,
+			Severity:    AuthEventSeverityInfo,
+			Result:      AuthEventResultSuccess,
+			Description: &desc,
+			Metadata:    datatypes.JSON(`{"email":"alice@example.com"}`),
+		})
+
+		require.NotNil(t, created)
+		require.NotNil(t, created.Description)
+		assert.Equal(t, desc, *created.Description)
+		assert.JSONEq(t, `{"email":"alice@example.com"}`, string(created.Metadata))
 	})
 }
 
@@ -394,6 +501,26 @@ func TestAuthEventService_DeleteOlderThan(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to delete old auth events")
 	})
+}
+
+func TestAuthEventService_DeleteExpiredByAuditConfig(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &mockAuthEventRepo{
+		deleteExpiredByAuditConfigFn: func(gotNow time.Time, defaultRetentionDays int) (int64, error) {
+			assert.Equal(t, now, gotNow)
+			assert.Equal(t, 90, defaultRetentionDays)
+			return 7, nil
+		},
+	}
+	svc := NewAuthEventService(repo, nil)
+	deleter := svc.(interface {
+		DeleteExpiredByAuditConfig(context.Context, time.Time) (int64, error)
+	})
+
+	count, err := deleter.DeleteExpiredByAuditConfig(context.Background(), now)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), count)
 }
 
 func TestAuthEventService_Shutdown(t *testing.T) {

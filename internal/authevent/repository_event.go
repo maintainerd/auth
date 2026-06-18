@@ -2,6 +2,7 @@ package authevent
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/maintainerd/auth/internal/platform/database"
@@ -16,27 +17,32 @@ type AuthEventRepositoryGetFilter struct {
 	TargetUserID *int64
 	// UserUUID scopes results to events involving this user (as actor or target),
 	// resolved against the users table. Used by the per-user activity view.
-	UserUUID     *string
-	Category     *string
-	EventType    *string
-	Severity     *string
-	Result       *string
-	DateFrom     *time.Time
-	DateTo       *time.Time
-	SortBy       string
-	SortOrder    string
-	Page         int
-	Limit        int
+	UserUUID  *string
+	Category  *string
+	EventType *string
+	Severity  *string
+	Result    *string
+	DateFrom  *time.Time
+	DateTo    *time.Time
+	SortBy    string
+	SortOrder string
+	Page      int
+	Limit     int
 }
 
 // AuthEventRepository defines persistence operations for auth events.
 type AuthEventRepository interface {
 	BaseRepositoryMethods[AuthEvent]
+	UpdateByUUID(uuid any, updatedData any) (*AuthEvent, error)
+	UpdateByID(id any, updatedData any) (*AuthEvent, error)
+	DeleteByUUID(uuid any) error
+	DeleteByID(id any) error
 	WithTx(tx *gorm.DB) AuthEventRepository
 	FindPaginated(filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error)
 	FindByUUIDAndTenantID(uuid string, tenantID int64) (*AuthEvent, error)
 	FindByDateRange(tenantID int64, from, to time.Time) ([]AuthEvent, error)
 	DeleteOlderThan(cutoff time.Time) (int64, error)
+	DeleteExpiredByAuditConfig(now time.Time, defaultRetentionDays int) (int64, error)
 	CountByEventType(eventType string, tenantID int64) (int64, error)
 }
 
@@ -58,8 +64,32 @@ func (r *authEventRepository) WithTx(tx *gorm.DB) AuthEventRepository {
 	}
 }
 
+func (r *authEventRepository) CreateOrUpdate(_ *AuthEvent) (*AuthEvent, error) {
+	return nil, errors.New("auth events are append-only; use Create")
+}
+
+func (r *authEventRepository) UpdateByUUID(_ any, _ any) (*AuthEvent, error) {
+	return nil, errors.New("auth events are immutable and cannot be updated")
+}
+
+func (r *authEventRepository) UpdateByID(_ any, _ any) (*AuthEvent, error) {
+	return nil, errors.New("auth events are immutable and cannot be updated")
+}
+
+func (r *authEventRepository) DeleteByUUID(_ any) error {
+	return errors.New("auth events can only be deleted by retention or tenant deletion")
+}
+
+func (r *authEventRepository) DeleteByID(_ any) error {
+	return errors.New("auth events can only be deleted by retention or tenant deletion")
+}
+
 // FindPaginated returns a page of auth events filtered by the supplied criteria.
 func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&AuthEvent{})
 
 	if filter.TenantID != nil {
@@ -129,10 +159,57 @@ func (r *authEventRepository) FindByDateRange(tenantID int64, from, to time.Time
 
 // DeleteOlderThan removes auth events older than the cutoff and returns the count deleted.
 func (r *authEventRepository) DeleteOlderThan(cutoff time.Time) (int64, error) {
-	result := r.DB().
-		Where("created_at < ?", cutoff).
-		Delete(&AuthEvent{})
-	return result.RowsAffected, result.Error
+	var rowsAffected int64
+	err := r.DB().Transaction(func(tx *gorm.DB) error {
+		if err := allowAuthEventDelete(tx, "retention"); err != nil {
+			return err
+		}
+		result := tx.
+			Where("created_at < ?", cutoff).
+			Delete(&AuthEvent{})
+		rowsAffected = result.RowsAffected
+		return result.Error
+	})
+	return rowsAffected, err
+}
+
+// DeleteExpiredByAuditConfig removes auth events according to each tenant's
+// tenant_settings.audit_config.retention_days value. Missing/invalid values use
+// the provided default retention.
+func (r *authEventRepository) DeleteExpiredByAuditConfig(now time.Time, defaultRetentionDays int) (int64, error) {
+	var rowsAffected int64
+	err := r.DB().Transaction(func(tx *gorm.DB) error {
+		if err := allowAuthEventDelete(tx, "retention"); err != nil {
+			return err
+		}
+		result := tx.Exec(`
+			DELETE FROM auth_events
+			WHERE auth_events.created_at < ? - (
+				  GREATEST(
+					  COALESCE(
+						  (
+							  SELECT CASE
+								  WHEN tenant_settings.audit_config->>'retention_days' ~ '^[0-9]+$'
+									  THEN (tenant_settings.audit_config->>'retention_days')::integer
+								  ELSE NULL
+							  END
+							  FROM tenant_settings
+							  WHERE tenant_settings.tenant_id = auth_events.tenant_id
+						  ),
+						  ?
+					  ),
+					  1
+				  ) * INTERVAL '1 day'
+			  )
+		`, now, defaultRetentionDays)
+		rowsAffected = result.RowsAffected
+		return result.Error
+	})
+	return rowsAffected, err
+}
+
+func allowAuthEventDelete(tx *gorm.DB, reason string) error {
+	return tx.Exec("SELECT set_config('maintainerd.allow_auth_event_delete', ?, true)", reason).Error
 }
 
 // CountByEventType returns the number of events matching the event type within a tenant.

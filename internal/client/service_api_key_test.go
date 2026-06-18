@@ -133,7 +133,7 @@ func TestAPIKeyService_Create(t *testing.T) {
 				mock.ExpectCommit()
 			}
 			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
-			res, plainKey, err := svc.Create(context.Background(), 1, "test-key", "desc", nil, nil, nil, shared.StatusActive)
+			res, plainKey, err := svc.Create(context.Background(), 1, "test-key", "desc", nil, nil, shared.StatusActive)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -349,7 +349,7 @@ func TestAPIKeyService_Get(t *testing.T) {
 
 func TestAPIKeyService_GetConfigByUUID(t *testing.T) {
 	ak := buildAPIKey()
-	ak.Config = datatypes.JSON(`{"rate_limit":100}`)
+	ak.Config = datatypes.JSON(`{"allowed_ips":["127.0.0.1"]}`)
 
 	t.Run("repo error", func(t *testing.T) {
 		akRepo := &mockAPIKeyRepo{
@@ -380,7 +380,7 @@ func TestAPIKeyService_GetConfigByUUID(t *testing.T) {
 		svc := newAPIKeySvc(t, akRepo, &mockUserRepo{})
 		cfg, err := svc.GetConfigByUUID(context.Background(), ak.APIKeyUUID, 1)
 		require.NoError(t, err)
-		assert.JSONEq(t, `{"rate_limit":100}`, string(cfg))
+		assert.JSONEq(t, `{"allowed_ips":["127.0.0.1"]}`, string(cfg))
 	})
 }
 
@@ -395,7 +395,6 @@ func TestAPIKeyService_Update(t *testing.T) {
 	descStr := "updated-desc"
 	statusStr := "inactive"
 	now := time.Now()
-	rl := 100
 
 	cases := []struct {
 		name         string
@@ -404,7 +403,6 @@ func TestAPIKeyService_Update(t *testing.T) {
 		descArg      *string
 		configArg    datatypes.JSON
 		expiresArg   *time.Time
-		rateLimArg   *int
 		statusArg    *string
 		wantErr      string
 		expectCommit bool
@@ -442,7 +440,6 @@ func TestAPIKeyService_Update(t *testing.T) {
 			descArg:      &descStr,
 			configArg:    datatypes.JSON(`{"key":"val"}`),
 			expiresArg:   &now,
-			rateLimArg:   &rl,
 			statusArg:    &statusStr,
 			expectCommit: true,
 		},
@@ -469,7 +466,7 @@ func TestAPIKeyService_Update(t *testing.T) {
 				mock.ExpectRollback()
 			}
 			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
-			res, err := svc.Update(context.Background(), ak.APIKeyUUID, 1, tc.nameArg, tc.descArg, tc.configArg, tc.expiresArg, tc.rateLimArg, tc.statusArg, updaterUUID)
+			res, err := svc.Update(context.Background(), ak.APIKeyUUID, 1, tc.nameArg, tc.descArg, tc.configArg, tc.expiresArg, tc.statusArg, updaterUUID)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)

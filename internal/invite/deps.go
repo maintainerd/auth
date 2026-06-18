@@ -102,6 +102,7 @@ func (AuthFlow) TableName() string { return "auth_flows" }
 
 type AuthFlowRepository interface {
 	BaseRepositoryMethods[AuthFlow]
+	FindByID(id any, preloads ...string) (*AuthFlow, error)
 	WithTx(tx *gorm.DB) AuthFlowRepository
 	FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, preloads ...string) (*AuthFlow, error)
 	FindByNameAndTenantID(name string, tenantID int64) (*AuthFlow, error)

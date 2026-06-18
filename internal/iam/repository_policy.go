@@ -24,6 +24,7 @@ type PolicyRepositoryGetFilter struct {
 
 type PolicyRepository interface {
 	BaseRepositoryMethods[Policy]
+	UpdateByUUID(uuid any, updatedData any) (*Policy, error)
 	WithTx(tx *gorm.DB) PolicyRepository
 	FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) (*Policy, error)
 	FindByName(policyName string, tenantID int64) (*Policy, error)

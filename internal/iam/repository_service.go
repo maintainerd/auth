@@ -2,6 +2,7 @@ package iam
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/database"
@@ -24,6 +25,8 @@ type ServiceRepositoryGetFilter struct {
 
 type ServiceRepository interface {
 	BaseRepositoryMethods[Service]
+	FindByUUID(uuid any, preloads ...string) (*Service, error)
+	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) ServiceRepository
 	FindByName(serviceName string) (*Service, error)
 	FindByNameAndTenantID(serviceName string, tenantID int64) (*Service, error)
@@ -87,6 +90,10 @@ func (r *serviceRepository) FindByTenantID(tenantID int64) ([]Service, error) {
 }
 
 func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&Service{})
 
 	// Filters with LIKE

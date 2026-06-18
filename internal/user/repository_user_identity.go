@@ -18,6 +18,15 @@ type GetUserIdentitiesFilter struct {
 
 type UserIdentityRepository interface {
 	BaseRepositoryMethods[UserIdentity]
+	FindAll(preloads ...string) ([]UserIdentity, error)
+	FindByUUID(uuid any, preloads ...string) (*UserIdentity, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]UserIdentity, error)
+	FindByID(id any, preloads ...string) (*UserIdentity, error)
+	UpdateByUUID(uuid any, updatedData any) (*UserIdentity, error)
+	UpdateByID(id any, updatedData any) (*UserIdentity, error)
+	DeleteByUUID(uuid any) error
+	DeleteByID(id any) error
+	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[UserIdentity], error)
 	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserID(userID int64) ([]UserIdentity, error)
 	FindUserIdentitiesPaginated(filter GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)

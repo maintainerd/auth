@@ -155,7 +155,7 @@ func TestEmailTemplateRepository_FindPaginated(t *testing.T) {
 			WillReturnError(assert.AnError)
 
 		repo := NewEmailTemplateRepository(gdb)
-		_, err := repo.FindPaginated(EmailTemplateRepositoryGetFilter{Page: 1, Limit: 10})
+		_, err := repo.FindPaginated(EmailTemplateRepositoryGetFilter{TenantID: ptrI64(1), Page: 1, Limit: 10})
 
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())

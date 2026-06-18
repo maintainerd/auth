@@ -4,12 +4,10 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -87,36 +85,6 @@ func (s *eventService) Emit(ctx context.Context, tx *gorm.DB, event *Integration
 	span.SetStatus(codes.Ok, "")
 
 	return event, nil
-}
-
-// EmitWithPayload is a convenience helper for service layers.
-func EmitWithPayload(
-	svc EventService,
-	ctx context.Context,
-	tx *gorm.DB,
-	eventType string,
-	version int,
-	tenantID int64,
-	actorUserID *int64,
-	subjectUUID *uuid.UUID,
-	subjectType string,
-	changedFields []string,
-	payload datatypes.JSON,
-) {
-	event := NewIntegrationEvent(eventType, version, tenantID).
-		SetActor(actorUserID).
-		SetSubject(subjectUUID, subjectType).
-		SetChangedFields(changedFields...).
-		SetPayload(payload)
-
-	_, err := svc.Emit(ctx, tx, event)
-	if err != nil {
-		slog.Error("event: emit failed",
-			"event_type", eventType,
-			"tenant_id", tenantID,
-			"err", err,
-		)
-	}
 }
 
 // Shutdown stops the outbox relay and background workers.

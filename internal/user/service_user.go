@@ -1610,6 +1610,31 @@ func (s *userService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID
 			return txErr
 		}
 
+		var sourceProfile Profile
+		if txErr := tx.Where("user_id = ? AND is_default = ?", source.UserID, true).First(&sourceProfile).Error; txErr == nil {
+			copiedProfile := &Profile{
+				UserID:      created.UserID,
+				FirstName:   sourceProfile.FirstName,
+				MiddleName:  sourceProfile.MiddleName,
+				LastName:    sourceProfile.LastName,
+				Suffix:      sourceProfile.Suffix,
+				DisplayName: sourceProfile.DisplayName,
+				Bio:         sourceProfile.Bio,
+				IsDefault:   true,
+				Birthdate:   sourceProfile.Birthdate,
+				Gender:      sourceProfile.Gender,
+				Phone:       sourceProfile.Phone,
+				Address:     sourceProfile.Address,
+				City:        sourceProfile.City,
+				Country:     sourceProfile.Country,
+				ProfileURL:  sourceProfile.ProfileURL,
+				Metadata:    sourceProfile.Metadata,
+			}
+			if txErr := tx.Create(copiedProfile).Error; txErr != nil {
+				return txErr
+			}
+		}
+
 		return nil
 	})
 
