@@ -215,6 +215,7 @@ type UserAssignRolesRequestDTO struct {
 
 // User filter structure
 type UserFilterDTO struct {
+	Search     *string  `json:"search,omitempty"`
 	Username   *string  `json:"username,omitempty"`
 	Email      *string  `json:"email,omitempty"`
 	Phone      *string  `json:"phone,omitempty"`

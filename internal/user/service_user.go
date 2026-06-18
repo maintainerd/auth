@@ -54,6 +54,7 @@ type UserIdentityServiceDataResult struct {
 }
 
 type UserServiceGetFilter struct {
+	Search     *string
 	Username   *string
 	Email      *string
 	Phone      *string
@@ -239,6 +240,7 @@ func (s *userService) Get(ctx context.Context, filter UserServiceGetFilter) (*Us
 
 	// Build query filter
 	queryFilter := UserRepositoryGetFilter{
+		Search:    filter.Search,
 		Username:  filter.Username,
 		Email:     filter.Email,
 		Phone:     filter.Phone,

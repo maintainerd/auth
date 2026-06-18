@@ -12,6 +12,7 @@ import (
 )
 
 type UserRepositoryGetFilter struct {
+	Search    *string
 	Username  *string
 	Email     *string
 	Phone     *string
@@ -369,16 +370,25 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	}
 
 	// Apply filters
-	query = database.ApplyILike(query, "users.username", filter.Username)
-	query = database.ApplyILike(query, "users.email", filter.Email)
-	query = database.ApplyILike(query, "users.phone", filter.Phone)
-	if filter.Fullname != nil && *filter.Fullname != "" {
-		query = query.Joins("JOIN profiles ON users.user_id = profiles.user_id AND profiles.is_default = true")
-		like := "%" + strings.ToLower(*filter.Fullname) + "%"
+	if filter.Search != nil && *filter.Search != "" {
+		like := "%" + strings.ToLower(*filter.Search) + "%"
+		query = query.Joins("LEFT JOIN profiles ON users.user_id = profiles.user_id AND profiles.is_default = true AND profiles.deleted_at IS NULL")
 		query = query.Where(
-			"LOWER(profiles.first_name) LIKE ? OR LOWER(profiles.last_name) LIKE ?",
-			like, like,
+			"LOWER(users.username) LIKE ? OR LOWER(users.email) LIKE ? OR users.phone LIKE ? OR LOWER(profiles.first_name) LIKE ? OR LOWER(profiles.last_name) LIKE ? OR LOWER(profiles.display_name) LIKE ?",
+			like, like, like, like, like, like,
 		)
+	} else {
+		query = database.ApplyILike(query, "users.username", filter.Username)
+		query = database.ApplyILike(query, "users.email", filter.Email)
+		query = database.ApplyILike(query, "users.phone", filter.Phone)
+		if filter.Fullname != nil && *filter.Fullname != "" {
+			query = query.Joins("JOIN profiles ON users.user_id = profiles.user_id AND profiles.is_default = true")
+			like := "%" + strings.ToLower(*filter.Fullname) + "%"
+			query = query.Where(
+				"LOWER(profiles.first_name) LIKE ? OR LOWER(profiles.last_name) LIKE ? OR LOWER(profiles.display_name) LIKE ?",
+				like, like, like,
+			)
+		}
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("users.status IN ?", filter.Status)
