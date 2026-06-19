@@ -76,9 +76,13 @@ func (a *authnRoleRepoAdapter) Paginate(c map[string]any, page, limit int, p ...
 }
 
 func (a *authnRoleRepoAdapter) FindPaginated(f authn.RoleRepositoryGetFilter) (*authn.PaginationResult[authn.Role], error) {
+	var status []string
+	if f.Status != nil {
+		status = []string{*f.Status}
+	}
 	rf := iam.RoleRepositoryGetFilter{
 		Name: f.Name, Description: f.Description, IsDefault: f.IsDefault, IsSystem: f.IsSystem,
-		Status: f.Status, TenantID: f.TenantID, Page: f.Page, Limit: f.Limit, SortBy: f.SortBy, SortOrder: f.SortOrder,
+		Status: status, TenantID: f.TenantID, Page: f.Page, Limit: f.Limit, SortBy: f.SortBy, SortOrder: f.SortOrder,
 	}
 	r, err := a.repo.FindPaginated(rf)
 	if err != nil || r == nil {

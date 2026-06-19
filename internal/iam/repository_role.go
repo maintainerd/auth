@@ -2,6 +2,7 @@ package iam
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/database"
@@ -10,11 +11,12 @@ import (
 )
 
 type RoleRepositoryGetFilter struct {
+	Search      *string
 	Name        *string
 	Description *string
 	IsDefault   *bool
 	IsSystem    *bool
-	Status      *string
+	Status      []string
 	TenantID    int64
 	Page        int
 	Limit       int
@@ -102,9 +104,14 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	// Always filter
 	query = query.Where("tenant_id = ?", filter.TenantID)
 
-	// Filters with LIKE
-	query = database.ApplyILike(query, "name", filter.Name)
-	query = database.ApplyILike(query, "description", filter.Description)
+	// Search across name and description with OR
+	if filter.Search != nil && *filter.Search != "" {
+		like := "%" + strings.ToLower(*filter.Search) + "%"
+		query = query.Where("LOWER(name) LIKE ? OR LOWER(description) LIKE ?", like, like)
+	} else {
+		query = database.ApplyILike(query, "name", filter.Name)
+		query = database.ApplyILike(query, "description", filter.Description)
+	}
 
 	// Filters with exact match
 	if filter.IsDefault != nil {
@@ -113,8 +120,8 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
-	if filter.Status != nil {
-		query = query.Where("status = ?", *filter.Status)
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
 	}
 
 	// Sorting — protected against SQL injection via allowlist

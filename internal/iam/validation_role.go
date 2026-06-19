@@ -35,8 +35,8 @@ func (r RoleAddPermissionsRequestDTO) Validate() error {
 func (f RoleFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
-			validation.When(f.Status != nil,
-				validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.When(len(f.Status) > 0,
+				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
 		validation.Field(&f.PaginationRequestDTO),

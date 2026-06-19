@@ -241,11 +241,12 @@ type RoleAddPermissionsRequestDTO struct {
 
 // Role listing
 type RoleFilterDTO struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	IsDefault   *bool   `json:"is_default"`
-	IsSystem    *bool   `json:"is_system"`
-	Status      *string `json:"status"`
+	Search      *string  `json:"search"`
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	IsDefault   *bool    `json:"is_default"`
+	IsSystem    *bool    `json:"is_system"`
+	Status      []string `json:"status"`
 
 	// Pagination and sorting
 	PaginationRequestDTO
