@@ -5,6 +5,7 @@ import (
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/dashboard"
 	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/idp"
@@ -70,6 +71,7 @@ type handlers struct {
 	federation         *idp.FederationHandler
 	eventConfig        *event.ConfigHandler
 	eventManagement    *event.ManagementHandler
+	dashboard          *dashboard.Handler
 }
 
 func initHandlers(application *Application) *handlers {
@@ -123,5 +125,6 @@ func initHandlers(application *Application) *handlers {
 		federation:         idp.NewFederationHandler(application.FederationService),
 		eventConfig:        event.NewConfigHandler(application.EventTypeService, application.TenantEventTypeConfigService),
 		eventManagement:    event.NewManagementHandler(application.EventRouteService),
+		dashboard:          dashboard.NewHandler(dashboard.NewService(application.DB)),
 	}
 }
