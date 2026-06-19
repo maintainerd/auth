@@ -364,10 +364,10 @@ func TestClientRepository_FindByClientIDAndIdentityProvider(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN identity_providers.*WHERE.*clients\.client_id = \$1.*identity_providers\.identifier = \$2.*clients\.status = \$3.*identity_providers\.status = \$4.*AND "clients"\."deleted_at" IS NULL`).
-			WithArgs("1", "idp-ident", "active", "active", 1).
-			WillReturnRows(sqlmock.NewRows([]string{"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "status", "created_at", "updated_at"}).
-				AddRow(1, id, 1, 1, "test-client", "active", now, now))
+		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN identity_providers.*WHERE.*clients\.identifier = \$1.*identity_providers\.identifier = \$2.*clients\.status = \$3.*identity_providers\.status = \$4.*AND "clients"\."deleted_at" IS NULL`).
+			WithArgs("client-ident", "idp-ident", "active", "active", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "identifier", "status", "created_at", "updated_at"}).
+				AddRow(1, id, 1, 1, "test-client", "client-ident", "active", now, now))
 
 		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE "identity_providers"\."identity_provider_id" = \$1`).
 			WithArgs(int64(1)).
@@ -379,19 +379,21 @@ func TestClientRepository_FindByClientIDAndIdentityProvider(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "tenant_uuid", "name", "status", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), "test-tenant", "active", now, now))
 
-		result, err := NewClientRepository(gdb).FindByClientIDAndIdentityProvider("1", "idp-ident")
+		result, err := NewClientRepository(gdb).FindByClientIDAndIdentityProvider("client-ident", "idp-ident")
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "test-client", result.Name)
+		require.NotNil(t, result.Identifier)
+		assert.Equal(t, "client-ident", *result.Identifier)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("not found returns nil", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN identity_providers.*WHERE.*clients\.client_id = \$1.*identity_providers\.identifier = \$2.*clients\.status = \$3.*identity_providers\.status = \$4.*AND "clients"\."deleted_at" IS NULL`).
-			WithArgs("999", "idp-ident", "active", "active", 1).
+		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN identity_providers.*WHERE.*clients\.identifier = \$1.*identity_providers\.identifier = \$2.*clients\.status = \$3.*identity_providers\.status = \$4.*AND "clients"\."deleted_at" IS NULL`).
+			WithArgs("missing-client", "idp-ident", "active", "active", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"client_id", "client_uuid", "tenant_id"}))
-		result, err := NewClientRepository(gdb).FindByClientIDAndIdentityProvider("999", "idp-ident")
+		result, err := NewClientRepository(gdb).FindByClientIDAndIdentityProvider("missing-client", "idp-ident")
 		require.NoError(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -399,10 +401,10 @@ func TestClientRepository_FindByClientIDAndIdentityProvider(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN identity_providers.*WHERE.*clients\.client_id = \$1.*identity_providers\.identifier = \$2.*clients\.status = \$3.*identity_providers\.status = \$4`).
-			WithArgs("1", "idp-ident", "active", "active", 1).
+		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN identity_providers.*WHERE.*clients\.identifier = \$1.*identity_providers\.identifier = \$2.*clients\.status = \$3.*identity_providers\.status = \$4`).
+			WithArgs("client-ident", "idp-ident", "active", "active", 1).
 			WillReturnError(assert.AnError)
-		result, err := NewClientRepository(gdb).FindByClientIDAndIdentityProvider("1", "idp-ident")
+		result, err := NewClientRepository(gdb).FindByClientIDAndIdentityProvider("client-ident", "idp-ident")
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())

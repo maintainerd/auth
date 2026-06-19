@@ -264,7 +264,7 @@ func (r *clientRepository) FindByClientIDAndIdentityProvider(clientID, identityP
 
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Where("clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
+		Where("clients.identifier = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
 		Where("clients.status = ? AND identity_providers.status = ?", shared.StatusActive, shared.StatusActive).
 		Preload("IdentityProvider.Tenant").
 		Preload("IdentityProvider").
