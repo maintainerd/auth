@@ -3,12 +3,14 @@ package idp
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
 type IdentityProviderRepositoryGetFilter struct {
+	Search       *string
 	Name         *string
 	DisplayName  *string
 	Provider     []string
@@ -110,9 +112,14 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 
 	query := r.DB().Model(&IdentityProvider{})
 
-	// Filters with LIKE
-	query = database.ApplyILike(query, "name", filter.Name)
-	query = database.ApplyILike(query, "display_name", filter.DisplayName)
+	// Search across name, display_name, identifier with OR
+	if filter.Search != nil && *filter.Search != "" {
+		like := "%" + strings.ToLower(*filter.Search) + "%"
+		query = query.Where("LOWER(name) LIKE ? OR LOWER(display_name) LIKE ? OR LOWER(identifier) LIKE ?", like, like, like)
+	} else {
+		query = database.ApplyILike(query, "name", filter.Name)
+		query = database.ApplyILike(query, "display_name", filter.DisplayName)
+	}
 
 	// Filters with exact match
 	if len(filter.Provider) > 0 {

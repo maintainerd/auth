@@ -32,6 +32,7 @@ type IdentityProviderServiceDataResult struct {
 }
 
 type IdentityProviderServiceGetFilter struct {
+	Search       *string
 	Name         *string
 	DisplayName  *string
 	Provider     []string
@@ -92,6 +93,7 @@ func (s *identityProviderService) Get(ctx context.Context, filter IdentityProvid
 
 	// Build query filter
 	queryFilter := IdentityProviderRepositoryGetFilter{
+		Search:       filter.Search,
 		Name:         filter.Name,
 		DisplayName:  filter.DisplayName,
 		Provider:     filter.Provider,
