@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/dashboard"
 	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/idp"
@@ -87,6 +88,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		event.ConfigRoute(api, h.eventConfig, h.eventManagement, userProvider, application.Cache, tenantRateLimit)
 		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache, tenantRateLimit)
 		iam.AuthorizationRoute(api, h.authorization)
+		dashboard.DashboardRoute(api, h.dashboard, userProvider, application.Cache, tenantRateLimit)
 
 		// Account self-service routes (authenticated)
 		user.AccountRoute(api, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRateLimit)
