@@ -66,6 +66,7 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO
 	reqParams := IdentityProviderFilterDTO{
+		Search:               ptr.PtrOrNil(q.Get("search")),
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
 		Provider:             provider,
@@ -84,6 +85,7 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build permission filter
 	idpFilter := IdentityProviderServiceGetFilter{
+		Search:       reqParams.Search,
 		Name:         reqParams.Name,
 		DisplayName:  reqParams.DisplayName,
 		Provider:     reqParams.Provider,

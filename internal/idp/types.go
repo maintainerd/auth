@@ -141,6 +141,7 @@ type IdentityProviderStatusUpdateDTO struct {
 
 // Identity provider listing / filter DTO
 type IdentityProviderFilterDTO struct {
+	Search       *string  `json:"search"`
 	Name         *string  `json:"name"`
 	DisplayName  *string  `json:"display_name"`
 	Provider     []string `json:"provider"`
