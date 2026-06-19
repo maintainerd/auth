@@ -158,6 +158,9 @@ func applyLoginCookiePolicy(resp *LoginResponseDTO, policy secpolicy.EffectiveSe
 	if policy.RefreshTokenTTLSeconds > 0 {
 		resp.RefreshTokenMaxAge = policy.RefreshTokenTTLSeconds
 	}
+	if policy.IdleTimeoutSeconds > 0 {
+		resp.AccessTokenCookieMaxAge = int64(policy.IdleTimeoutSeconds)
+	}
 }
 
 func applyRegisterCookiePolicy(resp *RegisterResponseDTO, policy secpolicy.EffectiveSessionPolicy) {
@@ -169,6 +172,9 @@ func applyRegisterCookiePolicy(resp *RegisterResponseDTO, policy secpolicy.Effec
 	resp.CookieSameSite = policy.CookieSameSite
 	if policy.RefreshTokenTTLSeconds > 0 {
 		resp.RefreshTokenMaxAge = policy.RefreshTokenTTLSeconds
+	}
+	if policy.IdleTimeoutSeconds > 0 {
+		resp.AccessTokenCookieMaxAge = int64(policy.IdleTimeoutSeconds)
 	}
 }
 

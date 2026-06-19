@@ -109,6 +109,7 @@ type authCookieOptions struct {
 func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 	var accessToken, idToken, refreshToken string
 	var expiresIn int64 = shared.DefaultAccessTokenExpiresIn
+	var accessTokenCookieMaxAge int64
 	opts := authCookieOptions{RefreshMaxAge: 7 * 24 * 60 * 60}
 
 	if response, ok := authResponse.(map[string]interface{}); ok {
@@ -150,6 +151,9 @@ func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 			if f := v.FieldByName("ExpiresIn"); f.IsValid() && f.Kind() == reflect.Int64 {
 				expiresIn = f.Int()
 			}
+			if f := v.FieldByName("AccessTokenCookieMaxAge"); f.IsValid() && f.Kind() == reflect.Int64 {
+				accessTokenCookieMaxAge = f.Int()
+			}
 			if f := v.FieldByName("CookieSecure"); f.IsValid() && !f.IsNil() {
 				b := f.Elem().Bool()
 				opts.Secure = &b
@@ -167,12 +171,17 @@ func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 		}
 	}
 
+	atCookieMaxAge := int(expiresIn)
+	if accessTokenCookieMaxAge > 0 {
+		atCookieMaxAge = int(accessTokenCookieMaxAge)
+	}
+
 	if accessToken != "" {
-		setAuthCookie(w, accessTokenCookieName(), accessToken, "/", int(expiresIn), opts)
+		setAuthCookie(w, accessTokenCookieName(), accessToken, "/", atCookieMaxAge, opts)
 	}
 
 	if idToken != "" {
-		setAuthCookie(w, idTokenCookieName(), idToken, "/", shared.DefaultAccessTokenExpiresIn, opts)
+		setAuthCookie(w, idTokenCookieName(), idToken, "/", atCookieMaxAge, opts)
 	}
 
 	if refreshToken != "" {

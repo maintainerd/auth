@@ -12,10 +12,11 @@ import (
 
 // authResponseStruct mimics a DTO with the fields SetAuthCookies inspects via reflection.
 type authResponseStruct struct {
-	AccessToken  string
-	IDToken      string
-	RefreshToken string
-	ExpiresIn    int64
+	AccessToken             string
+	IDToken                 string
+	RefreshToken            string
+	ExpiresIn               int64
+	AccessTokenCookieMaxAge int64
 }
 
 // findCookie returns the first cookie with the given name from a ResponseRecorder.
@@ -49,7 +50,7 @@ func TestSetAuthCookies_FromMap(t *testing.T) {
 	it := findCookie(t, rr, "__Host-id_token")
 	require.NotNil(t, it)
 	assert.Equal(t, "it-value", it.Value)
-	assert.Equal(t, 3600, it.MaxAge)
+	assert.Equal(t, 1800, it.MaxAge)
 
 	rt := findCookie(t, rr, "__Secure-refresh_token")
 	require.NotNil(t, rt)
@@ -95,6 +96,26 @@ func TestSetAuthCookies_FromStructPtr(t *testing.T) {
 	at := findCookie(t, rr, "__Host-access_token")
 	require.NotNil(t, at)
 	assert.Equal(t, "at-ptr", at.Value)
+}
+
+func TestSetAuthCookies_AccessTokenCookieMaxAge(t *testing.T) {
+	rr := httptest.NewRecorder()
+	data := &authResponseStruct{
+		AccessToken:             "at-idle",
+		IDToken:                 "it-idle",
+		RefreshToken:            "rt-idle",
+		ExpiresIn:               900,
+		AccessTokenCookieMaxAge: 1800,
+	}
+	SetAuthCookies(rr, data)
+
+	at := findCookie(t, rr, "__Host-access_token")
+	require.NotNil(t, at)
+	assert.Equal(t, 1800, at.MaxAge)
+
+	it := findCookie(t, rr, "__Host-id_token")
+	require.NotNil(t, it)
+	assert.Equal(t, 1800, it.MaxAge)
 }
 
 func TestSetAuthCookies_EmptyTokensNotSet(t *testing.T) {

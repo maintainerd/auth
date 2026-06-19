@@ -87,10 +87,11 @@ type LoginResponseDTO struct {
 	MFAChallengeToken     *string  `json:"mfa_challenge_token,omitempty"`
 	MFAAllowedMethods     []string `json:"mfa_allowed_methods,omitempty"`
 	TrustedDeviceToken    string   `json:"trusted_device_token,omitempty"`
-	CookieSecure          *bool    `json:"-"`
-	CookieHTTPOnly        *bool    `json:"-"`
-	CookieSameSite        string   `json:"-"`
-	RefreshTokenMaxAge    int      `json:"-"`
+	CookieSecure             *bool  `json:"-"`
+	CookieHTTPOnly           *bool  `json:"-"`
+	CookieSameSite           string `json:"-"`
+	RefreshTokenMaxAge       int    `json:"-"`
+	AccessTokenCookieMaxAge  int64  `json:"-"`
 }
 
 // SendMagicLinkRequestDTO represents the request payload to send a passwordless
@@ -145,10 +146,11 @@ type RegisterResponseDTO struct {
 	ExpiresIn          int64  `json:"expires_in"`
 	TokenType          string `json:"token_type"`
 	IssuedAt           int64  `json:"issued_at"`
-	CookieSecure       *bool  `json:"-"`
-	CookieHTTPOnly     *bool  `json:"-"`
-	CookieSameSite     string `json:"-"`
-	RefreshTokenMaxAge int    `json:"-"`
+	CookieSecure            *bool  `json:"-"`
+	CookieHTTPOnly          *bool  `json:"-"`
+	CookieSameSite          string `json:"-"`
+	RefreshTokenMaxAge      int    `json:"-"`
+	AccessTokenCookieMaxAge int64  `json:"-"`
 }
 
 // ResetPasswordRequestDTO represents the request to reset a password
