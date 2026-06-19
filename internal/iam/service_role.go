@@ -31,11 +31,12 @@ type RoleServiceDataResult struct {
 }
 
 type RoleServiceGetFilter struct {
+	Search      *string
 	Name        *string
 	Description *string
 	IsDefault   *bool
 	IsSystem    *bool
-	Status      *string
+	Status      []string
 	TenantID    int64
 	Page        int
 	Limit       int

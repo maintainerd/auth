@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -58,13 +59,14 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse status filter
-	var status *string
+	var status []string
 	if v := q.Get("status"); v != "" {
-		status = &v
+		status = strings.Split(v, ",")
 	}
 
 	// Build filter DTO with all query parameters
 	reqParams := RoleFilterDTO{
+		Search:               ptr.PtrOrNil(q.Get("search")),
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
 		IsDefault:            isDefault,
@@ -81,6 +83,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build service filter
 	roleFilter := RoleServiceGetFilter{
+		Search:      reqParams.Search,
 		Name:        reqParams.Name,
 		Description: reqParams.Description,
 		IsDefault:   reqParams.IsDefault,

@@ -23,12 +23,16 @@ func (h *RoleGRPCHandler) ListRoles(ctx context.Context, req *authv1.ListRolesRe
 	if err != nil {
 		return nil, err
 	}
+	var grpcStatus []string
+	if s := req.GetStatus(); s != "" {
+		grpcStatus = []string{s}
+	}
 	dto := RoleFilterDTO{
 		Name:                 iamOptionalString(req.GetName()),
 		Description:          iamOptionalString(req.GetDescription()),
 		IsDefault:            req.IsDefault,
 		IsSystem:             req.IsSystem,
-		Status:               iamOptionalString(req.GetStatus()),
+		Status:               grpcStatus,
 		PaginationRequestDTO: iamPaginationDTO(req.GetPagination()),
 	}
 	if err := dto.Validate(); err != nil {
