@@ -230,7 +230,7 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp.Success(w, response, "Signed in")
+	resp.SuccessWithCookies(w, r, response, "Signed in")
 }
 
 func (h *MagicLinkHandler) AdminSendMagicLink(w http.ResponseWriter, r *http.Request) {
