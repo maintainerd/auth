@@ -586,8 +586,9 @@ gaps rather than classic bugs — either finish the wiring or downgrade the chec
   (`_ = amr`, `mfa/service_mfa.go:567`), and SMS login mislabels itself as `pwd` instead of `sms`.
   RS-side step-up checks therefore can't work. **Fix:** thread real `amr`/`acr` from each flow
   into id_token + access token.
-  **Fixed:** password login/register/magic-link now put `pwd`/`1` on both access and ID tokens;
-  SMS login now puts `sms`/`1` on both access and ID tokens; OAuth authorization-code access
+  **Fixed:** password login/register put `pwd`/`1` on both access and ID tokens; magic-link
+  login puts `magic_link`/`1` when single-factor or `magic_link` plus the verified second
+  factor at `acr=2` when tenant MFA policy requires it; SMS login puts `sms`/`1` on both access and ID tokens; OAuth authorization-code access
   tokens now carry `pwd`/`1`; token exchange preserves the subject token's `amr`/`acr`; step-up
   access tokens carry `acr=2`; device authorization and CIBA approval now persist the approving
   session's `acr`/`amr` and replay it into the polled access token.

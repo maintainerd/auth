@@ -305,6 +305,9 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	iam.SetServiceEventService(s.serviceService, eventSvc)
 	// Inject the MFA factor verifier so login can run the MFA second step (acr=2).
 	s.loginService.SetMFAFactorAuthenticator(mfaSvc)
+	// Magic-link possession is the first factor; delegate MFA policy decisions
+	// and policy-aware session issuance to the normal login service.
+	s.magicLinkService.SetLoginCoordinator(s.loginService)
 	// Wire the account-lockout notification hook so the event system is notified.
 	security.OnAccountLockout = func(ctx context.Context, identifier string) {
 		s.authEventService.Log(ctx, authevent.AuthEventInput{

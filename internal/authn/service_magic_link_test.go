@@ -40,6 +40,25 @@ func validEmailTemplate() *branding.EmailTemplate {
 	}
 }
 
+type mockMagicLinkLoginCoordinator struct {
+	challengeFn func(*User, int64) (*LoginResponseDTO, error)
+	issueFn     func(string, *User, *Client) (*LoginResponseDTO, error)
+}
+
+func (m *mockMagicLinkLoginCoordinator) MagicLinkMFAChallenge(_ context.Context, user *User, tenantID int64) (*LoginResponseDTO, error) {
+	if m.challengeFn != nil {
+		return m.challengeFn(user, tenantID)
+	}
+	return nil, nil
+}
+
+func (m *mockMagicLinkLoginCoordinator) IssueMagicLinkSession(_ context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
+	if m.issueFn != nil {
+		return m.issueFn(sub, user, client)
+	}
+	return nil, nil
+}
+
 // ---------------------------------------------------------------------------
 // TestSendMagicLink
 // ---------------------------------------------------------------------------
@@ -196,7 +215,6 @@ func TestLoginWithMagicLink(t *testing.T) {
 	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
 	tokenHash := hashUserBearerToken(token)
 	clientID := "test-client"
-	providerID := "test-provider"
 
 	t.Run("identity provider not found", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
@@ -210,7 +228,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, &mockClientRepo{}, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -230,7 +248,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, &mockClientRepo{}, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -255,7 +273,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -282,7 +300,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -310,7 +328,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -340,7 +358,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -376,7 +394,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -417,7 +435,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -426,7 +444,6 @@ func TestLoginWithMagicLink(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		initTestJWTKeysService(t)
 		userID := int64(1)
 		userUUID := uuid.New()
 		emailAddr := "test@example.com"
@@ -467,11 +484,23 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 
 		svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
-		resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+		svc.SetLoginCoordinator(&mockMagicLinkLoginCoordinator{
+			challengeFn: func(gotUser *User, tenantID int64) (*LoginResponseDTO, error) {
+				assert.Equal(t, userID, gotUser.UserID)
+				return nil, nil
+			},
+			issueFn: func(sub string, gotUser *User, client *Client) (*LoginResponseDTO, error) {
+				assert.Equal(t, "sub-123", sub)
+				assert.Equal(t, userID, gotUser.UserID)
+				assert.Equal(t, "test-client", *client.Identifier)
+				return &LoginResponseDTO{AccessToken: "coordinated-token", TokenType: "Bearer", ExpiresIn: 3600}, nil
+			},
+		})
+		resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
-		assert.NotEmpty(t, resp.AccessToken)
+		assert.Equal(t, "coordinated-token", resp.AccessToken)
 		assert.Equal(t, "Bearer", resp.TokenType)
 		assert.Equal(t, int64(3600), resp.ExpiresIn)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1027,7 +1056,6 @@ func TestLoginWithMagicLink_TokenQueryError(t *testing.T) {
 	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
 	tokenHash := hashUserBearerToken(token)
 	clientID := "test-client"
-	providerID := "test-provider"
 
 	gormDB, mock := newMockGormDBRegex(t)
 	mock.ExpectBegin()
@@ -1048,7 +1076,7 @@ func TestLoginWithMagicLink_TokenQueryError(t *testing.T) {
 	}
 
 	svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
-	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 	require.Error(t, err)
 	assert.Nil(t, resp)
@@ -1065,7 +1093,6 @@ func TestLoginWithMagicLink_UserIdentityNotFound(t *testing.T) {
 	tokenHash := hashUserBearerToken(token)
 	userID := int64(1)
 	clientID := "test-client"
-	providerID := "test-provider"
 
 	gormDB, mock := newMockGormDBRegex(t)
 	futureTime := time.Now().Add(1 * time.Hour)
@@ -1098,7 +1125,7 @@ func TestLoginWithMagicLink_UserIdentityNotFound(t *testing.T) {
 	}
 
 	svc := NewMagicLinkService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
-	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 	require.Error(t, err)
 	assert.Nil(t, resp)
@@ -1115,7 +1142,6 @@ func TestLoginWithMagicLink_ExistingTokensError(t *testing.T) {
 	tokenHash := hashUserBearerToken(token)
 	userID := int64(1)
 	clientID := "test-client"
-	providerID := "test-provider"
 
 	gormDB, mock := newMockGormDBRegex(t)
 	futureTime := time.Now().Add(1 * time.Hour)
@@ -1153,7 +1179,7 @@ func TestLoginWithMagicLink_ExistingTokensError(t *testing.T) {
 	}
 
 	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
-	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 	require.Error(t, err)
 	assert.Nil(t, resp)
@@ -1170,7 +1196,6 @@ func TestLoginWithMagicLink_RevokeByUUIDError(t *testing.T) {
 	tokenHash := hashUserBearerToken(token)
 	userID := int64(1)
 	clientID := "test-client"
-	providerID := "test-provider"
 
 	gormDB, mock := newMockGormDBRegex(t)
 	futureTime := time.Now().Add(1 * time.Hour)
@@ -1211,7 +1236,7 @@ func TestLoginWithMagicLink_RevokeByUUIDError(t *testing.T) {
 	}
 
 	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
-	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 	require.Error(t, err)
 	assert.Nil(t, resp)
@@ -1232,7 +1257,6 @@ func TestLoginWithMagicLink_GenerateTokenResponseError(t *testing.T) {
 	tokenHash := hashUserBearerToken(token)
 	userID := int64(1)
 	clientID := "test-client"
-	providerID := "test-provider"
 
 	jwt.ResetJWTKeys()
 	defer initTestJWTKeysService(t)
@@ -1271,7 +1295,7 @@ func TestLoginWithMagicLink_GenerateTokenResponseError(t *testing.T) {
 	}
 
 	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
-	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 	require.Error(t, err)
 	assert.Nil(t, resp)
@@ -1402,7 +1426,6 @@ func TestLoginWithMagicLink_UpdateByIDError(t *testing.T) {
 	tokenHash := hashUserBearerToken(token)
 	userID := int64(1)
 	clientID := "test-client"
-	providerID := "test-provider"
 
 	gormDB, mock := newMockGormDBRegex(t)
 	futureTime := time.Now().Add(1 * time.Hour)
@@ -1441,7 +1464,7 @@ func TestLoginWithMagicLink_UpdateByIDError(t *testing.T) {
 	}
 
 	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
-	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, &clientID, nil)
 
 	require.Error(t, err)
 	assert.Nil(t, resp)

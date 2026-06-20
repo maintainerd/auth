@@ -30,8 +30,15 @@ const MagicLinkTemplateName = "user:magic_link"
 
 type MagicLinkService interface {
 	SendMagicLink(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error)
+	SendMagicLinkForTenant(ctx context.Context, email, tenantID string, isInternal bool) (*SendMagicLinkResponseDTO, error)
 	AdminSendMagicLink(ctx context.Context, userUUID string, isInternal bool) (*SendMagicLinkResponseDTO, error)
-	LoginWithMagicLink(ctx context.Context, token, clientID, providerID string) (*LoginResponseDTO, error)
+	LoginWithMagicLink(ctx context.Context, token string, clientID, tenantID *string) (*LoginResponseDTO, error)
+	SetLoginCoordinator(coordinator MagicLinkLoginCoordinator)
+}
+
+type MagicLinkLoginCoordinator interface {
+	MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
+	IssueMagicLinkSession(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error)
 }
 
 type magicLinkService struct {
@@ -42,6 +49,11 @@ type magicLinkService struct {
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
 	emailTemplateRepo    branding.EmailTemplateRepository
+	loginCoordinator     MagicLinkLoginCoordinator
+}
+
+func (s *magicLinkService) SetLoginCoordinator(coordinator MagicLinkLoginCoordinator) {
+	s.loginCoordinator = coordinator
 }
 
 func NewMagicLinkService(
@@ -65,6 +77,14 @@ func NewMagicLinkService(
 }
 
 func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
+	return s.sendMagicLink(ctx, emailAddr, clientID, providerID, nil, isInternal)
+}
+
+func (s *magicLinkService) SendMagicLinkForTenant(ctx context.Context, emailAddr, tenantID string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
+	return s.sendMagicLink(ctx, emailAddr, nil, nil, &tenantID, isInternal)
+}
+
+func (s *magicLinkService) sendMagicLink(ctx context.Context, emailAddr string, clientID, providerID, tenantID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "magicLink.send")
 	defer span.End()
 
@@ -82,6 +102,8 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 		var txErr error
 		if clientID != nil && providerID != nil {
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+		} else if tenantID != nil && *tenantID != "" {
+			Client, txErr = txClientRepo.FindSystemByTenantIdentifier(*tenantID)
 		} else {
 			Client, txErr = txClientRepo.FindSystem()
 		}
@@ -232,7 +254,7 @@ func (s *magicLinkService) AdminSendMagicLink(ctx context.Context, userUUID stri
 	return response, nil
 }
 
-func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, clientID, providerID string) (*LoginResponseDTO, error) {
+func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string, clientID, tenantID *string) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "magicLink.login")
 	defer func() { span.End() }()
 	startTime := time.Now()
@@ -247,25 +269,15 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
-		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
-		// Resolve client. If provider_id is given, use the full lookup.
-		// Otherwise resolve from client_id alone (the client carries its provider).
+		// Resolve client using the same pattern as login (client_id or tenant_id).
 		var txErr error
-		if providerID != "" {
-			var identityProvider *IdentityProvider
-			identityProvider, txErr = txIdentityProviderRepo.FindByIdentifier(providerID)
-			if txErr != nil || identityProvider == nil {
-				return apperror.NewUnauthorized("authentication failed")
-			}
-			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
-		} else {
-			Client, txErr = txClientRepo.FindByIdentifier(clientID)
-		}
+		Client, txErr = resolveClient(txClientRepo, clientID, tenantID)
 		if txErr != nil || Client == nil ||
 			Client.Status != shared.StatusActive ||
-			Client.Domain == nil || *Client.Domain == "" {
+			Client.Domain == nil || *Client.Domain == "" ||
+			Client.IdentityProvider == nil {
 			return apperror.NewUnauthorized("authentication failed")
 		}
 
@@ -334,7 +346,12 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		span.SetStatus(codes.Error, "magic link login failed")
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "magic_link_login_failure",
-			ClientID:  clientID,
+			ClientID: func() string {
+				if clientID != nil {
+					return *clientID
+				}
+				return ""
+			}(),
 			Timestamp: startTime,
 			Details:   fmt.Sprintf("Magic link login failed: %v", err),
 			Severity:  "MEDIUM",
@@ -345,12 +362,25 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "magic_link_login_success",
 		UserID:    user.UserUUID.String(),
-		ClientID:  clientID,
+		ClientID: func() string {
+			if clientID != nil {
+				return *clientID
+			}
+			return ""
+		}(),
 		Timestamp: startTime,
 		Details:   fmt.Sprintf("Successful magic link login for user %s", user.Username),
 	})
 
 	span.SetStatus(codes.Ok, "")
+	if s.loginCoordinator != nil {
+		tenantID := clientTenantID(Client)
+		mfaResponse, mfaErr := s.loginCoordinator.MagicLinkMFAChallenge(ctx, user, tenantID)
+		if mfaErr != nil || mfaResponse != nil {
+			return mfaResponse, mfaErr
+		}
+		return s.loginCoordinator.IssueMagicLinkSession(ctx, userIdentitySub, user, Client)
+	}
 	return s.generateTokenResponse(ctx, userIdentitySub, user, Client)
 }
 
@@ -368,9 +398,8 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 	// Build a signed API URL that the frontend forwards to the verify endpoint.
 	baseURL := fmt.Sprintf("%s/api/v1/magic-link/verify", config.AppPublicHostname)
 	signedAPIURL, err := signedurl.GenerateSignedURL(baseURL, map[string]string{
-		"token":       token,
-		"client_id":   *Client.Identifier,
-		"provider_id": Client.IdentityProvider.Identifier,
+		"token":     token,
+		"client_id": *Client.Identifier,
 	}, MagicLinkTokenTTL)
 	if err != nil {
 		return apperror.NewInternal("failed to create signed URL", err)

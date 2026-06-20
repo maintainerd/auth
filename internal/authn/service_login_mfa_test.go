@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	platformjwt "github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,6 +88,38 @@ func TestCompleteMFALogin_Guards(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid or expired MFA challenge")
 	})
+}
+
+func TestCompleteMFALogin_PreservesMagicLinkAsPrimaryAMR(t *testing.T) {
+	initTestJWTKeysService(t)
+	userUUID := uuid.New()
+	user := &User{UserID: 42, UserUUID: userUUID, Username: "magic-user", Status: shared.StatusActive}
+	challenge, err := platformjwt.GenerateStepUpChallengeTokenForAuthMethodWithContext(
+		context.Background(), userUUID.String(), time.Minute, platformjwt.AMRMagicLink, []string{"totp"},
+	)
+	require.NoError(t, err)
+	clientID := "test-client"
+	svc := &loginService{
+		userRepo: &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return user, nil }},
+		clientRepo: &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
+			return buildActiveClient(), nil
+		}},
+		userIdentityRepo: &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "magic-sub"}, nil
+		}},
+		authEventService: &mockAuthEventService{},
+		mfaAuthenticator: &mockMFAAuthenticator{verifyFactorFn: func(int64, string, string, []byte) ([]string, error) {
+			return []string{platformjwt.AMRPassword, platformjwt.AMROTP}, nil
+		}},
+	}
+
+	resp, err := svc.CompleteMFALogin(context.Background(), challenge, "totp", "123456", nil, &clientID, nil)
+
+	require.NoError(t, err)
+	claims, err := platformjwt.ValidateToken(resp.AccessToken)
+	require.NoError(t, err)
+	assert.Equal(t, []any{platformjwt.AMRMagicLink, platformjwt.AMROTP}, claims["amr"])
+	assert.Equal(t, platformjwt.ACRLevel2, claims["acr"])
 }
 
 func TestSendMFALoginSMS_Guards(t *testing.T) {
