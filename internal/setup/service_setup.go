@@ -341,7 +341,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 			UserID:             createdUser.UserID,
 			ClientID:           defaultClient.ClientID,
 			IdentityProviderID: &defaultClient.IdentityProviderID,
-			Provider:           shared.ProviderDefault,
+			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 		}
 		_, err = txUserIdentityRepo.Create(userIdentity)

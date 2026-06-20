@@ -165,7 +165,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Create(r.Context(), req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, req.TenantUUID, tenant.TenantID, user.UserUUID)
+	idp, err := h.idpService.Create(r.Context(), req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, tenant.TenantUUID.String(), tenant.TenantID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create identity provider", err)
 		return

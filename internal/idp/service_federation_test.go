@@ -529,7 +529,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
 				findByUserIDAndProviderFn: func(userID int64, provider string) (*UserIdentity, error) {
-					if provider == shared.ProviderDefault {
+					if provider == shared.ProviderMaintainerd {
 						return &UserIdentity{UserID: userID, Provider: provider, Sub: "internal-sub"}, nil
 					}
 					return nil, nil
@@ -1571,7 +1571,7 @@ func TestFederationService_UnlinkIdentity(t *testing.T) {
 		defaultIdent := UserIdentity{
 			UserIdentityID:   10,
 			UserIdentityUUID: identUUID,
-			Provider:         shared.ProviderDefault,
+			Provider:         shared.ProviderMaintainerd,
 			UserID:           userID,
 		}
 		identityRepo := &mockFederationUserIdentityRepo{
@@ -1663,7 +1663,7 @@ func TestFederationService_GetUserIdentities(t *testing.T) {
 				return []UserIdentity{
 					{
 						UserIdentityUUID: uuid.New(),
-						Provider:         shared.ProviderDefault,
+						Provider:         shared.ProviderMaintainerd,
 						Sub:              "sub-1",
 						CreatedAt:        now,
 					},
@@ -2271,7 +2271,7 @@ func TestFederationPureHelpers(t *testing.T) {
 	require.NoError(t, err)
 	dto := identityToDTO(&UserIdentity{
 		UserIdentityUUID: uuid.New(),
-		Provider:         shared.ProviderDefault,
+		Provider:         shared.ProviderMaintainerd,
 		Sub:              "sub",
 		Metadata:         datatypes.JSON(metadata),
 		CreatedAt:        time.Unix(1, 0).UTC(),

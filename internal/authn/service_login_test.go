@@ -693,7 +693,7 @@ func buildActiveIdentityProvider() *IdentityProvider {
 	return &IdentityProvider{
 		IdentityProviderID: 1,
 		Name:               "default",
-		Provider:           shared.IDPProviderInternal,
+		Provider:           shared.IDPProviderMaintainerd,
 		ProviderType:       shared.IDPTypeIdentity,
 		Identifier:         "test-provider",
 		Status:             shared.StatusActive,

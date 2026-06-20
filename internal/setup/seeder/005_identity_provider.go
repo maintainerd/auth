@@ -16,7 +16,7 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 
 	// Check if a default identity provider already exists
 	err := db.
-		Where("name = ? AND tenant_id = ?", "default", tenantID).
+		Where("name = ? AND tenant_id = ?", "maintainerd", tenantID).
 		First(&existing).Error
 
 	if err == nil {
@@ -37,9 +37,9 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 	// Create a new default identity provider
 	provider := model.IdentityProvider{
 		IdentityProviderUUID: uuid.New(),
-		Name:                 "default",
+		Name:                 "maintainerd",
 		DisplayName:          "Built-in Authentication System",
-		Provider:             "internal",
+		Provider:             "maintainerd",
 		ProviderType:         "identity",
 		Identifier:           idpIdentifier,
 		Config: datatypes.JSON([]byte(`{

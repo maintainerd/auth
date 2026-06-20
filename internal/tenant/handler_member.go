@@ -74,7 +74,12 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, err := h.tenantMemberService.CreateByUserUUID(r.Context(), tenant.TenantID, req.UserUUID, req.Role)
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.User == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	member, err := h.tenantMemberService.CreateByUserUUID(r.Context(), tenant.TenantID, req.UserUUID, req.Role, auth.User.UserID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add member", err)
 		return
@@ -106,7 +111,12 @@ func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	member, err := h.tenantMemberService.UpdateRole(r.Context(), tenant.TenantID, tenantMemberUUID, req.Role)
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.User == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	member, err := h.tenantMemberService.UpdateRole(r.Context(), tenant.TenantID, tenantMemberUUID, req.Role, auth.User.UserID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update member role", err)
 		return
@@ -128,7 +138,12 @@ func (h *TenantHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.tenantMemberService.DeleteByUUID(r.Context(), tenant.TenantID, tenantMemberUUID); err != nil {
+	auth := middleware.AuthFromRequest(r)
+	if auth == nil || auth.User == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if err := h.tenantMemberService.DeleteByUUID(r.Context(), tenant.TenantID, tenantMemberUUID, auth.User.UserID); err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove member", err)
 		return
 	}

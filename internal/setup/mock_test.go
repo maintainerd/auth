@@ -553,7 +553,9 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, identityPro
 	return nil, nil
 }
 func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) { return nil, nil }
-func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
+	return nil, nil
+}
 func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tenantID int64) error {
 	if m.deleteByUUIDAndTenantIDFn != nil {
 		return m.deleteByUUIDAndTenantIDFn(id, tenantID)
@@ -738,6 +740,7 @@ type mockTenantMemberRepo struct {
 	findByTenantAndUserFn    func(int64, int64) (*TenantMember, error)
 	findByTenantFn           func(tenant.TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error)
 	findAllByUserFn          func(int64) ([]TenantMember, error)
+	findOwnerByTenantIDFn    func(int64) (*TenantMember, error)
 	createFn                 func(*TenantMember) (*TenantMember, error)
 }
 
@@ -769,6 +772,13 @@ func (m *mockTenantMemberRepo) FindByTenant(filter tenant.TenantMemberRepository
 func (m *mockTenantMemberRepo) FindAllByUser(userID int64) ([]TenantMember, error) {
 	if m.findAllByUserFn != nil {
 		return m.findAllByUserFn(userID)
+	}
+	return nil, nil
+}
+
+func (m *mockTenantMemberRepo) FindOwnerByTenantID(tenantID int64) (*TenantMember, error) {
+	if m.findOwnerByTenantIDFn != nil {
+		return m.findOwnerByTenantIDFn(tenantID)
 	}
 	return nil, nil
 }

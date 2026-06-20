@@ -432,7 +432,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deletedTenant, err := h.tenantService.DeleteByUUID(r.Context(), tenantUUID)
+	deletedTenant, err := h.tenantService.DeleteByUUID(r.Context(), tenantUUID, auth.User.UserID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete tenant", err)
 		return

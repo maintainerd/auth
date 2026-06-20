@@ -1159,6 +1159,36 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "actor user has no identities")
 	})
 
+	for _, tc := range []struct {
+		name        string
+		isSystem    bool
+		errContains string
+	}{
+		{name: "regular tenant owner cannot be deleted", errContains: "remove their ownership first"},
+		{name: "system tenant owner cannot be deleted", isSystem: true, errContains: "cannot delete the owner of the system tenant"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+			callCount := 0
+			ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+				callCount++
+				if callCount == 1 {
+					return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1, Tenant: &Tenant{TenantID: 1}}}}, nil
+				}
+				return userWithAccess(2, 1), nil
+			}
+			_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+			mock.ExpectQuery(`SELECT .+ FROM "tenant_members"`).
+				WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "is_system"}).AddRow(1, tc.isSystem))
+
+			_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errContains)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+
 	t.Run("DeleteByUUID error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		callCount := 0
@@ -1171,6 +1201,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 		}
 		ur.deleteByUUIDFn = func(_ any) error { return errors.New("del err") }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectQuery(`SELECT .+ FROM "tenant_members"`).WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "is_system"}))
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
@@ -1189,6 +1220,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectQuery(`SELECT .+ FROM "tenant_members"`).WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "is_system"}))
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		res, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)

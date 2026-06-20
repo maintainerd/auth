@@ -328,7 +328,6 @@ func tenantCascadeModels() []any {
 		&oauth.OAuthAuthorizationCode{},
 
 		&webhook.WebhookEndpoint{},
-		&webhook.WebhookEndpointEvent{},
 		&webhook.DeliveryHistory{},
 		&notifier.SMSConfig{},
 		&notifier.EmailConfig{},

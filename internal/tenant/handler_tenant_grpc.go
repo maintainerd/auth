@@ -149,7 +149,11 @@ func (h *TenantGRPCHandler) DeleteTenant(ctx context.Context, req *authv1.Delete
 	if err != nil {
 		return nil, err
 	}
-	tenant, err := h.tenantService.DeleteByUUID(ctx, tenantUUID)
+	actorUserID, err := h.resolveActorUserID(ctx, req.GetActorUserUuid())
+	if err != nil {
+		return nil, err
+	}
+	tenant, err := h.tenantService.DeleteByUUID(ctx, tenantUUID, actorUserID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -199,7 +203,11 @@ func (h *TenantGRPCHandler) AddTenantMember(ctx context.Context, req *authv1.Add
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	member, err := h.tenantMemberService.CreateByUserUUID(ctx, tenant.TenantID, dto.UserUUID, dto.Role)
+	actorUserID, err := h.resolveActorUserID(ctx, req.GetActorUserUuid())
+	if err != nil {
+		return nil, err
+	}
+	member, err := h.tenantMemberService.CreateByUserUUID(ctx, tenant.TenantID, dto.UserUUID, dto.Role, actorUserID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -219,7 +227,11 @@ func (h *TenantGRPCHandler) UpdateTenantMemberRole(ctx context.Context, req *aut
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	member, err := h.tenantMemberService.UpdateRole(ctx, tenant.TenantID, memberUUID, dto.Role)
+	actorUserID, err := h.resolveActorUserID(ctx, req.GetActorUserUuid())
+	if err != nil {
+		return nil, err
+	}
+	member, err := h.tenantMemberService.UpdateRole(ctx, tenant.TenantID, memberUUID, dto.Role, actorUserID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -235,10 +247,29 @@ func (h *TenantGRPCHandler) RemoveTenantMember(ctx context.Context, req *authv1.
 	if err != nil {
 		return nil, err
 	}
-	if err := h.tenantMemberService.DeleteByUUID(ctx, tenant.TenantID, memberUUID); err != nil {
+	actorUserID, err := h.resolveActorUserID(ctx, req.GetActorUserUuid())
+	if err != nil {
+		return nil, err
+	}
+	if err := h.tenantMemberService.DeleteByUUID(ctx, tenant.TenantID, memberUUID, actorUserID); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.RemoveTenantMemberResponse{Removed: true}, nil
+}
+
+func (h *TenantGRPCHandler) resolveActorUserID(ctx context.Context, raw string) (int64, error) {
+	actorUUID, err := parseGRPCUUID(raw, "Actor user UUID")
+	if err != nil {
+		return 0, err
+	}
+	if h.tenantMemberService == nil {
+		return 0, apperror.ToGRPCError(apperror.NewInternal("tenant member service is unavailable", nil))
+	}
+	actorUserID, err := h.tenantMemberService.ResolveUserID(ctx, actorUUID)
+	if err != nil {
+		return 0, apperror.ToGRPCError(err)
+	}
+	return actorUserID, nil
 }
 
 func (h *TenantGRPCHandler) resolveTenant(ctx context.Context, tenantUUID string) (*TenantServiceDataResult, error) {

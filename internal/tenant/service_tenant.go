@@ -60,7 +60,7 @@ type TenantService interface {
 	Create(ctx context.Context, name string, displayName string, description string, status string) (*TenantServiceDataResult, error)
 	Update(ctx context.Context, tenantUUID uuid.UUID, name string, displayName string, description string, status string) (*TenantServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error)
-	DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID, actorUserID int64) (*TenantServiceDataResult, error)
 }
 
 type tenantService struct {
@@ -197,16 +197,16 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 			return err
 		}
 
-		// Create tenant. Regular tenants are complete on creation (they are
-		// seeded with their own baseline); only the system tenant defers
-		// completion until its admin + owner exist.
+		// A tenant becomes complete only after its first owner is assigned.
+		// The baseline is seeded here, but ownership is a separate privileged
+		// transition performed by tenant member management.
 		newTenant := &Tenant{
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
 			Identifier:  identifier,
 			Status:      status,
-			IsCompleted: true,
+			IsCompleted: false,
 		}
 
 		_, err = txTenantRepo.CreateOrUpdate(newTenant)
@@ -381,7 +381,7 @@ func (s *tenantService) SetStatusByUUID(ctx context.Context, tenantUUID uuid.UUI
 	return toTenantServiceDataResult(updatedTenant), nil
 }
 
-func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
+func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID, actorUserID int64) (*TenantServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenant.delete")
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID.String()))
@@ -399,6 +399,20 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 		}
 		if tenant.IsSystem {
 			return apperror.NewValidation("cannot delete system tenant")
+		}
+		systemTenant, err := txTenantRepo.FindSystem()
+		if err != nil {
+			return apperror.NewInternal("failed to resolve system tenant", err)
+		}
+		if systemTenant == nil {
+			return apperror.NewForbidden("system tenant membership is required to delete a tenant")
+		}
+		actorMembership, err := tx.TenantMemberRepository().FindByTenantAndUser(systemTenant.TenantID, actorUserID)
+		if err != nil {
+			return apperror.NewInternal("failed to verify system tenant membership", err)
+		}
+		if actorMembership == nil {
+			return apperror.NewForbidden("only system tenant administrators can delete a tenant")
 		}
 
 		result = toTenantServiceDataResult(tenant)

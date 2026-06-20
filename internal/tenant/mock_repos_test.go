@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
 
 type mockTenantRepo struct {
 	findAllFn          func(preloads ...string) ([]Tenant, error)
 	findByUUIDFn       func(id any, preloads ...string) (*Tenant, error)
+	findByIDFn         func(id any, preloads ...string) (*Tenant, error)
 	findByNameFn       func(name string) (*Tenant, error)
 	findByIdentifierFn func(identifier string) (*Tenant, error)
 	findSystemFn       func() (*Tenant, error)
@@ -36,7 +38,13 @@ func (m *mockTenantRepo) FindAll(p ...string) ([]Tenant, error) {
 func (m *mockTenantRepo) FindByUUIDs(ids []string, p ...string) ([]Tenant, error) {
 	return nil, nil
 }
-func (m *mockTenantRepo) FindByID(id any, p ...string) (*Tenant, error)   { return nil, nil }
+func (m *mockTenantRepo) FindByID(id any, p ...string) (*Tenant, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, p...)
+	}
+	tenantID, _ := id.(int64)
+	return &Tenant{TenantID: tenantID}, nil
+}
 func (m *mockTenantRepo) UpdateByUUID(id, data any) (*Tenant, error)      { return nil, nil }
 func (m *mockTenantRepo) UpdateByID(id, data any) (*Tenant, error)        { return nil, nil }
 func (m *mockTenantRepo) DeleteByID(id any) error                         { return nil }
@@ -73,7 +81,7 @@ func (m *mockTenantRepo) FindSystem() (*Tenant, error) {
 	if m.findSystemFn != nil {
 		return m.findSystemFn()
 	}
-	return nil, nil
+	return &Tenant{TenantID: 999, IsSystem: true}, nil
 }
 func (m *mockTenantRepo) FindPaginated(f TenantRepositoryGetFilter) (*PaginationResult[Tenant], error) {
 	if m.findPaginatedFn != nil {
@@ -108,6 +116,7 @@ type mockTenantMemberRepo struct {
 	findByTenantAndUserFn    func(tenantID int64, userID int64) (*TenantMember, error)
 	findByTenantFn           func(TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error)
 	findAllByUserFn          func(userID int64) ([]TenantMember, error)
+	findOwnerByTenantIDFn    func(tenantID int64) (*TenantMember, error)
 	createFn                 func(*TenantMember) (*TenantMember, error)
 	createOrUpdateFn         func(*TenantMember) (*TenantMember, error)
 	deleteByUUIDFn           func(any) error
@@ -150,6 +159,9 @@ func (m *mockTenantMemberRepo) FindByTenantMemberUUID(id uuid.UUID) (*TenantMemb
 	return nil, nil
 }
 func (m *mockTenantMemberRepo) FindByTenantAndUser(tID, uID int64) (*TenantMember, error) {
+	if tID == 999 && uID == 99 {
+		return &TenantMember{TenantID: tID, UserID: uID, Role: shared.TenantRoleMember}, nil
+	}
 	if m.findByTenantAndUserFn != nil {
 		return m.findByTenantAndUserFn(tID, uID)
 	}
@@ -172,6 +184,12 @@ func (m *mockTenantMemberRepo) DeleteByUUID(id any) error {
 		return m.deleteByUUIDFn(id)
 	}
 	return nil
+}
+func (m *mockTenantMemberRepo) FindOwnerByTenantID(tenantID int64) (*TenantMember, error) {
+	if m.findOwnerByTenantIDFn != nil {
+		return m.findOwnerByTenantIDFn(tenantID)
+	}
+	return nil, nil
 }
 
 type mockTenantSettingRepo struct {

@@ -231,6 +231,9 @@ func TestTenantRepository_DeleteCascade(t *testing.T) {
 		mock.ExpectExec(`SELECT set_config\('maintainerd\.allow_auth_event_delete', \$1, true\)`).
 			WithArgs("tenant_delete").
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`DELETE FROM webhook_endpoint_events WHERE webhook_endpoint_id IN`).
+			WithArgs(int64(10)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectExec(`UPDATE "tenant_members" SET "deleted_at"=\$1 WHERE tenant_id = \$2 AND "tenant_members"."deleted_at" IS NULL`).
 			WithArgs(sqlmock.AnyArg(), int64(10)).
 			WillReturnResult(sqlmock.NewResult(0, 2))
@@ -253,6 +256,9 @@ func TestTenantRepository_DeleteCascade(t *testing.T) {
 		mock.ExpectExec(`SELECT set_config\('maintainerd\.allow_auth_event_delete', \$1, true\)`).
 			WithArgs("tenant_delete").
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`DELETE FROM webhook_endpoint_events WHERE webhook_endpoint_id IN`).
+			WithArgs(int64(10)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectExec(`UPDATE "tenant_members" SET "deleted_at"=\$1 WHERE tenant_id = \$2 AND "tenant_members"."deleted_at" IS NULL`).
 			WithArgs(sqlmock.AnyArg(), int64(10)).
 			WillReturnResult(sqlmock.NewResult(0, 2))

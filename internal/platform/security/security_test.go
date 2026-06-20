@@ -734,6 +734,13 @@ func TestValidatePasswordPolicy_NoMaxLength(t *testing.T) {
 	assert.NoError(t, ValidatePasswordPolicy(strings.Repeat("a", 1000), policy))
 }
 
+func TestValidatePasswordPolicy_CountsUnicodeCodePoints(t *testing.T) {
+	policy := PasswordPolicy{MinLength: 2, MaxLength: 2}
+	assert.NoError(t, ValidatePasswordPolicy("😀😀", policy))
+	assert.ErrorContains(t, ValidatePasswordPolicy("😀", policy), "at least 2 characters")
+	assert.ErrorContains(t, ValidatePasswordPolicy("😀😀😀", policy), "must not exceed 2 characters")
+}
+
 // ---------------------------------------------------------------------------
 // ValidatePasswordPolicy — blocklist disabled
 // ---------------------------------------------------------------------------

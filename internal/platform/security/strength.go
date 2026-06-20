@@ -3,6 +3,7 @@ package security
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // PasswordStrengthScore rates a password on a 0-4 scale using a simplified
@@ -14,13 +15,14 @@ func PasswordStrengthScore(password string) int {
 
 	score := 0
 
-	if len(password) >= 8 {
+	passwordLength := utf8.RuneCountInString(password)
+	if passwordLength >= 8 {
 		score++
 	}
-	if len(password) >= 12 {
+	if passwordLength >= 12 {
 		score++
 	}
-	if len(password) >= 16 {
+	if passwordLength >= 16 {
 		score++
 	}
 

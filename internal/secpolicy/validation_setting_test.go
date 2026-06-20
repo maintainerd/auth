@@ -74,6 +74,9 @@ func TestSecuritySettingValidationRules(t *testing.T) {
 		want       string
 	}{
 		{name: "password min greater than max", configType: "password", patch: map[string]any{"min_length": 129}, want: "min_length"},
+		{name: "password history has safe upper bound", configType: "password", patch: map[string]any{"password_history_count": 25}, want: "password_history_count"},
+		{name: "password age has safe upper bound", configType: "password", patch: map[string]any{"max_age_days": 3651}, want: "max_age_days"},
+		{name: "temporary password validity has safe upper bound", configType: "password", patch: map[string]any{"temporary_password_validity_hours": 721}, want: "temporary_password_validity_hours"},
 		{name: "mfa sms requires gate", configType: "mfa", patch: map[string]any{"allow_sms": false, "allowed_methods": []string{"sms"}}, want: "allow_sms"},
 		{name: "session SameSite None requires secure cookie", configType: "session", patch: map[string]any{"cookie_same_site": "None", "cookie_secure": false}, want: "cookie_secure"},
 		{name: "token rejects unsupported algorithm", configType: "token", patch: map[string]any{"signing_algorithm": "HS256"}, want: "signing_algorithm"},

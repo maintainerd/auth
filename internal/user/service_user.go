@@ -424,7 +424,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 			UserID:             newUser.UserID,
 			ClientID:           defaultClient.ClientID,
 			IdentityProviderID: &defaultClient.IdentityProviderID,
-			Provider:           shared.ProviderDefault,
+			Provider:           shared.ProviderMaintainerd,
 			Sub:                newUser.UserUUID.String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
@@ -846,6 +846,29 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	// Validate tenant access permissions
 	if err := ValidateTenantAccess(deleterUser, user.UserIdentities[0].Tenant); err != nil {
 		return nil, err
+	}
+
+	// Guard: cannot delete a user who is a tenant owner
+	type ownershipCheck struct {
+		TenantID int64
+		IsSystem bool
+	}
+	var ownerships []ownershipCheck
+	if err := s.db.Table("tenant_members").
+		Select("tenant_members.tenant_id, tenants.is_system").
+		Joins("JOIN tenants ON tenants.tenant_id = tenant_members.tenant_id").
+		Where("tenant_members.user_id = ? AND tenant_members.role = ? AND tenant_members.deleted_at IS NULL",
+			user.UserID, shared.TenantRoleOwner).
+		Find(&ownerships).Error; err != nil {
+		return nil, apperror.NewInternal("check tenant ownership", err)
+	}
+	for _, o := range ownerships {
+		if o.IsSystem {
+			return nil, apperror.NewValidation("cannot delete the owner of the system tenant")
+		}
+	}
+	if len(ownerships) > 0 {
+		return nil, apperror.NewValidation("cannot delete a user who is a tenant owner — remove their ownership first")
 	}
 
 	// Invalidate cache before deletion (identities will be gone after)
@@ -1588,7 +1611,7 @@ func (s *userService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID
 			UserID:             created.UserID,
 			ClientID:           defaultClient.ClientID,
 			IdentityProviderID: &idp.IdentityProviderID,
-			Provider:           shared.ProviderDefault,
+			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}

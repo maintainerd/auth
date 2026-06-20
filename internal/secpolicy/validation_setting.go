@@ -19,6 +19,12 @@ var validSecuritySettingConfigTypes = map[string]bool{
 	"threat":       true,
 }
 
+const (
+	maxPasswordHistoryCount           = 24
+	maxPasswordAgeDays                = 3650
+	maxTemporaryPasswordValidityHours = 720
+)
+
 func (r SecuritySettingUpdateConfigRequestDTO) Validate() error {
 	if len(r) == 0 {
 		return fmt.Errorf("config cannot be empty")
@@ -193,11 +199,20 @@ func validatePasswordConfig(d PasswordConfigDTO) error {
 	if d.PasswordHistoryCount != nil && *d.PasswordHistoryCount < 0 {
 		return fmt.Errorf("password_history_count must be non-negative")
 	}
+	if d.PasswordHistoryCount != nil && *d.PasswordHistoryCount > maxPasswordHistoryCount {
+		return fmt.Errorf("password_history_count must be at most %d", maxPasswordHistoryCount)
+	}
 	if d.MaxAgeDays != nil && *d.MaxAgeDays < 0 {
 		return fmt.Errorf("max_age_days must be non-negative")
 	}
+	if d.MaxAgeDays != nil && *d.MaxAgeDays > maxPasswordAgeDays {
+		return fmt.Errorf("max_age_days must be at most %d", maxPasswordAgeDays)
+	}
 	if d.TemporaryPasswordValidityHours != nil && *d.TemporaryPasswordValidityHours < 1 {
 		return fmt.Errorf("temporary_password_validity_hours must be at least 1")
+	}
+	if d.TemporaryPasswordValidityHours != nil && *d.TemporaryPasswordValidityHours > maxTemporaryPasswordValidityHours {
+		return fmt.Errorf("temporary_password_validity_hours must be at most %d", maxTemporaryPasswordValidityHours)
 	}
 	if d.HashAlgorithm != nil && !oneOf(*d.HashAlgorithm, "argon2id", "bcrypt", "scrypt", "pbkdf2") {
 		return fmt.Errorf("hash_algorithm must be one of argon2id, bcrypt, scrypt, pbkdf2")

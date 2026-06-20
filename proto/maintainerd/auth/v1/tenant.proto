@@ -153,6 +153,7 @@ message SetTenantStatusResponse {
 
 message DeleteTenantRequest {
   string tenant_uuid = 1;
+  string actor_user_uuid = 2;
 }
 
 message DeleteTenantResponse {
@@ -174,6 +175,7 @@ message AddTenantMemberRequest {
   string tenant_uuid = 1;
   string user_uuid = 2;
   string role = 3;
+  string actor_user_uuid = 4;
 }
 
 message AddTenantMemberResponse {
@@ -184,6 +186,7 @@ message UpdateTenantMemberRoleRequest {
   string tenant_uuid = 1;
   string tenant_member_uuid = 2;
   string role = 3;
+  string actor_user_uuid = 4;
 }
 
 message UpdateTenantMemberRoleResponse {
@@ -193,6 +196,7 @@ message UpdateTenantMemberRoleResponse {
 message RemoveTenantMemberRequest {
   string tenant_uuid = 1;
   string tenant_member_uuid = 2;
+  string actor_user_uuid = 3;
 }
 
 message RemoveTenantMemberResponse {

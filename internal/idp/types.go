@@ -121,7 +121,6 @@ type IdentityProviderCreateRequestDTO struct {
 	ProviderType string         `json:"provider_type"`
 	Config       datatypes.JSON `json:"config"`
 	Status       string         `json:"status"`
-	TenantUUID   string         `json:"tenant_id"`
 }
 
 // Update identity provider request DTO (without tenant_id)

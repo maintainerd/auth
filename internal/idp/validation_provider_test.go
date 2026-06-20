@@ -80,7 +80,7 @@ func TestIdentityProviderUpdateRequestDto_Validate(t *testing.T) {
 	d := IdentityProviderUpdateRequestDTO{
 		Name:         "my-idp",
 		DisplayName:  "My Identity Provider",
-		Provider:     shared.IDPProviderInternal,
+		Provider:     shared.IDPProviderMaintainerd,
 		ProviderType: shared.IDPTypeSocial,
 		Config:       datatypes.JSON(`{}`),
 		Status:       shared.StatusInactive,
