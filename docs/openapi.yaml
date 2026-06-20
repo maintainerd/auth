@@ -1136,24 +1136,34 @@ paths:
   /auth/magic-link/verify:
     post:
       tags: [Auth]
-      summary: Consume a magic-link token and obtain session tokens
+      summary: Consume a signed magic link and continue through MFA when required
       operationId: verifyMagicLink
       security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [token]
-              properties:
-                token:
-                  type: string
-                  minLength: 16
-                  maxLength: 256
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+        - in: query
+          name: client_id
+          required: false
+          schema: { type: string }
+          description: Client identifier; either client_id or tenant_id is carried by the signed link
+        - in: query
+          name: tenant_id
+          required: false
+          schema: { type: string }
+        - in: query
+          name: expires
+          required: true
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: sig
+          required: true
+          schema: { type: string }
       responses:
         '200':
-          description: Magic link verified; session tokens issued
+          description: Session issued, or an MFA challenge returned when policy requires a distinct second factor
           content:
             application/json:
               schema:
@@ -2934,6 +2944,17 @@ components:
           description: Set to true when the user must change their password before proceeding
         session_id:
           type: string
+        mfa_required:
+          type: boolean
+          description: True when primary authentication succeeded but a second factor is required before session issuance
+        mfa_challenge_token:
+          type: string
+          description: Short-lived token used to complete the MFA login step
+        mfa_allowed_methods:
+          type: array
+          items:
+            type: string
+          description: Enrolled methods allowed by tenant policy; email_otp is excluded after magic-link authentication
 
     RegisterRequest:
       type: object

@@ -254,6 +254,14 @@ func (m *mockLoginService) BeginMFALoginWebAuthn(_ context.Context, challengeTok
 
 func (m *mockLoginService) SetMFAFactorAuthenticator(MFAFactorAuthenticator) {}
 
+func (m *mockLoginService) MagicLinkMFAChallenge(context.Context, *User, int64) (*LoginResponseDTO, error) {
+	return nil, nil
+}
+
+func (m *mockLoginService) IssueMagicLinkSession(context.Context, string, *User, *Client) (*LoginResponseDTO, error) {
+	return nil, nil
+}
+
 func (m *mockLoginService) LoginPublic(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error) {
 	if m.loginPublicFn != nil {
 		return m.loginPublicFn(usernameOrEmail, password, clientID, tenantID)

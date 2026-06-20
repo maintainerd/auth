@@ -1951,6 +1951,105 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 	})
 }
 
+func TestMagicLinkMFAChallenge(t *testing.T) {
+	settingRepo := func(config string) *mockSecuritySettingRepo {
+		return &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{MFAConfig: datatypes.JSON([]byte(config))}, nil
+			},
+		}
+	}
+	user := &User{UserID: 1, UserUUID: uuid.New(), CreatedAt: time.Now()}
+
+	t.Run("disabled skips MFA even when a factor is enrolled", func(t *testing.T) {
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"disabled","allowed_methods":["totp"]}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"totp"}, nil }},
+		}
+
+		resp, err := svc.MagicLinkMFAChallenge(context.Background(), user, 1)
+
+		require.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("optional skips MFA when the user has no enrolled factor", func(t *testing.T) {
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"optional","allowed_methods":["totp"]}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return nil, nil }},
+		}
+
+		resp, err := svc.MagicLinkMFAChallenge(context.Background(), user, 1)
+
+		require.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("optional challenges when a non-email factor is enrolled", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"optional","allowed_methods":["email_otp","totp"],"allow_email_otp":true}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"email_otp", "totp"}, nil }},
+		}
+
+		resp, err := svc.MagicLinkMFAChallenge(context.Background(), user, 1)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.MFARequired)
+		assert.Equal(t, []string{"totp"}, resp.MFAAllowedMethods)
+		claims, err := jwt.ValidateStepUpChallengeToken(*resp.MFAChallengeToken)
+		require.NoError(t, err)
+		assert.Equal(t, jwt.AMRMagicLink, claims["primary_amr"])
+	})
+
+	t.Run("email OTP alone cannot satisfy magic-link MFA", func(t *testing.T) {
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"optional","allowed_methods":["email_otp"],"allow_email_otp":true}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"email_otp"}, nil }},
+		}
+
+		resp, err := svc.MagicLinkMFAChallenge(context.Background(), user, 1)
+
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "no supported non-email factors")
+	})
+
+	t.Run("enforced blocks when no factor is enrolled", func(t *testing.T) {
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"enforced","allowed_methods":["totp"],"grace_period_days":30}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return nil, nil }},
+		}
+
+		resp, err := svc.MagicLinkMFAChallenge(context.Background(), user, 1)
+
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "no supported non-email factors")
+	})
+}
+
+func TestReplacePrimaryAMR(t *testing.T) {
+	assert.Equal(t, []string{"magic_link", "otp"}, replacePrimaryAMR([]string{"pwd", "otp"}, "magic_link"))
+	assert.Equal(t, []string{"magic_link", "user", "hwk"}, replacePrimaryAMR([]string{"pwd", "user", "hwk"}, "magic_link"))
+	assert.Equal(t, []string{"magic_link", "otp"}, replacePrimaryAMR([]string{"otp"}, "magic_link"))
+}
+
+func TestIssueMagicLinkSessionUsesPasswordlessAMR(t *testing.T) {
+	initTestJWTKeysService(t)
+	svc := &loginService{}
+	user := &User{UserID: 1, UserUUID: uuid.New(), Username: "magic-user", Status: shared.StatusActive}
+
+	resp, err := svc.IssueMagicLinkSession(context.Background(), "magic-sub", user, buildActiveClient())
+
+	require.NoError(t, err)
+	claims, err := jwt.ValidateToken(resp.AccessToken)
+	require.NoError(t, err)
+	assert.Equal(t, []any{jwt.AMRMagicLink}, claims["amr"])
+	assert.Equal(t, jwt.ACRLevel1, claims["acr"])
+}
+
 // ---------------------------------------------------------------------------
 // TestLoginMFAAllowedMethods
 // ---------------------------------------------------------------------------
@@ -2170,4 +2269,3 @@ func TestLogin_ForcePasswordChange(t *testing.T) {
 	assert.Empty(t, resp.RefreshToken)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
-

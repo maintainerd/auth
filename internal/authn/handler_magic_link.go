@@ -7,6 +7,7 @@ import (
 
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 )
 
 type MagicLinkHandler struct {
@@ -44,7 +45,7 @@ func (h *MagicLinkHandler) SendMagicLinkPublic(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	h.handleSendMagicLink(w, r, &clientID, &providerID, false, startTime, sc)
+	h.handleSendMagicLink(w, r, &clientID, &providerID, nil, false, startTime, sc)
 }
 
 // SendMagicLink handles internal magic-link requests; client_id/provider_id are optional.
@@ -54,20 +55,24 @@ func (h *MagicLinkHandler) SendMagicLink(w http.ResponseWriter, r *http.Request)
 	sc := extractSecurityContext(r)
 
 	var clientIDPtr, providerIDPtr *string
+	var tenantIDPtr *string
 	if v := r.URL.Query().Get("client_id"); v != "" {
 		clientIDPtr = &v
 	}
 	if v := r.URL.Query().Get("provider_id"); v != "" {
 		providerIDPtr = &v
 	}
+	if v := r.URL.Query().Get("tenant_id"); v != "" {
+		tenantIDPtr = &v
+	}
 
-	h.handleSendMagicLink(w, r, clientIDPtr, providerIDPtr, true, startTime, sc)
+	h.handleSendMagicLink(w, r, clientIDPtr, providerIDPtr, tenantIDPtr, true, startTime, sc)
 }
 
 func (h *MagicLinkHandler) handleSendMagicLink(
 	w http.ResponseWriter,
 	r *http.Request,
-	clientID, providerID *string,
+	clientID, providerID, tenantID *string,
 	isInternal bool,
 	startTime time.Time,
 	sc securityContext,
@@ -125,7 +130,13 @@ func (h *MagicLinkHandler) handleSendMagicLink(
 		return
 	}
 
-	response, err := h.magicLinkService.SendMagicLink(r.Context(), req.Email, clientID, providerID, isInternal)
+	var response *SendMagicLinkResponseDTO
+	var err error
+	if tenantID != nil {
+		response, err = h.magicLinkService.SendMagicLinkForTenant(r.Context(), req.Email, *tenantID, isInternal)
+	} else {
+		response, err = h.magicLinkService.SendMagicLink(r.Context(), req.Email, clientID, providerID, isInternal)
+	}
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to send sign-in link", err)
 		return
@@ -148,66 +159,45 @@ func (h *MagicLinkHandler) handleSendMagicLink(
 }
 
 // VerifyMagicLink consumes a magic-link token and exchanges it for a session.
-// Requires client_id and provider_id query parameters (carried by the signed URL
-// in the email). Issues a standard LoginResponseDTO on success.
+// The signed URL (with signature + expiration) is validated first, then the
+// magic-link token is verified. Accepts client_id or tenant_id query params
+// (same pattern as login).
 func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	clientID := r.URL.Query().Get("client_id")
-	providerID := r.URL.Query().Get("provider_id")
-	if clientID == "" {
+	signedParams, err := signedurl.ValidateSignedURL(r.URL.Query())
+	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
-			EventType: "magic_link_missing_params",
+			EventType: "magic_link_invalid_signature",
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
 			Endpoint:  "/magic-link/verify",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Missing required client_id parameter",
-			Severity:  "MEDIUM",
+			Details:   "Invalid or expired signed URL: " + err.Error(),
+			Severity:  "HIGH",
 		})
-		resp.Error(w, http.StatusBadRequest, "Missing required parameter: client_id")
+		resp.Error(w, http.StatusBadRequest, "Invalid or expired magic link")
 		return
 	}
 
-	var req VerifyMagicLinkRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		security.LogSecurityEvent(security.SecurityEvent{
-			EventType: "magic_link_invalid_json",
-			ClientIP:  clientIPStr,
-			UserAgent: userAgentStr,
-			RequestID: requestIDStr,
-			Endpoint:  "/magic-link/verify",
-			Method:    r.Method,
-			Timestamp: startTime,
-			Details:   "Invalid request body",
-			Severity:  "MEDIUM",
-		})
-		resp.BadRequestBody(w)
+	token := signedParams["token"]
+	if token == "" {
+		resp.Error(w, http.StatusBadRequest, "Missing token parameter")
 		return
 	}
 
-	if err := req.Validate(); err != nil {
-		security.LogSecurityEvent(security.SecurityEvent{
-			EventType: "magic_link_validation_failure",
-			ClientIP:  clientIPStr,
-			UserAgent: userAgentStr,
-			RequestID: requestIDStr,
-			Endpoint:  "/magic-link/verify",
-			Method:    r.Method,
-			Timestamp: startTime,
-			Details:   "Request validation failed",
-			Severity:  "MEDIUM",
-		})
-		resp.ValidationError(w, err)
-		return
+	var clientID, tenantID *string
+	if c := signedParams["client_id"]; c != "" {
+		clientID = &c
+	}
+	if t := signedParams["tenant_id"]; t != "" {
+		tenantID = &t
 	}
 
-	// Rate limit by client IP — the token itself is a secret so we can't safely
-	// expose it as the limiter key, and there's no email at this point.
 	if err := security.CheckRateLimit(clientIPStr); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "magic_link_rate_limited",
@@ -224,12 +214,27 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	response, err := h.magicLinkService.LoginWithMagicLink(r.Context(), req.Token, clientID, providerID)
+	response, err := h.magicLinkService.LoginWithMagicLink(r.Context(), token, clientID, tenantID)
 	if err != nil {
+		security.LogSecurityEvent(security.SecurityEvent{
+			EventType: "magic_link_login_failure",
+			ClientIP:  clientIPStr,
+			UserAgent: userAgentStr,
+			RequestID: requestIDStr,
+			Endpoint:  "/magic-link/verify",
+			Method:    r.Method,
+			Timestamp: startTime,
+			Details:   "Magic link verification failed",
+			Severity:  "MEDIUM",
+		})
 		resp.HandleServiceError(w, r, "Failed to sign in", err)
 		return
 	}
 
+	if response.MFARequired {
+		resp.Success(w, response, "MFA verification required")
+		return
+	}
 	resp.SuccessWithCookies(w, r, response, "Signed in")
 }
 

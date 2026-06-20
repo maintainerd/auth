@@ -36,6 +36,8 @@ type LoginService interface {
 	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error)
 	Logout(ctx context.Context, accessToken string) error
 	SetMFAFactorAuthenticator(a MFAFactorAuthenticator)
+	MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
+	IssueMagicLinkSession(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error)
 }
 
 // MFAFactorAuthenticator verifies a login second factor and drives the SMS /
@@ -808,6 +810,78 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 	}, nil
 }
 
+// MagicLinkMFAChallenge applies the tenant's login MFA policy after a magic
+// link has established the first factor. Unlike password login, email_otp is
+// removed because it would reuse the same mailbox instead of proving a distinct
+// factor. Enforced mode never bypasses MFA through a grace or trusted-device
+// shortcut; users without a usable non-email factor are blocked.
+func (s *loginService) MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error) {
+	if user == nil {
+		return nil, apperror.NewUnauthorized("authentication failed")
+	}
+
+	policy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, tenantID)
+	if policy == nil || policy.Mode == "disabled" {
+		return nil, nil
+	}
+	if s.mfaAuthenticator == nil {
+		if policy.Mode == "enforced" {
+			return nil, apperror.NewUnauthorized("MFA is required but no supported factors are enrolled")
+		}
+		return nil, nil
+	}
+
+	enrolled, err := s.mfaAuthenticator.EnrolledMFAMethods(ctx, user.UserID)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to load enrolled MFA factors", err)
+	}
+
+	registeredPrimaryFactor := hasPrimaryMFAFactor(enrolled)
+	if policy.Mode != "enforced" && !registeredPrimaryFactor {
+		return nil, nil
+	}
+
+	allowedMethods := filterMFAMethodsByPolicy(enrolled, normalizeLoginMFAPolicyMethods(policy.AllowedMethods))
+	allowedMethods = removeMFAMethod(allowedMethods, "email_otp")
+	allowedMethods = preferLoginMFAMethodFirst(allowedMethods, policy.PreferredMethod)
+	if len(allowedMethods) == 0 {
+		return nil, apperror.NewUnauthorized("MFA is required but no supported non-email factors are enrolled")
+	}
+
+	challengeToken, err := platformjwt.GenerateStepUpChallengeTokenForAuthMethodWithContext(
+		ctx,
+		user.UserUUID.String(),
+		time.Duration(mfaStepUpTTLSeconds(policy))*time.Second,
+		platformjwt.AMRMagicLink,
+		allowedMethods,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResponseDTO{
+		MFARequired:       true,
+		MFAChallengeToken: &challengeToken,
+		MFAAllowedMethods: allowedMethods,
+	}, nil
+}
+
+func removeMFAMethod(methods []string, excluded string) []string {
+	filtered := make([]string, 0, len(methods))
+	for _, method := range methods {
+		if method != excluded {
+			filtered = append(filtered, method)
+		}
+	}
+	return filtered
+}
+
+// IssueMagicLinkSession issues the normal policy-aware ACR-1 session for a
+// passwordless login when no second factor is required.
+func (s *loginService) IssueMagicLinkSession(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
+	return s.generateTokenResponseWithAuth(ctx, sub, user, client, []string{platformjwt.AMRMagicLink}, platformjwt.ACRLevel1)
+}
+
 // hasPrimaryMFAFactor reports whether the enrolled list contains a primary
 // factor (anything other than backup_code). Backup codes are recovery-only and
 // never keep MFA active on their own.
@@ -1039,6 +1113,9 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 		})
 		return nil, err
 	}
+	if primaryAMR, _ := claims["primary_amr"].(string); primaryAMR != "" {
+		amr = replacePrimaryAMR(amr, primaryAMR)
+	}
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.IdentityProvider.TenantID,
@@ -1065,6 +1142,25 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 	}
 
 	return resp, nil
+}
+
+func replacePrimaryAMR(amr []string, primaryAMR string) []string {
+	replaced := false
+	result := make([]string, 0, len(amr)+1)
+	for _, method := range amr {
+		if method == platformjwt.AMRPassword {
+			if !replaced {
+				result = append(result, primaryAMR)
+				replaced = true
+			}
+			continue
+		}
+		result = append(result, method)
+	}
+	if !replaced {
+		result = append([]string{primaryAMR}, result...)
+	}
+	return result
 }
 
 // SendMFALoginSMS sends an SMS OTP to the challenged user's phone during login.

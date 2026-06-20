@@ -874,6 +874,17 @@ func GenerateStepUpChallengeToken(userUUID string, ttl time.Duration, allowedMet
 // GenerateStepUpChallengeTokenWithContext issues a short-lived step-up
 // challenge token using the caller context for tracing.
 func GenerateStepUpChallengeTokenWithContext(ctx context.Context, userUUID string, ttl time.Duration, allowedMethods ...[]string) (string, error) {
+	return generateStepUpChallengeTokenWithContext(ctx, userUUID, ttl, "", allowedMethods...)
+}
+
+// GenerateStepUpChallengeTokenForAuthMethodWithContext records the primary
+// authentication method that preceded MFA so the completed session's amr claim
+// accurately reflects passwordless and other non-password login flows.
+func GenerateStepUpChallengeTokenForAuthMethodWithContext(ctx context.Context, userUUID string, ttl time.Duration, primaryAMR string, allowedMethods ...[]string) (string, error) {
+	return generateStepUpChallengeTokenWithContext(ctx, userUUID, ttl, primaryAMR, allowedMethods...)
+}
+
+func generateStepUpChallengeTokenWithContext(ctx context.Context, userUUID string, ttl time.Duration, primaryAMR string, allowedMethods ...[]string) (string, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -897,6 +908,9 @@ func GenerateStepUpChallengeTokenWithContext(ctx context.Context, userUUID strin
 	}
 	if len(allowedMethods) > 0 && len(allowedMethods[0]) > 0 {
 		claims["allowed_methods"] = allowedMethods[0]
+	}
+	if primaryAMR != "" {
+		claims["primary_amr"] = primaryAMR
 	}
 	tok, err := generateToken(claims)
 	if err != nil {
@@ -927,11 +941,12 @@ func ValidateStepUpChallengeToken(tokenString string) (jwtlib.MapClaims, error) 
 
 // AMRValues contains the standard Authentication Methods References.
 const (
-	AMRPassword = "pwd"
-	AMROTP      = "otp"
-	AMRMFA      = "mfa"
-	AMRWebAuthn = "webauthn"
-	AMRSMS      = "sms"
+	AMRPassword  = "pwd"
+	AMROTP       = "otp"
+	AMRMFA       = "mfa"
+	AMRWebAuthn  = "webauthn"
+	AMRSMS       = "sms"
+	AMRMagicLink = "magic_link"
 )
 
 // ACRLevel1 is the ACR value for single-factor authentication (password only).
