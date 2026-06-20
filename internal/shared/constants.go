@@ -38,6 +38,10 @@ const (
 	RoleSuperAdmin = "super-admin"
 	RoleRegistered = "registered"
 
+	// Tenant member roles (TenantMember.Role)
+	TenantRoleOwner  = "owner"
+	TenantRoleMember = "member"
+
 	// Client types (Client.ClientType)
 	ClientTypeTraditional = "traditional"
 	ClientTypeSPA         = "spa"
@@ -63,10 +67,10 @@ const (
 	ContactMethodSMS   = "sms"
 
 	// Identity provider names (UserIdentity.Provider)
-	ProviderDefault = "default"
+	ProviderMaintainerd = "maintainerd"
 
 	// Identity provider Provider values (IdentityProvider.Provider)
-	IDPProviderInternal  = "internal"
+	IDPProviderMaintainerd = "maintainerd"
 	IDPProviderCognito   = "cognito"
 	IDPProviderAuth0     = "auth0"
 	IDPProviderGoogle    = "google"

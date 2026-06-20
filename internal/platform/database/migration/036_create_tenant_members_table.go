@@ -69,6 +69,9 @@ CREATE INDEX IF NOT EXISTS idx_tenant_members_uuid ON tenant_members (tenant_mem
 CREATE INDEX IF NOT EXISTS idx_tenant_members_tenant_id ON tenant_members (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_tenant_members_user_id ON tenant_members (user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_tenant_members_tenant_user ON tenant_members (tenant_id, user_id) WHERE deleted_at IS NULL;
+-- A live tenant can have at most one owner. The service layer additionally
+-- prevents removing/demoting that owner without an atomic ownership transfer.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tenant_members_one_owner ON tenant_members (tenant_id) WHERE role = 'owner' AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tenant_members_created_at ON tenant_members (created_at);
 CREATE INDEX IF NOT EXISTS idx_tenant_members_deleted_at ON tenant_members (deleted_at) WHERE deleted_at IS NULL;
 `

@@ -200,7 +200,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		}
 
 		// Retrieve the internal (default) identity sub for JWT generation.
-		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderDefault)
+		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderMaintainerd)
 		if err != nil {
 			return apperror.NewInternal("default identity lookup failed", err)
 		}
@@ -494,7 +494,7 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 	if target == nil {
 		return apperror.NewNotFound("identity not found")
 	}
-	if target.Provider == shared.ProviderDefault {
+	if target.Provider == shared.ProviderMaintainerd {
 		return apperror.NewValidation("the built-in identity cannot be unlinked")
 	}
 
@@ -657,7 +657,7 @@ func (s *federationService) provisionUser(
 
 	// Create the default (maintainerd) identity if it doesn't exist yet.
 	// This ensures our RBAC system always has a stable sub for the user.
-	defaultIdentity, _ := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderDefault)
+	defaultIdentity, _ := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderMaintainerd)
 	if defaultIdentity == nil {
 		defaultIDP, _ := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
 		var defaultIDPID *int64
@@ -669,7 +669,7 @@ func (s *federationService) provisionUser(
 			UserID:             user.UserID,
 			ClientID:           0,
 			IdentityProviderID: defaultIDPID,
-			Provider:           shared.ProviderDefault,
+			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
@@ -904,7 +904,7 @@ func identityToDTO(ui *UserIdentity) *IdentityDTO {
 		IdentityUUID: ui.UserIdentityUUID.String(),
 		Provider:     ui.Provider,
 		Sub:          ui.Sub,
-		IsDefault:    ui.Provider == shared.ProviderDefault,
+		IsDefault:    ui.Provider == shared.ProviderMaintainerd,
 		CreatedAt:    ui.CreatedAt.Format(time.RFC3339),
 	}
 

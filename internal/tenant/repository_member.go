@@ -16,6 +16,7 @@ type TenantMemberRepository interface {
 	FindByTenantAndUser(tenantID int64, userID int64) (*TenantMember, error)
 	FindByTenant(filter TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error)
 	FindAllByUser(userID int64) ([]TenantMember, error)
+	FindOwnerByTenantID(tenantID int64) (*TenantMember, error)
 }
 
 type TenantMemberRepositoryListFilter struct {
@@ -85,4 +86,16 @@ func (r *tenantMemberRepository) FindAllByUser(userID int64) ([]TenantMember, er
 		return nil, err
 	}
 	return tus, nil
+}
+
+func (r *tenantMemberRepository) FindOwnerByTenantID(tenantID int64) (*TenantMember, error) {
+	var tu TenantMember
+	err := r.DB().Where("tenant_id = ? AND role = ?", tenantID, "owner").First(&tu).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &tu, nil
 }

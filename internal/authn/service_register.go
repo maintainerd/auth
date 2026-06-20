@@ -281,7 +281,7 @@ func (s *registerService) RegisterPublic(
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
 			IdentityProviderID: &Client.IdentityProviderID,
-			Provider:           shared.ProviderDefault,
+			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
@@ -453,7 +453,7 @@ func (s *registerService) Register(
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
 			IdentityProviderID: &Client.IdentityProviderID,
-			Provider:           shared.ProviderDefault,
+			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
@@ -621,7 +621,7 @@ func (s *registerService) RegisterInvitePublic(
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
 			IdentityProviderID: &Client.IdentityProviderID,
-			Provider:           shared.ProviderDefault,
+			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
@@ -809,7 +809,7 @@ func (s *registerService) RegisterInvite(
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
 			IdentityProviderID: &Client.IdentityProviderID,
-			Provider:           shared.ProviderDefault,
+			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}

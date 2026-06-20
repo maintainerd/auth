@@ -1222,6 +1222,7 @@ func (x *SetTenantStatusResponse) GetTenant() *Tenant {
 type DeleteTenantRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	ActorUserUuid string                 `protobuf:"bytes,2,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1259,6 +1260,13 @@ func (*DeleteTenantRequest) Descriptor() ([]byte, []int) {
 func (x *DeleteTenantRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *DeleteTenantRequest) GetActorUserUuid() string {
+	if x != nil {
+		return x.ActorUserUuid
 	}
 	return ""
 }
@@ -1424,6 +1432,7 @@ type AddTenantMemberRequest struct {
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
 	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	ActorUserUuid string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1479,6 +1488,13 @@ func (x *AddTenantMemberRequest) GetRole() string {
 	return ""
 }
 
+func (x *AddTenantMemberRequest) GetActorUserUuid() string {
+	if x != nil {
+		return x.ActorUserUuid
+	}
+	return ""
+}
+
 type AddTenantMemberResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Member        *TenantMember          `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
@@ -1528,6 +1544,7 @@ type UpdateTenantMemberRoleRequest struct {
 	TenantUuid       string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	TenantMemberUuid string                 `protobuf:"bytes,2,opt,name=tenant_member_uuid,json=tenantMemberUuid,proto3" json:"tenant_member_uuid,omitempty"`
 	Role             string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	ActorUserUuid    string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1583,6 +1600,13 @@ func (x *UpdateTenantMemberRoleRequest) GetRole() string {
 	return ""
 }
 
+func (x *UpdateTenantMemberRoleRequest) GetActorUserUuid() string {
+	if x != nil {
+		return x.ActorUserUuid
+	}
+	return ""
+}
+
 type UpdateTenantMemberRoleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Member        *TenantMember          `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
@@ -1631,6 +1655,7 @@ type RemoveTenantMemberRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	TenantUuid       string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	TenantMemberUuid string                 `protobuf:"bytes,2,opt,name=tenant_member_uuid,json=tenantMemberUuid,proto3" json:"tenant_member_uuid,omitempty"`
+	ActorUserUuid    string                 `protobuf:"bytes,3,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1675,6 +1700,13 @@ func (x *RemoveTenantMemberRequest) GetTenantUuid() string {
 func (x *RemoveTenantMemberRequest) GetTenantMemberUuid() string {
 	if x != nil {
 		return x.TenantMemberUuid
+	}
+	return ""
+}
+
+func (x *RemoveTenantMemberRequest) GetActorUserUuid() string {
+	if x != nil {
+		return x.ActorUserUuid
 	}
 	return ""
 }
@@ -2387,10 +2419,11 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"tenantUuid\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"N\n" +
 	"\x17SetTenantStatusResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"6\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"^\n" +
 	"\x13DeleteTenantRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"K\n" +
+	"tenantUuid\x12&\n" +
+	"\x0factor_user_uuid\x18\x02 \x01(\tR\ractorUserUuid\"K\n" +
 	"\x14DeleteTenantResponse\x123\n" +
 	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\x90\x01\n" +
 	"\x18ListTenantMembersRequest\x12\x1f\n" +
@@ -2402,25 +2435,28 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"pagination\"\x8f\x01\n" +
 	"\x19ListTenantMembersResponse\x12;\n" +
 	"\amembers\x18\x01 \x03(\v2!.maintainerd.auth.v1.TenantMemberR\amembers\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"j\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x92\x01\n" +
 	"\x16AddTenantMemberRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1b\n" +
 	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\"T\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\x12&\n" +
+	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"T\n" +
 	"\x17AddTenantMemberResponse\x129\n" +
-	"\x06member\x18\x01 \x01(\v2!.maintainerd.auth.v1.TenantMemberR\x06member\"\x82\x01\n" +
+	"\x06member\x18\x01 \x01(\v2!.maintainerd.auth.v1.TenantMemberR\x06member\"\xaa\x01\n" +
 	"\x1dUpdateTenantMemberRoleRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12,\n" +
 	"\x12tenant_member_uuid\x18\x02 \x01(\tR\x10tenantMemberUuid\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\"[\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\x12&\n" +
+	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"[\n" +
 	"\x1eUpdateTenantMemberRoleResponse\x129\n" +
-	"\x06member\x18\x01 \x01(\v2!.maintainerd.auth.v1.TenantMemberR\x06member\"j\n" +
+	"\x06member\x18\x01 \x01(\v2!.maintainerd.auth.v1.TenantMemberR\x06member\"\x92\x01\n" +
 	"\x19RemoveTenantMemberRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12,\n" +
-	"\x12tenant_member_uuid\x18\x02 \x01(\tR\x10tenantMemberUuid\"6\n" +
+	"\x12tenant_member_uuid\x18\x02 \x01(\tR\x10tenantMemberUuid\x12&\n" +
+	"\x0factor_user_uuid\x18\x03 \x01(\tR\ractorUserUuid\"6\n" +
 	"\x1aRemoveTenantMemberResponse\x12\x18\n" +
 	"\aremoved\x18\x01 \x01(\bR\aremoved\"<\n" +
 	"\x19GetRateLimitConfigRequest\x12\x1f\n" +

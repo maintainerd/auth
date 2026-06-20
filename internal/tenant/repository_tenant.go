@@ -27,6 +27,7 @@ type TenantRepositoryGetFilter struct {
 type TenantRepository interface {
 	BaseRepositoryMethods[Tenant]
 	FindByUUID(uuid any, preloads ...string) (*Tenant, error)
+	FindByID(id any, preloads ...string) (*Tenant, error)
 	FindAll(preloads ...string) ([]Tenant, error)
 	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) TenantRepository
@@ -125,6 +126,12 @@ func (r *tenantRepository) SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem 
 
 func (r *tenantRepository) DeleteCascade(ctx context.Context, tx *gorm.DB, tenantID int64, cascadeModels []any) error {
 	if err := tx.WithContext(ctx).Exec("SELECT set_config('maintainerd.allow_auth_event_delete', ?, true)", "tenant_delete").Error; err != nil {
+		return err
+	}
+	if err := tx.WithContext(ctx).Exec(
+		"DELETE FROM webhook_endpoint_events WHERE webhook_endpoint_id IN (SELECT webhook_endpoint_id FROM webhook_endpoints WHERE tenant_id = ?)",
+		tenantID,
+	).Error; err != nil {
 		return err
 	}
 	for _, m := range cascadeModels {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // PasswordPolicy defines the complexity and lifecycle rules applied to a user's password.
@@ -283,10 +284,11 @@ func ValidatePasswordPolicy(password string, policy PasswordPolicy) error {
 // ValidatePasswordPolicyWithContext validates a password against the given policy,
 // including HIBP k-anonymity checks which require a context for tracing.
 func ValidatePasswordPolicyWithContext(ctx context.Context, password string, policy PasswordPolicy) error {
-	if len(password) < policy.MinLength {
+	passwordLength := utf8.RuneCountInString(password)
+	if passwordLength < policy.MinLength {
 		return fmt.Errorf("password must be at least %d characters long", policy.MinLength)
 	}
-	if policy.MaxLength > 0 && len(password) > policy.MaxLength {
+	if policy.MaxLength > 0 && passwordLength > policy.MaxLength {
 		return fmt.Errorf("password must not exceed %d characters", policy.MaxLength)
 	}
 	if policy.RequireUpper && !reUpper.MatchString(password) {

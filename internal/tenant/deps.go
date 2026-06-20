@@ -54,10 +54,10 @@ type UserReader interface {
 // user can log in there with the same credentials.
 type UserProvisioner interface {
 	EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID, targetTenantID int64) (userID int64, err error)
-	// GrantRoleByName assigns a role (looked up by name within the tenant) to the
-	// user identified by userUUID in the target tenant. Used by tenant member
-	// management to grant the super-admin role when a user is added as owner.
-	GrantRoleByName(ctx context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error
+	// GrantRoleByName and RevokeRoleByName participate in the tenant membership
+	// transaction so ownership and its matching IAM role cannot drift apart.
+	GrantRoleByName(ctx context.Context, tx *gorm.DB, userID, tenantID int64, roleName string) error
+	RevokeRoleByName(ctx context.Context, tx *gorm.DB, userID, tenantID int64, roleName string) error
 }
 
 // AccessActor exposes the tenant-relevant identity data needed for access

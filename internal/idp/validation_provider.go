@@ -2,7 +2,6 @@ package idp
 
 import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/auth/internal/shared"
 )
 
@@ -19,7 +18,7 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Provider,
 			validation.Required.Error("Provider is required"),
-			validation.In(shared.IDPProviderInternal, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Provider must be one of: internal, cognito, auth0, google, facebook, github, gitlab, microsoft, apple, linkedin, twitter"),
+			validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Provider must be one of: maintainerd, cognito, auth0, google, facebook, github, gitlab, microsoft, apple, linkedin, twitter"),
 		),
 		validation.Field(&r.ProviderType,
 			validation.Required.Error("Provider type is required"),
@@ -31,10 +30,6 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
 			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
-		),
-		validation.Field(&r.TenantUUID,
-			validation.Required.Error("Tenant UUID is required"),
-			is.UUID.Error("Tenant UUID must be a valid UUID"),
 		),
 	)
 }
@@ -52,7 +47,7 @@ func (r IdentityProviderUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Provider,
 			validation.Required.Error("Provider is required"),
-			validation.In(shared.IDPProviderInternal, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Provider must be one of: internal, cognito, auth0, google, facebook, github, gitlab, microsoft, apple, linkedin, twitter"),
+			validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Provider must be one of: maintainerd, cognito, auth0, google, facebook, github, gitlab, microsoft, apple, linkedin, twitter"),
 		),
 		validation.Field(&r.ProviderType,
 			validation.Required.Error("Provider type is required"),
@@ -82,7 +77,7 @@ func (f IdentityProviderFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Provider,
 			validation.When(len(f.Provider) > 0,
-				validation.Each(validation.In(shared.IDPProviderInternal, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Invalid identity provider")),
+				validation.Each(validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Invalid identity provider")),
 			),
 		),
 		validation.Field(&f.ProviderType,

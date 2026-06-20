@@ -280,8 +280,8 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 			tc.setupSQL(mock)
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
-			svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
-			result, err := svc.DeleteByUUID(context.Background(), tenantUUID)
+			svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
+			result, err := svc.DeleteByUUID(context.Background(), tenantUUID, 99)
 			if tc.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.errContains)
@@ -292,6 +292,26 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
+}
+
+func TestTenantService_DeleteByUUID_RequiresSystemTenantMembership(t *testing.T) {
+	tenantUUID := uuid.New()
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	repo := &mockTenantRepo{findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+		return newTenant(1, "acme"), nil
+	}}
+	memberRepo := &mockTenantMemberRepo{findByTenantAndUserFn: func(int64, int64) (*TenantMember, error) {
+		return nil, nil
+	}}
+	svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, memberRepo, testCascadeModels()), nil)
+
+	_, err := svc.DeleteByUUID(context.Background(), tenantUUID, 10)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "only system tenant administrators")
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // ---------------------------------------------------------------------------
@@ -426,7 +446,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
@@ -439,7 +459,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
@@ -454,7 +474,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
@@ -467,7 +487,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
@@ -480,7 +500,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
@@ -495,7 +515,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		res, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active")
 		require.NoError(t, err)
 		assert.Equal(t, "acme", res.Name)
@@ -516,7 +536,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Update(context.Background(), tenantUUID, "new", "New", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "find err")
@@ -529,7 +549,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Update(context.Background(), tenantUUID, "new", "New", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
@@ -545,7 +565,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Update(context.Background(), tenantUUID, "new", "New", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
@@ -561,7 +581,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Update(context.Background(), tenantUUID, "new", "New", "desc", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
@@ -577,7 +597,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		_, err := svc.Update(context.Background(), tenantUUID, "old", "New", "desc", "active") // same name → no conflict check
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
@@ -592,7 +612,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		res, err := svc.Update(context.Background(), tenantUUID, "acme", "Acme Corp", "desc", "active")
 		require.NoError(t, err)
 		assert.Equal(t, "Acme Corp", res.DisplayName)
@@ -607,7 +627,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 		res, err := svc.Update(context.Background(), tenantUUID, "new-name", "New Name", "desc", "active")
 		require.NoError(t, err)
 		assert.Equal(t, "new-name", res.Name)
@@ -631,8 +651,8 @@ func TestTenantService_DeleteByUUID_DeleteError(t *testing.T) {
 		findByUUIDFn:   func(_ any, _ ...string) (*Tenant, error) { return newTenant(1, "acme"), nil },
 		deleteByUUIDFn: func(_ any) error { return errors.New("delete err") },
 	}
-	svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
-	_, err := svc.DeleteByUUID(context.Background(), tenantUUID)
+	svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
+	_, err := svc.DeleteByUUID(context.Background(), tenantUUID, 99)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "delete err")
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -650,9 +670,9 @@ func TestTenantService_DeleteByUUID_AdditionalErrors(t *testing.T) {
 				return nil, errors.New("fetch err")
 			},
 		}
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 
-		_, err := svc.DeleteByUUID(context.Background(), tenantUUID)
+		_, err := svc.DeleteByUUID(context.Background(), tenantUUID, 99)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
@@ -669,9 +689,9 @@ func TestTenantService_DeleteByUUID_AdditionalErrors(t *testing.T) {
 				return newTenant(1, "acme"), nil
 			},
 		}
-		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()), nil)
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
 
-		_, err := svc.DeleteByUUID(context.Background(), tenantUUID)
+		_, err := svc.DeleteByUUID(context.Background(), tenantUUID, 99)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cascade err")

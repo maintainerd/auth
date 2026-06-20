@@ -41,14 +41,15 @@ type TenantMemberServiceDataResult struct {
 }
 
 type TenantMemberService interface {
-	Create(ctx context.Context, tenantID int64, userID int64, role string) (*TenantMemberServiceDataResult, error)
-	CreateByUserUUID(ctx context.Context, tenantID int64, userUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, userID int64, role string, actorUserID int64) (*TenantMemberServiceDataResult, error)
+	CreateByUserUUID(ctx context.Context, tenantID int64, userUUID uuid.UUID, role string, actorUserID int64) (*TenantMemberServiceDataResult, error)
 	GetByUUID(ctx context.Context, tenantMemberUUID uuid.UUID) (*TenantMemberServiceDataResult, error)
 	GetByTenantAndUser(ctx context.Context, tenantID int64, userID int64) (*TenantMemberServiceDataResult, error)
 	ListByTenant(ctx context.Context, filter TenantMemberServiceListFilter) (*TenantMemberServiceListResult, error)
 	ListByUser(ctx context.Context, userID int64) ([]TenantMemberServiceDataResult, error)
-	UpdateRole(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error)
-	DeleteByUUID(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID) error
+	UpdateRole(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, role string, actorUserID int64) (*TenantMemberServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, actorUserID int64) error
+	ResolveUserID(ctx context.Context, userUUID uuid.UUID) (int64, error)
 	IsUserInTenant(ctx context.Context, userID int64, tenantUUID uuid.UUID) (bool, error)
 	// CanManageTenant reports whether the user may perform tenant-management
 	// operations (update, members) on the target tenant: true when the user is a
@@ -84,14 +85,50 @@ func NewTenantMemberService(tenantMemberRepo TenantMemberRepository, userRepo Us
 	}
 }
 
-func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID int64, role string) (*TenantMemberServiceDataResult, error) {
+func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID int64, role string, actorUserID int64) (*TenantMemberServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenantMember.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.Int64("user.id", userID))
 
+	_, actorIsSystem, err := s.authorizeManager(tenantID, actorUserID)
+	if err != nil {
+		return nil, err
+	}
+	if role == shared.TenantRoleOwner && !actorIsSystem {
+		return nil, apperror.NewForbidden("only system tenant administrators can assign a tenant owner")
+	}
+	if !actorIsSystem {
+		actorMember, aErr := s.tenantMemberRepo.FindByTenantAndUser(tenantID, actorUserID)
+		if aErr != nil {
+			return nil, apperror.NewInternal("failed to verify actor role", aErr)
+		}
+		if actorMember == nil || actorMember.Role != shared.TenantRoleOwner {
+			return nil, apperror.NewForbidden("only system tenant administrators or the tenant owner can manage members")
+		}
+	}
+
 	var created *TenantMember
-	err := s.uow.Do(ctx, func(tx Transaction) error {
+	err = s.uow.Do(ctx, func(tx Transaction) error {
 		repo := tx.TenantMemberRepository()
+		if role == shared.TenantRoleOwner {
+			tenantRecord, err := tx.TenantRepository().FindByID(tenantID)
+			if err != nil {
+				return err
+			}
+			if tenantRecord == nil {
+				return apperror.NewNotFound("tenant not found")
+			}
+			if tenantRecord.IsSystem {
+				return apperror.NewValidation("system tenant ownership can only be established during initial setup")
+			}
+			existingOwner, err := repo.FindOwnerByTenantID(tenantID)
+			if err != nil {
+				return apperror.NewInternal("failed to check existing owner", err)
+			}
+			if existingOwner != nil {
+				return apperror.NewConflict("tenant already has an owner — transfer ownership instead")
+			}
+		}
 		tu := &TenantMember{
 			TenantID: tenantID,
 			UserID:   userID,
@@ -101,6 +138,26 @@ func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID
 		created, err = repo.Create(tu)
 		if err != nil {
 			return err
+		}
+		if role == shared.TenantRoleOwner && s.userProvisioner != nil {
+			if err := s.userProvisioner.GrantRoleByName(ctx, tx.Tx(), userID, tenantID, shared.RoleSuperAdmin); err != nil {
+				return apperror.NewInternal("failed to assign super-admin role to owner", err)
+			}
+		}
+		if role == shared.TenantRoleOwner {
+			tenantRecord, err := tx.TenantRepository().FindByID(tenantID)
+			if err != nil {
+				return err
+			}
+			if tenantRecord == nil {
+				return apperror.NewNotFound("tenant not found")
+			}
+			if !tenantRecord.IsCompleted {
+				tenantRecord.IsCompleted = true
+				if _, err = tx.TenantRepository().CreateOrUpdate(tenantRecord); err != nil {
+					return err
+				}
+			}
 		}
 
 		// Emit tenant_member.added inside the transaction
@@ -123,10 +180,27 @@ func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID
 	return toTenantMemberServiceDataResult(created), nil
 }
 
-func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int64, userUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error) {
+func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int64, userUUID uuid.UUID, role string, actorUserID int64) (*TenantMemberServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenantMember.createByUserUUID")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.String("user.uuid", userUUID.String()))
+
+	_, actorIsSystem, err := s.authorizeManager(tenantID, actorUserID)
+	if err != nil {
+		return nil, err
+	}
+	if role == shared.TenantRoleOwner && !actorIsSystem {
+		return nil, apperror.NewForbidden("only system tenant administrators can assign a tenant owner")
+	}
+	if !actorIsSystem {
+		actorMember, aErr := s.tenantMemberRepo.FindByTenantAndUser(tenantID, actorUserID)
+		if aErr != nil {
+			return nil, apperror.NewInternal("failed to verify actor role", aErr)
+		}
+		if actorMember == nil || actorMember.Role != shared.TenantRoleOwner {
+			return nil, apperror.NewForbidden("only system tenant administrators or the tenant owner can manage members")
+		}
+	}
 
 	// First get the user to retrieve the user_id
 	user, err := s.userRepo.FindByUUID(userUUID)
@@ -150,16 +224,6 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 		userID = provisionedID
 	}
 
-	// If the member role is "owner", grant super-admin IAM role in the target
-	// tenant so the user has administrative permissions.
-	if role == "owner" && s.userProvisioner != nil {
-		if err := s.userProvisioner.GrantRoleByName(ctx, userUUID, tenantID, shared.RoleSuperAdmin); err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "failed to grant super-admin role")
-			return nil, apperror.NewInternal("failed to assign super-admin role to owner", err)
-		}
-	}
-
 	// Check if user is already a member of this tenant
 	existing, err := s.tenantMemberRepo.FindByTenantAndUser(tenantID, userID)
 	if err != nil {
@@ -172,7 +236,7 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 		return nil, apperror.NewConflict("user is already a member of this tenant")
 	}
 
-	result, err := s.Create(ctx, tenantID, userID, role)
+	result, err := s.Create(ctx, tenantID, userID, role, actorUserID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "create tenant member failed")
@@ -274,13 +338,18 @@ func (s *tenantMemberService) ListByUser(ctx context.Context, userID int64) ([]T
 	return result, nil
 }
 
-func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error) {
+func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, role string, actorUserID int64) (*TenantMemberServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenantMember.updateRole")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
 
+	_, actorIsSystem, err := s.authorizeManager(tenantID, actorUserID)
+	if err != nil {
+		return nil, err
+	}
+
 	var updated *TenantMember
-	err := s.uow.Do(ctx, func(tx Transaction) error {
+	err = s.uow.Do(ctx, func(tx Transaction) error {
 		repo := tx.TenantMemberRepository()
 		tu, err := repo.FindByTenantMemberUUID(tenantMemberUUID)
 		if err != nil {
@@ -292,6 +361,62 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, te
 		if tu.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("tenant member not found")
 		}
+
+		if tu.Role == shared.TenantRoleOwner && role != shared.TenantRoleOwner {
+			return apperror.NewValidation("cannot demote a tenant owner directly — transfer ownership instead")
+		}
+
+		if role == shared.TenantRoleOwner && tu.Role != shared.TenantRoleOwner {
+			if !actorIsSystem {
+				return apperror.NewForbidden("only system tenant administrators can transfer tenant ownership")
+			}
+			tenantRecord, tErr := tx.TenantRepository().FindByID(tenantID)
+			if tErr != nil {
+				return tErr
+			}
+			if tenantRecord == nil {
+				return apperror.NewNotFound("tenant not found")
+			}
+			if tenantRecord.IsSystem {
+				return apperror.NewValidation("cannot transfer ownership of the system tenant")
+			}
+			if s.userProvisioner != nil {
+				ownerUser, uErr := s.userRepo.FindByID(tu.UserID)
+				if uErr != nil || ownerUser == nil {
+					return apperror.NewInternal("failed to resolve user for ownership transfer", uErr)
+				}
+				sysTenant, sErr := s.tenantRepo.FindSystem()
+				if sErr != nil {
+					return apperror.NewInternal("failed to resolve system tenant for provisioning", sErr)
+				}
+				if sysTenant != nil {
+					if _, pErr := s.userProvisioner.EnsureUserInTenant(ctx, ownerUser.UserUUID, sysTenant.TenantID); pErr != nil {
+						return apperror.NewInternal("failed to provision new owner in system tenant", pErr)
+					}
+				}
+			}
+			existingOwner, oErr := repo.FindOwnerByTenantID(tenantID)
+			if oErr != nil {
+				return apperror.NewInternal("failed to check existing owner", oErr)
+			}
+			if existingOwner != nil {
+				existingOwner.Role = shared.TenantRoleMember
+				if _, oErr = repo.CreateOrUpdate(existingOwner); oErr != nil {
+					return oErr
+				}
+				if s.userProvisioner != nil {
+					if oErr = s.userProvisioner.RevokeRoleByName(ctx, tx.Tx(), existingOwner.UserID, tenantID, shared.RoleSuperAdmin); oErr != nil {
+						return apperror.NewInternal("failed to revoke super-admin role from previous owner", oErr)
+					}
+				}
+			}
+			if s.userProvisioner != nil {
+				if oErr = s.userProvisioner.GrantRoleByName(ctx, tx.Tx(), tu.UserID, tenantID, shared.RoleSuperAdmin); oErr != nil {
+					return apperror.NewInternal("failed to assign super-admin role to new owner", oErr)
+				}
+			}
+		}
+
 		tu.Role = role
 		updated, err = repo.CreateOrUpdate(tu)
 		return err
@@ -314,28 +439,50 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, te
 	return result, nil
 }
 
-func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID) error {
+func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, actorUserID int64) error {
 	_, span := otel.Tracer("service").Start(ctx, "tenantMember.delete")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
 
-	err := s.uow.Do(ctx, func(tx Transaction) error {
+	_, actorIsSystem, err := s.authorizeManager(tenantID, actorUserID)
+	if err != nil {
+		return err
+	}
+	if !actorIsSystem {
+		actorMember, aErr := s.tenantMemberRepo.FindByTenantAndUser(tenantID, actorUserID)
+		if aErr != nil {
+			return apperror.NewInternal("failed to verify actor role", aErr)
+		}
+		if actorMember == nil || actorMember.Role != shared.TenantRoleOwner {
+			return apperror.NewForbidden("only system tenant administrators or the tenant owner can manage members")
+		}
+	}
+
+	tu, err := s.tenantMemberRepo.FindByTenantMemberUUID(tenantMemberUUID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "find tenant member failed")
+		return err
+	}
+	if tu == nil {
+		span.SetStatus(codes.Error, "tenant member not found")
+		return apperror.NewNotFoundWithReason("tenant member not found")
+	}
+	if tu.TenantID != tenantID {
+		span.SetStatus(codes.Error, "tenant member not found")
+		return apperror.NewNotFoundWithReason("tenant member not found")
+	}
+
+	if tu.Role == shared.TenantRoleOwner {
+		return apperror.NewValidation("cannot remove a tenant owner directly — transfer ownership first")
+	}
+
+	err = s.uow.Do(ctx, func(tx Transaction) error {
 		repo := tx.TenantMemberRepository()
-		tu, err := repo.FindByTenantMemberUUID(tenantMemberUUID)
-		if err != nil {
-			return err
-		}
-		if tu == nil {
-			return apperror.NewNotFoundWithReason("tenant member not found")
-		}
-		if tu.TenantID != tenantID {
-			return apperror.NewNotFoundWithReason("tenant member not found")
-		}
 		if err := repo.DeleteByUUID(tenantMemberUUID); err != nil {
 			return err
 		}
 
-		// Emit tenant_member.removed inside the transaction
 		if s.eventService != nil {
 			if _, emitErr := s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
 				event.EventTypeTenantMemberRemoved, 1, tenantID,
@@ -353,6 +500,42 @@ func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantID int64, 
 	}
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+func (s *tenantMemberService) ResolveUserID(_ context.Context, userUUID uuid.UUID) (int64, error) {
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil {
+		return 0, err
+	}
+	if user == nil {
+		return 0, apperror.NewNotFound("user not found")
+	}
+	return user.UserID, nil
+}
+
+func (s *tenantMemberService) authorizeManager(tenantID, actorUserID int64) (bool, bool, error) {
+	if actorUserID <= 0 {
+		return false, false, apperror.NewForbidden("actor user is required")
+	}
+	targetMember, err := s.tenantMemberRepo.FindByTenantAndUser(tenantID, actorUserID)
+	if err != nil {
+		return false, false, apperror.NewInternal("failed to verify tenant membership", err)
+	}
+	systemTenant, err := s.tenantRepo.FindSystem()
+	if err != nil {
+		return false, false, apperror.NewInternal("failed to resolve system tenant", err)
+	}
+	var systemMember *TenantMember
+	if systemTenant != nil {
+		systemMember, err = s.tenantMemberRepo.FindByTenantAndUser(systemTenant.TenantID, actorUserID)
+		if err != nil {
+			return false, false, apperror.NewInternal("failed to verify system tenant membership", err)
+		}
+	}
+	if targetMember == nil && systemMember == nil {
+		return false, false, apperror.NewForbidden("actor cannot manage this tenant")
+	}
+	return targetMember != nil, systemMember != nil, nil
 }
 
 // IsUserInTenant checks if a user is a member of the specified tenant
