@@ -2000,7 +2000,7 @@ func TestUserService_GetUserMFA(t *testing.T) {
 			return &User{UserID: userID, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_backup_codes" WHERE user_id = \$1 AND used = false`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_mfa_backup_codes" WHERE user_id = \$1 AND used = false`).
 			WithArgs(userID).
 			WillReturnError(errors.New("db error"))
 		_, err := svc.GetUserMFA(context.Background(), uid, 1)
@@ -2014,10 +2014,10 @@ func TestUserService_GetUserMFA(t *testing.T) {
 			return &User{UserID: userID, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_backup_codes" WHERE user_id = \$1 AND used = false`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_mfa_backup_codes" WHERE user_id = \$1 AND used = false`).
 			WithArgs(userID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_webauthn_credentials" WHERE user_id = \$1`).
+		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_mfa_webauthn_credentials" WHERE user_id = \$1`).
 			WithArgs(userID).
 			WillReturnError(errors.New("db error"))
 		_, err := svc.GetUserMFA(context.Background(), uid, 1)
@@ -2039,14 +2039,14 @@ func TestUserService_GetUserMFA(t *testing.T) {
 			}, nil
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_backup_codes" WHERE user_id = \$1 AND used = false`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_mfa_backup_codes" WHERE user_id = \$1 AND used = false`).
 			WithArgs(userID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
-		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_webauthn_credentials" WHERE user_id = \$1`).
+		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_mfa_webauthn_credentials" WHERE user_id = \$1`).
 			WithArgs(userID).
 			WillReturnRows(sqlmock.NewRows([]string{"credential_uuid", "name", "transport", "last_used_at", "created_at"}).
 				AddRow("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Phone Key", "internal", time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC), time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)))
-		mock.ExpectQuery(`SELECT is_verified FROM "user_sms_phones" WHERE user_id = \$1`).
+		mock.ExpectQuery(`SELECT is_verified FROM "user_mfa_phones" WHERE user_id = \$1`).
 			WithArgs(userID).
 			WillReturnRows(sqlmock.NewRows([]string{"is_verified"}).AddRow(true))
 		res, err := svc.GetUserMFA(context.Background(), uid, 1)
@@ -2071,13 +2071,13 @@ func TestUserService_GetUserMFA(t *testing.T) {
 			}, nil
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_backup_codes" WHERE user_id = \$1 AND used = false`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "user_mfa_backup_codes" WHERE user_id = \$1 AND used = false`).
 			WithArgs(userID).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_webauthn_credentials" WHERE user_id = \$1`).
+		mock.ExpectQuery(`SELECT credential_uuid, name, transport, last_used_at, created_at FROM "user_mfa_webauthn_credentials" WHERE user_id = \$1`).
 			WithArgs(userID).
 			WillReturnRows(sqlmock.NewRows([]string{"credential_uuid", "name", "transport", "last_used_at", "created_at"}))
-		mock.ExpectQuery(`SELECT is_verified FROM "user_sms_phones" WHERE user_id = \$1`).
+		mock.ExpectQuery(`SELECT is_verified FROM "user_mfa_phones" WHERE user_id = \$1`).
 			WithArgs(userID).
 			WillReturnRows(sqlmock.NewRows([]string{"is_verified"}).AddRow(false))
 		res, err := svc.GetUserMFA(context.Background(), uid, 1)

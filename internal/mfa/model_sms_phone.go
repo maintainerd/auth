@@ -19,7 +19,7 @@ type UserSMSPhone struct {
 	UpdatedAt    time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 }
 
-func (UserSMSPhone) TableName() string { return "user_sms_phones" }
+func (UserSMSPhone) TableName() string { return "user_mfa_phones" }
 
 func (p *UserSMSPhone) BeforeCreate(tx *gorm.DB) error {
 	if p.MfaPhoneUUID == uuid.Nil {

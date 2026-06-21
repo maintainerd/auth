@@ -1380,7 +1380,7 @@ func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenant
 
 	var backupCount int64
 	if err := s.db.WithContext(ctx).
-		Table("user_backup_codes").
+		Table("user_mfa_backup_codes").
 		Where("user_id = ? AND used = false", user.UserID).
 		Count(&backupCount).Error; err != nil {
 		span.RecordError(err)
@@ -1396,7 +1396,7 @@ func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenant
 	}
 	var rows []webAuthnRow
 	if err := s.db.WithContext(ctx).
-		Table("user_webauthn_credentials").
+		Table("user_mfa_webauthn_credentials").
 		Select("credential_uuid, name, transport, last_used_at, created_at").
 		Where("user_id = ?", user.UserID).
 		Scan(&rows).Error; err != nil {
@@ -1521,7 +1521,7 @@ func ToClientServiceDataResult(client *Client) *ClientServiceDataResult {
 func (s *userService) isSMSVerified(ctx context.Context, userID int64) bool {
 	var verified bool
 	if err := s.db.WithContext(ctx).
-		Table("user_sms_phones").
+		Table("user_mfa_phones").
 		Select("is_verified").
 		Where("user_id = ?", userID).
 		Scan(&verified).Error; err != nil {

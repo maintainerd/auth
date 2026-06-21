@@ -1469,7 +1469,7 @@ func (s *mfaService) verifyFactor(ctx context.Context, userID int64, method, cod
 		if err := checkMFARateLimit(smsRateLimitKey); err != nil {
 			return nil, apperror.NewUnauthorized("too many attempts; try again later")
 		}
-		// SMS MFA uses the dedicated user_sms_phones record, NOT users.phone
+		// SMS MFA uses the dedicated user_mfa_phones record, NOT users.phone
 		// (which is profile-only). The OTP was sent to and stored against this
 		// MFA phone, so verification must look it up the same way.
 		phone, perr := s.smsPhoneRepo.FindByUserID(userID)

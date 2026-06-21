@@ -2,9 +2,9 @@ package migration
 
 import "gorm.io/gorm"
 
-func CreateUserTOTPSecretsTable(db *gorm.DB) error {
+func CreateUserMFATOTPSecretsTable(db *gorm.DB) error {
 	return db.Exec(`
-CREATE TABLE IF NOT EXISTS user_totp_secrets (
+CREATE TABLE IF NOT EXISTS user_mfa_totp_secrets (
     totp_secret_id   BIGSERIAL PRIMARY KEY,
     totp_secret_uuid UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     user_id          BIGINT      NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS user_totp_secrets (
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS uq_user_totp_secrets_user_id ON user_totp_secrets(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_totp_secrets_user_id ON user_totp_secrets(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_mfa_totp_secrets_user_id ON user_mfa_totp_secrets(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_mfa_totp_secrets_user_id ON user_mfa_totp_secrets(user_id);
 `).Error
 }

@@ -17,7 +17,7 @@ type UserBackupCode struct {
 	CreatedAt      time.Time  `gorm:"column:created_at;autoCreateTime"`
 }
 
-func (UserBackupCode) TableName() string { return "user_backup_codes" }
+func (UserBackupCode) TableName() string { return "user_mfa_backup_codes" }
 
 func (b *UserBackupCode) BeforeCreate(tx *gorm.DB) error {
 	if b.BackupCodeUUID == uuid.Nil {
