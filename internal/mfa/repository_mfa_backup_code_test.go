@@ -10,12 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestUserBackupCodeRepository(t *testing.T) {
+func TestUserMFABackupCodeRepository(t *testing.T) {
 	t.Run("constructor and WithTx", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
-		repo := NewUserBackupCodeRepository(db)
+		repo := NewUserMFABackupCodeRepository(db)
 		require.NotNil(t, repo)
-		assert.NotNil(t, repo.(*userBackupCodeRepository).WithTx(db))
+		assert.NotNil(t, repo.(*userMFABackupCodeRepository).WithTx(db))
 	})
 
 	t.Run("CreateBulk stores codes", func(t *testing.T) {
@@ -24,7 +24,7 @@ func TestUserBackupCodeRepository(t *testing.T) {
 		mock.ExpectQuery(`INSERT INTO "user_mfa_backup_codes"`).WillReturnRows(sqlmock.NewRows([]string{"backup_code_id"}).AddRow(1))
 		mock.ExpectCommit()
 
-		err := NewUserBackupCodeRepository(db).CreateBulk([]*UserBackupCode{{UserID: mfaTestUserID, CodeHash: "hash"}})
+		err := NewUserMFABackupCodeRepository(db).CreateBulk([]*UserMFABackupCode{{UserID: mfaTestUserID, CodeHash: "hash"}})
 
 		require.NoError(t, err)
 		assertExpectationsMet(t, mock)
@@ -34,7 +34,7 @@ func TestUserBackupCodeRepository(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		expectMFASelect(mock, "user_mfa_backup_codes").WillReturnRows(userBackupCodeRows())
 
-		got, err := NewUserBackupCodeRepository(db).FindUnusedByUserID(mfaTestUserID)
+		got, err := NewUserMFABackupCodeRepository(db).FindUnusedByUserID(mfaTestUserID)
 
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
@@ -46,7 +46,7 @@ func TestUserBackupCodeRepository(t *testing.T) {
 		expectMFASelect(mock, "user_mfa_backup_codes").WillReturnRows(userBackupCodeRows())
 		expectMFASelect(mock, "user_mfa_backup_codes").WillReturnError(gorm.ErrRecordNotFound)
 		expectMFASelect(mock, "user_mfa_backup_codes").WillReturnError(errors.New("db error"))
-		repo := NewUserBackupCodeRepository(db)
+		repo := NewUserMFABackupCodeRepository(db)
 
 		got, err := repo.FindByUserIDAndCodeHash(mfaTestUserID, "hash")
 		require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestUserBackupCodeRepository(t *testing.T) {
 		mock.ExpectBegin()
 		expectMFADelete(mock, "user_mfa_backup_codes").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
-		repo := NewUserBackupCodeRepository(db)
+		repo := NewUserMFABackupCodeRepository(db)
 
 		require.NoError(t, repo.MarkUsed(1))
 		require.NoError(t, repo.DeleteAllByUserID(mfaTestUserID))

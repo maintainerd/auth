@@ -269,9 +269,9 @@ func (m *mockMFAService) SendEmailOTPChallenge(ctx context.Context, userID int64
 
 type mockWebAuthnService struct {
 	beginRegistrationFn    func(context.Context, int64) (*protocol.CredentialCreation, error)
-	finishRegistrationFn   func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error)
+	finishRegistrationFn   func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error)
 	beginAuthenticationFn  func(context.Context, int64) (*protocol.CredentialAssertion, error)
-	finishAuthenticationFn func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error)
+	finishAuthenticationFn func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error)
 	deleteCredentialFn     func(context.Context, string, int64) error
 	downloadCredentialFn   func(context.Context, string, int64) (*WebAuthnCredentialDownloadDTO, error)
 }
@@ -283,11 +283,11 @@ func (m *mockWebAuthnService) BeginRegistration(ctx context.Context, userID int6
 	return &protocol.CredentialCreation{}, nil
 }
 
-func (m *mockWebAuthnService) FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+func (m *mockWebAuthnService) FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error) {
 	if m.finishRegistrationFn != nil {
 		return m.finishRegistrationFn(ctx, userID, credName, response)
 	}
-	return &UserWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: credName, CreatedAt: time.Unix(1_700_000_000, 0).UTC()}, nil
+	return &UserMFAWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: credName, CreatedAt: time.Unix(1_700_000_000, 0).UTC()}, nil
 }
 
 func (m *mockWebAuthnService) BeginAuthentication(ctx context.Context, userID int64) (*protocol.CredentialAssertion, error) {
@@ -297,11 +297,11 @@ func (m *mockWebAuthnService) BeginAuthentication(ctx context.Context, userID in
 	return &protocol.CredentialAssertion{}, nil
 }
 
-func (m *mockWebAuthnService) FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+func (m *mockWebAuthnService) FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
 	if m.finishAuthenticationFn != nil {
 		return m.finishAuthenticationFn(ctx, userID, response)
 	}
-	return &UserWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: "Security Key"}, nil
+	return &UserMFAWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: "Security Key"}, nil
 }
 
 func (m *mockWebAuthnService) DeleteCredential(ctx context.Context, credentialUUIDStr string, userID int64) error {
@@ -587,11 +587,11 @@ func TestMFAHandler_JSONBodyEndpoints(t *testing.T) {
 
 func TestMFAHandler_WebAuthnFinishBadBodies(t *testing.T) {
 	h := NewMFAHandler(&mockMFAService{}, &mockWebAuthnService{
-		finishRegistrationFn: func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+		finishRegistrationFn: func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error) {
 			t.Fatal("service should not be called for malformed registration response")
 			return nil, nil
 		},
-		finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+		finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
 			t.Fatal("service should not be called for malformed assertion response")
 			return nil, nil
 		},
@@ -642,7 +642,7 @@ func TestMFAHandler_WebAuthnPolicyGate(t *testing.T) {
 			t.Fatal("registration ceremony should not start when WebAuthn is disallowed")
 			return nil, nil
 		},
-		finishRegistrationFn: func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+		finishRegistrationFn: func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error) {
 			t.Fatal("registration ceremony should not finish when WebAuthn is disallowed")
 			return nil, nil
 		},
@@ -650,7 +650,7 @@ func TestMFAHandler_WebAuthnPolicyGate(t *testing.T) {
 			t.Fatal("authentication ceremony should not start when WebAuthn is disallowed")
 			return nil, nil
 		},
-		finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+		finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
 			t.Fatal("authentication ceremony should not finish when WebAuthn is disallowed")
 			return nil, nil
 		},
@@ -707,10 +707,10 @@ func TestMFAHandler_WebAuthnFinishParserBackedBranches(t *testing.T) {
 			name:    "finish registration success",
 			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/register/finish?name=laptop", nil),
 			handler: (*MFAHandler).WebAuthnFinishRegistration,
-			webAuthnSvc: &mockWebAuthnService{finishRegistrationFn: func(_ context.Context, userID int64, name string, _ *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+			webAuthnSvc: &mockWebAuthnService{finishRegistrationFn: func(_ context.Context, userID int64, name string, _ *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error) {
 				assert.Equal(t, mfaTestUserID, userID)
 				assert.Equal(t, "laptop", name)
-				return &UserWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: name, Transport: "usb", CreatedAt: time.Unix(1_700_000_000, 0).UTC()}, nil
+				return &UserMFAWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: name, Transport: "usb", CreatedAt: time.Unix(1_700_000_000, 0).UTC()}, nil
 			}},
 			wantStatus:   http.StatusOK,
 			wantContains: "Passkey registered successfully",
@@ -719,7 +719,7 @@ func TestMFAHandler_WebAuthnFinishParserBackedBranches(t *testing.T) {
 			name:    "finish registration service error",
 			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/register/finish", nil),
 			handler: (*MFAHandler).WebAuthnFinishRegistration,
-			webAuthnSvc: &mockWebAuthnService{finishRegistrationFn: func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+			webAuthnSvc: &mockWebAuthnService{finishRegistrationFn: func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error) {
 				return nil, apperror.NewInternal("registration failed", errors.New("db down"))
 			}},
 			wantStatus:   http.StatusInternalServerError,
@@ -729,9 +729,9 @@ func TestMFAHandler_WebAuthnFinishParserBackedBranches(t *testing.T) {
 			name:    "finish authentication success",
 			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/auth/finish", nil),
 			handler: (*MFAHandler).WebAuthnFinishAuthentication,
-			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(_ context.Context, userID int64, _ *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(_ context.Context, userID int64, _ *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
 				assert.Equal(t, mfaTestUserID, userID)
-				return &UserWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: "Security Key"}, nil
+				return &UserMFAWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: "Security Key"}, nil
 			}},
 			wantStatus:   http.StatusOK,
 			wantContains: "WebAuthn authentication succeeded",
@@ -740,7 +740,7 @@ func TestMFAHandler_WebAuthnFinishParserBackedBranches(t *testing.T) {
 			name:    "finish authentication service error",
 			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/auth/finish", nil),
 			handler: (*MFAHandler).WebAuthnFinishAuthentication,
-			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
 				return nil, apperror.NewUnauthorized("assertion failed")
 			}},
 			wantStatus:   http.StatusUnauthorized,

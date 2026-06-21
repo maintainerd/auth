@@ -7,9 +7,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserTOTPSecret stores the TOTP secret for a user.
+// UserMFATOTPSecret stores the TOTP secret for a user.
 // Only one active secret per user is allowed (uq_user_mfa_totp_secrets_user_id).
-type UserTOTPSecret struct {
+type UserMFATOTPSecret struct {
 	TOTPSecretID   int64      `gorm:"column:totp_secret_id;primaryKey"`
 	TOTPSecretUUID uuid.UUID  `gorm:"column:totp_secret_uuid"`
 	UserID         int64      `gorm:"column:user_id;not null"`
@@ -24,9 +24,9 @@ type UserTOTPSecret struct {
 	UpdatedAt      time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 }
 
-func (UserTOTPSecret) TableName() string { return "user_mfa_totp_secrets" }
+func (UserMFATOTPSecret) TableName() string { return "user_mfa_totp_secrets" }
 
-func (s *UserTOTPSecret) BeforeCreate(tx *gorm.DB) error {
+func (s *UserMFATOTPSecret) BeforeCreate(tx *gorm.DB) error {
 	if s.TOTPSecretUUID == uuid.Nil {
 		s.TOTPSecretUUID = uuid.New()
 	}

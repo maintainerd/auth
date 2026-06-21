@@ -103,18 +103,18 @@ func TestMFAMethodAllowedPolicy(t *testing.T) {
 func TestMFAService_GetBackupCodesCount(t *testing.T) {
 	tests := []struct {
 		name    string
-		codes   []UserBackupCode
+		codes   []UserMFABackupCode
 		err     error
 		want    int
 		wantErr string
 	}{
-		{name: "counts unused codes", codes: []UserBackupCode{{BackupCodeID: 1}, {BackupCodeID: 2}}, want: 2},
+		{name: "counts unused codes", codes: []UserMFABackupCode{{BackupCodeID: 1}, {BackupCodeID: 2}}, want: 2},
 		{name: "repo error", err: errors.New("db down"), wantErr: "backup code lookup failed"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &mfaService{backupCodeRepo: &mockBackupCodeRepo{findUnused: tt.codes, findUnusedErr: tt.err}}
+			svc := &mfaService{mfaBackupCodeRepo: &mockMFABackupCodeRepo{findUnused: tt.codes, findUnusedErr: tt.err}}
 
 			got, err := svc.GetBackupCodesCount(t.Context(), 42)
 
@@ -138,8 +138,8 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 		name       string
 		user       *User
 		userErr    error
-		codes      []UserBackupCode
-		creds      []UserWebAuthnCredential
+		codes      []UserMFABackupCode
+		creds      []UserMFAWebAuthnCredential
 		credsErr   error
 		wantErr    string
 		assertResp func(*testing.T, *MFAStatusResponseDTO)
@@ -147,8 +147,8 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 		{
 			name:  "success maps factors and timestamps",
 			user:  &User{UserID: 42, IsTOTPEnabled: true, IsWebAuthnEnabled: true, MFAEnabledAt: &enabledAt},
-			codes: []UserBackupCode{{BackupCodeID: 1}, {BackupCodeID: 2}},
-			creds: []UserWebAuthnCredential{{
+			codes: []UserMFABackupCode{{BackupCodeID: 1}, {BackupCodeID: 2}},
+			creds: []UserMFAWebAuthnCredential{{
 				CredentialUUID: credUUID,
 				Name:           "Laptop",
 				Transport:      "usb",
@@ -176,9 +176,9 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &mfaService{
 				userRepo:         &mockUserRepo{findByID: tt.user, findByIDErr: tt.userErr},
-				backupCodeRepo:   &mockBackupCodeRepo{findUnused: tt.codes},
-				webAuthnCredRepo: &mockWebAuthnCredentialRepo{findByUserID: tt.creds, findByUserIDErr: tt.credsErr},
-				smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+				mfaBackupCodeRepo:   &mockMFABackupCodeRepo{findUnused: tt.codes},
+				mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{findByUserID: tt.creds, findByUserIDErr: tt.credsErr},
+				mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			}
 
 			got, err := svc.GetMFAStatus(t.Context(), 42)
@@ -301,7 +301,7 @@ func TestMFAService_UserHasMFA(t *testing.T) {
 
 func TestNewMFAService(t *testing.T) {
 	db, _ := newMockGormDB(t)
-	svc := NewMFAService(db, &mockUserRepo{}, &mockTOTPSecretRepo{}, &mockWebAuthnCredentialRepo{}, &mockWebAuthnService{}, &mockBackupCodeRepo{}, &mockSMSPhoneRepo{}, &mockMFAEmailRepo{}, &mockSMSOtpRepo{}, &mockSecuritySettingRepo{}, &mockAuthEventService{})
+	svc := NewMFAService(db, &mockUserRepo{}, &mockMFATOTPSecretRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnService{}, &mockMFABackupCodeRepo{}, &mockMFAPhoneRepo{}, &mockMFAEmailRepo{}, &mockSMSOtpRepo{}, &mockSecuritySettingRepo{}, &mockAuthEventService{})
 	require.NotNil(t, svc)
 	assert.IsType(t, &mfaService{}, svc)
 }
@@ -328,7 +328,7 @@ func TestMFAService_BeginTOTPEnrollment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &mfaService{
 				userRepo: &mockUserRepo{findByID: tt.user, findByIDErr: tt.userErr},
-				totpRepo: &mockTOTPSecretRepo{upsertErr: tt.upsert},
+				mfaTotpRepo: &mockMFATOTPSecretRepo{upsertErr: tt.upsert},
 			}
 
 			got, err := svc.BeginTOTPEnrollment(t.Context(), mfaTestUserID)
@@ -364,7 +364,7 @@ func TestMFAService_BeginTOTPEnrollment(t *testing.T) {
 		t.Cleanup(func() { config.AppEncryptionKey = originalKey })
 		svc := &mfaService{
 			userRepo: &mockUserRepo{findByID: &User{UserID: mfaTestUserID, Email: "user@example.com"}},
-			totpRepo: &mockTOTPSecretRepo{},
+			mfaTotpRepo: &mockMFATOTPSecretRepo{},
 		}
 
 		_, err := svc.BeginTOTPEnrollment(t.Context(), mfaTestUserID)
@@ -387,8 +387,8 @@ func TestMFAService_FinishTOTPEnrollment(t *testing.T) {
 		events := &mockAuthEventService{}
 		svc := &mfaService{
 			db:               db,
-			totpRepo:         &mockTOTPSecretRepo{findByUserID: &UserTOTPSecret{Secret: secret, IsEnabled: false}},
-			backupCodeRepo:   &mockBackupCodeRepo{},
+			mfaTotpRepo:         &mockMFATOTPSecretRepo{findByUserID: &UserMFATOTPSecret{Secret: secret, IsEnabled: false}},
+			mfaBackupCodeRepo:   &mockMFABackupCodeRepo{},
 			authEventService: events,
 		}
 
@@ -402,7 +402,7 @@ func TestMFAService_FinishTOTPEnrollment(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		record  *UserTOTPSecret
+		record  *UserMFATOTPSecret
 		repoErr error
 		enable  error
 		dbErr   bool
@@ -410,11 +410,11 @@ func TestMFAService_FinishTOTPEnrollment(t *testing.T) {
 	}{
 		{name: "lookup error", repoErr: errors.New("db down"), wantErr: "TOTP secret lookup failed"},
 		{name: "no pending record", wantErr: "no pending TOTP enrollment found"},
-		{name: "already enabled", record: &UserTOTPSecret{Secret: secret, IsEnabled: true}, wantErr: "no pending TOTP enrollment found"},
-		{name: "invalid code", record: &UserTOTPSecret{Secret: secret}, wantErr: "invalid TOTP code"},
-		{name: "enable error", record: &UserTOTPSecret{Secret: secret}, enable: errors.New("db down"), wantErr: "failed to enable TOTP"},
-		{name: "user update error", record: &UserTOTPSecret{Secret: secret}, dbErr: true, wantErr: "failed to update user MFA status"},
-		{name: "backup code delete error", record: &UserTOTPSecret{Secret: secret}, wantErr: "failed to delete existing backup codes"},
+		{name: "already enabled", record: &UserMFATOTPSecret{Secret: secret, IsEnabled: true}, wantErr: "no pending TOTP enrollment found"},
+		{name: "invalid code", record: &UserMFATOTPSecret{Secret: secret}, wantErr: "invalid TOTP code"},
+		{name: "enable error", record: &UserMFATOTPSecret{Secret: secret}, enable: errors.New("db down"), wantErr: "failed to enable TOTP"},
+		{name: "user update error", record: &UserMFATOTPSecret{Secret: secret}, dbErr: true, wantErr: "failed to update user MFA status"},
+		{name: "backup code delete error", record: &UserMFATOTPSecret{Secret: secret}, wantErr: "failed to delete existing backup codes"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -431,8 +431,8 @@ func TestMFAService_FinishTOTPEnrollment(t *testing.T) {
 			}
 			svc := &mfaService{
 				db:               db,
-				totpRepo:         &mockTOTPSecretRepo{findByUserID: tt.record, findByUserIDErr: tt.repoErr, enableErr: tt.enable},
-				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: map[bool]error{true: errors.New("db down")}[tt.name == "backup code delete error"]},
+				mfaTotpRepo:         &mockMFATOTPSecretRepo{findByUserID: tt.record, findByUserIDErr: tt.repoErr, enableErr: tt.enable},
+				mfaBackupCodeRepo:   &mockMFABackupCodeRepo{deleteAllErr: map[bool]error{true: errors.New("db down")}[tt.name == "backup code delete error"]},
 				authEventService: &mockAuthEventService{},
 			}
 			useCode := code
@@ -456,7 +456,7 @@ func TestMFAService_VerifyTOTP(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		record   *UserTOTPSecret
+		record   *UserMFATOTPSecret
 		repoErr  error
 		accepted bool
 		markErr  error
@@ -464,18 +464,18 @@ func TestMFAService_VerifyTOTP(t *testing.T) {
 		want     bool
 		wantErr  string
 	}{
-		{name: "valid code accepted", record: &UserTOTPSecret{Secret: secret, IsEnabled: true}, accepted: true, code: code, want: true},
-		{name: "replay rejected without error", record: &UserTOTPSecret{Secret: secret, IsEnabled: true}, accepted: false, code: code, want: false},
-		{name: "invalid code", record: &UserTOTPSecret{Secret: secret, IsEnabled: true}, code: "000000", want: false},
+		{name: "valid code accepted", record: &UserMFATOTPSecret{Secret: secret, IsEnabled: true}, accepted: true, code: code, want: true},
+		{name: "replay rejected without error", record: &UserMFATOTPSecret{Secret: secret, IsEnabled: true}, accepted: false, code: code, want: false},
+		{name: "invalid code", record: &UserMFATOTPSecret{Secret: secret, IsEnabled: true}, code: "000000", want: false},
 		{name: "lookup error", repoErr: errors.New("db down"), wantErr: "TOTP lookup failed"},
-		{name: "not enabled", record: &UserTOTPSecret{Secret: secret, IsEnabled: false}, wantErr: "TOTP is not enabled"},
-		{name: "mark step error", record: &UserTOTPSecret{Secret: secret, IsEnabled: true}, code: code, markErr: errors.New("db down"), wantErr: "failed to update TOTP last-used step"},
-		{name: "invalid secret", record: &UserTOTPSecret{Secret: "%", IsEnabled: true}, code: code, wantErr: "invalid TOTP code"},
+		{name: "not enabled", record: &UserMFATOTPSecret{Secret: secret, IsEnabled: false}, wantErr: "TOTP is not enabled"},
+		{name: "mark step error", record: &UserMFATOTPSecret{Secret: secret, IsEnabled: true}, code: code, markErr: errors.New("db down"), wantErr: "failed to update TOTP last-used step"},
+		{name: "invalid secret", record: &UserMFATOTPSecret{Secret: "%", IsEnabled: true}, code: code, wantErr: "invalid TOTP code"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &mfaService{totpRepo: &mockTOTPSecretRepo{findByUserID: tt.record, findByUserIDErr: tt.repoErr, markAccepted: tt.accepted, markStepErr: tt.markErr}}
+			svc := &mfaService{mfaTotpRepo: &mockMFATOTPSecretRepo{findByUserID: tt.record, findByUserIDErr: tt.repoErr, markAccepted: tt.accepted, markStepErr: tt.markErr}}
 
 			got, err := svc.VerifyTOTP(t.Context(), mfaTestUserID, tt.code)
 
@@ -493,7 +493,7 @@ func TestMFAService_VerifyTOTP(t *testing.T) {
 		original := checkMFARateLimit
 		t.Cleanup(func() { checkMFARateLimit = original })
 		checkMFARateLimit = func(string) error { return errors.New("locked") }
-		svc := &mfaService{totpRepo: &mockTOTPSecretRepo{findByUserID: &UserTOTPSecret{Secret: secret, IsEnabled: true}}}
+		svc := &mfaService{mfaTotpRepo: &mockMFATOTPSecretRepo{findByUserID: &UserMFATOTPSecret{Secret: secret, IsEnabled: true}}}
 
 		_, err := svc.VerifyTOTP(t.Context(), mfaTestUserID, code)
 
@@ -509,8 +509,8 @@ func TestMFAService_SyncMFAState(t *testing.T) {
 		svc := &mfaService{
 			db:             db,
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID, IsTOTPEnabled: true}},
-			backupCodeRepo: &mockBackupCodeRepo{deleteAllErr: errors.New("must not be called")},
-			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaBackupCodeRepo: &mockMFABackupCodeRepo{deleteAllErr: errors.New("must not be called")},
+			mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 		}
 
 		require.NoError(t, svc.SyncMFAState(t.Context(), mfaTestUserID))
@@ -525,8 +525,8 @@ func TestMFAService_SyncMFAState(t *testing.T) {
 		svc := &mfaService{
 			db:             db,
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			backupCodeRepo: &mockBackupCodeRepo{},
-			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaBackupCodeRepo: &mockMFABackupCodeRepo{},
+			mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 		}
 
 		require.NoError(t, svc.SyncMFAState(t.Context(), mfaTestUserID))
@@ -536,8 +536,8 @@ func TestMFAService_SyncMFAState(t *testing.T) {
 	t.Run("backup code delete error surfaces", func(t *testing.T) {
 		svc := &mfaService{
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			backupCodeRepo: &mockBackupCodeRepo{deleteAllErr: errors.New("db down")},
-			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaBackupCodeRepo: &mockMFABackupCodeRepo{deleteAllErr: errors.New("db down")},
+			mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 		}
 
 		err := svc.SyncMFAState(t.Context(), mfaTestUserID)
@@ -550,8 +550,8 @@ func TestMFAService_EnrolledMFAMethods(t *testing.T) {
 	t.Run("returns all active factors in canonical order", func(t *testing.T) {
 		svc := &mfaService{
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID, IsTOTPEnabled: true, IsWebAuthnEnabled: true}},
-			smsPhoneRepo:   &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
-			backupCodeRepo: &mockBackupCodeRepo{findUnused: []UserBackupCode{{BackupCodeID: 1}}},
+			mfaPhoneRepo:   &mockMFAPhoneRepo{findByUserID: &UserMFAPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaBackupCodeRepo: &mockMFABackupCodeRepo{findUnused: []UserMFABackupCode{{BackupCodeID: 1}}},
 		}
 		got, err := svc.EnrolledMFAMethods(t.Context(), mfaTestUserID)
 		require.NoError(t, err)
@@ -561,8 +561,8 @@ func TestMFAService_EnrolledMFAMethods(t *testing.T) {
 	t.Run("no active factor returns empty", func(t *testing.T) {
 		svc := &mfaService{
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
-			backupCodeRepo: &mockBackupCodeRepo{},
+			mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaBackupCodeRepo: &mockMFABackupCodeRepo{},
 		}
 		got, err := svc.EnrolledMFAMethods(t.Context(), mfaTestUserID)
 		require.NoError(t, err)
@@ -588,7 +588,7 @@ func TestMFAService_VerifyFactorSMS(t *testing.T) {
 
 	t.Run("verifies against the MFA phone record, not users.phone", func(t *testing.T) {
 		svc := &mfaService{
-			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaPhoneRepo: &mockMFAPhoneRepo{findByUserID: &UserMFAPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
 			smsOtpRepo:   &mockSMSOtpRepo{findValid: &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode("123456")}},
 		}
 		amr, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
@@ -597,7 +597,7 @@ func TestMFAService_VerifyFactorSMS(t *testing.T) {
 	})
 
 	t.Run("no verified MFA phone is rejected", func(t *testing.T) {
-		svc := &mfaService{smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: nil}, emailOTPRepo: &mockMFAEmailRepo{}}
+		svc := &mfaService{mfaPhoneRepo: &mockMFAPhoneRepo{findByUserID: nil}, emailOTPRepo: &mockMFAEmailRepo{}}
 		_, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no verified phone on file")
@@ -605,7 +605,7 @@ func TestMFAService_VerifyFactorSMS(t *testing.T) {
 
 	t.Run("invalid code is rejected", func(t *testing.T) {
 		svc := &mfaService{
-			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaPhoneRepo: &mockMFAPhoneRepo{findByUserID: &UserMFAPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
 			smsOtpRepo:   &mockSMSOtpRepo{findValid: &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode("999999")}},
 		}
 		_, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
@@ -665,9 +665,9 @@ func TestMFAService_DisableAndRegenerateBackupCodes(t *testing.T) {
 		svc := &mfaService{
 			db:               db,
 			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			totpRepo:         &mockTOTPSecretRepo{},
-			backupCodeRepo:   &mockBackupCodeRepo{},
-			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaTotpRepo:         &mockMFATOTPSecretRepo{},
+			mfaBackupCodeRepo:   &mockMFABackupCodeRepo{},
+			mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			authEventService: events,
 		}
 
@@ -695,7 +695,7 @@ func TestMFAService_DisableAndRegenerateBackupCodes(t *testing.T) {
 				expectMFAUpdate(mock, "users").WillReturnError(errors.New("db down"))
 				mock.ExpectRollback()
 			}
-			svc := &mfaService{db: db, totpRepo: &mockTOTPSecretRepo{disableErr: tt.totpErr}, backupCodeRepo: &mockBackupCodeRepo{deleteAllErr: tt.codeErr}, authEventService: &mockAuthEventService{}}
+			svc := &mfaService{db: db, mfaTotpRepo: &mockMFATOTPSecretRepo{disableErr: tt.totpErr}, mfaBackupCodeRepo: &mockMFABackupCodeRepo{deleteAllErr: tt.codeErr}, authEventService: &mockAuthEventService{}}
 
 			err := svc.DisableTOTP(t.Context(), mfaTestUserID)
 
@@ -709,7 +709,7 @@ func TestMFAService_DisableAndRegenerateBackupCodes(t *testing.T) {
 		original := generateBackupCodeString
 		t.Cleanup(func() { generateBackupCodeString = original })
 		generateBackupCodeString = func(int) (string, error) { return "backup-code", nil }
-		svc := &mfaService{backupCodeRepo: &mockBackupCodeRepo{}}
+		svc := &mfaService{mfaBackupCodeRepo: &mockMFABackupCodeRepo{}}
 		got, err := svc.RegenerateBackupCodes(t.Context(), mfaTestUserID)
 		require.NoError(t, err)
 		assert.Len(t, got, mfaBackupCodeCount)
@@ -725,18 +725,18 @@ func TestMFAService_DisableAndRegenerateBackupCodes(t *testing.T) {
 		t.Cleanup(func() { hashBackupCodePassword = original })
 		hashBackupCodePassword = func([]byte, int) ([]byte, error) { return nil, errors.New("bcrypt down") }
 
-		_, err := (&mfaService{backupCodeRepo: &mockBackupCodeRepo{}}).RegenerateBackupCodes(t.Context(), mfaTestUserID)
+		_, err := (&mfaService{mfaBackupCodeRepo: &mockMFABackupCodeRepo{}}).RegenerateBackupCodes(t.Context(), mfaTestUserID)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "backup code hashing failed")
 	})
 
 	t.Run("regenerate delete and storage errors", func(t *testing.T) {
-		_, err := (&mfaService{backupCodeRepo: &mockBackupCodeRepo{deleteAllErr: errors.New("db down")}}).RegenerateBackupCodes(t.Context(), mfaTestUserID)
+		_, err := (&mfaService{mfaBackupCodeRepo: &mockMFABackupCodeRepo{deleteAllErr: errors.New("db down")}}).RegenerateBackupCodes(t.Context(), mfaTestUserID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to delete existing backup codes")
 
-		_, err = (&mfaService{backupCodeRepo: &mockBackupCodeRepo{createBulkErr: errors.New("db down")}}).RegenerateBackupCodes(t.Context(), mfaTestUserID)
+		_, err = (&mfaService{mfaBackupCodeRepo: &mockMFABackupCodeRepo{createBulkErr: errors.New("db down")}}).RegenerateBackupCodes(t.Context(), mfaTestUserID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "backup code storage failed")
 	})
@@ -753,10 +753,10 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 		svc := &mfaService{
 			db:               db,
 			userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}},
-			totpRepo:         &mockTOTPSecretRepo{},
-			backupCodeRepo:   &mockBackupCodeRepo{},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
-			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaTotpRepo:         &mockMFATOTPSecretRepo{},
+			mfaBackupCodeRepo:   &mockMFABackupCodeRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
+			mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			authEventService: events,
 		}
 
@@ -794,10 +794,10 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 			svc := &mfaService{
 				db:               db,
 				userRepo:         &mockUserRepo{findByUUID: tt.user, findUUIDErr: tt.userErr},
-				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
-				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
-				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
-				smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+				mfaTotpRepo:         &mockMFATOTPSecretRepo{disableErr: tt.totpErr},
+				mfaBackupCodeRepo:   &mockMFABackupCodeRepo{deleteAllErr: tt.codeErr},
+				mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
+				mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 				authEventService: &mockAuthEventService{},
 			}
 
@@ -825,10 +825,10 @@ func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 		svc := &mfaService{
 			db:               db,
 			userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID}},
-			totpRepo:         &mockTOTPSecretRepo{},
-			backupCodeRepo:   &mockBackupCodeRepo{},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
-			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaTotpRepo:         &mockMFATOTPSecretRepo{},
+			mfaBackupCodeRepo:   &mockMFABackupCodeRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
+			mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			authEventService: events,
 		}
 
@@ -870,10 +870,10 @@ func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &mfaService{
 				userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}},
-				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
-				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
-				smsPhoneRepo:     &mockSMSPhoneRepo{deleteErr: tt.smsErr}, emailOTPRepo: &mockMFAEmailRepo{},
-				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
+				mfaTotpRepo:         &mockMFATOTPSecretRepo{disableErr: tt.totpErr},
+				mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
+				mfaPhoneRepo:     &mockMFAPhoneRepo{deleteErr: tt.smsErr}, emailOTPRepo: &mockMFAEmailRepo{},
+				mfaBackupCodeRepo:   &mockMFABackupCodeRepo{deleteAllErr: tt.codeErr},
 				authEventService: &mockAuthEventService{},
 			}
 			err := svc.AdminResetMFAMethod(t.Context(), mfaTestUserUUID.String(), tt.method, 99, 1)
@@ -892,10 +892,10 @@ func TestMFAService_SelfResetMFA(t *testing.T) {
 		events := &mockAuthEventService{}
 		svc := &mfaService{
 			db:               db,
-			totpRepo:         &mockTOTPSecretRepo{},
-			backupCodeRepo:   &mockBackupCodeRepo{},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
-			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
+			mfaTotpRepo:         &mockMFATOTPSecretRepo{},
+			mfaBackupCodeRepo:   &mockMFABackupCodeRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
+			mfaPhoneRepo: &mockMFAPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			authEventService: events,
 		}
 
@@ -930,10 +930,10 @@ func TestMFAService_SelfResetMFA(t *testing.T) {
 			}
 			svc := &mfaService{
 				db:               db,
-				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
-				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
-				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
-				smsPhoneRepo:     &mockSMSPhoneRepo{deleteErr: tt.smsErr}, emailOTPRepo: &mockMFAEmailRepo{},
+				mfaTotpRepo:         &mockMFATOTPSecretRepo{disableErr: tt.totpErr},
+				mfaBackupCodeRepo:   &mockMFABackupCodeRepo{deleteAllErr: tt.codeErr},
+				mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
+				mfaPhoneRepo:     &mockMFAPhoneRepo{deleteErr: tt.smsErr}, emailOTPRepo: &mockMFAEmailRepo{},
 				authEventService: &mockAuthEventService{},
 			}
 
@@ -1022,7 +1022,7 @@ func TestMFAService_StepUp(t *testing.T) {
 		events := &mockAuthEventService{}
 		svc := &mfaService{
 			userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}},
-			backupCodeRepo:   &mockBackupCodeRepo{findUnused: []UserBackupCode{{BackupCodeID: 1, CodeHash: string(hash)}}},
+			mfaBackupCodeRepo:   &mockMFABackupCodeRepo{findUnused: []UserMFABackupCode{{BackupCodeID: 1, CodeHash: string(hash)}}},
 			authEventService: events,
 		}
 
@@ -1083,7 +1083,7 @@ func TestMFAService_StepUp(t *testing.T) {
 		}
 		svc := &mfaService{
 			userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}},
-			totpRepo:         &mockTOTPSecretRepo{findByUserID: &UserTOTPSecret{Secret: secret, IsEnabled: true}, markAccepted: true},
+			mfaTotpRepo:         &mockMFATOTPSecretRepo{findByUserID: &UserMFATOTPSecret{Secret: secret, IsEnabled: true}, markAccepted: true},
 			authEventService: &mockAuthEventService{},
 		}
 		got, err := svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "totp", Code: code}, mfaTestUserID)
@@ -1103,20 +1103,20 @@ func TestMFAService_StepUp(t *testing.T) {
 		}
 		svc := &mfaService{
 			userRepo:       &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}},
-			backupCodeRepo: &mockBackupCodeRepo{findUnusedErr: errors.New("db down")},
+			mfaBackupCodeRepo: &mockMFABackupCodeRepo{findUnusedErr: errors.New("db down")},
 		}
 		_, err := svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "backup_code", Code: "bad"}, mfaTestUserID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "backup code lookup failed")
 
-		svc.backupCodeRepo = &mockBackupCodeRepo{findUnused: []UserBackupCode{{BackupCodeID: 1, CodeHash: "bad-hash"}}}
+		svc.mfaBackupCodeRepo = &mockMFABackupCodeRepo{findUnused: []UserMFABackupCode{{BackupCodeID: 1, CodeHash: "bad-hash"}}}
 		_, err = svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "backup_code", Code: "bad"}, mfaTestUserID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid backup code")
 
 		hash, hashErr := bcrypt.GenerateFromPassword([]byte("backup-code"), bcrypt.DefaultCost)
 		require.NoError(t, hashErr)
-		svc.backupCodeRepo = &mockBackupCodeRepo{findUnused: []UserBackupCode{{BackupCodeID: 1, CodeHash: string(hash)}}, markUsedErr: errors.New("db down")}
+		svc.mfaBackupCodeRepo = &mockMFABackupCodeRepo{findUnused: []UserMFABackupCode{{BackupCodeID: 1, CodeHash: string(hash)}}, markUsedErr: errors.New("db down")}
 		_, err = svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "backup_code", Code: "backup-code"}, mfaTestUserID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to mark backup code used")
@@ -1155,7 +1155,7 @@ func TestMFAService_StepUp(t *testing.T) {
 		}
 		svc := &mfaService{
 			userRepo:       &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByIDErr: errors.New("db down")},
-			backupCodeRepo: &mockBackupCodeRepo{findUnused: []UserBackupCode{{BackupCodeID: 1, CodeHash: string(hash)}}},
+			mfaBackupCodeRepo: &mockMFABackupCodeRepo{findUnused: []UserMFABackupCode{{BackupCodeID: 1, CodeHash: string(hash)}}},
 		}
 		_, err = svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "backup_code", Code: "backup-code"}, mfaTestUserID)
 		require.Error(t, err)
@@ -1214,7 +1214,7 @@ func TestMFAService_StepUp(t *testing.T) {
 		}
 		svc := &mfaService{
 			userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}},
-			totpRepo:         &mockTOTPSecretRepo{findByUserID: &UserTOTPSecret{Secret: secret, IsEnabled: true}, markAccepted: true},
+			mfaTotpRepo:         &mockMFATOTPSecretRepo{findByUserID: &UserMFATOTPSecret{Secret: secret, IsEnabled: true}, markAccepted: true},
 			authEventService: &mockAuthEventService{},
 		}
 
@@ -1263,8 +1263,8 @@ func TestMFAService_StepUp(t *testing.T) {
 		// Backup-eligible (synced) passkey → software key (swk).
 		svc := &mfaService{
 			userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}, findByID: &User{UserID: mfaTestUserID, UserUUID: mfaTestUserUUID}},
-			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
-				return &UserWebAuthnCredential{IsBackupEligible: true}, nil
+			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
+				return &UserMFAWebAuthnCredential{IsBackupEligible: true}, nil
 			}},
 			authEventService: &mockAuthEventService{},
 		}
@@ -1274,8 +1274,8 @@ func TestMFAService_StepUp(t *testing.T) {
 		assert.Equal(t, []string{"pwd", "user", "swk"}, gotAMR)
 
 		// Device-bound passkey → hardware key (hwk).
-		svc.webAuthnSvc = &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
-			return &UserWebAuthnCredential{IsBackupEligible: false}, nil
+		svc.webAuthnSvc = &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
+			return &UserMFAWebAuthnCredential{IsBackupEligible: false}, nil
 		}}
 		_, err = svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "webauthn", Assertion: []byte(`{}`)}, mfaTestUserID)
 		require.NoError(t, err)
@@ -1324,7 +1324,7 @@ func TestMFAService_StepUp(t *testing.T) {
 			return &protocol.ParsedCredentialAssertionData{}, nil
 		}
 		svcFail := base()
-		svcFail.webAuthnSvc = &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+		svcFail.webAuthnSvc = &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
 			return nil, apperror.NewUnauthorized("WebAuthn authentication failed")
 		}}
 		_, err = svcFail.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "webauthn", Assertion: []byte(`{}`)}, mfaTestUserID)
@@ -1367,53 +1367,53 @@ func (m *mockUserRepo) FindByUUID(any, ...string) (*User, error) {
 	return m.findByUUID, m.findUUIDErr
 }
 
-type mockBackupCodeRepo struct {
-	mockBaseRepositoryMethods[UserBackupCode]
-	findUnused    []UserBackupCode
+type mockMFABackupCodeRepo struct {
+	mockBaseRepositoryMethods[UserMFABackupCode]
+	findUnused    []UserMFABackupCode
 	findUnusedErr error
 	createBulkErr error
 	deleteAllErr  error
 	markUsedErr   error
 }
 
-func (m *mockBackupCodeRepo) WithTx(*gorm.DB) UserBackupCodeRepository { return m }
-func (m *mockBackupCodeRepo) CreateBulk([]*UserBackupCode) error       { return m.createBulkErr }
-func (m *mockBackupCodeRepo) FindUnusedByUserID(int64) ([]UserBackupCode, error) {
+func (m *mockMFABackupCodeRepo) WithTx(*gorm.DB) UserMFABackupCodeRepository { return m }
+func (m *mockMFABackupCodeRepo) CreateBulk([]*UserMFABackupCode) error       { return m.createBulkErr }
+func (m *mockMFABackupCodeRepo) FindUnusedByUserID(int64) ([]UserMFABackupCode, error) {
 	return m.findUnused, m.findUnusedErr
 }
-func (m *mockBackupCodeRepo) FindByUserIDAndCodeHash(int64, string) (*UserBackupCode, error) {
+func (m *mockMFABackupCodeRepo) FindByUserIDAndCodeHash(int64, string) (*UserMFABackupCode, error) {
 	return nil, nil
 }
-func (m *mockBackupCodeRepo) MarkUsed(int64) error          { return m.markUsedErr }
-func (m *mockBackupCodeRepo) DeleteAllByUserID(int64) error { return m.deleteAllErr }
+func (m *mockMFABackupCodeRepo) MarkUsed(int64) error          { return m.markUsedErr }
+func (m *mockMFABackupCodeRepo) DeleteAllByUserID(int64) error { return m.deleteAllErr }
 
-type mockWebAuthnCredentialRepo struct {
-	mockBaseRepositoryMethods[UserWebAuthnCredential]
-	findByUserID    []UserWebAuthnCredential
+type mockMFAWebAuthnCredentialRepo struct {
+	mockBaseRepositoryMethods[UserMFAWebAuthnCredential]
+	findByUserID    []UserMFAWebAuthnCredential
 	findByUserIDErr error
 	deleteAllErr    error
 	deleteErr       error
 	createErr       error
-	findByKeyID     *UserWebAuthnCredential
+	findByKeyID     *UserMFAWebAuthnCredential
 	findByKeyIDErr  error
 	signCountErr    error
 	lastUsedErr     error
 }
 
-func (m *mockWebAuthnCredentialRepo) WithTx(*gorm.DB) UserWebAuthnCredentialRepository { return m }
-func (m *mockWebAuthnCredentialRepo) FindByUserID(int64) ([]UserWebAuthnCredential, error) {
+func (m *mockMFAWebAuthnCredentialRepo) WithTx(*gorm.DB) UserMFAWebAuthnCredentialRepository { return m }
+func (m *mockMFAWebAuthnCredentialRepo) FindByUserID(int64) ([]UserMFAWebAuthnCredential, error) {
 	return m.findByUserID, m.findByUserIDErr
 }
-func (m *mockWebAuthnCredentialRepo) FindByCredentialKeyID(string) (*UserWebAuthnCredential, error) {
+func (m *mockMFAWebAuthnCredentialRepo) FindByCredentialKeyID(string) (*UserMFAWebAuthnCredential, error) {
 	return m.findByKeyID, m.findByKeyIDErr
 }
-func (m *mockWebAuthnCredentialRepo) CreateCredential(*UserWebAuthnCredential) error {
+func (m *mockMFAWebAuthnCredentialRepo) CreateCredential(*UserMFAWebAuthnCredential) error {
 	return m.createErr
 }
-func (m *mockWebAuthnCredentialRepo) UpdateSignCount(int64, int64) error      { return m.signCountErr }
-func (m *mockWebAuthnCredentialRepo) UpdateLastUsed(int64) error              { return m.lastUsedErr }
-func (m *mockWebAuthnCredentialRepo) DeleteCredentialByID(int64, int64) error { return m.deleteErr }
-func (m *mockWebAuthnCredentialRepo) DeleteAllByUserID(int64) error           { return m.deleteAllErr }
+func (m *mockMFAWebAuthnCredentialRepo) UpdateSignCount(int64, int64) error      { return m.signCountErr }
+func (m *mockMFAWebAuthnCredentialRepo) UpdateLastUsed(int64) error              { return m.lastUsedErr }
+func (m *mockMFAWebAuthnCredentialRepo) DeleteCredentialByID(int64, int64) error { return m.deleteErr }
+func (m *mockMFAWebAuthnCredentialRepo) DeleteAllByUserID(int64) error           { return m.deleteAllErr }
 
 type mockSecuritySettingRepo struct {
 	mockBaseRepositoryMethods[secpolicy.SecuritySetting]
@@ -1433,9 +1433,9 @@ func (m *mockSecuritySettingRepo) FindPaginated(secpolicy.SecuritySettingReposit
 }
 func (m *mockSecuritySettingRepo) IncrementVersion(int64) error { return nil }
 
-type mockTOTPSecretRepo struct {
-	mockBaseRepositoryMethods[UserTOTPSecret]
-	findByUserID    *UserTOTPSecret
+type mockMFATOTPSecretRepo struct {
+	mockBaseRepositoryMethods[UserMFATOTPSecret]
+	findByUserID    *UserMFATOTPSecret
 	findByUserIDErr error
 	upsertErr       error
 	enableErr       error
@@ -1444,18 +1444,18 @@ type mockTOTPSecretRepo struct {
 	markStepErr     error
 }
 
-func (m *mockTOTPSecretRepo) WithTx(*gorm.DB) UserTOTPSecretRepository { return m }
-func (m *mockTOTPSecretRepo) FindByUserID(int64) (*UserTOTPSecret, error) {
+func (m *mockMFATOTPSecretRepo) WithTx(*gorm.DB) UserMFATOTPSecretRepository { return m }
+func (m *mockMFATOTPSecretRepo) FindByUserID(int64) (*UserMFATOTPSecret, error) {
 	return m.findByUserID, m.findByUserIDErr
 }
-func (m *mockTOTPSecretRepo) Upsert(*UserTOTPSecret) error { return m.upsertErr }
-func (m *mockTOTPSecretRepo) Enable(int64) error           { return m.enableErr }
-func (m *mockTOTPSecretRepo) Disable(int64) error          { return m.disableErr }
-func (m *mockTOTPSecretRepo) UpdateLastUsed(int64) error   { return nil }
-func (m *mockTOTPSecretRepo) MarkStepUsed(int64, int64) (bool, error) {
+func (m *mockMFATOTPSecretRepo) Upsert(*UserMFATOTPSecret) error { return m.upsertErr }
+func (m *mockMFATOTPSecretRepo) Enable(int64) error           { return m.enableErr }
+func (m *mockMFATOTPSecretRepo) Disable(int64) error          { return m.disableErr }
+func (m *mockMFATOTPSecretRepo) UpdateLastUsed(int64) error   { return nil }
+func (m *mockMFATOTPSecretRepo) MarkStepUsed(int64, int64) (bool, error) {
 	return m.markAccepted, m.markStepErr
 }
-func (m *mockTOTPSecretRepo) DeleteByUserID(int64) error { return nil }
+func (m *mockMFATOTPSecretRepo) DeleteByUserID(int64) error { return nil }
 
 type mockSMSOtpRepo struct {
 	mockBaseRepositoryMethods[notifier.UserOTP]
@@ -1472,18 +1472,18 @@ func (m *mockSMSOtpRepo) FindValid(channel, recipient string) (*notifier.UserOTP
 func (m *mockSMSOtpRepo) RecordFailure(int64, int) error { return m.recordFailErr }
 func (m *mockSMSOtpRepo) MarkUsed(int64) error           { return m.markUsedErr }
 
-type mockSMSPhoneRepo struct {
-	mockBaseRepositoryMethods[UserSMSPhone]
-	findByUserID    *UserSMSPhone
+type mockMFAPhoneRepo struct {
+	mockBaseRepositoryMethods[UserMFAPhone]
+	findByUserID    *UserMFAPhone
 	findByUserIDErr error
 	deleteErr       error
 }
 
-func (m *mockSMSPhoneRepo) WithTx(*gorm.DB) UserSMSPhoneRepository { return m }
-func (m *mockSMSPhoneRepo) FindByUserID(int64) (*UserSMSPhone, error) {
+func (m *mockMFAPhoneRepo) WithTx(*gorm.DB) UserMFAPhoneRepository { return m }
+func (m *mockMFAPhoneRepo) FindByUserID(int64) (*UserMFAPhone, error) {
 	return m.findByUserID, m.findByUserIDErr
 }
-func (m *mockSMSPhoneRepo) DeleteByUserID(int64) error { return m.deleteErr }
+func (m *mockMFAPhoneRepo) DeleteByUserID(int64) error { return m.deleteErr }
 
 type mockMFAEmailRepo struct {
 	findByUserID    *UserMFAEmail

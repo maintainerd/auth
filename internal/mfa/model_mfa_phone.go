@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserSMSPhone struct {
+type UserMFAPhone struct {
 	MfaPhoneID   int64      `gorm:"column:mfa_phone_id;primaryKey"`
 	MfaPhoneUUID uuid.UUID  `gorm:"column:mfa_phone_uuid;unique"`
 	UserID       int64      `gorm:"column:user_id;not null"`
@@ -19,9 +19,9 @@ type UserSMSPhone struct {
 	UpdatedAt    time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 }
 
-func (UserSMSPhone) TableName() string { return "user_mfa_phones" }
+func (UserMFAPhone) TableName() string { return "user_mfa_phones" }
 
-func (p *UserSMSPhone) BeforeCreate(tx *gorm.DB) error {
+func (p *UserMFAPhone) BeforeCreate(tx *gorm.DB) error {
 	if p.MfaPhoneUUID == uuid.Nil {
 		p.MfaPhoneUUID = uuid.New()
 	}

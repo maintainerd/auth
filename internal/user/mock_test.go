@@ -978,41 +978,41 @@ func (m *mockUserTokenRepo) RevokeAllSessionsByUserID(userID int64) error {
 	return nil
 }
 
-type mockUserBackupCodeRepo struct {
-	mockBaseRepo[UserBackupCode]
-	createBulkFn              func([]*UserBackupCode) error
-	findUnusedByUserIDFn      func(int64) ([]UserBackupCode, error)
-	findByUserIDAndCodeHashFn func(int64, string) (*UserBackupCode, error)
+type mockUserMFABackupCodeRepo struct {
+	mockBaseRepo[UserMFABackupCode]
+	createBulkFn              func([]*UserMFABackupCode) error
+	findUnusedByUserIDFn      func(int64) ([]UserMFABackupCode, error)
+	findByUserIDAndCodeHashFn func(int64, string) (*UserMFABackupCode, error)
 	markUsedFn                func(int64) error
 	deleteAllByUserIDFn       func(int64) error
 }
 
-func (m *mockUserBackupCodeRepo) WithTx(_ *gorm.DB) UserBackupCodeRepository { return m }
-func (m *mockUserBackupCodeRepo) CreateBulk(codes []*UserBackupCode) error {
+func (m *mockUserMFABackupCodeRepo) WithTx(_ *gorm.DB) UserMFABackupCodeRepository { return m }
+func (m *mockUserMFABackupCodeRepo) CreateBulk(codes []*UserMFABackupCode) error {
 	if m.createBulkFn != nil {
 		return m.createBulkFn(codes)
 	}
 	return nil
 }
-func (m *mockUserBackupCodeRepo) FindUnusedByUserID(userID int64) ([]UserBackupCode, error) {
+func (m *mockUserMFABackupCodeRepo) FindUnusedByUserID(userID int64) ([]UserMFABackupCode, error) {
 	if m.findUnusedByUserIDFn != nil {
 		return m.findUnusedByUserIDFn(userID)
 	}
 	return nil, nil
 }
-func (m *mockUserBackupCodeRepo) FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserBackupCode, error) {
+func (m *mockUserMFABackupCodeRepo) FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserMFABackupCode, error) {
 	if m.findByUserIDAndCodeHashFn != nil {
 		return m.findByUserIDAndCodeHashFn(userID, codeHash)
 	}
 	return nil, nil
 }
-func (m *mockUserBackupCodeRepo) MarkUsed(id int64) error {
+func (m *mockUserMFABackupCodeRepo) MarkUsed(id int64) error {
 	if m.markUsedFn != nil {
 		return m.markUsedFn(id)
 	}
 	return nil
 }
-func (m *mockUserBackupCodeRepo) DeleteAllByUserID(userID int64) error {
+func (m *mockUserMFABackupCodeRepo) DeleteAllByUserID(userID int64) error {
 	if m.deleteAllByUserIDFn != nil {
 		return m.deleteAllByUserIDFn(userID)
 	}

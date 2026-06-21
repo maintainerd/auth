@@ -46,11 +46,11 @@ type WebAuthnService interface {
 	BeginRegistration(ctx context.Context, userID int64) (*protocol.CredentialCreation, error)
 	// FinishRegistration completes registration, persists the credential, and
 	// enables WebAuthn on the user.
-	FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error)
+	FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error)
 	// BeginAuthentication initiates a credential assertion ceremony.
 	BeginAuthentication(ctx context.Context, userID int64) (*protocol.CredentialAssertion, error)
 	// FinishAuthentication verifies the assertion and updates the sign counter.
-	FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error)
+	FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error)
 	// DeleteCredential removes a single registered credential.
 	DeleteCredential(ctx context.Context, credentialUUIDStr string, userID int64) error
 	// DownloadCredential returns a downloadable representation of a credential.
@@ -61,7 +61,7 @@ type webAuthnService struct {
 	db               *gorm.DB
 	wa               *webauthn.WebAuthn
 	userRepo         UserRepository
-	webAuthnCredRepo UserWebAuthnCredentialRepository
+	mfaWebAuthnCredRepo UserMFAWebAuthnCredentialRepository
 	sessionStore     cache.WebAuthnSessionStore
 	authEventService authevent.AuthEventService
 }
@@ -70,7 +70,7 @@ type webAuthnService struct {
 func NewWebAuthnService(
 	db *gorm.DB,
 	userRepo UserRepository,
-	webAuthnCredRepo UserWebAuthnCredentialRepository,
+	mfaWebAuthnCredRepo UserMFAWebAuthnCredentialRepository,
 	sessionStore cache.WebAuthnSessionStore,
 	authEventService authevent.AuthEventService,
 ) (WebAuthnService, error) {
@@ -100,7 +100,7 @@ func NewWebAuthnService(
 		db:               db,
 		wa:               wa,
 		userRepo:         userRepo,
-		webAuthnCredRepo: webAuthnCredRepo,
+		mfaWebAuthnCredRepo: mfaWebAuthnCredRepo,
 		sessionStore:     sessionStore,
 		authEventService: authEventService,
 	}, nil
@@ -152,7 +152,7 @@ func (s *webAuthnService) BeginRegistration(ctx context.Context, userID int64) (
 	return creation, nil
 }
 
-func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error) {
 	_, span := otel.Tracer("service").Start(ctx, "webauthn.finish_registration")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -180,7 +180,7 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 	}
 
 	transport := joinTransports(cred.Transport)
-	storedCred := &UserWebAuthnCredential{
+	storedCred := &UserMFAWebAuthnCredential{
 		UserID:           userID,
 		CredentialKeyID:  base64.RawURLEncoding.EncodeToString(cred.ID),
 		PublicKey:        cred.PublicKey,
@@ -191,7 +191,7 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		Name:             name,
 	}
 
-	if err := s.webAuthnCredRepo.CreateCredential(storedCred); err != nil {
+	if err := s.mfaWebAuthnCredRepo.CreateCredential(storedCred); err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to persist WebAuthn credential", err)
 	}
@@ -255,7 +255,7 @@ func (s *webAuthnService) BeginAuthentication(ctx context.Context, userID int64)
 	return assertion, nil
 }
 
-func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserMFAWebAuthnCredential, error) {
 	_, span := otel.Tracer("service").Start(ctx, "webauthn.finish_authentication")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -279,7 +279,7 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 
 	// Update sign counter and last used timestamp.
 	credKeyID := base64.RawURLEncoding.EncodeToString(cred.ID)
-	stored, err := s.webAuthnCredRepo.FindByCredentialKeyID(credKeyID)
+	stored, err := s.mfaWebAuthnCredRepo.FindByCredentialKeyID(credKeyID)
 	if err != nil || stored == nil {
 		return nil, apperror.NewInternal("credential not found after validation", err)
 	}
@@ -288,11 +288,11 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 		span.SetStatus(codes.Error, "sign count regression")
 		return nil, apperror.NewUnauthorized("WebAuthn authentication failed: sign count regression detected")
 	}
-	if err := s.webAuthnCredRepo.UpdateSignCount(stored.CredentialID, newSignCount); err != nil {
+	if err := s.mfaWebAuthnCredRepo.UpdateSignCount(stored.CredentialID, newSignCount); err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to update WebAuthn sign count", err)
 	}
-	if err := s.webAuthnCredRepo.UpdateLastUsed(stored.CredentialID); err != nil {
+	if err := s.mfaWebAuthnCredRepo.UpdateLastUsed(stored.CredentialID); err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to update WebAuthn last-used timestamp", err)
 	}
@@ -321,12 +321,12 @@ func (s *webAuthnService) DeleteCredential(ctx context.Context, credentialUUIDSt
 	_, span := otel.Tracer("service").Start(ctx, "webauthn.delete_credential")
 	defer span.End()
 
-	creds, err := s.webAuthnCredRepo.FindByUserID(userID)
+	creds, err := s.mfaWebAuthnCredRepo.FindByUserID(userID)
 	if err != nil {
 		return apperror.NewInternal("credential lookup failed", err)
 	}
 
-	var target *UserWebAuthnCredential
+	var target *UserMFAWebAuthnCredential
 	for i := range creds {
 		if creds[i].CredentialUUID.String() == credentialUUIDStr {
 			target = &creds[i]
@@ -337,12 +337,12 @@ func (s *webAuthnService) DeleteCredential(ctx context.Context, credentialUUIDSt
 		return apperror.NewNotFound("credential not found")
 	}
 
-	if err := s.webAuthnCredRepo.DeleteCredentialByID(target.CredentialID, userID); err != nil {
+	if err := s.mfaWebAuthnCredRepo.DeleteCredentialByID(target.CredentialID, userID); err != nil {
 		return apperror.NewInternal("failed to delete credential", err)
 	}
 
 	// Disable WebAuthn on user if no credentials remain.
-	remaining, err := s.webAuthnCredRepo.FindByUserID(userID)
+	remaining, err := s.mfaWebAuthnCredRepo.FindByUserID(userID)
 	if err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to list remaining WebAuthn credentials", err)
@@ -369,7 +369,7 @@ func (s *webAuthnService) loadWebAuthnUser(userID int64) (*webAuthnUser, error) 
 		return nil, apperror.NewNotFound("user not found")
 	}
 
-	storedCreds, err := s.webAuthnCredRepo.FindByUserID(userID)
+	storedCreds, err := s.mfaWebAuthnCredRepo.FindByUserID(userID)
 	if err != nil {
 		return nil, apperror.NewInternal("credential lookup failed", err)
 	}
@@ -426,7 +426,7 @@ func (s *webAuthnService) DownloadCredential(ctx context.Context, credentialUUID
 	if err != nil {
 		return nil, apperror.NewValidation("invalid credential UUID")
 	}
-	cred, err := s.webAuthnCredRepo.FindByUUID(credUUID)
+	cred, err := s.mfaWebAuthnCredRepo.FindByUUID(credUUID)
 	if err != nil || cred == nil {
 		return nil, apperror.NewNotFound("credential not found")
 	}

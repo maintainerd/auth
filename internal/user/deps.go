@@ -166,7 +166,7 @@ type IdentityProvider struct {
 
 func (IdentityProvider) TableName() string { return "identity_providers" }
 
-type UserBackupCode struct {
+type UserMFABackupCode struct {
 	BackupCodeID   int64
 	BackupCodeUUID uuid.UUID
 	UserID         int64
@@ -176,7 +176,7 @@ type UserBackupCode struct {
 	CreatedAt      time.Time
 }
 
-func (UserBackupCode) TableName() string { return "user_mfa_backup_codes" }
+func (UserMFABackupCode) TableName() string { return "user_mfa_backup_codes" }
 
 type TenantRepository interface {
 	BaseRepositoryMethods[Tenant]
@@ -207,12 +207,12 @@ type IdentityProviderRepository interface {
 	FindByIdentifier(identifier string) (*IdentityProvider, error)
 }
 
-type UserBackupCodeRepository interface {
-	BaseRepositoryMethods[UserBackupCode]
-	WithTx(tx *gorm.DB) UserBackupCodeRepository
-	CreateBulk(codes []*UserBackupCode) error
-	FindUnusedByUserID(userID int64) ([]UserBackupCode, error)
-	FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserBackupCode, error)
+type UserMFABackupCodeRepository interface {
+	BaseRepositoryMethods[UserMFABackupCode]
+	WithTx(tx *gorm.DB) UserMFABackupCodeRepository
+	CreateBulk(codes []*UserMFABackupCode) error
+	FindUnusedByUserID(userID int64) ([]UserMFABackupCode, error)
+	FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserMFABackupCode, error)
 	MarkUsed(id int64) error
 	DeleteAllByUserID(userID int64) error
 }
