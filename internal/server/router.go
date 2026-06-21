@@ -59,6 +59,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		authn.ResetPasswordRoute(api, h.resetPassword)
 		authn.EmailVerificationRoute(api, h.emailVerification)
 		authn.MagicLinkRoute(api, h.magicLink)
+		authn.MagicLinkAdminRoute(api, h.magicLink, userProvider, application.Cache, tenantRateLimit)
 		user.ProfileRoute(api, h.profile, userProvider, application.Cache, tenantRateLimit)
 		user.UserSettingRoute(api, h.userSetting, userProvider, application.Cache, tenantRateLimit)
 
@@ -174,6 +175,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		// Remaining public authentication routes
 		authn.EmailVerificationPublicRoute(api, h.emailVerification)
 		authn.MagicLinkPublicRoute(api, h.magicLink)
+		authn.MagicLinkAdminPublicRoute(api, h.magicLink, userProvider, application.Cache, tenantRateLimit)
 
 		// Cookie-auth state-changing routes — apply CSRF protection
 		api.Group(func(cookieAuth chi.Router) {

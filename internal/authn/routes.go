@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 )
 
@@ -136,6 +137,40 @@ func MagicLinkPublicRoute(r chi.Router, magicLinkHandler *MagicLinkHandler) {
 
 		r.Post("/magic-link/send", magicLinkHandler.SendMagicLinkPublic)
 		r.Post("/magic-link/verify", magicLinkHandler.VerifyMagicLink)
+	})
+}
+
+func MagicLinkAdminRoute(
+	r chi.Router,
+	magicLinkHandler *MagicLinkHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+			Post("/magic-link/admin-send", magicLinkHandler.AdminSendMagicLink)
+	})
+}
+
+func MagicLinkAdminPublicRoute(
+	r chi.Router,
+	magicLinkHandler *MagicLinkHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+			Post("/magic-link/admin-send", magicLinkHandler.AdminSendMagicLinkPublic)
 	})
 }
 

@@ -232,3 +232,31 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 
 	resp.Success(w, response, "Signed in")
 }
+
+func (h *MagicLinkHandler) AdminSendMagicLink(w http.ResponseWriter, r *http.Request) {
+	h.handleAdminSendMagicLink(w, r, true)
+}
+
+func (h *MagicLinkHandler) AdminSendMagicLinkPublic(w http.ResponseWriter, r *http.Request) {
+	h.handleAdminSendMagicLink(w, r, false)
+}
+
+func (h *MagicLinkHandler) handleAdminSendMagicLink(w http.ResponseWriter, r *http.Request, isInternal bool) {
+	var req AdminSendMagicLinkRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if req.UserUUID == "" {
+		resp.Error(w, http.StatusBadRequest, "user_uuid is required")
+		return
+	}
+
+	response, err := h.magicLinkService.AdminSendMagicLink(r.Context(), req.UserUUID, isInternal)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to send magic link", err)
+		return
+	}
+
+	resp.Success(w, response, "Magic link sent")
+}
