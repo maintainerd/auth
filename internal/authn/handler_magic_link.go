@@ -157,7 +157,7 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 
 	clientID := r.URL.Query().Get("client_id")
 	providerID := r.URL.Query().Get("provider_id")
-	if clientID == "" || providerID == "" {
+	if clientID == "" {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "magic_link_missing_params",
 			ClientIP:  clientIPStr,
@@ -166,10 +166,10 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 			Endpoint:  "/magic-link/verify",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Missing required client_id or provider_id parameters",
+			Details:   "Missing required client_id parameter",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Missing required parameters: client_id and provider_id")
+		resp.Error(w, http.StatusBadRequest, "Missing required parameter: client_id")
 		return
 	}
 

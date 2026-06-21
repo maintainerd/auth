@@ -250,13 +250,19 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
-		// Validate identity provider + client (mirrors LoginPublic).
-		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
-		if txErr != nil || identityProvider == nil {
-			return apperror.NewUnauthorized("authentication failed")
+		// Resolve client. If provider_id is given, use the full lookup.
+		// Otherwise resolve from client_id alone (the client carries its provider).
+		var txErr error
+		if providerID != "" {
+			var identityProvider *IdentityProvider
+			identityProvider, txErr = txIdentityProviderRepo.FindByIdentifier(providerID)
+			if txErr != nil || identityProvider == nil {
+				return apperror.NewUnauthorized("authentication failed")
+			}
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
+		} else {
+			Client, txErr = txClientRepo.FindByIdentifier(clientID)
 		}
-
-		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil || Client == nil ||
 			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
@@ -370,18 +376,11 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 		return apperror.NewInternal("failed to create signed URL", err)
 	}
 
-	// Resolve the tenant identifier for the frontend URL path.
-	var tenantIdentifier string
-	var tenantRow struct{ Identifier string }
-	if tErr := s.db.Table("tenants").Select("identifier").Where("tenant_id = ?", Client.IdentityProvider.TenantID).First(&tenantRow).Error; tErr == nil {
-		tenantIdentifier = tenantRow.Identifier
-	}
-
 	var frontendBaseURL string
 	if isInternal {
-		frontendBaseURL = config.AppFrontendConsoleHostname + "/" + tenantIdentifier + "/magic-link"
+		frontendBaseURL = config.AppFrontendConsoleHostname + "/magic-link"
 	} else {
-		frontendBaseURL = config.AppFrontendIdentityHostname + "/" + tenantIdentifier + "/magic-link"
+		frontendBaseURL = config.AppFrontendIdentityHostname + "/magic-link"
 	}
 	magicLinkURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
