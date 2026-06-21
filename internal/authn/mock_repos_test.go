@@ -241,6 +241,10 @@ func (m *mockLoginService) SendMFALoginSMS(_ context.Context, challengeToken str
 	return nil
 }
 
+func (m *mockLoginService) SendMFALoginEmailOTP(_ context.Context, _ string) error {
+	return nil
+}
+
 func (m *mockLoginService) BeginMFALoginWebAuthn(_ context.Context, challengeToken string) (json.RawMessage, error) {
 	if m.beginMFAWebAuthnFn != nil {
 		return m.beginMFAWebAuthnFn(challengeToken)

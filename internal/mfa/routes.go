@@ -66,6 +66,8 @@ func MFARoute(
 		r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
 			Post("/step-up/send-sms", mfaHandler.SendStepUpSMS)
 		r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
+			Post("/step-up/send-email-otp", mfaHandler.SendStepUpEmailOTP)
+		r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
 			Post("/step-up/verify", mfaHandler.VerifyStepUp)
 
 		// SMS MFA enrollment
@@ -75,6 +77,14 @@ func MFARoute(
 			Post("/sms/verify", mfaHandler.VerifySMS)
 		r.With(middleware.PermissionMiddleware([]string{"account:mfa:disable:self"}), mfaHandler.RequireStepUpOrEnrolledMFA).
 			Delete("/sms", mfaHandler.DisableSMS)
+
+		// Email OTP MFA enrollment
+		r.With(middleware.PermissionMiddleware([]string{"account:mfa:enroll:self"})).
+			Post("/email-otp/enroll", mfaHandler.EnrollEmailOTP)
+		r.With(middleware.PermissionMiddleware([]string{"account:mfa:enroll:self"})).
+			Post("/email-otp/verify", mfaHandler.VerifyEmailOTP)
+		r.With(middleware.PermissionMiddleware([]string{"account:mfa:disable:self"}), mfaHandler.RequireStepUpOrEnrolledMFA).
+			Delete("/email-otp", mfaHandler.DisableEmailOTP)
 
 		// Self-service — reset all of the caller's *own* MFA factors. The target is
 		// always the authenticated user (no target param), so this can never touch

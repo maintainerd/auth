@@ -78,6 +78,7 @@ func LoginRoute(r chi.Router, loginHandler *LoginHandler) {
 		// Login MFA second step (issues an acr=2 session on success)
 		r.Post("/login/mfa/verify", loginHandler.MFALoginVerify)
 		r.Post("/login/mfa/send-sms", loginHandler.MFALoginSendSMS)
+		r.Post("/login/mfa/send-email-otp", loginHandler.MFALoginSendEmailOTP)
 		r.Post("/login/mfa/webauthn/begin", loginHandler.MFALoginWebAuthnBegin)
 
 		// Refresh endpoint — exchanges a refresh token for a new token set
@@ -104,6 +105,7 @@ func LoginPublicRoute(r chi.Router, loginHandler *LoginHandler) {
 		// Login MFA second step (client_id/provider_id passed as query params)
 		r.Post("/login/mfa/verify", loginHandler.MFALoginVerify)
 		r.Post("/login/mfa/send-sms", loginHandler.MFALoginSendSMS)
+		r.Post("/login/mfa/send-email-otp", loginHandler.MFALoginSendEmailOTP)
 		r.Post("/login/mfa/webauthn/begin", loginHandler.MFALoginWebAuthnBegin)
 
 		// Logout endpoint (clears cookies if they exist)

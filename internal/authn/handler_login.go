@@ -228,6 +228,19 @@ func (h *LoginHandler) MFALoginSendSMS(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, nil, "SMS code sent")
 }
 
+func (h *LoginHandler) MFALoginSendEmailOTP(w http.ResponseWriter, r *http.Request) {
+	var req MFALoginChallengeRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := h.loginService.SendMFALoginEmailOTP(r.Context(), req.ChallengeToken); err != nil {
+		resp.HandleServiceError(w, r, "Failed to send email OTP code", err)
+		return
+	}
+	resp.Success(w, nil, "Email OTP code sent")
+}
+
 // MFALoginWebAuthnBegin starts a passkey assertion ceremony for the in-flight
 // login MFA challenge and returns the assertion options.
 func (h *LoginHandler) MFALoginWebAuthnBegin(w http.ResponseWriter, r *http.Request) {

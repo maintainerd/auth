@@ -88,6 +88,28 @@ func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
 | `+"`{{.OTP}}`"+` | One-time verification code to confirm the email address change |
 | `+"`{{.LogoURL}}`"+` | Your organization's logo URL from the email delivery config |`,
 		),
+		newEmailTemplate(
+			tenantID,
+			"user:mfa:enroll",
+			"MFA Enrollment Verification",
+			emailtemplate.MFAEnrollEmailHTML,
+			emailtemplate.MFAEnrollEmailPlain,
+			`| Parameter | Description |
+|-----------|-------------|
+| `+"`{{.OTP}}`"+` | One-time code to verify email during MFA enrollment |
+| `+"`{{.LogoURL}}`"+` | Your organization's logo URL from the email delivery config |`,
+		),
+		newEmailTemplate(
+			tenantID,
+			"user:mfa:stepup",
+			"Verification Code",
+			emailtemplate.MFAStepUpEmailHTML,
+			emailtemplate.MFAStepUpEmailPlain,
+			`| Parameter | Description |
+|-----------|-------------|
+| `+"`{{.OTP}}`"+` | One-time code for identity verification (step-up / login MFA) |
+| `+"`{{.LogoURL}}`"+` | Your organization's logo URL from the email delivery config |`,
+		),
 	}
 
 	for _, t := range templates {

@@ -17,6 +17,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
@@ -110,17 +111,24 @@ type MFAService interface {
 	IssueStepUpChallenge(ctx context.Context, userUUID string, allowedMethods []string) (*StepUpChallengeResponseDTO, error)
 	VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDTO, userID int64) (*StepUpVerifyResponseDTO, error)
 	SendStepUpSMS(ctx context.Context, userID int64) error
+	SendStepUpEmailOTP(ctx context.Context, userID int64) error
 
 	// Login MFA (second step after password) — shared factor verification used
 	// by the authn package to elevate a freshly issued session to acr=2.
 	VerifyFactor(ctx context.Context, userID int64, method, code string, assertion []byte) ([]string, error)
 	SendSMSChallenge(ctx context.Context, userID int64) error
+	SendEmailOTPChallenge(ctx context.Context, userID int64) error
 	BeginWebAuthnLogin(ctx context.Context, userID int64) (json.RawMessage, error)
 
 	// SMS MFA enrollment
 	EnrollSMS(ctx context.Context, userID int64, phone string) error
 	VerifySMS(ctx context.Context, userID int64, phone, code string) error
 	DisableSMS(ctx context.Context, userID int64) error
+
+	// Email OTP MFA enrollment
+	EnrollEmailOTP(ctx context.Context, userID int64, emailAddr string) error
+	VerifyEmailOTP(ctx context.Context, userID int64, emailAddr, code string) error
+	DisableEmailOTP(ctx context.Context, userID int64) error
 }
 
 type mfaService struct {
@@ -131,6 +139,7 @@ type mfaService struct {
 	webAuthnSvc      WebAuthnService
 	backupCodeRepo   UserBackupCodeRepository
 	smsPhoneRepo     UserSMSPhoneRepository
+	emailOTPRepo     UserMFAEmailRepository
 	smsOtpRepo       notifier.UserOTPRepository
 	secSettingRepo   secpolicy.SecuritySettingRepository
 	authEventService authevent.AuthEventService
@@ -162,6 +171,7 @@ func NewMFAService(
 	webAuthnSvc WebAuthnService,
 	backupCodeRepo UserBackupCodeRepository,
 	smsPhoneRepo UserSMSPhoneRepository,
+	emailOTPRepo UserMFAEmailRepository,
 	smsOtpRepo notifier.UserOTPRepository,
 	secSettingRepo secpolicy.SecuritySettingRepository,
 	authEventService authevent.AuthEventService,
@@ -174,6 +184,7 @@ func NewMFAService(
 		webAuthnSvc:      webAuthnSvc,
 		backupCodeRepo:   backupCodeRepo,
 		smsPhoneRepo:     smsPhoneRepo,
+		emailOTPRepo:     emailOTPRepo,
 		smsOtpRepo:       smsOtpRepo,
 		secSettingRepo:   secSettingRepo,
 		authEventService: authEventService,
@@ -572,6 +583,7 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 		IsTOTPEnabled:     user.IsTOTPEnabled,
 		IsWebAuthnEnabled: user.IsWebAuthnEnabled,
 		IsSMSEnabled:      s.isSMSEnabled(ctx, userID),
+		IsEmailOTPEnabled: s.isEmailOTPEnabled(ctx, userID),
 		BackupCodesCount:  backupCount,
 		WebAuthnKeys:      credSummaries,
 	}
@@ -684,7 +696,7 @@ func (s *mfaService) SensitiveActionStepUpRequired(ctx context.Context, userID i
 		// unaffected by this helper.
 		return false, nil
 	}
-	return status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled, nil
+	return status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled || status.IsEmailOTPEnabled, nil
 }
 
 func (s *mfaService) StepUpTTLSeconds(ctx context.Context, userID int64) int64 {
@@ -732,6 +744,10 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete target SMS phone", err)
 	}
+	if err := s.emailOTPRepo.DeleteByUserID(targetUserID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete target email OTP", err)
+	}
 
 	if err := s.db.Model(&User{}).Where("user_id = ?", targetUserID).
 		Updates(map[string]any{
@@ -764,6 +780,7 @@ const (
 	mfaMethodTOTP       = "totp"
 	mfaMethodWebAuthn   = "webauthn"
 	mfaMethodSMS        = "sms"
+	mfaMethodEmailOTP   = "email_otp"
 	mfaMethodBackupCode = "backup_code"
 )
 
@@ -816,8 +833,11 @@ func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, me
 		}
 	case mfaMethodSMS:
 		if err := s.smsPhoneRepo.DeleteByUserID(targetUserID); err != nil {
-			span.RecordError(err)
 			return apperror.NewInternal("failed to delete target SMS phone", err)
+		}
+	case mfaMethodEmailOTP:
+		if err := s.emailOTPRepo.DeleteByUserID(targetUserID); err != nil {
+			return apperror.NewInternal("failed to reset email OTP MFA", err)
 		}
 	case mfaMethodBackupCode:
 		if err := s.backupCodeRepo.DeleteAllByUserID(targetUserID); err != nil {
@@ -874,6 +894,10 @@ func (s *mfaService) SelfResetMFA(ctx context.Context, userID int64) error {
 	if err := s.smsPhoneRepo.DeleteByUserID(userID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete SMS phone", err)
+	}
+	if err := s.emailOTPRepo.DeleteByUserID(userID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete email OTP", err)
 	}
 
 	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
@@ -1113,7 +1137,193 @@ func (s *mfaService) DisableSMS(ctx context.Context, userID int64) error {
 	if err := s.smsPhoneRepo.DeleteByUserID(userID); err != nil {
 		return apperror.NewInternal("failed to disable SMS MFA", err)
 	}
-	// Clear recovery state if SMS was the last primary factor.
+	return s.SyncMFAState(ctx, userID)
+}
+
+func (s *mfaService) SendStepUpEmailOTP(ctx context.Context, userID int64) error {
+	_, span := otel.Tracer("service").Start(ctx, "mfa.send_step_up_email_otp")
+	defer span.End()
+
+	if !methodAllowed(secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID)), "email_otp") {
+		return apperror.NewForbidden("Email OTP MFA is not permitted by tenant policy")
+	}
+
+	emailRecord, err := s.emailOTPRepo.FindByUserID(userID)
+	if err != nil {
+		return apperror.NewInternal("failed to look up MFA email", err)
+	}
+	if emailRecord == nil || !emailRecord.IsVerified {
+		return apperror.NewValidation("no verified MFA email on file")
+	}
+
+	if err := security.CheckRateLimit("mfa-email-otp-step-up:" + emailRecord.Email); err != nil {
+		return err
+	}
+
+	otpCode, err := crypto.GenerateOTP(smsStepUpOTPLength)
+	if err != nil {
+		return apperror.NewInternal("failed to generate email OTP", err)
+	}
+	otpHash := crypto.HashAuthorizationCode(otpCode)
+
+	s.db.Where("user_id = ? AND channel = ?", userID, "email").Delete(&notifier.UserOTP{})
+
+	record := &notifier.UserOTP{
+		UserID:    userID,
+		Channel:   "email",
+		Recipient: emailRecord.Email,
+		OTPHash:   otpHash,
+		ExpiresAt: time.Now().Add(smsStepUpTTL),
+	}
+	if _, err := s.smsOtpRepo.Create(record); err != nil {
+		return apperror.NewInternal("failed to store email OTP", err)
+	}
+
+	tenantID := mfaUserTenantID(ctx, s.db, userID)
+	data := struct {
+		OTP     string
+		LogoURL string
+	}{
+		OTP:     otpCode,
+		LogoURL: email.GetLogoURL(ctx, s.db),
+	}
+	rendered, renderErr := email.RenderTemplate(s.db, "user:mfa:stepup", tenantID, data)
+	if renderErr != nil {
+		slog.Warn("email OTP template render failed", "err", renderErr)
+		return apperror.NewInternal("failed to render email OTP template", renderErr)
+	}
+	if sendErr := email.SendEmail(ctx, s.db, email.SendEmailParams{
+		To:        emailRecord.Email,
+		Subject:   rendered.Subject,
+		BodyHTML:  rendered.BodyHTML,
+		BodyPlain: rendered.BodyPlain,
+	}); sendErr != nil {
+		slog.Error("email OTP send failed", "err", sendErr)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *mfaService) EnrollEmailOTP(ctx context.Context, userID int64, emailAddr string) error {
+	_, span := otel.Tracer("service").Start(ctx, "mfa.enroll_email_otp")
+	defer span.End()
+
+	if emailAddr == "" {
+		return apperror.NewValidation("email is required")
+	}
+
+	if !methodAllowed(secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID)), "email_otp") {
+		return apperror.NewForbidden("Email OTP MFA is not permitted by tenant policy")
+	}
+
+	existing, err := s.emailOTPRepo.FindByUserID(userID)
+	if err != nil {
+		return apperror.NewInternal("failed to check existing MFA email", err)
+	}
+	if existing != nil && existing.IsVerified {
+		return apperror.NewConflict("Email OTP MFA is already enrolled — disable it first")
+	}
+
+	otpCode, err := crypto.GenerateOTP(smsStepUpOTPLength)
+	if err != nil {
+		return apperror.NewInternal("failed to generate email OTP", err)
+	}
+	otpHash := crypto.HashAuthorizationCode(otpCode)
+
+	s.db.Where("user_id = ? AND channel = ?", userID, "email").Delete(&notifier.UserOTP{})
+	otpRecord := &notifier.UserOTP{
+		UserID:    userID,
+		Channel:   "email",
+		Recipient: emailAddr,
+		OTPHash:   otpHash,
+		ExpiresAt: time.Now().Add(smsStepUpTTL),
+	}
+	if _, err := s.smsOtpRepo.Create(otpRecord); err != nil {
+		return apperror.NewInternal("failed to store email OTP", err)
+	}
+
+	tenantID := mfaUserTenantID(ctx, s.db, userID)
+	data := struct {
+		OTP     string
+		LogoURL string
+	}{
+		OTP:     otpCode,
+		LogoURL: email.GetLogoURL(ctx, s.db),
+	}
+	rendered, renderErr := email.RenderTemplate(s.db, "user:mfa:enroll", tenantID, data)
+	if renderErr != nil {
+		slog.Warn("email OTP enroll template render failed", "err", renderErr)
+		return apperror.NewInternal("failed to render email OTP template", renderErr)
+	}
+	if sendErr := email.SendEmail(ctx, s.db, email.SendEmailParams{
+		To:        emailAddr,
+		Subject:   rendered.Subject,
+		BodyHTML:  rendered.BodyHTML,
+		BodyPlain: rendered.BodyPlain,
+	}); sendErr != nil {
+		slog.Error("email OTP enrollment send failed", "err", sendErr, "email", emailAddr)
+	}
+
+	if existing != nil {
+		existing.Email = emailAddr
+		existing.IsVerified = false
+		existing.VerifiedAt = nil
+		if err := s.emailOTPRepo.Save(existing); err != nil {
+			return apperror.NewInternal("failed to save MFA email", err)
+		}
+	} else {
+		if _, err := s.emailOTPRepo.Create(&UserMFAEmail{UserID: userID, Email: emailAddr}); err != nil {
+			return apperror.NewInternal("failed to save MFA email", err)
+		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *mfaService) VerifyEmailOTP(ctx context.Context, userID int64, emailAddr, code string) error {
+	_, span := otel.Tracer("service").Start(ctx, "mfa.verify_email_otp")
+	defer span.End()
+
+	record, err := s.emailOTPRepo.FindByUserID(userID)
+	if err != nil {
+		return apperror.NewInternal("failed to look up MFA email", err)
+	}
+	if record == nil || record.Email != emailAddr {
+		return apperror.NewValidation("no pending email OTP enrollment for this email")
+	}
+
+	otpRecord, lerr := s.smsOtpRepo.FindValid("email", emailAddr)
+	if lerr != nil || otpRecord == nil {
+		return apperror.NewUnauthorized("invalid or expired email code")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(otpRecord.OTPHash), []byte(crypto.HashAuthorizationCode(code))) != 1 {
+		_ = s.smsOtpRepo.RecordFailure(otpRecord.UserOTPID, smsStepUpMaxFailed)
+		return apperror.NewUnauthorized("invalid email code")
+	}
+	if err := s.smsOtpRepo.MarkUsed(otpRecord.UserOTPID); err != nil {
+		return apperror.NewInternal("failed to mark email OTP used", err)
+	}
+
+	now := time.Now()
+	record.IsVerified = true
+	record.VerifiedAt = &now
+	if err := s.emailOTPRepo.Save(record); err != nil {
+		return apperror.NewInternal("failed to verify MFA email", err)
+	}
+
+	s.ensureMFAFlag(ctx, userID)
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *mfaService) DisableEmailOTP(ctx context.Context, userID int64) error {
+	if err := s.emailOTPRepo.DeleteByUserID(userID); err != nil {
+		return apperror.NewInternal("failed to disable email OTP MFA", err)
+	}
 	return s.SyncMFAState(ctx, userID)
 }
 
@@ -1281,6 +1491,30 @@ func (s *mfaService) verifyFactor(ctx context.Context, userID int64, method, cod
 		}
 		return []string{"pwd", "sms"}, nil
 
+	case "email_otp":
+		emailRateLimitKey := security.RateLimitKey(fmt.Sprintf("email_otp_step_up:%d", userID), "verify")
+		if err := checkMFARateLimit(emailRateLimitKey); err != nil {
+			return nil, apperror.NewUnauthorized("too many attempts; try again later")
+		}
+		emailRecord, perr := s.emailOTPRepo.FindByUserID(userID)
+		if perr != nil || emailRecord == nil || !emailRecord.IsVerified || emailRecord.Email == "" {
+			return nil, apperror.NewUnauthorized("no verified email OTP on file")
+		}
+		record, lerr := s.smsOtpRepo.FindValid("email", emailRecord.Email)
+		if lerr != nil || record == nil {
+			security.RecordFailedAttempt(emailRateLimitKey)
+			return nil, apperror.NewUnauthorized("no valid email code found — request a new one")
+		}
+		if subtle.ConstantTimeCompare([]byte(record.OTPHash), []byte(crypto.HashAuthorizationCode(code))) != 1 {
+			_ = s.smsOtpRepo.RecordFailure(record.UserOTPID, smsStepUpMaxFailed)
+			security.RecordFailedAttempt(emailRateLimitKey)
+			return nil, apperror.NewUnauthorized("invalid email code")
+		}
+		if err := s.smsOtpRepo.MarkUsed(record.UserOTPID); err != nil {
+			return nil, apperror.NewInternal("failed to mark email OTP used", err)
+		}
+		return []string{"pwd", "otp"}, nil
+
 	case "webauthn":
 		if s.webAuthnSvc == nil {
 			return nil, apperror.NewValidation("WebAuthn is not available")
@@ -1329,6 +1563,13 @@ func (s *mfaService) SendSMSChallenge(ctx context.Context, userID int64) error {
 		return apperror.NewForbidden("SMS MFA is not permitted by tenant policy")
 	}
 	return s.SendStepUpSMS(ctx, userID)
+}
+
+func (s *mfaService) SendEmailOTPChallenge(ctx context.Context, userID int64) error {
+	if !methodAllowed(secpolicy.LoadMFAPolicy(s.secSettingRepo, mfaUserTenantID(ctx, s.db, userID)), "email_otp") {
+		return apperror.NewForbidden("Email OTP MFA is not permitted by tenant policy")
+	}
+	return s.SendStepUpEmailOTP(ctx, userID)
 }
 
 // BeginWebAuthnLogin starts a passkey assertion ceremony for userID and returns
@@ -1435,8 +1676,19 @@ func mfaUserTenantID(ctx context.Context, db *gorm.DB, userID int64) int64 {
 }
 
 func (s *mfaService) isSMSEnabled(ctx context.Context, userID int64) bool {
-	record, err := s.smsPhoneRepo.FindByUserID(userID)
-	return err == nil && record != nil && record.IsVerified
+	phone, err := s.smsPhoneRepo.FindByUserID(userID)
+	if err != nil || phone == nil {
+		return false
+	}
+	return phone.IsVerified
+}
+
+func (s *mfaService) isEmailOTPEnabled(ctx context.Context, userID int64) bool {
+	rec, err := s.emailOTPRepo.FindByUserID(userID)
+	if err != nil || rec == nil {
+		return false
+	}
+	return rec.IsVerified
 }
 
 // EnrolledMFAMethods returns the user's usable MFA methods, read from their
@@ -1462,6 +1714,9 @@ func (s *mfaService) EnrolledMFAMethods(ctx context.Context, userID int64) ([]st
 	if s.isSMSEnabled(ctx, userID) && methodAllowed(policy, "sms") {
 		methods = append(methods, "sms")
 	}
+	if s.isEmailOTPEnabled(ctx, userID) && methodAllowed(policy, "email_otp") {
+		methods = append(methods, "email_otp")
+	}
 	if count, _ := s.GetBackupCodesCount(ctx, userID); count > 0 && methodAllowed(policy, "backup_code") {
 		methods = append(methods, "backup_code")
 	}
@@ -1479,6 +1734,9 @@ func methodAllowed(policy *secpolicy.MFAPolicy, method string) bool {
 		return false
 	}
 	if method == "sms" && !policy.AllowSMS {
+		return false
+	}
+	if method == "email_otp" && !policy.AllowEmailOTP {
 		return false
 	}
 	if len(policy.AllowedMethods) == 0 {
@@ -1537,7 +1795,7 @@ func (s *mfaService) SyncMFAState(ctx context.Context, userID int64) error {
 	if err != nil || user == nil {
 		return apperror.NewInternal("user lookup failed", err)
 	}
-	if user.IsTOTPEnabled || user.IsWebAuthnEnabled || s.isSMSEnabled(ctx, userID) {
+	if user.IsTOTPEnabled || user.IsWebAuthnEnabled || s.isSMSEnabled(ctx, userID) || s.isEmailOTPEnabled(ctx, userID) {
 		return nil
 	}
 	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
