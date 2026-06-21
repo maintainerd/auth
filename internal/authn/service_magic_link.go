@@ -370,11 +370,18 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 		return apperror.NewInternal("failed to create signed URL", err)
 	}
 
+	// Resolve the tenant identifier for the frontend URL path.
+	var tenantIdentifier string
+	var tenantRow struct{ Identifier string }
+	if tErr := s.db.Table("tenants").Select("identifier").Where("tenant_id = ?", Client.IdentityProvider.TenantID).First(&tenantRow).Error; tErr == nil {
+		tenantIdentifier = tenantRow.Identifier
+	}
+
 	var frontendBaseURL string
 	if isInternal {
-		frontendBaseURL = config.AppFrontendConsoleHostname + "/magic-link"
+		frontendBaseURL = config.AppFrontendConsoleHostname + "/" + tenantIdentifier + "/magic-link"
 	} else {
-		frontendBaseURL = config.AppFrontendIdentityHostname + "/magic-link"
+		frontendBaseURL = config.AppFrontendIdentityHostname + "/" + tenantIdentifier + "/magic-link"
 	}
 	magicLinkURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
