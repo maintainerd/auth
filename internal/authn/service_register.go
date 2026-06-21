@@ -612,6 +612,13 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 
+		// Auto-enroll email OTP MFA — the invite link already proves email ownership.
+		// Best-effort: if it fails (e.g. table not ready), registration still succeeds.
+		_ = tx.Exec(
+			`INSERT INTO user_mfa_emails (mfa_email_uuid, user_id, email, is_verified, verified_at, created_at, updated_at) VALUES (gen_random_uuid(), ?, ?, true, ?, ?, ?) ON CONFLICT (user_id) DO NOTHING`,
+			createdUser.UserID, invite.InvitedEmail, now, now, now,
+		).Error
+
 		// Record password history
 		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
