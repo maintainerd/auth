@@ -10,7 +10,7 @@ import (
 
 func TestUserBackupCodeModel(t *testing.T) {
 	t.Run("table name", func(t *testing.T) {
-		assert.Equal(t, "user_backup_codes", UserBackupCode{}.TableName())
+		assert.Equal(t, "user_mfa_backup_codes", UserBackupCode{}.TableName())
 	})
 
 	t.Run("BeforeCreate assigns UUID", func(t *testing.T) {

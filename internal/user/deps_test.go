@@ -27,5 +27,5 @@ func TestIdentityProviderTableName(t *testing.T) {
 }
 
 func TestUserBackupCodeTableName(t *testing.T) {
-	assert.Equal(t, "user_backup_codes", UserBackupCode{}.TableName())
+	assert.Equal(t, "user_mfa_backup_codes", UserBackupCode{}.TableName())
 }

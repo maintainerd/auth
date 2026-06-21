@@ -2,9 +2,9 @@ package migration
 
 import "gorm.io/gorm"
 
-func CreateUserWebAuthnCredentialsTable(db *gorm.DB) error {
+func CreateUserMFAWebAuthnCredentialsTable(db *gorm.DB) error {
 	return db.Exec(`
-CREATE TABLE IF NOT EXISTS user_webauthn_credentials (
+CREATE TABLE IF NOT EXISTS user_mfa_webauthn_credentials (
     credential_id      BIGSERIAL    PRIMARY KEY,
     credential_uuid    UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     user_id            BIGINT       NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS user_webauthn_credentials (
     created_at         TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at         TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_user_webauthn_credentials_user_id ON user_webauthn_credentials(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_webauthn_credential_key_id  ON user_webauthn_credentials(credential_key_id);
+CREATE INDEX IF NOT EXISTS idx_user_mfa_webauthn_credentials_user_id ON user_mfa_webauthn_credentials(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_webauthn_credential_key_id  ON user_mfa_webauthn_credentials(credential_key_id);
 `).Error
 }

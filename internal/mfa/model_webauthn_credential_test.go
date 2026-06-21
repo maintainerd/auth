@@ -10,7 +10,7 @@ import (
 
 func TestUserWebAuthnCredentialModel(t *testing.T) {
 	t.Run("table name", func(t *testing.T) {
-		assert.Equal(t, "user_webauthn_credentials", UserWebAuthnCredential{}.TableName())
+		assert.Equal(t, "user_mfa_webauthn_credentials", UserWebAuthnCredential{}.TableName())
 	})
 
 	t.Run("BeforeCreate assigns UUID", func(t *testing.T) {

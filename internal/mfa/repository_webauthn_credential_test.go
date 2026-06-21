@@ -20,7 +20,7 @@ func TestUserWebAuthnCredentialRepository(t *testing.T) {
 
 	t.Run("FindByUserID returns rows", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
-		expectMFASelect(mock, "user_webauthn_credentials").WillReturnRows(userWebAuthnCredentialRows())
+		expectMFASelect(mock, "user_mfa_webauthn_credentials").WillReturnRows(userWebAuthnCredentialRows())
 
 		got, err := NewUserWebAuthnCredentialRepository(db).FindByUserID(mfaTestUserID)
 
@@ -31,9 +31,9 @@ func TestUserWebAuthnCredentialRepository(t *testing.T) {
 
 	t.Run("FindByCredentialKeyID success not found and error", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
-		expectMFASelect(mock, "user_webauthn_credentials").WillReturnRows(userWebAuthnCredentialRows())
-		expectMFASelect(mock, "user_webauthn_credentials").WillReturnError(gorm.ErrRecordNotFound)
-		expectMFASelect(mock, "user_webauthn_credentials").WillReturnError(errors.New("db error"))
+		expectMFASelect(mock, "user_mfa_webauthn_credentials").WillReturnRows(userWebAuthnCredentialRows())
+		expectMFASelect(mock, "user_mfa_webauthn_credentials").WillReturnError(gorm.ErrRecordNotFound)
+		expectMFASelect(mock, "user_mfa_webauthn_credentials").WillReturnError(errors.New("db error"))
 		repo := NewUserWebAuthnCredentialRepository(db)
 
 		got, err := repo.FindByCredentialKeyID("cred-key")
@@ -51,16 +51,16 @@ func TestUserWebAuthnCredentialRepository(t *testing.T) {
 	t.Run("create update and delete methods", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
-		mock.ExpectQuery(`INSERT INTO "user_webauthn_credentials"`).WillReturnRows(sqlmock.NewRows([]string{"credential_id"}).AddRow(1))
+		mock.ExpectQuery(`INSERT INTO "user_mfa_webauthn_credentials"`).WillReturnRows(sqlmock.NewRows([]string{"credential_id"}).AddRow(1))
 		mock.ExpectCommit()
 		for i := 0; i < 2; i++ {
 			mock.ExpectBegin()
-			expectMFAUpdate(mock, "user_webauthn_credentials").WillReturnResult(sqlmock.NewResult(0, 1))
+			expectMFAUpdate(mock, "user_mfa_webauthn_credentials").WillReturnResult(sqlmock.NewResult(0, 1))
 			mock.ExpectCommit()
 		}
 		for i := 0; i < 2; i++ {
 			mock.ExpectBegin()
-			expectMFADelete(mock, "user_webauthn_credentials").WillReturnResult(sqlmock.NewResult(0, 1))
+			expectMFADelete(mock, "user_mfa_webauthn_credentials").WillReturnResult(sqlmock.NewResult(0, 1))
 			mock.ExpectCommit()
 		}
 		repo := NewUserWebAuthnCredentialRepository(db)

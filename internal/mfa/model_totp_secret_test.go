@@ -10,7 +10,7 @@ import (
 
 func TestUserTOTPSecretModel(t *testing.T) {
 	t.Run("table name", func(t *testing.T) {
-		assert.Equal(t, "user_totp_secrets", UserTOTPSecret{}.TableName())
+		assert.Equal(t, "user_mfa_totp_secrets", UserTOTPSecret{}.TableName())
 	})
 
 	t.Run("BeforeCreate assigns UUID", func(t *testing.T) {

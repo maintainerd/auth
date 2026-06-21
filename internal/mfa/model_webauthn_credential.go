@@ -26,7 +26,7 @@ type UserWebAuthnCredential struct {
 	UpdatedAt        time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 }
 
-func (UserWebAuthnCredential) TableName() string { return "user_webauthn_credentials" }
+func (UserWebAuthnCredential) TableName() string { return "user_mfa_webauthn_credentials" }
 
 func (c *UserWebAuthnCredential) BeforeCreate(tx *gorm.DB) error {
 	if c.CredentialUUID == uuid.Nil {

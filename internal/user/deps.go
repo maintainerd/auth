@@ -176,7 +176,7 @@ type UserBackupCode struct {
 	CreatedAt      time.Time
 }
 
-func (UserBackupCode) TableName() string { return "user_backup_codes" }
+func (UserBackupCode) TableName() string { return "user_mfa_backup_codes" }
 
 type TenantRepository interface {
 	BaseRepositoryMethods[Tenant]
