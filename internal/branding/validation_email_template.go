@@ -26,10 +26,6 @@ func (r EmailTemplateCreateRequestDTO) Validate() error {
 
 func (r EmailTemplateUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(1, 100).Error("Name must be between 1 and 100 characters"),
-		),
 		validation.Field(&r.Subject,
 			validation.Required.Error("Subject is required"),
 			validation.Length(1, 255).Error("Subject must be between 1 and 255 characters"),

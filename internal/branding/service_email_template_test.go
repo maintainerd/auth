@@ -115,7 +115,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) { return nil, nil },
 		})
-		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
+		_, err := svc.Update(context.Background(), id, tid, "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
 	})
 
@@ -125,7 +125,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
-		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
+		_, err := svc.Update(context.Background(), id, tid, "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
 	})
@@ -133,15 +133,15 @@ func TestEmailTemplateService_Update(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
 			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
-				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: false, Name: "Old"}, nil
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: false, Name: "welcome"}, nil
 			},
 			updateByUUIDFn: func(i, data any) (*EmailTemplate, error) {
-				return &EmailTemplate{Name: "New"}, nil
+				return &EmailTemplate{Name: "welcome"}, nil
 			},
 		})
-		res, err := svc.Update(context.Background(), id, tid, "New", "S", "<b>b</b>", nil, "active")
+		res, err := svc.Update(context.Background(), id, tid, "S", "<b>b</b>", nil, "active")
 		require.NoError(t, err)
-		assert.Equal(t, "New", res.Name)
+		assert.Equal(t, "welcome", res.Name)
 	})
 
 	t.Run("find error", func(t *testing.T) {
@@ -150,20 +150,21 @@ func TestEmailTemplateService_Update(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
+		_, err := svc.Update(context.Background(), id, tid, "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db err")
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
 			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
-				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: false}, nil
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: false, Name: "tpl"}, nil
 			},
 			updateByUUIDFn: func(_, _ any) (*EmailTemplate, error) {
 				return nil, errors.New("update err")
 			},
 		})
-		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
+		_, err := svc.Update(context.Background(), id, tid, "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})

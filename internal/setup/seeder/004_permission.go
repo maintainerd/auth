@@ -248,9 +248,7 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 
 		// Email Templates
 		newPermission("email-template:read", "Read email templates", tenantID, apiID),
-		newPermission("email-template:create", "Create email template", tenantID, apiID),
 		newPermission("email-template:update", "Update email template", tenantID, apiID),
-		newPermission("email-template:delete", "Delete email template", tenantID, apiID),
 
 		// SMS Templates
 		newPermission("sms-template:read", "Read SMS templates", tenantID, apiID),

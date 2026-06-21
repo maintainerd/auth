@@ -77,7 +77,7 @@ func TestRoleRepository(t *testing.T) {
 
 		got, err := NewRoleRepository(db).FindPaginated(RoleRepositoryGetFilter{
 			TenantID: tenantID, Name: &name, Description: &name, IsDefault: &flag, IsSystem: &flag,
-			Status: &status, Page: 1, Limit: 10,
+			Status: []string{status}, Page: 1, Limit: 10,
 		})
 
 		require.NoError(t, err)

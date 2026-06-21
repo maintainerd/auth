@@ -55,6 +55,7 @@ type EmailTemplateResponseDTO struct {
 	Subject         string    `json:"subject"`
 	BodyHTML        string    `json:"body_html"`
 	BodyPlain       *string   `json:"body_plain"`
+	ParametersDoc   *string   `json:"parameters_doc,omitempty"`
 	Status          string    `json:"status"`
 	IsDefault       bool      `json:"is_default"`
 	IsSystem        bool      `json:"is_system"`
@@ -73,7 +74,6 @@ type EmailTemplateCreateRequestDTO struct {
 
 // Update email template request DTO
 type EmailTemplateUpdateRequestDTO struct {
-	Name      string  `json:"name"`
 	Subject   string  `json:"subject"`
 	BodyHTML  string  `json:"body_html"`
 	BodyPlain *string `json:"body_plain,omitempty"`

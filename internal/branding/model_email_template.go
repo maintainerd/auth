@@ -15,6 +15,7 @@ type EmailTemplate struct {
 	Subject           string         `gorm:"column:subject"`
 	BodyHTML          string         `gorm:"column:body_html"`
 	BodyPlain         *string        `gorm:"column:body_plain"`
+	ParametersDoc     *string        `gorm:"column:parameters_doc"`
 	Status            string         `gorm:"column:status;default:'active'"`
 	IsDefault         bool           `gorm:"column:is_default;default:false"`
 	IsSystem          bool           `gorm:"column:is_system;default:false"`

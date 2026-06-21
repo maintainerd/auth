@@ -3,7 +3,6 @@ package oauth
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/maintainerd/auth/internal/authevent"
@@ -368,20 +367,29 @@ func (s *oauthCIBAService) sendCIBANotificationEmail(ctx context.Context, user *
 	if client != nil {
 		clientName = client.DisplayName
 	}
-	msg := ""
-	if bindingMessage != "" {
-		msg = fmt.Sprintf(`<p>Message: <strong>%s</strong></p>`, strings.ReplaceAll(bindingMessage, "<", "&lt;"))
+
+	data := struct {
+		ClientName     string
+		BindingMessage string
+		LogoURL        string
+	}{
+		ClientName:     clientName,
+		BindingMessage: bindingMessage,
+		LogoURL:        email.GetLogoURL(ctx, s.db),
 	}
-	bodyHTML := fmt.Sprintf(
-		`<p><strong>%s</strong> is requesting access to your account.</p>%s
-		 <p>Please approve or deny this request in your authenticator app or the login portal.</p>`,
-		strings.ReplaceAll(clientName, "<", "&lt;"),
-		msg,
-	)
+
+	var tenantID int64
+	if client != nil {
+		tenantID = client.TenantID
+	}
+	rendered, err := email.RenderTemplate(s.db, "user:ciba:notification", tenantID, data)
+	if err != nil {
+		return fmt.Errorf("failed to render ciba notification email template: %w", err)
+	}
 	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:        user.Email,
-		Subject:   "Authentication Request",
-		BodyHTML:  bodyHTML,
-		BodyPlain: fmt.Sprintf("%s is requesting access to your account. Please approve or deny.", clientName),
+		Subject:   rendered.Subject,
+		BodyHTML:  rendered.BodyHTML,
+		BodyPlain: rendered.BodyPlain,
 	})
 }

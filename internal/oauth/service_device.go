@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/maintainerd/auth/internal/authevent"
@@ -414,15 +413,27 @@ func (s *oauthDeviceService) sendDeviceApprovalEmail(ctx context.Context, user *
 	if client != nil {
 		clientName = client.DisplayName
 	}
-	bodyHTML := fmt.Sprintf(
-		`<p>You have successfully authorized <strong>%s</strong> to access your account.</p>
-		 <p>If you did not approve this request, please secure your account immediately.</p>`,
-		strings.ReplaceAll(clientName, "<", "&lt;"),
-	)
+
+	data := struct {
+		ClientName string
+		LogoURL    string
+	}{
+		ClientName: clientName,
+		LogoURL:    email.GetLogoURL(ctx, s.db),
+	}
+
+	var tenantID int64
+	if client != nil {
+		tenantID = client.TenantID
+	}
+	rendered, err := email.RenderTemplate(s.db, "user:device:approved", tenantID, data)
+	if err != nil {
+		return fmt.Errorf("failed to render device approval email template: %w", err)
+	}
 	return email.SendEmail(ctx, s.db, email.SendEmailParams{
 		To:        user.Email,
-		Subject:   "Device Authorization Approved",
-		BodyHTML:  bodyHTML,
-		BodyPlain: fmt.Sprintf("You authorized %s to access your account.", clientName),
+		Subject:   rendered.Subject,
+		BodyHTML:  rendered.BodyHTML,
+		BodyPlain: rendered.BodyPlain,
 	})
 }

@@ -61,7 +61,7 @@ func SecuritySettingRoute(
 		// General config endpoints
 		r.With(middleware.PermissionMiddleware([]string{"security-setting:read"})).
 			Get("/mfa", securitySettingHandler.GetMFAConfig)
-		r.With(middleware.PermissionMiddleware([]string{"security-setting:update"}), middleware.RequireStepUp).
+		r.With(middleware.PermissionMiddleware([]string{"security-setting:update"})).
 			Put("/mfa", securitySettingHandler.UpdateMFAConfig)
 
 		// Password config endpoints

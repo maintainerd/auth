@@ -131,7 +131,7 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 	// #nosec G118 -- best-effort background goroutine must outlive request context
 	go func() {
 		sendCtx := context.Background()
-		if sendErr := s.sendEmailChangeOTP(sendCtx, sendEmail, newEmail, otp); sendErr != nil {
+		if sendErr := s.sendEmailChangeOTP(sendCtx, sendEmail, user.TenantID, newEmail, otp); sendErr != nil {
 			slog.Error("account: failed to send email change OTP", "error", sendErr, "user_id", userID)
 		}
 	}()
@@ -140,14 +140,24 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 	return nil
 }
 
-func (s *accountService) sendEmailChangeOTP(ctx context.Context, sendEmail func(context.Context, *gorm.DB, email.SendEmailParams) error, toEmail, otp string) error {
-	subject := "Your email change verification code"
-	bodyHTML := fmt.Sprintf("<p>Your email change verification code is: <strong>%s</strong>. It expires in 1 hour.</p>", otp)
+func (s *accountService) sendEmailChangeOTP(ctx context.Context, sendEmail func(context.Context, *gorm.DB, email.SendEmailParams) error, tenantID int64, toEmail, otp string) error {
+	data := struct {
+		OTP     string
+		LogoURL string
+	}{
+		OTP:     otp,
+		LogoURL: email.GetLogoURL(ctx, s.db),
+	}
 
+	rendered, err := email.RenderTemplate(s.db, "user:email:change", tenantID, data)
+	if err != nil {
+		return fmt.Errorf("failed to render email change template: %w", err)
+	}
 	return sendEmail(ctx, s.db, email.SendEmailParams{
-		To:       toEmail,
-		Subject:  subject,
-		BodyHTML: bodyHTML,
+		To:        toEmail,
+		Subject:   rendered.Subject,
+		BodyHTML:  rendered.BodyHTML,
+		BodyPlain: rendered.BodyPlain,
 	})
 }
 

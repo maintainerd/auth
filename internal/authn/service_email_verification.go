@@ -28,7 +28,7 @@ const EmailVerificationOTPLength = 6
 const EmailVerificationOTPTTL = 1 * time.Hour
 
 // EmailVerificationTemplateName is the template name registered in the seeder.
-const EmailVerificationTemplateName = "internal:user:email:verification"
+const EmailVerificationTemplateName = "user:email:verification"
 
 type EmailVerificationService interface {
 	SendVerificationEmail(ctx context.Context, email string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error)

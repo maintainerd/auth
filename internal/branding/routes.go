@@ -54,12 +54,8 @@ func EmailTemplateRoute(
 			Get("/", emailTemplateHandler.GetAll)
 		r.With(middleware.PermissionMiddleware([]string{"email-template:read"})).
 			Get("/{email_template_uuid}", emailTemplateHandler.Get)
-		r.With(middleware.PermissionMiddleware([]string{"email-template:create"})).
-			Post("/", emailTemplateHandler.Create)
 		r.With(middleware.PermissionMiddleware([]string{"email-template:update"})).
 			Put("/{email_template_uuid}", emailTemplateHandler.Update)
-		r.With(middleware.PermissionMiddleware([]string{"email-template:delete"})).
-			Delete("/{email_template_uuid}", emailTemplateHandler.Delete)
 		r.With(middleware.PermissionMiddleware([]string{"email-template:update"})).
 			Patch("/{email_template_uuid}/status", emailTemplateHandler.UpdateStatus)
 	})

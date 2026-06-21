@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/email"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -17,6 +18,7 @@ type EmailTemplateServiceDataResult struct {
 	Subject           string
 	BodyHTML          string
 	BodyPlain         *string
+	ParametersDoc     *string
 	Status            string
 	IsDefault         bool
 	IsSystem          bool
@@ -36,7 +38,7 @@ type EmailTemplateService interface {
 	GetAll(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error)
 	GetByUUID(ctx context.Context, emailTemplateUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
 	Create(ctx context.Context, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error)
-	Update(ctx context.Context, emailTemplateUUID uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
+	Update(ctx context.Context, emailTemplateUUID uuid.UUID, tenantID int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
 	UpdateStatus(ctx context.Context, emailTemplateUUID uuid.UUID, tenantID int64, status string) (*EmailTemplateServiceDataResult, error)
 	Delete(ctx context.Context, emailTemplateUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
 }
@@ -146,7 +148,7 @@ func (s *emailTemplateService) Create(ctx context.Context, tenantID int64, name,
 	return &result, nil
 }
 
-func (s *emailTemplateService) Update(ctx context.Context, emailTemplateUUID uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+func (s *emailTemplateService) Update(ctx context.Context, emailTemplateUUID uuid.UUID, tenantID int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "emailTemplate.update")
 	defer span.End()
 	span.SetAttributes(
@@ -172,12 +174,10 @@ func (s *emailTemplateService) Update(ctx context.Context, emailTemplateUUID uui
 		return nil, apperror.NewValidation("cannot update system email template")
 	}
 
-	template.Name = name
 	template.Subject = subject
 	template.BodyHTML = bodyHTML
 	template.BodyPlain = bodyPlain
 	template.Status = status
-	// is_default is preserved from existing template
 
 	updatedTemplate, err := s.emailTemplateRepo.UpdateByUUID(emailTemplateUUID, template)
 	if err != nil {
@@ -185,6 +185,8 @@ func (s *emailTemplateService) Update(ctx context.Context, emailTemplateUUID uui
 		span.SetStatus(codes.Error, "failed to update email template")
 		return nil, err
 	}
+
+	email.InvalidateTemplateCache(tenantID, template.Name)
 
 	span.SetStatus(codes.Ok, "")
 	result := toEmailTemplateServiceDataResult(updatedTemplate)
@@ -225,6 +227,8 @@ func (s *emailTemplateService) UpdateStatus(ctx context.Context, emailTemplateUU
 		span.SetStatus(codes.Error, "failed to update email template status")
 		return nil, err
 	}
+
+	email.InvalidateTemplateCache(tenantID, template.Name)
 
 	span.SetStatus(codes.Ok, "")
 	result := toEmailTemplateServiceDataResult(updatedTemplate)
@@ -277,6 +281,7 @@ func toEmailTemplateServiceDataResult(template *EmailTemplate) EmailTemplateServ
 		Subject:           template.Subject,
 		BodyHTML:          template.BodyHTML,
 		BodyPlain:         template.BodyPlain,
+		ParametersDoc:     template.ParametersDoc,
 		Status:            template.Status,
 		IsDefault:         template.IsDefault,
 		IsSystem:          template.IsSystem,

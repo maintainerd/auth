@@ -62,13 +62,12 @@ func TestEmailTemplateCreateRequestDto_Validate(t *testing.T) {
 
 func TestEmailTemplateUpdateRequestDto_Validate(t *testing.T) {
 	d := EmailTemplateUpdateRequestDTO{
-		Name:     "Updated Email",
 		Subject:  "Updated subject",
 		BodyHTML: "<h1>Updated!</h1>",
 	}
 	assert.NoError(t, d.Validate())
 
-	d.Name = ""
+	d.Subject = ""
 	require.Error(t, d.Validate())
 }
 
