@@ -280,9 +280,9 @@ func (s *inviteService) ResendInvite(
 func (s *inviteService) sendInviteEmail(ctx context.Context, tenantID int64, to, inviteURL string) error {
 	var templateEntity *branding.EmailTemplate
 	var err error
-	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID("internal:user:invite", tenantID)
+	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID("user:invite", tenantID)
 	if err != nil || templateEntity == nil {
-		templateEntity, err = s.emailTemplateRepo.FindByName("internal:user:invite")
+		templateEntity, err = s.emailTemplateRepo.FindByName("user:invite")
 	}
 	if err != nil {
 		return apperror.NewInternal("failed to fetch invite email template", err)

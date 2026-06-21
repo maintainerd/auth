@@ -93,14 +93,12 @@ func TestRoleFilterDto_Validate(t *testing.T) {
 	})
 
 	t.Run("invalid status filter", func(t *testing.T) {
-		bad := "pending"
-		f := RoleFilterDTO{PaginationRequestDTO: validPagination(), Status: &bad}
+		f := RoleFilterDTO{PaginationRequestDTO: validPagination(), Status: []string{"pending"}}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("valid status filter", func(t *testing.T) {
-		s := shared.StatusActive
-		f := RoleFilterDTO{PaginationRequestDTO: validPagination(), Status: &s}
+		f := RoleFilterDTO{PaginationRequestDTO: validPagination(), Status: []string{shared.StatusActive}}
 		assert.NoError(t, f.Validate())
 	})
 }

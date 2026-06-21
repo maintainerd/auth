@@ -72,7 +72,7 @@ func (h *EmailTemplateGRPCHandler) UpdateEmailTemplate(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.svc.Update(ctx, etUUID, tenant.TenantID, req.GetName(), req.GetSubject(), req.GetBodyHtml(), req.BodyPlain, req.GetStatus())
+	result, err := h.svc.Update(ctx, etUUID, tenant.TenantID, req.GetSubject(), req.GetBodyHtml(), req.BodyPlain, req.GetStatus())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS email_templates (
     subject             VARCHAR(255) NOT NULL,
     body_html           TEXT NOT NULL,
     body_plain          TEXT,
+    parameters_doc      TEXT,
     status              VARCHAR(20) DEFAULT 'active',
     is_default          BOOLEAN DEFAULT FALSE,
     is_system           BOOLEAN DEFAULT FALSE,

@@ -123,7 +123,7 @@ type mockEmailTemplateService struct {
 	getAllFn       func(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error)
 	getByUUIDFn    func(id uuid.UUID, tid int64) (*EmailTemplateServiceDataResult, error)
 	createFn       func(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error)
-	updateFn       func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
+	updateFn       func(id uuid.UUID, tid int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
 	updateStatusFn func(id uuid.UUID, tid int64, status string) (*EmailTemplateServiceDataResult, error)
 	deleteFn       func(id uuid.UUID, tid int64) (*EmailTemplateServiceDataResult, error)
 }
@@ -149,9 +149,9 @@ func (m *mockEmailTemplateService) Create(ctx context.Context, tenantID int64, n
 	return nil, nil
 }
 
-func (m *mockEmailTemplateService) Update(ctx context.Context, id uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+func (m *mockEmailTemplateService) Update(ctx context.Context, id uuid.UUID, tenantID int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(id, tenantID, name, subject, bodyHTML, bodyPlain, status)
+		return m.updateFn(id, tenantID, subject, bodyHTML, bodyPlain, status)
 	}
 	return nil, nil
 }

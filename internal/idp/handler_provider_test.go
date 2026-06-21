@@ -146,11 +146,10 @@ func TestIdentityProviderHandler_Create(t *testing.T) {
 	validBody := map[string]any{
 		"name":          "test-idp",
 		"display_name":  "Test Identity Provider",
-		"provider":      "internal",
+		"provider":      "maintainerd",
 		"provider_type": "identity",
 		"status":        "active",
 		"config":        map[string]any{},
-		"tenant_id":     testTenantUUID.String(),
 	}
 
 	t.Run("bad json returns 400", func(t *testing.T) {
@@ -198,13 +197,12 @@ func TestIdentityProviderHandler_Create(t *testing.T) {
 func TestIdentityProviderHandler_Update(t *testing.T) {
 	idpUUID := uuid.New()
 	validBody := map[string]any{
-		"name":          "upd",
-		"display_name":  "Updated Provider",
-		"provider":      "internal",
+		"name":          "upd-idp",
+		"display_name":  "Updated Provider Name",
+		"provider":      "maintainerd",
 		"provider_type": "identity",
 		"status":        "active",
 		"config":        map[string]any{},
-		"tenant_id":     testTenantUUID.String(),
 	}
 
 	t.Run("invalid uuid returns 400", func(t *testing.T) {

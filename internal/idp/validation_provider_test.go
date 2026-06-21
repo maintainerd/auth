@@ -3,7 +3,6 @@ package idp
 import (
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,7 +17,6 @@ func validIDPCreate() IdentityProviderCreateRequestDTO {
 		ProviderType: shared.IDPTypeIdentity,
 		Config:       datatypes.JSON(`{}`),
 		Status:       shared.StatusActive,
-		TenantUUID:   uuid.New().String(),
 	}
 }
 
@@ -66,12 +64,6 @@ func TestIdentityProviderCreateRequestDto_Validate(t *testing.T) {
 	t.Run("invalid status", func(t *testing.T) {
 		d := validIDPCreate()
 		d.Status = "unknown"
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("invalid tenant_uuid", func(t *testing.T) {
-		d := validIDPCreate()
-		d.TenantUUID = "not-a-uuid"
 		require.Error(t, d.Validate())
 	})
 }

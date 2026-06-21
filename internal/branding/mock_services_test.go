@@ -58,7 +58,7 @@ type testEmailTemplateService struct {
 	getAllFn       func(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error)
 	getByUUIDFn    func(ctx context.Context, etUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
 	createFn       func(ctx context.Context, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error)
-	updateFn       func(ctx context.Context, etUUID uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
+	updateFn       func(ctx context.Context, etUUID uuid.UUID, tenantID int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
 	updateStatusFn func(ctx context.Context, etUUID uuid.UUID, tenantID int64, status string) (*EmailTemplateServiceDataResult, error)
 	deleteFn       func(ctx context.Context, etUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
 }
@@ -72,8 +72,8 @@ func (m *testEmailTemplateService) GetByUUID(ctx context.Context, etUUID uuid.UU
 func (m *testEmailTemplateService) Create(ctx context.Context, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error) {
 	return m.createFn(ctx, tenantID, name, subject, bodyHTML, bodyPlain, status, isDefault)
 }
-func (m *testEmailTemplateService) Update(ctx context.Context, etUUID uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
-	return m.updateFn(ctx, etUUID, tenantID, name, subject, bodyHTML, bodyPlain, status)
+func (m *testEmailTemplateService) Update(ctx context.Context, etUUID uuid.UUID, tenantID int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+	return m.updateFn(ctx, etUUID, tenantID, subject, bodyHTML, bodyPlain, status)
 }
 func (m *testEmailTemplateService) UpdateStatus(ctx context.Context, etUUID uuid.UUID, tenantID int64, status string) (*EmailTemplateServiceDataResult, error) {
 	return m.updateStatusFn(ctx, etUUID, tenantID, status)

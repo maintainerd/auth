@@ -180,7 +180,7 @@ func TestEmailTemplateGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testEmailTemplateService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
 				return &etResult, nil
 			},
 		}
@@ -222,8 +222,8 @@ func TestEmailTemplateGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update service error", func(t *testing.T) {
 		svc := &testEmailTemplateService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
-				return nil, errors.New("db error")
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+				return nil, errors.New("update error")
 			},
 		}
 		h := NewEmailTemplateGRPCHandler(resolver, svc)

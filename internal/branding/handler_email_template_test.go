@@ -250,7 +250,7 @@ func TestEmailTemplateHandler_Update_ValidationError(t *testing.T) {
 
 func TestEmailTemplateHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -266,8 +266,8 @@ func TestEmailTemplateHandler_Update_ServiceError(t *testing.T) {
 func TestEmailTemplateHandler_Update_WithCustomStatus(t *testing.T) {
 	// Covers the req.Status != nil branch
 	svc := &mockEmailTemplateService{
-		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
-			return &EmailTemplateServiceDataResult{Name: name, Status: status}, nil
+		updateFn: func(id uuid.UUID, tid int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Name: "tmpl1", Status: status}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -281,8 +281,8 @@ func TestEmailTemplateHandler_Update_WithCustomStatus(t *testing.T) {
 
 func TestEmailTemplateHandler_Update_Success(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
-			return &EmailTemplateServiceDataResult{Name: name}, nil
+		updateFn: func(id uuid.UUID, tid int64, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Name: "tmpl1"}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)

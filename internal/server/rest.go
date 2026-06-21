@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/email"
 	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -28,6 +29,7 @@ func StartRESTServer(application *Application) error {
 	h := initHandlers(application)
 
 	securityMiddleware.SetStepUpTTLReader(&stepUpTTLAdapter{svc: application.SecuritySettingService})
+	email.RedisClient = application.RedisClient
 
 	internalSrv := &http.Server{
 		Addr:         defaultInternalPort,

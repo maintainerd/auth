@@ -24,7 +24,7 @@ import (
 const MagicLinkTokenTTL = 15 * time.Minute
 
 // MagicLinkTemplateName is the template name registered in the seeder.
-const MagicLinkTemplateName = "internal:user:magic_link"
+const MagicLinkTemplateName = "user:magic_link"
 
 type MagicLinkService interface {
 	SendMagicLink(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error)

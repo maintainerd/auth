@@ -168,9 +168,9 @@ func generateSecureToken(length int) string {
 func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, resetToken string, Client *Client, isInternal bool) error {
 	var templateEntity *branding.EmailTemplate
 	var err error
-	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID("internal:user:password:reset", Client.IdentityProvider.TenantID)
+	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID("user:password:reset", Client.IdentityProvider.TenantID)
 	if err != nil || templateEntity == nil {
-		templateEntity, err = s.emailTemplateRepo.FindByName("internal:user:password:reset")
+		templateEntity, err = s.emailTemplateRepo.FindByName("user:password:reset")
 	}
 	if err != nil {		return apperror.NewInternal("failed to fetch password reset email template", err)
 	}
