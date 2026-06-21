@@ -112,6 +112,10 @@ type VerifyMagicLinkRequestDTO struct {
 	Token string `json:"token"`
 }
 
+type AdminSendMagicLinkRequestDTO struct {
+	UserUUID string `json:"user_uuid"`
+}
+
 // Register request payload structure
 type RegisterRequestDTO struct {
 	Username     string  `json:"username"`

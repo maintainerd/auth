@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
@@ -28,6 +30,7 @@ const MagicLinkTemplateName = "user:magic_link"
 
 type MagicLinkService interface {
 	SendMagicLink(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error)
+	AdminSendMagicLink(ctx context.Context, userUUID string, isInternal bool) (*SendMagicLinkResponseDTO, error)
 	LoginWithMagicLink(ctx context.Context, token, clientID, providerID string) (*LoginResponseDTO, error)
 }
 
@@ -151,6 +154,78 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 				Timestamp: time.Now(),
 			})
 		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return response, nil
+}
+
+func (s *magicLinkService) AdminSendMagicLink(ctx context.Context, userUUID string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "magicLink.adminSend")
+	defer span.End()
+
+	parsedUUID, err := uuid.Parse(userUUID)
+	if err != nil {
+		return nil, apperror.NewValidation("invalid user UUID")
+	}
+
+	var user *User
+	var Client *Client
+	var token string
+
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUserRepo := s.userRepo.WithTx(tx)
+		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+
+		var txErr error
+		user, txErr = txUserRepo.FindByUUID(parsedUUID)
+		if txErr != nil || user == nil {
+			return apperror.NewNotFound("user not found")
+		}
+		if user.Email == "" {
+			return apperror.NewValidation("user has no email address")
+		}
+
+		Client, txErr = txClientRepo.FindSystem()
+		if txErr != nil || Client == nil {
+			return apperror.NewInternal("auth client not found", nil)
+		}
+
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, shared.TokenTypeMagicLink)
+		if txErr != nil {
+			return apperror.NewInternal("failed to check existing tokens", txErr)
+		}
+		for _, t := range existingTokens {
+			if txErr := txUserTokenRepo.RevokeByUUID(t.UserTokenUUID); txErr != nil {
+				return apperror.NewInternal("failed to revoke existing magic link", txErr)
+			}
+		}
+
+		token = generateSecureToken(32)
+		expiresAt := time.Now().Add(MagicLinkTokenTTL)
+		if _, txErr := txUserTokenRepo.Create(&UserToken{
+			UserID:    user.UserID,
+			TokenType: shared.TokenTypeMagicLink,
+			Token:     hashUserBearerToken(token),
+			ExpiresAt: &expiresAt,
+		}); txErr != nil {
+			return apperror.NewInternal("failed to create magic link token", txErr)
+		}
+
+		return nil
+	})
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	response := &SendMagicLinkResponseDTO{
+		Message: "Magic link sent to user's email",
+	}
+
+	if err := s.sendMagicLinkEmail(ctx, user.Email, token, Client, isInternal); err != nil {
+		slog.Warn("admin magic link send failed", "err", err, "user_uuid", userUUID)
 	}
 
 	span.SetStatus(codes.Ok, "")

@@ -1,10 +1,5 @@
 # SOC 2 Readiness Checklist
 
-This checklist uses the 80 public controls listed in the
-[SuperTokens Trust Center](https://security.supertokens.com/controls) as a
-readiness target for Maintainerd Auth. The source list was captured on
-2026-06-21.
-
 This is an internal gap tracker, not a claim that Maintainerd Auth or its
 operator is SOC 2 certified. Application code can satisfy only part of SOC 2;
 many controls require company policies, people, infrastructure configuration,

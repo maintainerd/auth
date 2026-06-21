@@ -36,6 +36,10 @@ func (m *mockMagicLinkService) LoginWithMagicLink(_ context.Context, token, clie
 	return nil, nil
 }
 
+func (m *mockMagicLinkService) AdminSendMagicLink(_ context.Context, _ string, _ bool) (*SendMagicLinkResponseDTO, error) {
+	return &SendMagicLinkResponseDTO{Message: "Magic link sent"}, nil
+}
+
 func magicLinkJSONReq(t *testing.T, method, url string, body any) *http.Request {
 	t.Helper()
 	var buf bytes.Buffer
