@@ -90,7 +90,7 @@ func TestSMSTemplateService_Create(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
 			createFn: func(e *SMSTemplate) (*SMSTemplate, error) { return e, nil },
 		})
-		res, err := svc.Create(context.Background(), 1, "OTP", nil, "Your code: {{code}}", nil, "active")
+		res, err := svc.Create(context.Background(), 1, "OTP", nil, "Your code: {{code}}", "active")
 		require.NoError(t, err)
 		assert.Equal(t, "OTP", res.Name)
 	})
@@ -99,7 +99,7 @@ func TestSMSTemplateService_Create(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
 			createFn: func(_ *SMSTemplate) (*SMSTemplate, error) { return nil, errors.New("fail") },
 		})
-		_, err := svc.Create(context.Background(), 1, "OTP", nil, "code", nil, "active")
+		_, err := svc.Create(context.Background(), 1, "OTP", nil, "code", "active")
 		require.Error(t, err)
 	})
 }
@@ -111,7 +111,7 @@ func TestSMSTemplateService_Update(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
 			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*SMSTemplate, error) { return nil, nil },
 		})
-		_, err := svc.Update(context.Background(), id, 1, "N", nil, "M", nil, "active")
+		_, err := svc.Update(context.Background(), id, 1, nil, "M", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -122,7 +122,7 @@ func TestSMSTemplateService_Update(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		})
-		_, err := svc.Update(context.Background(), id, 1, "N", nil, "M", nil, "active")
+		_, err := svc.Update(context.Background(), id, 1, nil, "M", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -134,7 +134,7 @@ func TestSMSTemplateService_Update(t *testing.T) {
 				return &SMSTemplate{SMSTemplateUUID: uid, IsSystem: true}, nil
 			},
 		})
-		_, err := svc.Update(context.Background(), id, 1, "N", nil, "M", nil, "active")
+		_, err := svc.Update(context.Background(), id, 1, nil, "M", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
 	})
@@ -149,7 +149,7 @@ func TestSMSTemplateService_Update(t *testing.T) {
 				return nil, errors.New("update failed")
 			},
 		})
-		_, err := svc.Update(context.Background(), id, 1, "Updated", nil, "M", nil, "active")
+		_, err := svc.Update(context.Background(), id, 1, nil, "M", "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
 	})
@@ -164,7 +164,7 @@ func TestSMSTemplateService_Update(t *testing.T) {
 				return &SMSTemplate{Name: "Updated"}, nil
 			},
 		})
-		res, err := svc.Update(context.Background(), id, 1, "Updated", nil, "M", nil, "active")
+		res, err := svc.Update(context.Background(), id, 1, nil, "M", "active")
 		require.NoError(t, err)
 		assert.Equal(t, "Updated", res.Name)
 	})

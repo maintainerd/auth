@@ -176,7 +176,6 @@ func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.Name,
 		req.Description,
 		req.Message,
-		req.SenderID,
 		status,
 	)
 	if err != nil {
@@ -232,10 +231,8 @@ func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 		r.Context(),
 		smsTemplateUUID,
 		tenant.TenantID,
-		req.Name,
 		req.Description,
 		req.Message,
-		req.SenderID,
 		status,
 	)
 	if err != nil {
@@ -330,7 +327,6 @@ func toSMSTemplateListResponseDTO(template SMSTemplateServiceDataResult) SMSTemp
 		SMSTemplateID: template.SMSTemplateUUID.String(),
 		Name:          template.Name,
 		Description:   template.Description,
-		SenderID:      template.SenderID,
 		Status:        template.Status,
 		IsDefault:     template.IsDefault,
 		IsSystem:      template.IsSystem,
@@ -355,7 +351,7 @@ func toSMSTemplateResponseDTO(template SMSTemplateServiceDataResult) SMSTemplate
 		Name:          template.Name,
 		Description:   template.Description,
 		Message:       template.Message,
-		SenderID:      template.SenderID,
+		ParametersDoc: template.ParametersDoc,
 		Status:        template.Status,
 		IsDefault:     template.IsDefault,
 		IsSystem:      template.IsSystem,

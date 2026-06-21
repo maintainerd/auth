@@ -115,7 +115,7 @@ func TestSMSTemplateHandler_Create(t *testing.T) {
 	})
 
 	t.Run("service error returns 400", func(t *testing.T) {
-		svc := &mockSMSTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*SMSTemplateServiceDataResult, error) {
+		svc := &mockSMSTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ string) (*SMSTemplateServiceDataResult, error) {
 			return nil, errValidation
 		}}
 		r := jsonReq(t, http.MethodPost, "/sms-templates", validBody)
@@ -127,7 +127,7 @@ func TestSMSTemplateHandler_Create(t *testing.T) {
 
 	t.Run("success with explicit status covers status != nil branch", func(t *testing.T) {
 		res := smsResult()
-		svc := &mockSMSTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*SMSTemplateServiceDataResult, error) {
+		svc := &mockSMSTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ string) (*SMSTemplateServiceDataResult, error) {
 			return &res, nil
 		}}
 		body := map[string]any{"name": "tmpl1", "message": "Hello", "status": "inactive"}
@@ -140,7 +140,7 @@ func TestSMSTemplateHandler_Create(t *testing.T) {
 
 	t.Run("success returns 201", func(t *testing.T) {
 		res := smsResult()
-		svc := &mockSMSTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*SMSTemplateServiceDataResult, error) {
+		svc := &mockSMSTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ string) (*SMSTemplateServiceDataResult, error) {
 			return &res, nil
 		}}
 		r := jsonReq(t, http.MethodPost, "/sms-templates", validBody)
@@ -183,7 +183,7 @@ func TestSMSTemplateHandler_Update(t *testing.T) {
 	})
 
 	t.Run("service error returns 400", func(t *testing.T) {
-		svc := &mockSMSTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ *string, _ string) (*SMSTemplateServiceDataResult, error) {
+		svc := &mockSMSTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ *string, _ string, _ string) (*SMSTemplateServiceDataResult, error) {
 			return nil, errValidation
 		}}
 		r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/", validBody)), "sms_template_uuid", testResourceUUID.String())
@@ -194,7 +194,7 @@ func TestSMSTemplateHandler_Update(t *testing.T) {
 
 	t.Run("success with explicit status covers status != nil branch", func(t *testing.T) {
 		res := smsResult()
-		svc := &mockSMSTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ *string, _ string) (*SMSTemplateServiceDataResult, error) {
+		svc := &mockSMSTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ *string, _ string, _ string) (*SMSTemplateServiceDataResult, error) {
 			return &res, nil
 		}}
 		body := map[string]any{"name": "upd", "message": "Hi", "status": "inactive"}
@@ -206,7 +206,7 @@ func TestSMSTemplateHandler_Update(t *testing.T) {
 
 	t.Run("success returns 200", func(t *testing.T) {
 		res := smsResult()
-		svc := &mockSMSTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ *string, _ string) (*SMSTemplateServiceDataResult, error) {
+		svc := &mockSMSTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ *string, _ string, _ string) (*SMSTemplateServiceDataResult, error) {
 			return &res, nil
 		}}
 		r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/", validBody)), "sms_template_uuid", testResourceUUID.String())

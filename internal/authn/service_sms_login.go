@@ -162,7 +162,13 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	if smsErr != nil {
 		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", req.Phone, "otp", otp)
 	} else if provider != nil {
-		if sendErr := provider.Send(ctx, req.Phone, fmt.Sprintf("Your verification code is: %s", otp)); sendErr != nil {
+		data := struct{ OTP string }{OTP: otp}
+		msg, tplErr := sms.RenderTemplate(s.db, "sms:login:otp", tenantID, data)
+		if tplErr != nil {
+			slog.Warn("SMS template render failed, using fallback", "err", tplErr)
+			msg = fmt.Sprintf("Your verification code is: %s", otp)
+		}
+		if sendErr := provider.Send(ctx, req.Phone, msg); sendErr != nil {
 			slog.Error("SMS send failed", "err", sendErr)
 		}
 	}

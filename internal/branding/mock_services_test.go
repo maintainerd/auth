@@ -85,8 +85,8 @@ func (m *testEmailTemplateService) Delete(ctx context.Context, etUUID uuid.UUID,
 type testSMSTemplateService struct {
 	getAllFn       func(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error)
 	getByUUIDFn    func(ctx context.Context, stUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
-	createFn       func(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
-	updateFn       func(ctx context.Context, stUUID uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
+	createFn       func(ctx context.Context, tenantID int64, name string, description *string, message string, status string) (*SMSTemplateServiceDataResult, error)
+	updateFn       func(ctx context.Context, stUUID uuid.UUID, tenantID int64, description *string, message string, status string) (*SMSTemplateServiceDataResult, error)
 	updateStatusFn func(ctx context.Context, stUUID uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error)
 	deleteFn       func(ctx context.Context, stUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
 }
@@ -97,11 +97,11 @@ func (m *testSMSTemplateService) GetAll(ctx context.Context, tenantID int64, nam
 func (m *testSMSTemplateService) GetByUUID(ctx context.Context, stUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error) {
 	return m.getByUUIDFn(ctx, stUUID, tenantID)
 }
-func (m *testSMSTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
-	return m.createFn(ctx, tenantID, name, description, message, senderID, status)
+func (m *testSMSTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, message string, status string) (*SMSTemplateServiceDataResult, error) {
+	return m.createFn(ctx, tenantID, name, description, message, status)
 }
-func (m *testSMSTemplateService) Update(ctx context.Context, stUUID uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
-	return m.updateFn(ctx, stUUID, tenantID, name, description, message, senderID, status)
+func (m *testSMSTemplateService) Update(ctx context.Context, stUUID uuid.UUID, tenantID int64, description *string, message string, status string) (*SMSTemplateServiceDataResult, error) {
+	return m.updateFn(ctx, stUUID, tenantID, description, message, status)
 }
 func (m *testSMSTemplateService) UpdateStatus(ctx context.Context, stUUID uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error) {
 	return m.updateStatusFn(ctx, stUUID, tenantID, status)

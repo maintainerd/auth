@@ -133,7 +133,7 @@ func TestSMSTemplateGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create success", func(t *testing.T) {
 		svc := &testSMSTemplateService{
-			createFn: func(ctx context.Context, tenantID int64, name string, desc *string, msg string, sid *string, status string) (*SMSTemplateServiceDataResult, error) {
+			createFn: func(ctx context.Context, tenantID int64, name string, desc *string, msg string, status string) (*SMSTemplateServiceDataResult, error) {
 				return &stResult, nil
 			},
 		}
@@ -167,7 +167,7 @@ func TestSMSTemplateGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create service error", func(t *testing.T) {
 		svc := &testSMSTemplateService{
-			createFn: func(ctx context.Context, tenantID int64, name string, desc *string, msg string, sid *string, status string) (*SMSTemplateServiceDataResult, error) {
+			createFn: func(ctx context.Context, tenantID int64, name string, desc *string, msg string, status string) (*SMSTemplateServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -180,7 +180,7 @@ func TestSMSTemplateGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testSMSTemplateService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name string, desc *string, msg string, sid *string, status string) (*SMSTemplateServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, desc *string, msg string, status string) (*SMSTemplateServiceDataResult, error) {
 				return &stResult, nil
 			},
 		}
@@ -222,7 +222,7 @@ func TestSMSTemplateGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update service error", func(t *testing.T) {
 		svc := &testSMSTemplateService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name string, desc *string, msg string, sid *string, status string) (*SMSTemplateServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, desc *string, msg string, status string) (*SMSTemplateServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}

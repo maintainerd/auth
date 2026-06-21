@@ -14,7 +14,7 @@ type SMSTemplate struct {
 	Name            string         `gorm:"column:name"`
 	Description     *string        `gorm:"column:description"`
 	Message         string         `gorm:"column:message"`
-	SenderID        *string        `gorm:"column:sender_id"`
+	ParametersDoc   *string        `gorm:"column:parameters_doc"`
 	Status          string         `gorm:"column:status;default:'active'"`
 	IsDefault       bool           `gorm:"column:is_default;default:false"`
 	IsSystem        bool           `gorm:"column:is_system;default:false"`

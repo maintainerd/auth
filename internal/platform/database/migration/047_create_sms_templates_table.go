@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS sms_templates (
     name              VARCHAR(100) NOT NULL,
     description       TEXT,
     message           TEXT NOT NULL,
-    sender_id         VARCHAR(20),
+    parameters_doc    TEXT,
     status            VARCHAR(20) NOT NULL DEFAULT 'active',
     is_default        BOOLEAN DEFAULT false,
     is_system         BOOLEAN DEFAULT false,
@@ -65,7 +65,6 @@ CREATE INDEX IF NOT EXISTS idx_sms_templates_uuid ON sms_templates (sms_template
 CREATE INDEX IF NOT EXISTS idx_sms_templates_tenant_id ON sms_templates (tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sms_templates_tenant_name ON sms_templates (tenant_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_sms_templates_status ON sms_templates (status);
-CREATE INDEX IF NOT EXISTS idx_sms_templates_sender_id ON sms_templates (sender_id);
 CREATE INDEX IF NOT EXISTS idx_sms_templates_is_default ON sms_templates (is_default);
 CREATE INDEX IF NOT EXISTS idx_sms_templates_is_system ON sms_templates (is_system);
 CREATE INDEX IF NOT EXISTS idx_sms_templates_created_at ON sms_templates (created_at);

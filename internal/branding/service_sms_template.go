@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/sms"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -16,7 +17,7 @@ type SMSTemplateServiceDataResult struct {
 	Name            string
 	Description     *string
 	Message         string
-	SenderID        *string
+	ParametersDoc   *string
 	Status          string
 	IsDefault       bool
 	IsSystem        bool
@@ -35,8 +36,8 @@ type SMSTemplateServiceListResult struct {
 type SMSTemplateService interface {
 	GetAll(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error)
 	GetByUUID(ctx context.Context, uuid uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
-	Create(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
-	Update(ctx context.Context, uuid uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, description *string, message string, status string) (*SMSTemplateServiceDataResult, error)
+	Update(ctx context.Context, uuid uuid.UUID, tenantID int64, description *string, message string, status string) (*SMSTemplateServiceDataResult, error)
 	UpdateStatus(ctx context.Context, uuid uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error)
 	Delete(ctx context.Context, uuid uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
 }
@@ -112,7 +113,7 @@ func (s *smsTemplateService) GetByUUID(ctx context.Context, smsTemplateUUID uuid
 	return &result, nil
 }
 
-func (s *smsTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
+func (s *smsTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, message string, status string) (*SMSTemplateServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "smsTemplate.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
@@ -122,7 +123,6 @@ func (s *smsTemplateService) Create(ctx context.Context, tenantID int64, name st
 		Name:        name,
 		Description: description,
 		Message:     message,
-		SenderID:    senderID,
 		Status:      status,
 		IsDefault:   false,
 		IsSystem:    false,
@@ -140,7 +140,7 @@ func (s *smsTemplateService) Create(ctx context.Context, tenantID int64, name st
 	return &result, nil
 }
 
-func (s *smsTemplateService) Update(ctx context.Context, smsTemplateUUID uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
+func (s *smsTemplateService) Update(ctx context.Context, smsTemplateUUID uuid.UUID, tenantID int64, description *string, message string, status string) (*SMSTemplateServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "smsTemplate.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("smsTemplate.uuid", smsTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
@@ -157,18 +157,14 @@ func (s *smsTemplateService) Update(ctx context.Context, smsTemplateUUID uuid.UU
 		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
-	// Prevent updating system templates
 	if template.IsSystem {
 		span.SetStatus(codes.Error, "cannot update system SMS template")
 		return nil, apperror.NewValidation("cannot update system SMS template")
 	}
 
-	template.Name = name
 	template.Description = description
 	template.Message = message
-	template.SenderID = senderID
 	template.Status = status
-	// is_default is preserved from existing template
 
 	updatedTemplate, err := s.smsTemplateRepo.UpdateByUUID(smsTemplateUUID, template)
 	if err != nil {
@@ -176,6 +172,8 @@ func (s *smsTemplateService) Update(ctx context.Context, smsTemplateUUID uuid.UU
 		span.SetStatus(codes.Error, "update sms template failed")
 		return nil, err
 	}
+
+	sms.InvalidateTemplateCache(tenantID, template.Name)
 
 	span.SetStatus(codes.Ok, "")
 	result := toSMSTemplateServiceDataResult(updatedTemplate)
@@ -213,6 +211,8 @@ func (s *smsTemplateService) UpdateStatus(ctx context.Context, smsTemplateUUID u
 		span.SetStatus(codes.Error, "update sms template status failed")
 		return nil, err
 	}
+
+	sms.InvalidateTemplateCache(tenantID, template.Name)
 
 	span.SetStatus(codes.Ok, "")
 	result := toSMSTemplateServiceDataResult(updatedTemplate)
@@ -261,7 +261,7 @@ func toSMSTemplateServiceDataResult(template *SMSTemplate) SMSTemplateServiceDat
 		Name:            template.Name,
 		Description:     template.Description,
 		Message:         template.Message,
-		SenderID:        template.SenderID,
+		ParametersDoc:   template.ParametersDoc,
 		Status:          template.Status,
 		IsDefault:       template.IsDefault,
 		IsSystem:        template.IsSystem,

@@ -177,8 +177,8 @@ func (m *mockEmailTemplateService) Delete(ctx context.Context, id uuid.UUID, ten
 type mockSMSTemplateService struct {
 	getAllFn       func(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error)
 	getByUUIDFn    func(id uuid.UUID, tid int64) (*SMSTemplateServiceDataResult, error)
-	createFn       func(tid int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
-	updateFn       func(id uuid.UUID, tid int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
+	createFn       func(tid int64, name string, description *string, message string, status string) (*SMSTemplateServiceDataResult, error)
+	updateFn       func(id uuid.UUID, tid int64, description *string, message string, status string) (*SMSTemplateServiceDataResult, error)
 	updateStatusFn func(id uuid.UUID, tid int64, status string) (*SMSTemplateServiceDataResult, error)
 	deleteFn       func(id uuid.UUID, tid int64) (*SMSTemplateServiceDataResult, error)
 }
@@ -197,16 +197,16 @@ func (m *mockSMSTemplateService) GetByUUID(ctx context.Context, id uuid.UUID, te
 	return nil, nil
 }
 
-func (m *mockSMSTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
+func (m *mockSMSTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, message string, status string) (*SMSTemplateServiceDataResult, error) {
 	if m.createFn != nil {
-		return m.createFn(tenantID, name, description, message, senderID, status)
+		return m.createFn(tenantID, name, description, message, status)
 	}
 	return nil, nil
 }
 
-func (m *mockSMSTemplateService) Update(ctx context.Context, id uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
+func (m *mockSMSTemplateService) Update(ctx context.Context, id uuid.UUID, tenantID int64, description *string, message string, status string) (*SMSTemplateServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(id, tenantID, name, description, message, senderID, status)
+		return m.updateFn(id, tenantID, description, message, status)
 	}
 	return nil, nil
 }

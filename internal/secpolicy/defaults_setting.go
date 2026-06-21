@@ -30,6 +30,7 @@ var defaultSecuritySettingConfigs = map[string]map[string]any{
 		"grace_period_days":                 30,
 		"preferred_method":                  "webauthn",
 		"allow_sms":                         false,
+		"allow_email_otp":                    false,
 		"totp_digits":                       6,
 		"totp_period_seconds":               30,
 		"recovery_codes_count":              10,

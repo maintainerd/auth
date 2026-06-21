@@ -82,6 +82,7 @@ type MFAConfigDTO struct {
 	GracePeriodDays               *int     `json:"grace_period_days,omitempty"`
 	PreferredMethod               *string  `json:"preferred_method,omitempty"`
 	AllowSMS                      *bool    `json:"allow_sms,omitempty"`
+	AllowEmailOTP                 *bool    `json:"allow_email_otp,omitempty"`
 	TOTPDigits                    *int     `json:"totp_digits,omitempty"`
 	TOTPPeriodSeconds             *int     `json:"totp_period_seconds,omitempty"`
 	RecoveryCodesCount            *int     `json:"recovery_codes_count,omitempty"`

@@ -83,6 +83,10 @@ func SeedTenant(db *gorm.DB, tenantID int64) error {
 		return fmt.Errorf("seed email templates: %w", err)
 	}
 
+	if err := SeedSMSTemplates(db, tenantID); err != nil {
+		return fmt.Errorf("seed sms templates: %w", err)
+	}
+
 	if err := SeedSecuritySettings(db, tenantID); err != nil {
 		return fmt.Errorf("seed security settings: %w", err)
 	}

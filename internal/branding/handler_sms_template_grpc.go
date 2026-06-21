@@ -56,7 +56,7 @@ func (h *SMSTemplateGRPCHandler) CreateSMSTemplate(ctx context.Context, req *aut
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.svc.Create(ctx, tenant.TenantID, req.GetName(), req.Description, req.GetMessage(), req.SenderId, req.GetStatus())
+	result, err := h.svc.Create(ctx, tenant.TenantID, req.GetName(), req.Description, req.GetMessage(), req.GetStatus())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -72,7 +72,7 @@ func (h *SMSTemplateGRPCHandler) UpdateSMSTemplate(ctx context.Context, req *aut
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.svc.Update(ctx, stUUID, tenant.TenantID, req.GetName(), req.Description, req.GetMessage(), req.SenderId, req.GetStatus())
+	result, err := h.svc.Update(ctx, stUUID, tenant.TenantID, req.Description, req.GetMessage(), req.GetStatus())
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -129,7 +129,7 @@ func smsTemplateProto(r *SMSTemplateServiceDataResult) *authv1.SMSTemplate {
 	}
 	return &authv1.SMSTemplate{
 		SmsTemplateUuid: r.SMSTemplateUUID.String(), Name: r.Name, Description: r.Description,
-		Message: r.Message, SenderId: r.SenderID, Status: r.Status,
+		Message: r.Message, Status: r.Status,
 		IsDefault: r.IsDefault, IsSystem: r.IsSystem,
 		CreatedAt: timestamppb.New(r.CreatedAt), UpdatedAt: timestamppb.New(r.UpdatedAt),
 	}

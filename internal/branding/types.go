@@ -163,7 +163,6 @@ type SMSTemplateListResponseDTO struct {
 	SMSTemplateID string    `json:"sms_template_id"`
 	Name          string    `json:"name"`
 	Description   *string   `json:"description"`
-	SenderID      *string   `json:"sender_id"`
 	Status        string    `json:"status"`
 	IsDefault     bool      `json:"is_default"`
 	IsSystem      bool      `json:"is_system"`
@@ -177,7 +176,7 @@ type SMSTemplateResponseDTO struct {
 	Name          string    `json:"name"`
 	Description   *string   `json:"description"`
 	Message       string    `json:"message"`
-	SenderID      *string   `json:"sender_id"`
+	ParametersDoc *string   `json:"parameters_doc,omitempty"`
 	Status        string    `json:"status"`
 	IsDefault     bool      `json:"is_default"`
 	IsSystem      bool      `json:"is_system"`
@@ -190,16 +189,13 @@ type SMSTemplateCreateRequestDTO struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
 	Message     string  `json:"message"`
-	SenderID    *string `json:"sender_id,omitempty"`
 	Status      *string `json:"status,omitempty"`
 }
 
 // Update SMS template request DTO
 type SMSTemplateUpdateRequestDTO struct {
-	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
 	Message     string  `json:"message"`
-	SenderID    *string `json:"sender_id,omitempty"`
 	Status      *string `json:"status,omitempty"`
 }
 

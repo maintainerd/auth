@@ -982,7 +982,13 @@ func (s *mfaService) SendStepUpSMS(ctx context.Context, userID int64) error {
 	if smsErr != nil {
 		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phoneRecord.Phone, "otp", otpCode)
 	} else if provider != nil {
-		if sendErr := provider.Send(ctx, phoneRecord.Phone, fmt.Sprintf("Your step-up code is: %s", otpCode)); sendErr != nil {
+		data := struct{ OTP string }{OTP: otpCode}
+		msg, tplErr := sms.RenderTemplate(s.db, "sms:mfa:stepup", tenantID, data)
+		if tplErr != nil {
+			slog.Warn("SMS template render failed, using fallback", "err", tplErr)
+			msg = fmt.Sprintf("Your step-up code is: %s", otpCode)
+		}
+		if sendErr := provider.Send(ctx, phoneRecord.Phone, msg); sendErr != nil {
 			slog.Error("SMS step-up send failed", "err", sendErr)
 		}
 	}
@@ -1034,7 +1040,13 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 	if smsErr != nil {
 		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phone, "otp", otpCode)
 	} else if provider != nil {
-		if sendErr := provider.Send(ctx, phone, fmt.Sprintf("Your MFA verification code is: %s", otpCode)); sendErr != nil {
+		data := struct{ OTP string }{OTP: otpCode}
+		msg, tplErr := sms.RenderTemplate(s.db, "sms:mfa:enroll", tenantID, data)
+		if tplErr != nil {
+			slog.Warn("SMS template render failed, using fallback", "err", tplErr)
+			msg = fmt.Sprintf("Your MFA verification code is: %s", otpCode)
+		}
+		if sendErr := provider.Send(ctx, phone, msg); sendErr != nil {
 			slog.Error("SMS enrollment send failed — logging OTP for dev", "err", sendErr, "phone", phone, "otp", otpCode)
 		}
 	} else {
