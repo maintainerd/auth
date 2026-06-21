@@ -77,12 +77,8 @@ func SMSTemplateRoute(
 			Get("/", smsTemplateHandler.GetAll)
 		r.With(middleware.PermissionMiddleware([]string{"sms-template:read"})).
 			Get("/{sms_template_uuid}", smsTemplateHandler.Get)
-		r.With(middleware.PermissionMiddleware([]string{"sms-template:create"})).
-			Post("/", smsTemplateHandler.Create)
 		r.With(middleware.PermissionMiddleware([]string{"sms-template:update"})).
 			Put("/{sms_template_uuid}", smsTemplateHandler.Update)
-		r.With(middleware.PermissionMiddleware([]string{"sms-template:delete"})).
-			Delete("/{sms_template_uuid}", smsTemplateHandler.Delete)
 		r.With(middleware.PermissionMiddleware([]string{"sms-template:update"})).
 			Patch("/{sms_template_uuid}/status", smsTemplateHandler.UpdateStatus)
 	})

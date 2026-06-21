@@ -240,6 +240,9 @@ func validateMFAConfig(d MFAConfigDTO) error {
 	if methods["sms"] && (d.AllowSMS == nil || !*d.AllowSMS) {
 		return fmt.Errorf("sms is allowed only when allow_sms is true")
 	}
+	if methods["email_otp"] && (d.AllowEmailOTP == nil || !*d.AllowEmailOTP) {
+		return fmt.Errorf("email_otp is allowed only when allow_email_otp is true")
+	}
 	if methods["totp"] && d.TOTPIssuer != nil && strings.TrimSpace(*d.TOTPIssuer) == "" {
 		return fmt.Errorf("totp_issuer is required when totp is allowed")
 	}

@@ -12,6 +12,7 @@ type MFAPolicy struct {
 	GracePeriodDays               int
 	PreferredMethod               string
 	AllowSMS                      bool
+	AllowEmailOTP                 bool
 	TOTPDigits                    int
 	TOTPPeriodSeconds             int
 	RecoveryCodesCount            int
@@ -51,6 +52,7 @@ func LoadMFAPolicy(repo SecuritySettingRepository, tenantID int64) *MFAPolicy {
 		GracePeriodDays:               intValue(cfg["grace_period_days"]),
 		PreferredMethod:               stringValue(cfg["preferred_method"]),
 		AllowSMS:                      boolValue(cfg["allow_sms"]),
+		AllowEmailOTP:                 boolValue(cfg["allow_email_otp"]),
 		TOTPDigits:                    intValue(cfg["totp_digits"]),
 		TOTPPeriodSeconds:             intValue(cfg["totp_period_seconds"]),
 		RecoveryCodesCount:            intValue(cfg["recovery_codes_count"]),

@@ -252,9 +252,7 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 
 		// SMS Templates
 		newPermission("sms-template:read", "Read SMS templates", tenantID, apiID),
-		newPermission("sms-template:create", "Create SMS template", tenantID, apiID),
 		newPermission("sms-template:update", "Update SMS template", tenantID, apiID),
-		newPermission("sms-template:delete", "Delete SMS template", tenantID, apiID),
 
 		// Login Templates
 

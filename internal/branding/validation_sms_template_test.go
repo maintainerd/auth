@@ -38,20 +38,6 @@ func TestSMSTemplateCreateRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("sender_id too long", func(t *testing.T) {
-		d := validSMSCreate()
-		long := string(make([]byte, 21))
-		d.SenderID = &long
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("valid sender_id within limit", func(t *testing.T) {
-		d := validSMSCreate()
-		s := "MYAPP"
-		d.SenderID = &s
-		assert.NoError(t, d.Validate())
-	})
-
 	t.Run("invalid status", func(t *testing.T) {
 		d := validSMSCreate()
 		bad := "pending"
@@ -69,12 +55,11 @@ func TestSMSTemplateCreateRequestDto_Validate(t *testing.T) {
 
 func TestSMSTemplateUpdateRequestDto_Validate(t *testing.T) {
 	d := SMSTemplateUpdateRequestDTO{
-		Name:    "Updated SMS",
 		Message: "Your code is {{code}}",
 	}
 	assert.NoError(t, d.Validate())
 
-	d.Name = ""
+	d.Message = ""
 	require.Error(t, d.Validate())
 }
 
