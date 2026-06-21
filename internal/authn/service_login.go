@@ -30,6 +30,7 @@ type LoginService interface {
 	Login(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error)
 	CompleteMFALogin(ctx context.Context, challengeToken, method, code string, assertion []byte, clientID, tenantID *string) (*LoginResponseDTO, error)
 	SendMFALoginSMS(ctx context.Context, challengeToken string) error
+	SendMFALoginEmailOTP(ctx context.Context, challengeToken string) error
 	BeginMFALoginWebAuthn(ctx context.Context, challengeToken string) (json.RawMessage, error)
 	RefreshToken(ctx context.Context, refreshToken string, sessionID string) (*LoginResponseDTO, error)
 	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error)
@@ -44,6 +45,7 @@ type LoginService interface {
 type MFAFactorAuthenticator interface {
 	VerifyFactor(ctx context.Context, userID int64, method, code string, assertion []byte) ([]string, error)
 	SendSMSChallenge(ctx context.Context, userID int64) error
+	SendEmailOTPChallenge(ctx context.Context, userID int64) error
 	BeginWebAuthnLogin(ctx context.Context, userID int64) (json.RawMessage, error)
 	// EnrolledMFAMethods returns the user's usable MFA methods (totp, webauthn,
 	// sms, backup_code) from their authoritative sources.
@@ -1078,6 +1080,20 @@ func (s *loginService) SendMFALoginSMS(ctx context.Context, challengeToken strin
 		return apperror.NewValidation("MFA method not allowed: sms")
 	}
 	return s.mfaAuthenticator.SendSMSChallenge(ctx, user.UserID)
+}
+
+func (s *loginService) SendMFALoginEmailOTP(ctx context.Context, challengeToken string) error {
+	if s.mfaAuthenticator == nil {
+		return apperror.NewInternal("MFA is not configured", nil)
+	}
+	user, claims, err := s.resolveMFAChallengeUser(challengeToken)
+	if err != nil {
+		return err
+	}
+	if !loginMFAMethodAllowed(claims["allowed_methods"], "email_otp") {
+		return apperror.NewValidation("MFA method not allowed: email_otp")
+	}
+	return s.mfaAuthenticator.SendEmailOTPChallenge(ctx, user.UserID)
 }
 
 // BeginMFALoginWebAuthn starts a passkey assertion ceremony during login and

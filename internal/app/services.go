@@ -228,7 +228,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 
 	// Built before the login service so login can verify the MFA second step
 	// (acr=2 elevation) via the MFAFactorAuthenticator interface.
-	mfaSvc := mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.webAuthnCredRepo, webAuthnSvc, r.userBackupCodeRepo, r.smsPhoneRepo, r.smsOtpRepo, r.securitySettingRepo, authEventSvc)
+	mfaSvc := mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.webAuthnCredRepo, webAuthnSvc, r.userBackupCodeRepo, r.smsPhoneRepo, r.emailOTPRepo, r.smsOtpRepo, r.securitySettingRepo, authEventSvc)
 	emailVerificationSvc := authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo, newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), appCache, r.securitySettingRepo)
 	userSvc := user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, appCache, r.userTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc)
 

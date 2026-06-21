@@ -41,6 +41,10 @@ func (m *mockMFAAuthenticator) SendSMSChallenge(_ context.Context, userID int64)
 	return nil
 }
 
+func (m *mockMFAAuthenticator) SendEmailOTPChallenge(_ context.Context, _ int64) error {
+	return nil
+}
+
 func (m *mockMFAAuthenticator) BeginWebAuthnLogin(_ context.Context, userID int64) (json.RawMessage, error) {
 	if m.beginWAFn != nil {
 		return m.beginWAFn(userID)

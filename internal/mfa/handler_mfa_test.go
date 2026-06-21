@@ -55,6 +55,14 @@ type mockMFAService struct {
 	enrollSMSFn                     func(context.Context, int64, string) error
 	verifySMSFn                     func(context.Context, int64, string, string) error
 	disableSMSFn                    func(context.Context, int64) error
+	sendStepUpEmailOTPFn            func(context.Context, int64) error
+	enrollEmailOTPFn                func(context.Context, int64, string) error
+	verifyEmailOTPFn                func(context.Context, int64, string, string) error
+	disableEmailOTPFn               func(context.Context, int64) error
+	sendSMSChallengeFn              func(context.Context, int64) error
+	sendEmailOTPChallengeFn         func(context.Context, int64) error
+	enrolledMFAMethodsFn            func(context.Context, int64) ([]string, error)
+	stepUpTTLSecondsFn              func(context.Context, int64) int64
 }
 
 func (m *mockMFAService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TOTPEnrollResponseDTO, error) {
@@ -225,6 +233,36 @@ func (m *mockMFAService) VerifySMS(ctx context.Context, userID int64, phone, cod
 func (m *mockMFAService) DisableSMS(ctx context.Context, userID int64) error {
 	if m.disableSMSFn != nil {
 		return m.disableSMSFn(ctx, userID)
+	}
+	return nil
+}
+func (m *mockMFAService) SendStepUpEmailOTP(ctx context.Context, userID int64) error {
+	if m.sendStepUpEmailOTPFn != nil {
+		return m.sendStepUpEmailOTPFn(ctx, userID)
+	}
+	return nil
+}
+func (m *mockMFAService) EnrollEmailOTP(ctx context.Context, userID int64, email string) error {
+	if m.enrollEmailOTPFn != nil {
+		return m.enrollEmailOTPFn(ctx, userID, email)
+	}
+	return nil
+}
+func (m *mockMFAService) VerifyEmailOTP(ctx context.Context, userID int64, email, code string) error {
+	if m.verifyEmailOTPFn != nil {
+		return m.verifyEmailOTPFn(ctx, userID, email, code)
+	}
+	return nil
+}
+func (m *mockMFAService) DisableEmailOTP(ctx context.Context, userID int64) error {
+	if m.disableEmailOTPFn != nil {
+		return m.disableEmailOTPFn(ctx, userID)
+	}
+	return nil
+}
+func (m *mockMFAService) SendEmailOTPChallenge(ctx context.Context, userID int64) error {
+	if m.sendEmailOTPChallengeFn != nil {
+		return m.sendEmailOTPChallengeFn(ctx, userID)
 	}
 	return nil
 }

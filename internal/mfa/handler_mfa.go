@@ -54,7 +54,7 @@ func (h *MFAHandler) RequireStepUpOrEnrolledMFA(next http.Handler) http.Handler 
 		}
 
 		status, err := h.mfaSvc.GetMFAStatus(r.Context(), user.UserID)
-		if err == nil && status != nil && (status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled) {
+		if err == nil && status != nil && (status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled || status.IsEmailOTPEnabled) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -475,6 +475,9 @@ func buildStepUpMethods(status *MFAStatusResponseDTO) []string {
 	if status.IsSMSEnabled {
 		methods = append(methods, "sms")
 	}
+	if status.IsEmailOTPEnabled {
+		methods = append(methods, "email_otp")
+	}
 	return methods
 }
 
@@ -608,6 +611,68 @@ func (h *MFAHandler) DisableSMS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp.Success(w, nil, "SMS MFA disabled")
+}
+
+func (h *MFAHandler) SendStepUpEmailOTP(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if err := h.mfaSvc.SendStepUpEmailOTP(r.Context(), user.UserID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to send email OTP", err)
+		return
+	}
+	resp.Success(w, nil, "Email OTP sent")
+}
+
+func (h *MFAHandler) EnrollEmailOTP(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	var req EmailOTPEnrollRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := h.mfaSvc.EnrollEmailOTP(r.Context(), user.UserID, req.Email); err != nil {
+		resp.HandleServiceError(w, r, "Failed to enroll email OTP", err)
+		return
+	}
+	resp.Success(w, nil, "Email OTP enrollment started — check your email for the code")
+}
+
+func (h *MFAHandler) VerifyEmailOTP(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	var req EmailOTPVerifyRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := h.mfaSvc.VerifyEmailOTP(r.Context(), user.UserID, req.Email, req.Code); err != nil {
+		resp.HandleServiceError(w, r, "Failed to verify email OTP", err)
+		return
+	}
+	resp.Success(w, nil, "Email OTP MFA enabled")
+}
+
+func (h *MFAHandler) DisableEmailOTP(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if err := h.mfaSvc.DisableEmailOTP(r.Context(), user.UserID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to disable email OTP MFA", err)
+		return
+	}
+	resp.Success(w, nil, "Email OTP MFA disabled")
 }
 
 // SelfResetMFA removes every MFA factor for the authenticated user (self-service).

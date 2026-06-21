@@ -178,7 +178,7 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 				userRepo:         &mockUserRepo{findByID: tt.user, findByIDErr: tt.userErr},
 				backupCodeRepo:   &mockBackupCodeRepo{findUnused: tt.codes},
 				webAuthnCredRepo: &mockWebAuthnCredentialRepo{findByUserID: tt.creds, findByUserIDErr: tt.credsErr},
-				smsPhoneRepo:     &mockSMSPhoneRepo{},
+				smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			}
 
 			got, err := svc.GetMFAStatus(t.Context(), 42)
@@ -301,7 +301,7 @@ func TestMFAService_UserHasMFA(t *testing.T) {
 
 func TestNewMFAService(t *testing.T) {
 	db, _ := newMockGormDB(t)
-	svc := NewMFAService(db, &mockUserRepo{}, &mockTOTPSecretRepo{}, &mockWebAuthnCredentialRepo{}, &mockWebAuthnService{}, &mockBackupCodeRepo{}, &mockSMSPhoneRepo{}, &mockSMSOtpRepo{}, &mockSecuritySettingRepo{}, &mockAuthEventService{})
+	svc := NewMFAService(db, &mockUserRepo{}, &mockTOTPSecretRepo{}, &mockWebAuthnCredentialRepo{}, &mockWebAuthnService{}, &mockBackupCodeRepo{}, &mockSMSPhoneRepo{}, &mockMFAEmailRepo{}, &mockSMSOtpRepo{}, &mockSecuritySettingRepo{}, &mockAuthEventService{})
 	require.NotNil(t, svc)
 	assert.IsType(t, &mfaService{}, svc)
 }
@@ -510,7 +510,7 @@ func TestMFAService_SyncMFAState(t *testing.T) {
 			db:             db,
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID, IsTOTPEnabled: true}},
 			backupCodeRepo: &mockBackupCodeRepo{deleteAllErr: errors.New("must not be called")},
-			smsPhoneRepo:   &mockSMSPhoneRepo{},
+			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 		}
 
 		require.NoError(t, svc.SyncMFAState(t.Context(), mfaTestUserID))
@@ -526,7 +526,7 @@ func TestMFAService_SyncMFAState(t *testing.T) {
 			db:             db,
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			backupCodeRepo: &mockBackupCodeRepo{},
-			smsPhoneRepo:   &mockSMSPhoneRepo{},
+			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 		}
 
 		require.NoError(t, svc.SyncMFAState(t.Context(), mfaTestUserID))
@@ -537,7 +537,7 @@ func TestMFAService_SyncMFAState(t *testing.T) {
 		svc := &mfaService{
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			backupCodeRepo: &mockBackupCodeRepo{deleteAllErr: errors.New("db down")},
-			smsPhoneRepo:   &mockSMSPhoneRepo{},
+			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 		}
 
 		err := svc.SyncMFAState(t.Context(), mfaTestUserID)
@@ -550,7 +550,7 @@ func TestMFAService_EnrolledMFAMethods(t *testing.T) {
 	t.Run("returns all active factors in canonical order", func(t *testing.T) {
 		svc := &mfaService{
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID, IsTOTPEnabled: true, IsWebAuthnEnabled: true}},
-			smsPhoneRepo:   &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}},
+			smsPhoneRepo:   &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
 			backupCodeRepo: &mockBackupCodeRepo{findUnused: []UserBackupCode{{BackupCodeID: 1}}},
 		}
 		got, err := svc.EnrolledMFAMethods(t.Context(), mfaTestUserID)
@@ -561,7 +561,7 @@ func TestMFAService_EnrolledMFAMethods(t *testing.T) {
 	t.Run("no active factor returns empty", func(t *testing.T) {
 		svc := &mfaService{
 			userRepo:       &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			smsPhoneRepo:   &mockSMSPhoneRepo{},
+			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			backupCodeRepo: &mockBackupCodeRepo{},
 		}
 		got, err := svc.EnrolledMFAMethods(t.Context(), mfaTestUserID)
@@ -588,7 +588,7 @@ func TestMFAService_VerifyFactorSMS(t *testing.T) {
 
 	t.Run("verifies against the MFA phone record, not users.phone", func(t *testing.T) {
 		svc := &mfaService{
-			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}},
+			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
 			smsOtpRepo:   &mockSMSOtpRepo{findValid: &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode("123456")}},
 		}
 		amr, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
@@ -597,7 +597,7 @@ func TestMFAService_VerifyFactorSMS(t *testing.T) {
 	})
 
 	t.Run("no verified MFA phone is rejected", func(t *testing.T) {
-		svc := &mfaService{smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: nil}}
+		svc := &mfaService{smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: nil}, emailOTPRepo: &mockMFAEmailRepo{}}
 		_, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no verified phone on file")
@@ -605,7 +605,7 @@ func TestMFAService_VerifyFactorSMS(t *testing.T) {
 
 	t.Run("invalid code is rejected", func(t *testing.T) {
 		svc := &mfaService{
-			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}},
+			smsPhoneRepo: &mockSMSPhoneRepo{findByUserID: &UserSMSPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
 			smsOtpRepo:   &mockSMSOtpRepo{findValid: &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode("999999")}},
 		}
 		_, err := svc.verifyFactor(t.Context(), mfaTestUserID, "sms", "123456", nil)
@@ -667,7 +667,7 @@ func TestMFAService_DisableAndRegenerateBackupCodes(t *testing.T) {
 			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			totpRepo:         &mockTOTPSecretRepo{},
 			backupCodeRepo:   &mockBackupCodeRepo{},
-			smsPhoneRepo:     &mockSMSPhoneRepo{},
+			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			authEventService: events,
 		}
 
@@ -756,7 +756,7 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 			totpRepo:         &mockTOTPSecretRepo{},
 			backupCodeRepo:   &mockBackupCodeRepo{},
 			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
-			smsPhoneRepo:     &mockSMSPhoneRepo{},
+			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			authEventService: events,
 		}
 
@@ -797,7 +797,7 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
 				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
 				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
-				smsPhoneRepo:     &mockSMSPhoneRepo{},
+				smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 				authEventService: &mockAuthEventService{},
 			}
 
@@ -828,7 +828,7 @@ func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 			totpRepo:         &mockTOTPSecretRepo{},
 			backupCodeRepo:   &mockBackupCodeRepo{},
 			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
-			smsPhoneRepo:     &mockSMSPhoneRepo{},
+			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			authEventService: events,
 		}
 
@@ -872,7 +872,7 @@ func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 				userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}},
 				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
 				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
-				smsPhoneRepo:     &mockSMSPhoneRepo{deleteErr: tt.smsErr},
+				smsPhoneRepo:     &mockSMSPhoneRepo{deleteErr: tt.smsErr}, emailOTPRepo: &mockMFAEmailRepo{},
 				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
 				authEventService: &mockAuthEventService{},
 			}
@@ -895,7 +895,7 @@ func TestMFAService_SelfResetMFA(t *testing.T) {
 			totpRepo:         &mockTOTPSecretRepo{},
 			backupCodeRepo:   &mockBackupCodeRepo{},
 			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
-			smsPhoneRepo:     &mockSMSPhoneRepo{},
+			smsPhoneRepo: &mockSMSPhoneRepo{}, emailOTPRepo: &mockMFAEmailRepo{},
 			authEventService: events,
 		}
 
@@ -933,7 +933,7 @@ func TestMFAService_SelfResetMFA(t *testing.T) {
 				totpRepo:         &mockTOTPSecretRepo{disableErr: tt.totpErr},
 				backupCodeRepo:   &mockBackupCodeRepo{deleteAllErr: tt.codeErr},
 				webAuthnCredRepo: &mockWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
-				smsPhoneRepo:     &mockSMSPhoneRepo{deleteErr: tt.smsErr},
+				smsPhoneRepo:     &mockSMSPhoneRepo{deleteErr: tt.smsErr}, emailOTPRepo: &mockMFAEmailRepo{},
 				authEventService: &mockAuthEventService{},
 			}
 
@@ -1484,3 +1484,16 @@ func (m *mockSMSPhoneRepo) FindByUserID(int64) (*UserSMSPhone, error) {
 	return m.findByUserID, m.findByUserIDErr
 }
 func (m *mockSMSPhoneRepo) DeleteByUserID(int64) error { return m.deleteErr }
+
+type mockMFAEmailRepo struct {
+	findByUserID    *UserMFAEmail
+	findByUserIDErr error
+	deleteErr       error
+}
+
+func (m *mockMFAEmailRepo) FindByUserID(int64) (*UserMFAEmail, error) {
+	return m.findByUserID, m.findByUserIDErr
+}
+func (m *mockMFAEmailRepo) Create(r *UserMFAEmail) (*UserMFAEmail, error) { return r, nil }
+func (m *mockMFAEmailRepo) Save(*UserMFAEmail) error                      { return nil }
+func (m *mockMFAEmailRepo) DeleteByUserID(int64) error                    { return m.deleteErr }

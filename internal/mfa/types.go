@@ -49,6 +49,7 @@ type MFAStatusResponseDTO struct {
 	IsTOTPEnabled     bool                           `json:"is_totp_enabled"`
 	IsWebAuthnEnabled bool                           `json:"is_webauthn_enabled"`
 	IsSMSEnabled      bool                           `json:"is_sms_available"`
+	IsEmailOTPEnabled bool                           `json:"is_email_otp_available"`
 	BackupCodesCount  int                            `json:"backup_codes_count"`
 	WebAuthnKeys      []WebAuthnCredentialSummaryDTO `json:"webauthn_keys,omitempty"`
 	MFAEnabledAt      *string                        `json:"mfa_enabled_at,omitempty"`
@@ -120,9 +121,15 @@ type StepUpVerifyResponseDTO struct {
 type SMSEnrollRequestDTO struct {
 	Phone string `json:"phone"`
 }
-
 type SMSVerifyRequestDTO struct {
 	Phone string `json:"phone"`
+	Code  string `json:"code"`
+}
+type EmailOTPEnrollRequestDTO struct {
+	Email string `json:"email"`
+}
+type EmailOTPVerifyRequestDTO struct {
+	Email string `json:"email"`
 	Code  string `json:"code"`
 }
 
