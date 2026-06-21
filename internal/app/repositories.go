@@ -73,11 +73,11 @@ type repos struct {
 	oauthDeviceCodeRepo       oauth.OAuthDeviceCodeRepository
 	oauthCIBARequestRepo      oauth.OAuthCIBARequestRepository
 	smsOtpRepo                notifier.UserOTPRepository
-	smsPhoneRepo              mfa.UserSMSPhoneRepository
+	mfaPhoneRepo              mfa.UserMFAPhoneRepository
 	emailOTPRepo              mfa.UserMFAEmailRepository
-	userBackupCodeRepo        mfa.UserBackupCodeRepository
-	totpSecretRepo            mfa.UserTOTPSecretRepository
-	webAuthnCredRepo          mfa.UserWebAuthnCredentialRepository
+	userBackupCodeRepo        mfa.UserMFABackupCodeRepository
+	totpSecretRepo            mfa.UserMFATOTPSecretRepository
+	mfaWebAuthnCredRepo          mfa.UserMFAWebAuthnCredentialRepository
 	userPasswordHistoryRepo   user.UserPasswordHistoryRepository
 }
 
@@ -135,11 +135,11 @@ func initRepos(db *gorm.DB) *repos {
 		oauthDeviceCodeRepo:       oauth.NewOAuthDeviceCodeRepository(db),
 		oauthCIBARequestRepo:      oauth.NewOAuthCIBARequestRepository(db),
 		smsOtpRepo:                notifier.NewUserOTPRepository(db),
-		smsPhoneRepo:              mfa.NewUserSMSPhoneRepository(db),
+		mfaPhoneRepo:              mfa.NewUserMFAPhoneRepository(db),
 		emailOTPRepo:              mfa.NewUserMFAEmailRepository(db),
-		userBackupCodeRepo:        mfa.NewUserBackupCodeRepository(db),
-		totpSecretRepo:            mfa.NewUserTOTPSecretRepository(db),
-		webAuthnCredRepo:          mfa.NewUserWebAuthnCredentialRepository(db),
+		userBackupCodeRepo:        mfa.NewUserMFABackupCodeRepository(db),
+		totpSecretRepo:            mfa.NewUserMFATOTPSecretRepository(db),
+		mfaWebAuthnCredRepo:          mfa.NewUserMFAWebAuthnCredentialRepository(db),
 		userPasswordHistoryRepo:   user.NewUserPasswordHistoryRepository(db),
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserBackupCode struct {
+type UserMFABackupCode struct {
 	BackupCodeID   int64      `gorm:"column:backup_code_id;primaryKey"`
 	BackupCodeUUID uuid.UUID  `gorm:"column:backup_code_uuid;unique"`
 	UserID         int64      `gorm:"column:user_id"`
@@ -17,9 +17,9 @@ type UserBackupCode struct {
 	CreatedAt      time.Time  `gorm:"column:created_at;autoCreateTime"`
 }
 
-func (UserBackupCode) TableName() string { return "user_mfa_backup_codes" }
+func (UserMFABackupCode) TableName() string { return "user_mfa_backup_codes" }
 
-func (b *UserBackupCode) BeforeCreate(tx *gorm.DB) error {
+func (b *UserMFABackupCode) BeforeCreate(tx *gorm.DB) error {
 	if b.BackupCodeUUID == uuid.Nil {
 		b.BackupCodeUUID = uuid.New()
 	}

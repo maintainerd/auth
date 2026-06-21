@@ -123,29 +123,29 @@ func (r *userIDPRepo) FindByIdentifier(identifier string) (*user.IdentityProvide
 }
 
 type userBackupCodeRepo struct {
-	*database.BaseRepository[user.UserBackupCode]
+	*database.BaseRepository[user.UserMFABackupCode]
 }
 
-func newUserBackupCodeRepo(db *gorm.DB) user.UserBackupCodeRepository {
-	return &userBackupCodeRepo{database.NewBaseRepository[user.UserBackupCode](db, "backup_code_uuid", "backup_code_id")}
+func newUserMFABackupCodeRepo(db *gorm.DB) user.UserMFABackupCodeRepository {
+	return &userBackupCodeRepo{database.NewBaseRepository[user.UserMFABackupCode](db, "backup_code_uuid", "backup_code_id")}
 }
 
-func (r *userBackupCodeRepo) WithTx(tx *gorm.DB) user.UserBackupCodeRepository {
+func (r *userBackupCodeRepo) WithTx(tx *gorm.DB) user.UserMFABackupCodeRepository {
 	return &userBackupCodeRepo{r.BaseRepository.WithTx(tx)}
 }
 
-func (r *userBackupCodeRepo) CreateBulk(codes []*user.UserBackupCode) error {
+func (r *userBackupCodeRepo) CreateBulk(codes []*user.UserMFABackupCode) error {
 	return r.DB().Create(&codes).Error
 }
 
-func (r *userBackupCodeRepo) FindUnusedByUserID(userID int64) ([]user.UserBackupCode, error) {
-	var codes []user.UserBackupCode
+func (r *userBackupCodeRepo) FindUnusedByUserID(userID int64) ([]user.UserMFABackupCode, error) {
+	var codes []user.UserMFABackupCode
 	err := r.DB().Where("user_id = ? AND used = ?", userID, false).Find(&codes).Error
 	return codes, err
 }
 
-func (r *userBackupCodeRepo) FindByUserIDAndCodeHash(userID int64, codeHash string) (*user.UserBackupCode, error) {
-	var code user.UserBackupCode
+func (r *userBackupCodeRepo) FindByUserIDAndCodeHash(userID int64, codeHash string) (*user.UserMFABackupCode, error) {
+	var code user.UserMFABackupCode
 	err := r.DB().Where("user_id = ? AND code_hash = ?", userID, codeHash).First(&code).Error
 	if err != nil {
 		return nil, firstOrNil(err)
@@ -154,9 +154,9 @@ func (r *userBackupCodeRepo) FindByUserIDAndCodeHash(userID int64, codeHash stri
 }
 
 func (r *userBackupCodeRepo) MarkUsed(id int64) error {
-	return r.DB().Model(&user.UserBackupCode{}).Where("backup_code_id = ?", id).Updates(map[string]any{"used": true}).Error
+	return r.DB().Model(&user.UserMFABackupCode{}).Where("backup_code_id = ?", id).Updates(map[string]any{"used": true}).Error
 }
 
 func (r *userBackupCodeRepo) DeleteAllByUserID(userID int64) error {
-	return r.DB().Where("user_id = ?", userID).Delete(&user.UserBackupCode{}).Error
+	return r.DB().Where("user_id = ?", userID).Delete(&user.UserMFABackupCode{}).Error
 }

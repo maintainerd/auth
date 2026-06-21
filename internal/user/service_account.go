@@ -50,7 +50,7 @@ type accountService struct {
 	userSettingRepo      UserSettingRepository
 	roleRepo             RoleRepository
 	clientRepo           ClientRepository
-	backupCodeRepo       UserBackupCodeRepository
+	mfaBackupCodeRepo       UserMFABackupCodeRepository
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
 	authEventService     authevent.AuthEventService
@@ -65,7 +65,7 @@ func NewAccountService(
 	userSettingRepo UserSettingRepository,
 	roleRepo RoleRepository,
 	clientRepo ClientRepository,
-	backupCodeRepo UserBackupCodeRepository,
+	mfaBackupCodeRepo UserMFABackupCodeRepository,
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
 	authEventService authevent.AuthEventService,
@@ -79,7 +79,7 @@ func NewAccountService(
 		userSettingRepo:      userSettingRepo,
 		roleRepo:             roleRepo,
 		clientRepo:           clientRepo,
-		backupCodeRepo:       backupCodeRepo,
+		mfaBackupCodeRepo:       mfaBackupCodeRepo,
 		userIdentityRepo:     userIdentityRepo,
 		identityProviderRepo: identityProviderRepo,
 		authEventService:     authEventService,
@@ -337,12 +337,12 @@ func (s *accountService) GenerateBackupCodes(ctx context.Context, userID int64) 
 	}
 
 	// Delete all existing backup codes for this user
-	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+	if err := s.mfaBackupCodeRepo.DeleteAllByUserID(userID); err != nil {
 		return nil, apperror.NewInternal("failed to clear existing backup codes", err)
 	}
 
 	plaintextCodes := make([]string, backupCodeCount)
-	records := make([]*UserBackupCode, backupCodeCount)
+	records := make([]*UserMFABackupCode, backupCodeCount)
 
 	for i := 0; i < backupCodeCount; i++ {
 		code, err := crypto.GenerateRandomString(backupCodeLength)
@@ -354,13 +354,13 @@ func (s *accountService) GenerateBackupCodes(ctx context.Context, userID int64) 
 			code = code[:backupCodeLength]
 		}
 		plaintextCodes[i] = code
-		records[i] = &UserBackupCode{
+		records[i] = &UserMFABackupCode{
 			UserID:   userID,
 			CodeHash: crypto.HashAuthorizationCode(code),
 		}
 	}
 
-	if err := s.backupCodeRepo.CreateBulk(records); err != nil {
+	if err := s.mfaBackupCodeRepo.CreateBulk(records); err != nil {
 		return nil, apperror.NewInternal("failed to store backup codes", err)
 	}
 
@@ -382,7 +382,7 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txIdpRepo := s.identityProviderRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
-		txBackupCodeRepo := s.backupCodeRepo.WithTx(tx)
+		txBackupCodeRepo := s.mfaBackupCodeRepo.WithTx(tx)
 
 		// Validate identity provider and client
 		idp, txErr := txIdpRepo.FindByIdentifier(req.ProviderID)

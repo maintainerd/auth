@@ -8,20 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUserWebAuthnCredentialModel(t *testing.T) {
+func TestUserMFAWebAuthnCredentialModel(t *testing.T) {
 	t.Run("table name", func(t *testing.T) {
-		assert.Equal(t, "user_mfa_webauthn_credentials", UserWebAuthnCredential{}.TableName())
+		assert.Equal(t, "user_mfa_webauthn_credentials", UserMFAWebAuthnCredential{}.TableName())
 	})
 
 	t.Run("BeforeCreate assigns UUID", func(t *testing.T) {
-		credential := &UserWebAuthnCredential{}
+		credential := &UserMFAWebAuthnCredential{}
 		require.NoError(t, credential.BeforeCreate(nil))
 		assert.NotEqual(t, uuid.Nil, credential.CredentialUUID)
 	})
 
 	t.Run("BeforeCreate keeps existing UUID", func(t *testing.T) {
 		id := uuid.MustParse("00000000-0000-0000-0000-000000000125")
-		credential := &UserWebAuthnCredential{CredentialUUID: id}
+		credential := &UserMFAWebAuthnCredential{CredentialUUID: id}
 		require.NoError(t, credential.BeforeCreate(nil))
 		assert.Equal(t, id, credential.CredentialUUID)
 	})

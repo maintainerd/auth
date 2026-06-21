@@ -63,13 +63,13 @@ func TestNewWebAuthnService(t *testing.T) {
 	db, _ := newMockGormDB(t)
 
 	config.AppPublicHostname = "https://auth.example.com"
-	got, err := NewWebAuthnService(db, &mockUserRepo{}, &mockWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{})
+	got, err := NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{})
 
 	require.NoError(t, err)
 	assert.IsType(t, &webAuthnService{}, got)
 
 	config.AppPublicHostname = "not a url with spaces"
-	got, err = NewWebAuthnService(db, &mockUserRepo{}, &mockWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{})
+	got, err = NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{})
 	require.Error(t, err)
 	assert.Nil(t, got)
 }
@@ -80,12 +80,12 @@ func TestWebAuthnService_LoadWebAuthnUser(t *testing.T) {
 		name    string
 		user    *User
 		userErr error
-		creds   []UserWebAuthnCredential
+		creds   []UserMFAWebAuthnCredential
 		credErr error
 		wantErr string
 		wantLen int
 	}{
-		{name: "maps valid credentials and skips invalid ids", user: &User{UserID: mfaTestUserID, Email: "user@example.com"}, creds: []UserWebAuthnCredential{{CredentialKeyID: encodedID, PublicKey: []byte("public"), SignCount: 9, IsBackupEligible: true}, {CredentialKeyID: "%"}}, wantLen: 1},
+		{name: "maps valid credentials and skips invalid ids", user: &User{UserID: mfaTestUserID, Email: "user@example.com"}, creds: []UserMFAWebAuthnCredential{{CredentialKeyID: encodedID, PublicKey: []byte("public"), SignCount: 9, IsBackupEligible: true}, {CredentialKeyID: "%"}}, wantLen: 1},
 		{name: "missing user", wantErr: "user not found"},
 		{name: "user repo error", userErr: errors.New("db down"), wantErr: "user not found"},
 		{name: "credential lookup error", user: &User{UserID: mfaTestUserID}, credErr: errors.New("db down"), wantErr: "credential lookup failed"},
@@ -95,7 +95,7 @@ func TestWebAuthnService_LoadWebAuthnUser(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &webAuthnService{
 				userRepo:         &mockUserRepo{findByID: tt.user, findByIDErr: tt.userErr},
-				webAuthnCredRepo: &mockWebAuthnCredentialRepo{findByUserID: tt.creds, findByUserIDErr: tt.credErr},
+				mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{findByUserID: tt.creds, findByUserIDErr: tt.credErr},
 			}
 
 			got, err := svc.loadWebAuthnUser(mfaTestUserID)
@@ -129,14 +129,14 @@ func TestWebAuthnService_SessionHelpers(t *testing.T) {
 
 func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 	t.Run("begin registration load user error", func(t *testing.T) {
-		svc := &webAuthnService{userRepo: &mockUserRepo{}, webAuthnCredRepo: &mockWebAuthnCredentialRepo{}}
+		svc := &webAuthnService{userRepo: &mockUserRepo{}, mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{}}
 		_, err := svc.BeginRegistration(t.Context(), mfaTestUserID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
 	t.Run("begin authentication load user error", func(t *testing.T) {
-		svc := &webAuthnService{userRepo: &mockUserRepo{}, webAuthnCredRepo: &mockWebAuthnCredentialRepo{}}
+		svc := &webAuthnService{userRepo: &mockUserRepo{}, mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{}}
 		_, err := svc.BeginAuthentication(t.Context(), mfaTestUserID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
@@ -145,7 +145,7 @@ func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 	t.Run("finish registration load session error", func(t *testing.T) {
 		svc := &webAuthnService{
 			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore:     &mockWebAuthnSessionStore{getErr: errors.New("missing")},
 		}
 		_, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", nil)
@@ -154,7 +154,7 @@ func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 	})
 
 	t.Run("finish registration load user error", func(t *testing.T) {
-		svc := &webAuthnService{userRepo: &mockUserRepo{}, webAuthnCredRepo: &mockWebAuthnCredentialRepo{}}
+		svc := &webAuthnService{userRepo: &mockUserRepo{}, mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{}}
 		_, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
@@ -163,7 +163,7 @@ func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 	t.Run("finish authentication load session error", func(t *testing.T) {
 		svc := &webAuthnService{
 			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore:     &mockWebAuthnSessionStore{getErr: errors.New("missing")},
 		}
 		_, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
@@ -172,7 +172,7 @@ func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 	})
 
 	t.Run("finish authentication load user error", func(t *testing.T) {
-		svc := &webAuthnService{userRepo: &mockUserRepo{}, webAuthnCredRepo: &mockWebAuthnCredentialRepo{}}
+		svc := &webAuthnService{userRepo: &mockUserRepo{}, mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{}}
 		_, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
@@ -197,7 +197,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		}
 		svc := &webAuthnService{
 			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore:     &mockWebAuthnSessionStore{},
 		}
 		got, err := svc.BeginRegistration(t.Context(), mfaTestUserID)
@@ -226,7 +226,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		}
 		svc := &webAuthnService{
 			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore:     &mockWebAuthnSessionStore{},
 		}
 		got, err := svc.BeginAuthentication(t.Context(), mfaTestUserID)
@@ -272,7 +272,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		svc := &webAuthnService{
 			db:               db,
 			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore: &mockWebAuthnSessionStore{values: map[string]*webauthn.SessionData{
 				"webauthn:session:42:reg": {Challenge: "challenge"},
 			}},
@@ -297,7 +297,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			return &webauthn.Credential{ID: []byte("cred-id"), PublicKey: []byte("public")}, nil
 		}
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "reg", &webauthn.SessionData{Challenge: "challenge"}))
-		svc.webAuthnCredRepo = &mockWebAuthnCredentialRepo{createErr: errors.New("db down")}
+		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{createErr: errors.New("db down")}
 		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to persist")
@@ -307,7 +307,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		expectMFAUpdate(mockErr, "users").WillReturnError(errors.New("db down"))
 		mockErr.ExpectRollback()
 		svc.db = dbErr
-		svc.webAuthnCredRepo = &mockWebAuthnCredentialRepo{}
+		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{}
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "reg", &webauthn.SessionData{Challenge: "challenge"}))
 		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", nil)
 		require.Error(t, err)
@@ -332,11 +332,11 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		validateWebAuthnLogin = func(*webauthn.WebAuthn, webauthn.User, webauthn.SessionData, *protocol.ParsedCredentialAssertionData) (*webauthn.Credential, error) {
 			return &webauthn.Credential{ID: []byte("cred-id"), Authenticator: webauthn.Authenticator{SignCount: 8}}, nil
 		}
-		stored := &UserWebAuthnCredential{CredentialID: 1, CredentialUUID: mfaTestCredentialUUID, CredentialKeyID: base64.RawURLEncoding.EncodeToString([]byte("cred-id")), SignCount: 7}
+		stored := &UserMFAWebAuthnCredential{CredentialID: 1, CredentialUUID: mfaTestCredentialUUID, CredentialKeyID: base64.RawURLEncoding.EncodeToString([]byte("cred-id")), SignCount: 7}
 		events := &mockAuthEventService{}
 		svc := &webAuthnService{
 			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
-			webAuthnCredRepo: &mockWebAuthnCredentialRepo{findByKeyID: stored},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{findByKeyID: stored},
 			sessionStore: &mockWebAuthnSessionStore{values: map[string]*webauthn.SessionData{
 				"webauthn:session:42:auth": {Challenge: "challenge"},
 			}},
@@ -359,25 +359,25 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			return &webauthn.Credential{ID: []byte("cred-id"), Authenticator: webauthn.Authenticator{SignCount: 8}}, nil
 		}
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
-		svc.webAuthnCredRepo = &mockWebAuthnCredentialRepo{findByKeyIDErr: errors.New("db down")}
+		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyIDErr: errors.New("db down")}
 		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "credential not found after validation")
 
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
-		svc.webAuthnCredRepo = &mockWebAuthnCredentialRepo{findByKeyID: &UserWebAuthnCredential{CredentialID: 1, SignCount: 9}}
+		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyID: &UserMFAWebAuthnCredential{CredentialID: 1, SignCount: 9}}
 		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "sign count regression")
 
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
-		svc.webAuthnCredRepo = &mockWebAuthnCredentialRepo{findByKeyID: stored, signCountErr: errors.New("db down")}
+		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyID: stored, signCountErr: errors.New("db down")}
 		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to update WebAuthn sign count")
 
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
-		svc.webAuthnCredRepo = &mockWebAuthnCredentialRepo{findByKeyID: stored, lastUsedErr: errors.New("db down")}
+		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyID: stored, lastUsedErr: errors.New("db down")}
 		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to update WebAuthn last-used")
@@ -385,7 +385,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		svc.sessionStore = &mockWebAuthnSessionStore{values: map[string]*webauthn.SessionData{
 			"webauthn:session:42:auth": {Challenge: "challenge"},
 		}, delErr: errors.New("cache down")}
-		svc.webAuthnCredRepo = &mockWebAuthnCredentialRepo{findByKeyID: stored}
+		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyID: stored}
 		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to clear WebAuthn authentication session")
@@ -396,10 +396,10 @@ func TestWebAuthnService_DeleteCredential(t *testing.T) {
 	credUUID := uuid.MustParse("00000000-0000-0000-0000-000000000777")
 
 	t.Run("success leaves WebAuthn enabled when remaining credentials exist", func(t *testing.T) {
-		repo := &mockWebAuthnCredentialRepo{
-			findByUserID: []UserWebAuthnCredential{{CredentialID: 1, CredentialUUID: credUUID}},
+		repo := &mockMFAWebAuthnCredentialRepo{
+			findByUserID: []UserMFAWebAuthnCredential{{CredentialID: 1, CredentialUUID: credUUID}},
 		}
-		svc := &webAuthnService{webAuthnCredRepo: repo}
+		svc := &webAuthnService{mfaWebAuthnCredRepo: repo}
 
 		require.NoError(t, svc.DeleteCredential(t.Context(), credUUID.String(), mfaTestUserID))
 	})
@@ -410,9 +410,9 @@ func TestWebAuthnService_DeleteCredential(t *testing.T) {
 		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		repo := &sequencedWebAuthnCredentialRepo{
-			sequences: [][]UserWebAuthnCredential{{{CredentialID: 1, CredentialUUID: credUUID}}, {}},
+			sequences: [][]UserMFAWebAuthnCredential{{{CredentialID: 1, CredentialUUID: credUUID}}, {}},
 		}
-		svc := &webAuthnService{db: db, webAuthnCredRepo: repo}
+		svc := &webAuthnService{db: db, mfaWebAuthnCredRepo: repo}
 
 		require.NoError(t, svc.DeleteCredential(t.Context(), credUUID.String(), mfaTestUserID))
 		assertExpectationsMet(t, mock)
@@ -420,15 +420,15 @@ func TestWebAuthnService_DeleteCredential(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		repo    UserWebAuthnCredentialRepository
+		repo    UserMFAWebAuthnCredentialRepository
 		dbErr   bool
 		wantErr string
 	}{
-		{name: "lookup error", repo: &mockWebAuthnCredentialRepo{findByUserIDErr: errors.New("db down")}, wantErr: "credential lookup failed"},
-		{name: "not found", repo: &mockWebAuthnCredentialRepo{findByUserID: []UserWebAuthnCredential{}}, wantErr: "credential not found"},
-		{name: "delete error", repo: &mockWebAuthnCredentialRepo{findByUserID: []UserWebAuthnCredential{{CredentialID: 1, CredentialUUID: credUUID}}, deleteErr: errors.New("db down")}, wantErr: "failed to delete credential"},
-		{name: "remaining lookup error", repo: &sequencedWebAuthnCredentialRepo{sequences: [][]UserWebAuthnCredential{{{CredentialID: 1, CredentialUUID: credUUID}}}, errAt: 2}, wantErr: "failed to list remaining"},
-		{name: "user update error", repo: &sequencedWebAuthnCredentialRepo{sequences: [][]UserWebAuthnCredential{{{CredentialID: 1, CredentialUUID: credUUID}}, {}}}, dbErr: true, wantErr: "failed to update user WebAuthn state"},
+		{name: "lookup error", repo: &mockMFAWebAuthnCredentialRepo{findByUserIDErr: errors.New("db down")}, wantErr: "credential lookup failed"},
+		{name: "not found", repo: &mockMFAWebAuthnCredentialRepo{findByUserID: []UserMFAWebAuthnCredential{}}, wantErr: "credential not found"},
+		{name: "delete error", repo: &mockMFAWebAuthnCredentialRepo{findByUserID: []UserMFAWebAuthnCredential{{CredentialID: 1, CredentialUUID: credUUID}}, deleteErr: errors.New("db down")}, wantErr: "failed to delete credential"},
+		{name: "remaining lookup error", repo: &sequencedWebAuthnCredentialRepo{sequences: [][]UserMFAWebAuthnCredential{{{CredentialID: 1, CredentialUUID: credUUID}}}, errAt: 2}, wantErr: "failed to list remaining"},
+		{name: "user update error", repo: &sequencedWebAuthnCredentialRepo{sequences: [][]UserMFAWebAuthnCredential{{{CredentialID: 1, CredentialUUID: credUUID}}, {}}}, dbErr: true, wantErr: "failed to update user WebAuthn state"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -438,7 +438,7 @@ func TestWebAuthnService_DeleteCredential(t *testing.T) {
 				expectMFAUpdate(mock, "users").WillReturnError(errors.New("db down"))
 				mock.ExpectRollback()
 			}
-			svc := &webAuthnService{db: db, webAuthnCredRepo: tt.repo}
+			svc := &webAuthnService{db: db, mfaWebAuthnCredRepo: tt.repo}
 
 			err := svc.DeleteCredential(t.Context(), credUUID.String(), mfaTestUserID)
 
@@ -488,17 +488,17 @@ func (m *mockWebAuthnSessionStore) DeleteSession(_ context.Context, key string) 
 }
 
 type sequencedWebAuthnCredentialRepo struct {
-	mockBaseRepositoryMethods[UserWebAuthnCredential]
-	sequences [][]UserWebAuthnCredential
+	mockBaseRepositoryMethods[UserMFAWebAuthnCredential]
+	sequences [][]UserMFAWebAuthnCredential
 	calls     int
 	errAt     int
 }
 
-func (m *sequencedWebAuthnCredentialRepo) WithTx(*gorm.DB) UserWebAuthnCredentialRepository {
+func (m *sequencedWebAuthnCredentialRepo) WithTx(*gorm.DB) UserMFAWebAuthnCredentialRepository {
 	return m
 }
 
-func (m *sequencedWebAuthnCredentialRepo) FindByUserID(int64) ([]UserWebAuthnCredential, error) {
+func (m *sequencedWebAuthnCredentialRepo) FindByUserID(int64) ([]UserMFAWebAuthnCredential, error) {
 	m.calls++
 	if m.errAt == m.calls {
 		return nil, errors.New("db down")
@@ -511,10 +511,10 @@ func (m *sequencedWebAuthnCredentialRepo) FindByUserID(int64) ([]UserWebAuthnCre
 	return result, nil
 }
 
-func (m *sequencedWebAuthnCredentialRepo) FindByCredentialKeyID(string) (*UserWebAuthnCredential, error) {
+func (m *sequencedWebAuthnCredentialRepo) FindByCredentialKeyID(string) (*UserMFAWebAuthnCredential, error) {
 	return nil, nil
 }
-func (m *sequencedWebAuthnCredentialRepo) CreateCredential(*UserWebAuthnCredential) error {
+func (m *sequencedWebAuthnCredentialRepo) CreateCredential(*UserMFAWebAuthnCredential) error {
 	return nil
 }
 func (m *sequencedWebAuthnCredentialRepo) UpdateSignCount(int64, int64) error { return nil }

@@ -42,8 +42,8 @@ func newAccountSvc(repos ...interface{}) *accountService {
 			svc.roleRepo = v
 		case ClientRepository:
 			svc.clientRepo = v
-		case UserBackupCodeRepository:
-			svc.backupCodeRepo = v
+		case UserMFABackupCodeRepository:
+			svc.mfaBackupCodeRepo = v
 		case UserIdentityRepository:
 			svc.userIdentityRepo = v
 		case IdentityProviderRepository:
@@ -56,7 +56,7 @@ func newAccountSvc(repos ...interface{}) *accountService {
 func TestNewAccountService(t *testing.T) {
 	db, _ := newMockGormDB(t)
 	svc := NewAccountService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockProfileRepo{},
-		&mockUserSettingRepo{}, &mockRoleRepo{}, &mockClientRepo{}, &mockUserBackupCodeRepo{},
+		&mockUserSettingRepo{}, &mockRoleRepo{}, &mockClientRepo{}, &mockUserMFABackupCodeRepo{},
 		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService(), nil)
 	assert.NotNil(t, svc)
 }
@@ -699,7 +699,7 @@ func TestAccountService_GenerateBackupCodes(t *testing.T) {
 					return &User{UserID: userID, UserUUID: userUUID}, nil
 				},
 			},
-			&mockUserBackupCodeRepo{
+			&mockUserMFABackupCodeRepo{
 				deleteAllByUserIDFn: func(int64) error { return errors.New("db error") },
 			},
 		)
@@ -716,8 +716,8 @@ func TestAccountService_GenerateBackupCodes(t *testing.T) {
 					return &User{UserID: userID, UserUUID: userUUID}, nil
 				},
 			},
-			&mockUserBackupCodeRepo{
-				createBulkFn: func(_ []*UserBackupCode) error { return errors.New("db error") },
+			&mockUserMFABackupCodeRepo{
+				createBulkFn: func(_ []*UserMFABackupCode) error { return errors.New("db error") },
 			},
 		)
 		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
@@ -737,7 +737,7 @@ func TestAccountService_GenerateBackupCodes(t *testing.T) {
 					return &User{UserID: userID, UserUUID: userUUID}, nil
 				},
 			},
-			&mockUserBackupCodeRepo{
+			&mockUserMFABackupCodeRepo{
 				deleteAllByUserIDFn: func(int64) error { return nil },
 			},
 		)
@@ -758,7 +758,7 @@ func TestAccountService_GenerateBackupCodes(t *testing.T) {
 					return &User{UserID: userID, UserUUID: userUUID}, nil
 				},
 			},
-			&mockUserBackupCodeRepo{},
+			&mockUserMFABackupCodeRepo{},
 		)
 		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
 		require.NoError(t, err)
@@ -780,7 +780,7 @@ func TestAccountService_GenerateBackupCodes(t *testing.T) {
 					return &User{UserID: userID, UserUUID: userUUID}, nil
 				},
 			},
-			&mockUserBackupCodeRepo{},
+			&mockUserMFABackupCodeRepo{},
 		)
 		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
 		require.NoError(t, err)
@@ -823,7 +823,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			Email:    "test@example.com",
 			Status:   shared.StatusActive,
 		}
-		backupCode := &UserBackupCode{
+		backupCode := &UserMFABackupCode{
 			BackupCodeID: backupCodeID,
 			UserID:       userID,
 			CodeHash:     codeHash,
@@ -849,8 +849,8 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			userIdentityRepo: &mockUserIdentityRepo{
 				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return userIdentity, nil },
 			},
-			backupCodeRepo: &mockUserBackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) { return backupCode, nil },
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) { return backupCode, nil },
 			},
 			authEventService: authevent.NoopService(),
 		}
@@ -877,7 +877,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			userRepo:         &mockUserRepo{},
 			clientRepo:       &mockClientRepo{},
 			userIdentityRepo: &mockUserIdentityRepo{},
-			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return nil, nil },
 			},
@@ -905,7 +905,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			db:               db,
 			userRepo:         &mockUserRepo{},
 			userIdentityRepo: &mockUserIdentityRepo{},
-			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -946,7 +946,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 		svc := &accountService{
 			db:               db,
 			userIdentityRepo: &mockUserIdentityRepo{},
-			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -988,7 +988,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 		svc := &accountService{
 			db:               db,
 			userIdentityRepo: &mockUserIdentityRepo{},
-			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -1030,7 +1030,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 		svc := &accountService{
 			db:               db,
 			userIdentityRepo: &mockUserIdentityRepo{},
-			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -1088,8 +1088,8 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			userRepo: &mockUserRepo{
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
-			backupCodeRepo: &mockUserBackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) {
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) {
 					return nil, assert.AnError
 				},
 			},
@@ -1139,8 +1139,8 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			userRepo: &mockUserRepo{
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
-			backupCodeRepo: &mockUserBackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) { return nil, nil },
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) { return nil, nil },
 			},
 			authEventService: authevent.NoopService(),
 		}
@@ -1177,7 +1177,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			Email:    "test@example.com",
 			Status:   shared.StatusActive,
 		}
-		backupCode := &UserBackupCode{
+		backupCode := &UserMFABackupCode{
 			BackupCodeID: backupCodeID,
 			UserID:       userID,
 			CodeHash:     codeHash,
@@ -1194,8 +1194,8 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			userRepo: &mockUserRepo{
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
-			backupCodeRepo: &mockUserBackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) { return backupCode, nil },
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) { return backupCode, nil },
 				markUsedFn:                func(_ int64) error { return assert.AnError },
 			},
 			authEventService: authevent.NoopService(),
@@ -1233,7 +1233,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			Email:    "test@example.com",
 			Status:   shared.StatusActive,
 		}
-		backupCode := &UserBackupCode{
+		backupCode := &UserMFABackupCode{
 			BackupCodeID: backupCodeID,
 			UserID:       userID,
 			CodeHash:     codeHash,
@@ -1249,8 +1249,8 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			userRepo: &mockUserRepo{
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
-			backupCodeRepo: &mockUserBackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) { return backupCode, nil },
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) { return backupCode, nil },
 			},
 			userIdentityRepo: &mockUserIdentityRepo{
 				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil },

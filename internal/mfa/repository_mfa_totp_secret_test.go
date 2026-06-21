@@ -10,12 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestUserTOTPSecretRepository(t *testing.T) {
+func TestUserMFATOTPSecretRepository(t *testing.T) {
 	t.Run("constructor and WithTx", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
-		repo := NewUserTOTPSecretRepository(db)
+		repo := NewUserMFATOTPSecretRepository(db)
 		require.NotNil(t, repo)
-		assert.NotNil(t, repo.(*userTOTPSecretRepository).WithTx(db))
+		assert.NotNil(t, repo.(*userMFATOTPSecretRepository).WithTx(db))
 	})
 
 	t.Run("FindByUserID success not found and error", func(t *testing.T) {
@@ -23,7 +23,7 @@ func TestUserTOTPSecretRepository(t *testing.T) {
 		expectMFASelect(mock, "user_mfa_totp_secrets").WillReturnRows(userTOTPSecretRows())
 		expectMFASelect(mock, "user_mfa_totp_secrets").WillReturnError(gorm.ErrRecordNotFound)
 		expectMFASelect(mock, "user_mfa_totp_secrets").WillReturnError(errors.New("db error"))
-		repo := NewUserTOTPSecretRepository(db)
+		repo := NewUserMFATOTPSecretRepository(db)
 
 		got, err := repo.FindByUserID(mfaTestUserID)
 		require.NoError(t, err)
@@ -48,11 +48,11 @@ func TestUserTOTPSecretRepository(t *testing.T) {
 		expectMFAUpdate(mock, "user_mfa_totp_secrets").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		expectMFASelect(mock, "user_mfa_totp_secrets").WillReturnError(errors.New("db error"))
-		repo := NewUserTOTPSecretRepository(db)
+		repo := NewUserMFATOTPSecretRepository(db)
 
-		require.NoError(t, repo.Upsert(&UserTOTPSecret{UserID: mfaTestUserID, Secret: "secret"}))
-		require.NoError(t, repo.Upsert(&UserTOTPSecret{UserID: mfaTestUserID, Secret: "secret"}))
-		require.Error(t, repo.Upsert(&UserTOTPSecret{UserID: mfaTestUserID, Secret: "secret"}))
+		require.NoError(t, repo.Upsert(&UserMFATOTPSecret{UserID: mfaTestUserID, Secret: "secret"}))
+		require.NoError(t, repo.Upsert(&UserMFATOTPSecret{UserID: mfaTestUserID, Secret: "secret"}))
+		require.Error(t, repo.Upsert(&UserMFATOTPSecret{UserID: mfaTestUserID, Secret: "secret"}))
 		assertExpectationsMet(t, mock)
 	})
 
@@ -67,7 +67,7 @@ func TestUserTOTPSecretRepository(t *testing.T) {
 			}
 			mock.ExpectCommit()
 		}
-		repo := NewUserTOTPSecretRepository(db)
+		repo := NewUserMFATOTPSecretRepository(db)
 
 		require.NoError(t, repo.Enable(mfaTestUserID))
 		require.NoError(t, repo.Disable(mfaTestUserID))
@@ -85,7 +85,7 @@ func TestUserTOTPSecretRepository(t *testing.T) {
 		expectMFAUpdate(mock, "user_mfa_totp_secrets").WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectCommit()
 
-		accepted, err := NewUserTOTPSecretRepository(db).MarkStepUsed(mfaTestUserID, 123)
+		accepted, err := NewUserMFATOTPSecretRepository(db).MarkStepUsed(mfaTestUserID, 123)
 
 		require.NoError(t, err)
 		assert.False(t, accepted)

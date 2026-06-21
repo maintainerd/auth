@@ -134,11 +134,11 @@ type MFAService interface {
 type mfaService struct {
 	db               *gorm.DB
 	userRepo         UserRepository
-	totpRepo         UserTOTPSecretRepository
-	webAuthnCredRepo UserWebAuthnCredentialRepository
+	mfaTotpRepo         UserMFATOTPSecretRepository
+	mfaWebAuthnCredRepo UserMFAWebAuthnCredentialRepository
 	webAuthnSvc      WebAuthnService
-	backupCodeRepo   UserBackupCodeRepository
-	smsPhoneRepo     UserSMSPhoneRepository
+	mfaBackupCodeRepo   UserMFABackupCodeRepository
+	mfaPhoneRepo     UserMFAPhoneRepository
 	emailOTPRepo     UserMFAEmailRepository
 	smsOtpRepo       notifier.UserOTPRepository
 	secSettingRepo   secpolicy.SecuritySettingRepository
@@ -166,11 +166,11 @@ func (trustedDeviceToken) TableName() string { return "user_tokens" }
 func NewMFAService(
 	db *gorm.DB,
 	userRepo UserRepository,
-	totpRepo UserTOTPSecretRepository,
-	webAuthnCredRepo UserWebAuthnCredentialRepository,
+	mfaTotpRepo UserMFATOTPSecretRepository,
+	mfaWebAuthnCredRepo UserMFAWebAuthnCredentialRepository,
 	webAuthnSvc WebAuthnService,
-	backupCodeRepo UserBackupCodeRepository,
-	smsPhoneRepo UserSMSPhoneRepository,
+	mfaBackupCodeRepo UserMFABackupCodeRepository,
+	mfaPhoneRepo UserMFAPhoneRepository,
 	emailOTPRepo UserMFAEmailRepository,
 	smsOtpRepo notifier.UserOTPRepository,
 	secSettingRepo secpolicy.SecuritySettingRepository,
@@ -179,11 +179,11 @@ func NewMFAService(
 	return &mfaService{
 		db:               db,
 		userRepo:         userRepo,
-		totpRepo:         totpRepo,
-		webAuthnCredRepo: webAuthnCredRepo,
+		mfaTotpRepo:         mfaTotpRepo,
+		mfaWebAuthnCredRepo: mfaWebAuthnCredRepo,
 		webAuthnSvc:      webAuthnSvc,
-		backupCodeRepo:   backupCodeRepo,
-		smsPhoneRepo:     smsPhoneRepo,
+		mfaBackupCodeRepo:   mfaBackupCodeRepo,
+		mfaPhoneRepo:     mfaPhoneRepo,
 		emailOTPRepo:     emailOTPRepo,
 		smsOtpRepo:       smsOtpRepo,
 		secSettingRepo:   secSettingRepo,
@@ -241,7 +241,7 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TO
 		return nil, apperror.NewInternal("TOTP key generation failed", err)
 	}
 
-	secret := &UserTOTPSecret{
+	secret := &UserMFATOTPSecret{
 		UserID:    userID,
 		Secret:    key.Secret(),
 		IsEnabled: false,
@@ -261,7 +261,7 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TO
 		return nil, apperror.NewInternal("failed to encrypt TOTP secret", encErr)
 	}
 	secret.Secret = enc
-	if err := s.totpRepo.Upsert(secret); err != nil {
+	if err := s.mfaTotpRepo.Upsert(secret); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "totp secret store failed")
 		return nil, apperror.NewInternal("failed to store TOTP secret", err)
@@ -282,7 +282,7 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
 
-	record, err := s.totpRepo.FindByUserID(userID)
+	record, err := s.mfaTotpRepo.FindByUserID(userID)
 	if err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("TOTP secret lookup failed", err)
@@ -312,7 +312,7 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 		return nil, apperror.NewValidation("invalid TOTP code")
 	}
 
-	if err := s.totpRepo.Enable(userID); err != nil {
+	if err := s.mfaTotpRepo.Enable(userID); err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to enable TOTP", err)
 	}
@@ -362,7 +362,7 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
 
-	record, err := s.totpRepo.FindByUserID(userID)
+	record, err := s.mfaTotpRepo.FindByUserID(userID)
 	if err != nil {
 		span.RecordError(err)
 		return false, apperror.NewInternal("TOTP lookup failed", err)
@@ -389,7 +389,7 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 		return false, apperror.NewValidation("invalid TOTP code")
 	}
 	if valid {
-		accepted, err := s.totpRepo.MarkStepUsed(userID, step)
+		accepted, err := s.mfaTotpRepo.MarkStepUsed(userID, step)
 		if err != nil {
 			span.RecordError(err)
 			return false, apperror.NewInternal("failed to update TOTP last-used step", err)
@@ -439,11 +439,11 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 	_, span := otel.Tracer("service").Start(ctx, "mfa.disable_totp")
 	defer span.End()
 
-	if err := s.totpRepo.Disable(userID); err != nil {
+	if err := s.mfaTotpRepo.Disable(userID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to disable TOTP", err)
 	}
-	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+	if err := s.mfaBackupCodeRepo.DeleteAllByUserID(userID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete backup codes", err)
 	}
@@ -482,7 +482,7 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 
 // GetBackupCodesCount returns the number of unused backup codes the user has.
 func (s *mfaService) GetBackupCodesCount(ctx context.Context, userID int64) (int, error) {
-	codes, err := s.backupCodeRepo.FindUnusedByUserID(userID)
+	codes, err := s.mfaBackupCodeRepo.FindUnusedByUserID(userID)
 	if err != nil {
 		return 0, apperror.NewInternal("backup code lookup failed", err)
 	}
@@ -517,7 +517,7 @@ func (s *mfaService) RegenerateBackupCodes(ctx context.Context, userID int64) ([
 // replaces all existing codes for the user, and returns the plaintexts.
 // When count <= 0, deletes all existing codes and returns nil.
 func (s *mfaService) generateAndStoreBackupCodes(userID int64, count int) ([]string, error) {
-	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+	if err := s.mfaBackupCodeRepo.DeleteAllByUserID(userID); err != nil {
 		return nil, apperror.NewInternal("failed to delete existing backup codes", err)
 	}
 	if count <= 0 {
@@ -525,7 +525,7 @@ func (s *mfaService) generateAndStoreBackupCodes(userID int64, count int) ([]str
 	}
 
 	plainCodes := make([]string, count)
-	models := make([]*UserBackupCode, count)
+	models := make([]*UserMFABackupCode, count)
 	for i := range count {
 		code, err := generateBackupCodeString(mfaBackupCodeLength)
 		if err != nil {
@@ -536,12 +536,12 @@ func (s *mfaService) generateAndStoreBackupCodes(userID int64, count int) ([]str
 			return nil, apperror.NewInternal("backup code hashing failed", err)
 		}
 		plainCodes[i] = code
-		models[i] = &UserBackupCode{
+		models[i] = &UserMFABackupCode{
 			UserID:   userID,
 			CodeHash: string(hash),
 		}
 	}
-	if err := s.backupCodeRepo.CreateBulk(models); err != nil {
+	if err := s.mfaBackupCodeRepo.CreateBulk(models); err != nil {
 		return nil, apperror.NewInternal("backup code storage failed", err)
 	}
 	return plainCodes, nil
@@ -560,7 +560,7 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 
 	backupCount, _ := s.GetBackupCodesCount(ctx, userID)
 
-	webAuthnCreds, err := s.webAuthnCredRepo.FindByUserID(userID)
+	webAuthnCreds, err := s.mfaWebAuthnCredRepo.FindByUserID(userID)
 	if err != nil {
 		return nil, apperror.NewInternal("credential lookup failed", err)
 	}
@@ -728,19 +728,19 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 		return apperror.NewForbidden("target user does not belong to your tenant")
 	}
 
-	if err := s.totpRepo.Disable(targetUserID); err != nil {
+	if err := s.mfaTotpRepo.Disable(targetUserID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to disable target TOTP", err)
 	}
-	if err := s.backupCodeRepo.DeleteAllByUserID(targetUserID); err != nil {
+	if err := s.mfaBackupCodeRepo.DeleteAllByUserID(targetUserID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete target backup codes", err)
 	}
-	if err := s.webAuthnCredRepo.DeleteAllByUserID(targetUserID); err != nil {
+	if err := s.mfaWebAuthnCredRepo.DeleteAllByUserID(targetUserID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete target WebAuthn credentials", err)
 	}
-	if err := s.smsPhoneRepo.DeleteByUserID(targetUserID); err != nil {
+	if err := s.mfaPhoneRepo.DeleteByUserID(targetUserID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete target SMS phone", err)
 	}
@@ -812,7 +812,7 @@ func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, me
 
 	switch method {
 	case mfaMethodTOTP:
-		if err := s.totpRepo.Disable(targetUserID); err != nil {
+		if err := s.mfaTotpRepo.Disable(targetUserID); err != nil {
 			span.RecordError(err)
 			return apperror.NewInternal("failed to disable target TOTP", err)
 		}
@@ -822,7 +822,7 @@ func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, me
 			return apperror.NewInternal("failed to update target TOTP state", err)
 		}
 	case mfaMethodWebAuthn:
-		if err := s.webAuthnCredRepo.DeleteAllByUserID(targetUserID); err != nil {
+		if err := s.mfaWebAuthnCredRepo.DeleteAllByUserID(targetUserID); err != nil {
 			span.RecordError(err)
 			return apperror.NewInternal("failed to delete target WebAuthn credentials", err)
 		}
@@ -832,7 +832,7 @@ func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, me
 			return apperror.NewInternal("failed to update target WebAuthn state", err)
 		}
 	case mfaMethodSMS:
-		if err := s.smsPhoneRepo.DeleteByUserID(targetUserID); err != nil {
+		if err := s.mfaPhoneRepo.DeleteByUserID(targetUserID); err != nil {
 			return apperror.NewInternal("failed to delete target SMS phone", err)
 		}
 	case mfaMethodEmailOTP:
@@ -840,7 +840,7 @@ func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, me
 			return apperror.NewInternal("failed to reset email OTP MFA", err)
 		}
 	case mfaMethodBackupCode:
-		if err := s.backupCodeRepo.DeleteAllByUserID(targetUserID); err != nil {
+		if err := s.mfaBackupCodeRepo.DeleteAllByUserID(targetUserID); err != nil {
 			span.RecordError(err)
 			return apperror.NewInternal("failed to delete target backup codes", err)
 		}
@@ -879,19 +879,19 @@ func (s *mfaService) SelfResetMFA(ctx context.Context, userID int64) error {
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
 
-	if err := s.totpRepo.Disable(userID); err != nil {
+	if err := s.mfaTotpRepo.Disable(userID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to disable TOTP", err)
 	}
-	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+	if err := s.mfaBackupCodeRepo.DeleteAllByUserID(userID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete backup codes", err)
 	}
-	if err := s.webAuthnCredRepo.DeleteAllByUserID(userID); err != nil {
+	if err := s.mfaWebAuthnCredRepo.DeleteAllByUserID(userID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete WebAuthn credentials", err)
 	}
-	if err := s.smsPhoneRepo.DeleteByUserID(userID); err != nil {
+	if err := s.mfaPhoneRepo.DeleteByUserID(userID); err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to delete SMS phone", err)
 	}
@@ -970,7 +970,7 @@ func (s *mfaService) SendStepUpSMS(ctx context.Context, userID int64) error {
 		return apperror.NewForbidden("SMS MFA is not permitted by tenant policy")
 	}
 
-	phoneRecord, err := s.smsPhoneRepo.FindByUserID(userID)
+	phoneRecord, err := s.mfaPhoneRepo.FindByUserID(userID)
 	if err != nil {
 		return apperror.NewInternal("failed to look up MFA phone", err)
 	}
@@ -1033,7 +1033,7 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 		return apperror.NewForbidden("SMS MFA is not permitted by tenant policy")
 	}
 
-	record, err := s.smsPhoneRepo.FindByUserID(userID)
+	record, err := s.mfaPhoneRepo.FindByUserID(userID)
 	if err != nil {
 		return apperror.NewInternal("failed to check existing MFA phone", err)
 	}
@@ -1077,16 +1077,16 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 		slog.Info("SMS OTP (no provider) — use for dev", "phone", phone, "otp", otpCode)
 	}
 
-	existing, _ := s.smsPhoneRepo.FindByUserID(userID)
+	existing, _ := s.mfaPhoneRepo.FindByUserID(userID)
 	if existing != nil {
 		existing.Phone = phone
 		existing.IsVerified = false
 		existing.VerifiedAt = nil
-		if _, err := s.smsPhoneRepo.CreateOrUpdate(existing); err != nil {
+		if _, err := s.mfaPhoneRepo.CreateOrUpdate(existing); err != nil {
 			return apperror.NewInternal("failed to save MFA phone", err)
 		}
 	} else {
-		if _, err := s.smsPhoneRepo.CreateOrUpdate(&UserSMSPhone{UserID: userID, Phone: phone}); err != nil {
+		if _, err := s.mfaPhoneRepo.CreateOrUpdate(&UserMFAPhone{UserID: userID, Phone: phone}); err != nil {
 			return apperror.NewInternal("failed to save MFA phone", err)
 		}
 	}
@@ -1099,7 +1099,7 @@ func (s *mfaService) VerifySMS(ctx context.Context, userID int64, phone, code st
 	_, span := otel.Tracer("service").Start(ctx, "mfa.verify_sms")
 	defer span.End()
 
-	record, err := s.smsPhoneRepo.FindByUserID(userID)
+	record, err := s.mfaPhoneRepo.FindByUserID(userID)
 	if err != nil {
 		return apperror.NewInternal("failed to look up MFA phone", err)
 	}
@@ -1123,7 +1123,7 @@ func (s *mfaService) VerifySMS(ctx context.Context, userID int64, phone, code st
 	now := time.Now()
 	record.IsVerified = true
 	record.VerifiedAt = &now
-	if _, err := s.smsPhoneRepo.CreateOrUpdate(record); err != nil {
+	if _, err := s.mfaPhoneRepo.CreateOrUpdate(record); err != nil {
 		return apperror.NewInternal("failed to verify MFA phone", err)
 	}
 
@@ -1134,7 +1134,7 @@ func (s *mfaService) VerifySMS(ctx context.Context, userID int64, phone, code st
 }
 
 func (s *mfaService) DisableSMS(ctx context.Context, userID int64) error {
-	if err := s.smsPhoneRepo.DeleteByUserID(userID); err != nil {
+	if err := s.mfaPhoneRepo.DeleteByUserID(userID); err != nil {
 		return apperror.NewInternal("failed to disable SMS MFA", err)
 	}
 	return s.SyncMFAState(ctx, userID)
@@ -1449,13 +1449,13 @@ func (s *mfaService) verifyFactor(ctx context.Context, userID int64, method, cod
 		if err := checkMFARateLimit(backupRateLimitKey); err != nil {
 			return nil, apperror.NewUnauthorized("too many attempts; try again later")
 		}
-		bCodes, lerr := s.backupCodeRepo.FindUnusedByUserID(userID)
+		bCodes, lerr := s.mfaBackupCodeRepo.FindUnusedByUserID(userID)
 		if lerr != nil {
 			return nil, apperror.NewInternal("backup code lookup failed", lerr)
 		}
 		for _, bc := range bCodes {
 			if bcrypt.CompareHashAndPassword([]byte(bc.CodeHash), []byte(code)) == nil {
-				if err := s.backupCodeRepo.MarkUsed(bc.BackupCodeID); err != nil {
+				if err := s.mfaBackupCodeRepo.MarkUsed(bc.BackupCodeID); err != nil {
 					return nil, apperror.NewInternal("failed to mark backup code used", err)
 				}
 				return []string{"pwd", "mfa"}, nil
@@ -1472,7 +1472,7 @@ func (s *mfaService) verifyFactor(ctx context.Context, userID int64, method, cod
 		// SMS MFA uses the dedicated user_mfa_phones record, NOT users.phone
 		// (which is profile-only). The OTP was sent to and stored against this
 		// MFA phone, so verification must look it up the same way.
-		phone, perr := s.smsPhoneRepo.FindByUserID(userID)
+		phone, perr := s.mfaPhoneRepo.FindByUserID(userID)
 		if perr != nil || phone == nil || !phone.IsVerified || phone.Phone == "" {
 			return nil, apperror.NewUnauthorized("no verified phone on file")
 		}
@@ -1676,7 +1676,7 @@ func mfaUserTenantID(ctx context.Context, db *gorm.DB, userID int64) int64 {
 }
 
 func (s *mfaService) isSMSEnabled(ctx context.Context, userID int64) bool {
-	phone, err := s.smsPhoneRepo.FindByUserID(userID)
+	phone, err := s.mfaPhoneRepo.FindByUserID(userID)
 	if err != nil || phone == nil {
 		return false
 	}
@@ -1798,7 +1798,7 @@ func (s *mfaService) SyncMFAState(ctx context.Context, userID int64) error {
 	if user.IsTOTPEnabled || user.IsWebAuthnEnabled || s.isSMSEnabled(ctx, userID) || s.isEmailOTPEnabled(ctx, userID) {
 		return nil
 	}
-	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+	if err := s.mfaBackupCodeRepo.DeleteAllByUserID(userID); err != nil {
 		return apperror.NewInternal("failed to delete backup codes", err)
 	}
 	if err := s.db.Model(&User{}).Where("user_id = ?", userID).

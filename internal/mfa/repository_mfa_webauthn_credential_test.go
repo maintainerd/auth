@@ -10,19 +10,19 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestUserWebAuthnCredentialRepository(t *testing.T) {
+func TestUserMFAWebAuthnCredentialRepository(t *testing.T) {
 	t.Run("constructor and WithTx", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
-		repo := NewUserWebAuthnCredentialRepository(db)
+		repo := NewUserMFAWebAuthnCredentialRepository(db)
 		require.NotNil(t, repo)
-		assert.NotNil(t, repo.(*userWebAuthnCredentialRepository).WithTx(db))
+		assert.NotNil(t, repo.(*userMFAWebAuthnCredentialRepository).WithTx(db))
 	})
 
 	t.Run("FindByUserID returns rows", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		expectMFASelect(mock, "user_mfa_webauthn_credentials").WillReturnRows(userWebAuthnCredentialRows())
 
-		got, err := NewUserWebAuthnCredentialRepository(db).FindByUserID(mfaTestUserID)
+		got, err := NewUserMFAWebAuthnCredentialRepository(db).FindByUserID(mfaTestUserID)
 
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
@@ -34,7 +34,7 @@ func TestUserWebAuthnCredentialRepository(t *testing.T) {
 		expectMFASelect(mock, "user_mfa_webauthn_credentials").WillReturnRows(userWebAuthnCredentialRows())
 		expectMFASelect(mock, "user_mfa_webauthn_credentials").WillReturnError(gorm.ErrRecordNotFound)
 		expectMFASelect(mock, "user_mfa_webauthn_credentials").WillReturnError(errors.New("db error"))
-		repo := NewUserWebAuthnCredentialRepository(db)
+		repo := NewUserMFAWebAuthnCredentialRepository(db)
 
 		got, err := repo.FindByCredentialKeyID("cred-key")
 		require.NoError(t, err)
@@ -63,9 +63,9 @@ func TestUserWebAuthnCredentialRepository(t *testing.T) {
 			expectMFADelete(mock, "user_mfa_webauthn_credentials").WillReturnResult(sqlmock.NewResult(0, 1))
 			mock.ExpectCommit()
 		}
-		repo := NewUserWebAuthnCredentialRepository(db)
+		repo := NewUserMFAWebAuthnCredentialRepository(db)
 
-		require.NoError(t, repo.CreateCredential(&UserWebAuthnCredential{UserID: mfaTestUserID, CredentialKeyID: "cred-key", PublicKey: []byte("public")}))
+		require.NoError(t, repo.CreateCredential(&UserMFAWebAuthnCredential{UserID: mfaTestUserID, CredentialKeyID: "cred-key", PublicKey: []byte("public")}))
 		require.NoError(t, repo.UpdateSignCount(1, 2))
 		require.NoError(t, repo.UpdateLastUsed(1))
 		require.NoError(t, repo.DeleteCredentialByID(1, mfaTestUserID))

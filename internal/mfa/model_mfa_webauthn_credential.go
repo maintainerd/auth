@@ -7,9 +7,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserWebAuthnCredential stores a registered WebAuthn / FIDO2 credential.
+// UserMFAWebAuthnCredential stores a registered WebAuthn / FIDO2 credential.
 // A user may have multiple credentials (e.g. phone passkey + hardware key).
-type UserWebAuthnCredential struct {
+type UserMFAWebAuthnCredential struct {
 	CredentialID     int64      `gorm:"column:credential_id;primaryKey"`
 	CredentialUUID   uuid.UUID  `gorm:"column:credential_uuid"`
 	UserID           int64      `gorm:"column:user_id;not null"`
@@ -26,9 +26,9 @@ type UserWebAuthnCredential struct {
 	UpdatedAt        time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 }
 
-func (UserWebAuthnCredential) TableName() string { return "user_mfa_webauthn_credentials" }
+func (UserMFAWebAuthnCredential) TableName() string { return "user_mfa_webauthn_credentials" }
 
-func (c *UserWebAuthnCredential) BeforeCreate(tx *gorm.DB) error {
+func (c *UserMFAWebAuthnCredential) BeforeCreate(tx *gorm.DB) error {
 	if c.CredentialUUID == uuid.Nil {
 		c.CredentialUUID = uuid.New()
 	}
