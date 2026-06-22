@@ -22,15 +22,7 @@ import (
 
 type mockMagicLinkService struct {
 	sendMagicLinkFn      func(email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error)
-	sendForTenantFn      func(email, tenantID string, isInternal bool) (*SendMagicLinkResponseDTO, error)
 	loginWithMagicLinkFn func(token, clientID, providerID string) (*LoginResponseDTO, error)
-}
-
-func (m *mockMagicLinkService) SendMagicLinkForTenant(_ context.Context, email, tenantID string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
-	if m.sendForTenantFn != nil {
-		return m.sendForTenantFn(email, tenantID, isInternal)
-	}
-	return nil, nil
 }
 
 func (m *mockMagicLinkService) SendMagicLink(_ context.Context, email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
@@ -53,10 +45,6 @@ func (m *mockMagicLinkService) LoginWithMagicLink(_ context.Context, token strin
 		return m.loginWithMagicLinkFn(token, cid, pid)
 	}
 	return nil, nil
-}
-
-func (m *mockMagicLinkService) AdminSendMagicLink(_ context.Context, _ string, _ bool) (*SendMagicLinkResponseDTO, error) {
-	return &SendMagicLinkResponseDTO{Message: "Magic link sent"}, nil
 }
 
 func (m *mockMagicLinkService) SetLoginCoordinator(MagicLinkLoginCoordinator) {}
@@ -160,84 +148,6 @@ func TestMagicLinkHandler_SendMagicLinkPublic(t *testing.T) {
 	})
 }
 
-func TestMagicLinkHandler_SendMagicLink(t *testing.T) {
-	t.Run("invalid JSON returns 400", func(t *testing.T) {
-		r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/magic-link/send",
-			bytes.NewBufferString(`{bad json}`)))
-		r.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		NewMagicLinkHandler(&mockMagicLinkService{}).SendMagicLink(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("rejects missing tenant context", func(t *testing.T) {
-		svc := &mockMagicLinkService{
-			sendMagicLinkFn: func(email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
-				assert.True(t, isInternal)
-				return &SendMagicLinkResponseDTO{Success: true}, nil
-			},
-		}
-		r := withSecurityCtx(magicLinkJSONReq(t, http.MethodPost, "/magic-link/send",
-			map[string]string{"email": "user@example.com"}))
-		w := httptest.NewRecorder()
-		NewMagicLinkHandler(svc).SendMagicLink(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("rejects client context on internal surface", func(t *testing.T) {
-		svc := &mockMagicLinkService{
-			sendMagicLinkFn: func(email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
-				assert.NotNil(t, clientID)
-				assert.NotNil(t, providerID)
-				return &SendMagicLinkResponseDTO{Success: true}, nil
-			},
-		}
-		r := withSecurityCtx(magicLinkJSONReq(t, http.MethodPost, "/magic-link/send?client_id=app&provider_id=idp",
-			map[string]string{"email": "user@example.com"}))
-		w := httptest.NewRecorder()
-		NewMagicLinkHandler(svc).SendMagicLink(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("success with tenant_id", func(t *testing.T) {
-		svc := &mockMagicLinkService{
-			sendForTenantFn: func(email, tenantID string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
-				assert.Equal(t, "user@example.com", email)
-				assert.Equal(t, "acme", tenantID)
-				assert.True(t, isInternal)
-				return &SendMagicLinkResponseDTO{Success: true}, nil
-			},
-		}
-		r := withSecurityCtx(magicLinkJSONReq(t, http.MethodPost, "/magic-link/send?tenant_id=acme",
-			map[string]string{"email": "user@example.com"}))
-		w := httptest.NewRecorder()
-		NewMagicLinkHandler(svc).SendMagicLink(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-
-	t.Run("MFA challenge returns without session cookies", func(t *testing.T) {
-		challenge := "challenge-token"
-		svc := &mockMagicLinkService{
-			loginWithMagicLinkFn: func(token, clientID, tenantID string) (*LoginResponseDTO, error) {
-				return &LoginResponseDTO{
-					MFARequired:       true,
-					MFAChallengeToken: &challenge,
-					MFAAllowedMethods: []string{"totp"},
-				}, nil
-			},
-		}
-		q := magicLinkSignedQuery(t, map[string]string{"token": "abc123", "client_id": "app"})
-		r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/magic-link/verify?"+q, nil))
-		w := httptest.NewRecorder()
-
-		NewMagicLinkHandler(svc).VerifyMagicLink(w, r)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Empty(t, w.Header().Values("Set-Cookie"))
-		assert.Contains(t, w.Body.String(), "mfa_required")
-	})
-}
-
 func magicLinkSignedQuery(t *testing.T, params map[string]string) string {
 	t.Helper()
 	signed, err := signedurl.GenerateSignedURL("http://x", params, 10*time.Minute)
@@ -261,6 +171,28 @@ func TestMagicLinkHandler_VerifyMagicLink(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewMagicLinkHandler(&mockMagicLinkService{}).VerifyMagicLink(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("MFA challenge returns without session cookies", func(t *testing.T) {
+		challenge := "challenge-token"
+		svc := &mockMagicLinkService{
+			loginWithMagicLinkFn: func(token, clientID, tenantID string) (*LoginResponseDTO, error) {
+				return &LoginResponseDTO{
+					MFARequired:       true,
+					MFAChallengeToken: &challenge,
+					MFAAllowedMethods: []string{"totp"},
+				}, nil
+			},
+		}
+		q := magicLinkSignedQuery(t, map[string]string{"token": "abc123", "client_id": "app"})
+		r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/magic-link/verify?"+q, nil))
+		w := httptest.NewRecorder()
+
+		NewMagicLinkHandler(svc).VerifyMagicLink(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Empty(t, w.Header().Values("Set-Cookie"))
+		assert.Contains(t, w.Body.String(), "mfa_required")
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
