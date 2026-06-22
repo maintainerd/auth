@@ -45,29 +45,13 @@ func (h *MagicLinkHandler) SendMagicLinkPublic(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	h.handleSendMagicLink(w, r, &clientID, nil, nil, false, startTime, sc)
-}
-
-// SendMagicLink handles internal magic-link requests; tenant_id selects the
-// tenant's designated system client.
-// Mounted on the management surface (port 8080); uses the auth-facing frontend hostname.
-func (h *MagicLinkHandler) SendMagicLink(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-	sc := extractSecurityContext(r)
-
-	tenantID := r.URL.Query().Get("tenant_id")
-	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
-		resp.Error(w, http.StatusBadRequest, "Internal magic-link login requires tenant_id and does not accept client_id")
-		return
-	}
-	h.handleSendMagicLink(w, r, nil, nil, &tenantID, true, startTime, sc)
+	h.handleSendMagicLink(w, r, &clientID, startTime, sc)
 }
 
 func (h *MagicLinkHandler) handleSendMagicLink(
 	w http.ResponseWriter,
 	r *http.Request,
-	clientID, providerID, tenantID *string,
-	isInternal bool,
+	clientID *string,
 	startTime time.Time,
 	sc securityContext,
 ) {
@@ -124,13 +108,7 @@ func (h *MagicLinkHandler) handleSendMagicLink(
 		return
 	}
 
-	var response *SendMagicLinkResponseDTO
-	var err error
-	if tenantID != nil {
-		response, err = h.magicLinkService.SendMagicLinkForTenant(r.Context(), req.Email, *tenantID, isInternal)
-	} else {
-		response, err = h.magicLinkService.SendMagicLink(r.Context(), req.Email, clientID, providerID, isInternal)
-	}
+	response, err := h.magicLinkService.SendMagicLink(r.Context(), req.Email, clientID, nil, false)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to send sign-in link", err)
 		return
@@ -236,30 +214,4 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 	resp.SuccessWithCookies(w, r, response, "Signed in")
 }
 
-func (h *MagicLinkHandler) AdminSendMagicLink(w http.ResponseWriter, r *http.Request) {
-	h.handleAdminSendMagicLink(w, r, true)
-}
 
-func (h *MagicLinkHandler) AdminSendMagicLinkPublic(w http.ResponseWriter, r *http.Request) {
-	h.handleAdminSendMagicLink(w, r, false)
-}
-
-func (h *MagicLinkHandler) handleAdminSendMagicLink(w http.ResponseWriter, r *http.Request, isInternal bool) {
-	var req AdminSendMagicLinkRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.BadRequestBody(w)
-		return
-	}
-	if req.UserUUID == "" {
-		resp.Error(w, http.StatusBadRequest, "user_uuid is required")
-		return
-	}
-
-	response, err := h.magicLinkService.AdminSendMagicLink(r.Context(), req.UserUUID, isInternal)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to send magic link", err)
-		return
-	}
-
-	resp.Success(w, response, "Magic link sent")
-}
