@@ -58,7 +58,7 @@ func TestExtractSecurityContext_NonStringValue(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.LoginPublic(w, r)
 	// Service returns nil (mock), handler returns 500 rather than panicking
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ func TestLoginHandler_LoginPublic_BodyValidationError(t *testing.T) {
 	// Valid JSON that fails LoginRequestDTO.Validate() (empty username → Required fails)
 	// covers lines 113-128.
 	h := NewLoginHandler(&mockLoginService{})
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1",
 		map[string]string{"username": "", "password": "pass1"}))
 	w := httptest.NewRecorder()
 	h.LoginPublic(w, r)
@@ -85,12 +85,12 @@ func TestLoginHandler_LoginPublic_MissingClientID(t *testing.T) {
 	}))
 	w := httptest.NewRecorder()
 	h.LoginPublic(w, r)
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestLoginHandler_LoginPublic_EmptyUserAgent(t *testing.T) {
 	h := NewLoginHandler(&mockLoginService{})
-	r := httptest.NewRequest(http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+	r := httptest.NewRequest(http.MethodPost, "/public/login?client_id=c1",
 		bytes.NewBufferString(`{"username":"u","password":"p"}`))
 	r.Header.Set("Content-Type", "application/json")
 	// no User-Agent — ValidateUserAgent returns false
@@ -105,7 +105,7 @@ func TestLoginHandler_LoginPublic_EmptyUserAgent(t *testing.T) {
 
 func TestLoginHandler_LoginPublic_InvalidBody(t *testing.T) {
 	h := NewLoginHandler(&mockLoginService{})
-	r := httptest.NewRequest(http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+	r := httptest.NewRequest(http.MethodPost, "/public/login?client_id=c1",
 		bytes.NewBufferString(`not-json`))
 	r.Header.Set("Content-Type", "application/json")
 	r = withSecurityCtx(r)
@@ -121,7 +121,7 @@ func TestLoginHandler_LoginPublic_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1",
 		map[string]string{"username": "user1", "password": "pass1"}))
 	w := httptest.NewRecorder()
 	h.LoginPublic(w, r)
@@ -135,7 +135,7 @@ func TestLoginHandler_LoginPublic_Success(t *testing.T) {
 		},
 	}
 	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1",
 		map[string]string{"username": "user1", "password": "pass1"}))
 	w := httptest.NewRecorder()
 	h.LoginPublic(w, r)
@@ -149,7 +149,7 @@ func TestLoginHandler_LoginPublic_MFARequired(t *testing.T) {
 		},
 	}
 	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1",
 		map[string]string{"username": "user1", "password": "pass1"}))
 	w := httptest.NewRecorder()
 
@@ -166,7 +166,7 @@ func TestLoginHandler_LoginPublic_PasswordChangeRequired(t *testing.T) {
 		},
 	}
 	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1",
 		map[string]string{"username": "user1", "password": "pass1"}))
 	w := httptest.NewRecorder()
 
@@ -236,7 +236,7 @@ func TestExtractAccessToken_WithCookie(t *testing.T) {
 // Login (internal)
 // ---------------------------------------------------------------------------
 
-func TestLoginHandler_Login_WithOptionalParams(t *testing.T) {
+func TestLoginHandler_Login_RejectsClientContext(t *testing.T) {
 	// Passes client_id and provider_id query params → covers the two optional
 	// pointer branches (lines 203-205 and 206-208).
 	svc := &mockLoginService{
@@ -245,17 +245,17 @@ func TestLoginHandler_Login_WithOptionalParams(t *testing.T) {
 		},
 	}
 	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?client_id=c1&provider_id=p1",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?client_id=c1",
 		map[string]string{"username": "user1", "password": "pass1"}))
 	w := httptest.NewRecorder()
 	h.Login(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestLoginHandler_Login_BodyValidationError(t *testing.T) {
 	// Valid JSON that fails LoginRequestDTO.Validate() → covers lines 218-233.
 	h := NewLoginHandler(&mockLoginService{})
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?tenant_id=system",
 		map[string]string{"username": "", "password": "pass1"}))
 	w := httptest.NewRecorder()
 	h.Login(w, r)
@@ -264,7 +264,7 @@ func TestLoginHandler_Login_BodyValidationError(t *testing.T) {
 
 func TestLoginHandler_Login_InvalidBody(t *testing.T) {
 	h := NewLoginHandler(&mockLoginService{})
-	r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/login",
+	r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/login?tenant_id=system",
 		bytes.NewBufferString(`{bad json}`)))
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -279,7 +279,7 @@ func TestLoginHandler_Login_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?tenant_id=system",
 		map[string]string{"username": "user1", "password": "pass1"}))
 	w := httptest.NewRecorder()
 	h.Login(w, r)
@@ -293,7 +293,7 @@ func TestLoginHandler_Login_Success(t *testing.T) {
 		},
 	}
 	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?tenant_id=system",
 		map[string]string{"username": "user1", "password": "pass1"}))
 	w := httptest.NewRecorder()
 	h.Login(w, r)
@@ -307,7 +307,7 @@ func TestLoginHandler_Login_MFARequired(t *testing.T) {
 		},
 	}
 	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login",
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?tenant_id=system",
 		map[string]string{"username": "user1", "password": "pass1"}))
 	w := httptest.NewRecorder()
 

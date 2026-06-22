@@ -142,6 +142,22 @@ func TestMagicLinkHandler_SendMagicLinkPublic(t *testing.T) {
 		NewMagicLinkHandler(svc).SendMagicLinkPublic(w, r)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+
+	t.Run("unknown email returns 404", func(t *testing.T) {
+		svc := &mockMagicLinkService{
+			sendMagicLinkFn: func(email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
+				return nil, apperror.NewNotFound("no account found with that email address")
+			},
+		}
+		r := withSecurityCtx(magicLinkJSONReq(t, http.MethodPost, "/magic-link/send?client_id=app&provider_id=idp",
+			map[string]string{"email": "missing@example.com"}))
+		w := httptest.NewRecorder()
+
+		NewMagicLinkHandler(svc).SendMagicLinkPublic(w, r)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		assert.Contains(t, w.Body.String(), "no account found with that email address")
+	})
 }
 
 func TestMagicLinkHandler_SendMagicLink(t *testing.T) {
@@ -154,7 +170,7 @@ func TestMagicLinkHandler_SendMagicLink(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("success without params", func(t *testing.T) {
+	t.Run("rejects missing tenant context", func(t *testing.T) {
 		svc := &mockMagicLinkService{
 			sendMagicLinkFn: func(email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
 				assert.True(t, isInternal)
@@ -165,10 +181,10 @@ func TestMagicLinkHandler_SendMagicLink(t *testing.T) {
 			map[string]string{"email": "user@example.com"}))
 		w := httptest.NewRecorder()
 		NewMagicLinkHandler(svc).SendMagicLink(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("success with params", func(t *testing.T) {
+	t.Run("rejects client context on internal surface", func(t *testing.T) {
 		svc := &mockMagicLinkService{
 			sendMagicLinkFn: func(email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
 				assert.NotNil(t, clientID)
@@ -180,7 +196,7 @@ func TestMagicLinkHandler_SendMagicLink(t *testing.T) {
 			map[string]string{"email": "user@example.com"}))
 		w := httptest.NewRecorder()
 		NewMagicLinkHandler(svc).SendMagicLink(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("success with tenant_id", func(t *testing.T) {

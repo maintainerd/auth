@@ -1,10 +1,7 @@
 package authn
 
 import (
-	"net/url"
-
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/platform/signedurl"
 )
 
 func (dto ResetPasswordRequestDTO) Validate() error {
@@ -14,37 +11,4 @@ func (dto ResetPasswordRequestDTO) Validate() error {
 	)
 }
 
-// Validate validates the reset password query parameters
-func (q ResetPasswordQueryDTO) Validate() error {
-	return validation.ValidateStruct(&q,
-		validation.Field(&q.Token,
-			validation.Required.Error("Token is required"),
-			validation.Length(1, 500).Error("Token must not exceed 500 characters"),
-		),
-		validation.Field(&q.ClientID,
-			validation.Required.Error("Client ID is required"),
-			validation.Length(1, 100).Error("Client ID must not exceed 100 characters"),
-		),
-		validation.Field(&q.ProviderID,
-			validation.Required.Error("Provider ID is required"),
-			validation.Length(1, 100).Error("Provider ID must not exceed 100 characters"),
-		),
-		validation.Field(&q.Expires,
-			validation.Required.Error("Expires is required"),
-			validation.Length(1, 50).Error("Expires must not exceed 50 characters"),
-		),
-		validation.Field(&q.Sig,
-			validation.Required.Error("Signature is required"),
-			validation.Length(1, 500).Error("Signature must not exceed 500 characters"),
-		),
-	)
-}
 
-// ValidateSignedURL validates signed URL parameters for reset password
-func (q *ResetPasswordQueryDTO) ValidateSignedURL(values url.Values) error {
-	// Extract and validate signed URL parameters
-	if _, err := signedurl.ValidateSignedURL(values); err != nil {
-		return err
-	}
-	return nil
-}

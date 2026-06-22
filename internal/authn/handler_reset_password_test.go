@@ -117,7 +117,7 @@ func TestResetPasswordHandler_ResetPassword_MissingSignature(t *testing.T) {
 }
 
 func TestResetPasswordHandler_ResetPassword_InvalidBody(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{"token": "tok123"})
+	q := validSignedQuery(t, map[string]string{"token": "tok123", "tenant_id": "system"})
 	h := NewResetPasswordHandler(&mockResetPasswordService{})
 	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q,
 		bytes.NewBufferString(`bad`))
@@ -129,7 +129,7 @@ func TestResetPasswordHandler_ResetPassword_InvalidBody(t *testing.T) {
 }
 
 func TestResetPasswordHandler_ResetPassword_ServiceError(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{"token": "tok123"})
+	q := validSignedQuery(t, map[string]string{"token": "tok123", "tenant_id": "system"})
 	svc := &mockResetPasswordService{
 		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
 			return nil, errValidation
@@ -148,7 +148,7 @@ func TestResetPasswordHandler_ResetPassword_ServiceError(t *testing.T) {
 }
 
 func TestResetPasswordHandler_ResetPassword_Success(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{"token": "tok123"})
+	q := validSignedQuery(t, map[string]string{"token": "tok123", "tenant_id": "system"})
 	svc := &mockResetPasswordService{
 		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
 			return &ResetPasswordResponseDTO{}, nil
@@ -218,7 +218,7 @@ func TestResetPasswordHandler_ResetPassword_MissingToken(t *testing.T) {
 
 // WithClientAndProvider: signed URL includes client_id + provider_id → covers
 // lines 222-224 and 225-227 (pointer-assign branches) → 200.
-func TestResetPasswordHandler_ResetPassword_WithClientAndProvider(t *testing.T) {
+func TestResetPasswordHandler_ResetPassword_RejectsClientContext(t *testing.T) {
 	q := validSignedQuery(t, map[string]string{
 		"token": "tok-with-cp", "client_id": "c1", "provider_id": "p1",
 	})
@@ -234,12 +234,12 @@ func TestResetPasswordHandler_ResetPassword_WithClientAndProvider(t *testing.T) 
 	r = withSecurityCtx(r)
 	w := httptest.NewRecorder()
 	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 // ValidationError: valid signed URL + empty body → covers lines 265-280 → 400.
 func TestResetPasswordHandler_ResetPassword_ValidationError(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{"token": "tok123"})
+	q := validSignedQuery(t, map[string]string{"token": "tok123", "tenant_id": "system"})
 	body, _ := json.Marshal(map[string]string{}) // missing new_password
 	h := NewResetPasswordHandler(&mockResetPasswordService{})
 	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q, bytes.NewReader(body))
@@ -256,7 +256,7 @@ func TestResetPasswordHandler_ResetPassword_RateLimit(t *testing.T) {
 	cleanup := lockedRateLimiter(t, token)
 	defer cleanup()
 
-	q := validSignedQuery(t, map[string]string{"token": token})
+	q := validSignedQuery(t, map[string]string{"token": token, "tenant_id": "system"})
 	body, _ := json.Marshal(map[string]string{"new_password": "NewPass@1234"})
 	h := NewResetPasswordHandler(&mockResetPasswordService{})
 	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q, bytes.NewReader(body))

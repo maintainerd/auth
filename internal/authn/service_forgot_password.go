@@ -49,7 +49,7 @@ func NewForgotPasswordService(
 	}
 }
 
-func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*ForgotPasswordResponseDTO, error) {
+func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, email string, clientID, tenantID *string, isInternal bool) (*ForgotPasswordResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "forgotPassword.sendResetEmail")
 	defer span.End()
 
@@ -62,11 +62,16 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
 
-		// Get auth client (default or specified)
 		var txErr error
-		if clientID != nil && providerID != nil {
-			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
-		} else {
+		switch {
+		case clientID != nil && tenantID != nil && !isInternal:
+			// Compatibility for already-issued legacy links.
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *tenantID)
+		case clientID != nil:
+			Client, txErr = txClientRepo.FindByIdentifier(*clientID)
+		case tenantID != nil:
+			Client, txErr = txClientRepo.FindSystemByTenantIdentifier(*tenantID)
+		default:
 			Client, txErr = txClientRepo.FindSystem()
 		}
 		if txErr != nil {
@@ -172,16 +177,22 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 	if err != nil || templateEntity == nil {
 		templateEntity, err = s.emailTemplateRepo.FindByName("user:password:reset")
 	}
-	if err != nil {		return apperror.NewInternal("failed to fetch password reset email template", err)
+	if err != nil {
+		return apperror.NewInternal("failed to fetch password reset email template", err)
 	}
 
 	// Create signed URL for password reset
 	baseURL := fmt.Sprintf("%s/api/v1/reset-password", config.AppPublicHostname)
-	signedAPIURL, err := signedurl.GenerateSignedURL(baseURL, map[string]string{
-		"token":       resetToken,
-		"client_id":   *Client.Identifier,
-		"provider_id": Client.IdentityProvider.Identifier,
-	}, 1*time.Hour)
+	params := map[string]string{"token": resetToken}
+	if isInternal {
+		if Client.IdentityProvider == nil || Client.IdentityProvider.Tenant == nil {
+			return apperror.NewInternal("failed to resolve tenant for reset link", nil)
+		}
+		params["tenant_id"] = Client.IdentityProvider.Tenant.Identifier
+	} else {
+		params["client_id"] = *Client.Identifier
+	}
+	signedAPIURL, err := signedurl.GenerateSignedURL(baseURL, params, 1*time.Hour)
 	if err != nil {
 		return apperror.NewInternal("failed to create signed URL", err)
 	}

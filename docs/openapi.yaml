@@ -942,6 +942,26 @@ paths:
   # ============================================================
   # Auth (public — no bearer token required)
   # ============================================================
+  /client:
+    get:
+      tags: [Auth]
+      summary: Resolve public client context
+      operationId: getPublicClient
+      security: []
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema: { type: string }
+          description: Globally unique public client identifier. The tenant is derived server-side.
+      responses:
+        '200':
+          description: Public client metadata including the derived tenant identifier
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /auth/login:
     post:
       tags: [Auth]
@@ -955,12 +975,6 @@ paths:
           schema:
             type: string
           description: OAuth client identifier
-        - name: provider_id
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Identity provider identifier
       requestBody:
         required: true
         content:
@@ -989,11 +1003,6 @@ paths:
       security: []
       parameters:
         - name: client_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: provider_id
           in: query
           required: true
           schema:
@@ -1130,6 +1139,8 @@ paths:
           $ref: '#/components/responses/Success'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '404':
+          description: No account exists for the submitted email address in the resolved tenant
         '500':
           $ref: '#/components/responses/InternalError'
 

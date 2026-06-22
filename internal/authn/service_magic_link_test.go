@@ -140,10 +140,10 @@ func TestSendMagicLink(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("user not found returns generic success", func(t *testing.T) {
+	t.Run("user not found returns an explicit error", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
-		mock.ExpectCommit()
+		mock.ExpectRollback()
 
 		clientRepo := &mockClientRepo{
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
@@ -165,10 +165,9 @@ func TestSendMagicLink(t *testing.T) {
 		svc := NewMagicLinkService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockEmailTemplateRepo{})
 		resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
 
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-		assert.True(t, resp.Success)
-		assert.NotEmpty(t, resp.Message)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "no account found with that email address")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -1479,7 +1478,7 @@ func TestSendMagicLink_FindByEmailError(t *testing.T) {
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
-	mock.ExpectCommit()
+	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
@@ -1503,8 +1502,7 @@ func TestSendMagicLink_FindByEmailError(t *testing.T) {
 	svc := NewMagicLinkService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockEmailTemplateRepo{})
 	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
 
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.True(t, resp.Success)
+	require.Error(t, err)
+	require.Nil(t, resp)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

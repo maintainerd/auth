@@ -126,6 +126,34 @@ type ClientService interface {
 	RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
 }
 
+type ClientPublicServiceDataResult struct {
+	ClientID         string
+	Name             string
+	DisplayName      string
+	ClientType       string
+	Domain           *string
+	TenantIdentifier string
+}
+
+func (s *clientService) GetPublicByIdentifier(ctx context.Context, identifier string) (*ClientPublicServiceDataResult, error) {
+	client, err := s.clientRepo.FindByIdentifier(strings.TrimSpace(identifier))
+	if err != nil {
+		return nil, err
+	}
+	if client == nil || client.Status != shared.StatusActive || client.Identifier == nil ||
+		client.IdentityProvider == nil || client.IdentityProvider.Tenant == nil {
+		return nil, apperror.NewNotFound("auth client not found")
+	}
+	return &ClientPublicServiceDataResult{
+		ClientID:         *client.Identifier,
+		Name:             client.Name,
+		DisplayName:      client.DisplayName,
+		ClientType:       client.ClientType,
+		Domain:           client.Domain,
+		TenantIdentifier: client.IdentityProvider.Tenant.Identifier,
+	}, nil
+}
+
 var (
 	generateClientIdentifier = crypto.GenerateIdentifier
 	hashClientSecret         = security.HashClientSecret

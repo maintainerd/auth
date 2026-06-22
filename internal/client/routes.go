@@ -6,6 +6,10 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 )
 
+func ClientPublicRoute(r chi.Router, handler *ClientHandler) {
+	r.Get("/client", handler.GetPublic)
+}
+
 func APIKeyRoute(
 	r chi.Router,
 	apiKeyHandler *APIKeyHandler,

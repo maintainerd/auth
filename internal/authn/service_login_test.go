@@ -697,6 +697,7 @@ func buildActiveIdentityProvider() *IdentityProvider {
 		ProviderType:       shared.IDPTypeIdentity,
 		Identifier:         "test-provider",
 		Status:             shared.StatusActive,
+		Tenant:             &Tenant{Identifier: "system"},
 	}
 }
 

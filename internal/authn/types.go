@@ -179,16 +179,14 @@ type ResetPasswordQueryDTO struct {
 }
 
 // SMSLoginSendDTO is the request to send a one-time SMS code.
+// client_id/tenant_id are passed as query parameters, not in the body.
 type SMSLoginSendDTO struct {
-	Phone      string `json:"phone"`
-	ClientID   string `json:"client_id"`
-	ProviderID string `json:"provider_id"`
+	Phone string `json:"phone"`
 }
 
 // SMSLoginVerifyDTO is the request to verify an SMS OTP and obtain tokens.
+// client_id/tenant_id are passed as query parameters, not in the body.
 type SMSLoginVerifyDTO struct {
-	Phone      string `json:"phone"`
-	OTP        string `json:"otp"`
-	ClientID   string `json:"client_id"`
-	ProviderID string `json:"provider_id"`
+	Phone string `json:"phone"`
+	OTP   string `json:"otp"`
 }

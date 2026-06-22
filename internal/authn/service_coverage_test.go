@@ -224,7 +224,7 @@ func TestSMSLoginService_RemainingBranches(t *testing.T) {
 		}}
 		svc := NewSMSLoginService(nil, userRepo, otpRepo, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, nil)
 
-		err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: "+1234567890"})
+		err := svc.SendOTP(context.Background(), "+1234567890", nil, nil)
 
 		require.NoError(t, err)
 	})
@@ -246,7 +246,7 @@ func TestSMSLoginService_RemainingBranches(t *testing.T) {
 		}}
 		svc := NewSMSLoginService(nil, userRepo, otpRepo, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, nil)
 
-		err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: "+1234567890"})
+		err := svc.SendOTP(context.Background(), "+1234567890", nil, nil)
 
 		require.NoError(t, err)
 	})
@@ -256,6 +256,7 @@ func TestSMSLoginService_RemainingBranches(t *testing.T) {
 		generateSMSOTP = func(int) (string, error) { return "", errors.New("otp error") }
 		t.Cleanup(func() { generateSMSOTP = orig })
 
+		coverageClientID := "test-client"
 		userRepo := &mockUserRepo{findByPhoneFn: func(string) (*User, error) {
 			return &User{UserID: 1, Phone: "+1234567890", Status: shared.StatusActive}, nil
 		}}
@@ -264,7 +265,7 @@ func TestSMSLoginService_RemainingBranches(t *testing.T) {
 		}}
 		svc := NewSMSLoginService(nil, userRepo, &mockSMSOtpRepo{}, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, nil)
 
-		err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: "+1234567890"})
+		err := svc.SendOTP(context.Background(), "+1234567890", &coverageClientID, nil)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "OTP")
@@ -290,7 +291,7 @@ func TestSMSLoginService_RemainingBranches(t *testing.T) {
 		}}
 		svc := NewSMSLoginService(db, userRepo, otpRepo, clientRepo, &mockUserIdentityRepo{}, idpRepo, nil)
 
-		resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: "+1234567890", OTP: "123456", ClientID: clientID, ProviderID: "provider"})
+		resp, err := svc.VerifyOTP(context.Background(), "+1234567890", "123456", &clientID, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, resp)

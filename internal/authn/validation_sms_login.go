@@ -9,8 +9,6 @@ func (r *SMSLoginSendDTO) Validate() error {
 	r.Phone = security.SanitizeInput(r.Phone)
 	return validation.ValidateStruct(r,
 		validation.Field(&r.Phone, validation.Required, validation.Length(1, 20)),
-		validation.Field(&r.ClientID, validation.Required),
-		validation.Field(&r.ProviderID, validation.Required),
 	)
 }
 
@@ -19,7 +17,5 @@ func (r *SMSLoginVerifyDTO) Validate() error {
 	return validation.ValidateStruct(r,
 		validation.Field(&r.Phone, validation.Required, validation.Length(1, 20)),
 		validation.Field(&r.OTP, validation.Required, validation.Length(6, 6)),
-		validation.Field(&r.ClientID, validation.Required),
-		validation.Field(&r.ProviderID, validation.Required),
 	)
 }
