@@ -49,7 +49,6 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 	r.Get("/openapi.json", ServeOpenAPISpec)
 
 	r.Route("/api/v1", func(api chi.Router) {
-		client.ClientPublicRoute(api, h.client)
 		// Setup Routes (no authentication required)
 		setup.SetupRoute(api, h.setup)
 
@@ -160,6 +159,10 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		// Only exposes GET /tenant/ and GET /tenant/{identifier} — management endpoints
 		// are intentionally absent from the public surface.
 		tenant.TenantPublicRoute(api, h.tenant)
+
+		// Public Client Lookup (no auth required - identity app uses this to
+		// resolve client_id → tenant for branding and auth context)
+		client.ClientPublicRoute(api, h.client)
 
 		// Rate-limited credential endpoints
 		api.Group(func(rl chi.Router) {
