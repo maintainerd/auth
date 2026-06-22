@@ -19,15 +19,14 @@ func NewEmailVerificationHandler(emailVerificationService EmailVerificationServi
 	}
 }
 
-// SendVerificationEmailPublic handles public resend requests; requires client_id and provider_id.
+// SendVerificationEmailPublic handles client-scoped public resend requests.
 func (h *EmailVerificationHandler) SendVerificationEmailPublic(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	clientID := r.URL.Query().Get("client_id")
-	providerID := r.URL.Query().Get("provider_id")
-	if clientID == "" || providerID == "" {
+	if clientID == "" || r.URL.Query().Get("tenant_id") != "" {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "email_verification_missing_params",
 			ClientIP:  clientIPStr,
@@ -39,27 +38,24 @@ func (h *EmailVerificationHandler) SendVerificationEmailPublic(w http.ResponseWr
 			Details:   "Missing required client_id or provider_id parameters",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Missing required parameters: client_id and provider_id")
+		resp.Error(w, http.StatusBadRequest, "Public email verification requires client_id and does not accept tenant_id")
 		return
 	}
 
-	h.handleSendVerification(w, r, &clientID, &providerID, startTime, sc)
+	h.handleSendVerification(w, r, &clientID, nil, startTime, sc)
 }
 
-// SendVerificationEmail handles internal resend requests; client_id/provider_id are optional.
+// SendVerificationEmail handles tenant-scoped internal resend requests.
 func (h *EmailVerificationHandler) SendVerificationEmail(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	sc := extractSecurityContext(r)
 
-	var clientIDPtr, providerIDPtr *string
-	if v := r.URL.Query().Get("client_id"); v != "" {
-		clientIDPtr = &v
+	tenantID := r.URL.Query().Get("tenant_id")
+	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "Internal email verification requires tenant_id and does not accept client_id")
+		return
 	}
-	if v := r.URL.Query().Get("provider_id"); v != "" {
-		providerIDPtr = &v
-	}
-
-	h.handleSendVerification(w, r, clientIDPtr, providerIDPtr, startTime, sc)
+	h.handleSendVerification(w, r, nil, &tenantID, startTime, sc)
 }
 
 func (h *EmailVerificationHandler) handleSendVerification(

@@ -39,7 +39,7 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_MissingParams(t *testing.T) 
 
 func TestForgotPasswordHandler_ForgotPasswordPublic_InvalidBody(t *testing.T) {
 	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := httptest.NewRequest(http.MethodPost, "/public/forgot-password?client_id=c1&provider_id=p1",
+	r := httptest.NewRequest(http.MethodPost, "/public/forgot-password?client_id=c1",
 		bytes.NewBufferString(`bad`))
 	r.Header.Set("Content-Type", "application/json")
 	r = withSecurityCtx(r)
@@ -50,7 +50,7 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_InvalidBody(t *testing.T) {
 
 func TestForgotPasswordHandler_ForgotPasswordPublic_ValidationError(t *testing.T) {
 	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := fpRequest(t, "/public/forgot-password?client_id=c1&provider_id=p1",
+	r := fpRequest(t, "/public/forgot-password?client_id=c1",
 		map[string]string{"email": "not-an-email"})
 	w := httptest.NewRecorder()
 	h.ForgotPasswordPublic(w, r)
@@ -64,7 +64,7 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewForgotPasswordHandler(svc)
-	r := fpRequest(t, "/public/forgot-password?client_id=c1&provider_id=p1",
+	r := fpRequest(t, "/public/forgot-password?client_id=c1",
 		map[string]string{"email": "user@example.com"})
 	w := httptest.NewRecorder()
 	h.ForgotPasswordPublic(w, r)
@@ -78,7 +78,7 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_Success(t *testing.T) {
 		},
 	}
 	h := NewForgotPasswordHandler(svc)
-	r := fpRequest(t, "/public/forgot-password?client_id=c1&provider_id=p1",
+	r := fpRequest(t, "/public/forgot-password?client_id=c1",
 		map[string]string{"email": "user@example.com"})
 	w := httptest.NewRecorder()
 	h.ForgotPasswordPublic(w, r)
@@ -91,7 +91,7 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_Success(t *testing.T) {
 
 func TestForgotPasswordHandler_ForgotPassword_InvalidBody(t *testing.T) {
 	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := httptest.NewRequest(http.MethodPost, "/forgot-password",
+	r := httptest.NewRequest(http.MethodPost, "/forgot-password?tenant_id=system",
 		bytes.NewBufferString(`bad`))
 	r.Header.Set("Content-Type", "application/json")
 	r = withSecurityCtx(r)
@@ -102,7 +102,7 @@ func TestForgotPasswordHandler_ForgotPassword_InvalidBody(t *testing.T) {
 
 func TestForgotPasswordHandler_ForgotPassword_ValidationError(t *testing.T) {
 	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := fpRequest(t, "/forgot-password", map[string]string{"email": "bad"})
+	r := fpRequest(t, "/forgot-password?tenant_id=system", map[string]string{"email": "bad"})
 	w := httptest.NewRecorder()
 	h.ForgotPassword(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -115,7 +115,7 @@ func TestForgotPasswordHandler_ForgotPassword_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewForgotPasswordHandler(svc)
-	r := fpRequest(t, "/forgot-password", map[string]string{"email": "user@example.com"})
+	r := fpRequest(t, "/forgot-password?tenant_id=system", map[string]string{"email": "user@example.com"})
 	w := httptest.NewRecorder()
 	h.ForgotPassword(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -128,7 +128,7 @@ func TestForgotPasswordHandler_ForgotPassword_Success(t *testing.T) {
 		},
 	}
 	h := NewForgotPasswordHandler(svc)
-	r := fpRequest(t, "/forgot-password", map[string]string{"email": "user@example.com"})
+	r := fpRequest(t, "/forgot-password?tenant_id=system", map[string]string{"email": "user@example.com"})
 	w := httptest.NewRecorder()
 	h.ForgotPassword(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -161,7 +161,7 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_RateLimited(t *testing.T) {
 	defer cleanup()
 
 	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := fpRequest(t, "/public/forgot-password?client_id=c1&provider_id=p1",
+	r := fpRequest(t, "/public/forgot-password?client_id=c1",
 		map[string]string{"email": email})
 	w := httptest.NewRecorder()
 	h.ForgotPasswordPublic(w, r)
@@ -174,13 +174,13 @@ func TestForgotPasswordHandler_ForgotPassword_RateLimited(t *testing.T) {
 	defer cleanup()
 
 	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := fpRequest(t, "/forgot-password", map[string]string{"email": email})
+	r := fpRequest(t, "/forgot-password?tenant_id=system", map[string]string{"email": email})
 	w := httptest.NewRecorder()
 	h.ForgotPassword(w, r)
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
 }
 
-func TestForgotPasswordHandler_ForgotPassword_WithOptionalParams(t *testing.T) {
+func TestForgotPasswordHandler_ForgotPassword_RejectsClientContext(t *testing.T) {
 	// Covers the client_id != "" and provider_id != "" optional query-param branches (lines 145-150).
 	svc := &mockForgotPasswordService{
 		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
@@ -188,8 +188,8 @@ func TestForgotPasswordHandler_ForgotPassword_WithOptionalParams(t *testing.T) {
 		},
 	}
 	h := NewForgotPasswordHandler(svc)
-	r := fpRequest(t, "/forgot-password?client_id=c1&provider_id=p1", map[string]string{"email": "user@example.com"})
+	r := fpRequest(t, "/forgot-password?client_id=c1", map[string]string{"email": "user@example.com"})
 	w := httptest.NewRecorder()
 	h.ForgotPassword(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

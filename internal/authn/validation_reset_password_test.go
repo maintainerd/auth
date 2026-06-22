@@ -1,15 +1,10 @@
 package authn
 
 import (
-	"net/url"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/platform/signedurl"
 )
 
 func TestResetPasswordRequestDto_Validate(t *testing.T) {
@@ -42,99 +37,4 @@ func TestResetPasswordRequestDto_Validate(t *testing.T) {
 	}
 }
 
-func TestResetPasswordQueryDto_Validate(t *testing.T) {
-	valid := ResetPasswordQueryDTO{
-		Token:      "reset-token-abc",
-		ClientID:   "client-1",
-		ProviderID: "provider-1",
-		Expires:    "1700000000",
-		Sig:        "sig-abc123",
-	}
 
-	t.Run("valid", func(t *testing.T) {
-		assert.NoError(t, valid.Validate())
-	})
-
-	t.Run("missing token", func(t *testing.T) {
-		d := valid
-		d.Token = ""
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("missing client_id", func(t *testing.T) {
-		d := valid
-		d.ClientID = ""
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("missing provider_id", func(t *testing.T) {
-		d := valid
-		d.ProviderID = ""
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("missing expires", func(t *testing.T) {
-		d := valid
-		d.Expires = ""
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("missing sig", func(t *testing.T) {
-		d := valid
-		d.Sig = ""
-		require.Error(t, d.Validate())
-	})
-}
-
-func TestResetPasswordQueryDto_ValidateSignedURL(t *testing.T) {
-	q := &ResetPasswordQueryDTO{}
-
-	t.Run("empty values returns error", func(t *testing.T) {
-		err := q.ValidateSignedURL(url.Values{})
-		require.Error(t, err)
-	})
-
-	t.Run("valid signed url returns nil", func(t *testing.T) {
-		t.Setenv("HMAC_SECRET_KEY", "test-secret-key")
-		raw, _ := signedurl.GenerateSignedURL("https://example.com", map[string]string{"token": "reset-tok"}, time.Minute)
-		parsed, _ := url.Parse(raw)
-		err := q.ValidateSignedURL(parsed.Query())
-		assert.NoError(t, err)
-	})
-}
-
-func TestResetPasswordQueryDto_Validate_MaxLengths(t *testing.T) {
-	valid := ResetPasswordQueryDTO{
-		Token: "tok", ClientID: "c1", ProviderID: "p1", Expires: "1", Sig: "sig",
-	}
-
-	t.Run("token too long", func(t *testing.T) {
-		d := valid
-		d.Token = strings.Repeat("x", 501)
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("client_id too long", func(t *testing.T) {
-		d := valid
-		d.ClientID = strings.Repeat("x", 101)
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("provider_id too long", func(t *testing.T) {
-		d := valid
-		d.ProviderID = strings.Repeat("x", 101)
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("expires too long", func(t *testing.T) {
-		d := valid
-		d.Expires = strings.Repeat("x", 51)
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("sig too long", func(t *testing.T) {
-		d := valid
-		d.Sig = strings.Repeat("x", 501)
-		require.Error(t, d.Validate())
-	})
-}

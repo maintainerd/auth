@@ -114,12 +114,15 @@ func (s *magicLinkService) sendMagicLink(ctx context.Context, emailAddr string, 
 			return apperror.NewInternal("auth client not found", nil)
 		}
 
-		// Find user by email, scoped to the client's tenant. Don't reveal whether
-		// the address is registered.
+		// Find the user by email within the resolved tenant. This interactive
+		// passwordless flow intentionally reports an unknown address so the login
+		// page can tell the requester that no account exists.
 		user, txErr = txUserRepo.FindByEmailAndTenantID(emailAddr, clientTenantID(Client))
-		if txErr != nil || user == nil {
-			user = nil
-			return nil
+		if txErr != nil {
+			return apperror.NewInternal("failed to find user", txErr)
+		}
+		if user == nil {
+			return apperror.NewNotFound("no account found with that email address")
 		}
 
 		// Skip if user is inactive — don't reveal status.
@@ -397,10 +400,16 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 
 	// Build a signed API URL that the frontend forwards to the verify endpoint.
 	baseURL := fmt.Sprintf("%s/api/v1/magic-link/verify", config.AppPublicHostname)
-	signedAPIURL, err := signedurl.GenerateSignedURL(baseURL, map[string]string{
-		"token":     token,
-		"client_id": *Client.Identifier,
-	}, MagicLinkTokenTTL)
+	params := map[string]string{"token": token}
+	if isInternal {
+		if Client.IdentityProvider == nil || Client.IdentityProvider.Tenant == nil {
+			return apperror.NewInternal("failed to resolve tenant for magic link", nil)
+		}
+		params["tenant_id"] = Client.IdentityProvider.Tenant.Identifier
+	} else {
+		params["client_id"] = *Client.Identifier
+	}
+	signedAPIURL, err := signedurl.GenerateSignedURL(baseURL, params, MagicLinkTokenTTL)
 	if err != nil {
 		return apperror.NewInternal("failed to create signed URL", err)
 	}

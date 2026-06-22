@@ -97,6 +97,10 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 			if authClient, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID); txErr != nil {
 				return apperror.NewInternal("failed to find auth client", txErr)
 			}
+		} else if clientID != nil {
+			authClient, txErr = txClientRepo.FindByIdentifier(*clientID)
+		} else if providerID != nil {
+			authClient, txErr = txClientRepo.FindSystemByTenantIdentifier(*providerID)
 		} else {
 			if authClient, txErr = txClientRepo.FindSystem(); txErr != nil {
 				return apperror.NewInternal("failed to find auth client", txErr)

@@ -31,8 +31,8 @@ var newSMSProvider = sms.NewProviderFromDB
 
 // SMSLoginService handles SMS one-time-code login flows.
 type SMSLoginService interface {
-	SendOTP(ctx context.Context, req SMSLoginSendDTO) error
-	VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) (*LoginResponseDTO, error)
+	SendOTP(ctx context.Context, phone string, clientID, tenantID *string) error
+	VerifyOTP(ctx context.Context, phone, otp string, clientID, tenantID *string) (*LoginResponseDTO, error)
 }
 
 type smsLoginService struct {
@@ -82,48 +82,44 @@ func NewSMSLoginService(
 
 // SendOTP looks up the user by phone, generates a 6-digit OTP, stores its hash,
 // and logs it (real SMS provider integration is a future TODO).
-func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) error {
+func (s *smsLoginService) SendOTP(ctx context.Context, phone string, clientID, tenantID *string) error {
 	_, span := otel.Tracer("service").Start(ctx, "smsLogin.sendOTP")
 	defer span.End()
 
-	if err := security.CheckRateLimit("sms-otp:send:" + req.Phone); err != nil {
+	if err := security.CheckRateLimit("sms-otp:send:" + phone); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "sms_otp_rate_limited",
-			UserID:    req.Phone,
+			UserID:    phone,
 			Timestamp: time.Now(),
 			Details:   err.Error(),
 		})
 		return err
 	}
 
-	// Resolve the client up front so the phone lookup is scoped to its tenant
-	// (users are tenant-isolated; the same phone may exist in other tenants).
-	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderID)
+	client, err := resolveClient(s.clientRepo, clientID, tenantID)
 	if err != nil {
 		return apperror.NewInternal("failed to find auth client", err)
 	}
 	if client == nil {
-		// Unknown client → respond generically to avoid enumeration.
 		span.SetStatus(codes.Ok, "")
 		return nil
 	}
-	tenantID := clientTenantID(client)
+	tenantIDVal := clientTenantID(client)
 
 	// Look up user by phone within the tenant — respond generically so we don't
 	// leak user existence.
-	user, err := s.userRepo.FindByPhoneAndTenantID(req.Phone, tenantID)
-	if err != nil {
-		return apperror.NewInternal("failed to look up user", err)
+	user, userErr := s.userRepo.FindByPhoneAndTenantID(phone, tenantIDVal)
+	if userErr != nil {
+		return apperror.NewInternal("failed to look up user", userErr)
 	}
 	if user == nil || user.Status != shared.StatusActive {
-		// Still return success to avoid phone enumeration.
 		span.SetStatus(codes.Ok, "")
 		return nil
 	}
 
 	// Threat check before sending SMS — block if velocity threshold is breached.
-	threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, tenantID)
-	threatDecision := security.AssessLoginThreat(ctx, tenantID, middleware.ClientIPFromContext(ctx), "", threatPolicy)
+	threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, tenantIDVal)
+	threatDecision := security.AssessLoginThreat(ctx, tenantIDVal, middleware.ClientIPFromContext(ctx), "", threatPolicy)
 	if threatDecision.Blocked {
 		span.SetStatus(codes.Ok, "")
 		return nil // fail silently to avoid enumeration
@@ -132,7 +128,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	if err := security.CheckAndRecordSMSDailyBudget(ctx, "global", smsDailySendLimit(s.db, 0)); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "sms_otp_budget_exceeded",
-			UserID:    req.Phone,
+			UserID:    phone,
 			Timestamp: time.Now(),
 			Details:   err.Error(),
 		})
@@ -150,7 +146,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	record := &notifier.UserOTP{
 		UserID:    user.UserID,
 		Channel:   "sms",
-		Recipient: req.Phone,
+		Recipient: phone,
 		OTPHash:   otpHash,
 		ExpiresAt: expiresAt,
 	}
@@ -158,17 +154,17 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 		return apperror.NewInternal("failed to store SMS OTP", err)
 	}
 
-	provider, smsErr := newSMSProvider(ctx, s.db, tenantID)
+	provider, smsErr := newSMSProvider(ctx, s.db, tenantIDVal)
 	if smsErr != nil {
-		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", req.Phone, "otp", otp)
+		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phone, "otp", otp)
 	} else if provider != nil {
 		data := struct{ OTP string }{OTP: otp}
-		msg, tplErr := sms.RenderTemplate(s.db, "sms:login:otp", tenantID, data)
+		msg, tplErr := sms.RenderTemplate(s.db, "sms:login:otp", tenantIDVal, data)
 		if tplErr != nil {
 			slog.Warn("SMS template render failed, using fallback", "err", tplErr)
 			msg = fmt.Sprintf("Your verification code is: %s", otp)
 		}
-		if sendErr := provider.Send(ctx, req.Phone, msg); sendErr != nil {
+		if sendErr := provider.Send(ctx, phone, msg); sendErr != nil {
 			slog.Error("SMS send failed", "err", sendErr)
 		}
 	}
@@ -178,14 +174,14 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 }
 
 // VerifyOTP validates the submitted OTP and issues tokens on success.
-func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) (*LoginResponseDTO, error) {
+func (s *smsLoginService) VerifyOTP(ctx context.Context, phone, otp string, clientID, tenantID *string) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "smsLogin.verifyOTP")
 	defer span.End()
 
-	if err := security.CheckRateLimit("sms-otp:verify:" + req.Phone); err != nil {
+	if err := security.CheckRateLimit("sms-otp:verify:" + phone); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "sms_otp_verify_rate_limited",
-			UserID:    req.Phone,
+			UserID:    phone,
 			Timestamp: time.Now(),
 			Details:   err.Error(),
 		})
@@ -199,17 +195,11 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
-		txIdpRepo := s.identityProviderRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txSmsOtpRepo := s.smsOtpRepo.WithTx(tx)
 
-		// Validate identity provider and client.
-		idp, txErr := txIdpRepo.FindByIdentifier(req.ProviderID)
-		if txErr != nil || idp == nil {
-			return apperror.NewUnauthorized("authentication failed")
-		}
-
-		client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderID)
+		var txErr error
+		client, txErr = resolveClient(txClientRepo, clientID, tenantID)
 		if txErr != nil || client == nil ||
 			client.Status != shared.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
@@ -217,7 +207,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 		}
 
 		// Find user by phone, scoped to the resolved tenant.
-		user, txErr = txUserRepo.FindByPhoneAndTenantID(req.Phone, idp.TenantID)
+		user, txErr = txUserRepo.FindByPhoneAndTenantID(phone, clientTenantID(client))
 		if txErr != nil {
 			return apperror.NewInternal("failed to look up user", txErr)
 		}
@@ -226,7 +216,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 		}
 
 		// Find a valid (unused, not expired) OTP for this phone.
-		otpRecord, txErr := txSmsOtpRepo.FindValid("sms", req.Phone)
+		otpRecord, txErr := txSmsOtpRepo.FindValid("sms", phone)
 		if txErr != nil {
 			return apperror.NewInternal("failed to look up OTP", txErr)
 		}
@@ -235,7 +225,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 		}
 
 		// Verify hash.
-		expectedHash := crypto.HashAuthorizationCode(req.OTP)
+		expectedHash := crypto.HashAuthorizationCode(otp)
 		if subtle.ConstantTimeCompare([]byte(otpRecord.OTPHash), []byte(expectedHash)) != 1 {
 			if txErr := txSmsOtpRepo.RecordFailure(otpRecord.UserOTPID, smsOTPMaxFailedAttempts); txErr != nil {
 				return apperror.NewInternal("failed to record OTP attempt", txErr)
@@ -266,7 +256,8 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 
 	span.SetStatus(codes.Ok, "")
 	// Record threat success for SMS login — marks device/last-login for future assessments.
-	security.RecordLoginThreatSuccess(ctx, client.IdentityProvider.TenantID, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), secpolicy.LoadThreatPolicy(s.securitySettingRepo, client.IdentityProvider.TenantID))
+	tenantIDVal := clientTenantID(client)
+	security.RecordLoginThreatSuccess(ctx, tenantIDVal, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), secpolicy.LoadThreatPolicy(s.securitySettingRepo, tenantIDVal))
 	return s.generateSMSTokenResponse(ctx, userIdentitySub, user, client)
 }
 

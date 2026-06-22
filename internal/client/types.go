@@ -174,6 +174,15 @@ type ClientResponseDTO struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type ClientPublicResponseDTO struct {
+	ClientID         string  `json:"client_id"`
+	Name             string  `json:"name"`
+	DisplayName      string  `json:"display_name"`
+	ClientType       string  `json:"client_type"`
+	Domain           *string `json:"domain,omitempty"`
+	TenantIdentifier string  `json:"tenant_id"`
+}
+
 // Create auth client request DTO
 type ClientCreateRequestDTO struct {
 	Name                 string         `json:"name"`

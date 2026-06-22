@@ -26,16 +26,12 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// Parse optional query parameters (client_id and tenant_id)
-	var clientIDPtr, tenantIDPtr *string
-	var clientIDStr string
-	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
-		clientIDPtr = &clientID
-		clientIDStr = clientID
+	clientIDStr := r.URL.Query().Get("client_id")
+	if clientIDStr == "" || r.URL.Query().Get("tenant_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "Public registration requires client_id and does not accept tenant_id")
+		return
 	}
-	if tenantID := r.URL.Query().Get("tenant_id"); tenantID != "" {
-		tenantIDPtr = &tenantID
-	}
+	clientIDPtr := &clientIDStr
 
 	// Validate User-Agent for suspicious patterns
 	if !security.ValidateUserAgent(userAgentStr) {
@@ -106,7 +102,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	// Public registration attempt (client_id/tenant_id optional)
 	ctx := contextWithRegistrationCaptchaToken(r.Context(), req.CaptchaToken)
 	tokenResponse, err := h.registerService.RegisterPublic(
-		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, tenantIDPtr,
+		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, nil,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -154,14 +150,12 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// Parse optional query parameters (client_id and tenant_id)
-	var clientIDPtr, tenantIDPtr *string
-	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
-		clientIDPtr = &clientID
+	tenantID := r.URL.Query().Get("tenant_id")
+	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "Internal registration requires tenant_id and does not accept client_id")
+		return
 	}
-	if tenantID := r.URL.Query().Get("tenant_id"); tenantID != "" {
-		tenantIDPtr = &tenantID
-	}
+	tenantIDPtr := &tenantID
 
 	// Validate body payload
 	var req RegisterRequestDTO
@@ -204,7 +198,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Internal registration attempt (client_id/tenant_id optional)
 	ctx := contextWithRegistrationCaptchaToken(r.Context(), req.CaptchaToken)
 	tokenResponse, err := h.registerService.Register(
-		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, tenantIDPtr,
+		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, nil, tenantIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -251,6 +245,10 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 		Sig:         r.URL.Query().Get("sig"),
 		AuthFlow:    r.URL.Query().Get("auth_flow"),
 	}
+	if q.ClientID == "" || q.TenantID != "" {
+		resp.Error(w, http.StatusBadRequest, "Public invite registration requires client_id and does not accept tenant_id")
+		return
+	}
 
 	if err := q.Validate(); err != nil {
 		resp.ValidationError(w, err)
@@ -269,13 +267,13 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Public register with invite (requires client_id or tenant_id)
+	// Public register with invite (client_id only; tenant_id rejected by guard above)
 	tokenResponse, err := h.registerService.RegisterInvitePublic(
 		r.Context(),
 		req.Username,
 		req.Password,
 		q.ClientID,
-		q.TenantID,
+		"",
 		q.InviteToken,
 	)
 	if err != nil {
@@ -288,14 +286,12 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 }
 
 func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request) {
-	// Parse optional query parameters (client_id and tenant_id) and required invite params
-	var clientIDPtr, tenantIDPtr *string
-	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
-		clientIDPtr = &clientID
+	tenantID := r.URL.Query().Get("tenant_id")
+	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "Internal invite registration requires tenant_id and does not accept client_id")
+		return
 	}
-	if tenantID := r.URL.Query().Get("tenant_id"); tenantID != "" {
-		tenantIDPtr = &tenantID
-	}
+	tenantIDPtr := &tenantID
 
 	// Validate query parameters (client_id/tenant_id optional for internal)
 	q := RegisterInviteQueryDTO{
@@ -329,7 +325,7 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 		r.Context(),
 		req.Username,
 		req.Password,
-		clientIDPtr,
+		nil,
 		tenantIDPtr,
 		q.InviteToken,
 	)

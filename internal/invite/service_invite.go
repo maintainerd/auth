@@ -77,6 +77,7 @@ func (s *inviteService) SendInvite(
 	var invite *Invite
 	var authFlowDestination string
 	var authFlowIdentifier string
+	var clientIdentifier string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		clientRepo := s.clientRepo.WithTx(tx)
@@ -94,6 +95,7 @@ func (s *inviteService) SendInvite(
 			Client.IdentityProvider.TenantID == 0 {
 			return apperror.NewValidation("invalid client or identity provider")
 		}
+		clientIdentifier = *Client.Identifier
 
 		// The identity provider's tenant is the system tenant the client lives under.
 		systemTenantID := Client.IdentityProvider.TenantID
@@ -181,6 +183,15 @@ func (s *inviteService) SendInvite(
 	if authFlowIdentifier != "" {
 		params["auth_flow"] = authFlowIdentifier
 	}
+	if authFlowDestination == shared.DestinationConsole {
+		var tenantIdentifier string
+		if err := s.db.Model(&TenantRecord{}).Select("identifier").Where("tenant_id = ?", invite.TenantID).Scan(&tenantIdentifier).Error; err != nil || tenantIdentifier == "" {
+			return nil, apperror.NewInternal("failed to resolve invite tenant", err)
+		}
+		params["tenant_id"] = tenantIdentifier
+	} else {
+		params["client_id"] = clientIdentifier
+	}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
 	if err != nil {
@@ -254,6 +265,19 @@ func (s *inviteService) ResendInvite(
 	}
 	if authFlowIdentifier != "" {
 		params["auth_flow"] = authFlowIdentifier
+	}
+	if frontendBaseURL == config.AppFrontendConsoleHostname+"/register/invite" {
+		var tenantIdentifier string
+		if err := s.db.Model(&TenantRecord{}).Select("identifier").Where("tenant_id = ?", existing.TenantID).Scan(&tenantIdentifier).Error; err != nil || tenantIdentifier == "" {
+			return nil, apperror.NewInternal("failed to resolve invite tenant", err)
+		}
+		params["tenant_id"] = tenantIdentifier
+	} else {
+		var clientIdentifier string
+		if err := s.db.Model(&Client{}).Select("identifier").Where("client_id = ?", existing.ClientID).Scan(&clientIdentifier).Error; err != nil || clientIdentifier == "" {
+			return nil, apperror.NewInternal("failed to resolve invite client", err)
+		}
+		params["client_id"] = clientIdentifier
 	}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())

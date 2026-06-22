@@ -20,7 +20,8 @@ func NewMagicLinkHandler(magicLinkService MagicLinkService) *MagicLinkHandler {
 	}
 }
 
-// SendMagicLinkPublic handles public magic-link requests; requires client_id and provider_id.
+// SendMagicLinkPublic handles public magic-link requests; client_id determines
+// both the client and tenant.
 // Mounted on the public surface (port 8081); uses the account-facing frontend hostname.
 func (h *MagicLinkHandler) SendMagicLinkPublic(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
@@ -28,8 +29,7 @@ func (h *MagicLinkHandler) SendMagicLinkPublic(w http.ResponseWriter, r *http.Re
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	clientID := r.URL.Query().Get("client_id")
-	providerID := r.URL.Query().Get("provider_id")
-	if clientID == "" || providerID == "" {
+	if clientID == "" || r.URL.Query().Get("tenant_id") != "" {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "magic_link_missing_params",
 			ClientIP:  clientIPStr,
@@ -38,35 +38,29 @@ func (h *MagicLinkHandler) SendMagicLinkPublic(w http.ResponseWriter, r *http.Re
 			Endpoint:  "/magic-link/send",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Missing required client_id or provider_id parameters",
+			Details:   "Missing client_id or unexpected tenant_id parameter",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Missing required parameters: client_id and provider_id")
+		resp.Error(w, http.StatusBadRequest, "Public magic-link login requires client_id and does not accept tenant_id")
 		return
 	}
 
-	h.handleSendMagicLink(w, r, &clientID, &providerID, nil, false, startTime, sc)
+	h.handleSendMagicLink(w, r, &clientID, nil, nil, false, startTime, sc)
 }
 
-// SendMagicLink handles internal magic-link requests; client_id/provider_id are optional.
+// SendMagicLink handles internal magic-link requests; tenant_id selects the
+// tenant's designated system client.
 // Mounted on the management surface (port 8080); uses the auth-facing frontend hostname.
 func (h *MagicLinkHandler) SendMagicLink(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	sc := extractSecurityContext(r)
 
-	var clientIDPtr, providerIDPtr *string
-	var tenantIDPtr *string
-	if v := r.URL.Query().Get("client_id"); v != "" {
-		clientIDPtr = &v
+	tenantID := r.URL.Query().Get("tenant_id")
+	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "Internal magic-link login requires tenant_id and does not accept client_id")
+		return
 	}
-	if v := r.URL.Query().Get("provider_id"); v != "" {
-		providerIDPtr = &v
-	}
-	if v := r.URL.Query().Get("tenant_id"); v != "" {
-		tenantIDPtr = &v
-	}
-
-	h.handleSendMagicLink(w, r, clientIDPtr, providerIDPtr, tenantIDPtr, true, startTime, sc)
+	h.handleSendMagicLink(w, r, nil, nil, &tenantID, true, startTime, sc)
 }
 
 func (h *MagicLinkHandler) handleSendMagicLink(
@@ -196,6 +190,10 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 	}
 	if t := signedParams["tenant_id"]; t != "" {
 		tenantID = &t
+	}
+	if (clientID == nil) == (tenantID == nil) {
+		resp.Error(w, http.StatusBadRequest, "Magic link must contain exactly one authentication context")
+		return
 	}
 
 	if err := security.CheckRateLimit(clientIPStr); err != nil {

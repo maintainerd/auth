@@ -89,7 +89,7 @@ func TestEmailVerificationHandler_SendVerificationEmail(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("success without params", func(t *testing.T) {
+	t.Run("rejects missing tenant context", func(t *testing.T) {
 		svc := &mockEmailVerificationService{
 			sendVerificationEmailFn: func(ctx context.Context, email string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error) {
 				return &SendEmailVerificationResponseDTO{Success: true}, nil
@@ -99,20 +99,19 @@ func TestEmailVerificationHandler_SendVerificationEmail(t *testing.T) {
 			map[string]string{"email": "user@example.com"}))
 		w := httptest.NewRecorder()
 		NewEmailVerificationHandler(svc).SendVerificationEmail(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("success with optional params", func(t *testing.T) {
+	t.Run("success with tenant context", func(t *testing.T) {
 		svc := &mockEmailVerificationService{
 			sendVerificationEmailFn: func(ctx context.Context, email string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error) {
-				require.NotNil(t, clientID)
+				require.Nil(t, clientID)
 				require.NotNil(t, providerID)
-				assert.Equal(t, "app", *clientID)
-				assert.Equal(t, "idp", *providerID)
+				assert.Equal(t, "acme", *providerID)
 				return &SendEmailVerificationResponseDTO{Success: true}, nil
 			},
 		}
-		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/send?client_id=app&provider_id=idp",
+		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/send?tenant_id=acme",
 			map[string]string{"email": "user@example.com"}))
 		w := httptest.NewRecorder()
 		NewEmailVerificationHandler(svc).SendVerificationEmail(w, r)

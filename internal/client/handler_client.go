@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -22,6 +23,30 @@ type ClientHandler struct {
 
 func NewClientHandler(ClientService ClientService) *ClientHandler {
 	return &ClientHandler{ClientService}
+}
+
+func (h *ClientHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
+	identifier := strings.TrimSpace(r.URL.Query().Get("client_id"))
+	if identifier == "" || r.URL.Query().Get("tenant_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "client_id is required and tenant_id is not accepted")
+		return
+	}
+	publicService, ok := h.ClientService.(interface {
+		GetPublicByIdentifier(context.Context, string) (*ClientPublicServiceDataResult, error)
+	})
+	if !ok {
+		resp.Error(w, http.StatusInternalServerError, "Public client discovery is unavailable")
+		return
+	}
+	client, err := publicService.GetPublicByIdentifier(r.Context(), identifier)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Auth client not found", err)
+		return
+	}
+	resp.Success(w, ClientPublicResponseDTO{
+		ClientID: client.ClientID, Name: client.Name, DisplayName: client.DisplayName,
+		ClientType: client.ClientType, Domain: client.Domain, TenantIdentifier: client.TenantIdentifier,
+	}, "Auth client fetched successfully")
 }
 
 // Get all auth clients with pagination

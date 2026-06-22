@@ -43,7 +43,8 @@ func TestAuthnRoutes_RegisterEndpoints(t *testing.T) {
 		}, "/register/invite"},
 		{"reset password internal", func(r chi.Router) { ResetPasswordRoute(r, NewResetPasswordHandler(&mockResetPasswordService{})) }, "/reset-password"},
 		{"reset password public", func(r chi.Router) { ResetPasswordPublicRoute(r, NewResetPasswordHandler(&mockResetPasswordService{})) }, "/reset-password"},
-		{"sms login", func(r chi.Router) { SMSLoginRoute(r, NewSMSLoginHandler(&mockSMSLoginService{})) }, "/sms-login/send"},
+		{"sms login internal", func(r chi.Router) { SMSLoginInternalRoute(r, NewSMSLoginHandler(&mockSMSLoginService{})) }, "/sms-login/send"},
+		{"sms login public", func(r chi.Router) { SMSLoginPublicRoute(r, NewSMSLoginHandler(&mockSMSLoginService{})) }, "/sms-login/send"},
 	}
 
 	for _, tt := range tests {

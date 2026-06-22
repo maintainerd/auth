@@ -49,6 +49,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 	r.Get("/openapi.json", ServeOpenAPISpec)
 
 	r.Route("/api/v1", func(api chi.Router) {
+		client.ClientPublicRoute(api, h.client)
 		// Setup Routes (no authentication required)
 		setup.SetupRoute(api, h.setup)
 
@@ -98,12 +99,11 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
 		idp.FederationPublicRoute(api, h.federation)
 		idp.FederationIdentityRoute(api, h.federation, userProvider, application.Cache, tenantRateLimit)
-		// SMS login (unauthenticated)
-		authn.SMSLoginRoute(api, h.smsLogin)
+		// SMS login (unauthenticated, tenant-scoped)
+		authn.SMSLoginInternalRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
 		user.RecoveryRoute(api, h.account)
 	})
-
 	return r
 }
 
@@ -191,8 +191,8 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 
 		// Federation HRD (public, no cookie auth)
 		idp.FederationPublicRoute(api, h.federation)
-		// SMS login (unauthenticated)
-		authn.SMSLoginRoute(api, h.smsLogin)
+		// SMS login (unauthenticated, client-scoped)
+		authn.SMSLoginPublicRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
 		user.RecoveryRoute(api, h.account)
 		// Public branding (colors + logo, non-sensitive, no auth)

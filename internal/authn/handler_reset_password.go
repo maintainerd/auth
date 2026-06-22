@@ -64,10 +64,9 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 
 	// Extract validated parameters from signed URL
 	clientID := signedParams["client_id"]
-	providerID := signedParams["provider_id"]
 	urlToken := signedParams["token"]
 
-	if clientID == "" || providerID == "" || urlToken == "" {
+	if clientID == "" || signedParams["tenant_id"] != "" || urlToken == "" {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_missing_signed_params",
 			ClientIP:  clientIPStr,
@@ -141,7 +140,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	}
 
 	// Process reset password request
-	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, &clientID, &providerID)
+	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, &clientID, nil)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_service_error",
@@ -218,16 +217,10 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Extract validated parameters from signed URL
-	var clientIDPtr, providerIDPtr *string
-	if clientID := signedParams["client_id"]; clientID != "" {
-		clientIDPtr = &clientID
-	}
-	if providerID := signedParams["provider_id"]; providerID != "" {
-		providerIDPtr = &providerID
-	}
+	tenantID := signedParams["tenant_id"]
 	token := signedParams["token"]
 
-	if token == "" {
+	if token == "" || tenantID == "" || signedParams["client_id"] != "" {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_missing_token",
 			ClientIP:  clientIPStr,
@@ -300,7 +293,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Process reset password request
-	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, clientIDPtr, providerIDPtr)
+	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, nil, &tenantID)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_service_error",

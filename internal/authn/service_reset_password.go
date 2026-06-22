@@ -15,7 +15,7 @@ import (
 )
 
 type ResetPasswordService interface {
-	ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*ResetPasswordResponseDTO, error)
+	ResetPassword(ctx context.Context, token, newPassword string, clientID, tenantID *string) (*ResetPasswordResponseDTO, error)
 }
 
 type resetPasswordService struct {
@@ -47,7 +47,7 @@ func NewResetPasswordService(
 
 var resetHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
-func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*ResetPasswordResponseDTO, error) {
+func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPassword string, clientID, tenantID *string) (*ResetPasswordResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "password.reset")
 	defer span.End()
 
@@ -62,9 +62,16 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		// Validate auth client first
 		var Client *Client
 		var txErr error
-		if clientID != nil && providerID != nil {
-			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
-		} else {
+		switch {
+		case clientID != nil && tenantID != nil:
+			// Compatibility for already-issued legacy links whose second value was
+			// the provider identifier.
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *tenantID)
+		case clientID != nil:
+			Client, txErr = txClientRepo.FindByIdentifier(*clientID)
+		case tenantID != nil:
+			Client, txErr = txClientRepo.FindSystemByTenantIdentifier(*tenantID)
+		default:
 			Client, txErr = txClientRepo.FindSystem()
 		}
 		if txErr != nil {

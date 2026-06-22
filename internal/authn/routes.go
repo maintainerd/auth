@@ -240,15 +240,30 @@ func ResetPasswordPublicRoute(r chi.Router, resetPasswordHandler *ResetPasswordH
 	})
 }
 
-// SMSLoginRoute mounts unauthenticated SMS one-time-code login endpoints.
-func SMSLoginRoute(
+// SMSLoginInternalRoute mounts unauthenticated SMS one-time-code login endpoints
+// for the internal surface (port 8080). Requires tenant_id in the request body.
+func SMSLoginInternalRoute(
 	r chi.Router,
 	smsLoginHandler *SMSLoginHandler,
 ) {
 	r.Route("/sms-login", func(r chi.Router) {
-		// Send OTP to phone number (unauthenticated)
-		r.Post("/send", smsLoginHandler.SendOTP)
-		// Verify OTP and obtain tokens (unauthenticated)
-		r.Post("/verify", smsLoginHandler.VerifyOTP)
+		// Send OTP to phone number (unauthenticated, tenant-scoped)
+		r.Post("/send", smsLoginHandler.SendOTPInternal)
+		// Verify OTP and obtain tokens (unauthenticated, tenant-scoped)
+		r.Post("/verify", smsLoginHandler.VerifyOTPInternal)
+	})
+}
+
+// SMSLoginPublicRoute mounts unauthenticated SMS one-time-code login endpoints
+// for the public surface (port 8081). Requires client_id in the request body.
+func SMSLoginPublicRoute(
+	r chi.Router,
+	smsLoginHandler *SMSLoginHandler,
+) {
+	r.Route("/sms-login", func(r chi.Router) {
+		// Send OTP to phone number (unauthenticated, client-scoped)
+		r.Post("/send", smsLoginHandler.SendOTPPublic)
+		// Verify OTP and obtain tokens (unauthenticated, client-scoped)
+		r.Post("/verify", smsLoginHandler.VerifyOTPPublic)
 	})
 }

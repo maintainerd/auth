@@ -56,7 +56,10 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	// Validate query parameters
 	q := LoginQueryDTO{
 		ClientID: r.URL.Query().Get("client_id"),
-		TenantID: r.URL.Query().Get("tenant_id"),
+	}
+	if q.ClientID == "" || r.URL.Query().Get("tenant_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "Public login requires client_id and does not accept tenant_id")
+		return
 	}
 
 	if err := q.Validate(); err != nil {
@@ -128,14 +131,11 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Public login attempt (client_id/tenant_id optional)
+	// Public login is client-scoped; the service derives the tenant.
 	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
 	var clIDPtr, tnIDPtr *string
 	if q.ClientID != "" {
 		clIDPtr = &q.ClientID
-	}
-	if q.TenantID != "" {
-		tnIDPtr = &q.TenantID
 	}
 	tokenResponse, err := h.loginService.LoginPublic(
 		ctx, req.Username, req.Password, clIDPtr, tnIDPtr,
@@ -202,6 +202,10 @@ func (h *LoginHandler) MFALoginVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientID, tenantID := optionalClientQuery(r)
+	if (clientID == nil) == (tenantID == nil) {
+		resp.Error(w, http.StatusBadRequest, "MFA verification requires exactly one authentication context")
+		return
+	}
 	ctx := contextWithRememberDevice(r.Context(), req.RememberDevice)
 	tokenResponse, err := h.loginService.CompleteMFALogin(
 		ctx, req.ChallengeToken, req.Method, req.Code, req.Assertion, clientID, tenantID,
@@ -393,14 +397,13 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// Parse optional query parameters (client_id and tenant_id)
-	var clientIDPtr, tenantIDPtr *string
-	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
-		clientIDPtr = &clientID
+	// Internal login is tenant-scoped and always uses that tenant's system client.
+	tenantID := strings.TrimSpace(r.URL.Query().Get("tenant_id"))
+	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "Internal login requires tenant_id and does not accept client_id")
+		return
 	}
-	if tenantID := r.URL.Query().Get("tenant_id"); tenantID != "" {
-		tenantIDPtr = &tenantID
-	}
+	tenantIDPtr := &tenantID
 
 	// Validate body payload
 	var req LoginRequestDTO
@@ -427,10 +430,10 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Internal login attempt (client_id/tenant_id optional)
+	// Internal login attempt (tenant system client only).
 	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
 	tokenResponse, err := h.loginService.Login(
-		ctx, req.Username, req.Password, clientIDPtr, tenantIDPtr,
+		ctx, req.Username, req.Password, nil, tenantIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{

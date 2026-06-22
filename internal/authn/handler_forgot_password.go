@@ -26,9 +26,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 
 	// Validate query parameters (required for public route)
 	clientID := r.URL.Query().Get("client_id")
-	providerID := r.URL.Query().Get("provider_id")
-
-	if clientID == "" || providerID == "" {
+	if clientID == "" || r.URL.Query().Get("tenant_id") != "" {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "forgot_password_missing_params",
 			ClientIP:  clientIPStr,
@@ -37,10 +35,10 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 			Endpoint:  "/forgot-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Missing required client_id or provider_id parameters",
+			Details:   "Missing client_id or unexpected tenant_id parameter",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Missing required parameters: client_id and provider_id")
+		resp.Error(w, http.StatusBadRequest, "Public password recovery requires client_id and does not accept tenant_id")
 		return
 	}
 
@@ -99,7 +97,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 	}
 
 	// Process forgot password request (external - use APP_FRONTEND_IDENTITY_HOSTNAME)
-	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, &clientID, &providerID, false)
+	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, &clientID, nil, false)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "forgot_password_service_error",
@@ -139,13 +137,10 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// Parse optional query parameters (client_id and provider_id)
-	var clientIDPtr, providerIDPtr *string
-	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
-		clientIDPtr = &clientID
-	}
-	if providerID := r.URL.Query().Get("provider_id"); providerID != "" {
-		providerIDPtr = &providerID
+	tenantID := r.URL.Query().Get("tenant_id")
+	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "Internal password recovery requires tenant_id and does not accept client_id")
+		return
 	}
 
 	// Parse request body
@@ -203,7 +198,7 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 	}
 
 	// Process forgot password request (internal - use APP_FRONTEND_CONSOLE_HOSTNAME)
-	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, clientIDPtr, providerIDPtr, true)
+	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, nil, &tenantID, true)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "forgot_password_service_error",
