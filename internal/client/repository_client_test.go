@@ -502,10 +502,10 @@ func TestClientRepository_FindPaginated(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "clients" WHERE.*tenant_id = \$1`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "clients" WHERE.*clients\.tenant_id = \$1`).
 			WithArgs(int64(1)).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT .* FROM "clients" WHERE.*tenant_id = \$1.*ORDER BY created_at DESC.*LIMIT \$\d+`).
+		mock.ExpectQuery(`SELECT .* FROM "clients" WHERE.*clients\.tenant_id = \$1.*ORDER BY clients\.created_at DESC.*LIMIT \$\d+`).
 			WithArgs(int64(1), 10).
 			WillReturnRows(sqlmock.NewRows([]string{"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "status", "created_at", "updated_at"}).
 				AddRow(1, id, 1, 1, "test-client", "active", now, now))
@@ -538,7 +538,7 @@ func TestClientRepository_FindPaginated(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "clients" WHERE.*tenant_id = \$1`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "clients" WHERE.*clients\.tenant_id = \$1`).
 			WithArgs(int64(1)).
 			WillReturnError(assert.AnError)
 		result, err := NewClientRepository(gdb).FindPaginated(ClientRepositoryGetFilter{
@@ -558,10 +558,10 @@ func TestClientRepository_FindPaginated(t *testing.T) {
 		isSys := false
 		idpID := int64(5)
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "clients" JOIN client_identity_providers.*WHERE.*tenant_id = \$1.*status IN \(\$2\).*is_default = \$3.*is_system = \$4.*client_type IN \(\$5\).*client_identity_providers\.identity_provider_id = \$6.*client_identity_providers\.deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "clients" JOIN client_identity_providers.*WHERE.*clients\.tenant_id = \$1.*clients\.status IN \(\$2\).*clients\.is_default = \$3.*clients\.is_system = \$4.*clients\.client_type IN \(\$5\).*client_identity_providers\.identity_provider_id = \$6.*client_identity_providers\.deleted_at IS NULL`).
 			WithArgs(int64(1), "active", true, false, "public", int64(5)).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN client_identity_providers.*WHERE.*tenant_id = \$1.*status IN \(\$2\).*is_default = \$3.*is_system = \$4.*client_type IN \(\$5\).*client_identity_providers\.identity_provider_id = \$6.*client_identity_providers\.deleted_at IS NULL.*ORDER BY created_at DESC.*LIMIT \$\d+`).
+		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN client_identity_providers.*WHERE.*clients\.tenant_id = \$1.*clients\.status IN \(\$2\).*clients\.is_default = \$3.*clients\.is_system = \$4.*clients\.client_type IN \(\$5\).*client_identity_providers\.identity_provider_id = \$6.*client_identity_providers\.deleted_at IS NULL.*ORDER BY clients\.created_at DESC.*LIMIT \$\d+`).
 			WithArgs(int64(1), "active", true, false, "public", int64(5), 10).
 			WillReturnRows(sqlmock.NewRows([]string{"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "status", "created_at", "updated_at"}).
 				AddRow(1, id, 1, 5, "test-client", "active", now, now))
