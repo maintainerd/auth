@@ -46,6 +46,10 @@ type testClientService struct {
 	getClientAPIPermissionsFn   func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
 	addClientAPIPermissionsFn   func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
 	removeClientAPIPermissionFn func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
+	getConnectionsFn            func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) ([]ClientIdentityProviderServiceDataResult, error)
+	addConnectionFn             func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, identityProviderUUID uuid.UUID, isDefault, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	updateConnectionFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	removeConnectionFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 }
 
 func (m *testClientService) Get(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error) {
@@ -83,6 +87,30 @@ func (m *testClientService) UpdateURI(ctx context.Context, clientUUID uuid.UUID,
 }
 func (m *testClientService) DeleteURI(ctx context.Context, clientUUID uuid.UUID, tenantID int64, uriUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
 	return m.deleteURIFn(ctx, clientUUID, tenantID, uriUUID, actorUserUUID)
+}
+func (m *testClientService) GetConnections(ctx context.Context, clientUUID uuid.UUID, tenantID int64) ([]ClientIdentityProviderServiceDataResult, error) {
+	if m.getConnectionsFn != nil {
+		return m.getConnectionsFn(ctx, clientUUID, tenantID)
+	}
+	return nil, nil
+}
+func (m *testClientService) AddConnection(ctx context.Context, clientUUID uuid.UUID, tenantID int64, identityProviderUUID uuid.UUID, isDefault, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	if m.addConnectionFn != nil {
+		return m.addConnectionFn(ctx, clientUUID, tenantID, identityProviderUUID, isDefault, enabled, displayOrder, actorUserUUID)
+	}
+	return nil, nil
+}
+func (m *testClientService) UpdateConnection(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	if m.updateConnectionFn != nil {
+		return m.updateConnectionFn(ctx, clientUUID, tenantID, connectionUUID, isDefault, enabled, displayOrder, actorUserUUID)
+	}
+	return nil, nil
+}
+func (m *testClientService) RemoveConnection(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	if m.removeConnectionFn != nil {
+		return m.removeConnectionFn(ctx, clientUUID, tenantID, connectionUUID, actorUserUUID)
+	}
+	return nil, nil
 }
 func (m *testClientService) GetClientAPIs(ctx context.Context, tenantID int64, clientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error) {
 	return m.getClientAPIsFn(ctx, tenantID, clientUUID)

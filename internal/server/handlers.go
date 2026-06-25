@@ -55,6 +55,7 @@ type handlers struct {
 	authEvent          *authevent.AuthEventHandler
 	authorization      *iam.AuthorizationHandler
 	oauthAuthorize     *oauth.OAuthAuthorizeHandler
+	oauthConnections   *oauth.OAuthConnectionsHandler
 	oauthToken         *oauth.OAuthTokenHandler
 	oauthTokenExchange *oauth.OAuthTokenExchangeHandler
 	oauthConsent       *oauth.OAuthConsentHandler
@@ -109,6 +110,7 @@ func initHandlers(application *Application) *handlers {
 		authEvent:          authevent.NewAuthEventHandler(application.AuthEventService),
 		authorization:      iam.NewAuthorizationHandler(application.AuthorizationService),
 		oauthAuthorize:     oauth.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
+		oauthConnections:   oauth.NewOAuthConnectionsHandler(application.OAuthConnectionsService),
 		oauthToken:         oauth.NewOAuthTokenHandler(application.OAuthTokenService, nil, nil),
 		oauthTokenExchange: oauth.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),
 		oauthConsent:       oauth.NewOAuthConsentHandler(application.OAuthConsentService),

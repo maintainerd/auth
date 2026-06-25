@@ -48,7 +48,7 @@ func (r *oauthRefreshTokenRepository) FindByTokenHash(tokenHash string) (*OAuthR
 	var token OAuthRefreshToken
 	err := r.DB().
 		Preload("Client").
-		Preload("Client.IdentityProvider").
+		Preload("Client.Tenant").
 		Where("token_hash = ?", tokenHash).
 		First(&token).Error
 	if err != nil {

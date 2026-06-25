@@ -163,7 +163,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	startTime := time.Now()
 
 	// Resolve client early for rate-limiting scope and threat detection.
-	resolvedClient, resolveErr := resolveClient(s.clientRepo, clientID, tenantID)
+	resolvedClient, resolveErr := resolvePublicClient(s.clientRepo, clientID, tenantID)
 	clientIDStr := ""
 	if clientID != nil {
 		clientIDStr = *clientID
@@ -171,9 +171,8 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 	var lockoutPolicy *security.RateLimitConfig
 	var tenantIDForRL int64
-	if resolveErr == nil && resolvedClient != nil &&
-		resolvedClient.IdentityProvider != nil {
-		tenantIDForRL = resolvedClient.IdentityProvider.TenantID
+	if resolveErr == nil && resolvedClient != nil {
+		tenantIDForRL = clientTenantID(resolvedClient)
 		lockoutPolicy = secpolicy.LoadLockoutPolicy(s.securitySettingRepo, tenantIDForRL)
 	}
 	rateLimitIdentifier := fmt.Sprintf("%d:%s", tenantIDForRL, usernameOrEmail)
@@ -218,7 +217,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 		var txErr error
-		client, txErr = resolveClient(txClientRepo, clientID, tenantID)
+		client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
 		if txErr != nil {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_client_lookup_failure",
@@ -233,7 +232,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		if client == nil ||
 			client.Status != shared.StatusActive ||
 			client.Domain == nil || *client.Domain == "" ||
-			client.IdentityProvider == nil {
+			clientTenantID(client) == 0 {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_invalid_client",
 				UserID:    usernameOrEmail,
@@ -245,7 +244,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		}
 
 		// Get user by username or tenant-scoped email
-		user, userLookupErr = findLoginUser(txUserRepo, usernameOrEmail, client.IdentityProvider.TenantID)
+		user, userLookupErr = findLoginUser(txUserRepo, usernameOrEmail, clientTenantID(client))
 
 		// Fetch user identity to get the Sub claim
 		if userLookupErr == nil && user != nil {
@@ -285,7 +284,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		})
 
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
-			TenantID:    client.IdentityProvider.TenantID,
+			TenantID:    clientTenantID(client),
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -298,7 +297,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 		return nil, apperror.NewUnauthorized("account is not active")
 	}
-	if err := s.enforceLoginEmailVerification(user, client.IdentityProvider.TenantID); err != nil {
+	if err := s.enforceLoginEmailVerification(user, clientTenantID(client)); err != nil {
 		return nil, err
 	}
 
@@ -306,7 +305,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
 
 	// Check for compromised credentials at login (post-auth HIBP).
-	s.checkCompromisedPassword(ctx, user, password, client.IdentityProvider.TenantID)
+	s.checkCompromisedPassword(ctx, user, password, clientTenantID(client))
 
 	// authevent.Log successful login
 	security.LogSecurityEvent(security.SecurityEvent{
@@ -318,7 +317,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	})
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
-		TenantID:    client.IdentityProvider.TenantID,
+		TenantID:    clientTenantID(client),
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -330,9 +329,9 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	})
 
 	// Check password expiry and set ForcePasswordChange if needed
-	s.checkPasswordExpiry(ctx, user, client.IdentityProvider.TenantID)
+	s.checkPasswordExpiry(ctx, user, clientTenantID(client))
 
-	if err := s.checkTemporaryPasswordExpiry(ctx, user, client.IdentityProvider.TenantID); err != nil {
+	if err := s.checkTemporaryPasswordExpiry(ctx, user, clientTenantID(client)); err != nil {
 		return nil, err
 	}
 
@@ -340,12 +339,12 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		return passwordChangeRequiredLoginResponse(), nil
 	}
 
-	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, client.IdentityProvider.TenantID, forceStepUp); mfaErr != nil || mfaResponse != nil {
+	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, clientTenantID(client), forceStepUp); mfaErr != nil || mfaResponse != nil {
 		return mfaResponse, mfaErr
 	}
 
 	// Record threat success after successful authentication.
-	security.RecordLoginThreatSuccess(ctx, client.IdentityProvider.TenantID, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), threatPolicy)
+	security.RecordLoginThreatSuccess(ctx, clientTenantID(client), user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), threatPolicy)
 
 	// Generate token response
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
@@ -371,8 +370,8 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	// Resolve tenant ID early for rate-limiting scope.
 	var lockoutPolicy *security.RateLimitConfig
 	var tenantIDForRL int64
-	if resolvedClient, resolveErr := resolveClient(s.clientRepo, clientID, tenantID); resolveErr == nil && resolvedClient != nil && resolvedClient.IdentityProvider != nil {
-		tenantIDForRL = resolvedClient.IdentityProvider.TenantID
+	if resolvedClient, resolveErr := resolveClient(s.clientRepo, clientID, tenantID); resolveErr == nil && resolvedClient != nil {
+		tenantIDForRL = clientTenantID(resolvedClient)
 		lockoutPolicy = secpolicy.LoadLockoutPolicy(s.securitySettingRepo, tenantIDForRL)
 	}
 	rateLimitIdentifier := fmt.Sprintf("%d:%s", tenantIDForRL, usernameOrEmail)
@@ -436,7 +435,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		}
 
 		// Get user by username or tenant-scoped email (timing-safe user lookup)
-		user, userLookupErr = findLoginUser(txUserRepo, usernameOrEmail, client.IdentityProvider.TenantID)
+		user, userLookupErr = findLoginUser(txUserRepo, usernameOrEmail, clientTenantID(client))
 		// Note: We don't return error here to maintain timing-safe behavior
 
 		// Fetch user identity to get the Sub claim
@@ -455,8 +454,8 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	}
 
 	// Threat detection — post-transaction, once tenant is known.
-	threatPolicy = secpolicy.LoadThreatPolicy(s.securitySettingRepo, client.IdentityProvider.TenantID)
-	threatDecision := security.AssessLoginThreat(ctx, client.IdentityProvider.TenantID, middleware.ClientIPFromContext(ctx), "", threatPolicy)
+	threatPolicy = secpolicy.LoadThreatPolicy(s.securitySettingRepo, clientTenantID(client))
+	threatDecision := security.AssessLoginThreat(ctx, clientTenantID(client), middleware.ClientIPFromContext(ctx), "", threatPolicy)
 	if threatDecision.Blocked {
 		return nil, apperror.NewUnauthorized("login blocked by threat detection")
 	}
@@ -485,7 +484,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		})
 
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
-			TenantID:    client.IdentityProvider.TenantID,
+			TenantID:    clientTenantID(client),
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -498,7 +497,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 
 		return nil, apperror.NewUnauthorized("account is not active")
 	}
-	if err := s.enforceLoginEmailVerification(user, client.IdentityProvider.TenantID); err != nil {
+	if err := s.enforceLoginEmailVerification(user, clientTenantID(client)); err != nil {
 		return nil, err
 	}
 
@@ -506,7 +505,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
 
 	// Check for compromised credentials at login (post-auth HIBP).
-	s.checkCompromisedPassword(ctx, user, password, client.IdentityProvider.TenantID)
+	s.checkCompromisedPassword(ctx, user, password, clientTenantID(client))
 
 	// authevent.Log successful login
 	security.LogSecurityEvent(security.SecurityEvent{
@@ -518,7 +517,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	})
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
-		TenantID:    client.IdentityProvider.TenantID,
+		TenantID:    clientTenantID(client),
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -530,9 +529,9 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	})
 
 	// Check password expiry and set ForcePasswordChange if needed
-	s.checkPasswordExpiry(ctx, user, client.IdentityProvider.TenantID)
+	s.checkPasswordExpiry(ctx, user, clientTenantID(client))
 
-	if err := s.checkTemporaryPasswordExpiry(ctx, user, client.IdentityProvider.TenantID); err != nil {
+	if err := s.checkTemporaryPasswordExpiry(ctx, user, clientTenantID(client)); err != nil {
 		return nil, err
 	}
 
@@ -540,12 +539,12 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		return passwordChangeRequiredLoginResponse(), nil
 	}
 
-	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, client.IdentityProvider.TenantID, forceStepUp); mfaErr != nil || mfaResponse != nil {
+	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, clientTenantID(client), forceStepUp); mfaErr != nil || mfaResponse != nil {
 		return mfaResponse, mfaErr
 	}
 
 	// Record threat success after successful authentication.
-	security.RecordLoginThreatSuccess(ctx, client.IdentityProvider.TenantID, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), threatPolicy)
+	security.RecordLoginThreatSuccess(ctx, clientTenantID(client), user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), threatPolicy)
 
 	// Generate token response
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
@@ -934,10 +933,10 @@ func (s *loginService) recordFailedLogin(ctx context.Context, rateLimitIdentifie
 	})
 
 	if client != nil {
-		threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, client.IdentityProvider.TenantID)
-		security.RecordLoginThreatFailure(ctx, client.IdentityProvider.TenantID, middleware.ClientIPFromContext(ctx), threatPolicy)
+		threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, clientTenantID(client))
+		security.RecordLoginThreatFailure(ctx, clientTenantID(client), middleware.ClientIPFromContext(ctx), threatPolicy)
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
-			TenantID:    client.IdentityProvider.TenantID,
+			TenantID:    clientTenantID(client),
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 			Category:    authevent.AuthEventCategoryAuthn,
@@ -1087,7 +1086,7 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 
 	// Resolve the client the same way login does.
 	var client *Client
-	client, err = resolveClient(s.clientRepo, clientID, tenantID)
+	client, err = resolveClientForContext(ctx, s.clientRepo, clientID, tenantID)
 	if err != nil || client == nil || client.Status != shared.StatusActive ||
 		client.Domain == nil || *client.Domain == "" {
 		return nil, apperror.NewUnauthorized("authentication failed")
@@ -1101,7 +1100,7 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 	amr, err := s.mfaAuthenticator.VerifyFactor(ctx, user.UserID, method, code, assertion)
 	if err != nil {
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
-			TenantID:    client.IdentityProvider.TenantID,
+			TenantID:    clientTenantID(client),
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -1118,7 +1117,7 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 	}
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
-		TenantID:    client.IdentityProvider.TenantID,
+		TenantID:    clientTenantID(client),
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -1136,7 +1135,7 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 
 	// Issue a trusted-device token when the client opted in.
 	if rememberDeviceFromContext(ctx) {
-		if deviceToken, tokenErr := s.issueTrustedDeviceToken(ctx, user.UserID, client.IdentityProvider.TenantID); tokenErr == nil {
+		if deviceToken, tokenErr := s.issueTrustedDeviceToken(ctx, user.UserID, clientTenantID(client)); tokenErr == nil {
 			resp.TrustedDeviceToken = deviceToken
 		}
 	}

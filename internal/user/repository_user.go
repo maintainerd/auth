@@ -262,8 +262,6 @@ func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*Use
 	var user User
 	err := r.DB().
 		Preload("UserIdentities.Tenant").
-		Preload("UserIdentities.Client.IdentityProvider.Tenant").
-		Preload("UserIdentities.Client.IdentityProvider").
 		Preload("UserIdentities.Client").
 		Preload("UserRoles.Role.RolePermissions.Permission").
 		// Profile is preloaded so OIDC userinfo and other handlers can derive
@@ -271,8 +269,18 @@ func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*Use
 		// (the users.fullname column was removed).
 		Preload("Profile", "is_default = ?", true).
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
-		Joins("JOIN clients ON user_identities.client_id = clients.client_id").
-		Where("user_identities.sub = ? AND clients.identifier = ?", sub, clientID).
+		Joins("JOIN clients ON clients.identifier = ? AND clients.status = ?", clientID, shared.StatusActive).
+		Where("user_identities.sub = ?", sub).
+		Where(`clients.tenant_id = user_identities.tenant_id AND (
+				user_identities.client_id = clients.client_id OR EXISTS (
+					SELECT 1
+					FROM client_identity_providers cip
+					WHERE cip.client_id = clients.client_id
+						AND cip.identity_provider_id = user_identities.identity_provider_id
+						AND cip.enabled = TRUE
+						AND cip.deleted_at IS NULL
+				)
+			)`).
 		First(&user).Error
 
 	if err != nil {

@@ -25,8 +25,8 @@ func (h *EmailVerificationHandler) SendVerificationEmailPublic(w http.ResponseWr
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	clientID := r.URL.Query().Get("client_id")
-	if clientID == "" || r.URL.Query().Get("tenant_id") != "" {
+	clientID, tenantID, ok := authenticationContextQuery(r)
+	if !ok {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "email_verification_missing_params",
 			ClientIP:  clientIPStr,
@@ -35,14 +35,14 @@ func (h *EmailVerificationHandler) SendVerificationEmailPublic(w http.ResponseWr
 			Endpoint:  "/email-verification/send",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Missing required client_id or provider_id parameters",
+			Details:   "Missing or ambiguous authentication context",
 			Severity:  "MEDIUM",
 		})
 		resp.Error(w, http.StatusBadRequest, "Public email verification requires client_id and does not accept tenant_id")
 		return
 	}
 
-	h.handleSendVerification(w, r, &clientID, nil, startTime, sc)
+	h.handleSendVerification(w, r, clientID, tenantID, startTime, sc)
 }
 
 // SendVerificationEmail handles tenant-scoped internal resend requests.

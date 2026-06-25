@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMFARouteMountsEndpoints(t *testing.T) {
+func TestMFAInternalRouteMountsSelfServiceAndAdminEndpoints(t *testing.T) {
 	router := chi.NewRouter()
-	MFARoute(router, NewMFAHandler(&mockMFAService{}, &mockWebAuthnService{}), nil, nil)
+	MFAInternalRoute(router, NewMFAHandler(&mockMFAService{}, &mockWebAuthnService{}), nil, nil)
 
 	tests := []struct {
 		method string
@@ -38,6 +38,47 @@ func TestMFARouteMountsEndpoints(t *testing.T) {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
 			match := chi.NewRouteContext()
 			assert.True(t, router.Match(match, tt.method, tt.path))
+		})
+	}
+}
+
+func TestMFAPublicRouteMountsOnlySelfServiceEndpoints(t *testing.T) {
+	router := chi.NewRouter()
+	MFAPublicRoute(router, NewMFAHandler(&mockMFAService{}, &mockWebAuthnService{}), nil, nil)
+
+	selfService := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/mfa/status"},
+		{http.MethodPost, "/mfa/totp/enroll"},
+		{http.MethodPost, "/mfa/totp/verify"},
+		{http.MethodDelete, "/mfa/totp"},
+		{http.MethodPost, "/mfa/webauthn/register/begin"},
+		{http.MethodPost, "/mfa/webauthn/register/finish"},
+		{http.MethodPost, "/mfa/step-up/verify"},
+		{http.MethodPost, "/mfa/reset"},
+	}
+
+	for _, tt := range selfService {
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			match := chi.NewRouteContext()
+			assert.True(t, router.Match(match, tt.method, tt.path))
+		})
+	}
+
+	admin := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/mfa/admin/users/" + mfaTestUserUUID.String() + "/reset"},
+		{http.MethodPost, "/mfa/admin/users/" + mfaTestUserUUID.String() + "/reset/totp"},
+	}
+
+	for _, tt := range admin {
+		t.Run("not mounted "+tt.method+" "+tt.path, func(t *testing.T) {
+			match := chi.NewRouteContext()
+			assert.False(t, router.Match(match, tt.method, tt.path))
 		})
 	}
 }

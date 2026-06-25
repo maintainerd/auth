@@ -15,9 +15,12 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockClientRepo struct {
-	findByClientIDAndIdentityProviderFn func(clientID, providerID string) (*Client, error)
-	findSystemFn                        func() (*Client, error)
-	createFn                            func(*Client) (*Client, error)
+	findByClientIDAndIdentityProviderFn   func(clientID, providerID string) (*Client, error)
+	findByIDFn                            func(any, ...string) (*Client, error)
+	findByIdentifierFn                    func(identifier string) (*Client, error)
+	findSystemByTenantIdentifierAndNameFn func(tenantIdentifier, name string) (*Client, error)
+	findSystemFn                          func() (*Client, error)
+	createFn                              func(*Client) (*Client, error)
 }
 
 func (m *mockClientRepo) WithTx(_ *gorm.DB) ClientRepository { return m }
@@ -33,8 +36,21 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, providerID 
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) { return nil, nil }
-func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) {
+	if m.findByIdentifierFn != nil {
+		return m.findByIdentifierFn(identifier)
+	}
+	return nil, nil
+}
+func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
+	return nil, nil
+}
+func (m *mockClientRepo) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error) {
+	if m.findSystemByTenantIdentifierAndNameFn != nil {
+		return m.findSystemByTenantIdentifierAndNameFn(tenantIdentifier, name)
+	}
+	return m.FindSystemByTenantIdentifier(tenantIdentifier)
+}
 func (m *mockClientRepo) Create(e *Client) (*Client, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
@@ -47,11 +63,16 @@ func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) { retu
 func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]Client, error) {
 	return nil, nil
 }
-func (m *mockClientRepo) FindByID(id any, p ...string) (*Client, error) { return nil, nil }
-func (m *mockClientRepo) UpdateByUUID(id, data any) (*Client, error)    { return nil, nil }
-func (m *mockClientRepo) UpdateByID(id, data any) (*Client, error)      { return nil, nil }
-func (m *mockClientRepo) DeleteByUUID(id any) error                     { return nil }
-func (m *mockClientRepo) DeleteByID(id any) error                       { return nil }
+func (m *mockClientRepo) FindByID(id any, p ...string) (*Client, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, p...)
+	}
+	return nil, nil
+}
+func (m *mockClientRepo) UpdateByUUID(id, data any) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) UpdateByID(id, data any) (*Client, error)   { return nil, nil }
+func (m *mockClientRepo) DeleteByUUID(id any) error                  { return nil }
+func (m *mockClientRepo) DeleteByID(id any) error                    { return nil }
 func (m *mockClientRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[Client], error) {
 	return nil, nil
 }
@@ -502,6 +523,9 @@ func (m *mockOAuthConsentService) RevokeGrant(ctx context.Context, grantUUID uui
 
 type mockOAuthAuthorizeService struct {
 	authorizeFn           func(context.Context, OAuthAuthorizeRequestDTO, int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
+	startBrokerFn         func(context.Context, OAuthAuthorizeRequestDTO) (*OAuthAuthorizeResult, *apperror.OAuthError)
+	handleCallbackFn      func(context.Context, string, string, string) (string, string, *apperror.OAuthError)
+	prepareAuthorizeFn    func(context.Context, OAuthAuthorizeRequestDTO) *apperror.OAuthError
 	getConsentChallengeFn func(context.Context, uuid.UUID, int64) (*OAuthConsentChallengeResponseDTO, error)
 	handleConsentFn       func(context.Context, OAuthConsentDecisionDTO, int64) (*OAuthConsentDecisionResult, *apperror.OAuthError)
 }
@@ -511,6 +535,24 @@ func (m *mockOAuthAuthorizeService) Authorize(ctx context.Context, req OAuthAuth
 		return m.authorizeFn(ctx, req, userID)
 	}
 	return nil, nil
+}
+func (m *mockOAuthAuthorizeService) StartBroker(ctx context.Context, req OAuthAuthorizeRequestDTO) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+	if m.startBrokerFn != nil {
+		return m.startBrokerFn(ctx, req)
+	}
+	return &OAuthAuthorizeResult{RedirectURI: "https://idp.example.com/authorize?client_id=upstream"}, nil
+}
+func (m *mockOAuthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifier, code, state string) (string, string, *apperror.OAuthError) {
+	if m.handleCallbackFn != nil {
+		return m.handleCallbackFn(ctx, idpIdentifier, code, state)
+	}
+	return "https://app.example.com/cb?code=maintainerd-code&state=abc", "", nil
+}
+func (m *mockOAuthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthAuthorizeRequestDTO) *apperror.OAuthError {
+	if m.prepareAuthorizeFn != nil {
+		return m.prepareAuthorizeFn(ctx, req)
+	}
+	return nil
 }
 func (m *mockOAuthAuthorizeService) GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*OAuthConsentChallengeResponseDTO, error) {
 	if m.getConsentChallengeFn != nil {
@@ -523,4 +565,37 @@ func (m *mockOAuthAuthorizeService) HandleConsent(ctx context.Context, decision 
 		return m.handleConsentFn(ctx, decision, userID)
 	}
 	return nil, nil
+}
+
+type mockBrokerProviderResolver struct {
+	resolveFn func(ctx context.Context, idpIdentifier string) (*BrokerProvider, error)
+}
+
+func (m *mockBrokerProviderResolver) ResolveBrokerProvider(ctx context.Context, idpIdentifier string) (*BrokerProvider, error) {
+	if m.resolveFn != nil {
+		return m.resolveFn(ctx, idpIdentifier)
+	}
+	return &BrokerProvider{AuthorizationEndpoint: "https://idp.example.com/authorize", ClientID: "upstream-client"}, nil
+}
+
+type mockBrokerCallbackResolver struct {
+	resolveFn func(ctx context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error)
+}
+
+func (m *mockBrokerCallbackResolver) ResolveBrokerUser(ctx context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error) {
+	if m.resolveFn != nil {
+		return m.resolveFn(ctx, idpID, code, pkceVerifier, nonce, redirectURI, clientID)
+	}
+	return &BrokerResolvedUser{UserID: 10, UserUUID: uuid.New(), IdentitySub: "broker-sub", SessionID: uuid.NewString()}, nil
+}
+
+type mockOAuthConnectionsService struct {
+	listFn func(clientID string) (*OAuthConnectionsResult, error)
+}
+
+func (m *mockOAuthConnectionsService) ListConnections(_ context.Context, clientID string) (*OAuthConnectionsResult, error) {
+	if m.listFn != nil {
+		return m.listFn(clientID)
+	}
+	return &OAuthConnectionsResult{}, nil
 }

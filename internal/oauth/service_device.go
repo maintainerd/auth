@@ -294,10 +294,7 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 	}
 
 	// Look up the user identity for this client's identity provider.
-	providerID := ""
-	if record.Client != nil && record.Client.IdentityProvider != nil {
-		providerID = record.Client.IdentityProvider.IdentityProviderUUID.String()
-	}
+	providerID := tokenRealm(record.Client)
 
 	issuer := config.AppPublicHostname
 	clientIdentifier := resolveClientIdentifier(record.Client)

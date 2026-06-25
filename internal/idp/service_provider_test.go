@@ -41,6 +41,22 @@ func actorUserWithDefaultTenant(tenantID int64) *User {
 	}
 }
 
+// createInput / updateInput keep the positional test call sites compact while the
+// service now takes input structs.
+func createInput(name, display, provider, providerType string, config datatypes.JSON, status, tenantUUID string, tenantID int64, actor uuid.UUID) IdentityProviderCreateInput {
+	return IdentityProviderCreateInput{
+		Name: name, DisplayName: display, Provider: provider, ProviderType: providerType,
+		Config: config, Status: status, TenantUUID: tenantUUID, TenantID: tenantID, ActorUserUUID: actor,
+	}
+}
+
+func updateInput(id uuid.UUID, name, display, provider, providerType string, config datatypes.JSON, status string, tenantID int64, actor uuid.UUID) IdentityProviderUpdateInput {
+	return IdentityProviderUpdateInput{
+		IdpUUID: id, Name: name, DisplayName: display, Provider: provider, ProviderType: providerType,
+		Config: config, Status: status, TenantID: tenantID, ActorUserUUID: actor,
+	}
+}
+
 // ---------------------------------------------------------------------------
 // IdentityProviderService.Get
 // ---------------------------------------------------------------------------
@@ -54,7 +70,7 @@ func TestIdentityProviderService_Get(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.Get(context.Background(), IdentityProviderServiceGetFilter{TenantID: tenantID, Page: 1, Limit: 10})
 		require.Error(t, err)
 	})
@@ -68,7 +84,7 @@ func TestIdentityProviderService_Get(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		result, err := svc.Get(context.Background(), IdentityProviderServiceGetFilter{TenantID: tenantID, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.Len(t, result.Data, 1)
@@ -88,7 +104,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -100,7 +116,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 				return newIDP(999, "other"), nil // different tenant
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
@@ -111,7 +127,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		result, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
 		require.NoError(t, err)
 		assert.Equal(t, "local", result.Name)
@@ -131,7 +147,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -143,7 +159,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 				return newIDP(999, "other"), nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
@@ -158,7 +174,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 		userRepo := &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
@@ -175,7 +191,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system idp")
@@ -191,7 +207,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		result, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "local", result.Name)
@@ -208,7 +224,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default idp")
@@ -225,7 +241,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "del err")
@@ -247,7 +263,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 	})
@@ -267,8 +283,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", "invalid-uuid", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", "invalid-uuid", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid tenant UUID")
 	})
@@ -280,8 +296,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, &mockUserRepo{})
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
 	})
@@ -293,8 +309,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, errors.New("db err") },
 		}
-		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, &mockUserRepo{})
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
 	})
@@ -308,8 +324,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				return &Tenant{TenantID: 999}, nil // different from tenantID=1
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, &mockUserRepo{})
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -326,8 +342,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		userRepo := &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, userRepo)
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -351,8 +367,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, userRepo)
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 	})
 
@@ -375,8 +391,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 	})
 
@@ -399,8 +415,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				return &IdentityProvider{Name: "idp"}, nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -424,8 +440,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			},
 		}
 		idpRepo := &mockIdentityProviderRepo{}
-		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
 	})
@@ -449,13 +465,13 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				return nil, errors.New("create err")
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
 	})
 
-	t.Run("encryptIdpConfig failure", func(t *testing.T) {
+	t.Run("client secret encryption failure", func(t *testing.T) {
 		orig := crypto.EncryptAtRest
 		defer func() { crypto.EncryptAtRest = orig }()
 		crypto.EncryptAtRest = func(string) (string, error) { return "", errors.New("encrypt failure") }
@@ -473,8 +489,10 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, userRepo)
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfgWithSecret, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		in := createInput("idp", "IDP", "local", "password", cfgWithSecret, "active", tenantUUID.String(), tenantID, actorUUID)
+		in.ProviderClientSecret = "secret"
+		_, err := svc.Create(context.Background(), in)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "encrypt failure")
 	})
@@ -498,8 +516,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				return nil, errors.New("fetch err")
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -525,8 +543,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		res, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, tenantRepo, userRepo)
+		res, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID))
 		require.NoError(t, err)
 		assert.Equal(t, "idp", res.Name)
 		assert.NotNil(t, res.Tenant)
@@ -550,8 +568,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -565,8 +583,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return newIDP(999, "other"), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -583,8 +601,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		userRepo := &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -608,8 +626,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 	})
 
@@ -627,8 +645,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system idp")
 	})
@@ -647,8 +665,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default idp")
 	})
@@ -669,8 +687,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(context.Background(), idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 	})
 
@@ -691,8 +709,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(context.Background(), idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -713,8 +731,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(context.Background(), idpUUID, "local", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		_, err := svc.Update(context.Background(), updateInput(idpUUID, "local", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -732,8 +750,8 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		res, err := svc.Update(context.Background(), idpUUID, "local", "New Display", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		res, err := svc.Update(context.Background(), updateInput(idpUUID, "local", "New Display", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.NoError(t, err)
 		assert.Equal(t, "New Display", res.DisplayName)
 	})
@@ -752,13 +770,13 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		res, err := svc.Update(context.Background(), idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		res, err := svc.Update(context.Background(), updateInput(idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID))
 		require.NoError(t, err)
 		assert.Equal(t, "new-name", res.Name)
 	})
 
-	t.Run("encryptIdpConfig failure", func(t *testing.T) {
+	t.Run("client secret encryption failure", func(t *testing.T) {
 		orig := crypto.EncryptAtRest
 		defer func() { crypto.EncryptAtRest = orig }()
 		crypto.EncryptAtRest = func(string) (string, error) { return "", errors.New("encrypt failure") }
@@ -776,8 +794,10 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(context.Background(), idpUUID, "local", "d", "local", "password", cfgWithSecret, "active", tenantID, actorUUID)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
+		in := updateInput(idpUUID, "local", "d", "local", "password", cfgWithSecret, "active", tenantID, actorUUID)
+		in.ProviderClientSecret = "secret"
+		_, err := svc.Update(context.Background(), in)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "encrypt failure")
 	})
@@ -799,7 +819,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -814,7 +834,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 				return newIDP(999, "other"), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
@@ -832,7 +852,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		userRepo := &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
@@ -857,7 +877,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 	})
@@ -876,7 +896,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system idp")
@@ -896,7 +916,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default idp")
@@ -918,7 +938,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
@@ -937,7 +957,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, userRepo)
 		res, err := svc.SetStatusByUUID(context.Background(), idpUUID, "inactive", tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "local", res.Name)
@@ -968,4 +988,145 @@ func TestToIdpServiceDataResult(t *testing.T) {
 		res := toIdpServiceDataResult(idp)
 		assert.Nil(t, res.Tenant)
 	})
+}
+
+// ---------------------------------------------------------------------------
+// External-active validation (gated on status=active)
+// ---------------------------------------------------------------------------
+
+func TestValidateExternalProviderColumns(t *testing.T) {
+	// Drafts (inactive) are never constrained — they can be created before being
+	// fully configured.
+	require.NoError(t, validateExternalProviderColumns(shared.IDPTypeSocial, shared.StatusInactive, "", ""))
+	require.NoError(t, validateExternalProviderColumns(shared.IDPTypeEnterprise, shared.StatusInactive, "", ""))
+	// System providers never need upstream creds.
+	require.NoError(t, validateExternalProviderColumns(shared.IDPTypeSystem, shared.StatusActive, "", ""))
+	// Active social/enterprise require both issuer and client_id.
+	err := validateExternalProviderColumns(shared.IDPTypeSocial, shared.StatusActive, "", "client")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "issuer is required")
+	err = validateExternalProviderColumns(shared.IDPTypeEnterprise, shared.StatusActive, "https://idp", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client_id is required")
+	// Complete active external config passes.
+	require.NoError(t, validateExternalProviderColumns(shared.IDPTypeSocial, shared.StatusActive, "https://idp", "client"))
+}
+
+func TestIdentityProviderService_Create_ExternalActiveRejected(t *testing.T) {
+	tenantID := int64(1)
+	actorUUID := uuid.New()
+	tenantUUID := uuid.New()
+	cfg := datatypes.JSON([]byte(`{}`))
+	// nil db is safe: the guard runs before any transaction.
+	svc := NewIdentityProviderService(nil, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, &mockTenantRepo{}, &mockUserRepo{})
+
+	in := createInput("g", "Google Display", shared.IDPProviderGoogle, shared.IDPTypeSocial, cfg, shared.StatusActive, tenantUUID.String(), tenantID, actorUUID)
+	in.ProviderClientID = "client-1" // issuer still missing
+	_, err := svc.Create(context.Background(), in)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "issuer is required")
+}
+
+// ---------------------------------------------------------------------------
+// Secret never appears in read/list responses (column-level omit)
+// ---------------------------------------------------------------------------
+
+func TestIdpResult_NeverExposesSecret(t *testing.T) {
+	issuer := "https://idp.example.com"
+	clientID := "client-1"
+	enc := "ENCRYPTED_SECRET_VALUE"
+	idp := &IdentityProvider{
+		Name:                          "google",
+		Issuer:                        &issuer,
+		ProviderClientID:              &clientID,
+		ProviderClientSecretEncrypted: &enc,
+		AllowJITProvisioning:          true,
+		Config:                        datatypes.JSON([]byte(`{"scopes":["openid"]}`)),
+		EmailDomains: []IdentityProviderEmailDomain{
+			{Domain: "example.com"},
+			{Domain: "foo.com"},
+		},
+	}
+
+	res := toIdpServiceDataResult(idp)
+	require.NotNil(t, res)
+	assert.Equal(t, issuer, res.Issuer)
+	assert.Equal(t, clientID, res.ProviderClientID)
+	assert.True(t, res.AllowJITProvisioning)
+	assert.ElementsMatch(t, []string{"example.com", "foo.com"}, res.EmailDomains)
+
+	// The detail DTO is exactly what GET returns; it must never carry the secret.
+	detail := toIdpDetailResponseDTO(*res)
+	raw, err := json.Marshal(detail)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), enc)
+	assert.NotContains(t, string(raw), "client_secret")
+	assert.NotContains(t, string(raw), "client_secret_encrypted")
+}
+
+// ---------------------------------------------------------------------------
+// Email-domain membership is replaced transactionally on create
+// ---------------------------------------------------------------------------
+
+func TestIdentityProviderService_Create_ReplacesEmailDomains(t *testing.T) {
+	tenantID := int64(1)
+	actorUUID := uuid.New()
+	tenantUUID := uuid.New()
+	cfg := datatypes.JSON([]byte(`{}`))
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	tenant := &Tenant{TenantID: tenantID, TenantUUID: tenantUUID, IsSystem: true}
+	tenantRepo := &mockTenantRepo{findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return tenant, nil }}
+	userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+		return actorUserWithDefaultTenant(tenantID), nil
+	}}
+	idpRepo := &mockIdentityProviderRepo{
+		findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+			return &IdentityProvider{Name: "idp", TenantID: tenantID, Tenant: tenant}, nil
+		},
+	}
+	var captured []string
+	emailRepo := &mockIdentityProviderEmailDomainRepo{
+		replaceForProviderFn: func(_ int64, _ int64, domains []string) error {
+			captured = domains
+			return nil
+		},
+	}
+	svc := NewIdentityProviderService(gormDB, idpRepo, emailRepo, tenantRepo, userRepo)
+	in := createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+	in.Issuer = "https://idp.example.com"
+	in.ProviderClientID = "client-1"
+	in.EmailDomains = []string{"example.com", "foo.com"}
+	_, err := svc.Create(context.Background(), in)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"example.com", "foo.com"}, captured)
+}
+
+func TestIdentityProviderService_Create_EmailDomainReplaceError(t *testing.T) {
+	tenantID := int64(1)
+	actorUUID := uuid.New()
+	tenantUUID := uuid.New()
+	cfg := datatypes.JSON([]byte(`{}`))
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	tenant := &Tenant{TenantID: tenantID, TenantUUID: tenantUUID, IsSystem: true}
+	tenantRepo := &mockTenantRepo{findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return tenant, nil }}
+	userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+		return actorUserWithDefaultTenant(tenantID), nil
+	}}
+	emailRepo := &mockIdentityProviderEmailDomainRepo{
+		replaceForProviderFn: func(_ int64, _ int64, _ []string) error {
+			return errors.New("domain err")
+		},
+	}
+	svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, emailRepo, tenantRepo, userRepo)
+	in := createInput("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+	in.EmailDomains = []string{"example.com"}
+	_, err := svc.Create(context.Background(), in)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "domain err")
 }

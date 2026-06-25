@@ -43,7 +43,7 @@ func TestOAuthAuthorizeRequestDTO_Validate(t *testing.T) {
 		assert.Contains(t, err.Error(), "response_type")
 	})
 
-	t.Run("missing client_id", func(t *testing.T) {
+	t.Run("missing client context", func(t *testing.T) {
 		r := validReq()
 		r.ClientID = ""
 		err := r.Validate()

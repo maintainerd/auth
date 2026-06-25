@@ -168,50 +168,6 @@ func TestUserIdentityRepository_FindByUserIDAndClientID(t *testing.T) {
 	})
 }
 
-func TestUserIdentityRepository_FindByProviderAndSub(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserIdentityRepository(db)
-
-		rows := sqlmock.NewRows([]string{"user_identity_id", "user_identity_uuid", "provider", "sub"}).
-			AddRow(1, testResourceUUID, "google", "sub-123")
-		mock.ExpectQuery(`SELECT \* FROM "user_identities" WHERE provider = \$1 AND sub = \$2 ORDER BY "user_identities"\."user_identity_id" LIMIT \$3`).
-			WithArgs("google", "sub-123", 1).
-			WillReturnRows(rows)
-
-		result, err := repo.FindByProviderAndSub("google", "sub-123")
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.Equal(t, "google", result.Provider)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserIdentityRepository(db)
-
-		mock.ExpectQuery(`SELECT \* FROM "user_identities" WHERE`).
-			WillReturnRows(sqlmock.NewRows([]string{"user_identity_id", "user_identity_uuid", "provider", "sub"}))
-
-		result, err := repo.FindByProviderAndSub("unknown", "sub-0")
-		require.NoError(t, err)
-		assert.Nil(t, result)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("db error", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserIdentityRepository(db)
-
-		mock.ExpectQuery(`SELECT \* FROM "user_identities" WHERE`).
-			WillReturnError(errors.New("db error"))
-
-		_, err := repo.FindByProviderAndSub("google", "sub-123")
-		require.Error(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-}
-
 func TestUserIdentityRepository_FindByUserIDAndProvider(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)

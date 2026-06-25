@@ -55,6 +55,24 @@ type OAuthAuthorizeService interface {
 	// challenge for the frontend to resolve.
 	Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
 
+	// PrepareAuthorize validates an unauthenticated authorization request enough
+	// to safely render the hosted login page (the client must exist and be active
+	// and the redirect_uri must be registered). Full request validation happens
+	// in Authorize once the user has a session.
+	PrepareAuthorize(ctx context.Context, req OAuthAuthorizeRequestDTO) *apperror.OAuthError
+
+	// StartBroker begins the upstream (OAuth #2) leg of a brokered login: it
+	// validates that idp_hint is an enabled connection for the client, persists a
+	// broker session correlating the original request, and returns the redirect
+	// URL to the upstream provider's authorize endpoint.
+	StartBroker(ctx context.Context, req OAuthAuthorizeRequestDTO) (*OAuthAuthorizeResult, *apperror.OAuthError)
+
+	// HandleCallback completes a brokered login: it looks up the broker session by
+	// idp_state, marks it consumed, exchanges the upstream code (validate +
+	// provision), and resumes the original OAuth #1 request by issuing a
+	// maintainerd authorization code back to the downstream app.
+	HandleCallback(ctx context.Context, idpIdentifier, code, state string) (redirectURL string, accessToken string, oerr *apperror.OAuthError)
+
 	// GetConsentChallenge retrieves a pending consent challenge by its UUID.
 	GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*OAuthConsentChallengeResponseDTO, error)
 
@@ -65,13 +83,13 @@ type OAuthAuthorizeService interface {
 }
 
 type oauthAuthorizeService struct {
-	db               *gorm.DB
-	clientRepo       ClientRepository
-	clientURIRepo    ClientURIRepository
-	authCodeRepo     OAuthAuthorizationCodeRepository
-	consentGrantRepo OAuthConsentGrantRepository
-	consentChallRepo OAuthConsentChallengeRepository
-	authEventService authevent.AuthEventService
+	db                  *gorm.DB
+	clientRepo          ClientRepository
+	clientURIRepo       ClientURIRepository
+	authCodeRepo        OAuthAuthorizationCodeRepository
+	consentGrantRepo    OAuthConsentGrantRepository
+	consentChallRepo    OAuthConsentChallengeRepository
+	authEventService    authevent.AuthEventService
 	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
@@ -91,13 +109,13 @@ func NewOAuthAuthorizeService(
 		settings = securitySettingRepo[0]
 	}
 	return &oauthAuthorizeService{
-		db:               db,
-		clientRepo:       clientRepo,
-		clientURIRepo:    clientURIRepo,
-		authCodeRepo:     authCodeRepo,
-		consentGrantRepo: consentGrantRepo,
-		consentChallRepo: consentChallRepo,
-		authEventService: authEventService,
+		db:                  db,
+		clientRepo:          clientRepo,
+		clientURIRepo:       clientURIRepo,
+		authCodeRepo:        authCodeRepo,
+		consentGrantRepo:    consentGrantRepo,
+		consentChallRepo:    consentChallRepo,
+		authEventService:    authEventService,
 		securitySettingRepo: settings,
 	}
 }
@@ -112,31 +130,19 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 		attribute.Int64("user.id", userID),
 	)
 
-	// Look up the client by its public identifier.
-	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, "")
+	client, err := s.resolveAuthorizeClient(req)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "client lookup failed")
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	// If FindByClientIDAndIdentityProvider requires both params, use a direct
-	// lookup by identifier instead.
-	if client == nil {
-		client, err = s.findClientByIdentifier(req.ClientID)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "client lookup failed")
-			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
-		}
-	}
-
 	if client == nil || client.Status != shared.StatusActive {
 		span.SetStatus(codes.Error, "client not found or inactive")
-		return nil, apperror.NewOAuthInvalidRequest("unknown or inactive client_id")
+		return nil, apperror.NewOAuthInvalidRequest("unknown or inactive client context")
 	}
 
-	if client.IdentityProvider != nil && client.IdentityProvider.TenantID != tenantID {
+	if client.TenantID != tenantID {
 		span.SetStatus(codes.Error, "client tenant mismatch")
 		return nil, apperror.NewOAuthInvalidRequest("unknown client_id")
 	}
@@ -251,6 +257,54 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 	return &OAuthAuthorizeResult{
 		RedirectURI: redirectURI,
 	}, nil
+}
+
+// PrepareAuthorize implements OAuthAuthorizeService.
+func (s *oauthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthAuthorizeRequestDTO) *apperror.OAuthError {
+	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.prepare")
+	defer span.End()
+	span.SetAttributes(attribute.String("oauth.client_id", req.ClientID))
+
+	client, err := s.resolveAuthorizeClient(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "client lookup failed")
+		return apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+	if client == nil || client.Status != shared.StatusActive {
+		span.SetStatus(codes.Error, "client not found or inactive")
+		return apperror.NewOAuthInvalidRequest("unknown or inactive client context")
+	}
+	if oerr := s.validateRedirectURI(client, req.RedirectURI); oerr != nil {
+		span.SetStatus(codes.Error, "invalid redirect_uri")
+		return oerr
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *oauthAuthorizeService) resolveAuthorizeClient(req OAuthAuthorizeRequestDTO) (*Client, error) {
+	if req.ClientID != "" {
+		client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, "")
+		if err != nil || client != nil {
+			if client != nil && client.IsSystem {
+				return nil, nil
+			}
+			return client, err
+		}
+
+		client, err = s.clientRepo.FindByIdentifier(req.ClientID)
+		if err != nil || client == nil {
+			return client, err
+		}
+		if client.IsSystem {
+			return nil, nil
+		}
+		return client, nil
+	}
+
+	return nil, nil
 }
 
 // GetConsentChallenge implements OAuthAuthorizeService.
@@ -441,8 +495,7 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision OAut
 func (s *oauthAuthorizeService) findClientByIdentifier(identifier string) (*Client, error) {
 	var client Client
 	err := s.db.
-		Preload("IdentityProvider").
-		Preload("IdentityProvider.Tenant").
+		Preload("Tenant").
 		Preload("ClientURIs").
 		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
 		First(&client).Error

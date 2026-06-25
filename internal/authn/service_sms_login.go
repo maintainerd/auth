@@ -96,7 +96,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, phone string, clientID, t
 		return err
 	}
 
-	client, err := resolveClient(s.clientRepo, clientID, tenantID)
+	client, err := resolveClientForContext(ctx, s.clientRepo, clientID, tenantID)
 	if err != nil {
 		return apperror.NewInternal("failed to find auth client", err)
 	}
@@ -199,7 +199,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, phone, otp string, clie
 		txSmsOtpRepo := s.smsOtpRepo.WithTx(tx)
 
 		var txErr error
-		client, txErr = resolveClient(txClientRepo, clientID, tenantID)
+		client, txErr = resolveClientForContext(ctx, txClientRepo, clientID, tenantID)
 		if txErr != nil || client == nil ||
 			client.Status != shared.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {

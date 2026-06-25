@@ -31,9 +31,6 @@ type UserIdentityRepository interface {
 	FindByUserID(userID int64) ([]UserIdentity, error)
 	FindUserIdentitiesPaginated(filter GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)
 	FindByUserIDAndClientID(userID int64, clientID int64) (*UserIdentity, error)
-	// FindByProviderAndSub looks up an identity by the provider slug and the external subject.
-	// Used by federation to match an incoming OIDC token to a known user.
-	FindByProviderAndSub(provider string, sub string) (*UserIdentity, error)
 	// FindByUserIDAndProvider returns the first identity for a user with the given provider slug.
 	FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error)
 	// FindByIdentityProviderID lists all identities linked to a configured IDP.
@@ -85,9 +82,9 @@ func (r *userIdentityRepository) FindByUserIDAndClientID(userID int64, clientID 
 	return &identity, nil
 }
 
-func (r *userIdentityRepository) FindByProviderAndSub(provider string, sub string) (*UserIdentity, error) {
+func (r *userIdentityRepository) FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error) {
 	var identity UserIdentity
-	err := r.DB().Where("provider = ? AND sub = ?", provider, sub).First(&identity).Error
+	err := r.DB().Where("tenant_id = ? AND provider = ? AND sub = ?", tenantID, provider, sub).First(&identity).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

@@ -135,3 +135,26 @@ func TestAddClientAPIPermissionsRequestDto_Validate(t *testing.T) {
 	assert.NoError(t, AddClientAPIPermissionsRequestDTO{PermissionUUIDs: []uuid.UUID{uuid.New()}}.Validate())
 	require.Error(t, AddClientAPIPermissionsRequestDTO{}.Validate())
 }
+
+func TestAddClientIdentityProviderRequestDto_Validate(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		d := AddClientIdentityProviderRequestDTO{IdentityProviderUUID: uuid.New().String()}
+		assert.NoError(t, d.Validate())
+	})
+	t.Run("missing identity provider id", func(t *testing.T) {
+		require.Error(t, AddClientIdentityProviderRequestDTO{}.Validate())
+	})
+	t.Run("negative display order", func(t *testing.T) {
+		d := AddClientIdentityProviderRequestDTO{IdentityProviderUUID: uuid.New().String(), DisplayOrder: -1}
+		require.Error(t, d.Validate())
+	})
+}
+
+func TestUpdateClientIdentityProviderRequestDto_Validate(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		assert.NoError(t, UpdateClientIdentityProviderRequestDTO{DisplayOrder: 2}.Validate())
+	})
+	t.Run("negative display order", func(t *testing.T) {
+		require.Error(t, UpdateClientIdentityProviderRequestDTO{DisplayOrder: -1}.Validate())
+	})
+}

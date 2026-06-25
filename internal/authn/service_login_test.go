@@ -37,6 +37,7 @@ type mockClientRepo struct {
 	findByClientIDAndIdentityProviderFn func(clientID, providerID string) (*Client, error)
 	findByIdentifierFn                  func(string) (*Client, error)
 	findSystemByTenantIdentifierFn      func(string) (*Client, error)
+	findSystemByTenantIdentifierNameFn  func(string, string) (*Client, error)
 	findSystemFn                        func() (*Client, error)
 	findByUUIDFn                        func(any, ...string) (*Client, error)
 	findByUUIDAndTenantIDFn             func(uuid.UUID, int64) (*Client, error)
@@ -70,6 +71,12 @@ func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (
 		return m.findSystemByTenantIdentifierFn(tenantIdentifier)
 	}
 	return nil, nil
+}
+func (m *mockClientRepo) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error) {
+	if m.findSystemByTenantIdentifierNameFn != nil {
+		return m.findSystemByTenantIdentifierNameFn(tenantIdentifier, name)
+	}
+	return m.FindSystemByTenantIdentifier(tenantIdentifier)
 }
 func (m *mockClientRepo) FindSystem() (*Client, error) {
 	if m.findSystemFn != nil {
@@ -341,9 +348,6 @@ func (m *mockUserIdentityRepo) FindByUserID(uID int64) ([]UserIdentity, error) {
 	if m.findByUserIDFn != nil {
 		return m.findByUserIDFn(uID)
 	}
-	return nil, nil
-}
-func (m *mockUserIdentityRepo) FindByProviderAndSub(_, _ string) (*UserIdentity, error) {
 	return nil, nil
 }
 func (m *mockUserIdentityRepo) FindByUserIDAndProvider(_ int64, _ string) (*UserIdentity, error) {
@@ -692,12 +696,13 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 func buildActiveIdentityProvider() *IdentityProvider {
 	return &IdentityProvider{
 		IdentityProviderID: 1,
+		TenantID:           1,
 		Name:               "default",
 		Provider:           shared.IDPProviderMaintainerd,
-		ProviderType:       shared.IDPTypeIdentity,
+		ProviderType:       shared.IDPTypeSystem,
 		Identifier:         "test-provider",
 		Status:             shared.StatusActive,
-		Tenant:             &Tenant{Identifier: "system"},
+		Tenant:             &Tenant{TenantID: 1, Identifier: "system"},
 	}
 }
 
@@ -707,6 +712,7 @@ func buildActiveClient() *Client {
 	idp := buildActiveIdentityProvider()
 	return &Client{
 		ClientID:         1,
+		TenantID:         1,
 		Name:             "test-client",
 		Domain:           strPtr("https://auth.example.com"),
 		Identifier:       strPtr("test-client"),
@@ -871,6 +877,7 @@ func TestLoginPublic(t *testing.T) {
 				idp := buildActiveIdentityProvider()
 				idp.TenantID = 42
 				client := buildActiveClient()
+				client.TenantID = 42
 				client.IdentityProvider = idp
 				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 					return idp, nil
@@ -1066,7 +1073,7 @@ func TestLoginPublic(t *testing.T) {
 			tc.setup(t, repos)
 
 			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo, &mockAuthEventService{}, nil, tc.securitySettings)
-			resp, err := svc.LoginPublic(context.Background(), tc.username, tc.password, strPtr(tc.clientID), strPtr(tc.providerID))
+			resp, err := svc.LoginPublic(context.Background(), tc.username, tc.password, strPtr(tc.clientID), nil)
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -1106,6 +1113,7 @@ func TestLoginPublic_TenantMFAPolicyRequiresChallengeBeforeTokens(t *testing.T) 
 	idp := buildActiveIdentityProvider()
 	idp.TenantID = 42
 	client := buildActiveClient()
+	client.TenantID = 42
 	client.IdentityProvider = idp
 	user := buildActiveUser(t, correctPassword)
 	user.IsTOTPEnabled = true
@@ -1157,7 +1165,7 @@ func TestLoginPublic_TenantMFAPolicyRequiresChallengeBeforeTokens(t *testing.T) 
 		enrolledFn: func(int64) ([]string, error) { return []string{"totp", "backup_code"}, nil },
 	})
 
-	resp, err := svc.LoginPublic(context.Background(), "pub-mfa-required", correctPassword, strPtr("client-1"), strPtr("provider-1"))
+	resp, err := svc.LoginPublic(context.Background(), "pub-mfa-required", correctPassword, strPtr("client-1"), nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.MFARequired)
@@ -1409,7 +1417,7 @@ func TestLoginPublic_RateLimited(t *testing.T) {
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), username, "pass", strPtr("c1"), strPtr("p1"))
+	_, err := svc.LoginPublic(context.Background(), username, "pass", strPtr("c1"), nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locked")
 }
@@ -1434,7 +1442,7 @@ func TestLoginPublic_ClientLookupError(t *testing.T) {
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		idpRepo, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), "pub-client-err", "pass", strPtr("c1"), strPtr("p1"))
+	_, err := svc.LoginPublic(context.Background(), "pub-client-err", "pass", strPtr("c1"), nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
 }
@@ -1464,7 +1472,7 @@ func TestLoginPublic_UserNotFound(t *testing.T) {
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		idpRepo, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), "pub-user-missing", "pass", strPtr("c1"), strPtr("p1"))
+	_, err := svc.LoginPublic(context.Background(), "pub-user-missing", "pass", strPtr("c1"), nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid credentials")
 }
@@ -1569,7 +1577,7 @@ func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), "pub-token-err", correctPassword, strPtr("c1"), strPtr("p1"))
+	_, err := svc.LoginPublic(context.Background(), "pub-token-err", correctPassword, strPtr("c1"), nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
 }
@@ -1684,7 +1692,7 @@ func TestLoginPublic_WithSession(t *testing.T) {
 
 		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 			userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc, nil)
-		_, err := svc.LoginPublic(context.Background(), "pub-session-limit", correctPassword, strPtr("c1"), strPtr("p1"))
+		_, err := svc.LoginPublic(context.Background(), "pub-session-limit", correctPassword, strPtr("c1"), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "too many sessions")
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1724,7 +1732,7 @@ func TestLoginPublic_WithSession(t *testing.T) {
 
 		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 			userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc, nil)
-		_, err := svc.LoginPublic(context.Background(), "pub-session-create", correctPassword, strPtr("c1"), strPtr("p1"))
+		_, err := svc.LoginPublic(context.Background(), "pub-session-create", correctPassword, strPtr("c1"), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create session failed")
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1759,7 +1767,7 @@ func TestLoginPublic_WithSession(t *testing.T) {
 
 		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 			userIdentityRepo, idpRepo, &mockAuthEventService{}, &mockSessionService{}, nil)
-		resp, err := svc.LoginPublic(context.Background(), "pub-session-ok", correctPassword, strPtr("c1"), strPtr("p1"))
+		resp, err := svc.LoginPublic(context.Background(), "pub-session-ok", correctPassword, strPtr("c1"), nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.NotNil(t, resp.SessionID)
@@ -2161,6 +2169,7 @@ func TestLogin_MFAChallenge(t *testing.T) {
 	idp := buildActiveIdentityProvider()
 	idp.TenantID = 42
 	client := buildActiveClient()
+	client.TenantID = 42
 	client.IdentityProvider = idp
 	user := buildActiveUser(t, correctPassword)
 	user.IsTOTPEnabled = true

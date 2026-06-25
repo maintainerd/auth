@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -51,6 +52,7 @@ type ClientServiceDataResult struct {
 	Domain           *string
 	ClientURIs       *[]ClientURIServiceDataResult
 	IdentityProvider *IdentityProviderServiceDataResult
+	Connections      *[]ClientIdentityProviderServiceDataResult
 	Permissions      *[]PermissionServiceDataResult
 	Status           string
 	IsDefault        bool
@@ -115,6 +117,12 @@ type ClientService interface {
 	UpdateURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	DeleteURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 
+	// Auth Client identity provider connection methods
+	GetConnections(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) ([]ClientIdentityProviderServiceDataResult, error)
+	AddConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, identityProviderUUID uuid.UUID, isDefault bool, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	UpdateConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault bool, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	RemoveConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+
 	// Auth Client API methods
 	GetClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error)
 	AddClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error
@@ -141,7 +149,7 @@ func (s *clientService) GetPublicByIdentifier(ctx context.Context, identifier st
 		return nil, err
 	}
 	if client == nil || client.Status != shared.StatusActive || client.Identifier == nil ||
-		client.IdentityProvider == nil || client.IdentityProvider.Tenant == nil {
+		client.Tenant == nil {
 		return nil, apperror.NewNotFound("auth client not found")
 	}
 	return &ClientPublicServiceDataResult{
@@ -150,7 +158,7 @@ func (s *clientService) GetPublicByIdentifier(ctx context.Context, identifier st
 		DisplayName:      client.DisplayName,
 		ClientType:       client.ClientType,
 		Domain:           client.Domain,
-		TenantIdentifier: client.IdentityProvider.Tenant.Identifier,
+		TenantIdentifier: client.Tenant.Identifier,
 	}, nil
 }
 
@@ -161,18 +169,19 @@ var (
 )
 
 type clientService struct {
-	db                   *gorm.DB
-	clientRepo           ClientRepository
-	clientURIRepo        ClientURIRepository
-	idpRepo              IdentityProviderRepository
-	permissionRepo       PermissionRepository
-	clientPermissionRepo ClientPermissionRepository
-	clientAPIRepo        ClientAPIRepository
-	apiRepo              APIRepository
-	userRepo             UserRepository
-	tenantRepo           TenantRepository
-	authEventService     authevent.AuthEventService
-	eventService         event.EventService
+	db                         *gorm.DB
+	clientRepo                 ClientRepository
+	clientURIRepo              ClientURIRepository
+	clientIdentityProviderRepo ClientIdentityProviderRepository
+	idpRepo                    IdentityProviderRepository
+	permissionRepo             PermissionRepository
+	clientPermissionRepo       ClientPermissionRepository
+	clientAPIRepo              ClientAPIRepository
+	apiRepo                    APIRepository
+	userRepo                   UserRepository
+	tenantRepo                 TenantRepository
+	authEventService           authevent.AuthEventService
+	eventService               event.EventService
 }
 
 func NewClientService(
@@ -190,18 +199,23 @@ func NewClientService(
 	eventService event.EventService,
 ) ClientService {
 	return &clientService{
-		db:                   db,
-		clientRepo:           clientRepo,
-		clientURIRepo:        clientURIRepo,
-		idpRepo:              idpRepo,
-		permissionRepo:       permissionRepo,
-		clientPermissionRepo: clientPermissionRepo,
-		clientAPIRepo:        clientAPIRepo,
-		apiRepo:              apiRepo,
-		userRepo:             userRepo,
-		tenantRepo:           tenantRepo,
-		authEventService:     coalesceAuthEventService(authEventService),
-		eventService:         eventService,
+		db:            db,
+		clientRepo:    clientRepo,
+		clientURIRepo: clientURIRepo,
+		// The connection repo is an internal detail of the client service: the
+		// client_identity_providers table is owned here, so it is constructed over
+		// the same db rather than injected (which would ripple through every
+		// NewClientService call site for no added value).
+		clientIdentityProviderRepo: NewClientIdentityProviderRepository(db),
+		idpRepo:                    idpRepo,
+		permissionRepo:             permissionRepo,
+		clientPermissionRepo:       clientPermissionRepo,
+		clientAPIRepo:              clientAPIRepo,
+		apiRepo:                    apiRepo,
+		userRepo:                   userRepo,
+		tenantRepo:                 tenantRepo,
+		authEventService:           coalesceAuthEventService(authEventService),
+		eventService:               eventService,
 	}
 }
 
@@ -338,14 +352,9 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		txIdpRepo := s.idpRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		idpUUIDParsed, err := uuid.Parse(identityProviderUUID)
+		identityProvider, err := s.resolveInitialIdentityProvider(tx, txIdpRepo, tenantID, identityProviderUUID)
 		if err != nil {
-			return apperror.NewValidation("invalid identity provider UUID")
-		}
-
-		identityProvider, err := txIdpRepo.FindByUUID(idpUUIDParsed, "Tenant")
-		if err != nil || identityProvider == nil {
-			return apperror.NewNotFoundWithReason("identity provider not found")
+			return err
 		}
 
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
@@ -353,12 +362,12 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
-		if err := ValidateTenantAccess(actorUser, identityProvider.Tenant); err != nil {
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
 			return err
 		}
 		capturedActorID = actorUser.UserID
 
-		existingClient, err := txClientRepo.FindByNameAndIdentityProvider(name, identityProvider.IdentityProviderID, tenantID)
+		existingClient, err := txClientRepo.FindByNameAndTenantID(name, tenantID)
 		if err != nil {
 			return err
 		}
@@ -394,11 +403,10 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			SecretEncrypted: &secretEncrypted,
 			Config:          config,
 
-			TenantID:           tenantID,
-			IdentityProviderID: identityProvider.IdentityProviderID,
-			Status:             status,
-			IsDefault:          isDefault,
-			IsSystem:           false,
+			TenantID:  tenantID,
+			Status:    status,
+			IsDefault: isDefault,
+			IsSystem:  false,
 		}
 
 		// Mirror OAuth settings from config into the first-class columns the
@@ -409,8 +417,11 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		if err != nil {
 			return err
 		}
+		if err := s.ensureClientIdentityProviderConnection(tx, newClient, identityProvider, true, true, 0, capturedActorID); err != nil {
+			return err
+		}
 
-		createdClient, err = txClientRepo.FindByUUID(newClient.ClientUUID, "IdentityProvider", "ClientURIs")
+		createdClient, err = txClientRepo.FindByUUID(newClient.ClientUUID, "Tenant", "ConnectedProviders.IdentityProvider", "ClientURIs")
 		if err != nil {
 			return err
 		}
@@ -452,6 +463,71 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		ClientIdentifier: identifier,
 		PlaintextSecret:  plaintextSecret,
 	}, nil
+}
+
+func (s *clientService) resolveInitialIdentityProvider(tx *gorm.DB, repo IdentityProviderRepository, tenantID int64, identityProviderUUID string) (*IdentityProvider, error) {
+	identityProviderUUID = strings.TrimSpace(identityProviderUUID)
+	if identityProviderUUID != "" {
+		idpUUIDParsed, err := uuid.Parse(identityProviderUUID)
+		if err != nil {
+			return nil, apperror.NewValidation("invalid identity provider UUID")
+		}
+		identityProvider, err := repo.FindByUUID(idpUUIDParsed, "Tenant")
+		if err != nil || identityProvider == nil {
+			return nil, apperror.NewNotFoundWithReason("identity provider not found")
+		}
+		providerTenantID := identityProvider.TenantID
+		if providerTenantID == 0 && identityProvider.Tenant != nil {
+			providerTenantID = identityProvider.Tenant.TenantID
+		}
+		if providerTenantID != tenantID {
+			return nil, apperror.NewForbidden("identity provider does not belong to tenant")
+		}
+		return identityProvider, nil
+	}
+
+	var identityProvider IdentityProvider
+	err := tx.
+		Where("tenant_id = ? AND provider = ? AND is_system = ? AND status = ?", tenantID, shared.IDPProviderMaintainerd, true, shared.StatusActive).
+		First(&identityProvider).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundWithReason("system identity provider not found")
+		}
+		return nil, err
+	}
+	return &identityProvider, nil
+}
+
+func (s *clientService) ensureClientIdentityProviderConnection(tx *gorm.DB, client *Client, identityProvider *IdentityProvider, isDefault bool, enabled bool, displayOrder int, actorUserID int64) error {
+	if client == nil || identityProvider == nil {
+		return apperror.NewValidation("client and identity provider are required")
+	}
+	connection := &ClientIdentityProvider{
+		TenantID:           client.TenantID,
+		ClientID:           client.ClientID,
+		IdentityProviderID: identityProvider.IdentityProviderID,
+		IsDefault:          isDefault,
+		Enabled:            enabled,
+		DisplayOrder:       displayOrder,
+		CreatedBy:          &actorUserID,
+		UpdatedBy:          &actorUserID,
+	}
+	var existing ClientIdentityProvider
+	err := tx.
+		Where("client_id = ? AND identity_provider_id = ? AND deleted_at IS NULL", client.ClientID, identityProvider.IdentityProviderID).
+		First(&existing).Error
+	if err == nil {
+		existing.IsDefault = isDefault
+		existing.Enabled = enabled
+		existing.DisplayOrder = displayOrder
+		existing.UpdatedBy = &actorUserID
+		return tx.Save(&existing).Error
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return tx.Create(connection).Error
 }
 
 // RotateSecret generates a new client secret, hashes it, and keeps the previous
@@ -548,7 +624,7 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider.Tenant", "ClientURIs")
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil || Client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found")
 		}
@@ -560,7 +636,7 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		}
 
 		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, Client.IdentityProvider.Tenant); err != nil {
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
 			return err
 		}
 		capturedActorID = actorUser.UserID
@@ -572,7 +648,7 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 
 		// Check if auth client already exist
 		if Client.Name != name {
-			existingClient, err := txClientRepo.FindByNameAndIdentityProvider(name, Client.IdentityProviderID, tenantID)
+			existingClient, err := txClientRepo.FindByNameAndTenantID(name, tenantID)
 			if err != nil {
 				return err
 			}
@@ -650,7 +726,7 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider.Tenant", "ClientURIs")
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil || Client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found")
 		}
@@ -662,7 +738,7 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 		}
 
 		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, Client.IdentityProvider.Tenant); err != nil {
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
 			return err
 		}
 		capturedActorID = actorUser.UserID
@@ -734,7 +810,7 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider.Tenant", "ClientURIs")
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil || Client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found")
 		}
@@ -746,7 +822,7 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 		}
 
 		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, Client.IdentityProvider.Tenant); err != nil {
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
 			return err
 		}
 		capturedActorID = actorUser.UserID
@@ -1049,6 +1125,299 @@ func (s *clientService) DeleteURI(ctx context.Context, ClientUUID uuid.UUID, ten
 	return ToClientServiceDataResult(deletedClient), nil
 }
 
+// GetConnections returns the identity provider connections enabled on a client.
+func (s *clientService) GetConnections(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) ([]ClientIdentityProviderServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.getConnections")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
+	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to load auth client")
+		return nil, err
+	}
+	if Client == nil {
+		return nil, apperror.NewNotFoundWithReason("auth client not found or access denied")
+	}
+
+	span.SetStatus(codes.Ok, "")
+	result := ToClientServiceDataResult(Client)
+	if result.Connections == nil {
+		return []ClientIdentityProviderServiceDataResult{}, nil
+	}
+	return *result.Connections, nil
+}
+
+// AddConnection connects an identity provider to a client. The provider must
+// belong to the same tenant, and a provider may only be connected once per
+// client. Promoting the connection to default clears any existing default first
+// to satisfy the single-default-per-client constraint.
+func (s *clientService) AddConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, identityProviderUUID uuid.UUID, isDefault bool, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.addConnection")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
+	var updatedClient *Client
+	var capturedActorID int64
+	var providerName string
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txConnectionRepo := s.clientIdentityProviderRepo.WithTx(tx)
+		txIDPRepo := s.idpRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+		if err != nil || Client == nil {
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
+		}
+
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
+		if err != nil || actorUser == nil {
+			return apperror.NewNotFoundWithReason("actor user not found")
+		}
+		capturedActorID = actorUser.UserID
+
+		if Client.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
+		}
+
+		identityProvider, err := txIDPRepo.FindByUUID(identityProviderUUID, "Tenant")
+		if err != nil || identityProvider == nil {
+			return apperror.NewNotFoundWithReason("identity provider not found")
+		}
+		if identityProvider.TenantID != tenantID {
+			return apperror.NewForbidden("identity provider does not belong to tenant")
+		}
+		providerName = identityProvider.Name
+
+		existing, err := txConnectionRepo.FindByClientAndProvider(Client.ClientID, identityProvider.IdentityProviderID)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			return apperror.NewValidation("identity provider is already connected to this client")
+		}
+
+		if isDefault {
+			if err := txConnectionRepo.UnsetDefaultForClient(Client.ClientID, 0); err != nil {
+				return err
+			}
+		}
+
+		connection := &ClientIdentityProvider{
+			TenantID:           tenantID,
+			ClientID:           Client.ClientID,
+			IdentityProviderID: identityProvider.IdentityProviderID,
+			IsDefault:          isDefault,
+			Enabled:            enabled,
+			DisplayOrder:       displayOrder,
+			CreatedBy:          &capturedActorID,
+			UpdatedBy:          &capturedActorID,
+		}
+		if _, err := txConnectionRepo.Create(connection); err != nil {
+			return err
+		}
+
+		ClientUpdated, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+		if err != nil || ClientUpdated == nil {
+			return apperror.NewNotFoundWithReason("auth client not found")
+		}
+		updatedClient = ClientUpdated
+		return nil
+	})
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to add identity provider connection")
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzAdmin,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Identity provider connected to client: %s", providerName)),
+	})
+	return ToClientServiceDataResult(updatedClient), nil
+}
+
+// UpdateConnection changes the enabled/default/order fields of an existing
+// client→identity-provider connection.
+func (s *clientService) UpdateConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault bool, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.updateConnection")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
+	var updatedClient *Client
+	var capturedActorID int64
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txConnectionRepo := s.clientIdentityProviderRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+		if err != nil || Client == nil {
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
+		}
+
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
+		if err != nil || actorUser == nil {
+			return apperror.NewNotFoundWithReason("actor user not found")
+		}
+		capturedActorID = actorUser.UserID
+
+		if Client.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
+		}
+
+		connection, err := txConnectionRepo.FindByUUIDAndTenantID(connectionUUID.String(), tenantID)
+		if err != nil || connection == nil {
+			return apperror.NewNotFoundWithReason("identity provider connection not found or access denied")
+		}
+		if connection.ClientID != Client.ClientID {
+			return apperror.NewValidation("identity provider connection does not belong to the specified auth client")
+		}
+
+		// Clear any other default before promoting this connection.
+		if isDefault {
+			if err := txConnectionRepo.UnsetDefaultForClient(Client.ClientID, connection.ClientIdentityProviderID); err != nil {
+				return err
+			}
+		}
+
+		connection.IsDefault = isDefault
+		connection.Enabled = enabled
+		connection.DisplayOrder = displayOrder
+		connection.UpdatedBy = &capturedActorID
+		if _, err := txConnectionRepo.CreateOrUpdate(connection); err != nil {
+			return err
+		}
+
+		ClientUpdated, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+		if err != nil || ClientUpdated == nil {
+			return apperror.NewNotFoundWithReason("auth client not found")
+		}
+		updatedClient = ClientUpdated
+		return nil
+	})
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update identity provider connection")
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzAdmin,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Identity provider connection updated for client: %s", updatedClient.Name)),
+	})
+	return ToClientServiceDataResult(updatedClient), nil
+}
+
+// RemoveConnection detaches an identity provider from a client. The built-in
+// (system) provider connection cannot be removed so the in-house
+// username/password login always remains available.
+func (s *clientService) RemoveConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.removeConnection")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
+	var updatedClient *Client
+	var capturedActorID int64
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txConnectionRepo := s.clientIdentityProviderRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+		if err != nil || Client == nil {
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
+		}
+
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
+		if err != nil || actorUser == nil {
+			return apperror.NewNotFoundWithReason("actor user not found")
+		}
+		capturedActorID = actorUser.UserID
+
+		if Client.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
+		}
+
+		connection, err := txConnectionRepo.FindByUUIDAndTenantID(connectionUUID.String(), tenantID)
+		if err != nil || connection == nil {
+			return apperror.NewNotFoundWithReason("identity provider connection not found or access denied")
+		}
+		if connection.ClientID != Client.ClientID {
+			return apperror.NewValidation("identity provider connection does not belong to the specified auth client")
+		}
+		if connection.IdentityProvider != nil && connection.IdentityProvider.IsSystem {
+			return apperror.NewValidation("the built-in identity provider connection cannot be removed")
+		}
+
+		if err := txConnectionRepo.DeleteByUUIDAndTenantID(connectionUUID.String(), tenantID); err != nil {
+			return err
+		}
+
+		ClientUpdated, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+		if err != nil || ClientUpdated == nil {
+			return apperror.NewNotFoundWithReason("auth client not found")
+		}
+		updatedClient = ClientUpdated
+		return nil
+	})
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to remove identity provider connection")
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzAdmin,
+		Severity:    authevent.AuthEventSeverityWarn,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Identity provider connection removed from client: %s", updatedClient.Name)),
+	})
+	return ToClientServiceDataResult(updatedClient), nil
+}
+
 // Response builder - made public for use in other services
 func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 	if Client == nil {
@@ -1072,20 +1441,40 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 		UpdatedAt:              Client.UpdatedAt,
 	}
 
-	if Client.IdentityProvider != nil {
-		result.IdentityProvider = &IdentityProviderServiceDataResult{
-			IdentityProviderUUID: Client.IdentityProvider.IdentityProviderUUID,
-			Name:                 Client.IdentityProvider.Name,
-			DisplayName:          Client.IdentityProvider.DisplayName,
-			Provider:             Client.IdentityProvider.Provider,
-			ProviderType:         Client.IdentityProvider.ProviderType,
-			Identifier:           Client.IdentityProvider.Identifier,
-			Status:               Client.IdentityProvider.Status,
-			IsDefault:            Client.IdentityProvider.IsDefault,
-			IsSystem:             Client.IdentityProvider.IsSystem,
-			CreatedAt:            Client.IdentityProvider.CreatedAt,
-			UpdatedAt:            Client.IdentityProvider.UpdatedAt,
+	if Client.ConnectedProviders != nil && len(*Client.ConnectedProviders) > 0 {
+		connections := make([]ClientIdentityProviderServiceDataResult, 0, len(*Client.ConnectedProviders))
+		for _, connection := range *Client.ConnectedProviders {
+			if connection.IdentityProvider == nil {
+				continue
+			}
+			idp := IdentityProviderServiceDataResult{
+				IdentityProviderUUID: connection.IdentityProvider.IdentityProviderUUID,
+				Name:                 connection.IdentityProvider.Name,
+				DisplayName:          connection.IdentityProvider.DisplayName,
+				Provider:             connection.IdentityProvider.Provider,
+				ProviderType:         connection.IdentityProvider.ProviderType,
+				Identifier:           connection.IdentityProvider.Identifier,
+				Status:               connection.IdentityProvider.Status,
+				IsDefault:            connection.IdentityProvider.IsDefault,
+				IsSystem:             connection.IdentityProvider.IsSystem,
+				CreatedAt:            connection.IdentityProvider.CreatedAt,
+				UpdatedAt:            connection.IdentityProvider.UpdatedAt,
+			}
+			if connection.IsDefault && result.IdentityProvider == nil {
+				legacy := idp
+				result.IdentityProvider = &legacy
+			}
+			connections = append(connections, ClientIdentityProviderServiceDataResult{
+				ClientIdentityProviderUUID: connection.ClientIdentityProviderUUID,
+				IdentityProvider:           idp,
+				IsDefault:                  connection.IsDefault,
+				Enabled:                    connection.Enabled,
+				DisplayOrder:               connection.DisplayOrder,
+				CreatedAt:                  connection.CreatedAt,
+				UpdatedAt:                  connection.UpdatedAt,
+			})
 		}
+		result.Connections = &connections
 	}
 
 	// Map URIs
@@ -1183,18 +1572,12 @@ func (s *clientService) AddClientAPIs(ctx context.Context, tenantID int64, Clien
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 		apiRepo := s.apiRepo.WithTx(tx)
 
-		// Get auth client with identity provider
-		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if Client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found")
-		}
-
-		// Validate tenant access
-		if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-			return apperror.NewForbidden("unauthorized access to auth client")
 		}
 
 		// Process each API UUID
@@ -1259,18 +1642,12 @@ func (s *clientService) RemoveClientAPI(ctx context.Context, tenantID int64, Cli
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 
-		// Get auth client with identity provider
-		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if Client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found")
-		}
-
-		// Validate tenant access
-		if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-			return apperror.NewForbidden("unauthorized access to auth client")
 		}
 
 		// Remove the API relationship (this will cascade delete permissions)
@@ -1313,7 +1690,7 @@ func (s *clientService) GetClientAPIPermissions(ctx context.Context, tenantID in
 	}
 
 	// Validate tenant access
-	Client, err := s.clientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to fetch client")
@@ -1323,11 +1700,6 @@ func (s *clientService) GetClientAPIPermissions(ctx context.Context, tenantID in
 		span.SetStatus(codes.Error, "auth client not found")
 		return nil, apperror.NewNotFoundWithReason("auth client not found")
 	}
-	if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-		span.SetStatus(codes.Error, "unauthorized access to auth client")
-		return nil, apperror.NewForbidden("unauthorized access to auth client")
-	}
-
 	// Get permissions for this auth client API
 	ClientPermissions, err := s.clientPermissionRepo.FindByClientAPIID(ClientAPI.ClientAPIID)
 	if err != nil {
@@ -1362,18 +1734,12 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
 
-		// Get auth client with identity provider
-		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if Client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found")
-		}
-
-		// Validate tenant access
-		if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-			return apperror.NewForbidden("unauthorized access to auth client")
 		}
 
 		// Get auth client API relationship
@@ -1450,18 +1816,12 @@ func (s *clientService) RemoveClientAPIPermission(ctx context.Context, tenantID 
 		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
 
-		// Get auth client with identity provider
-		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if Client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found")
-		}
-
-		// Validate tenant access
-		if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-			return apperror.NewForbidden("unauthorized access to auth client")
 		}
 
 		// Get auth client API relationship

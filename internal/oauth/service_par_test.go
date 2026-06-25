@@ -152,7 +152,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 			false, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "tenants"`).WillReturnRows(sqlmock.NewRows(nil))
 		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
 			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), 1, 10, "https://other.example.com/cb", shared.ClientURITypeRedirect, time.Now(), time.Now()),
@@ -188,7 +188,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 			false, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "tenants"`).WillReturnRows(sqlmock.NewRows(nil))
 		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
 			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), 1, 10, "https://example.com/callback", shared.ClientURITypeRedirect, time.Now(), time.Now()),
@@ -261,7 +261,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 			false, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "tenants"`).WillReturnRows(sqlmock.NewRows(nil))
 		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
 			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), 1, 10, "https://example.com/callback", shared.ClientURITypeRedirect, time.Now(), time.Now()),
@@ -358,7 +358,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 			false, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "tenants"`).WillReturnRows(sqlmock.NewRows(nil))
 		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
 			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), 1, 10, "https://example.com/callback", shared.ClientURITypeRedirect, time.Now(), time.Now()),
@@ -409,7 +409,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 			false, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "tenants"`).WillReturnRows(sqlmock.NewRows(nil))
 		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
 			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), 1, 10, "javascript:alert(1)", shared.ClientURITypeRedirect, time.Now(), time.Now()),
@@ -445,7 +445,7 @@ func TestOAuthPARService_Push(t *testing.T) {
 			false, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "tenants"`).WillReturnRows(sqlmock.NewRows(nil))
 		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
 			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), 1, 10, "https://example.com/callback", shared.ClientURITypeRedirect, time.Now(), time.Now()),

@@ -1,9 +1,11 @@
 package app
 
 import (
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type idpTenantRepo struct {
@@ -68,13 +70,35 @@ func (r *idpUserIdentityRepo) FindByUserID(userID int64) ([]idp.UserIdentity, er
 	return identities, err
 }
 
-func (r *idpUserIdentityRepo) FindByProviderAndSub(provider, sub string) (*idp.UserIdentity, error) {
+func (r *idpUserIdentityRepo) FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*idp.UserIdentity, error) {
 	var identity idp.UserIdentity
-	err := r.DB().Where("provider = ? AND sub = ?", provider, sub).First(&identity).Error
+	err := r.DB().Where("tenant_id = ? AND provider = ? AND sub = ?", tenantID, provider, sub).First(&identity).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}
 	return &identity, nil
+}
+
+func (r *idpUserIdentityRepo) CreateByTenantProviderSubIfAbsent(identity *idp.UserIdentity) (*idp.UserIdentity, bool, error) {
+	if identity.UserIdentityUUID == uuid.Nil {
+		identity.UserIdentityUUID = uuid.New()
+	}
+	result := r.DB().Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "tenant_id"},
+			{Name: "provider"},
+			{Name: "sub"},
+		},
+		DoNothing: true,
+	}).Create(identity)
+	if result.Error != nil {
+		return nil, false, result.Error
+	}
+	if result.RowsAffected > 0 {
+		return identity, true, nil
+	}
+	existing, err := r.FindByTenantProviderAndSub(identity.TenantID, identity.Provider, identity.Sub)
+	return existing, false, err
 }
 
 func (r *idpUserIdentityRepo) FindByUserIDAndProvider(userID int64, provider string) (*idp.UserIdentity, error) {
@@ -105,7 +129,9 @@ func (r *idpClientRepo) WithTx(tx *gorm.DB) idp.ClientRepository {
 func (r *idpClientRepo) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*idp.Client, error) {
 	query := r.DB().Model(&idp.Client{}).Where("clients.identifier = ?", clientID)
 	if identityProviderIdentifier != "" {
-		query = query.Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
+		query = query.
+			Joins("JOIN client_identity_providers ON client_identity_providers.client_id = clients.client_id").
+			Joins("JOIN identity_providers ON identity_providers.identity_provider_id = client_identity_providers.identity_provider_id").
 			Where("identity_providers.identifier = ?", identityProviderIdentifier)
 	}
 	var c idp.Client

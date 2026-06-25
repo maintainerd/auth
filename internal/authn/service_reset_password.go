@@ -67,10 +67,12 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			// Compatibility for already-issued legacy links whose second value was
 			// the provider identifier.
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *tenantID)
+		case publicAuthSurfaceFromContext(ctx):
+			Client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
 		case clientID != nil:
 			Client, txErr = txClientRepo.FindByIdentifier(*clientID)
 		case tenantID != nil:
-			Client, txErr = txClientRepo.FindSystemByTenantIdentifier(*tenantID)
+			Client, txErr = resolveClient(txClientRepo, nil, tenantID)
 		default:
 			Client, txErr = txClientRepo.FindSystem()
 		}
@@ -119,7 +121,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			return apperror.NewNotFound("user not found")
 		}
 
-		if Client.IdentityProvider != nil && user.TenantID != Client.IdentityProvider.TenantID {
+		if Client.IdentityProvider != nil && user.TenantID != clientTenantID(Client) {
 			return apperror.NewUnauthorized("invalid or expired reset token")
 		}
 
@@ -131,7 +133,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		// Validate password against tenant policy
 		var tenantID int64
 		if Client.IdentityProvider != nil {
-			tenantID = Client.IdentityProvider.TenantID
+			tenantID = clientTenantID(Client)
 		}
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantID)
 		if err := security.ValidatePasswordPolicy(newPassword, policy); err != nil {

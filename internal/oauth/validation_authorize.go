@@ -1,6 +1,8 @@
 package oauth
 
 import (
+	"errors"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/security"
@@ -14,8 +16,13 @@ func (r *OAuthAuthorizeRequestDTO) Validate() error {
 	r.Scope = security.SanitizeInput(r.Scope)
 	r.State = security.SanitizeInput(r.State)
 	r.Nonce = security.SanitizeInput(r.Nonce)
+	r.IdpHint = security.SanitizeInput(r.IdpHint)
 	r.CodeChallenge = security.SanitizeInput(r.CodeChallenge)
 	r.CodeChallengeMethod = security.SanitizeInput(r.CodeChallengeMethod)
+
+	if r.ClientID == "" {
+		return errors.New("client_id is required")
+	}
 
 	return validation.ValidateStruct(r,
 		validation.Field(&r.ResponseType,
@@ -23,8 +30,7 @@ func (r *OAuthAuthorizeRequestDTO) Validate() error {
 			validation.In("code").Error("response_type must be 'code'"),
 		),
 		validation.Field(&r.ClientID,
-			validation.Required.Error("client_id is required"),
-			validation.Length(1, 255).Error("client_id must not exceed 255 characters"),
+			validation.Length(0, 255).Error("client_id must not exceed 255 characters"),
 		),
 		validation.Field(&r.RedirectURI,
 			validation.Required.Error("redirect_uri is required"),
@@ -48,6 +54,9 @@ func (r *OAuthAuthorizeRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Nonce,
 			validation.Length(0, 512).Error("nonce must not exceed 512 characters"),
+		),
+		validation.Field(&r.IdpHint,
+			validation.Length(0, 255).Error("idp_hint must not exceed 255 characters"),
 		),
 	)
 }

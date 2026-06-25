@@ -56,8 +56,10 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	// Validate query parameters
 	q := LoginQueryDTO{
 		ClientID: r.URL.Query().Get("client_id"),
+		TenantID: r.URL.Query().Get("tenant_id"),
 	}
-	if q.ClientID == "" || r.URL.Query().Get("tenant_id") != "" {
+	clIDPtr, tnIDPtr, ok := authenticationContextQuery(r)
+	if !ok {
 		resp.Error(w, http.StatusBadRequest, "Public login requires client_id and does not accept tenant_id")
 		return
 	}
@@ -133,10 +135,6 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 
 	// Public login is client-scoped; the service derives the tenant.
 	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
-	var clIDPtr, tnIDPtr *string
-	if q.ClientID != "" {
-		clIDPtr = &q.ClientID
-	}
 	tokenResponse, err := h.loginService.LoginPublic(
 		ctx, req.Username, req.Password, clIDPtr, tnIDPtr,
 	)
@@ -191,19 +189,32 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
 }
 
-// MFALoginVerify completes the login MFA second step and, on success, issues an
-// acr=2 session. Works for both internal login (no client_id) and public login
-// (client_id/tenant_id passed as query params).
-func (h *LoginHandler) MFALoginVerify(w http.ResponseWriter, r *http.Request) {
+// MFALoginVerifyInternal completes the internal login MFA second step.
+// Internal login is tenant-scoped and rejects client_id.
+func (h *LoginHandler) MFALoginVerifyInternal(w http.ResponseWriter, r *http.Request) {
+	h.mfaLoginVerify(w, r, false)
+}
+
+// MFALoginVerifyPublic completes the public login MFA second step. Public
+// login is client-scoped and accepts only client_id.
+func (h *LoginHandler) MFALoginVerifyPublic(w http.ResponseWriter, r *http.Request) {
+	h.mfaLoginVerify(w, r, true)
+}
+
+func (h *LoginHandler) mfaLoginVerify(w http.ResponseWriter, r *http.Request, public bool) {
 	var req MFALoginVerifyRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
 		return
 	}
 
-	clientID, tenantID := optionalClientQuery(r)
-	if (clientID == nil) == (tenantID == nil) {
-		resp.Error(w, http.StatusBadRequest, "MFA verification requires exactly one authentication context")
+	clientID, tenantID, ok := mfaAuthenticationContextQuery(r, public)
+	if !ok {
+		if public {
+			resp.Error(w, http.StatusBadRequest, "Public MFA verification requires client_id and does not accept tenant_id")
+		} else {
+			resp.Error(w, http.StatusBadRequest, "Internal MFA verification requires tenant_id and does not accept client_id")
+		}
 		return
 	}
 	ctx := contextWithRememberDevice(r.Context(), req.RememberDevice)
@@ -218,8 +229,17 @@ func (h *LoginHandler) MFALoginVerify(w http.ResponseWriter, r *http.Request) {
 	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
 }
 
-// MFALoginSendSMS sends an SMS OTP for the in-flight login MFA challenge.
-func (h *LoginHandler) MFALoginSendSMS(w http.ResponseWriter, r *http.Request) {
+// MFALoginSendSMSInternal sends an SMS OTP for an internal login MFA challenge.
+func (h *LoginHandler) MFALoginSendSMSInternal(w http.ResponseWriter, r *http.Request) {
+	h.mfaLoginSendSMS(w, r)
+}
+
+// MFALoginSendSMSPublic sends an SMS OTP for a public login MFA challenge.
+func (h *LoginHandler) MFALoginSendSMSPublic(w http.ResponseWriter, r *http.Request) {
+	h.mfaLoginSendSMS(w, r)
+}
+
+func (h *LoginHandler) mfaLoginSendSMS(w http.ResponseWriter, r *http.Request) {
 	var req MFALoginChallengeRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
@@ -232,7 +252,15 @@ func (h *LoginHandler) MFALoginSendSMS(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, nil, "SMS code sent")
 }
 
-func (h *LoginHandler) MFALoginSendEmailOTP(w http.ResponseWriter, r *http.Request) {
+func (h *LoginHandler) MFALoginSendEmailOTPInternal(w http.ResponseWriter, r *http.Request) {
+	h.mfaLoginSendEmailOTP(w, r)
+}
+
+func (h *LoginHandler) MFALoginSendEmailOTPPublic(w http.ResponseWriter, r *http.Request) {
+	h.mfaLoginSendEmailOTP(w, r)
+}
+
+func (h *LoginHandler) mfaLoginSendEmailOTP(w http.ResponseWriter, r *http.Request) {
 	var req MFALoginChallengeRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
@@ -247,7 +275,15 @@ func (h *LoginHandler) MFALoginSendEmailOTP(w http.ResponseWriter, r *http.Reque
 
 // MFALoginWebAuthnBegin starts a passkey assertion ceremony for the in-flight
 // login MFA challenge and returns the assertion options.
-func (h *LoginHandler) MFALoginWebAuthnBegin(w http.ResponseWriter, r *http.Request) {
+func (h *LoginHandler) MFALoginWebAuthnBeginInternal(w http.ResponseWriter, r *http.Request) {
+	h.mfaLoginWebAuthnBegin(w, r)
+}
+
+func (h *LoginHandler) MFALoginWebAuthnBeginPublic(w http.ResponseWriter, r *http.Request) {
+	h.mfaLoginWebAuthnBegin(w, r)
+}
+
+func (h *LoginHandler) mfaLoginWebAuthnBegin(w http.ResponseWriter, r *http.Request) {
 	var req MFALoginChallengeRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
@@ -262,7 +298,7 @@ func (h *LoginHandler) MFALoginWebAuthnBegin(w http.ResponseWriter, r *http.Requ
 }
 
 // optionalClientQuery extracts client_id/tenant_id from the query string when
-// present (public login); returns nils for internal login (system client).
+// present.
 func optionalClientQuery(r *http.Request) (clientID, tenantID *string) {
 	if c := strings.TrimSpace(r.URL.Query().Get("client_id")); c != "" {
 		clientID = &c
@@ -271,6 +307,19 @@ func optionalClientQuery(r *http.Request) (clientID, tenantID *string) {
 		tenantID = &t
 	}
 	return clientID, tenantID
+}
+
+func authenticationContextQuery(r *http.Request) (clientID, tenantID *string, ok bool) {
+	clientID, tenantID = optionalClientQuery(r)
+	return clientID, nil, clientID != nil && tenantID == nil
+}
+
+func mfaAuthenticationContextQuery(r *http.Request, public bool) (clientID, tenantID *string, ok bool) {
+	if public {
+		return authenticationContextQuery(r)
+	}
+	clientID, tenantID = optionalClientQuery(r)
+	return nil, tenantID, tenantID != nil && clientID == nil
 }
 
 func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {

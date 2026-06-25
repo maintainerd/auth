@@ -91,8 +91,8 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 
 		// Account self-service routes (authenticated)
 		user.AccountRoute(api, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRateLimit)
-		// MFA self-service routes (authenticated)
-		mfa.MFARoute(api, h.mfa, userProvider, application.Cache, tenantRateLimit)
+		// Internal MFA routes (authenticated): self-service plus admin remediation.
+		mfa.MFAInternalRoute(api, h.mfa, userProvider, application.Cache, tenantRateLimit)
 		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
 		idp.FederationPublicRoute(api, h.federation)
 		idp.FederationIdentityRoute(api, h.federation, userProvider, application.Cache, tenantRateLimit)
@@ -183,11 +183,11 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 			user.ProfileRoute(cookieAuth, h.profile, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			user.UserSettingRoute(cookieAuth, h.userSetting, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			user.AccountRoute(cookieAuth, h.account, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRuntimeMiddleware...)
-			mfa.MFARoute(cookieAuth, h.mfa, userProvider, application.Cache, tenantRuntimeMiddleware...)
+			mfa.MFAPublicRoute(cookieAuth, h.mfa, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			idp.FederationIdentityRoute(cookieAuth, h.federation, userProvider, application.Cache, tenantRuntimeMiddleware...)
 		})
 
-		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, userProvider, application.Cache, authRateLimit, tenantRuntimeMiddleware...)
+		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthConnections, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, userProvider, application.Cache, authRateLimit, tenantRuntimeMiddleware...)
 
 		// Federation HRD (public, no cookie auth)
 		idp.FederationPublicRoute(api, h.federation)

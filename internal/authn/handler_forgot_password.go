@@ -25,8 +25,8 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	// Validate query parameters (required for public route)
-	clientID := r.URL.Query().Get("client_id")
-	if clientID == "" || r.URL.Query().Get("tenant_id") != "" {
+	clientID, tenantID, ok := authenticationContextQuery(r)
+	if !ok {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "forgot_password_missing_params",
 			ClientIP:  clientIPStr,
@@ -35,7 +35,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 			Endpoint:  "/forgot-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Missing client_id or unexpected tenant_id parameter",
+			Details:   "Missing or ambiguous authentication context",
 			Severity:  "MEDIUM",
 		})
 		resp.Error(w, http.StatusBadRequest, "Public password recovery requires client_id and does not accept tenant_id")
@@ -97,7 +97,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 	}
 
 	// Process forgot password request (external - use APP_FRONTEND_IDENTITY_HOSTNAME)
-	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, &clientID, nil, false)
+	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, clientID, tenantID, false)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "forgot_password_service_error",

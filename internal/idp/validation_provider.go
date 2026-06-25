@@ -1,12 +1,22 @@
 package idp
 
 import (
+	"strings"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/auth/internal/shared"
 )
 
+// isExternalProviderType reports whether a provider type needs upstream OIDC
+// credentials (issuer + provider_client_id). System providers do not.
+func isExternalProviderType(providerType string) bool {
+	return providerType == shared.IDPTypeSocial || providerType == shared.IDPTypeEnterprise
+}
+
 // Validation for create request
 func (r IdentityProviderCreateRequestDTO) Validate() error {
+	requireExternalCreds := isExternalProviderType(r.ProviderType) && r.Status == shared.StatusActive
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -22,10 +32,19 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.ProviderType,
 			validation.Required.Error("Provider type is required"),
-			validation.In(shared.IDPTypeIdentity, shared.IDPTypeSocial).Error("Provider type must be either 'identity' or 'social'"),
+			validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise).Error("Provider type must be one of: system, social, enterprise"),
 		),
-		validation.Field(&r.Config,
-			validation.Required.Error("Config is required"),
+		validation.Field(&r.Issuer,
+			validation.When(requireExternalCreds, validation.Required.Error("Issuer is required for active social/enterprise providers")),
+			validation.When(strings.TrimSpace(r.Issuer) != "", is.URL.Error("Issuer must be a valid URL")),
+		),
+		validation.Field(&r.ProviderClientID,
+			validation.When(requireExternalCreds, validation.Required.Error("Provider client ID is required for active social/enterprise providers")),
+		),
+		validation.Field(&r.EmailDomains,
+			validation.When(len(r.EmailDomains) > 0,
+				validation.Each(is.Domain.Error("Each email domain must be a valid domain")),
+			),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -36,6 +55,7 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 
 // Validation for update request
 func (r IdentityProviderUpdateRequestDTO) Validate() error {
+	requireExternalCreds := isExternalProviderType(r.ProviderType) && r.Status == shared.StatusActive
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -51,10 +71,19 @@ func (r IdentityProviderUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.ProviderType,
 			validation.Required.Error("Provider type is required"),
-			validation.In(shared.IDPTypeIdentity, shared.IDPTypeSocial).Error("Provider type must be either 'identity' or 'social'"),
+			validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise).Error("Provider type must be one of: system, social, enterprise"),
 		),
-		validation.Field(&r.Config,
-			validation.Required.Error("Config is required"),
+		validation.Field(&r.Issuer,
+			validation.When(requireExternalCreds, validation.Required.Error("Issuer is required for active social/enterprise providers")),
+			validation.When(strings.TrimSpace(r.Issuer) != "", is.URL.Error("Issuer must be a valid URL")),
+		),
+		validation.Field(&r.ProviderClientID,
+			validation.When(requireExternalCreds, validation.Required.Error("Provider client ID is required for active social/enterprise providers")),
+		),
+		validation.Field(&r.EmailDomains,
+			validation.When(len(r.EmailDomains) > 0,
+				validation.Each(is.Domain.Error("Each email domain must be a valid domain")),
+			),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -82,7 +111,7 @@ func (f IdentityProviderFilterDTO) Validate() error {
 		),
 		validation.Field(&f.ProviderType,
 			validation.When(f.ProviderType != nil,
-				validation.In(shared.IDPTypeIdentity, shared.IDPTypeSocial).Error("Provider type must be one of: identity, social"),
+				validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise).Error("Provider type must be one of: system, social, enterprise"),
 			),
 		),
 		validation.Field(&f.Status,

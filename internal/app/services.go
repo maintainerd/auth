@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/authn"
@@ -65,6 +66,7 @@ type svcs struct {
 	authEventService             authevent.AuthEventService
 	authorizationService         iam.ServiceAuthorizationService
 	oauthAuthorizeService        oauth.OAuthAuthorizeService
+	oauthConnectionsService      oauth.OAuthConnectionsService
 	oauthTokenService            oauth.OAuthTokenService
 	oauthConsentService          oauth.OAuthConsentService
 	oauthPARService              oauth.OAuthPARService
@@ -232,13 +234,17 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	emailVerificationSvc := authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo, newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), appCache, r.securitySettingRepo)
 	userSvc := user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, appCache, r.userTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc)
 
+	// idpEmailDomainRepo backs the identity_provider_email_domains child table
+	// (home-realm discovery + create/update domain membership).
+	idpEmailDomainRepo := idp.NewIdentityProviderEmailDomainRepository(db)
+
 	s := &svcs{
 		serviceService:           iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
 		apiService:               iam.NewAPIService(db, r.apiRepo, r.serviceRepo, iamTenantServiceRepo, eventSvc),
 		permissionService:        iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache, eventSvc, authzInvalidator),
 		tenantService:            tenant.NewTenantService(r.tenantRepo, tenantUOW, eventSvc, tenantSeederAdapter{}),
 		tenantMemberService:      tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW, eventSvc, newTenantUserProvisioner(userSvc)),
-		idpService:               idp.NewIdentityProviderService(db, r.idpRepo, idpTenantRepo, idpUserRepo),
+		idpService:               idp.NewIdentityProviderService(db, r.idpRepo, idpEmailDomainRepo, idpTenantRepo, idpUserRepo),
 		clientService:            client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
 		roleService:              iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
 		userService:              userSvc,
@@ -275,6 +281,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		authEventService:             authEventSvc,
 		authorizationService:         iam.NewServiceAuthorizationService(r.serviceRepo, r.servicePolicyRepo),
 		oauthAuthorizeService:        oauth.NewOAuthAuthorizeService(db, oauthClientRepo, oauthClientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc, r.securitySettingRepo),
+		oauthConnectionsService:      oauth.NewOAuthConnectionsService(db, oauthClientRepo),
 		oauthTokenService:            oauth.NewOAuthTokenService(db, oauthClientRepo, r.oauthAuthCodeRepo, r.oauthRefreshTokenRepo, oauthUserRepo, oauthUserIdentityRepo, authEventSvc, appCache, r.securitySettingRepo),
 		oauthConsentService:          oauth.NewOAuthConsentService(r.oauthConsentGrantRepo, authEventSvc),
 		oauthPARService:              oauth.NewOAuthPARService(db, oauthClientRepo, oauthClientURIRepo, r.oauthPARRequestRepo, authEventSvc, r.securitySettingRepo),
@@ -287,7 +294,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		smsLoginService:              authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo),
 		mfaService:                   mfaSvc,
 		webAuthnService:              webAuthnSvc,
-		federationService:            idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, eventSvc, r.securitySettingRepo, sessionSvc),
+		federationService:            idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpEmailDomainRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, eventSvc, r.securitySettingRepo, sessionSvc),
 		eventService:                 eventSvc,
 		eventTypeService:             eventTypeSvc,
 		tenantEventTypeConfigService: tenantEventTypeConfigSvc,
@@ -301,6 +308,19 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		webhookReplayHandler:         webhookReplayHandler,
 		ipRestrictionRuleRepo:        r.ipRestrictionRuleRepo,
 	}
+	// Wire the broker provider resolver so the oauth broker flow (idp_hint →
+	// upstream provider) can resolve provider authorize endpoints + client_ids
+	// without importing the idp package directly.
+	oauth.SetBrokerProviderResolver(&oauthBrokerProviderResolver{federation: s.federationService})
+
+	// Wire the broker callback resolver so the oauth broker flow can exchange an
+	// upstream provider code and resolve/provision the user.
+	oauth.SetBrokerCallbackResolver(&oauthBrokerCallbackResolver{federation: s.federationService})
+
+	// Sweep expired broker sessions every 5 minutes so single-use short-lived
+	// rows don't accumulate in the database.
+	oauth.SweepExpiredBrokerSessions(context.Background(), db, 5*time.Minute)
+
 	// Inject event service into ServiceService (uses setter to avoid breaking test constructors)
 	iam.SetServiceEventService(s.serviceService, eventSvc)
 	// Inject the MFA factor verifier so login can run the MFA second step (acr=2).

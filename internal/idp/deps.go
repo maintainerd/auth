@@ -59,6 +59,7 @@ func (UserIdentity) TableName() string { return "user_identities" }
 type User struct {
 	UserID             int64
 	UserUUID           uuid.UUID
+	TenantID           int64
 	Username           string
 	Fullname           string `gorm:"-"`
 	Email              string
@@ -81,7 +82,8 @@ type Client struct {
 	ClientID           int64
 	ClientUUID         uuid.UUID
 	TenantID           int64
-	IdentityProviderID int64
+	IdentityProviderID int64             `gorm:"-"`
+	IdentityProvider   *IdentityProvider `gorm:"-"`
 	Name               string
 	DisplayName        string
 	ClientType         string
@@ -90,7 +92,7 @@ type Client struct {
 	Status             string
 	IsDefault          bool
 	IsSystem           bool
-	IdentityProvider   *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	Tenant             *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
@@ -180,8 +182,9 @@ type UserIdentityRepository interface {
 	DeleteByID(id any) error
 	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserID(userID int64) ([]UserIdentity, error)
-	FindByProviderAndSub(provider, sub string) (*UserIdentity, error)
+	FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error)
 	FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error)
+	CreateByTenantProviderSubIfAbsent(identity *UserIdentity) (*UserIdentity, bool, error)
 	DeleteByUserID(userID int64) error
 }
 
@@ -189,6 +192,7 @@ type ClientRepository interface {
 	BaseRepositoryMethods[Client]
 	WithTx(tx *gorm.DB) ClientRepository
 	FindByUUID(uuid any, preloads ...string) (*Client, error)
+	FindByID(id any, preloads ...string) (*Client, error)
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*Client, error)
 }
 

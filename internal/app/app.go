@@ -50,7 +50,7 @@ type App struct {
 	EmailVerificationService     authn.EmailVerificationService
 	MagicLinkService             authn.MagicLinkService
 	SetupService                 setup.SetupService
-	AuthFlowService            idp.AuthFlowService
+	AuthFlowService              idp.AuthFlowService
 	APIKeyService                client.APIKeyService
 	SecuritySettingService       secpolicy.SecuritySettingService
 	IPRestrictionRuleService     secpolicy.IPRestrictionRuleService
@@ -64,6 +64,7 @@ type App struct {
 	AuthEventService             authevent.AuthEventService
 	AuthorizationService         iam.ServiceAuthorizationService
 	OAuthAuthorizeService        oauth.OAuthAuthorizeService
+	OAuthConnectionsService      oauth.OAuthConnectionsService
 	OAuthTokenService            oauth.OAuthTokenService
 	OAuthConsentService          oauth.OAuthConsentService
 	OAuthPARService              oauth.OAuthPARService
@@ -128,7 +129,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		EmailVerificationService:     s.emailVerificationService,
 		MagicLinkService:             s.magicLinkService,
 		SetupService:                 s.setupService,
-		AuthFlowService:            s.authFlowService,
+		AuthFlowService:              s.authFlowService,
 		APIKeyService:                s.apiKeyService,
 		SecuritySettingService:       s.securitySettingService,
 		IPRestrictionRuleService:     s.ipRestrictionRuleService,
@@ -142,6 +143,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		AuthEventService:             s.authEventService,
 		AuthorizationService:         s.authorizationService,
 		OAuthAuthorizeService:        s.oauthAuthorizeService,
+		OAuthConnectionsService:      s.oauthConnectionsService,
 		OAuthTokenService:            s.oauthTokenService,
 		OAuthConsentService:          s.oauthConsentService,
 		OAuthPARService:              s.oauthPARService,

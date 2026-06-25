@@ -48,11 +48,19 @@ BEGIN
             REFERENCES tenants(tenant_id) ON DELETE CASCADE;
     END IF;
 
-    IF NOT EXISTS (
+    -- Drop the legacy two-column unique so multi-tenant federation works
+    -- (two tenants sharing the same Google will have different tenant_id).
+    IF EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'uq_user_identities_provider_sub'
     ) THEN
+        ALTER TABLE user_identities DROP CONSTRAINT uq_user_identities_provider_sub;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_user_identities_tenant_provider_sub'
+    ) THEN
         ALTER TABLE user_identities
-            ADD CONSTRAINT uq_user_identities_provider_sub UNIQUE (provider, sub);
+            ADD CONSTRAINT uq_user_identities_tenant_provider_sub UNIQUE (tenant_id, provider, sub);
     END IF;
 
     IF NOT EXISTS (

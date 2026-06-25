@@ -56,6 +56,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 	var user *User
 	var Client *Client
 	var resetToken string
+	var linkTenantID *string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -67,10 +68,13 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 		case clientID != nil && tenantID != nil && !isInternal:
 			// Compatibility for already-issued legacy links.
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *tenantID)
+		case publicAuthSurfaceFromContext(ctx):
+			Client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
+			linkTenantID = tenantID
 		case clientID != nil:
 			Client, txErr = txClientRepo.FindByIdentifier(*clientID)
 		case tenantID != nil:
-			Client, txErr = txClientRepo.FindSystemByTenantIdentifier(*tenantID)
+			Client, txErr = resolveClient(txClientRepo, nil, tenantID)
 		default:
 			Client, txErr = txClientRepo.FindSystem()
 		}
@@ -146,7 +150,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 	// Only send email if user was found (user will be nil if not found due to security)
 	if user != nil {
 		// Generate reset URL and send email
-		if err := s.sendPasswordResetEmail(ctx, user.Email, resetToken, Client, isInternal); err != nil {
+		if err := s.sendPasswordResetEmail(ctx, user.Email, resetToken, Client, isInternal, linkTenantID); err != nil {
 			// authevent.Log error but don't reveal it to user for security
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "password_reset_email_failure",
@@ -170,10 +174,10 @@ func generateSecureToken(length int) string {
 	return hex.EncodeToString(bytes)
 }
 
-func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, resetToken string, Client *Client, isInternal bool) error {
+func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, resetToken string, Client *Client, isInternal bool, linkTenantID *string) error {
 	var templateEntity *branding.EmailTemplate
 	var err error
-	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID("user:password:reset", Client.IdentityProvider.TenantID)
+	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID("user:password:reset", clientTenantID(Client))
 	if err != nil || templateEntity == nil {
 		templateEntity, err = s.emailTemplateRepo.FindByName("user:password:reset")
 	}
@@ -185,10 +189,15 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 	baseURL := fmt.Sprintf("%s/api/v1/reset-password", config.AppPublicHostname)
 	params := map[string]string{"token": resetToken}
 	if isInternal {
-		if Client.IdentityProvider == nil || Client.IdentityProvider.Tenant == nil {
+		if linkTenantID != nil && *linkTenantID != "" {
+			params["tenant_id"] = *linkTenantID
+		} else if Client.IdentityProvider != nil && Client.IdentityProvider.Tenant != nil {
+			params["tenant_id"] = Client.IdentityProvider.Tenant.Identifier
+		} else {
 			return apperror.NewInternal("failed to resolve tenant for reset link", nil)
 		}
-		params["tenant_id"] = Client.IdentityProvider.Tenant.Identifier
+	} else if linkTenantID != nil && *linkTenantID != "" {
+		params["tenant_id"] = *linkTenantID
 	} else {
 		params["client_id"] = *Client.Identifier
 	}

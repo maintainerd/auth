@@ -229,6 +229,7 @@ type ClientRepository interface {
 	FindByIdentifier(identifier string) (*Client, error)
 	FindSystem() (*Client, error)
 	FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error)
+	FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error)
 	FindByUUIDAndTenantID(id uuid.UUID, tenantID int64) (*Client, error)
 	FindByNameAndIdentityProvider(name string, ipID, tenantID int64) (*Client, error)
 	FindByNameAndTenantID(name string, tenantID int64) (*Client, error)
@@ -272,7 +273,6 @@ type UserIdentityRepository interface {
 	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error)
 	FindByUserID(userID int64) ([]UserIdentity, error)
-	FindByProviderAndSub(provider, sub string) (*UserIdentity, error)
 	FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error)
 	FindByIdentityProviderID(idpID int64) ([]UserIdentity, error)
 	DeleteByUserID(userID int64) error

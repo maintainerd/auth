@@ -14,6 +14,7 @@ func newMockGormDBRegex(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
+	mock.MatchExpectationsInOrder(false)
 	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})

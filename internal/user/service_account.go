@@ -50,7 +50,7 @@ type accountService struct {
 	userSettingRepo      UserSettingRepository
 	roleRepo             RoleRepository
 	clientRepo           ClientRepository
-	mfaBackupCodeRepo       UserMFABackupCodeRepository
+	mfaBackupCodeRepo    UserMFABackupCodeRepository
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
 	authEventService     authevent.AuthEventService
@@ -79,7 +79,7 @@ func NewAccountService(
 		userSettingRepo:      userSettingRepo,
 		roleRepo:             roleRepo,
 		clientRepo:           clientRepo,
-		mfaBackupCodeRepo:       mfaBackupCodeRepo,
+		mfaBackupCodeRepo:    mfaBackupCodeRepo,
 		userIdentityRepo:     userIdentityRepo,
 		identityProviderRepo: identityProviderRepo,
 		authEventService:     authEventService,
@@ -400,12 +400,12 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 		// Check tenant MFA policy: backup-code recovery is an MFA factor;
 		// when MFA is disabled for the tenant, recovery via backup codes is
 		// also disabled.
-		if policy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, client.IdentityProvider.TenantID); policy != nil && policy.Mode == "disabled" {
+		if policy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, accountClientTenantID(client)); policy != nil && policy.Mode == "disabled" {
 			return apperror.NewUnauthorized("backup code recovery is unavailable")
 		}
 
 		// Find user by email, scoped to the client's tenant.
-		user, txErr = txUserRepo.FindByEmailAndTenantID(req.Email, client.IdentityProvider.TenantID)
+		user, txErr = txUserRepo.FindByEmailAndTenantID(req.Email, accountClientTenantID(client))
 		if txErr != nil {
 			return apperror.NewInternal("failed to look up user", txErr)
 		}
@@ -460,7 +460,7 @@ func (s *accountService) generateTokenResponse(ctx context.Context, sub string, 
 		*client.Domain,
 		*client.Identifier,
 		*client.Identifier,
-		client.IdentityProvider.Identifier,
+		accountTokenRealm(client),
 	)
 	if err != nil {
 		return nil, err
@@ -473,12 +473,12 @@ func (s *accountService) generateTokenResponse(ctx context.Context, sub string, 
 		PhoneVerified: user.IsPhoneVerified,
 	}
 
-	idToken, err := accountGenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
+	idToken, err := accountGenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, accountTokenRealm(client), profile, "", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := accountGenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	refreshToken, err := accountGenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, accountTokenRealm(client))
 	if err != nil {
 		return nil, err
 	}
@@ -491,4 +491,30 @@ func (s *accountService) generateTokenResponse(ctx context.Context, sub string, 
 		TokenType:    "Bearer",
 		IssuedAt:     time.Now().Unix(),
 	}, nil
+}
+
+func accountClientTenantID(client *Client) int64 {
+	if client == nil {
+		return 0
+	}
+	if client.TenantID > 0 {
+		return client.TenantID
+	}
+	if client.IdentityProvider != nil {
+		return client.IdentityProvider.TenantID
+	}
+	return 0
+}
+
+func accountTokenRealm(client *Client) string {
+	if client == nil {
+		return ""
+	}
+	if client.IdentityProvider != nil && client.IdentityProvider.Identifier != "" {
+		return client.IdentityProvider.Identifier
+	}
+	if client.Identifier != nil {
+		return *client.Identifier
+	}
+	return ""
 }

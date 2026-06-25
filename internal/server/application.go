@@ -65,6 +65,7 @@ type Application struct {
 	AuthEventService             authevent.AuthEventService
 	AuthorizationService         iam.ServiceAuthorizationService
 	OAuthAuthorizeService        oauth.OAuthAuthorizeService
+	OAuthConnectionsService      oauth.OAuthConnectionsService
 	OAuthTokenService            oauth.OAuthTokenService
 	OAuthConsentService          oauth.OAuthConsentService
 	OAuthPARService              oauth.OAuthPARService

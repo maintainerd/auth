@@ -847,3 +847,192 @@ func TestClientHandler_RemoveAPIPermission(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
+
+func validConnectionBody() map[string]any {
+	return map[string]any{
+		"identity_provider_id": uuid.New().String(),
+		"is_default":           false,
+		"enabled":              true,
+		"display_order":        0,
+	}
+}
+
+func TestClientHandler_GetConnections(t *testing.T) {
+	conns := []ClientIdentityProviderServiceDataResult{{ClientIdentityProviderUUID: uuid.New(), Enabled: true}}
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withUser(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).GetConnections(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+	t.Run("invalid uuid returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", "bad"))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).GetConnections(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockClientService{getConnectionsFn: func(id uuid.UUID, tid int64) ([]ClientIdentityProviderServiceDataResult, error) {
+			return nil, errors.New("db error")
+		}}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).GetConnections(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+	t.Run("success", func(t *testing.T) {
+		svc := &mockClientService{getConnectionsFn: func(id uuid.UUID, tid int64) ([]ClientIdentityProviderServiceDataResult, error) {
+			return conns, nil
+		}}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).GetConnections(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestClientHandler_AddConnection(t *testing.T) {
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withUser(withChiParam(jsonReq(t, http.MethodPost, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).AddConnection(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+	t.Run("invalid client uuid returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", validConnectionBody()), "client_uuid", "bad"))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).AddConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("bad json returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(badJSONReq(t, http.MethodPost, "/"), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).AddConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{}), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).AddConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("invalid identity provider uuid returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"identity_provider_id": "not-a-uuid"}), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).AddConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockClientService{addConnectionFn: func(id uuid.UUID, tid int64, idp uuid.UUID, isDefault, enabled bool, order int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return nil, errors.New("db error")
+		}}
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).AddConnection(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+	t.Run("success", func(t *testing.T) {
+		svc := &mockClientService{addConnectionFn: func(id uuid.UUID, tid int64, idp uuid.UUID, isDefault, enabled bool, order int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{Name: "c1"}, nil
+		}}
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).AddConnection(w, r)
+		assert.Equal(t, http.StatusCreated, w.Code)
+	})
+}
+
+func TestClientHandler_UpdateConnection(t *testing.T) {
+	connUUID := uuid.New()
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).UpdateConnection(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+	t.Run("invalid client uuid returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validConnectionBody()), "client_uuid", "bad"), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).UpdateConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("invalid connection uuid returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", "bad"))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).UpdateConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("bad json returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(withChiParam(badJSONReq(t, http.MethodPut, "/"), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).UpdateConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"display_order": -1}), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).UpdateConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockClientService{updateConnectionFn: func(id uuid.UUID, tid int64, conn uuid.UUID, isDefault, enabled bool, order int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return nil, errors.New("db error")
+		}}
+		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).UpdateConnection(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+	t.Run("success", func(t *testing.T) {
+		svc := &mockClientService{updateConnectionFn: func(id uuid.UUID, tid int64, conn uuid.UUID, isDefault, enabled bool, order int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{Name: "c1"}, nil
+		}}
+		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).UpdateConnection(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestClientHandler_RemoveConnection(t *testing.T) {
+	connUUID := uuid.New()
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).RemoveConnection(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+	t.Run("invalid client uuid returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", "bad"), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).RemoveConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("invalid connection uuid returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", "bad"))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).RemoveConnection(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockClientService{removeConnectionFn: func(id uuid.UUID, tid int64, conn uuid.UUID, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return nil, errors.New("db error")
+		}}
+		r := withTenantAndUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).RemoveConnection(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+	t.Run("success", func(t *testing.T) {
+		svc := &mockClientService{removeConnectionFn: func(id uuid.UUID, tid int64, conn uuid.UUID, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{Name: "c1"}, nil
+		}}
+		r := withTenantAndUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).RemoveConnection(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}

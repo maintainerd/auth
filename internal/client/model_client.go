@@ -34,20 +34,26 @@ const (
 // Client represents an OAuth2/OIDC downstream relying-party application (SPA,
 // traditional web, mobile/native, or M2M) registered under a tenant. The OAuth
 // columns describe how the application authenticates to and obtains tokens from
-// THIS authorization server; identity_provider_id only selects which login
-// backend verifies the end user. External provider credentials are NOT stored
-// here — they live in identity_providers.config.
+// this authorization server. External provider credentials are not stored here;
+// they live in dedicated identity_providers columns (provider_client_id,
+// provider_client_secret_encrypted) and are enabled per client through
+// client_identity_providers.
 //
 // Field groups mirror the clients migration: identity & ownership, descriptive,
 // secret storage, config & lifecycle, OAuth core, token lifetime, security
 // overrides, advanced client auth, claims, and audit.
 type Client struct {
 	// Identity & ownership
-	ClientID           int64     `gorm:"column:client_id;primaryKey"`
-	ClientUUID         uuid.UUID `gorm:"column:client_uuid"`
-	TenantID           int64     `gorm:"column:tenant_id;not null"`
-	ServiceID          *int64    `gorm:"column:service_id"`
-	IdentityProviderID int64     `gorm:"column:identity_provider_id"`
+	ClientID   int64     `gorm:"column:client_id;primaryKey"`
+	ClientUUID uuid.UUID `gorm:"column:client_uuid"`
+	TenantID   int64     `gorm:"column:tenant_id;not null"`
+	ServiceID  *int64    `gorm:"column:service_id"`
+
+	// Legacy read projection for callers that have not migrated to
+	// ConnectedProviders yet. This is populated from client_identity_providers,
+	// not persisted on clients.
+	IdentityProviderID int64             `gorm:"-"`
+	IdentityProvider   *IdentityProvider `gorm:"-"`
 
 	// Descriptive
 	Name        string  `gorm:"column:name"`
@@ -112,9 +118,10 @@ type Client struct {
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
-	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
-	ClientURIs       *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`
-	ClientAPIs       *[]ClientAPI      `gorm:"foreignKey:ClientID;references:ClientID"`
+	Tenant             *Tenant                   `gorm:"foreignKey:TenantID;references:TenantID"`
+	ConnectedProviders *[]ClientIdentityProvider `gorm:"foreignKey:ClientID;references:ClientID"`
+	ClientURIs         *[]ClientURI              `gorm:"foreignKey:ClientID;references:ClientID"`
+	ClientAPIs         *[]ClientAPI              `gorm:"foreignKey:ClientID;references:ClientID"`
 }
 
 func (Client) TableName() string {

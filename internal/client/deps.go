@@ -187,3 +187,13 @@ type IdentityProviderServiceDataResult struct {
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
+
+type ClientIdentityProviderServiceDataResult struct {
+	ClientIdentityProviderUUID uuid.UUID
+	IdentityProvider           IdentityProviderServiceDataResult
+	IsDefault                  bool
+	Enabled                    bool
+	DisplayOrder               int
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
+}

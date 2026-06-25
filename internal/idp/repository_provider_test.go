@@ -29,7 +29,7 @@ func TestIdentityProviderRepository_FindByName(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*name = \$1 AND tenant_id = \$2`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*name = \$1 AND tenant_id = \$2`).
 			WithArgs("test", int64(1), 1).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", now, now))
@@ -43,7 +43,7 @@ func TestIdentityProviderRepository_FindByName(t *testing.T) {
 
 	t.Run("not found returns nil", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*name = \$1 AND tenant_id = \$2`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*name = \$1 AND tenant_id = \$2`).
 			WithArgs("nonexistent", int64(1), 1).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name"}))
 		repo := NewIdentityProviderRepository(gdb)
@@ -55,7 +55,7 @@ func TestIdentityProviderRepository_FindByName(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*name = \$1 AND tenant_id = \$2`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*name = \$1 AND tenant_id = \$2`).
 			WithArgs("test", int64(1), 1).
 			WillReturnError(errors.New("db error"))
 		repo := NewIdentityProviderRepository(gdb)
@@ -71,7 +71,7 @@ func TestIdentityProviderRepository_FindByIdentifier(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*identifier = \$1`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*identifier = \$1`).
 			WithArgs("idp-abc", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "identifier", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "idp-abc", "test", now, now))
@@ -85,7 +85,7 @@ func TestIdentityProviderRepository_FindByIdentifier(t *testing.T) {
 
 	t.Run("not found returns nil", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*identifier = \$1`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*identifier = \$1`).
 			WithArgs("nonexistent", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "identifier"}))
 		repo := NewIdentityProviderRepository(gdb)
@@ -97,7 +97,7 @@ func TestIdentityProviderRepository_FindByIdentifier(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*identifier = \$1`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*identifier = \$1`).
 			WithArgs("idp-abc", 1).
 			WillReturnError(errors.New("db error"))
 		repo := NewIdentityProviderRepository(gdb)
@@ -113,7 +113,7 @@ func TestIdentityProviderRepository_FindDefaultByTenantID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND is_default = true`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND is_default = true`).
 			WithArgs(int64(1), 1).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "is_default", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "default-idp", true, now, now))
@@ -127,7 +127,7 @@ func TestIdentityProviderRepository_FindDefaultByTenantID(t *testing.T) {
 
 	t.Run("not found returns error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND is_default = true`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND is_default = true`).
 			WithArgs(int64(1), 1).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name"}))
 		repo := NewIdentityProviderRepository(gdb)
@@ -139,7 +139,7 @@ func TestIdentityProviderRepository_FindDefaultByTenantID(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND is_default = true`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND is_default = true`).
 			WithArgs(int64(1), 1).
 			WillReturnError(errors.New("db error"))
 		repo := NewIdentityProviderRepository(gdb)
@@ -158,7 +158,7 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE .*tenant_id = \$1`).
 			WithArgs(int64(1)).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1.*ORDER BY.*LIMIT`).
 			WithArgs(int64(1), 10).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "idp1", now, now).
@@ -206,7 +206,7 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE provider IN`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE provider IN.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE provider IN.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -232,7 +232,7 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE .*status IN`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*status IN.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*status IN.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -259,7 +259,7 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 		defaultVal := true
 		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE .*is_default`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*is_default.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*is_default.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "is_default", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", true, now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -286,7 +286,7 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 		systemVal := false
 		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE .*is_system`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*is_system.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*is_system.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "is_system", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", false, now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -313,7 +313,7 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 		ptype := "social"
 		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE provider_type`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE provider_type.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE provider_type.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "provider_type", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", "social", now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -340,7 +340,7 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 		id := "idp-abc"
 		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers" WHERE identifier`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE identifier.*ORDER BY.*LIMIT`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE identifier.*ORDER BY.*LIMIT`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "identifier", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", "idp-abc", now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -367,7 +367,7 @@ func TestIdentityProviderRepository_FindPaginated(t *testing.T) {
 		name := "test"
 		mock.ExpectQuery(`SELECT count\(\*\) FROM "identity_providers"`).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers"`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers"`).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "test", now, now))
 		mock.ExpectQuery(`SELECT \* FROM "tenants"`).
@@ -395,7 +395,7 @@ func TestIdentityProviderRepository_FindByTenantAndProvider(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND provider = \$2 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND provider = \$2 AND deleted_at IS NULL`).
 			WithArgs(int64(1), "google", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "provider", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "google", "google-idp", now, now))
@@ -409,7 +409,7 @@ func TestIdentityProviderRepository_FindByTenantAndProvider(t *testing.T) {
 
 	t.Run("not found returns nil", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND provider = \$2 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND provider = \$2 AND deleted_at IS NULL`).
 			WithArgs(int64(1), "unknown", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "provider", "name"}))
 		repo := NewIdentityProviderRepository(gdb)
@@ -421,7 +421,7 @@ func TestIdentityProviderRepository_FindByTenantAndProvider(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND provider = \$2 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND provider = \$2 AND deleted_at IS NULL`).
 			WithArgs(int64(1), "google", 1).
 			WillReturnError(errors.New("db error"))
 		repo := NewIdentityProviderRepository(gdb)
@@ -437,7 +437,7 @@ func TestIdentityProviderRepository_FindAllByTenantID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND deleted_at IS NULL`).
 			WithArgs(int64(1)).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), int64(1), "idp1", now, now).
@@ -451,7 +451,7 @@ func TestIdentityProviderRepository_FindAllByTenantID(t *testing.T) {
 
 	t.Run("empty returns empty slice", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND deleted_at IS NULL`).
 			WithArgs(int64(99)).
 			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name"}))
 		repo := NewIdentityProviderRepository(gdb)
@@ -463,7 +463,7 @@ func TestIdentityProviderRepository_FindAllByTenantID(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
-		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE .*tenant_id = \$1 AND deleted_at IS NULL`).
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*tenant_id = \$1 AND deleted_at IS NULL`).
 			WithArgs(int64(1)).
 			WillReturnError(errors.New("db error"))
 		repo := NewIdentityProviderRepository(gdb)
@@ -472,4 +472,102 @@ func TestIdentityProviderRepository_FindAllByTenantID(t *testing.T) {
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+}
+
+func TestIdentityProviderRepository_FindByIssuer(t *testing.T) {
+	now := time.Now()
+
+	t.Run("found active provider", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*issuer = \$1 AND status = \$2`).
+			WithArgs("https://idp.example.com", "active", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "issuer", "status", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), int64(1), "idp1", "https://idp.example.com", "active", now, now))
+		repo := NewIdentityProviderRepository(gdb)
+		result, err := repo.FindByIssuer("https://idp.example.com")
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "https://idp.example.com", result.IssuerOrEmpty())
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("not found returns nil", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*issuer = \$1 AND status = \$2`).
+			WithArgs("https://missing.example.com", "active", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id"}))
+		repo := NewIdentityProviderRepository(gdb)
+		result, err := repo.FindByIssuer("https://missing.example.com")
+		require.NoError(t, err)
+		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*issuer = \$1 AND status = \$2`).
+			WithArgs("https://idp.example.com", "active", 1).
+			WillReturnError(errors.New("db error"))
+		repo := NewIdentityProviderRepository(gdb)
+		result, err := repo.FindByIssuer("https://idp.example.com")
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestIdentityProviderRepository_FindByUUIDSafe(t *testing.T) {
+	now := time.Now()
+	idpUUID := uuid.New()
+
+	t.Run("found without preloads", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*identity_provider_uuid = \$1`).
+			WithArgs(idpUUID, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "created_at", "updated_at"}).
+				AddRow(1, idpUUID, int64(1), "idp1", now, now))
+		repo := NewIdentityProviderRepository(gdb)
+		result, err := repo.FindByUUIDSafe(idpUUID)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "idp1", result.Name)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("not found returns nil", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*identity_provider_uuid = \$1`).
+			WithArgs(idpUUID, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id"}))
+		repo := NewIdentityProviderRepository(gdb)
+		result, err := repo.FindByUUIDSafe(idpUUID)
+		require.NoError(t, err)
+		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "identity_providers" WHERE .*identity_provider_uuid = \$1`).
+			WithArgs(idpUUID, 1).
+			WillReturnError(errors.New("db error"))
+		repo := NewIdentityProviderRepository(gdb)
+		result, err := repo.FindByUUIDSafe(idpUUID)
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// TestIdpSafeColumns_OmitsSecret is the structural guarantee behind the
+// write-only secret contract: the safe-columns read list must never include the
+// encrypted secret columns, and must include the promoted queried columns.
+func TestIdpSafeColumns_OmitsSecret(t *testing.T) {
+	for _, c := range idpSafeColumns {
+		assert.NotEqual(t, "provider_client_secret_encrypted", c)
+		assert.NotContains(t, c, "secret")
+	}
+	assert.Contains(t, idpSafeColumns, "issuer")
+	assert.Contains(t, idpSafeColumns, "provider_client_id")
+	assert.Contains(t, idpSafeColumns, "allow_jit_provisioning")
 }

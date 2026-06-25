@@ -11,10 +11,11 @@ func CreateClientTable(db *gorm.DB) error {
 -- A client row represents a DOWNSTREAM relying-party application (SPA, traditional
 -- web, mobile/native, or M2M) that authenticates against this authorization server.
 -- It is NOT a place to store an external provider's own OAuth credentials — upstream
--- federation credentials (Cognito/Auth0/Google client_id/secret) live encrypted in
--- identity_providers.config. identity_provider_id only selects which login backend
--- verifies the end user; the OAuth columns below always describe how THIS app talks
--- to our token endpoint, regardless of provider.
+-- federation credentials (Cognito/Auth0/Google client_id/secret) live in the dedicated
+-- identity_providers.provider_client_id / provider_client_secret_encrypted columns
+-- (the secret encrypted at rest). Login connections are enabled through the
+-- client_identity_providers join table; the OAuth columns below always describe
+-- how THIS app talks to our token endpoint, regardless of provider.
 --
 -- Columns are grouped: identity & ownership, descriptive, secret storage, config &
 -- lifecycle, OAuth core, token lifetime, security overrides, advanced client auth,
@@ -26,7 +27,6 @@ CREATE TABLE IF NOT EXISTS clients (
     client_uuid                  UUID NOT NULL UNIQUE,
     tenant_id                    BIGINT NOT NULL,
     service_id                   BIGINT,
-    identity_provider_id         BIGINT NOT NULL,
 
     -- Descriptive
     name                         VARCHAR(100) NOT NULL,
@@ -141,27 +141,18 @@ BEGIN
             REFERENCES services(service_id) ON DELETE SET NULL;
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_clients_identity_provider_id'
-    ) THEN
-        ALTER TABLE clients
-            ADD CONSTRAINT fk_clients_identity_provider_id FOREIGN KEY (identity_provider_id)
-            REFERENCES identity_providers(identity_provider_id) ON DELETE CASCADE;
-    END IF;
 END$$;
 
 -- ADD INDEXES
 -- Composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_status ON clients (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_is_default ON clients (tenant_id, is_default) WHERE is_default = TRUE;
-CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_identity_provider_id ON clients (tenant_id, identity_provider_id);
 CREATE INDEX IF NOT EXISTS idx_clients_service_id ON clients (service_id) WHERE service_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_tenant_name ON clients (tenant_id, name) WHERE deleted_at IS NULL;
 
 -- Single column indexes
 CREATE INDEX IF NOT EXISTS idx_clients_identifier ON clients (identifier) WHERE identifier IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_identifier ON clients (identifier) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_clients_identity_provider_id ON clients (identity_provider_id);
 CREATE INDEX IF NOT EXISTS idx_clients_is_system ON clients (is_system) WHERE is_system = TRUE;
 CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients (created_at);
 CREATE INDEX IF NOT EXISTS idx_clients_deleted_at ON clients (deleted_at) WHERE deleted_at IS NULL;

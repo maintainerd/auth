@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -21,22 +22,12 @@ func NewOAuthAuthorizeHandler(authorizeService OAuthAuthorizeService) *OAuthAuth
 	return &OAuthAuthorizeHandler{authorizeService: authorizeService}
 }
 
-// Authorize handles GET /oauth/authorize (RFC 6749 §4.1.1). The user must be
-// already authenticated (JWT in Authorization header). If consent is needed, the
-// response contains a consent_challenge identifier for the frontend to display.
+// Authorize handles GET /oauth/authorize (RFC 6749 §4.1.1). It is session-aware:
+// when the request carries a valid session it issues a code (or a consent
+// challenge); when no session is present it validates the request enough to be
+// safe and responds with login_required so the hosted identity app renders the
+// login page, after which it re-issues the same request.
 func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request) {
-	auth := middleware.AuthFromRequest(r)
-	user := auth.User
-	if user == nil {
-		resp.Error(w, http.StatusUnauthorized, "Authentication required")
-		return
-	}
-	tenant := auth.Tenant
-	if tenant == nil {
-		resp.Error(w, http.StatusUnauthorized, "Tenant context required")
-		return
-	}
-
 	q := r.URL.Query()
 	req := OAuthAuthorizeRequestDTO{
 		ResponseType:        q.Get("response_type"),
@@ -45,6 +36,7 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 		Scope:               q.Get("scope"),
 		State:               q.Get("state"),
 		Nonce:               q.Get("nonce"),
+		IdpHint:             q.Get("idp_hint"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
 	}
@@ -54,7 +46,32 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result, oerr := h.authorizeService.Authorize(r.Context(), req, user.UserID, tenant.TenantID)
+	// When idp_hint is present, the client is directing the user to a specific
+	// upstream provider — start the broker leg unconditionally.
+	if req.IdpHint != "" {
+		result, oerr := h.authorizeService.StartBroker(r.Context(), req)
+		if oerr != nil {
+			oerr.WriteJSON(w)
+			return
+		}
+		resp.Success(w, OAuthAuthorizeResponseDTO{RedirectURI: result.RedirectURI}, "Redirecting to identity provider")
+		return
+	}
+
+	auth := middleware.AuthFromRequest(r)
+	if auth.User == nil || auth.Tenant == nil {
+		// No session: validate the client + redirect_uri so we never render a
+		// login page for an unknown client or an unregistered redirect, then ask
+		// the identity app to log the user in.
+		if oerr := h.authorizeService.PrepareAuthorize(r.Context(), req); oerr != nil {
+			oerr.WriteJSON(w)
+			return
+		}
+		apperror.NewOAuthLoginRequired("authentication required").WriteJSON(w)
+		return
+	}
+
+	result, oerr := h.authorizeService.Authorize(r.Context(), req, auth.User.UserID, auth.Tenant.TenantID)
 	if oerr != nil {
 		oerr.WriteJSON(w)
 		return

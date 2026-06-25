@@ -26,12 +26,19 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	clientIDStr := r.URL.Query().Get("client_id")
-	if clientIDStr == "" || r.URL.Query().Get("tenant_id") != "" {
+	q := RegisterQueryDTO{
+		ClientID: r.URL.Query().Get("client_id"),
+		TenantID: r.URL.Query().Get("tenant_id"),
+	}
+	clientIDPtr, tenantIDPtr, ok := authenticationContextQuery(r)
+	if !ok {
 		resp.Error(w, http.StatusBadRequest, "Public registration requires client_id and does not accept tenant_id")
 		return
 	}
-	clientIDPtr := &clientIDStr
+	if err := q.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
 
 	// Validate User-Agent for suspicious patterns
 	if !security.ValidateUserAgent(userAgentStr) {
@@ -99,16 +106,16 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Public registration attempt (client_id/tenant_id optional)
+	// Public registration attempt (client_id required; tenant_id rejected).
 	ctx := contextWithRegistrationCaptchaToken(r.Context(), req.CaptchaToken)
 	tokenResponse, err := h.registerService.RegisterPublic(
-		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, nil,
+		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, tenantIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "registration_failure",
 			UserID:    req.Username,
-			ClientID:  clientIDStr,
+			ClientID:  q.ClientID,
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -126,7 +133,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "registration_success",
 		UserID:    req.Username,
-		ClientID:  clientIDStr,
+		ClientID:  q.ClientID,
 		ClientIP:  clientIPStr,
 		UserAgent: userAgentStr,
 		RequestID: requestIDStr,
@@ -245,7 +252,7 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 		Sig:         r.URL.Query().Get("sig"),
 		AuthFlow:    r.URL.Query().Get("auth_flow"),
 	}
-	if q.ClientID == "" || q.TenantID != "" {
+	if _, _, ok := authenticationContextQuery(r); !ok {
 		resp.Error(w, http.StatusBadRequest, "Public invite registration requires client_id and does not accept tenant_id")
 		return
 	}

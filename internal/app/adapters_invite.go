@@ -21,7 +21,7 @@ func (r *inviteClientRepo) WithTx(tx *gorm.DB) invite.ClientRepository {
 
 func (r *inviteClientRepo) FindSystem() (*invite.Client, error) {
 	var c invite.Client
-	err := r.DB().Preload("IdentityProvider").Where("is_system = ?", true).First(&c).Error
+	err := r.DB().Where("is_system = ?", true).First(&c).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}

@@ -11,6 +11,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
@@ -78,6 +79,230 @@ func newMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	})
 	require.NoError(t, err)
 	return gormDB, mock
+}
+
+func TestOAuthAuthorizeService_PrepareAuthorize(t *testing.T) {
+	ctx := context.Background()
+
+	build := func(clientRepo *mockClientRepo) OAuthAuthorizeService {
+		db, _ := newMockDB(t)
+		return newOAuthAuthorizeSvc(db, clientRepo, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{}, &mockOAuthConsentChallRepo{}, &mockAuthEventService{})
+	}
+
+	t.Run("valid request returns nil", func(t *testing.T) {
+		svc := build(&mockClientRepo{findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return activeClient(), nil }})
+		assert.Nil(t, svc.PrepareAuthorize(ctx, validAuthorizeRequest()))
+	})
+
+	t.Run("client lookup error returns server_error", func(t *testing.T) {
+		svc := build(&mockClientRepo{findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return nil, errors.New("db error") }})
+		oerr := svc.PrepareAuthorize(ctx, validAuthorizeRequest())
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("unknown client returns invalid_request", func(t *testing.T) {
+		svc := build(&mockClientRepo{
+			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return nil, nil },
+			findByIdentifierFn:                  func(_ string) (*Client, error) { return nil, nil },
+		})
+		oerr := svc.PrepareAuthorize(ctx, validAuthorizeRequest())
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+
+	t.Run("inactive client returns invalid_request", func(t *testing.T) {
+		client := activeClient()
+		client.Status = shared.StatusInactive
+		svc := build(&mockClientRepo{findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil }})
+		oerr := svc.PrepareAuthorize(ctx, validAuthorizeRequest())
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+
+	t.Run("unregistered redirect_uri is rejected", func(t *testing.T) {
+		svc := build(&mockClientRepo{findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return activeClient(), nil }})
+		req := validAuthorizeRequest()
+		req.RedirectURI = "https://evil.example.com/cb"
+		require.NotNil(t, svc.PrepareAuthorize(ctx, req))
+	})
+}
+
+func TestOAuthAuthorizeService_StartBroker(t *testing.T) {
+	ctx := context.Background()
+	req := validAuthorizeRequest()
+	req.IdpHint = "google"
+
+	// Resolver returns a provider with explicit endpoints.
+	origResolver := brokerProviderResolver
+	brokerProviderResolver = &mockBrokerProviderResolver{
+		resolveFn: func(_ context.Context, idpHint string) (*BrokerProvider, error) {
+			assert.Equal(t, "google", idpHint)
+			return &BrokerProvider{
+				AuthorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+				ClientID:              "upstream-client",
+				Scopes:                []string{"openid", "email"},
+			}, nil
+		},
+	}
+	t.Cleanup(func() { brokerProviderResolver = origResolver })
+
+	origHost := config.AppPublicHostname
+	config.AppPublicHostname = "https://auth.id.app"
+	t.Cleanup(func() { config.AppPublicHostname = origHost })
+
+	t.Run("creates broker session and returns provider authorize URL", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		// Enabled connection for the client + identity_provider preload.
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_id = \$1.*enabled = \$2`).
+			WithArgs(int64(10), true).
+			WillReturnRows(sqlmock.NewRows([]string{
+				"client_identity_provider_id", "client_identity_provider_uuid", "client_id",
+				"identity_provider_id", "is_default", "enabled", "display_order",
+			}).AddRow(1, uuid.New(), 10, 100, false, true, 0))
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers"`).
+			WillReturnRows(sqlmock.NewRows([]string{
+				"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "display_name",
+				"provider", "provider_type", "identifier", "status", "is_default", "is_system",
+			}).AddRow(100, uuid.New(), 1, "google", "Google", "google", "social", "google", shared.StatusActive, false, false))
+		// Broker session INSERT — auto-transaction.
+		mock.ExpectBegin()
+		mock.ExpectQuery(`INSERT INTO "oauth_broker_sessions"`).
+			WillReturnRows(sqlmock.NewRows([]string{"oauth_broker_session_id"}).AddRow(int64(1)))
+		mock.ExpectCommit()
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return activeClient(), nil }},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{}, &mockOAuthConsentGrantRepo{}, &mockOAuthConsentChallRepo{}, &mockAuthEventService{})
+
+		result, oerr := svc.StartBroker(ctx, req)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "https://accounts.google.com/o/oauth2/v2/auth")
+		assert.Contains(t, result.RedirectURI, "client_id=upstream-client")
+		assert.Contains(t, result.RedirectURI, "scope=openid+email")
+		assert.Contains(t, result.RedirectURI, "redirect_uri=https%3A%2F%2Fauth.id.app%2Fapi%2Fv1%2Foauth%2Fcallback%2Fgoogle")
+		assert.Contains(t, result.RedirectURI, "code_challenge=")
+		assert.Contains(t, result.RedirectURI, "code_challenge_method=S256")
+		assert.Contains(t, result.RedirectURI, "state=")
+		assert.Contains(t, result.RedirectURI, "nonce=")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestOAuthAuthorizeService_HandleCallback(t *testing.T) {
+	ctx := context.Background()
+	origHost := config.AppPublicHostname
+	config.AppPublicHostname = "https://auth.id.app"
+	t.Cleanup(func() { config.AppPublicHostname = origHost })
+
+	sessionRows := func() *sqlmock.Rows {
+		return sqlmock.NewRows([]string{
+			"oauth_broker_session_id", "oauth_broker_session_uuid", "tenant_id", "client_id",
+			"identity_provider_id", "app_redirect_uri", "app_state", "app_scope", "app_nonce",
+			"app_code_challenge", "app_code_challenge_method", "idp_state", "idp_pkce_verifier",
+			"idp_nonce", "expires_at", "consumed_at", "created_at",
+		}).AddRow(
+			int64(1), uuid.New(), int64(1), int64(10),
+			int64(100), "https://example.com/callback", "app-state", "openid profile", "app-nonce",
+			strings.Repeat("A", 43), "S256", "state-1", "pkce-verifier",
+			"idp-nonce", time.Now().Add(time.Minute), nil, time.Now(),
+		)
+	}
+
+	t.Run("consumes session and issues downstream code", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		db, mock := newMockDB(t)
+		mock.ExpectQuery(`SELECT \* FROM "oauth_broker_sessions" WHERE idp_state = .*consumed_at IS NULL`).
+			WillReturnRows(sessionRows())
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "oauth_broker_sessions" SET "consumed_at"=.*WHERE oauth_broker_session_id = .* AND consumed_at IS NULL`).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		origResolver := brokerCallbackResolver
+		brokerCallbackResolver = &mockBrokerCallbackResolver{
+			resolveFn: func(_ context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error) {
+				assert.Equal(t, int64(100), idpID)
+				assert.Equal(t, "provider-code", code)
+				assert.Equal(t, "pkce-verifier", pkceVerifier)
+				assert.Equal(t, "idp-nonce", nonce)
+				assert.Equal(t, "https://auth.id.app/api/v1/oauth/callback/google", redirectURI)
+				assert.Equal(t, int64(10), clientID)
+				return &BrokerResolvedUser{UserID: 50, UserUUID: uuid.New(), IdentitySub: "internal-sub", SessionID: "session-1"}, nil
+			},
+		}
+		t.Cleanup(func() { brokerCallbackResolver = origResolver })
+
+		identifier := "my-client"
+		appClient := activeClient()
+		appClient.Identifier = &identifier
+		var createdCode *OAuthAuthorizationCode
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByIDFn: func(id any, _ ...string) (*Client, error) {
+					assert.Equal(t, int64(10), id)
+					return appClient, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{
+				createFn: func(code *OAuthAuthorizationCode) (*OAuthAuthorizationCode, error) {
+					createdCode = code
+					return code, nil
+				},
+			},
+			&mockOAuthConsentGrantRepo{}, &mockOAuthConsentChallRepo{}, &mockAuthEventService{})
+
+		redirectURL, accessToken, oerr := svc.HandleCallback(ctx, "google", "provider-code", "state-1")
+		require.Nil(t, oerr)
+		assert.Contains(t, redirectURL, "https://example.com/callback?code=")
+		assert.Contains(t, redirectURL, "state=app-state")
+		require.NotNil(t, createdCode)
+		assert.Equal(t, int64(10), createdCode.ClientID)
+		assert.Equal(t, int64(50), createdCode.UserID)
+		assert.Equal(t, "openid profile", createdCode.Scope)
+		assert.Equal(t, "S256", createdCode.CodeChallengeMethod)
+		assert.NotEmpty(t, accessToken)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("already consumed during transaction rejects replay", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.ExpectQuery(`SELECT \* FROM "oauth_broker_sessions" WHERE idp_state = .*consumed_at IS NULL`).
+			WillReturnRows(sessionRows())
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "oauth_broker_sessions" SET "consumed_at"=.*WHERE oauth_broker_session_id = .* AND consumed_at IS NULL`).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectRollback()
+
+		origResolver := brokerCallbackResolver
+		brokerCallbackResolver = &mockBrokerCallbackResolver{}
+		t.Cleanup(func() { brokerCallbackResolver = origResolver })
+
+		identifier := "my-client"
+		appClient := activeClient()
+		appClient.Identifier = &identifier
+		codeCreated := false
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{findByIDFn: func(any, ...string) (*Client, error) { return appClient, nil }},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{createFn: func(code *OAuthAuthorizationCode) (*OAuthAuthorizationCode, error) {
+				codeCreated = true
+				return code, nil
+			}},
+			&mockOAuthConsentGrantRepo{}, &mockOAuthConsentChallRepo{}, &mockAuthEventService{})
+
+		redirectURL, accessToken, oerr := svc.HandleCallback(ctx, "google", "provider-code", "state-1")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Empty(t, redirectURL)
+		assert.Empty(t, accessToken)
+		assert.False(t, codeCreated)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 // ── TestOAuthAuthorizeService_Authorize ─────────────────────────────────────
@@ -440,14 +665,14 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 	})
 
 	t.Run("fallback to findClientByIdentifier", func(t *testing.T) {
-		db, mock := newMockDB(t)
-		// FindByClientIDAndIdentityProvider returns nil
-		// Then findClientByIdentifier queries db directly — returns ErrRecordNotFound
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnError(gorm.ErrRecordNotFound)
+		db, _ := newMockDB(t)
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
 				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return nil, nil
+				},
+				findByIdentifierFn: func(_ string) (*Client, error) {
 					return nil, nil
 				},
 			},
@@ -464,13 +689,15 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 	})
 
 	t.Run("fallback to findClientByIdentifier db error", func(t *testing.T) {
-		db, mock := newMockDB(t)
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnError(errors.New("connection error"))
+		db, _ := newMockDB(t)
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
 				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return nil, nil
+				},
+				findByIdentifierFn: func(_ string) (*Client, error) {
+					return nil, errors.New("connection error")
 				},
 			},
 			&mockClientURIRepo{},
@@ -483,6 +710,30 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("explicit system client_id is rejected on public authorize", func(t *testing.T) {
+		client := activeClient()
+		client.IsSystem = true
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
+
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
 	})
 
 	t.Run("authorize without state or nonce", func(t *testing.T) {

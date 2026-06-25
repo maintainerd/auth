@@ -90,6 +90,11 @@ func (a *authnClientRepoAdapter) FindSystemByTenantIdentifier(tenantIdentifier s
 	return toAuthnClient(r), err
 }
 
+func (a *authnClientRepoAdapter) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*authn.Client, error) {
+	r, err := a.repo.FindSystemByTenantIdentifierAndName(tenantIdentifier, name)
+	return toAuthnClient(r), err
+}
+
 func (a *authnClientRepoAdapter) FindByClientIDAndIdentityProvider(clientID, providerID string) (*authn.Client, error) {
 	r, err := a.repo.FindByClientIDAndIdentityProvider(clientID, providerID)
 	return toAuthnClient(r), err

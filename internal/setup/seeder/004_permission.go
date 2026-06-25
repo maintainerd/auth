@@ -195,6 +195,12 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("client:uri:update", "Update auth client URI", tenantID, apiID),
 		newPermission("client:uri:delete", "Delete auth client URI", tenantID, apiID),
 
+		// Auth Client Identity Provider Connections
+		newPermission("client:identity_provider:read", "Read auth client identity provider connections", tenantID, apiID),
+		newPermission("client:identity_provider:create", "Connect an identity provider to an auth client", tenantID, apiID),
+		newPermission("client:identity_provider:update", "Update an auth client identity provider connection", tenantID, apiID),
+		newPermission("client:identity_provider:delete", "Detach an identity provider from an auth client", tenantID, apiID),
+
 		// Auth Client API Management
 		newPermission("client:api:read", "Read APIs assigned to auth client", tenantID, apiID),
 		newPermission("client:api:create", "Add APIs to auth client", tenantID, apiID),

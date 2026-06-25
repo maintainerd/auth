@@ -192,6 +192,10 @@ type mockClientService struct {
 	createURIFn           func(uuid.UUID, int64, string, string, uuid.UUID) (*ClientServiceDataResult, error)
 	updateURIFn           func(uuid.UUID, int64, uuid.UUID, string, string, uuid.UUID) (*ClientServiceDataResult, error)
 	deleteURIFn           func(uuid.UUID, int64, uuid.UUID, uuid.UUID) (*ClientServiceDataResult, error)
+	getConnectionsFn      func(uuid.UUID, int64) ([]ClientIdentityProviderServiceDataResult, error)
+	addConnectionFn       func(uuid.UUID, int64, uuid.UUID, bool, bool, int, uuid.UUID) (*ClientServiceDataResult, error)
+	updateConnectionFn    func(uuid.UUID, int64, uuid.UUID, bool, bool, int, uuid.UUID) (*ClientServiceDataResult, error)
+	removeConnectionFn    func(uuid.UUID, int64, uuid.UUID, uuid.UUID) (*ClientServiceDataResult, error)
 	getClientAPIsFn       func(int64, uuid.UUID) ([]ClientAPIServiceDataResult, error)
 	addClientAPIsFn       func(int64, uuid.UUID, []uuid.UUID) error
 	removeClientAPIFn     func(int64, uuid.UUID, uuid.UUID) error
@@ -273,6 +277,30 @@ func (m *mockClientService) DeleteURI(_ context.Context, id uuid.UUID, tid int64
 	}
 	return nil, nil
 }
+func (m *mockClientService) GetConnections(_ context.Context, id uuid.UUID, tid int64) ([]ClientIdentityProviderServiceDataResult, error) {
+	if m.getConnectionsFn != nil {
+		return m.getConnectionsFn(id, tid)
+	}
+	return nil, nil
+}
+func (m *mockClientService) AddConnection(_ context.Context, id uuid.UUID, tid int64, idpID uuid.UUID, isDefault, enabled bool, displayOrder int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+	if m.addConnectionFn != nil {
+		return m.addConnectionFn(id, tid, idpID, isDefault, enabled, displayOrder, actor)
+	}
+	return nil, nil
+}
+func (m *mockClientService) UpdateConnection(_ context.Context, id uuid.UUID, tid int64, connID uuid.UUID, isDefault, enabled bool, displayOrder int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+	if m.updateConnectionFn != nil {
+		return m.updateConnectionFn(id, tid, connID, isDefault, enabled, displayOrder, actor)
+	}
+	return nil, nil
+}
+func (m *mockClientService) RemoveConnection(_ context.Context, id uuid.UUID, tid int64, connID uuid.UUID, actor uuid.UUID) (*ClientServiceDataResult, error) {
+	if m.removeConnectionFn != nil {
+		return m.removeConnectionFn(id, tid, connID, actor)
+	}
+	return nil, nil
+}
 func (m *mockClientService) GetClientAPIs(_ context.Context, tid int64, id uuid.UUID) ([]ClientAPIServiceDataResult, error) {
 	if m.getClientAPIsFn != nil {
 		return m.getClientAPIsFn(tid, id)
@@ -319,6 +347,15 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	})
 	require.NoError(t, err)
 	return gormDB, mock
+}
+
+func expectClientIdentityProviderConnectionInsert(mock sqlmock.Sqlmock) {
+	mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE \(client_id = \$1 AND identity_provider_id = \$2 AND deleted_at IS NULL\).*LIMIT \$3`).
+		WithArgs(int64(1), int64(1), 1).
+		WillReturnError(gorm.ErrRecordNotFound)
+	mock.ExpectQuery(`INSERT INTO "client_identity_providers"`).
+		WithArgs(sqlmock.AnyArg(), int64(1), int64(1), int64(1), true, true, 0, int64(1), int64(1), sqlmock.AnyArg(), sqlmock.AnyArg(), nil).
+		WillReturnRows(sqlmock.NewRows([]string{"client_identity_provider_id"}).AddRow(int64(1)))
 }
 
 type mockBaseRepo[T any] struct{}
@@ -417,6 +454,7 @@ type mockClientRepo struct {
 	findByClientIDAndIdentityProviderFn func(string, string) (*Client, error)
 	findByIdentifierFn                  func(string) (*Client, error)
 	findSystemByTenantIdentifierFn      func(string) (*Client, error)
+	findSystemByTenantIdentifierNameFn  func(string, string) (*Client, error)
 	deleteByUUIDAndTenantIDFn           func(uuid.UUID, int64) error
 	createFn                            func(*Client) (*Client, error)
 	createOrUpdateFn                    func(*Client) (*Client, error)
@@ -429,11 +467,17 @@ func (m *mockClientRepo) Create(e *Client) (*Client, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
+	if e != nil && e.ClientID == 0 {
+		e.ClientID = 1
+	}
 	return e, nil
 }
 func (m *mockClientRepo) CreateOrUpdate(e *Client) (*Client, error) {
 	if m.createOrUpdateFn != nil {
 		return m.createOrUpdateFn(e)
+	}
+	if e != nil && e.ClientID == 0 {
+		e.ClientID = 1
 	}
 	return e, nil
 }
@@ -459,6 +503,9 @@ func (m *mockClientRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64) (*C
 	if m.findByUUIDAndTenantIDFn != nil {
 		return m.findByUUIDAndTenantIDFn(id, tenantID)
 	}
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, "Tenant", "ConnectedProviders.IdentityProvider", "ClientURIs")
+	}
 	return nil, nil
 }
 func (m *mockClientRepo) FindByNameAndIdentityProvider(name string, idpID int64, tenantID int64) (*Client, error) {
@@ -470,6 +517,9 @@ func (m *mockClientRepo) FindByNameAndIdentityProvider(name string, idpID int64,
 func (m *mockClientRepo) FindByNameAndTenantID(name string, tenantID int64) (*Client, error) {
 	if m.findByNameAndTenantIDFn != nil {
 		return m.findByNameAndTenantIDFn(name, tenantID)
+	}
+	if m.findByNameAndIdentityProviderFn != nil {
+		return m.findByNameAndIdentityProviderFn(name, 0, tenantID)
 	}
 	return nil, nil
 }
@@ -528,6 +578,12 @@ func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (
 		return m.findSystemByTenantIdentifierFn(tenantIdentifier)
 	}
 	return nil, nil
+}
+func (m *mockClientRepo) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error) {
+	if m.findSystemByTenantIdentifierNameFn != nil {
+		return m.findSystemByTenantIdentifierNameFn(tenantIdentifier, name)
+	}
+	return m.FindSystemByTenantIdentifier(tenantIdentifier)
 }
 
 func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tenantID int64) error {
@@ -830,4 +886,13 @@ func (m *mockAPIKeyPermissionRepo) FindByAPIKeyAPIID(apiKeyAPIID int64) ([]APIKe
 		return m.findByAPIKeyAPIIDFn(apiKeyAPIID)
 	}
 	return nil, nil
+}
+
+// buildConnSvc builds a ClientService for the identity-provider-connection tests.
+// The connection repo is constructed internally over gormDB, so connection
+// operations are driven through the supplied sqlmock.
+func buildConnSvc(gormDB *gorm.DB, clientRepo *mockClientRepo, idpRepo *mockIdentityProviderRepo, userRepo *mockUserRepo) ClientService {
+	return NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
+		&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+		&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 }

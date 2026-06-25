@@ -42,6 +42,12 @@ message IdentityProvider {
   bool is_system = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
+  // Promoted columns. The upstream client secret is intentionally absent here and
+  // is never emitted in any response.
+  string issuer = 13;
+  string provider_client_id = 14;
+  bool allow_jit_provisioning = 15;
+  repeated string email_domains = 16;
 }
 
 message SignupFlow {
@@ -104,6 +110,10 @@ message CreateIdentityProviderRequest {
   google.protobuf.Struct config = 6;
   string status = 7;
   string actor_user_uuid = 8;
+  string issuer = 9;
+  string provider_client_id = 10;
+  bool allow_jit_provisioning = 11;
+  repeated string email_domains = 12;
 }
 
 message CreateIdentityProviderResponse {
@@ -120,6 +130,10 @@ message UpdateIdentityProviderRequest {
   google.protobuf.Struct config = 7;
   string status = 8;
   string actor_user_uuid = 9;
+  string issuer = 10;
+  string provider_client_id = 11;
+  bool allow_jit_provisioning = 12;
+  repeated string email_domains = 13;
 }
 
 message UpdateIdentityProviderResponse {

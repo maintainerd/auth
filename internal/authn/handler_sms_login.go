@@ -20,8 +20,8 @@ func NewSMSLoginHandler(smsLoginService SMSLoginService) *SMSLoginHandler {
 //
 // POST /sms-login/send?client_id=xxx
 func (h *SMSLoginHandler) SendOTPPublic(w http.ResponseWriter, r *http.Request) {
-	clientID := r.URL.Query().Get("client_id")
-	if clientID == "" || r.URL.Query().Get("tenant_id") != "" {
+	clientID, tenantID, ok := authenticationContextQuery(r)
+	if !ok {
 		resp.Error(w, http.StatusBadRequest, "Public SMS login requires client_id and does not accept tenant_id")
 		return
 	}
@@ -37,7 +37,7 @@ func (h *SMSLoginHandler) SendOTPPublic(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.smsLoginService.SendOTP(r.Context(), req.Phone, &clientID, nil); err != nil {
+	if err := h.smsLoginService.SendOTP(r.Context(), req.Phone, clientID, tenantID); err != nil {
 		resp.HandleServiceError(w, r, "Failed to send OTP", err)
 		return
 	}
@@ -78,8 +78,8 @@ func (h *SMSLoginHandler) SendOTPInternal(w http.ResponseWriter, r *http.Request
 //
 // POST /sms-login/verify?client_id=xxx
 func (h *SMSLoginHandler) VerifyOTPPublic(w http.ResponseWriter, r *http.Request) {
-	clientID := r.URL.Query().Get("client_id")
-	if clientID == "" || r.URL.Query().Get("tenant_id") != "" {
+	clientID, tenantID, ok := authenticationContextQuery(r)
+	if !ok {
 		resp.Error(w, http.StatusBadRequest, "Public SMS OTP verification requires client_id and does not accept tenant_id")
 		return
 	}
@@ -95,7 +95,7 @@ func (h *SMSLoginHandler) VerifyOTPPublic(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	tokens, err := h.smsLoginService.VerifyOTP(r.Context(), req.Phone, req.OTP, &clientID, nil)
+	tokens, err := h.smsLoginService.VerifyOTP(r.Context(), req.Phone, req.OTP, clientID, tenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "OTP verification failed", err)
 		return

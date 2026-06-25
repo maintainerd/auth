@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/shared"
@@ -40,16 +41,23 @@ func buildFullClientService(
 }
 
 func clientWithIDP(tenantID int64) *Client {
+	idp := IdentityProvider{
+		IdentityProviderID: 1,
+		TenantID:           tenantID,
+		Tenant:             &Tenant{TenantID: tenantID, IsSystem: true},
+	}
+	connections := []ClientIdentityProvider{
+		{IdentityProviderID: idp.IdentityProviderID, IdentityProvider: &idp, IsDefault: true, Enabled: true},
+	}
 	return &Client{
-		ClientID:   1,
-		ClientUUID: uuid.New(),
-		Name:       "test",
-		TenantID:   tenantID,
-		Status:     shared.StatusActive,
-		IdentityProvider: &IdentityProvider{
-			TenantID: tenantID,
-			Tenant:   &Tenant{TenantID: tenantID, IsSystem: true},
-		},
+		ClientID:           1,
+		ClientUUID:         uuid.New(),
+		Name:               "test",
+		TenantID:           tenantID,
+		Status:             shared.StatusActive,
+		IdentityProviderID: idp.IdentityProviderID,
+		IdentityProvider:   &idp,
+		ConnectedProviders: &connections,
 	}
 }
 
@@ -467,6 +475,7 @@ func TestClientService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		expectClientIdentityProviderConnectionInsert(mock)
 		mock.ExpectCommit()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
@@ -1210,13 +1219,13 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("unauthorized tenant", func(t *testing.T) {
+	t.Run("cross-tenant client is not returned", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
-				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: 999}}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return nil, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1224,7 +1233,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil, nil)
 		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unauthorized")
+		assert.Contains(t, err.Error(), "auth client not found")
 	})
 
 	t.Run("API not found", func(t *testing.T) {
@@ -1392,21 +1401,22 @@ func TestClientService_GetClientAPIPermissions(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("unauthorized tenant", func(t *testing.T) {
+	t.Run("cross-tenant client is not returned", func(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
 			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
 				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
-				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: 999}}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return nil, nil
 			},
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
 		_, err := svc.GetClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
+		assert.Contains(t, err.Error(), "auth client not found")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -2541,5 +2551,322 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil, nil)
 		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Identity provider connections
+// ---------------------------------------------------------------------------
+
+func TestClientService_GetConnections(t *testing.T) {
+	clientUUID := uuid.New()
+
+	t.Run("client not found", func(t *testing.T) {
+		gormDB, _ := newMockGormDB(t)
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return nil, nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+		result, err := svc.GetConnections(context.Background(), clientUUID, 1)
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		gormDB, _ := newMockGormDB(t)
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return nil, errors.New("db error") }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+		result, err := svc.GetConnections(context.Background(), clientUUID, 1)
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("success with connections", func(t *testing.T) {
+		gormDB, _ := newMockGormDB(t)
+		idpModel := IdentityProvider{IdentityProviderID: 1, IdentityProviderUUID: uuid.New(), Name: "google"}
+		connections := []ClientIdentityProvider{{ClientIdentityProviderUUID: uuid.New(), Enabled: true, IsDefault: true, IdentityProvider: &idpModel}}
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) {
+			return &Client{ClientID: 1, TenantID: 1, ConnectedProviders: &connections}, nil
+		}}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+		result, err := svc.GetConnections(context.Background(), clientUUID, 1)
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
+
+	t.Run("success no connections", func(t *testing.T) {
+		gormDB, _ := newMockGormDB(t)
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) {
+			return &Client{ClientID: 1, TenantID: 1}, nil
+		}}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+		result, err := svc.GetConnections(context.Background(), clientUUID, 1)
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+}
+
+func TestClientService_AddConnection(t *testing.T) {
+	clientUUID := uuid.New()
+	idpUUID := uuid.New()
+	actorUUID := uuid.New()
+
+	activeClient := func() *Client { return &Client{ClientID: 1, TenantID: 1, Name: "c1"} }
+	activeUser := func() *User { return &User{UserID: 1} }
+	activeIDP := func() *IdentityProvider { return &IdentityProvider{IdentityProviderID: 1, TenantID: 1, Name: "google"} }
+
+	t.Run("client not found", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return nil, nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+		_, err := svc.AddConnection(context.Background(), clientUUID, 1, idpUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("actor not found", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return activeClient(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return nil, nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, userRepo)
+		_, err := svc.AddConnection(context.Background(), clientUUID, 1, idpUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("tenant mismatch", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return &Client{ClientID: 1, TenantID: 99}, nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, userRepo)
+		_, err := svc.AddConnection(context.Background(), clientUUID, 1, idpUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("identity provider not found", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return activeClient(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		idpRepo := &mockIdentityProviderRepo{findByUUIDFn: func(any, ...string) (*IdentityProvider, error) { return nil, nil }}
+		svc := buildConnSvc(gormDB, clientRepo, idpRepo, userRepo)
+		_, err := svc.AddConnection(context.Background(), clientUUID, 1, idpUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("identity provider tenant mismatch", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return activeClient(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		idpRepo := &mockIdentityProviderRepo{findByUUIDFn: func(any, ...string) (*IdentityProvider, error) {
+			return &IdentityProvider{IdentityProviderID: 1, TenantID: 99, Name: "google"}, nil
+		}}
+		svc := buildConnSvc(gormDB, clientRepo, idpRepo, userRepo)
+		_, err := svc.AddConnection(context.Background(), clientUUID, 1, idpUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("duplicate connection", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_id = \$1.*identity_provider_id = \$2`).
+			WithArgs(int64(1), int64(1), 1).
+			WillReturnRows(cipRows())
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return activeClient(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		idpRepo := &mockIdentityProviderRepo{findByUUIDFn: func(any, ...string) (*IdentityProvider, error) { return activeIDP(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, idpRepo, userRepo)
+		_, err := svc.AddConnection(context.Background(), clientUUID, 1, idpUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_id = \$1.*identity_provider_id = \$2`).
+			WithArgs(int64(1), int64(1), 1).
+			WillReturnRows(cipEmptyRows())
+		mock.ExpectQuery(`INSERT INTO "client_identity_providers"`).
+			WillReturnRows(cipInsertRow())
+		mock.ExpectCommit()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return activeClient(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		idpRepo := &mockIdentityProviderRepo{findByUUIDFn: func(any, ...string) (*IdentityProvider, error) { return activeIDP(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, idpRepo, userRepo)
+		result, err := svc.AddConnection(context.Background(), clientUUID, 1, idpUUID, false, true, 0, actorUUID)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success as default unsets others", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_id = \$1.*identity_provider_id = \$2`).
+			WithArgs(int64(1), int64(1), 1).
+			WillReturnRows(cipEmptyRows())
+		mock.ExpectExec(`UPDATE "client_identity_providers" SET.*is_default`).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectQuery(`INSERT INTO "client_identity_providers"`).
+			WillReturnRows(cipInsertRow())
+		mock.ExpectCommit()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return activeClient(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		idpRepo := &mockIdentityProviderRepo{findByUUIDFn: func(any, ...string) (*IdentityProvider, error) { return activeIDP(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, idpRepo, userRepo)
+		result, err := svc.AddConnection(context.Background(), clientUUID, 1, idpUUID, true, true, 0, actorUUID)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestClientService_UpdateConnection(t *testing.T) {
+	clientUUID := uuid.New()
+	connUUID := uuid.New()
+	actorUUID := uuid.New()
+
+	clientID10 := func() *Client { return &Client{ClientID: 10, TenantID: 1, Name: "c1"} }
+	activeUser := func() *User { return &User{UserID: 1} }
+
+	t.Run("client not found", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return nil, nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+		_, err := svc.UpdateConnection(context.Background(), clientUUID, 1, connUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("connection not found", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_identity_provider_uuid = \$1.*tenant_id = \$2`).
+			WithArgs(connUUID.String(), int64(1), 1).
+			WillReturnRows(cipEmptyRows())
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return clientID10(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, userRepo)
+		_, err := svc.UpdateConnection(context.Background(), clientUUID, 1, connUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("connection belongs to another client", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_identity_provider_uuid = \$1.*tenant_id = \$2`).
+			WithArgs(connUUID.String(), int64(1), 1).
+			WillReturnRows(cipRows())
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers"`).WillReturnRows(idpPreloadRows())
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return &Client{ClientID: 1, TenantID: 1}, nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, userRepo)
+		_, err := svc.UpdateConnection(context.Background(), clientUUID, 1, connUUID, false, true, 0, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_identity_provider_uuid = \$1.*tenant_id = \$2`).
+			WithArgs(connUUID.String(), int64(1), 1).
+			WillReturnRows(cipRows())
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers"`).WillReturnRows(idpPreloadRows())
+		mock.ExpectExec(`UPDATE "client_identity_providers" SET`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return clientID10(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, userRepo)
+		result, err := svc.UpdateConnection(context.Background(), clientUUID, 1, connUUID, false, true, 5, actorUUID)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestClientService_RemoveConnection(t *testing.T) {
+	clientUUID := uuid.New()
+	connUUID := uuid.New()
+	actorUUID := uuid.New()
+
+	clientID10 := func() *Client { return &Client{ClientID: 10, TenantID: 1, Name: "c1"} }
+	activeUser := func() *User { return &User{UserID: 1} }
+
+	t.Run("client not found", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return nil, nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+		_, err := svc.RemoveConnection(context.Background(), clientUUID, 1, connUUID, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("connection not found", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_identity_provider_uuid = \$1.*tenant_id = \$2`).
+			WithArgs(connUUID.String(), int64(1), 1).
+			WillReturnRows(cipEmptyRows())
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return clientID10(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, userRepo)
+		_, err := svc.RemoveConnection(context.Background(), clientUUID, 1, connUUID, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("system connection cannot be removed", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_identity_provider_uuid = \$1.*tenant_id = \$2`).
+			WithArgs(connUUID.String(), int64(1), 1).
+			WillReturnRows(cipRows())
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers"`).WillReturnRows(idpPreloadSystemRows())
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return clientID10(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, userRepo)
+		_, err := svc.RemoveConnection(context.Background(), clientUUID, 1, connUUID, actorUUID)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_identity_provider_uuid = \$1.*tenant_id = \$2`).
+			WithArgs(connUUID.String(), int64(1), 1).
+			WillReturnRows(cipRows())
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers"`).WillReturnRows(idpPreloadRows())
+		mock.ExpectExec(`UPDATE "client_identity_providers" SET "deleted_at"=`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) { return clientID10(), nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return activeUser(), nil }}
+		svc := buildConnSvc(gormDB, clientRepo, &mockIdentityProviderRepo{}, userRepo)
+		result, err := svc.RemoveConnection(context.Background(), clientUUID, 1, connUUID, actorUUID)
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

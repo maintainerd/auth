@@ -11,12 +11,14 @@ import (
 
 func validIDPCreate() IdentityProviderCreateRequestDTO {
 	return IdentityProviderCreateRequestDTO{
-		Name:         "my-idp",
-		DisplayName:  "My Identity Provider",
-		Provider:     shared.IDPProviderGoogle,
-		ProviderType: shared.IDPTypeIdentity,
-		Config:       datatypes.JSON(`{}`),
-		Status:       shared.StatusActive,
+		Name:             "my-idp",
+		DisplayName:      "My Identity Provider",
+		Provider:         shared.IDPProviderGoogle,
+		ProviderType:     shared.IDPTypeIdentity,
+		Issuer:           "https://accounts.google.com",
+		ProviderClientID: "test-client",
+		Config:           validOAuth2ConfigJSON(),
+		Status:           shared.StatusActive,
 	}
 }
 
@@ -49,22 +51,82 @@ func TestIdentityProviderCreateRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("invalid provider_type", func(t *testing.T) {
+	t.Run("enterprise provider_type is valid", func(t *testing.T) {
 		d := validIDPCreate()
-		d.ProviderType = "enterprise"
-		require.Error(t, d.Validate())
+		d.ProviderType = shared.IDPTypeEnterprise
+		require.NoError(t, d.Validate())
 	})
 
-	t.Run("missing config", func(t *testing.T) {
+	t.Run("config is optional", func(t *testing.T) {
 		d := validIDPCreate()
 		d.Config = nil
-		require.Error(t, d.Validate())
+		require.NoError(t, d.Validate())
 	})
 
 	t.Run("invalid status", func(t *testing.T) {
 		d := validIDPCreate()
 		d.Status = "unknown"
 		require.Error(t, d.Validate())
+	})
+
+	t.Run("active social missing client_id is invalid", func(t *testing.T) {
+		d := validIDPCreate()
+		d.ProviderType = shared.IDPTypeSocial
+		d.ProviderClientID = ""
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("active social missing issuer is invalid", func(t *testing.T) {
+		d := validIDPCreate()
+		d.ProviderType = shared.IDPTypeSocial
+		d.Issuer = ""
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("active social with non-url issuer is invalid", func(t *testing.T) {
+		d := validIDPCreate()
+		d.ProviderType = shared.IDPTypeSocial
+		d.Issuer = "not-a-url"
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("enterprise with issuer and explicit endpoints is valid", func(t *testing.T) {
+		d := validIDPCreate()
+		d.ProviderType = shared.IDPTypeEnterprise
+		d.Issuer = "https://idp.example.com"
+		d.ProviderClientID = "abc"
+		d.Config = datatypes.JSON(`{"authorization_endpoint":"https://idp.example.com/authorize","token_endpoint":"https://idp.example.com/token"}`)
+		require.NoError(t, d.Validate())
+	})
+
+	t.Run("invalid email domain is rejected", func(t *testing.T) {
+		d := validIDPCreate()
+		d.EmailDomains = []string{"bad domain!"}
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("valid email domains pass", func(t *testing.T) {
+		d := validIDPCreate()
+		d.EmailDomains = []string{"example.com", "sub.example.org"}
+		require.NoError(t, d.Validate())
+	})
+
+	t.Run("inactive social without creds is allowed (draft)", func(t *testing.T) {
+		d := validIDPCreate()
+		d.ProviderType = shared.IDPTypeSocial
+		d.Status = shared.StatusInactive
+		d.Issuer = ""
+		d.ProviderClientID = ""
+		require.NoError(t, d.Validate())
+	})
+
+	t.Run("system provider type skips external creds rule", func(t *testing.T) {
+		d := validIDPCreate()
+		d.ProviderType = shared.IDPTypeSystem
+		d.Issuer = ""
+		d.ProviderClientID = ""
+		d.Config = datatypes.JSON(`{}`)
+		require.NoError(t, d.Validate())
 	})
 }
 
@@ -74,7 +136,7 @@ func TestIdentityProviderUpdateRequestDto_Validate(t *testing.T) {
 		DisplayName:  "My Identity Provider",
 		Provider:     shared.IDPProviderMaintainerd,
 		ProviderType: shared.IDPTypeSocial,
-		Config:       datatypes.JSON(`{}`),
+		Config:       validOAuth2ConfigJSON(),
 		Status:       shared.StatusInactive,
 	}
 	assert.NoError(t, d.Validate())
@@ -103,10 +165,10 @@ func TestIdentityProviderFilterDto_Validate(t *testing.T) {
 		require.Error(t, f.Validate())
 	})
 
-	t.Run("invalid provider_type", func(t *testing.T) {
+	t.Run("enterprise provider_type is valid", func(t *testing.T) {
 		pt := "enterprise"
 		f := IdentityProviderFilterDTO{PaginationRequestDTO: validPagination(), ProviderType: &pt}
-		require.Error(t, f.Validate())
+		require.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {

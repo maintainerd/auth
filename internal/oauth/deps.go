@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +40,7 @@ type IdentityProvider struct {
 	IdentityProviderUUID uuid.UUID
 	TenantID             int64
 	Name                 string
+	DisplayName          string
 	Provider             string
 	ProviderType         string
 	Identifier           string
@@ -52,12 +54,31 @@ type IdentityProvider struct {
 
 func (IdentityProvider) TableName() string { return "identity_providers" }
 
+// ClientIdentityProvider projects the client_identity_providers join so the
+// connections endpoint can list a client's enabled login providers. It carries
+// no provider config/secrets.
+type ClientIdentityProvider struct {
+	ClientIdentityProviderID   int64             `gorm:"column:client_identity_provider_id;primaryKey"`
+	ClientIdentityProviderUUID uuid.UUID         `gorm:"column:client_identity_provider_uuid"`
+	TenantID                   int64             `gorm:"column:tenant_id"`
+	ClientID                   int64             `gorm:"column:client_id"`
+	IdentityProviderID         int64             `gorm:"column:identity_provider_id"`
+	IsDefault                  bool              `gorm:"column:is_default"`
+	Enabled                    bool              `gorm:"column:enabled"`
+	DisplayOrder               int               `gorm:"column:display_order"`
+	IdentityProvider           *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	DeletedAt                  gorm.DeletedAt    `gorm:"column:deleted_at;index"`
+}
+
+func (ClientIdentityProvider) TableName() string { return "client_identity_providers" }
+
 type Client struct {
 	ClientID                int64             `gorm:"column:client_id;primaryKey"`
 	ClientUUID              uuid.UUID         `gorm:"column:client_uuid"`
 	TenantID                int64             `gorm:"column:tenant_id"`
 	ServiceID               *int64            `gorm:"column:service_id"`
-	IdentityProviderID      int64             `gorm:"column:identity_provider_id"`
+	IdentityProviderID      int64             `gorm:"-"`
+	IdentityProvider        *IdentityProvider `gorm:"-"`
 	Name                    string            `gorm:"column:name"`
 	DisplayName             string            `gorm:"column:display_name"`
 	ClientType              string            `gorm:"column:client_type"`
@@ -83,7 +104,7 @@ type Client struct {
 	RequireConsent          bool              `gorm:"column:require_consent"`
 	AllowedScopes           pq.StringArray    `gorm:"column:allowed_scopes;type:text[]"`
 	ClientURIs              *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`
-	IdentityProvider        *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	Tenant                  *Tenant           `gorm:"foreignKey:TenantID;references:TenantID"`
 	Service                 *Service          `gorm:"foreignKey:ServiceID;references:ServiceID"`
 
 	JWKS    datatypes.JSON `gorm:"column:jwks;type:jsonb"`
@@ -139,10 +160,45 @@ func (UserIdentity) TableName() string { return "user_identities" }
 // Consumer repository interfaces
 // ---------------------------------------------------------------------------
 
+// BrokerProvider holds the upstream OAuth2 authorize parameters for a brokered
+// identity provider, resolved (and secret-free) by a BrokerProviderResolver.
+type BrokerProvider struct {
+	AuthorizationEndpoint string
+	ClientID              string
+	Scopes                []string
+}
+
+// BrokerProviderResolver resolves the upstream OAuth2 authorize parameters for an
+// identity provider by identifier. It is satisfied by an idp-package adapter
+// wired at startup via SetBrokerProviderResolver, so the oauth package never
+// imports the idp domain or handles provider secrets.
+type BrokerProviderResolver interface {
+	ResolveBrokerProvider(ctx context.Context, idpIdentifier string) (*BrokerProvider, error)
+}
+
+// BrokerResolvedUser is the maintainerd user resolved after exchanging an
+// upstream provider's authorization code.
+type BrokerResolvedUser struct {
+	UserID      int64
+	UserUUID    uuid.UUID
+	IdentitySub string
+	SessionID   string
+}
+
+// BrokerCallbackResolver resolves the maintainerd user for the broker callback
+// by exchanging the upstream provider's authorization code (with PKCE),
+// validating the id_token, and provisioning the user identity.
+type BrokerCallbackResolver interface {
+	ResolveBrokerUser(ctx context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error)
+}
+
 type ClientRepository interface {
 	BaseRepositoryMethods[Client]
 	WithTx(tx *gorm.DB) ClientRepository
+	FindByID(id any, preloads ...string) (*Client, error)
 	FindSystem() (*Client, error)
+	FindByIdentifier(identifier string) (*Client, error)
+	FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error)
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*Client, error)
 }
 

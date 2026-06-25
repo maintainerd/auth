@@ -12,7 +12,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"gorm.io/datatypes"
 )
 
 type IdentityProviderHandler struct {
@@ -165,7 +164,22 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Create(r.Context(), req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, tenant.TenantUUID.String(), tenant.TenantID, user.UserUUID)
+	idp, err := h.idpService.Create(r.Context(), IdentityProviderCreateInput{
+		Name:                 req.Name,
+		DisplayName:          req.DisplayName,
+		Provider:             req.Provider,
+		ProviderType:         req.ProviderType,
+		Issuer:               req.Issuer,
+		ProviderClientID:     req.ProviderClientID,
+		ProviderClientSecret: req.ProviderClientSecret,
+		AllowJITProvisioning: req.AllowJITProvisioning,
+		EmailDomains:         req.EmailDomains,
+		Config:               req.Config,
+		Status:               req.Status,
+		TenantUUID:           tenant.TenantUUID.String(),
+		TenantID:             tenant.TenantID,
+		ActorUserUUID:        user.UserUUID,
+	})
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create identity provider", err)
 		return
@@ -199,7 +213,22 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Update(r.Context(), idpUUID, req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, tenant.TenantID, user.UserUUID)
+	idp, err := h.idpService.Update(r.Context(), IdentityProviderUpdateInput{
+		IdpUUID:              idpUUID,
+		Name:                 req.Name,
+		DisplayName:          req.DisplayName,
+		Provider:             req.Provider,
+		ProviderType:         req.ProviderType,
+		Issuer:               req.Issuer,
+		ProviderClientID:     req.ProviderClientID,
+		ProviderClientSecret: req.ProviderClientSecret,
+		AllowJITProvisioning: req.AllowJITProvisioning,
+		EmailDomains:         req.EmailDomains,
+		Config:               req.Config,
+		Status:               req.Status,
+		TenantID:             tenant.TenantID,
+		ActorUserUUID:        user.UserUUID,
+	})
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update identity provider", err)
 		return
@@ -277,6 +306,10 @@ func toIdpListResponseDTO(r IdentityProviderServiceDataResult) IdentityProviderR
 		Provider:             r.Provider,
 		ProviderType:         r.ProviderType,
 		Identifier:           r.Identifier,
+		Issuer:               r.Issuer,
+		ProviderClientID:     r.ProviderClientID,
+		AllowJITProvisioning: r.AllowJITProvisioning,
+		EmailDomains:         emailDomainsOrEmpty(r.EmailDomains),
 		Status:               r.Status,
 		IsDefault:            r.IsDefault,
 		IsSystem:             r.IsSystem,
@@ -285,12 +318,10 @@ func toIdpListResponseDTO(r IdentityProviderServiceDataResult) IdentityProviderR
 	}
 }
 
-// Convert identity provider result to detail DTO (with config and tenant)
+// Convert identity provider result to detail DTO (with config and tenant). The
+// secret is never present in the result (the column is not selected on reads),
+// so no redaction is required here.
 func toIdpDetailResponseDTO(r IdentityProviderServiceDataResult) IdentityProviderDetailResponseDTO {
-	var cfg *datatypes.JSON
-	if r.Config != nil {
-		cfg = redactIdpConfig(*r.Config)
-	}
 	result := IdentityProviderDetailResponseDTO{
 		IdentityProviderUUID: r.IdentityProviderUUID,
 		Name:                 r.Name,
@@ -298,7 +329,11 @@ func toIdpDetailResponseDTO(r IdentityProviderServiceDataResult) IdentityProvide
 		Provider:             r.Provider,
 		ProviderType:         r.ProviderType,
 		Identifier:           r.Identifier,
-		Config:               cfg,
+		Issuer:               r.Issuer,
+		ProviderClientID:     r.ProviderClientID,
+		AllowJITProvisioning: r.AllowJITProvisioning,
+		EmailDomains:         emailDomainsOrEmpty(r.EmailDomains),
+		Config:               r.Config,
 		Status:               r.Status,
 		IsDefault:            r.IsDefault,
 		IsSystem:             r.IsSystem,
@@ -320,4 +355,13 @@ func toIdpDetailResponseDTO(r IdentityProviderServiceDataResult) IdentityProvide
 	}
 
 	return result
+}
+
+// emailDomainsOrEmpty guarantees a non-nil slice so the JSON field renders as []
+// rather than null.
+func emailDomainsOrEmpty(domains []string) []string {
+	if domains == nil {
+		return []string{}
+	}
+	return domains
 }

@@ -64,6 +64,10 @@ type IdentityProviderResponseDTO struct {
 	Provider             string    `json:"provider"`
 	ProviderType         string    `json:"provider_type"`
 	Identifier           string    `json:"identifier"`
+	Issuer               string    `json:"issuer,omitempty"`
+	ProviderClientID     string    `json:"provider_client_id,omitempty"`
+	AllowJITProvisioning bool      `json:"allow_jit_provisioning"`
+	EmailDomains         []string  `json:"email_domains"`
 	Status               string    `json:"status"`
 	IsDefault            bool      `json:"is_default"`
 	IsSystem             bool      `json:"is_system"`
@@ -71,17 +75,41 @@ type IdentityProviderResponseDTO struct {
 	UpdatedAt            time.Time `json:"updated_at"`
 }
 
-// OIDCProviderConfig is stored as JSONB in IdentityProvider.Config for
-// providers with provider_type = "social" (external OIDC/OAuth2 upstreams).
+// OIDCProviderConfig is the runtime view of an external provider's OIDC/OAuth2
+// settings stored in the IdentityProvider.Config JSONB column. It holds ONLY the
+// polymorphic fields below (endpoints / scopes / attribute mapping). The issuer,
+// provider client_id, client secret and allow_jit_provisioning live in dedicated
+// columns and are read directly off the model (idp.IssuerOrEmpty(),
+// idp.ProviderClientIDOrEmpty(), idp.DecryptedProviderClientSecret(),
+// idp.AllowJITProvisioning).
 type OIDCProviderConfig struct {
-	Issuer               string            `json:"issuer"`
-	ClientID             string            `json:"client_id"`
-	ClientSecret         string            `json:"client_secret,omitempty"`
-	Scopes               []string          `json:"scopes,omitempty"`
-	AllowJITProvisioning bool              `json:"allow_jit_provisioning"`
-	AttributeMapping     map[string]string `json:"attribute_mapping,omitempty"`
-	EmailDomains         []string          `json:"email_domains,omitempty"`
-	UserinfoEndpoint     string            `json:"userinfo_endpoint,omitempty"`
+	Scopes           []string          `json:"scopes,omitempty"`
+	AttributeMapping map[string]string `json:"attribute_mapping,omitempty"`
+	UserinfoEndpoint string            `json:"userinfo_endpoint,omitempty"`
+	// Explicit OAuth2/OIDC endpoints. When unset they are derived from the issuer
+	// column via OIDC discovery (or, for the token endpoint, the issuer-based
+	// default). Set these for providers like Google/Facebook whose endpoints are
+	// not at the issuer root.
+	AuthorizationEndpoint string `json:"authorization_endpoint,omitempty"`
+	TokenEndpoint         string `json:"token_endpoint,omitempty"`
+}
+
+// BrokerProviderInfo holds the upstream OAuth2 authorize parameters resolved for
+// a brokered identity provider: its authorization endpoint, the upstream
+// client_id, and the requested scopes. Secrets are never included.
+type BrokerProviderInfo struct {
+	AuthorizationEndpoint string
+	ClientID              string
+	Scopes                []string
+}
+
+// BrokerResolvedUser is the maintainerd user resolved after exchanging an
+// upstream provider's authorization code and provisioning the identity.
+type BrokerResolvedUser struct {
+	UserID      int64
+	UserUUID    uuid.UUID
+	IdentitySub string
+	SessionID   string
 }
 
 // IdentityMetadata is stored as JSONB in UserIdentity.Metadata for external
@@ -104,6 +132,10 @@ type IdentityProviderDetailResponseDTO struct {
 	Provider             string             `json:"provider"`
 	ProviderType         string             `json:"provider_type"`
 	Identifier           string             `json:"identifier"`
+	Issuer               string             `json:"issuer,omitempty"`
+	ProviderClientID     string             `json:"provider_client_id,omitempty"`
+	AllowJITProvisioning bool               `json:"allow_jit_provisioning"`
+	EmailDomains         []string           `json:"email_domains"`
 	Config               *datatypes.JSON    `json:"config,omitempty"`
 	Tenant               *TenantResponseDTO `json:"tenant,omitempty"`
 	Status               string             `json:"status"`
@@ -113,24 +145,40 @@ type IdentityProviderDetailResponseDTO struct {
 	UpdatedAt            time.Time          `json:"updated_at"`
 }
 
-// Create identity provider request DTO
+// Create identity provider request DTO. Security-critical/queried fields are
+// now first-class top-level inputs (promoted out of the config JSONB blob):
+// issuer, provider_client_id, provider_client_secret (write-only), allow_jit_provisioning and
+// email_domains. Config carries only the remaining JSONB fields (endpoints /
+// scopes / attribute_mapping / system settings).
 type IdentityProviderCreateRequestDTO struct {
-	Name         string         `json:"name"`
-	DisplayName  string         `json:"display_name"`
-	Provider     string         `json:"provider"`
-	ProviderType string         `json:"provider_type"`
-	Config       datatypes.JSON `json:"config"`
-	Status       string         `json:"status"`
+	Name                 string         `json:"name"`
+	DisplayName          string         `json:"display_name"`
+	Provider             string         `json:"provider"`
+	ProviderType         string         `json:"provider_type"`
+	Issuer               string         `json:"issuer"`
+	ProviderClientID     string         `json:"provider_client_id"`
+	ProviderClientSecret string         `json:"provider_client_secret"`
+	AllowJITProvisioning bool           `json:"allow_jit_provisioning"`
+	EmailDomains         []string       `json:"email_domains"`
+	Config               datatypes.JSON `json:"config"`
+	Status               string         `json:"status"`
 }
 
-// Update identity provider request DTO (without tenant_id)
+// Update identity provider request DTO (without tenant_id). ProviderClientSecret follows
+// the write-only contract: blank or the redaction sentinel preserves the stored
+// secret.
 type IdentityProviderUpdateRequestDTO struct {
-	Name         string         `json:"name"`
-	DisplayName  string         `json:"display_name"`
-	Provider     string         `json:"provider"`
-	ProviderType string         `json:"provider_type"`
-	Config       datatypes.JSON `json:"config"`
-	Status       string         `json:"status"`
+	Name                 string         `json:"name"`
+	DisplayName          string         `json:"display_name"`
+	Provider             string         `json:"provider"`
+	ProviderType         string         `json:"provider_type"`
+	Issuer               string         `json:"issuer"`
+	ProviderClientID     string         `json:"provider_client_id"`
+	ProviderClientSecret string         `json:"provider_client_secret"`
+	AllowJITProvisioning bool           `json:"allow_jit_provisioning"`
+	EmailDomains         []string       `json:"email_domains"`
+	Config               datatypes.JSON `json:"config"`
+	Status               string         `json:"status"`
 }
 
 // Identity provider status update DTO
@@ -160,7 +208,7 @@ type AuthFlowResponseDTO struct {
 	Name         string    `json:"name"`
 	Description  string    `json:"description"`
 	Identifier   string    `json:"identifier"`
-	Destination string    `json:"destination"`
+	Destination  string    `json:"destination"`
 	Status       string    `json:"status"`
 	ClientUUID   string    `json:"client_id,omitempty"`
 	BrandingUUID string    `json:"branding_id,omitempty"`
@@ -172,7 +220,7 @@ type AuthFlowResponseDTO struct {
 type AuthFlowCreateRequestDTO struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
-	Destination string   `json:"destination"`
+	Destination  string   `json:"destination"`
 	Status       *string  `json:"status,omitempty"`
 	ClientUUID   string   `json:"client_id"`
 	BrandingUUID *string  `json:"branding_id,omitempty"`
