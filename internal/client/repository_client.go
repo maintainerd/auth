@@ -241,24 +241,24 @@ func (r *clientRepository) FindDefaultByTenantID(tenantID int64) (*Client, error
 }
 
 func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[Client], error) {
-	query := r.DB().Model(&Client{}).Where("tenant_id = ?", filter.TenantID)
+	query := r.DB().Model(&Client{}).Where("clients.tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
-	query = database.ApplyILike(query, "name", filter.Name)
-	query = database.ApplyILike(query, "display_name", filter.DisplayName)
+	query = database.ApplyILike(query, "clients.name", filter.Name)
+	query = database.ApplyILike(query, "clients.display_name", filter.DisplayName)
 
 	// Filters with exact match
 	if len(filter.Status) > 0 {
-		query = query.Where("status IN ?", filter.Status)
+		query = query.Where("clients.status IN ?", filter.Status)
 	}
 	if filter.IsDefault != nil {
-		query = query.Where("is_default = ?", *filter.IsDefault)
+		query = query.Where("clients.is_default = ?", *filter.IsDefault)
 	}
 	if filter.IsSystem != nil {
-		query = query.Where("is_system = ?", *filter.IsSystem)
+		query = query.Where("clients.is_system = ?", *filter.IsSystem)
 	}
 	if len(filter.ClientType) > 0 {
-		query = query.Where("client_type IN ?", filter.ClientType)
+		query = query.Where("clients.client_type IN ?", filter.ClientType)
 	}
 	if filter.IdentityProviderID != nil {
 		query = query.
@@ -267,7 +267,7 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).
+	query = query.Order(database.SanitizeOrderPrefixed("clients.", filter.SortBy, filter.SortOrder, "clients.created_at DESC")).
 		Preload("Tenant").
 		Preload("ConnectedProviders", "enabled = ?", true).
 		Preload("ConnectedProviders.IdentityProvider").

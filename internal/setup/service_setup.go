@@ -335,12 +335,25 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 			return err
 		}
 
+		// The client's identity-provider link now lives in the
+		// client_identity_providers join table — the clients row no longer carries
+		// identity_provider_id, and FindByNameAndTenantID does not resolve the
+		// transient Client.IdentityProviderID field. Persist it only when known;
+		// NULL is valid for the built-in maintainerd identity (the FK
+		// fk_user_identities_idp is nullable). Passing &0 here would point at a
+		// non-existent provider and violate the foreign key.
+		var identityProviderID *int64
+		if defaultClient.IdentityProviderID != 0 {
+			id := defaultClient.IdentityProviderID
+			identityProviderID = &id
+		}
+
 		// Create user identity
 		userIdentity := &UserIdentity{
 			TenantID:           defaultTenant.TenantID,
 			UserID:             createdUser.UserID,
 			ClientID:           defaultClient.ClientID,
-			IdentityProviderID: &defaultClient.IdentityProviderID,
+			IdentityProviderID: identityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 		}
