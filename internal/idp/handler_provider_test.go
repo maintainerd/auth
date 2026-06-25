@@ -147,7 +147,7 @@ func TestIdentityProviderHandler_Create(t *testing.T) {
 		"name":          "test-idp",
 		"display_name":  "Test Identity Provider",
 		"provider":      "maintainerd",
-		"provider_type": "identity",
+		"provider_type": "system",
 		"status":        "active",
 		"config":        map[string]any{},
 	}
@@ -169,7 +169,7 @@ func TestIdentityProviderHandler_Create(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			createFn: func(name, display, provider, providerType string, config datatypes.JSON, status, tUUID string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+			createFn: func(in IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -182,8 +182,8 @@ func TestIdentityProviderHandler_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			createFn: func(name, display, provider, providerType string, config datatypes.JSON, status, tUUID string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
-				return &IdentityProviderServiceDataResult{Name: name}, nil
+			createFn: func(in IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{Name: in.Name}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/idps", validBody)
@@ -200,7 +200,7 @@ func TestIdentityProviderHandler_Update(t *testing.T) {
 		"name":          "upd-idp",
 		"display_name":  "Updated Provider Name",
 		"provider":      "maintainerd",
-		"provider_type": "identity",
+		"provider_type": "system",
 		"status":        "active",
 		"config":        map[string]any{},
 	}
@@ -230,7 +230,7 @@ func TestIdentityProviderHandler_Update(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			updateFn: func(id uuid.UUID, name, display, provider, providerType string, config datatypes.JSON, status string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+			updateFn: func(in IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -244,8 +244,8 @@ func TestIdentityProviderHandler_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			updateFn: func(id uuid.UUID, name, display, provider, providerType string, config datatypes.JSON, status string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
-				return &IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
+			updateFn: func(in IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{IdentityProviderUUID: in.IdpUUID}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPut, "/", validBody)

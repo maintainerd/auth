@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS identity_providers (
     provider                VARCHAR(100) NOT NULL,
     provider_type           VARCHAR(100) NOT NULL,
     identifier              TEXT,
+    issuer                          TEXT,
+    provider_client_id              TEXT,
+    provider_client_secret_encrypted TEXT,
+    allow_jit_provisioning          BOOLEAN NOT NULL DEFAULT FALSE,
     config                  JSONB,
     status                  VARCHAR(20) DEFAULT 'inactive',
     is_default              BOOLEAN DEFAULT FALSE,
@@ -43,7 +47,7 @@ BEGIN
     ) THEN
         ALTER TABLE identity_providers
             ADD CONSTRAINT chk_identity_providers_provider_type
-            CHECK (provider_type IN ('identity', 'social'));
+            CHECK (provider_type IN ('system', 'social', 'enterprise'));
     END IF;
 
     IF NOT EXISTS (
@@ -62,6 +66,9 @@ CREATE INDEX IF NOT EXISTS idx_identity_providers_display_name ON identity_provi
 CREATE INDEX IF NOT EXISTS idx_identity_providers_provider ON identity_providers (provider);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_provider_type ON identity_providers (provider_type);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_identifier ON identity_providers (identifier);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_identifier ON identity_providers (identifier) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_identity_providers_issuer ON identity_providers (issuer) WHERE issuer IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_issuer ON identity_providers (issuer) WHERE issuer IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_identity_providers_status ON identity_providers (status);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_is_default ON identity_providers (is_default);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_is_system ON identity_providers (is_system);

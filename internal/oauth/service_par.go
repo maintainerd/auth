@@ -39,11 +39,11 @@ type OAuthPARService interface {
 }
 
 type oauthPARService struct {
-	db               *gorm.DB
-	clientRepo       ClientRepository
-	clientURIRepo    ClientURIRepository
-	parRepo          OAuthPARRequestRepository
-	authEventService authevent.AuthEventService
+	db                  *gorm.DB
+	clientRepo          ClientRepository
+	clientURIRepo       ClientURIRepository
+	parRepo             OAuthPARRequestRepository
+	authEventService    authevent.AuthEventService
 	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
@@ -61,11 +61,11 @@ func NewOAuthPARService(
 		settings = securitySettingRepo[0]
 	}
 	return &oauthPARService{
-		db:               db,
-		clientRepo:       clientRepo,
-		clientURIRepo:    clientURIRepo,
-		parRepo:          parRepo,
-		authEventService: authEventService,
+		db:                  db,
+		clientRepo:          clientRepo,
+		clientURIRepo:       clientURIRepo,
+		parRepo:             parRepo,
+		authEventService:    authEventService,
 		securitySettingRepo: settings,
 	}
 }
@@ -230,7 +230,7 @@ func (s *oauthPARService) ConsumeRequestURI(ctx context.Context, requestURI stri
 func (s *oauthPARService) resolveAndAuthenticateClient(creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
 	var client Client
 	err := s.db.
-		Preload("IdentityProvider").
+		Preload("Tenant").
 		Preload("ClientURIs").
 		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
 		First(&client).Error

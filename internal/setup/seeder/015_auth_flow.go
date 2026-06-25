@@ -34,29 +34,37 @@ const (
 //
 // All are marked IsSystem=true and cannot be deleted through normal API paths.
 func SeedAuthFlows(db *gorm.DB, tenantID int64) error {
-	var client model.Client
+	var consoleClient model.Client
 	err := db.Where("name = ? AND tenant_id = ? AND is_system = ?",
-		SystemClientNameAuthConsole, tenantID, true).First(&client).Error
+		shared.SystemClientNameAuthConsole, tenantID, true).First(&consoleClient).Error
 	if err != nil {
-		slog.Error("System client not found for auth flow seeding", "tenant_id", tenantID, "error", err)
+		slog.Error("Console system client not found for auth flow seeding", "tenant_id", tenantID, "error", err)
+		return err
+	}
+
+	var identityClient model.Client
+	err = db.Where("name = ? AND tenant_id = ? AND is_system = ?",
+		shared.SystemClientNameAuthIdentity, tenantID, true).First(&identityClient).Error
+	if err != nil {
+		slog.Error("Identity system client not found for auth flow seeding", "tenant_id", tenantID, "error", err)
 		return err
 	}
 
 	if err := seedAuthFlowWithRoleNames(db, tenantID, SystemAuthFlowRegistered,
 		"Default tenant onboarding — grants the registered role (console)",
-		shared.DestinationConsole, &client, "registered"); err != nil {
+		shared.DestinationConsole, &consoleClient, "registered"); err != nil {
 		return err
 	}
 
 	if err := seedAuthFlowWithRoleNames(db, tenantID, SystemAuthFlowIdentity,
 		"Public onboarding — grants the registered role (identity)",
-		shared.DestinationIdentity, &client, "registered"); err != nil {
+		shared.DestinationIdentity, &identityClient, "registered"); err != nil {
 		return err
 	}
 
 	if err := seedAuthFlowWithRoleNames(db, tenantID, SystemAuthFlowOwner,
 		"Owner invitation — grants registered and super-admin roles (console)",
-		shared.DestinationConsole, &client, "registered", "super-admin"); err != nil {
+		shared.DestinationConsole, &consoleClient, "registered", "super-admin"); err != nil {
 		return err
 	}
 

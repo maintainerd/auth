@@ -69,13 +69,31 @@ func (h *FederationHandler) ExchangeOAuth2Code(w http.ResponseWriter, r *http.Re
 
 // HomeRealmDiscovery returns the identity provider for the given email.
 //
-// GET /federation/hrd?email=user@company.com&tenant_id=123
+// Public surface: GET /federation/hrd?email=user@company.com&client_id=app
+// The public API only accepts client_id. tenant_id is accepted solely as an
+// internal-surface fallback (this route is shared with the internal router).
 func (h *FederationHandler) HomeRealmDiscovery(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")
+	clientID := r.URL.Query().Get("client_id")
 	tenantIDStr := r.URL.Query().Get("tenant_id")
 
-	if email == "" || tenantIDStr == "" {
-		resp.Error(w, http.StatusBadRequest, "email and tenant_id query parameters are required")
+	if email == "" {
+		resp.Error(w, http.StatusBadRequest, "email query parameter is required")
+		return
+	}
+
+	if clientID != "" {
+		result, svcErr := h.federationSvc.HomeRealmDiscoveryByClient(r.Context(), clientID, email)
+		if svcErr != nil {
+			resp.HandleServiceError(w, r, "Home realm discovery failed", svcErr)
+			return
+		}
+		resp.Success(w, result, "")
+		return
+	}
+
+	if tenantIDStr == "" {
+		resp.Error(w, http.StatusBadRequest, "client_id query parameter is required")
 		return
 	}
 

@@ -19,6 +19,7 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 	OAuthPublicRoute(
 		public,
 		NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+		NewOAuthConnectionsHandler(nil),
 		NewOAuthTokenHandler(&mockOAuthTokenService{}, &dpop.NonceManager{}, nil),
 		NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}),
 		NewOAuthConsentHandler(&mockOAuthConsentService{}),
@@ -42,6 +43,7 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 		{http.MethodPost, "/oauth/consent"},
 		{http.MethodPost, "/oauth/token"},
 		{http.MethodPost, "/oauth/revoke"},
+		{http.MethodGet, "/oauth/connections"},
 		{http.MethodGet, "/oauth/userinfo"},
 		{http.MethodGet, "/oauth/consent/grants"},
 		{http.MethodDelete, "/oauth/consent/grants/" + testResourceUUID.String()},
@@ -53,6 +55,7 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 		{http.MethodPost, "/oauth/ciba/approve"},
 		{http.MethodPost, "/oauth/ciba/deny"},
 		{http.MethodPost, "/oauth/register"},
+		{http.MethodGet, "/oauth/callback/" + testResourceUUID.String()},
 		{http.MethodGet, "/oauth/end_session"},
 		{http.MethodPost, "/oauth/end_session"},
 		{http.MethodPost, "/oauth/logout/backchannel"},
@@ -91,6 +94,7 @@ func TestOAuthRoutesMountEndpointsWithRateLimit(t *testing.T) {
 	OAuthPublicRoute(
 		public,
 		NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+		NewOAuthConnectionsHandler(nil),
 		NewOAuthTokenHandler(&mockOAuthTokenService{}, &dpop.NonceManager{}, nil),
 		NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}),
 		NewOAuthConsentHandler(&mockOAuthConsentService{}),
@@ -126,6 +130,7 @@ func TestOAuthPublicRoute_TokenGrantTypeDispatch(t *testing.T) {
 		OAuthPublicRoute(
 			router,
 			NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+			NewOAuthConnectionsHandler(nil),
 			NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil),
 			NewOAuthTokenExchangeHandler(tokenExSvc),
 			NewOAuthConsentHandler(&mockOAuthConsentService{}),
@@ -166,6 +171,7 @@ func TestOAuthPublicRoute_TokenGrantTypeDispatch(t *testing.T) {
 		OAuthPublicRoute(
 			router,
 			NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+			NewOAuthConnectionsHandler(nil),
 			NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil),
 			NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}),
 			NewOAuthConsentHandler(&mockOAuthConsentService{}),
@@ -205,6 +211,7 @@ func TestOAuthPublicRoute_TokenGrantTypeDispatch(t *testing.T) {
 		OAuthPublicRoute(
 			router,
 			NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+			NewOAuthConnectionsHandler(nil),
 			NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil),
 			NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}),
 			NewOAuthConsentHandler(&mockOAuthConsentService{}),
@@ -244,6 +251,7 @@ func TestOAuthPublicRoute_TokenGrantTypeDispatch(t *testing.T) {
 		OAuthPublicRoute(
 			router,
 			NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+			NewOAuthConnectionsHandler(nil),
 			NewOAuthTokenHandler(tokenSvc, nil, nil),
 			NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}),
 			NewOAuthConsentHandler(&mockOAuthConsentService{}),
@@ -292,6 +300,7 @@ func TestOAuthPublicRoute_TokenRateLimitWrapsEndpoint(t *testing.T) {
 	OAuthPublicRoute(
 		router,
 		NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+		NewOAuthConnectionsHandler(nil),
 		NewOAuthTokenHandler(tokenSvc, nil, nil),
 		NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}),
 		NewOAuthConsentHandler(&mockOAuthConsentService{}),
@@ -326,6 +335,7 @@ func TestOAuthPublicRoute_TokenParseFormError(t *testing.T) {
 	OAuthPublicRoute(
 		router,
 		NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+		NewOAuthConnectionsHandler(nil),
 		NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil),
 		NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}),
 		NewOAuthConsentHandler(&mockOAuthConsentService{}),

@@ -91,14 +91,13 @@ func (s *inviteService) SendInvite(
 		if Client == nil ||
 			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" ||
-			Client.IdentityProvider == nil ||
-			Client.IdentityProvider.TenantID == 0 {
+			Client.TenantID == 0 {
 			return apperror.NewValidation("invalid client or identity provider")
 		}
 		clientIdentifier = *Client.Identifier
 
-		// The identity provider's tenant is the system tenant the client lives under.
-		systemTenantID := Client.IdentityProvider.TenantID
+		// The system client's tenant is the tenant this invite belongs under.
+		systemTenantID := Client.TenantID
 		if tenantID != systemTenantID {
 			return apperror.NewValidation("tenant mismatch: invite tenant must match the system tenant")
 		}

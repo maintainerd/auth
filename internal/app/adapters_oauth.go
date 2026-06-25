@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/platform/database"
+	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -28,13 +29,39 @@ func (r *oauthClientRepo) FindSystem() (*oauth.Client, error) {
 }
 
 func (r *oauthClientRepo) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*oauth.Client, error) {
-	query := r.DB().Model(&oauth.Client{}).Where("clients.identifier = ?", clientID)
+	query := r.DB().Model(&oauth.Client{}).
+		Where("clients.identifier = ?", clientID).
+		Where("clients.status = ?", shared.StatusActive)
 	if identityProviderIdentifier != "" {
-		query = query.Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-			Where("identity_providers.identifier = ?", identityProviderIdentifier)
+		query = query.
+			Joins("JOIN client_identity_providers ON client_identity_providers.client_id = clients.client_id").
+			Joins("JOIN identity_providers ON identity_providers.identity_provider_id = client_identity_providers.identity_provider_id").
+			Where("identity_providers.identifier = ?", identityProviderIdentifier).
+			Where("identity_providers.status = ? AND client_identity_providers.enabled = ? AND client_identity_providers.deleted_at IS NULL", shared.StatusActive, true)
 	}
 	var c oauth.Client
-	err := query.First(&c).Error
+	err := query.
+		Preload("Tenant").
+		First(&c).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &c, nil
+}
+
+func (r *oauthClientRepo) FindByIdentifier(identifier string) (*oauth.Client, error) {
+	return r.FindByClientIDAndIdentityProvider(identifier, "")
+}
+
+func (r *oauthClientRepo) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*oauth.Client, error) {
+	var c oauth.Client
+	err := r.DB().
+		Joins("JOIN tenants ON tenants.tenant_id = clients.tenant_id").
+		Where("clients.is_system = ? AND clients.status = ?", true, shared.StatusActive).
+		Where("clients.name = ?", name).
+		Where("tenants.identifier = ?", tenantIdentifier).
+		Preload("Tenant").
+		First(&c).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}

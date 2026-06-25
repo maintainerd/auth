@@ -48,6 +48,10 @@ const (
 	ClientTypeMobile      = "mobile"
 	ClientTypeM2M         = "m2m"
 
+	// Seeded first-party clients (Client.Name).
+	SystemClientNameAuthConsole  = "auth-console"
+	SystemClientNameAuthIdentity = "auth-identity"
+
 	// Client URI types (ClientURI.Type)
 	ClientURITypeRedirect   = "redirect-uri"
 	ClientURITypeOrigin     = "origin-uri"
@@ -71,20 +75,24 @@ const (
 
 	// Identity provider Provider values (IdentityProvider.Provider)
 	IDPProviderMaintainerd = "maintainerd"
-	IDPProviderCognito   = "cognito"
-	IDPProviderAuth0     = "auth0"
-	IDPProviderGoogle    = "google"
-	IDPProviderFacebook  = "facebook"
-	IDPProviderGitHub    = "github"
-	IDPProviderMicrosoft = "microsoft"
-	IDPProviderApple     = "apple"
-	IDPProviderLinkedIn  = "linkedin"
-	IDPProviderTwitter   = "twitter"
-	IDPProviderGitLab    = "gitlab"
+	IDPProviderCognito     = "cognito"
+	IDPProviderAuth0       = "auth0"
+	IDPProviderGoogle      = "google"
+	IDPProviderFacebook    = "facebook"
+	IDPProviderGitHub      = "github"
+	IDPProviderMicrosoft   = "microsoft"
+	IDPProviderApple       = "apple"
+	IDPProviderLinkedIn    = "linkedin"
+	IDPProviderTwitter     = "twitter"
+	IDPProviderGitLab      = "gitlab"
 
 	// Identity provider types (IdentityProvider.ProviderType)
-	IDPTypeIdentity = "identity"
-	IDPTypeSocial   = "social"
+	IDPTypeSystem     = "system"
+	IDPTypeSocial     = "social"
+	IDPTypeEnterprise = "enterprise"
+	// IDPTypeIdentity is retained as a compatibility alias while callers move
+	// from identity/social to system/social/enterprise.
+	IDPTypeIdentity = IDPTypeEnterprise
 
 	// IP restriction rule types (IPRestrictionRule.Type)
 	IPRuleTypeAllow     = "allow"

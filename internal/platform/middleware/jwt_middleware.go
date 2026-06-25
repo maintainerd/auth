@@ -131,46 +131,51 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Extract subject — ValidateToken already guarantees sub is non-empty.
-		sub, _ := rawClaims["sub"].(string)
-
-		// Authn tokens often use user UUIDs, while OAuth/OIDC tokens may use a
-		// pairwise subject. Preserve sub either way and populate UserUUID only
-		// when the subject happens to be a UUID.
-		userUUID, _ := uuid.Parse(sub)
-
-		scope, _ := rawClaims["scope"].(string)
-		aud, _ := rawClaims["aud"].(string)
-		iss, _ := rawClaims["iss"].(string)
-		jti, _ := rawClaims["jti"].(string)
-		clientID, _ := rawClaims["client_id"].(string)
-		providerID, _ := rawClaims["provider_id"].(string)
-		sessionID, _ := rawClaims["sid"].(string)
-		service, _ := rawClaims["svc"].(string)
-		subjectType, _ := rawClaims["sub_type"].(string)
-		acr, _ := rawClaims["acr"].(string)
-		amr := stringSliceClaim(rawClaims["amr"])
-		iat := numericDateClaim(rawClaims["iat"])
-
-		claims := &JWTClaims{
-			Sub:         sub,
-			UserUUID:    userUUID,
-			Service:     service,
-			SubjectType: subjectType,
-			Scope:       scope,
-			Audience:    aud,
-			Issuer:      iss,
-			JTI:         jti,
-			ClientID:    clientID,
-			ProviderID:  providerID,
-			SessionID:   sessionID,
-			AMR:         amr,
-			ACR:         acr,
-			Iat:         iat,
-		}
+		claims := buildJWTClaims(rawClaims)
 
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), jwtKey{}, claims)))
 	})
+}
+
+// buildJWTClaims maps validated raw token claims onto the typed JWTClaims used
+// across the request lifecycle. Shared by the hard JWTAuthMiddleware and the
+// session-aware OptionalUserContextMiddleware so the mapping lives in one place.
+func buildJWTClaims(rawClaims map[string]any) *JWTClaims {
+	// ValidateToken already guarantees sub is non-empty. Authn tokens often use
+	// user UUIDs, while OAuth/OIDC tokens may use a pairwise subject; preserve
+	// sub either way and populate UserUUID only when sub happens to be a UUID.
+	sub, _ := rawClaims["sub"].(string)
+	userUUID, _ := uuid.Parse(sub)
+
+	scope, _ := rawClaims["scope"].(string)
+	aud, _ := rawClaims["aud"].(string)
+	iss, _ := rawClaims["iss"].(string)
+	jti, _ := rawClaims["jti"].(string)
+	clientID, _ := rawClaims["client_id"].(string)
+	providerID, _ := rawClaims["provider_id"].(string)
+	sessionID, _ := rawClaims["sid"].(string)
+	service, _ := rawClaims["svc"].(string)
+	subjectType, _ := rawClaims["sub_type"].(string)
+	acr, _ := rawClaims["acr"].(string)
+	amr := stringSliceClaim(rawClaims["amr"])
+	iat := numericDateClaim(rawClaims["iat"])
+
+	return &JWTClaims{
+		Sub:         sub,
+		UserUUID:    userUUID,
+		Service:     service,
+		SubjectType: subjectType,
+		Scope:       scope,
+		Audience:    aud,
+		Issuer:      iss,
+		JTI:         jti,
+		ClientID:    clientID,
+		ProviderID:  providerID,
+		SessionID:   sessionID,
+		AMR:         amr,
+		ACR:         acr,
+		Iat:         iat,
+	}
 }
 
 var errAPIKeyForbidden = errors.New("API key is not allowed")

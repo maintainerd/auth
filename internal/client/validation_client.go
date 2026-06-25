@@ -31,8 +31,9 @@ func (r ClientCreateRequestDTO) Validate() error {
 			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 		validation.Field(&r.IdentityProviderUUID,
-			validation.Required.Error("Identity Provider UUID is required"),
-			is.UUID.Error("Identity Provider UUID must be a valid UUID"),
+			validation.When(r.IdentityProviderUUID != "",
+				is.UUID.Error("Identity Provider UUID must be a valid UUID"),
+			),
 		),
 	)
 }
@@ -73,6 +74,25 @@ func (r ClientURICreateOrUpdateRequestDTO) Validate() error {
 		validation.Field(&r.Type,
 			validation.Required.Error("Type is required"),
 			validation.In(shared.ClientURITypeRedirect, shared.ClientURITypeOrigin, shared.ClientURITypeLogout, shared.ClientURITypeLogin, shared.ClientURITypeCORSOrigin).Error("Type must be one of: redirect-uri, origin-uri, logout-uri, login-uri, cors-origin-uri"),
+		),
+	)
+}
+
+func (r AddClientIdentityProviderRequestDTO) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.IdentityProviderUUID,
+			validation.Required.Error("Identity provider ID is required"),
+		),
+		validation.Field(&r.DisplayOrder,
+			validation.Min(0).Error("Display order must be zero or greater"),
+		),
+	)
+}
+
+func (r UpdateClientIdentityProviderRequestDTO) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.DisplayOrder,
+			validation.Min(0).Error("Display order must be zero or greater"),
 		),
 	)
 }

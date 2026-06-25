@@ -64,9 +64,10 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 
 	// Extract validated parameters from signed URL
 	clientID := signedParams["client_id"]
+	tenantID := signedParams["tenant_id"]
 	urlToken := signedParams["token"]
 
-	if clientID == "" || signedParams["tenant_id"] != "" || urlToken == "" {
+	if clientID == "" || tenantID != "" || urlToken == "" {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_missing_signed_params",
 			ClientIP:  clientIPStr,
@@ -140,7 +141,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	}
 
 	// Process reset password request
-	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, &clientID, nil)
+	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, stringPtrOrNil(clientID), nil)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_service_error",

@@ -95,7 +95,21 @@ func (h *IdentityProviderGRPCHandler) CreateIdentityProvider(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.idpService.Create(ctx, req.GetName(), req.GetDisplayName(), req.GetProvider(), req.GetProviderType(), structToJSON(req.GetConfig()), req.GetStatus(), tenant.TenantUUID.String(), tenant.TenantID, actorUUID)
+	result, err := h.idpService.Create(ctx, IdentityProviderCreateInput{
+		Name:                 req.GetName(),
+		DisplayName:          req.GetDisplayName(),
+		Provider:             req.GetProvider(),
+		ProviderType:         req.GetProviderType(),
+		Issuer:               req.GetIssuer(),
+		ProviderClientID:     req.GetProviderClientId(),
+		AllowJITProvisioning: req.GetAllowJitProvisioning(),
+		EmailDomains:         req.GetEmailDomains(),
+		Config:               structToJSON(req.GetConfig()),
+		Status:               req.GetStatus(),
+		TenantUUID:           tenant.TenantUUID.String(),
+		TenantID:             tenant.TenantID,
+		ActorUserUUID:        actorUUID,
+	})
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -115,7 +129,21 @@ func (h *IdentityProviderGRPCHandler) UpdateIdentityProvider(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.idpService.Update(ctx, idpUUID, req.GetName(), req.GetDisplayName(), req.GetProvider(), req.GetProviderType(), structToJSON(req.GetConfig()), req.GetStatus(), tenant.TenantID, actorUUID)
+	result, err := h.idpService.Update(ctx, IdentityProviderUpdateInput{
+		IdpUUID:              idpUUID,
+		Name:                 req.GetName(),
+		DisplayName:          req.GetDisplayName(),
+		Provider:             req.GetProvider(),
+		ProviderType:         req.GetProviderType(),
+		Issuer:               req.GetIssuer(),
+		ProviderClientID:     req.GetProviderClientId(),
+		AllowJITProvisioning: req.GetAllowJitProvisioning(),
+		EmailDomains:         req.GetEmailDomains(),
+		Config:               structToJSON(req.GetConfig()),
+		Status:               req.GetStatus(),
+		TenantID:             tenant.TenantID,
+		ActorUserUUID:        actorUUID,
+	})
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -191,6 +219,11 @@ func toIdpProto(result *IdentityProviderServiceDataResult) *authv1.IdentityProvi
 		IsSystem:             result.IsSystem,
 		CreatedAt:            timestamppb.New(result.CreatedAt),
 		UpdatedAt:            timestamppb.New(result.UpdatedAt),
+		// Promoted columns. The upstream client secret is never emitted.
+		Issuer:               result.Issuer,
+		ProviderClientId:     result.ProviderClientID,
+		AllowJitProvisioning: result.AllowJITProvisioning,
+		EmailDomains:         result.EmailDomains,
 	}
 }
 

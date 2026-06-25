@@ -281,7 +281,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 
 	// Bind the super-admin's identity to the seeded auth-console system client
 	// by explicit name. The console is the only surface that exists at boot.
-	defaultClient, err := s.clientRepo.FindByNameAndTenantID(seeder.SystemClientNameAuthConsole, defaultTenant.TenantID)
+	defaultClient, err := s.clientRepo.FindByNameAndTenantID(shared.SystemClientNameAuthConsole, defaultTenant.TenantID)
 	if err != nil {
 		return nil, err
 	}

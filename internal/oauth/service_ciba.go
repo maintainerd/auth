@@ -307,10 +307,7 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	providerID := ""
-	if record.Client != nil && record.Client.IdentityProvider != nil {
-		providerID = record.Client.IdentityProvider.IdentityProviderUUID.String()
-	}
+	providerID := tokenRealm(record.Client)
 
 	issuer := config.AppPublicHostname
 	clientIdentifier := resolveClientIdentifier(record.Client)

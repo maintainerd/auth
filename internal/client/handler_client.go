@@ -895,6 +895,9 @@ func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 			UpdatedAt:            r.IdentityProvider.UpdatedAt,
 		}
 	}
+	if r.Connections != nil && len(*r.Connections) > 0 {
+		result.Connections = toClientIdentityProviderDTOs(*r.Connections)
+	}
 
 	if r.ClientURIs != nil && len(*r.ClientURIs) > 0 {
 		result.URIs = make([]ClientURIResponseDTO, len(*r.ClientURIs))
@@ -921,4 +924,183 @@ func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 	}
 
 	return result
+}
+
+// toClientIdentityProviderDTOs maps identity provider connection service results
+// to their wire DTOs. Shared by the full client response and the connection list
+// endpoint so the mapping lives in one place.
+func toClientIdentityProviderDTOs(connections []ClientIdentityProviderServiceDataResult) []ClientIdentityProviderDTO {
+	result := make([]ClientIdentityProviderDTO, 0, len(connections))
+	for _, connection := range connections {
+		result = append(result, ClientIdentityProviderDTO{
+			ClientIdentityProviderUUID: connection.ClientIdentityProviderUUID,
+			IdentityProvider: IdentityProviderResponseDTO{
+				IdentityProviderUUID: connection.IdentityProvider.IdentityProviderUUID,
+				Name:                 connection.IdentityProvider.Name,
+				DisplayName:          connection.IdentityProvider.DisplayName,
+				Provider:             connection.IdentityProvider.Provider,
+				ProviderType:         connection.IdentityProvider.ProviderType,
+				Identifier:           connection.IdentityProvider.Identifier,
+				Status:               connection.IdentityProvider.Status,
+				IsDefault:            connection.IdentityProvider.IsDefault,
+				IsSystem:             connection.IdentityProvider.IsSystem,
+				CreatedAt:            connection.IdentityProvider.CreatedAt,
+				UpdatedAt:            connection.IdentityProvider.UpdatedAt,
+			},
+			IsDefault:    connection.IsDefault,
+			Enabled:      connection.Enabled,
+			DisplayOrder: connection.DisplayOrder,
+			CreatedAt:    connection.CreatedAt,
+			UpdatedAt:    connection.UpdatedAt,
+		})
+	}
+	return result
+}
+
+// GetConnections retrieves the identity provider connections enabled on a client.
+func (h *ClientHandler) GetConnections(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	connections, err := h.ClientService.GetConnections(r.Context(), ClientUUID, tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get identity provider connections", err)
+		return
+	}
+
+	response := ClientIdentityProvidersResponseDTO{
+		Connections: toClientIdentityProviderDTOs(connections),
+	}
+
+	resp.Success(w, response, "Identity provider connections retrieved successfully")
+}
+
+// AddConnection connects an identity provider to a client.
+func (h *ClientHandler) AddConnection(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+	user := middleware.AuthFromRequest(r).User
+
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	var req AddClientIdentityProviderRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	identityProviderUUID, err := uuid.Parse(req.IdentityProviderUUID)
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
+		return
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	Client, err := h.ClientService.AddConnection(r.Context(), ClientUUID, tenant.TenantID, identityProviderUUID, req.IsDefault, enabled, req.DisplayOrder, user.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to connect identity provider", err)
+		return
+	}
+
+	dtoRes := toClientResponseDTO(*Client)
+	resp.Created(w, dtoRes, "Identity provider connected successfully")
+}
+
+// UpdateConnection updates an identity provider connection on a client.
+func (h *ClientHandler) UpdateConnection(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+	user := middleware.AuthFromRequest(r).User
+
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+	connectionUUID, err := uuid.Parse(chi.URLParam(r, "client_identity_provider_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity provider connection UUID")
+		return
+	}
+
+	var req UpdateClientIdentityProviderRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	Client, err := h.ClientService.UpdateConnection(r.Context(), ClientUUID, tenant.TenantID, connectionUUID, req.IsDefault, enabled, req.DisplayOrder, user.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to update identity provider connection", err)
+		return
+	}
+
+	dtoRes := toClientResponseDTO(*Client)
+	resp.Success(w, dtoRes, "Identity provider connection updated successfully")
+}
+
+// RemoveConnection detaches an identity provider from a client.
+func (h *ClientHandler) RemoveConnection(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+	user := middleware.AuthFromRequest(r).User
+
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+	connectionUUID, err := uuid.Parse(chi.URLParam(r, "client_identity_provider_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity provider connection UUID")
+		return
+	}
+
+	Client, err := h.ClientService.RemoveConnection(r.Context(), ClientUUID, tenant.TenantID, connectionUUID, user.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to remove identity provider connection", err)
+		return
+	}
+
+	dtoRes := toClientResponseDTO(*Client)
+	resp.Success(w, dtoRes, "Identity provider connection removed successfully")
 }

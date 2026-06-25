@@ -77,7 +77,7 @@ type repos struct {
 	emailOTPRepo              mfa.UserMFAEmailRepository
 	userBackupCodeRepo        mfa.UserMFABackupCodeRepository
 	totpSecretRepo            mfa.UserMFATOTPSecretRepository
-	mfaWebAuthnCredRepo          mfa.UserMFAWebAuthnCredentialRepository
+	mfaWebAuthnCredRepo       mfa.UserMFAWebAuthnCredentialRepository
 	userPasswordHistoryRepo   user.UserPasswordHistoryRepository
 }
 
@@ -139,7 +139,7 @@ func initRepos(db *gorm.DB) *repos {
 		emailOTPRepo:              mfa.NewUserMFAEmailRepository(db),
 		userBackupCodeRepo:        mfa.NewUserMFABackupCodeRepository(db),
 		totpSecretRepo:            mfa.NewUserMFATOTPSecretRepository(db),
-		mfaWebAuthnCredRepo:          mfa.NewUserMFAWebAuthnCredentialRepository(db),
+		mfaWebAuthnCredRepo:       mfa.NewUserMFAWebAuthnCredentialRepository(db),
 		userPasswordHistoryRepo:   user.NewUserPasswordHistoryRepository(db),
 	}
 }

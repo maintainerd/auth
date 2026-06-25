@@ -44,6 +44,7 @@ type ClientRepository interface {
 	FindAllByTenantID(tenantID int64) ([]Client, error)
 	FindSystem() (*Client, error)
 	FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error)
+	FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error)
 	FindDefaultByTenantID(tenantID int64) (*Client, error)
 	FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[Client], error)
 	SetStatusByUUID(clientUUID uuid.UUID, tenantID int64, status string) error
@@ -70,7 +71,8 @@ func (r *clientRepository) WithTx(tx *gorm.DB) ClientRepository {
 func (r *clientRepository) FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*Client, error) {
 	var client Client
 	err := r.DB().
-		Preload("IdentityProvider").
+		Preload("Tenant").
+		Preload("ConnectedProviders.IdentityProvider").
 		Preload("ClientURIs").
 		Where("client_uuid = ? AND tenant_id = ?", clientUUID, tenantID).
 		First(&client).Error
@@ -87,7 +89,13 @@ func (r *clientRepository) FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID 
 
 func (r *clientRepository) FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*Client, error) {
 	var client Client
-	err := r.DB().Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", name, identityProviderID, tenantID).First(&client).Error
+	query := r.DB().Where("clients.name = ? AND clients.tenant_id = ?", name, tenantID)
+	if identityProviderID > 0 {
+		query = query.
+			Joins("JOIN client_identity_providers ON client_identity_providers.client_id = clients.client_id").
+			Where("client_identity_providers.identity_provider_id = ? AND client_identity_providers.deleted_at IS NULL", identityProviderID)
+	}
+	err := query.First(&client).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -100,13 +108,14 @@ func (r *clientRepository) FindByNameAndIdentityProvider(name string, identityPr
 }
 
 // FindByIdentifier returns the active client with the given globally-unique
-// identifier string, preloading its IdentityProvider and tenant chain.
+// identifier string, preloading its tenant and enabled provider connections.
 func (r *clientRepository) FindByIdentifier(identifier string) (*Client, error) {
 	var client Client
 	err := r.DB().
 		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
-		Preload("IdentityProvider").
-		Preload("IdentityProvider.Tenant").
+		Preload("Tenant").
+		Preload("ConnectedProviders", "enabled = ?", true).
+		Preload("ConnectedProviders.IdentityProvider").
 		First(&client).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -132,8 +141,7 @@ func (r *clientRepository) FindByClientID(clientID string, tenantID int64) (*Cli
 func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]Client, error) {
 	var clients []Client
 	err := r.DB().
-		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Where("identity_providers.tenant_id = ?", tenantID).
+		Where("clients.tenant_id = ?", tenantID).
 		Find(&clients).Error
 	return clients, err
 }
@@ -144,13 +152,14 @@ func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]Client, error) {
 func (r *clientRepository) FindSystem() (*Client, error) {
 	var client Client
 	err := r.DB().
-		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Joins("JOIN tenants ON tenants.tenant_id = identity_providers.tenant_id").
+		Joins("JOIN tenants ON tenants.tenant_id = clients.tenant_id").
 		Where("clients.is_system = ? AND clients.status = ?", true, shared.StatusActive).
-		Where("identity_providers.status = ?", shared.StatusActive).
+		Where("clients.name = ?", shared.SystemClientNameAuthConsole).
 		Where("tenants.is_system = ?", true).
-		Preload("IdentityProvider").
-		Preload("IdentityProvider.Tenant").
+		Preload("Tenant").
+		Preload("ConnectedProviders", "enabled = ?", true).
+		Preload("ConnectedProviders.IdentityProvider").
+		Preload("ConnectedProviders.IdentityProvider.Tenant").
 		First(&client).Error
 
 	if err != nil {
@@ -166,15 +175,22 @@ func (r *clientRepository) FindSystem() (*Client, error) {
 // to the tenant identified by its identifier string. This is used when the
 // API consumer provides a tenant_id instead of a client_id.
 func (r *clientRepository) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
+	return r.FindSystemByTenantIdentifierAndName(tenantIdentifier, shared.SystemClientNameAuthConsole)
+}
+
+// FindSystemByTenantIdentifierAndName returns the named active is_system client
+// belonging to the tenant identified by its identifier string.
+func (r *clientRepository) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error) {
 	var client Client
 	err := r.DB().
-		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Joins("JOIN tenants ON tenants.tenant_id = identity_providers.tenant_id").
+		Joins("JOIN tenants ON tenants.tenant_id = clients.tenant_id").
 		Where("clients.is_system = ? AND clients.status = ?", true, shared.StatusActive).
-		Where("identity_providers.status = ?", shared.StatusActive).
+		Where("clients.name = ?", name).
 		Where("tenants.identifier = ?", tenantIdentifier).
-		Preload("IdentityProvider").
-		Preload("IdentityProvider.Tenant").
+		Preload("Tenant").
+		Preload("ConnectedProviders", "enabled = ?", true).
+		Preload("ConnectedProviders.IdentityProvider").
+		Preload("ConnectedProviders.IdentityProvider.Tenant").
 		First(&client).Error
 
 	if err != nil {
@@ -192,7 +208,7 @@ func (r *clientRepository) FindByNameAndTenantID(name string, tenantID int64) (*
 	var client Client
 	err := r.DB().
 		Where("name = ? AND tenant_id = ?", name, tenantID).
-		Preload("IdentityProvider").
+		Preload("Tenant").
 		First(&client).Error
 
 	if err != nil {
@@ -207,8 +223,11 @@ func (r *clientRepository) FindByNameAndTenantID(name string, tenantID int64) (*
 func (r *clientRepository) FindDefaultByTenantID(tenantID int64) (*Client, error) {
 	var client Client
 	err := r.DB().
-		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Where("identity_providers.tenant_id = ? AND clients.is_default = true AND clients.status = ?", tenantID, shared.StatusActive).
+		Where("tenant_id = ? AND is_default = true AND status = ?", tenantID, shared.StatusActive).
+		Preload("Tenant").
+		Preload("ConnectedProviders", "enabled = ?", true).
+		Preload("ConnectedProviders.IdentityProvider").
+		Preload("ConnectedProviders.IdentityProvider.Tenant").
 		First(&client).Error
 
 	if err != nil {
@@ -242,12 +261,16 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 		query = query.Where("client_type IN ?", filter.ClientType)
 	}
 	if filter.IdentityProviderID != nil {
-		query = query.Where("identity_provider_id = ?", *filter.IdentityProviderID)
+		query = query.
+			Joins("JOIN client_identity_providers ON client_identity_providers.client_id = clients.client_id").
+			Where("client_identity_providers.identity_provider_id = ? AND client_identity_providers.deleted_at IS NULL", *filter.IdentityProviderID)
 	}
 
 	// Sorting — protected against SQL injection via allowlist
 	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).
-		Preload("IdentityProvider").
+		Preload("Tenant").
+		Preload("ConnectedProviders", "enabled = ?", true).
+		Preload("ConnectedProviders.IdentityProvider").
 		Preload("ClientURIs")
 
 	return database.PaginateQuery[Client](query, filter.Page, filter.Limit)
@@ -262,13 +285,22 @@ func (r *clientRepository) SetStatusByUUID(clientUUID uuid.UUID, tenantID int64,
 func (r *clientRepository) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*Client, error) {
 	var client Client
 
-	err := r.DB().
-		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Where("clients.identifier = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
-		Where("clients.status = ? AND identity_providers.status = ?", shared.StatusActive, shared.StatusActive).
-		Preload("IdentityProvider.Tenant").
-		Preload("IdentityProvider").
-		First(&client).Error
+	query := r.DB().
+		Where("clients.identifier = ?", clientID).
+		Where("clients.status = ?", shared.StatusActive).
+		Preload("Tenant").
+		Preload("ConnectedProviders", "enabled = ?", true).
+		Preload("ConnectedProviders.IdentityProvider").
+		Preload("ConnectedProviders.IdentityProvider.Tenant")
+	if identityProviderIdentifier != "" {
+		query = query.
+			Joins("JOIN client_identity_providers ON client_identity_providers.client_id = clients.client_id").
+			Joins("JOIN identity_providers ON identity_providers.identity_provider_id = client_identity_providers.identity_provider_id").
+			Where("identity_providers.identifier = ?", identityProviderIdentifier).
+			Where("identity_providers.status = ? AND client_identity_providers.enabled = ? AND client_identity_providers.deleted_at IS NULL", shared.StatusActive, true)
+	}
+
+	err := query.First(&client).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

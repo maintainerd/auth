@@ -19,8 +19,8 @@ import (
 type testIDPService struct {
 	getFn             func(ctx context.Context, filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
 	getByUUIDFn       func(ctx context.Context, idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error)
-	createFn          func(ctx context.Context, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	updateFn          func(ctx context.Context, idpUUID uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	createFn          func(ctx context.Context, in IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error)
+	updateFn          func(ctx context.Context, in IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error)
 	setStatusByUUIDFn func(ctx context.Context, idpUUID uuid.UUID, pStatus string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	deleteByUUIDFn    func(ctx context.Context, idpUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
@@ -31,11 +31,11 @@ func (m *testIDPService) Get(ctx context.Context, filter IdentityProviderService
 func (m *testIDPService) GetByUUID(ctx context.Context, idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error) {
 	return m.getByUUIDFn(ctx, idpUUID, tenantID)
 }
-func (m *testIDPService) Create(ctx context.Context, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
-	return m.createFn(ctx, name, displayName, provider, providerType, config, pStatus, tenantUUID, tenantID, actorUserUUID)
+func (m *testIDPService) Create(ctx context.Context, in IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error) {
+	return m.createFn(ctx, in)
 }
-func (m *testIDPService) Update(ctx context.Context, idpUUID uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
-	return m.updateFn(ctx, idpUUID, name, displayName, provider, providerType, config, pStatus, tenantID, actorUserUUID)
+func (m *testIDPService) Update(ctx context.Context, in IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error) {
+	return m.updateFn(ctx, in)
 }
 func (m *testIDPService) SetStatusByUUID(ctx context.Context, idpUUID uuid.UUID, pStatus string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	return m.setStatusByUUIDFn(ctx, idpUUID, pStatus, tenantID, actorUserUUID)
@@ -113,7 +113,7 @@ func TestIdentityProviderGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create success", func(t *testing.T) {
 		svc := &testIDPService{
-			createFn: func(ctx context.Context, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tUUID string, tenantID int64, actorUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+			createFn: func(ctx context.Context, in IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error) {
 				return &idpResult, nil
 			},
 		}
@@ -137,7 +137,7 @@ func TestIdentityProviderGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testIDPService{
-			updateFn: func(ctx context.Context, id uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantID int64, actorUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+			updateFn: func(ctx context.Context, in IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error) {
 				return &idpResult, nil
 			},
 		}
@@ -227,10 +227,10 @@ func TestIdentityProviderGRPCHandler_RPCS(t *testing.T) {
 			getByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error) {
 				return nil, svcErr
 			},
-			createFn: func(ctx context.Context, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tUUID string, tenantID int64, actorUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+			createFn: func(ctx context.Context, in IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error) {
 				return nil, svcErr
 			},
-			updateFn: func(ctx context.Context, id uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantID int64, actorUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+			updateFn: func(ctx context.Context, in IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error) {
 				return nil, svcErr
 			},
 			setStatusByUUIDFn: func(ctx context.Context, id uuid.UUID, pStatus string, tenantID int64, actorUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
@@ -333,7 +333,7 @@ func TestIdentityProviderGRPCHandler_RPCS(t *testing.T) {
 	t.Run("create with config", func(t *testing.T) {
 		cfg, _ := structpb.NewStruct(map[string]any{"issuer": "https://example.com"})
 		svc := &testIDPService{
-			createFn: func(ctx context.Context, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tUUID string, tenantID int64, actorUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+			createFn: func(ctx context.Context, in IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error) {
 				return &idpResult, nil
 			},
 		}

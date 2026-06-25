@@ -1,11 +1,18 @@
 package authn
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 )
+
+func publicAuthSurface(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(contextWithPublicAuthSurface(r.Context())))
+	})
+}
 
 // EmailVerificationRoute handles internal email-verification routes
 // (no client_id/provider_id required). Mounted on the management surface (port 8080).
@@ -20,12 +27,13 @@ func EmailVerificationRoute(r chi.Router, emailVerificationHandler *EmailVerific
 }
 
 // EmailVerificationPublicRoute handles public email-verification routes
-// (send requires client_id and provider_id; verify is self-contained).
+// (send requires exactly one of client_id or tenant_id; verify is self-contained).
 // Mounted on the public surface (port 8081).
 func EmailVerificationPublicRoute(r chi.Router, emailVerificationHandler *EmailVerificationHandler) {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(publicAuthSurface)
 
 		r.Post("/email-verification/send", emailVerificationHandler.SendVerificationEmailPublic)
 		r.Post("/email-verification/verify", emailVerificationHandler.VerifyEmail)
@@ -47,7 +55,7 @@ func ForgotPasswordRoute(r chi.Router, forgotPasswordHandler *ForgotPasswordHand
 	})
 }
 
-// ForgotPasswordPublicRoute handles public forgot password routes (requires client_id and provider_id)
+// ForgotPasswordPublicRoute handles public forgot password routes (requires client_id or tenant_id)
 func ForgotPasswordPublicRoute(r chi.Router, forgotPasswordHandler *ForgotPasswordHandler) {
 	// Apply stricter limits for auth endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
@@ -56,8 +64,9 @@ func ForgotPasswordPublicRoute(r chi.Router, forgotPasswordHandler *ForgotPasswo
 
 		// Stricter timeout for auth operations (30s vs 60s global)
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(publicAuthSurface)
 
-		// Public forgot password (with client_id and provider_id)
+		// Public forgot password (with client_id or tenant_id)
 		r.Post("/forgot-password", forgotPasswordHandler.ForgotPasswordPublic)
 	})
 }
@@ -75,11 +84,7 @@ func LoginRoute(r chi.Router, loginHandler *LoginHandler) {
 		// Internal login (no client_id/provider_id required)
 		r.Post("/login", loginHandler.Login)
 
-		// Login MFA second step (issues an acr=2 session on success)
-		r.Post("/login/mfa/verify", loginHandler.MFALoginVerify)
-		r.Post("/login/mfa/send-sms", loginHandler.MFALoginSendSMS)
-		r.Post("/login/mfa/send-email-otp", loginHandler.MFALoginSendEmailOTP)
-		r.Post("/login/mfa/webauthn/begin", loginHandler.MFALoginWebAuthnBegin)
+		LoginMFAInternalRoute(r, loginHandler)
 
 		// Refresh endpoint — exchanges a refresh token for a new token set
 		r.Post("/refresh-token", loginHandler.RefreshToken)
@@ -89,7 +94,7 @@ func LoginRoute(r chi.Router, loginHandler *LoginHandler) {
 	})
 }
 
-// LoginPublicRoute handles public login routes (requires client_id and provider_id)
+// LoginPublicRoute handles public login routes (requires client_id or tenant_id)
 func LoginPublicRoute(r chi.Router, loginHandler *LoginHandler) {
 	// Apply stricter limits for auth endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
@@ -98,35 +103,49 @@ func LoginPublicRoute(r chi.Router, loginHandler *LoginHandler) {
 
 		// Stricter timeout for auth operations (30s vs 60s global)
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(publicAuthSurface)
 
-		// Public login (with client_id and provider_id)
+		// Public login (with client_id or tenant_id)
 		r.Post("/login", loginHandler.LoginPublic)
 
-		// Login MFA second step (client_id/provider_id passed as query params)
-		r.Post("/login/mfa/verify", loginHandler.MFALoginVerify)
-		r.Post("/login/mfa/send-sms", loginHandler.MFALoginSendSMS)
-		r.Post("/login/mfa/send-email-otp", loginHandler.MFALoginSendEmailOTP)
-		r.Post("/login/mfa/webauthn/begin", loginHandler.MFALoginWebAuthnBegin)
+		LoginMFAPublicRoute(r, loginHandler)
 
 		// Logout endpoint (clears cookies if they exist)
 		r.Post("/logout", loginHandler.Logout)
 	})
 }
 
+// LoginMFAInternalRoute mounts internal login-MFA endpoints. Internal MFA is
+// tenant-scoped and lives only on the private/internal API surface.
+func LoginMFAInternalRoute(r chi.Router, loginHandler *LoginHandler) {
+	r.Post("/login/mfa/verify", loginHandler.MFALoginVerifyInternal)
+	r.Post("/login/mfa/send-sms", loginHandler.MFALoginSendSMSInternal)
+	r.Post("/login/mfa/send-email-otp", loginHandler.MFALoginSendEmailOTPInternal)
+	r.Post("/login/mfa/webauthn/begin", loginHandler.MFALoginWebAuthnBeginInternal)
+}
+
+// LoginMFAPublicRoute mounts public login-MFA endpoints. Public MFA accepts
+// exactly one public authentication context: client_id or tenant_id.
+func LoginMFAPublicRoute(r chi.Router, loginHandler *LoginHandler) {
+	r.Post("/login/mfa/verify", loginHandler.MFALoginVerifyPublic)
+	r.Post("/login/mfa/send-sms", loginHandler.MFALoginSendSMSPublic)
+	r.Post("/login/mfa/send-email-otp", loginHandler.MFALoginSendEmailOTPPublic)
+	r.Post("/login/mfa/webauthn/begin", loginHandler.MFALoginWebAuthnBeginPublic)
+}
+
 // MagicLinkPublicRoute mounts public magic-link routes.
-// `send` requires client_id; `verify` extracts the context from the signed link.
+// `send` requires client_id or tenant_id; `verify` extracts the context from the signed link.
 // Mounted on the public surface (port 8081).
 func MagicLinkPublicRoute(r chi.Router, magicLinkHandler *MagicLinkHandler) {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(publicAuthSurface)
 
 		r.Post("/magic-link/send", magicLinkHandler.SendMagicLinkPublic)
 		r.Post("/magic-link/verify", magicLinkHandler.VerifyMagicLink)
 	})
 }
-
-
 
 // RegisterRoute handles internal register routes (no client_id/provider_id required)
 func RegisterRoute(r chi.Router, registerHandler *RegisterHandler) {
@@ -146,7 +165,7 @@ func RegisterRoute(r chi.Router, registerHandler *RegisterHandler) {
 	})
 }
 
-// RegisterPublicRoute handles public register routes (requires client_id and provider_id)
+// RegisterPublicRoute handles public register routes (requires client_id or tenant_id)
 func RegisterPublicRoute(r chi.Router, registerHandler *RegisterHandler) {
 	// Apply stricter limits for auth endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
@@ -155,8 +174,9 @@ func RegisterPublicRoute(r chi.Router, registerHandler *RegisterHandler) {
 
 		// Stricter timeout for auth operations (30s vs 60s global)
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(publicAuthSurface)
 
-		// Public registration (with client_id and provider_id)
+		// Public registration (with client_id or tenant_id)
 		r.Post("/register", registerHandler.RegisterPublic)
 
 		// Public registration with invite
@@ -179,7 +199,7 @@ func ResetPasswordRoute(r chi.Router, resetPasswordHandler *ResetPasswordHandler
 	})
 }
 
-// ResetPasswordPublicRoute handles public reset password routes (requires client_id and provider_id)
+// ResetPasswordPublicRoute handles public reset password routes (signed client_id or tenant_id)
 func ResetPasswordPublicRoute(r chi.Router, resetPasswordHandler *ResetPasswordHandler) {
 	// Apply stricter limits for auth endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
@@ -188,8 +208,9 @@ func ResetPasswordPublicRoute(r chi.Router, resetPasswordHandler *ResetPasswordH
 
 		// Stricter timeout for auth operations (30s vs 60s global)
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(publicAuthSurface)
 
-		// Public reset password (with client_id and provider_id)
+		// Public reset password (with signed client_id or tenant_id)
 		r.Post("/reset-password", resetPasswordHandler.ResetPasswordPublic)
 	})
 }
@@ -209,12 +230,13 @@ func SMSLoginInternalRoute(
 }
 
 // SMSLoginPublicRoute mounts unauthenticated SMS one-time-code login endpoints
-// for the public surface (port 8081). Requires client_id in the request body.
+// for the public surface (port 8081). Requires client_id or tenant_id.
 func SMSLoginPublicRoute(
 	r chi.Router,
 	smsLoginHandler *SMSLoginHandler,
 ) {
 	r.Route("/sms-login", func(r chi.Router) {
+		r.Use(publicAuthSurface)
 		// Send OTP to phone number (unauthenticated, client-scoped)
 		r.Post("/send", smsLoginHandler.SendOTPPublic)
 		// Verify OTP and obtain tokens (unauthenticated, client-scoped)

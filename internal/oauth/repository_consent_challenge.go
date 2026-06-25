@@ -42,7 +42,7 @@ func (r *oauthConsentChallengeRepository) FindChallengeByUUID(challengeUUID uuid
 	var challenge OAuthConsentChallenge
 	err := r.DB().
 		Preload("Client").
-		Preload("Client.IdentityProvider").
+		Preload("Client.Tenant").
 		Where("oauth_consent_challenge_uuid = ?", challengeUUID).
 		First(&challenge).Error
 	if err != nil {

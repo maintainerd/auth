@@ -84,11 +84,6 @@ func (a *authnUserIdentityRepoAdapter) FindByUserID(userID int64) ([]authn.UserI
 	return mapAuthnUserIdentities(r), err
 }
 
-func (a *authnUserIdentityRepoAdapter) FindByProviderAndSub(provider, sub string) (*authn.UserIdentity, error) {
-	r, err := a.repo.FindByProviderAndSub(provider, sub)
-	return toAuthnUserIdentity(r), err
-}
-
 func (a *authnUserIdentityRepoAdapter) FindByUserIDAndProvider(userID int64, provider string) (*authn.UserIdentity, error) {
 	r, err := a.repo.FindByUserIDAndProvider(userID, provider)
 	return toAuthnUserIdentity(r), err

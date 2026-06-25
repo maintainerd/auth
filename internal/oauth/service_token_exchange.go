@@ -115,10 +115,7 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		audience = issuer
 	}
 	clientIdentifier := resolveClientIdentifier(client)
-	providerID := ""
-	if client.IdentityProvider != nil {
-		providerID = client.IdentityProvider.IdentityProviderUUID.String()
-	}
+	providerID := tokenRealm(client)
 
 	scope := req.Scope
 	if scope == "" {

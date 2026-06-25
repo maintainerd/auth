@@ -95,14 +95,14 @@ func oauthClientRows() *sqlmock.Rows {
 		AddRow(int64(10), testResourceUUID.String(), int64(1), int64(1), "client", "active", time.Now(), time.Now())
 }
 
-func oauthIdentityProviderRows() *sqlmock.Rows {
-	return sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "identifier", "created_at", "updated_at"}).
-		AddRow(int64(1), testResourceUUID.String(), int64(1), "provider", "default", time.Now(), time.Now())
+func oauthTenantRows() *sqlmock.Rows {
+	return sqlmock.NewRows([]string{"tenant_id", "tenant_uuid", "name", "identifier", "status", "created_at", "updated_at"}).
+		AddRow(int64(1), testResourceUUID.String(), "Test Tenant", "test-tenant", "active", time.Now(), time.Now())
 }
 
 func expectClientPreloads(mock sqlmock.Sqlmock) {
 	expectOAuthSelect(mock, "clients").WillReturnRows(oauthClientRows())
-	expectOAuthSelect(mock, "identity_providers").WillReturnRows(oauthIdentityProviderRows())
+	expectOAuthSelect(mock, "tenants").WillReturnRows(oauthTenantRows())
 }
 
 func assertOAuthRepoExpectations(t *testing.T, mock sqlmock.Sqlmock) {

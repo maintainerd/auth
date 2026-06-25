@@ -69,29 +69,23 @@ func mockClientRows() *sqlmock.Rows {
 	)
 }
 
-// mockIDPRows returns sqlmock rows for the IdentityProvider preload.
-func mockIDPRows() *sqlmock.Rows {
+// mockTenantRows returns sqlmock rows for the Client.Tenant preload.
+func mockTenantRows() *sqlmock.Rows {
 	return sqlmock.NewRows([]string{
-		"identity_provider_id", "identity_provider_uuid", "tenant_id",
-		"name", "display_name", "provider", "provider_type",
-		"identifier", "config", "status", "is_default", "is_system",
-		"created_at", "updated_at",
+		"tenant_id", "tenant_uuid", "name", "display_name", "description",
+		"identifier", "status", "is_system", "created_at", "updated_at",
 	}).AddRow(
-		100, uuid.New(), 1,
-		"default", "Default Provider", "local", "local",
-		"default-provider", `{}`, "active", true, false,
-		time.Now(), time.Now(),
+		1, uuid.New(), "Test Tenant", "Test Tenant", "",
+		"test-tenant", "active", false, time.Now(), time.Now(),
 	)
 }
 
 // expectClientLookup sets up sqlmock expectations for findActiveClientByIdentifier.
-// Matches the main query + Preload("IdentityProvider") + Preload("IdentityProvider.Tenant").
+// Matches the main clients query + Preload("Tenant"). Preload("Service") emits no
+// query because the mocked client row has no service_id (nil belongs-to FK).
 func expectClientLookup(mock sqlmock.Sqlmock, rows *sqlmock.Rows) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-	// Preload IdentityProvider — returns a provider row.
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockIDPRows())
-	// Preload IdentityProvider.Tenant (nested) — return empty since not needed.
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockTenantRows())
 }
 
 func expectClientNotFound(mock sqlmock.Sqlmock) {
@@ -1397,10 +1391,10 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 			`{client_credentials}`, `{}`, nil, nil,
 			false, time.Now(), time.Now(),
 		)
+		mock.MatchExpectationsInOrder(false)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockIDPRows())
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{"service_id", "name", "status"}).AddRow(42, "serviceA", "active"))
+		mock.ExpectQuery(`FROM "tenants"`).WillReturnRows(mockTenantRows())
+		mock.ExpectQuery(`FROM "services"`).WillReturnRows(sqlmock.NewRows([]string{"service_id", "name", "status"}).AddRow(42, "serviceA", "active"))
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
 			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},

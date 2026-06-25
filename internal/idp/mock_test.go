@@ -16,7 +16,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
-	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -119,8 +118,11 @@ func (m *mockBaseRepo[T]) Paginate(c map[string]any, page, limit int, p ...strin
 type mockIdentityProviderRepo struct {
 	mockBaseRepo[IdentityProvider]
 	findByUUIDFn              func(any, ...string) (*IdentityProvider, error)
+	findByUUIDSafeFn          func(any, ...string) (*IdentityProvider, error)
 	findByNameFn              func(string, int64) (*IdentityProvider, error)
 	findByIdentifierFn        func(string) (*IdentityProvider, error)
+	findByIssuerFn            func(string) (*IdentityProvider, error)
+	findByIDFn                func(any, ...string) (*IdentityProvider, error)
 	findDefaultByTenantIDFn   func(int64) (*IdentityProvider, error)
 	findByTenantAndProviderFn func(int64, string) (*IdentityProvider, error)
 	findAllByTenantIDFn       func(int64) ([]IdentityProvider, error)
@@ -133,6 +135,23 @@ func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) IdentityProviderRepository
 func (m *mockIdentityProviderRepo) FindByUUID(id any, p ...string) (*IdentityProvider, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
+	}
+	return nil, nil
+}
+func (m *mockIdentityProviderRepo) FindByUUIDSafe(id any, p ...string) (*IdentityProvider, error) {
+	if m.findByUUIDSafeFn != nil {
+		return m.findByUUIDSafeFn(id, p...)
+	}
+	// Default to the regular find so existing tests that only stub findByUUIDFn
+	// continue to exercise the read path.
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
+	return nil, nil
+}
+func (m *mockIdentityProviderRepo) FindByID(id any, p ...string) (*IdentityProvider, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, p...)
 	}
 	return nil, nil
 }
@@ -160,6 +179,12 @@ func (m *mockIdentityProviderRepo) FindByIdentifier(identifier string) (*Identit
 	}
 	return nil, nil
 }
+func (m *mockIdentityProviderRepo) FindByIssuer(issuer string) (*IdentityProvider, error) {
+	if m.findByIssuerFn != nil {
+		return m.findByIssuerFn(issuer)
+	}
+	return nil, nil
+}
 func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error) {
 	if m.findDefaultByTenantIDFn != nil {
 		return m.findDefaultByTenantIDFn(tenantID)
@@ -183,6 +208,34 @@ func (m *mockIdentityProviderRepo) FindPaginated(f IdentityProviderRepositoryGet
 		return m.findPaginatedFn(f)
 	}
 	return &PaginationResult[IdentityProvider]{}, nil
+}
+
+type mockIdentityProviderEmailDomainRepo struct {
+	findByTenantAndDomainFn func(int64, string) (*IdentityProviderEmailDomain, error)
+	findByProviderIDFn      func(int64) ([]IdentityProviderEmailDomain, error)
+	replaceForProviderFn    func(int64, int64, []string) error
+}
+
+func (m *mockIdentityProviderEmailDomainRepo) WithTx(_ *gorm.DB) IdentityProviderEmailDomainRepository {
+	return m
+}
+func (m *mockIdentityProviderEmailDomainRepo) FindByTenantAndDomain(tenantID int64, domain string) (*IdentityProviderEmailDomain, error) {
+	if m.findByTenantAndDomainFn != nil {
+		return m.findByTenantAndDomainFn(tenantID, domain)
+	}
+	return nil, nil
+}
+func (m *mockIdentityProviderEmailDomainRepo) FindByProviderID(idpID int64) ([]IdentityProviderEmailDomain, error) {
+	if m.findByProviderIDFn != nil {
+		return m.findByProviderIDFn(idpID)
+	}
+	return nil, nil
+}
+func (m *mockIdentityProviderEmailDomainRepo) ReplaceForProvider(tenantID, idpID int64, domains []string) error {
+	if m.replaceForProviderFn != nil {
+		return m.replaceForProviderFn(tenantID, idpID, domains)
+	}
+	return nil
 }
 
 type mockAuthFlowRepo struct {
@@ -393,6 +446,7 @@ func (m *mockUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*Us
 type mockClientRepo struct {
 	mockBaseRepo[Client]
 	findByUUIDFn                        func(any, ...string) (*Client, error)
+	findByIDFn                          func(any, ...string) (*Client, error)
 	findSystemFn                        func() (*Client, error)
 	findByClientIDAndIdentityProviderFn func(string, string) (*Client, error)
 }
@@ -401,6 +455,12 @@ func (m *mockClientRepo) WithTx(_ *gorm.DB) ClientRepository { return m }
 func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
+	}
+	return nil, nil
+}
+func (m *mockClientRepo) FindByID(id any, p ...string) (*Client, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, p...)
 	}
 	return nil, nil
 }
@@ -441,8 +501,8 @@ func (m *mockRoleRepo) FindPaginated(f RoleRepositoryGetFilter) (*PaginationResu
 type mockIdentityProviderService struct {
 	getFn             func(IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
 	getByUUIDFn       func(uuid.UUID, int64) (*IdentityProviderServiceDataResult, error)
-	createFn          func(string, string, string, string, datatypes.JSON, string, string, int64, uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	updateFn          func(uuid.UUID, string, string, string, string, datatypes.JSON, string, int64, uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	createFn          func(IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error)
+	updateFn          func(IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error)
 	setStatusByUUIDFn func(uuid.UUID, string, int64, uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	deleteByUUIDFn    func(uuid.UUID, int64, uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
@@ -459,15 +519,15 @@ func (m *mockIdentityProviderService) GetByUUID(_ context.Context, id uuid.UUID,
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderService) Create(_ context.Context, name, displayName, provider, providerType string, config datatypes.JSON, status, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (m *mockIdentityProviderService) Create(_ context.Context, in IdentityProviderCreateInput) (*IdentityProviderServiceDataResult, error) {
 	if m.createFn != nil {
-		return m.createFn(name, displayName, provider, providerType, config, status, tenantUUID, tenantID, actorUserUUID)
+		return m.createFn(in)
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderService) Update(_ context.Context, id uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (m *mockIdentityProviderService) Update(_ context.Context, in IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(id, name, displayName, provider, providerType, config, status, tenantID, actorUserUUID)
+		return m.updateFn(in)
 	}
 	return nil, nil
 }

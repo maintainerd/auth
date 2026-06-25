@@ -93,14 +93,16 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		// Resolve auth client (default if not specified). We look it up to ensure the
 		// caller is operating against a known client, mirroring the forgot-password flow.
 		var txErr error
-		if clientID != nil && providerID != nil {
+		if publicAuthSurfaceFromContext(ctx) {
+			authClient, txErr = resolvePublicClient(txClientRepo, clientID, providerID)
+		} else if clientID != nil && providerID != nil {
 			if authClient, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID); txErr != nil {
 				return apperror.NewInternal("failed to find auth client", txErr)
 			}
 		} else if clientID != nil {
 			authClient, txErr = txClientRepo.FindByIdentifier(*clientID)
 		} else if providerID != nil {
-			authClient, txErr = txClientRepo.FindSystemByTenantIdentifier(*providerID)
+			authClient, txErr = resolveClient(txClientRepo, nil, providerID)
 		} else {
 			if authClient, txErr = txClientRepo.FindSystem(); txErr != nil {
 				return apperror.NewInternal("failed to find auth client", txErr)

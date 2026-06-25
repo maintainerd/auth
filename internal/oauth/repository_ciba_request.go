@@ -46,7 +46,7 @@ func (r *oauthCIBARequestRepository) FindByAuthReqIDHash(hash string) (*OAuthCIB
 	var req OAuthCIBARequest
 	err := r.DB().
 		Preload("Client").
-		Preload("Client.IdentityProvider").
+		Preload("Client.Tenant").
 		Where("auth_req_id_hash = ?", hash).
 		First(&req).Error
 	if err != nil {

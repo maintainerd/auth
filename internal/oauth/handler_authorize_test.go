@@ -26,14 +26,39 @@ func TestNewOAuthAuthorizeHandler(t *testing.T) {
 // Authorize
 // ---------------------------------------------------------------------------
 
-func TestOAuthAuthorizeHandler_Authorize_NoUser(t *testing.T) {
+func TestOAuthAuthorizeHandler_Authorize_LoginRequired(t *testing.T) {
+	// Valid request but no session → login_required so the hosted identity app
+	// renders the login page (rather than a hard 401).
 	h := NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{})
-	r := httptest.NewRequest(http.MethodGet, "/oauth/authorize", nil)
+	r := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+validAuthorizeQuery(), nil)
 	w := httptest.NewRecorder()
 
 	h.Authorize(w, r)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	var body map[string]string
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
+	assert.Equal(t, "login_required", body["error"])
+}
+
+func TestOAuthAuthorizeHandler_Authorize_PrepareError(t *testing.T) {
+	// No session and the request fails pre-login validation (unknown client or
+	// unregistered redirect_uri) → the OAuth error is returned, not login_required.
+	svc := &mockOAuthAuthorizeService{
+		prepareAuthorizeFn: func(_ context.Context, _ OAuthAuthorizeRequestDTO) *apperror.OAuthError {
+			return apperror.NewOAuthInvalidRequest("unknown or inactive client context")
+		},
+	}
+	h := NewOAuthAuthorizeHandler(svc)
+	r := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+validAuthorizeQuery(), nil)
+	w := httptest.NewRecorder()
+
+	h.Authorize(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	var body map[string]string
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
+	assert.Equal(t, "invalid_request", body["error"])
 }
 
 func TestOAuthAuthorizeHandler_Authorize_ValidationError(t *testing.T) {
@@ -163,6 +188,40 @@ func TestOAuthAuthorizeHandler_Authorize_PassesQueryParams(t *testing.T) {
 // ---------------------------------------------------------------------------
 // GetConsentChallenge
 // ---------------------------------------------------------------------------
+
+func TestOAuthAuthorizeHandler_Authorize_BrokerStart(t *testing.T) {
+	t.Run("idp_hint dispatches to broker and returns redirect URL", func(t *testing.T) {
+		var captured OAuthAuthorizeRequestDTO
+		svc := &mockOAuthAuthorizeService{
+			startBrokerFn: func(_ context.Context, req OAuthAuthorizeRequestDTO) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+				captured = req
+				return &OAuthAuthorizeResult{RedirectURI: "https://idp.example.com/authorize?client_id=upstream"}, nil
+			},
+		}
+		h := NewOAuthAuthorizeHandler(svc)
+		r := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+validAuthorizeQuery()+"&idp_hint=google", nil)
+		w := httptest.NewRecorder()
+		h.Authorize(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "google", captured.IdpHint)
+	})
+
+	t.Run("idp_hint broker error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthAuthorizeService{
+			startBrokerFn: func(_ context.Context, _ OAuthAuthorizeRequestDTO) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+				return nil, apperror.NewOAuthInvalidRequest("identity provider not connected")
+			},
+		}
+		h := NewOAuthAuthorizeHandler(svc)
+		r := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+validAuthorizeQuery()+"&idp_hint=google", nil)
+		w := httptest.NewRecorder()
+		h.Authorize(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// GetConsentChallenge
 
 func TestOAuthAuthorizeHandler_GetConsentChallenge_NoUser(t *testing.T) {
 	h := NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{})

@@ -443,7 +443,7 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 	issuer := ""
 	audience := ""
 	identifier := ""
-	providerID := ""
+	providerID := tokenRealm(client)
 	subjectType := "client"
 	if client.Domain != nil {
 		issuer = *client.Domain
@@ -451,9 +451,6 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 	if client.Identifier != nil {
 		audience = *client.Identifier
 		identifier = *client.Identifier
-	}
-	if client.IdentityProvider != nil {
-		providerID = client.IdentityProvider.Identifier
 	}
 	subject := identifier
 	serviceName := ""
@@ -700,16 +697,13 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	issuer := ""
 	audience := ""
 	identifier := ""
-	providerID := ""
+	providerID := tokenRealm(client)
 	if client.Domain != nil {
 		issuer = *client.Domain
 	}
 	if client.Identifier != nil {
 		audience = *client.Identifier
 		identifier = *client.Identifier
-	}
-	if client.IdentityProvider != nil {
-		providerID = client.IdentityProvider.Identifier
 	}
 
 	accessTokenOpts := s.clientAccessTokenOpts(client)
@@ -811,8 +805,7 @@ func (s *oauthTokenService) refreshTokenTTL(client *Client) time.Duration {
 func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, error) {
 	var client Client
 	err := db.
-		Preload("IdentityProvider").
-		Preload("IdentityProvider.Tenant").
+		Preload("Tenant").
 		Preload("Service").
 		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
 		First(&client).Error
@@ -823,6 +816,16 @@ func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, erro
 		return nil, err
 	}
 	return &client, nil
+}
+
+func tokenRealm(client *Client) string {
+	if client == nil {
+		return ""
+	}
+	if client.Tenant != nil && strings.TrimSpace(client.Tenant.Identifier) != "" {
+		return client.Tenant.Identifier
+	}
+	return fmt.Sprintf("tenant:%d", client.TenantID)
 }
 
 func (s *oauthTokenService) clientAccessTokenOpts(client *Client) *jwt.AccessTokenOptions {

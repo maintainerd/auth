@@ -72,26 +72,29 @@ func NewMagicLinkService(
 	}
 }
 
-func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
-	return s.sendMagicLink(ctx, emailAddr, clientID, isInternal)
+func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, clientID, tenantID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
+	return s.sendMagicLink(ctx, emailAddr, clientID, tenantID, isInternal)
 }
 
-func (s *magicLinkService) sendMagicLink(ctx context.Context, emailAddr string, clientID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
+func (s *magicLinkService) sendMagicLink(ctx context.Context, emailAddr string, clientID, tenantID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "magicLink.send")
 	defer span.End()
 
 	var user *User
 	var Client *Client
 	var token string
+	var linkTenantID *string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
 
-		// Resolve the OAuth client via its identifier (public surface only).
+		// Resolve the client: public surface requires client_id; internal/system
+		// callers fall back to the tenant default → system client.
 		var txErr error
-		Client, txErr = resolveClient(txClientRepo, clientID, nil)
+		Client, txErr = resolveClientForContext(ctx, txClientRepo, clientID, tenantID)
+		linkTenantID = tenantID
 		if txErr != nil {
 			return apperror.NewInternal("failed to find auth client", txErr)
 		}
@@ -155,7 +158,7 @@ func (s *magicLinkService) sendMagicLink(ctx context.Context, emailAddr string, 
 	}
 
 	if user != nil && token != "" && Client != nil {
-		if err := s.sendMagicLinkEmail(ctx, user.Email, token, Client, isInternal); err != nil {
+		if err := s.sendMagicLinkEmail(ctx, user.Email, token, Client, isInternal, linkTenantID); err != nil {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "magic_link_send_failure",
 				UserID:    user.UserUUID.String(),
@@ -189,11 +192,11 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 
 		// Resolve client using the same pattern as login (client_id or tenant_id).
 		var txErr error
-		Client, txErr = resolveClient(txClientRepo, clientID, tenantID)
+		Client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
 		if txErr != nil || Client == nil ||
 			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" ||
-			Client.IdentityProvider == nil {
+			clientTenantID(Client) == 0 {
 			return apperror.NewUnauthorized("authentication failed")
 		}
 
@@ -219,7 +222,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 		if txErr != nil || user == nil {
 			return apperror.NewUnauthorized("authentication failed")
 		}
-		if Client.IdentityProvider != nil && user.TenantID != Client.IdentityProvider.TenantID {
+		if Client.IdentityProvider != nil && user.TenantID != clientTenantID(Client) {
 			return apperror.NewUnauthorized("authentication failed")
 		}
 		if user.Status != shared.StatusActive {
@@ -300,10 +303,10 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 	return s.generateTokenResponse(ctx, userIdentitySub, user, Client)
 }
 
-func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token string, Client *Client, isInternal bool) error {
+func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token string, Client *Client, isInternal bool, linkTenantID *string) error {
 	var templateEntity *branding.EmailTemplate
 	var err error
-	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID(MagicLinkTemplateName, Client.IdentityProvider.TenantID)
+	templateEntity, err = s.emailTemplateRepo.FindByNameAndTenantID(MagicLinkTemplateName, clientTenantID(Client))
 	if err != nil || templateEntity == nil {
 		templateEntity, err = s.emailTemplateRepo.FindByName(MagicLinkTemplateName)
 	}
@@ -315,10 +318,15 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 	baseURL := fmt.Sprintf("%s/api/v1/magic-link/verify", config.AppPublicHostname)
 	params := map[string]string{"token": token}
 	if isInternal {
-		if Client.IdentityProvider == nil || Client.IdentityProvider.Tenant == nil {
+		if linkTenantID != nil && *linkTenantID != "" {
+			params["tenant_id"] = *linkTenantID
+		} else if Client.IdentityProvider != nil && Client.IdentityProvider.Tenant != nil {
+			params["tenant_id"] = Client.IdentityProvider.Tenant.Identifier
+		} else {
 			return apperror.NewInternal("failed to resolve tenant for magic link", nil)
 		}
-		params["tenant_id"] = Client.IdentityProvider.Tenant.Identifier
+	} else if linkTenantID != nil && *linkTenantID != "" {
+		params["tenant_id"] = *linkTenantID
 	} else {
 		params["client_id"] = *Client.Identifier
 	}

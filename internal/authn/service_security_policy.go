@@ -54,9 +54,22 @@ func clientTenantID(client *Client) int64 {
 		return client.TenantID
 	}
 	if client.IdentityProvider != nil {
-		return client.IdentityProvider.TenantID
+		if client.IdentityProvider.TenantID > 0 {
+			return client.IdentityProvider.TenantID
+		}
+		if client.IdentityProvider.Tenant != nil {
+			return client.IdentityProvider.Tenant.TenantID
+		}
 	}
 	return 0
+}
+
+func clientIdentityProviderIDPtr(client *Client) *int64 {
+	if client == nil || client.IdentityProviderID == 0 {
+		return nil
+	}
+	id := client.IdentityProviderID
+	return &id
 }
 
 func clientSecurityOverrides(client *Client) secpolicy.SecuritySettingClientOverrides {

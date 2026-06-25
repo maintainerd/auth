@@ -55,6 +55,27 @@ var jwtGenIDToken = jwt.GenerateIDTokenWithContext
 var jwtGenRefreshToken = jwt.GenerateRefreshTokenWithContext
 var jwtGenRefreshTokenWithOptions = jwt.GenerateRefreshTokenWithOptionsContext
 
+// authnTokenRealm resolves the token realm (provider_id claim) for login/register
+// issued tokens. It is anchored to the tenant identifier so that tokens minted by
+// password login carry the SAME realm as tokens minted by the OAuth code flow and
+// federation (see oauth.tokenRealm / idp.federationTokenRealm). A client can now
+// connect many identity providers, so the realm must NOT depend on any single IdP.
+func authnTokenRealm(client *Client) string {
+	if client == nil {
+		return ""
+	}
+	if client.IdentityProvider != nil && client.IdentityProvider.Tenant != nil && client.IdentityProvider.Tenant.Identifier != "" {
+		return client.IdentityProvider.Tenant.Identifier
+	}
+	if client.IdentityProvider != nil && client.IdentityProvider.Identifier != "" {
+		return client.IdentityProvider.Identifier
+	}
+	if client.Identifier != nil {
+		return *client.Identifier
+	}
+	return ""
+}
+
 func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User, client *Client, authCtx tokenAuthContext) (accessToken, idToken, refreshToken string, err error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -86,7 +107,7 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		*client.Domain,
 		*client.Identifier,
 		*client.Identifier,
-		client.IdentityProvider.Identifier,
+		authnTokenRealm(client),
 		accessOpts,
 	)
 	if err != nil {
@@ -101,7 +122,7 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		ACR:             authCtx.ACR,
 	}
 
-	idToken, err = jwtGenIDToken(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", params)
+	idToken, err = jwtGenIDToken(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client), profile, "", params)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -114,11 +135,11 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 	}
 	if authCtx.RefreshTokenTTLSeconds > 0 {
 		rtOpts.RefreshTokenTTL = time.Duration(authCtx.RefreshTokenTTLSeconds) * time.Second
-		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, rtOpts)
+		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client), rtOpts)
 	} else if authCtx.RefreshTokenFamilyID != "" {
-		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, rtOpts)
+		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client), rtOpts)
 	} else {
-		refreshToken, err = jwtGenRefreshToken(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+		refreshToken, err = jwtGenRefreshToken(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client))
 	}
 	if err != nil {
 		return "", "", "", err

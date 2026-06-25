@@ -90,7 +90,9 @@ func (r *userClientRepo) FindDefaultByTenantID(tenantID int64) (*user.Client, er
 func (r *userClientRepo) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*user.Client, error) {
 	query := r.DB().Model(&user.Client{}).Where("clients.identifier = ?", clientID)
 	if identityProviderIdentifier != "" {
-		query = query.Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
+		query = query.
+			Joins("JOIN client_identity_providers ON client_identity_providers.client_id = clients.client_id").
+			Joins("JOIN identity_providers ON identity_providers.identity_provider_id = client_identity_providers.identity_provider_id").
 			Where("identity_providers.identifier = ?", identityProviderIdentifier)
 	}
 	var c user.Client

@@ -11,6 +11,7 @@ type OAuthAuthorizeRequestDTO struct {
 	Scope               string `json:"scope"`
 	State               string `json:"state"`
 	Nonce               string `json:"nonce"`
+	IdpHint             string `json:"idp_hint"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
 }
@@ -19,6 +20,26 @@ type OAuthAuthorizeRequestDTO struct {
 // when the caller is already authenticated and has consented.
 type OAuthAuthorizeResponseDTO struct {
 	RedirectURI string `json:"redirect_uri"`
+}
+
+// OAuthConnectionsResponseDTO lists the login options a client offers so the
+// hosted identity app can render its login page: whether username/password is
+// available and which OAuth2 providers are connected. It never exposes provider
+// config or secrets.
+type OAuthConnectionsResponseDTO struct {
+	PasswordEnabled bool                 `json:"password_enabled"`
+	Connections     []OAuthConnectionDTO `json:"connections"`
+}
+
+// OAuthConnectionDTO is one connected identity provider (an OAuth2 login button).
+// Identifier is what the identity app passes back as idp_hint on /oauth/authorize.
+type OAuthConnectionDTO struct {
+	Identifier   string `json:"identifier"`
+	DisplayName  string `json:"display_name"`
+	Provider     string `json:"provider"`
+	ProviderType string `json:"provider_type"`
+	IsDefault    bool   `json:"is_default"`
+	DisplayOrder int    `json:"display_order"`
 }
 
 // OAuthConsentRequiredResponseDTO is returned when the user must approve scopes

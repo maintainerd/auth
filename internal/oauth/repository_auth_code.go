@@ -41,7 +41,7 @@ func (r *oauthAuthorizationCodeRepository) FindByCodeHash(codeHash string) (*OAu
 	var code OAuthAuthorizationCode
 	err := r.DB().
 		Preload("Client").
-		Preload("Client.IdentityProvider").
+		Preload("Client.Tenant").
 		Where("code_hash = ?", codeHash).
 		First(&code).Error
 	if err != nil {

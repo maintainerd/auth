@@ -46,11 +46,12 @@ func initTestJWTKeysService(t *testing.T) {
 
 type mockFederationUserIdentityRepo struct {
 	mockBaseRepo[UserIdentity]
-	findByUserIDFn            func(int64) ([]UserIdentity, error)
-	findByUserIDAndProviderFn func(int64, string) (*UserIdentity, error)
-	findByProviderAndSubFn    func(string, string) (*UserIdentity, error)
-	createFn                  func(*UserIdentity) (*UserIdentity, error)
-	deleteByIDFn              func(any) error
+	findByUserIDFn               func(int64) ([]UserIdentity, error)
+	findByUserIDAndProviderFn    func(int64, string) (*UserIdentity, error)
+	findByTenantProviderAndSubFn func(int64, string, string) (*UserIdentity, error)
+	createFn                     func(*UserIdentity) (*UserIdentity, error)
+	createIfAbsentFn             func(*UserIdentity) (*UserIdentity, bool, error)
+	deleteByIDFn                 func(any) error
 }
 
 func (m *mockFederationUserIdentityRepo) WithTx(_ *gorm.DB) UserIdentityRepository {
@@ -64,9 +65,9 @@ func (m *mockFederationUserIdentityRepo) FindByUserID(userID int64) ([]UserIdent
 	return nil, nil
 }
 
-func (m *mockFederationUserIdentityRepo) FindByProviderAndSub(provider, sub string) (*UserIdentity, error) {
-	if m.findByProviderAndSubFn != nil {
-		return m.findByProviderAndSubFn(provider, sub)
+func (m *mockFederationUserIdentityRepo) FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error) {
+	if m.findByTenantProviderAndSubFn != nil {
+		return m.findByTenantProviderAndSubFn(tenantID, provider, sub)
 	}
 	return nil, nil
 }
@@ -94,6 +95,17 @@ func (m *mockFederationUserIdentityRepo) Create(identity *UserIdentity) (*UserId
 		return m.createFn(identity)
 	}
 	return identity, nil
+}
+
+func (m *mockFederationUserIdentityRepo) CreateByTenantProviderSubIfAbsent(identity *UserIdentity) (*UserIdentity, bool, error) {
+	if m.createIfAbsentFn != nil {
+		return m.createIfAbsentFn(identity)
+	}
+	if m.createFn != nil {
+		created, err := m.createFn(identity)
+		return created, err == nil, err
+	}
+	return identity, true, nil
 }
 
 type mockAuthEventService struct {
@@ -153,8 +165,144 @@ func validOAuth2ConfigJSON() datatypes.JSON {
 	return datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","scopes":["openid","email"],"userinfo_endpoint":"https://auth.example.com/userinfo"}`))
 }
 
+// promoteIDPConfigColumns mirrors production storage: issuer / client_id /
+// client_secret / allow_jit_provisioning live in dedicated columns, not the
+// config JSONB. It parses those keys out of the legacy config JSON and sets the
+// columns. The secret is stored as-is (plaintext) — SafeDecryptAtRest returns the
+// input verbatim on decrypt failure, so DecryptedProviderClientSecret() round-trips it.
+func promoteIDPConfigColumns(idp *IdentityProvider) {
+	if len(idp.Config) == 0 {
+		return
+	}
+	var m map[string]any
+	if json.Unmarshal(idp.Config, &m) != nil {
+		return
+	}
+	if v, ok := m["issuer"].(string); ok && v != "" {
+		s := v
+		idp.Issuer = &s
+	}
+	if v, ok := m["client_id"].(string); ok && v != "" {
+		s := v
+		idp.ProviderClientID = &s
+	}
+	if v, ok := m["client_secret"].(string); ok && v != "" {
+		s := v
+		idp.ProviderClientSecretEncrypted = &s
+	}
+	if v, ok := m["allow_jit_provisioning"].(bool); ok {
+		idp.AllowJITProvisioning = v
+	}
+}
+
+// setIDPConfigJSON replaces a fixture's config and re-derives the promoted
+// columns, clearing any previously promoted values first.
+func setIDPConfigJSON(idp *IdentityProvider, cfg datatypes.JSON) {
+	idp.Issuer = nil
+	idp.ProviderClientID = nil
+	idp.ProviderClientSecretEncrypted = nil
+	idp.AllowJITProvisioning = false
+	idp.Config = cfg
+	promoteIDPConfigColumns(idp)
+}
+
+func TestResolveTokenEndpoint(t *testing.T) {
+	ctx := context.Background()
+	// Explicit token_endpoint wins (Google/Facebook-style).
+	assert.Equal(t, "https://custom.example.com/oauth2/token",
+		resolveTokenEndpoint(ctx, "https://auth.example.com", OIDCProviderConfig{TokenEndpoint: "https://custom.example.com/oauth2/token"}))
+	// Falls back to OIDC discovery when issuer is set.
+	orig := idpOIDCDiscover
+	idpOIDCDiscover = func(context.Context, string) (string, string, error) {
+		return "https://accounts.google.com/o/oauth2/auth", "https://oauth2.googleapis.com/token", nil
+	}
+	t.Cleanup(func() { idpOIDCDiscover = orig })
+	assert.Equal(t, "https://oauth2.googleapis.com/token",
+		resolveTokenEndpoint(ctx, "https://accounts.google.com", OIDCProviderConfig{}))
+	// Falls back to legacy when discovery fails.
+	idpOIDCDiscover = func(context.Context, string) (string, string, error) {
+		return "", "", errors.New("discovery down")
+	}
+	assert.Equal(t, "https://accounts.google.com/oauth/token",
+		resolveTokenEndpoint(ctx, "https://accounts.google.com/", OIDCProviderConfig{}))
+	// Legacy default when nothing else works.
+	assert.Equal(t, "https://auth.example.com/oauth/token",
+		resolveTokenEndpoint(ctx, "https://auth.example.com/", OIDCProviderConfig{}))
+}
+
+func TestFederationService_ResolveBrokerProvider(t *testing.T) {
+	mkProvider := func(config string) *IdentityProvider {
+		idp := activeOIDCProvider("google")
+		setIDPConfigJSON(idp, datatypes.JSON(config))
+		return idp
+	}
+	svcWith := func(idp *IdentityProvider, findErr error) *federationService {
+		return &federationService{idpRepo: &mockIdentityProviderRepo{
+			findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, findErr },
+		}}
+	}
+
+	t.Run("explicit authorization_endpoint", func(t *testing.T) {
+		svc := svcWith(mkProvider(`{"client_id":"upstream","authorization_endpoint":"https://idp.example.com/authorize","token_endpoint":"https://idp.example.com/token","scopes":["openid","email"]}`), nil)
+		info, err := svc.ResolveBrokerProvider(context.Background(), "google")
+		require.NoError(t, err)
+		assert.Equal(t, "https://idp.example.com/authorize", info.AuthorizationEndpoint)
+		assert.Equal(t, "upstream", info.ClientID)
+		assert.Equal(t, []string{"openid", "email"}, info.Scopes)
+	})
+
+	t.Run("discovery fallback", func(t *testing.T) {
+		orig := idpOIDCDiscover
+		idpOIDCDiscover = func(context.Context, string) (string, string, error) {
+			return "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token", nil
+		}
+		t.Cleanup(func() { idpOIDCDiscover = orig })
+		svc := svcWith(mkProvider(`{"client_id":"upstream","issuer":"https://accounts.google.com"}`), nil)
+		info, err := svc.ResolveBrokerProvider(context.Background(), "google")
+		require.NoError(t, err)
+		assert.Equal(t, "https://accounts.google.com/o/oauth2/v2/auth", info.AuthorizationEndpoint)
+	})
+
+	t.Run("discovery error", func(t *testing.T) {
+		orig := idpOIDCDiscover
+		idpOIDCDiscover = func(context.Context, string) (string, string, error) {
+			return "", "", errors.New("discovery failed")
+		}
+		t.Cleanup(func() { idpOIDCDiscover = orig })
+		svc := svcWith(mkProvider(`{"client_id":"upstream","issuer":"https://accounts.google.com"}`), nil)
+		_, err := svc.ResolveBrokerProvider(context.Background(), "google")
+		require.Error(t, err)
+	})
+
+	t.Run("missing client_id", func(t *testing.T) {
+		svc := svcWith(mkProvider(`{"issuer":"https://idp.example.com"}`), nil)
+		_, err := svc.ResolveBrokerProvider(context.Background(), "google")
+		require.Error(t, err)
+	})
+
+	t.Run("missing endpoint and issuer", func(t *testing.T) {
+		svc := svcWith(mkProvider(`{"client_id":"upstream"}`), nil)
+		_, err := svc.ResolveBrokerProvider(context.Background(), "google")
+		require.Error(t, err)
+	})
+
+	t.Run("provider not found", func(t *testing.T) {
+		svc := svcWith(nil, nil)
+		_, err := svc.ResolveBrokerProvider(context.Background(), "google")
+		require.Error(t, err)
+	})
+
+	t.Run("inactive provider", func(t *testing.T) {
+		idp := mkProvider(`{"client_id":"upstream","issuer":"https://idp.example.com"}`)
+		idp.Status = "inactive"
+		svc := svcWith(idp, nil)
+		_, err := svc.ResolveBrokerProvider(context.Background(), "google")
+		require.Error(t, err)
+	})
+}
+
 func activeOIDCProvider(identifier string) *IdentityProvider {
-	return &IdentityProvider{
+	idp := &IdentityProvider{
 		IdentityProviderID: 1,
 		Identifier:         identifier,
 		Provider:           "google",
@@ -162,6 +310,8 @@ func activeOIDCProvider(identifier string) *IdentityProvider {
 		TenantID:           1,
 		Config:             validOIDCConfigJSON(),
 	}
+	promoteIDPConfigColumns(idp)
+	return idp
 }
 
 func jitOIDCConfigJSON() datatypes.JSON {
@@ -177,6 +327,8 @@ func federationClient() *Client {
 	domain := "https://auth.example.com"
 	identifier := "app"
 	return &Client{
+		ClientID:   10,
+		TenantID:   1,
 		Domain:     &domain,
 		Identifier: &identifier,
 		IdentityProvider: &IdentityProvider{
@@ -209,7 +361,7 @@ func stubFederationTokenHooks(t *testing.T) {
 func stubOIDCClaims(t *testing.T, claims map[string]interface{}) {
 	t.Helper()
 	orig := idpValidateOIDCToken
-	idpValidateOIDCToken = func(*federationService, context.Context, OIDCProviderConfig, string) (map[string]interface{}, error) {
+	idpValidateOIDCToken = func(*federationService, context.Context, string, string, string) (map[string]interface{}, error) {
 		return claims, nil
 	}
 	t.Cleanup(func() { idpValidateOIDCToken = orig })
@@ -276,7 +428,7 @@ func TestFederationServiceProvisionUser_UnverifiedEmailDoesNotMergeExistingAccou
 	}, "external-sub", "owner@example.com", IdentityMetadata{
 		Email:         "owner@example.com",
 		EmailVerified: false,
-	})
+	}, 10)
 
 	require.NoError(t, err)
 	require.NotNil(t, user)
@@ -332,7 +484,7 @@ func TestFederationServiceProvisionUser_VerifiedEmailMergesTenantAccount(t *test
 	}, "external-sub", "owner@example.com", IdentityMetadata{
 		Email:         "owner@example.com",
 		EmailVerified: true,
-	})
+	}, 10)
 
 	require.NoError(t, err)
 	require.Same(t, existingUser, user)
@@ -369,7 +521,7 @@ func TestFederationServiceProvisionUser_VerifiedEmailLookupErrorFailsClosed(t *t
 	}, "external-sub", "owner@example.com", IdentityMetadata{
 		Email:         "owner@example.com",
 		EmailVerified: true,
-	})
+	}, 10)
 
 	require.Error(t, err)
 	assert.Nil(t, user)
@@ -384,12 +536,12 @@ func TestFederationServiceProvisionUser_VerifiedEmailLookupErrorFailsClosed(t *t
 
 func TestNewFederationService(t *testing.T) {
 	t.Run("without session service", func(t *testing.T) {
-		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil)
+		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil)
 		require.NotNil(t, svc)
 	})
 
 	t.Run("with session service", func(t *testing.T) {
-		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil, &mockSessionService{})
+		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil, &mockSessionService{})
 		require.NotNil(t, svc)
 	})
 }
@@ -429,7 +581,7 @@ func TestFederationService_ExchangeExternalToken_ErrorPaths(t *testing.T) {
 
 	t.Run("invalid OIDC config (bad JSON)", func(t *testing.T) {
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = datatypes.JSON(json.RawMessage(`not-json`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`not-json`)))
 		idpRepo := &mockIdentityProviderRepo{
 			findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 		}
@@ -441,7 +593,7 @@ func TestFederationService_ExchangeExternalToken_ErrorPaths(t *testing.T) {
 
 	t.Run("empty issuer", func(t *testing.T) {
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = datatypes.JSON(json.RawMessage(`{}`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{}`)))
 		idpRepo := &mockIdentityProviderRepo{
 			findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 		}
@@ -457,7 +609,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 
 	t.Run("OIDC validation error", func(t *testing.T) {
 		orig := idpValidateOIDCToken
-		idpValidateOIDCToken = func(*federationService, context.Context, OIDCProviderConfig, string) (map[string]interface{}, error) {
+		idpValidateOIDCToken = func(*federationService, context.Context, string, string, string) (map[string]interface{}, error) {
 			return nil, errors.New("bad token")
 		}
 		t.Cleanup(func() { idpValidateOIDCToken = orig })
@@ -519,7 +671,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		mock.ExpectCommit()
 
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = jitOIDCConfigJSON()
+		setIDPConfigJSON(idp, jitOIDCConfigJSON())
 		createdUser := &User{UserID: 10, UserUUID: uuid.New(), Email: "user@example.com", IsEmailVerified: true}
 		var logged bool
 		svc := &federationService{
@@ -569,7 +721,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		mock.ExpectCommit()
 
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = jitOIDCConfigJSON()
+		setIDPConfigJSON(idp, jitOIDCConfigJSON())
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
@@ -620,7 +772,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return nil, errors.New("identity lookup error")
 				},
 			},
@@ -644,7 +796,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return &UserIdentity{UserID: 10, Provider: "google", Sub: "external-sub"}, nil
 				},
 			},
@@ -670,7 +822,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return nil, nil
 				},
 				findByUserIDAndProviderFn: func(int64, string) (*UserIdentity, error) {
@@ -685,8 +837,13 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 				},
 			},
 			roleRepo: &mockRoleRepo{},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+					return federationClient(), nil
+				},
+			},
 		}
-		idp.Config = jitOIDCConfigJSON()
+		setIDPConfigJSON(idp, jitOIDCConfigJSON())
 		_, err := svc.ExchangeExternalToken(context.Background(), req)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default identity lookup failed")
@@ -697,9 +854,9 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		stubOIDCClaims(t, map[string]interface{}{"sub": "external-sub"})
 		gdb, mock := newMockGormDB(t)
 		mock.ExpectBegin()
-		mock.ExpectCommit()
+		mock.ExpectRollback()
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = jitOIDCConfigJSON()
+		setIDPConfigJSON(idp, jitOIDCConfigJSON())
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
@@ -711,13 +868,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 					return &UserIdentity{UserID: userID, Provider: provider, Sub: "internal-sub"}, nil
 				},
 			},
-			userRepo: &mockUserRepo{
-				createFn: func(user *User) (*User, error) {
-					user.UserID = 21
-					user.UserUUID = uuid.New()
-					return user, nil
-				},
-			},
+			userRepo:   &mockUserRepo{},
 			roleRepo:   &mockRoleRepo{},
 			clientRepo: &mockClientRepo{},
 		}
@@ -743,7 +894,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return &UserIdentity{UserIdentityID: 1, UserID: 30, Provider: "google", Sub: "external-sub"}, nil
 				},
 				findByUserIDAndProviderFn: func(userID int64, provider string) (*UserIdentity, error) {
@@ -774,7 +925,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = jitOIDCConfigJSON()
+		setIDPConfigJSON(idp, jitOIDCConfigJSON())
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
@@ -785,6 +936,11 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 				createFn: func(*User) (*User, error) { return nil, errors.New("create user error") },
 			},
 			roleRepo: &mockRoleRepo{},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+					return federationClient(), nil
+				},
+			},
 		}
 		_, err := svc.ExchangeExternalToken(context.Background(), req)
 		require.Error(t, err)
@@ -798,7 +954,7 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = jitOIDCConfigJSON()
+		setIDPConfigJSON(idp, jitOIDCConfigJSON())
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
@@ -813,6 +969,11 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 				},
 			},
 			roleRepo: &mockRoleRepo{},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+					return federationClient(), nil
+				},
+			},
 		}
 		_, err := svc.ExchangeExternalToken(context.Background(), req)
 		require.Error(t, err)
@@ -857,7 +1018,7 @@ func TestFederationService_ExchangeOAuth2Code_ErrorPaths(t *testing.T) {
 
 	t.Run("invalid config JSON", func(t *testing.T) {
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = datatypes.JSON(json.RawMessage(`not-json`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`not-json`)))
 		idpRepo := &mockIdentityProviderRepo{
 			findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 		}
@@ -869,7 +1030,7 @@ func TestFederationService_ExchangeOAuth2Code_ErrorPaths(t *testing.T) {
 
 	t.Run("missing client credentials", func(t *testing.T) {
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com"}`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com"}`)))
 		idpRepo := &mockIdentityProviderRepo{
 			findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 		}
@@ -881,7 +1042,7 @@ func TestFederationService_ExchangeOAuth2Code_ErrorPaths(t *testing.T) {
 
 	t.Run("missing userinfo endpoint", func(t *testing.T) {
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = datatypes.JSON(json.RawMessage(`{"client_id":"c","client_secret":"s"}`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{"client_id":"c","client_secret":"s"}`)))
 		idpRepo := &mockIdentityProviderRepo{
 			findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 		}
@@ -906,7 +1067,7 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 	}
 	provider := func() *IdentityProvider {
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = validOAuth2ConfigJSON()
+		setIDPConfigJSON(idp, validOAuth2ConfigJSON())
 		return idp
 	}
 
@@ -1002,7 +1163,7 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 		mock.ExpectCommit()
 
 		idp := provider()
-		idp.Config = datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","allow_jit_provisioning":true}`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","allow_jit_provisioning":true}`)))
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
@@ -1040,11 +1201,9 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 	t.Run("client not found", func(t *testing.T) {
 		stubOAuth2Userinfo(t, `{"sub":"external-sub"}`)
 		gdb, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
 
 		idp := provider()
-		idp.Config = datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","allow_jit_provisioning":true}`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","allow_jit_provisioning":true}`)))
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
@@ -1084,11 +1243,16 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return nil, errors.New("identity lookup error")
 				},
 			},
 			userRepo: &mockUserRepo{},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+					return federationClient(), nil
+				},
+			},
 		}
 		_, err := svc.ExchangeOAuth2Code(context.Background(), req)
 		require.Error(t, err)
@@ -1108,12 +1272,17 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return &UserIdentity{UserID: 10, Provider: "google", Sub: "external-sub"}, nil
 				},
 			},
 			userRepo: &mockUserRepo{
 				findByIDFn: func(any, ...string) (*User, error) { return nil, errors.New("user lookup error") },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+					return federationClient(), nil
+				},
 			},
 		}
 		_, err := svc.ExchangeOAuth2Code(context.Background(), req)
@@ -1128,7 +1297,7 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idp := provider()
-		idp.Config = datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","allow_jit_provisioning":true}`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","allow_jit_provisioning":true}`)))
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
@@ -1147,10 +1316,15 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 				},
 			},
 			roleRepo: &mockRoleRepo{},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+					return federationClient(), nil
+				},
+			},
 		}
 		_, err := svc.ExchangeOAuth2Code(context.Background(), req)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "identity resolution failed")
+		assert.Contains(t, err.Error(), "default identity lookup failed")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -1169,7 +1343,7 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return &UserIdentity{UserIdentityID: 1, UserID: 40, Provider: "google", Sub: "external-sub"}, nil
 				},
 				findByUserIDAndProviderFn: func(userID int64, provider string) (*UserIdentity, error) {
@@ -1199,7 +1373,7 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idp := provider()
-		idp.Config = datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","allow_jit_provisioning":true}`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","client_secret":"secret","allow_jit_provisioning":true}`)))
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
@@ -1210,6 +1384,11 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 				createFn: func(*User) (*User, error) { return nil, errors.New("create user error") },
 			},
 			roleRepo: &mockRoleRepo{},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+					return federationClient(), nil
+				},
+			},
 		}
 		_, err := svc.ExchangeOAuth2Code(context.Background(), req)
 		require.Error(t, err)
@@ -1240,7 +1419,7 @@ func TestFederationService_LinkIdentity_ErrorPaths(t *testing.T) {
 
 	t.Run("invalid OIDC config", func(t *testing.T) {
 		idp := activeOIDCProvider("idp-1")
-		idp.Config = datatypes.JSON(json.RawMessage(`{"client_id":"c"}`))
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{"client_id":"c"}`)))
 		idpRepo := &mockIdentityProviderRepo{
 			findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 		}
@@ -1256,7 +1435,7 @@ func TestFederationService_LinkIdentity_Branches(t *testing.T) {
 
 	t.Run("OIDC validation error", func(t *testing.T) {
 		orig := idpValidateOIDCToken
-		idpValidateOIDCToken = func(*federationService, context.Context, OIDCProviderConfig, string) (map[string]interface{}, error) {
+		idpValidateOIDCToken = func(*federationService, context.Context, string, string, string) (map[string]interface{}, error) {
 			return nil, errors.New("bad token")
 		}
 		t.Cleanup(func() { idpValidateOIDCToken = orig })
@@ -1291,7 +1470,7 @@ func TestFederationService_LinkIdentity_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return nil, errors.New("lookup error")
 				},
 			},
@@ -1310,7 +1489,7 @@ func TestFederationService_LinkIdentity_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return &UserIdentity{UserID: 99, Provider: "google", Sub: "external-sub"}, nil
 				},
 			},
@@ -1329,7 +1508,7 @@ func TestFederationService_LinkIdentity_Branches(t *testing.T) {
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByProviderAndSubFn: func(string, string) (*UserIdentity, error) {
+				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return &UserIdentity{UserID: 1, Provider: "google", Sub: "external-sub"}, nil
 				},
 			},
@@ -1397,10 +1576,7 @@ func TestFederationService_LinkIdentity_Branches(t *testing.T) {
 func TestFederationService_ValidateOIDCToken(t *testing.T) {
 	t.Run("discovery error", func(t *testing.T) {
 		svc := &federationService{}
-		claims, err := svc.validateOIDCToken(context.Background(), OIDCProviderConfig{
-			Issuer:   "http://127.0.0.1:1",
-			ClientID: "client",
-		}, "token")
+		claims, err := svc.validateOIDCToken(context.Background(), "http://127.0.0.1:1", "client", "token")
 		require.Error(t, err)
 		assert.Nil(t, claims)
 		assert.Contains(t, err.Error(), "OIDC discovery failed")
@@ -1417,9 +1593,12 @@ func TestFederationService_ValidateOIDCToken(t *testing.T) {
 		}))
 		defer server.Close()
 		issuer = server.URL
+		origClientFactory := idpHTTPClientFactory
+		idpHTTPClientFactory = server.Client
+		t.Cleanup(func() { idpHTTPClientFactory = origClientFactory })
 
 		svc := &federationService{}
-		claims, err := svc.validateOIDCToken(context.Background(), OIDCProviderConfig{Issuer: issuer}, "token")
+		claims, err := svc.validateOIDCToken(context.Background(), issuer, "", "token")
 		require.Error(t, err)
 		assert.Nil(t, claims)
 		assert.Contains(t, err.Error(), "client_id is required")
@@ -1439,9 +1618,12 @@ func TestFederationService_ValidateOIDCToken(t *testing.T) {
 		}))
 		defer server.Close()
 		issuer = server.URL
+		origClientFactory := idpHTTPClientFactory
+		idpHTTPClientFactory = server.Client
+		t.Cleanup(func() { idpHTTPClientFactory = origClientFactory })
 
 		svc := &federationService{}
-		claims, err := svc.validateOIDCToken(context.Background(), OIDCProviderConfig{Issuer: issuer, ClientID: "client"}, "bad-token")
+		claims, err := svc.validateOIDCToken(context.Background(), issuer, "client", "bad-token")
 		require.Error(t, err)
 		assert.Nil(t, claims)
 		assert.Contains(t, err.Error(), "token verification failed")
@@ -1464,6 +1646,9 @@ func TestFederationService_ValidateOIDCToken(t *testing.T) {
 		}))
 		defer server.Close()
 		issuer = server.URL
+		origClientFactory := idpHTTPClientFactory
+		idpHTTPClientFactory = server.Client
+		t.Cleanup(func() { idpHTTPClientFactory = origClientFactory })
 
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, jwtlib.MapClaims{
 			"iss": issuer,
@@ -1477,7 +1662,7 @@ func TestFederationService_ValidateOIDCToken(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := &federationService{}
-		claims, err := svc.validateOIDCToken(context.Background(), OIDCProviderConfig{Issuer: issuer, ClientID: "client"}, raw)
+		claims, err := svc.validateOIDCToken(context.Background(), issuer, "client", raw)
 		require.NoError(t, err)
 		assert.Equal(t, "external-sub", claims["sub"])
 	})
@@ -1692,99 +1877,89 @@ func TestFederationService_GetUserIdentities(t *testing.T) {
 
 func TestFederationService_HomeRealmDiscovery(t *testing.T) {
 	t.Run("invalid email", func(t *testing.T) {
-		svc := &federationService{idpRepo: &mockIdentityProviderRepo{}}
+		svc := &federationService{idpRepo: &mockIdentityProviderRepo{}, emailDomainRepo: &mockIdentityProviderEmailDomainRepo{}}
 		_, err := svc.HomeRealmDiscovery(context.Background(), 1, "bad")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid email")
 	})
 
-	t.Run("FindAllByTenantID error", func(t *testing.T) {
-		idpRepo := &mockIdentityProviderRepo{
-			findAllByTenantIDFn: func(int64) ([]IdentityProvider, error) {
-				return nil, errors.New("db error")
+	t.Run("email domain lookup error", func(t *testing.T) {
+		svc := &federationService{
+			idpRepo: &mockIdentityProviderRepo{},
+			emailDomainRepo: &mockIdentityProviderEmailDomainRepo{
+				findByTenantAndDomainFn: func(int64, string) (*IdentityProviderEmailDomain, error) {
+					return nil, errors.New("db error")
+				},
 			},
 		}
-		svc := &federationService{idpRepo: idpRepo}
 		_, err := svc.HomeRealmDiscovery(context.Background(), 1, "user@example.com")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "provider lookup failed")
 	})
 
 	t.Run("matching domain returns provider", func(t *testing.T) {
-		idpRepo := &mockIdentityProviderRepo{
-			findAllByTenantIDFn: func(int64) ([]IdentityProvider, error) {
-				return []IdentityProvider{{
-					Identifier:  "idp-1",
-					Provider:    "google",
-					DisplayName: "Google",
-					Config:      datatypes.JSON(json.RawMessage(`{"email_domains":["example.com"]}`)),
-				}}, nil
+		svc := &federationService{
+			idpRepo: &mockIdentityProviderRepo{
+				findByIDFn: func(any, ...string) (*IdentityProvider, error) {
+					return &IdentityProvider{Identifier: "idp-1", Provider: "google", DisplayName: "Google"}, nil
+				},
+			},
+			emailDomainRepo: &mockIdentityProviderEmailDomainRepo{
+				findByTenantAndDomainFn: func(_ int64, domain string) (*IdentityProviderEmailDomain, error) {
+					assert.Equal(t, "example.com", domain)
+					return &IdentityProviderEmailDomain{IdentityProviderID: 7}, nil
+				},
 			},
 		}
-		svc := &federationService{idpRepo: idpRepo}
 		res, err := svc.HomeRealmDiscovery(context.Background(), 1, "user@example.com")
 		require.NoError(t, err)
 		assert.Equal(t, "idp-1", res.ProviderIdentifier)
 	})
 
 	t.Run("no matching domain falls back to default", func(t *testing.T) {
-		idpRepo := &mockIdentityProviderRepo{
-			findAllByTenantIDFn: func(int64) ([]IdentityProvider, error) {
-				return []IdentityProvider{{
-					Identifier:  "idp-1",
-					Provider:    "google",
-					DisplayName: "Google",
-					Config:      datatypes.JSON(json.RawMessage(`{"email_domains":["other.com"]}`)),
-				}}, nil
+		svc := &federationService{
+			idpRepo: &mockIdentityProviderRepo{
+				findDefaultByTenantIDFn: func(int64) (*IdentityProvider, error) {
+					return &IdentityProvider{Identifier: "default-idp", Provider: "maintainerd", DisplayName: "Maintainerd"}, nil
+				},
 			},
-			findDefaultByTenantIDFn: func(int64) (*IdentityProvider, error) {
-				return &IdentityProvider{
-					Identifier:  "default-idp",
-					Provider:    "maintainerd",
-					DisplayName: "Maintainerd",
-				}, nil
+			emailDomainRepo: &mockIdentityProviderEmailDomainRepo{
+				findByTenantAndDomainFn: func(int64, string) (*IdentityProviderEmailDomain, error) { return nil, nil },
 			},
 		}
-		svc := &federationService{idpRepo: idpRepo}
 		res, err := svc.HomeRealmDiscovery(context.Background(), 1, "user@example.com")
 		require.NoError(t, err)
 		assert.Equal(t, "default-idp", res.ProviderIdentifier)
 	})
 
 	t.Run("no default IDP returns error", func(t *testing.T) {
-		idpRepo := &mockIdentityProviderRepo{
-			findAllByTenantIDFn: func(int64) ([]IdentityProvider, error) {
-				return nil, nil
+		svc := &federationService{
+			idpRepo: &mockIdentityProviderRepo{
+				findDefaultByTenantIDFn: func(int64) (*IdentityProvider, error) { return nil, nil },
 			},
-			findDefaultByTenantIDFn: func(int64) (*IdentityProvider, error) {
-				return nil, nil
+			emailDomainRepo: &mockIdentityProviderEmailDomainRepo{
+				findByTenantAndDomainFn: func(int64, string) (*IdentityProviderEmailDomain, error) { return nil, nil },
 			},
 		}
-		svc := &federationService{idpRepo: idpRepo}
 		_, err := svc.HomeRealmDiscovery(context.Background(), 1, "user@example.com")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no identity provider found")
 	})
 
-	t.Run("config unmarshal error skips provider", func(t *testing.T) {
-		idpRepo := &mockIdentityProviderRepo{
-			findAllByTenantIDFn: func(int64) ([]IdentityProvider, error) {
-				return []IdentityProvider{{
-					Identifier:  "idp-1",
-					Provider:    "bad",
-					DisplayName: "Bad",
-					Config:      datatypes.JSON(json.RawMessage(`bad-json`)),
-				}}, nil
+	t.Run("domain matched but provider missing falls back to default", func(t *testing.T) {
+		svc := &federationService{
+			idpRepo: &mockIdentityProviderRepo{
+				findByIDFn: func(any, ...string) (*IdentityProvider, error) { return nil, nil },
+				findDefaultByTenantIDFn: func(int64) (*IdentityProvider, error) {
+					return &IdentityProvider{Identifier: "default-idp", Provider: "maintainerd", DisplayName: "Maintainerd"}, nil
+				},
 			},
-			findDefaultByTenantIDFn: func(int64) (*IdentityProvider, error) {
-				return &IdentityProvider{
-					Identifier:  "default-idp",
-					Provider:    "maintainerd",
-					DisplayName: "Maintainerd",
-				}, nil
+			emailDomainRepo: &mockIdentityProviderEmailDomainRepo{
+				findByTenantAndDomainFn: func(int64, string) (*IdentityProviderEmailDomain, error) {
+					return &IdentityProviderEmailDomain{IdentityProviderID: 7}, nil
+				},
 			},
 		}
-		svc := &federationService{idpRepo: idpRepo}
 		res, err := svc.HomeRealmDiscovery(context.Background(), 1, "user@example.com")
 		require.NoError(t, err)
 		assert.Equal(t, "default-idp", res.ProviderIdentifier)
@@ -1853,7 +2028,7 @@ func TestFederationServiceProvisionUser_CreateUserFails(t *testing.T) {
 	}, "external-sub", "user@example.com", IdentityMetadata{
 		Email:         "user@example.com",
 		EmailVerified: false,
-	})
+	}, 10)
 
 	require.Error(t, err)
 	assert.Nil(t, user)
@@ -1880,7 +2055,7 @@ func TestFederationServiceProvisionUser_CreateUserReturnsNil(t *testing.T) {
 		IdentityProviderID: 10,
 		TenantID:           20,
 		Provider:           "google",
-	}, "external-sub", "user@example.com", IdentityMetadata{})
+	}, "external-sub", "user@example.com", IdentityMetadata{}, 10)
 
 	require.Error(t, err)
 	assert.Nil(t, user)
@@ -1919,7 +2094,7 @@ func TestFederationServiceProvisionUser_ExternalIdentityCreateFails(t *testing.T
 		IdentityProviderID: 10,
 		TenantID:           20,
 		Provider:           "google",
-	}, "external-sub", "user@example.com", IdentityMetadata{})
+	}, "external-sub", "user@example.com", IdentityMetadata{}, 10)
 
 	require.Error(t, err)
 	assert.Nil(t, user)
@@ -1927,7 +2102,10 @@ func TestFederationServiceProvisionUser_ExternalIdentityCreateFails(t *testing.T
 }
 
 func TestFederationServiceProvisionUser_WithDefaultRole(t *testing.T) {
-	gormDB, _ := newMockGormDB(t)
+	gormDB, mock := newMockGormDBRegex(t)
+	mock.ExpectBegin()
+	mock.ExpectExec(`INSERT INTO "user_roles"`).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 
 	createdUser := &User{UserID: 400, Email: "user@example.com"}
 	userRepo := &mockUserRepo{
@@ -1967,12 +2145,13 @@ func TestFederationServiceProvisionUser_WithDefaultRole(t *testing.T) {
 		IdentityProviderID: 10,
 		TenantID:           20,
 		Provider:           "google",
-	}, "external-sub", "user@example.com", IdentityMetadata{})
+	}, "external-sub", "user@example.com", IdentityMetadata{}, 10)
 
 	require.NoError(t, err)
 	require.NotNil(t, user)
 	assert.True(t, isNew)
 	assert.Equal(t, int64(400), user.UserID)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // ---------------------------------------------------------------------------

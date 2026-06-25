@@ -32,6 +32,7 @@ import (
 func OAuthPublicRoute(
 	r chi.Router,
 	authorizeHandler *OAuthAuthorizeHandler,
+	connectionsHandler *OAuthConnectionsHandler,
 	tokenHandler *OAuthTokenHandler,
 	tokenExchangeHandler *OAuthTokenExchangeHandler,
 	consentHandler *OAuthConsentHandler,
@@ -50,6 +51,17 @@ func OAuthPublicRoute(
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
 
+		// ── Authorization endpoint — session-aware ────────────────────────
+		// It returns login_required (not a hard 401) when no session is present,
+		// so the hosted identity app can render the login page and then re-issue
+		// the same /authorize request once the user has a session.
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.OptionalUserContextMiddleware(userService, appCache))
+			r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+			r.Get("/authorize", authorizeHandler.Authorize)
+		})
+
 		// ── Authenticated endpoints (require JWT + user context) ──────────
 
 		r.Group(func(r chi.Router) {
@@ -57,7 +69,6 @@ func OAuthPublicRoute(
 			r.Use(middleware.UserContextMiddleware(userService, appCache))
 			r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
-			r.Get("/authorize", authorizeHandler.Authorize)
 			r.Get("/consent/{challenge_id}", authorizeHandler.GetConsentChallenge)
 			r.Post("/consent", authorizeHandler.HandleConsent)
 			r.Get("/userinfo", userInfoHandler.UserInfo)
@@ -109,6 +120,10 @@ func OAuthPublicRoute(
 
 		r.Post("/revoke", tokenHandler.Revoke)
 
+		// Login-page connections (public, unauthenticated): the enabled login
+		// providers for a client, used by the hosted identity app to render login.
+		r.Get("/connections", connectionsHandler.ListConnections)
+
 		// PAR (RFC 9126)
 		r.Post("/par", parHandler.Push)
 
@@ -120,6 +135,11 @@ func OAuthPublicRoute(
 
 		// Dynamic Client Registration (RFC 7591)
 		r.Post("/register", registerHandler.Register)
+
+		// Broker callback: the upstream provider returns here after the user
+		// authenticates (OAuth #2 leg). The handler exchanges the code, provisions
+		// the user, and issues a maintainerd code for the downstream app.
+		r.Get("/callback/{idp_identifier}", authorizeHandler.HandleBrokerCallback)
 
 		// Back-Channel Logout (OIDC Back-Channel Logout 1.0 §2.5)
 		r.Post("/logout/backchannel", sessionHandler.BackchannelLogout)

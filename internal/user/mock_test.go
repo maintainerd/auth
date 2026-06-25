@@ -514,7 +514,12 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, idpIdentifi
 	return nil, nil
 }
 func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) { return nil, nil }
-func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
+	return nil, nil
+}
+func (m *mockClientRepo) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error) {
+	return m.FindSystemByTenantIdentifier(tenantIdentifier)
+}
 
 type mockIdentityProviderRepo struct {
 	mockBaseRepo[IdentityProvider]
@@ -534,7 +539,6 @@ type mockUserIdentityRepo struct {
 	findByUserIDFn                func(int64) ([]UserIdentity, error)
 	findUserIdentitiesPaginatedFn func(GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)
 	findByUserIDAndClientIDFn     func(int64, int64) (*UserIdentity, error)
-	findByProviderAndSubFn        func(string, string) (*UserIdentity, error)
 	findByUserIDAndProviderFn     func(int64, string) (*UserIdentity, error)
 	findByIdentityProviderIDFn    func(int64) ([]UserIdentity, error)
 	deleteByUserIDFn              func(int64) error
@@ -563,12 +567,6 @@ func (m *mockUserIdentityRepo) FindUserIdentitiesPaginated(f GetUserIdentitiesFi
 func (m *mockUserIdentityRepo) FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error) {
 	if m.findByUserIDAndClientIDFn != nil {
 		return m.findByUserIDAndClientIDFn(userID, clientID)
-	}
-	return nil, nil
-}
-func (m *mockUserIdentityRepo) FindByProviderAndSub(provider, sub string) (*UserIdentity, error) {
-	if m.findByProviderAndSubFn != nil {
-		return m.findByProviderAndSubFn(provider, sub)
 	}
 	return nil, nil
 }

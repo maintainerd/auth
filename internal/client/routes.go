@@ -121,6 +121,19 @@ func ClientRoute(
 		r.With(middleware.PermissionMiddleware([]string{"client:uri:delete"}), middleware.RequireStepUp).
 			Delete("/{client_uuid}/uris/{client_uri_uuid}", ClientHandler.DeleteURI)
 
+		// Auth Client identity provider connections
+		r.With(middleware.PermissionMiddleware([]string{"client:identity_provider:read"})).
+			Get("/{client_uuid}/identity_providers", ClientHandler.GetConnections)
+
+		r.With(middleware.PermissionMiddleware([]string{"client:identity_provider:create"}), middleware.RequireStepUp).
+			Post("/{client_uuid}/identity_providers", ClientHandler.AddConnection)
+
+		r.With(middleware.PermissionMiddleware([]string{"client:identity_provider:update"}), middleware.RequireStepUp).
+			Put("/{client_uuid}/identity_providers/{client_identity_provider_uuid}", ClientHandler.UpdateConnection)
+
+		r.With(middleware.PermissionMiddleware([]string{"client:identity_provider:delete"}), middleware.RequireStepUp).
+			Delete("/{client_uuid}/identity_providers/{client_identity_provider_uuid}", ClientHandler.RemoveConnection)
+
 		// Auth Client APIs Management
 		r.With(middleware.PermissionMiddleware([]string{"client:api:read"})).
 			Get("/{client_uuid}/apis", ClientHandler.GetAPIs)

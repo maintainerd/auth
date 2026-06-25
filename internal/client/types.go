@@ -158,6 +158,7 @@ type ClientResponseDTO struct {
 	Domain           *string                      `json:"domain,omitempty"`
 	URIs             []ClientURIResponseDTO       `json:"uris,omitempty"`
 	IdentityProvider *IdentityProviderResponseDTO `json:"identity_provider,omitempty"`
+	Connections      []ClientIdentityProviderDTO  `json:"connections,omitempty"`
 	Permissions      *[]PermissionResponseDTO     `json:"permissions,omitempty"`
 	Status           string                       `json:"status"`
 	IsDefault        bool                         `json:"is_default"`
@@ -181,6 +182,36 @@ type ClientPublicResponseDTO struct {
 	ClientType       string  `json:"client_type"`
 	Domain           *string `json:"domain,omitempty"`
 	TenantIdentifier string  `json:"tenant_id"`
+}
+
+type ClientIdentityProviderDTO struct {
+	ClientIdentityProviderUUID uuid.UUID                   `json:"client_identity_provider_id"`
+	IdentityProvider           IdentityProviderResponseDTO `json:"identity_provider"`
+	IsDefault                  bool                        `json:"is_default"`
+	Enabled                    bool                        `json:"enabled"`
+	DisplayOrder               int                         `json:"display_order"`
+	CreatedAt                  time.Time                   `json:"created_at"`
+	UpdatedAt                  time.Time                   `json:"updated_at"`
+}
+
+// List of identity provider connections enabled on a client
+type ClientIdentityProvidersResponseDTO struct {
+	Connections []ClientIdentityProviderDTO `json:"connections"`
+}
+
+// Connect an identity provider to a client request DTO
+type AddClientIdentityProviderRequestDTO struct {
+	IdentityProviderUUID string `json:"identity_provider_id"`
+	IsDefault            bool   `json:"is_default"`
+	Enabled              *bool  `json:"enabled"`
+	DisplayOrder         int    `json:"display_order"`
+}
+
+// Update an identity provider connection request DTO
+type UpdateClientIdentityProviderRequestDTO struct {
+	IsDefault    bool  `json:"is_default"`
+	Enabled      *bool `json:"enabled"`
+	DisplayOrder int   `json:"display_order"`
 }
 
 // Create auth client request DTO

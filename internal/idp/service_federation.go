@@ -3,6 +3,7 @@ package idp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,12 +32,31 @@ import (
 const DefaultOIDCUserinfoEndpoint = "/userinfo"
 
 var (
+	errIdentityCreatedConcurrently = errors.New("external identity was created concurrently")
+
 	idpValidateOIDCToken = (*federationService).validateOIDCToken
 	idpOAuth2Exchange    = func(ctx context.Context, cfg *oauth2.Config, code string) (*oauth2.Token, error) {
-		return cfg.Exchange(ctx, code)
+		octx := context.WithValue(ctx, oauth2.HTTPClient, idpHTTPClientFactory())
+		return cfg.Exchange(octx, code)
 	}
 	idpOAuth2GetUserinfo = func(ctx context.Context, cfg *oauth2.Config, tok *oauth2.Token, url string) (*http.Response, error) {
-		return cfg.Client(ctx, tok).Get(url)
+		octx := context.WithValue(ctx, oauth2.HTTPClient, idpHTTPClientFactory())
+		return cfg.Client(octx, tok).Get(url)
+	}
+	idpOAuth2ExchangeWithPKCE = func(ctx context.Context, cfg *oauth2.Config, code, verifier string) (*oauth2.Token, error) {
+		octx := context.WithValue(ctx, oauth2.HTTPClient, idpHTTPClientFactory())
+		return cfg.Exchange(octx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
+	}
+	// idpOIDCDiscover resolves a provider's authorize/token endpoints via OIDC
+	// discovery. It is a var so tests can stub it without network access.
+	idpOIDCDiscover = func(ctx context.Context, issuer string) (authorize, token string, err error) {
+		octx := oidclib.ClientContext(ctx, idpHTTPClientFactory())
+		provider, perr := oidclib.NewProvider(octx, issuer)
+		if perr != nil {
+			return "", "", perr
+		}
+		ep := provider.Endpoint()
+		return ep.AuthURL, ep.TokenURL, nil
 	}
 	idpGenerateAccessTokenWithOptionsContext = jwtlib.GenerateAccessTokenWithOptionsContext
 	idpGenerateIDTokenWithContext            = jwtlib.GenerateIDTokenWithContext
@@ -74,6 +94,25 @@ type FederationService interface {
 	// HomeRealmDiscovery returns the identity provider to use for the given
 	// email address, based on the email-domain list stored in each provider's config.
 	HomeRealmDiscovery(ctx context.Context, tenantID int64, email string) (*HRDResponseDTO, error)
+
+	// HomeRealmDiscoveryByClient resolves the tenant from the public client_id and
+	// then performs home-realm discovery. This is the public-surface entry point —
+	// the public API never accepts tenant_id, only client_id.
+	HomeRealmDiscoveryByClient(ctx context.Context, clientID string, email string) (*HRDResponseDTO, error)
+
+	// ResolveBrokerProvider returns the upstream OAuth2 authorize parameters for a
+	// brokered identity provider (its authorization endpoint, client_id, and
+	// scopes), decrypting the provider config and resolving the endpoint via the
+	// explicit authorization_endpoint or OIDC discovery. No secrets are returned.
+	ResolveBrokerProvider(ctx context.Context, idpIdentifier string) (*BrokerProviderInfo, error)
+
+	// ResolveBrokerUser exchanges an upstream provider authorization code (with
+	// PKCE verifier), validates the returned id_token (nonce-checked when
+	// present), provisions the user if needed, and returns the authenticated
+	// maintainerd user and their identity sub. It does NOT mint tokens — the
+	// caller (the broker flow) uses the resolved user to issue its own
+	// authorization code.
+	ResolveBrokerUser(ctx context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error)
 }
 
 type federationService struct {
@@ -81,6 +120,7 @@ type federationService struct {
 	userRepo            UserRepository
 	userIdentityRepo    UserIdentityRepository
 	idpRepo             IdentityProviderRepository
+	emailDomainRepo     IdentityProviderEmailDomainRepository
 	clientRepo          ClientRepository
 	userRoleRepo        UserRoleRepository
 	roleRepo            RoleRepository
@@ -95,6 +135,7 @@ func NewFederationService(
 	userRepo UserRepository,
 	userIdentityRepo UserIdentityRepository,
 	idpRepo IdentityProviderRepository,
+	emailDomainRepo IdentityProviderEmailDomainRepository,
 	clientRepo ClientRepository,
 	userRoleRepo UserRoleRepository,
 	roleRepo RoleRepository,
@@ -112,6 +153,7 @@ func NewFederationService(
 		userRepo:            userRepo,
 		userIdentityRepo:    userIdentityRepo,
 		idpRepo:             idpRepo,
+		emailDomainRepo:     emailDomainRepo,
 		clientRepo:          clientRepo,
 		userRoleRepo:        userRoleRepo,
 		roleRepo:            roleRepo,
@@ -120,6 +162,20 @@ func NewFederationService(
 		eventService:        eventService,
 		securitySettingRepo: securitySettingRepo,
 	}
+}
+
+// buildOIDCConfig unmarshals the non-secret JSONB config (endpoints / scopes /
+// attribute_mapping). Issuer, provider client_id and the client secret are NOT
+// part of this struct — read them off the model columns (idp.IssuerOrEmpty(),
+// idp.ProviderClientIDOrEmpty(), idp.DecryptedProviderClientSecret()).
+func buildOIDCConfig(idp *IdentityProvider) (OIDCProviderConfig, error) {
+	var cfg OIDCProviderConfig
+	if len(idp.Config) > 0 {
+		if err := json.Unmarshal(idp.Config, &cfg); err != nil {
+			return cfg, err
+		}
+	}
+	return cfg, nil
 }
 
 // Token exchange
@@ -138,18 +194,17 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		return nil, apperror.NewValidation("identity provider is not active")
 	}
 
-	decCfg := decryptIdpConfig(idp.Config)
-	var cfg OIDCProviderConfig
-	if err := json.Unmarshal(decCfg, &cfg); err != nil || cfg.Issuer == "" {
+	cfg, err := buildOIDCConfig(idp)
+	if err != nil || idp.IssuerOrEmpty() == "" {
 		return nil, apperror.NewValidation("identity provider is not configured for OIDC")
 	}
 
 	// 2. Validate the external ID token using OIDC discovery.
-	claims, err := idpValidateOIDCToken(s, ctx, cfg, req.ExternalToken)
+	claims, err := idpValidateOIDCToken(s, ctx, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty(), req.ExternalToken)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "oidc validation failed")
-		return nil, apperror.NewUnauthorized("external token validation failed: " + err.Error())
+		return nil, apperror.NewUnauthorized("external token validation failed")
 	}
 
 	externalSub := stringClaim(claims, "sub")
@@ -165,7 +220,43 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		email = stringClaim(claims, "email")
 	}
 
-	// 4. Find or provision the user.
+	// 4. Resolve the client lazily. Unknown identities should still honor the
+	// JIT-disabled branch without requiring a client lookup, but JIT writes must
+	// never happen before the client/provider connection is proven.
+	var client *Client
+	resolveClient := func() (*Client, error) {
+		if client != nil {
+			return client, nil
+		}
+		if s.clientRepo == nil {
+			return nil, apperror.NewNotFound("client not found for this provider")
+		}
+
+		found, lookupErr := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderIdentifier)
+		if lookupErr != nil {
+			return nil, apperror.NewInternal("client lookup failed", lookupErr)
+		}
+		if found == nil {
+			// Fallback: any client associated with the tenant's default IDP.
+			defaultIDP, defaultErr := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
+			if defaultErr != nil {
+				return nil, apperror.NewInternal("default identity provider lookup failed", defaultErr)
+			}
+			if defaultIDP != nil {
+				found, lookupErr = s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, defaultIDP.Identifier)
+				if lookupErr != nil {
+					return nil, apperror.NewInternal("client lookup failed", lookupErr)
+				}
+			}
+		}
+		if found == nil {
+			return nil, apperror.NewNotFound("client not found for this provider")
+		}
+		client = found
+		return client, nil
+	}
+
+	// 5. Find or provision the user.
 	var user *User
 	var internalSub string
 	var isNew bool
@@ -175,7 +266,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Try to find by the external identity (provider + sub).
-		existing, err := txUserIdentityRepo.FindByProviderAndSub(idp.Provider, externalSub)
+		existing, err := txUserIdentityRepo.FindByTenantProviderAndSub(idp.TenantID, idp.Provider, externalSub)
 		if err != nil {
 			return apperror.NewInternal("identity lookup failed", err)
 		}
@@ -189,11 +280,15 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 			_ = s.refreshMetadata(tx, existing, meta)
 		} else {
 			// Unknown external sub. Optionally JIT-provision.
-			if !cfg.AllowJITProvisioning {
+			if !idp.AllowJITProvisioning {
 				return apperror.NewUnauthorized("user not found and JIT provisioning is disabled for this provider")
 			}
+			resolvedClient, clientErr := resolveClient()
+			if clientErr != nil {
+				return clientErr
+			}
 			var provisionErr error
-			user, isNew, provisionErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta)
+			user, isNew, provisionErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, resolvedClient.ClientID)
 			if provisionErr != nil {
 				return provisionErr
 			}
@@ -210,21 +305,17 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		internalSub = defaultIdentity.Sub
 		return nil
 	})
+	if errors.Is(err, errIdentityCreatedConcurrently) {
+		user, internalSub, err = s.resolveExistingUserIdentity(idp.TenantID, idp.Provider, externalSub, shared.ProviderMaintainerd)
+	}
 	if err != nil {
 		return nil, err
 	}
-
-	// 5. Find the client used to generate our tokens.
-	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderIdentifier)
-	if err != nil || client == nil {
-		// Fallback: any client associated with the tenant's default IDP.
-		defaultIDP, _ := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
-		if defaultIDP != nil {
-			client, _ = s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, defaultIDP.Identifier)
-		}
-	}
 	if client == nil {
-		return nil, apperror.NewNotFound("client not found for this provider")
+		client, err = resolveClient()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 6. authevent.Log auth event.
@@ -250,6 +341,22 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 
 // Generic OAuth2 authorization code flow
 
+// resolveTokenEndpoint returns the provider's token endpoint: explicit
+// token_endpoint → OIDC discovery → issuer-based legacy default. Providers
+// like Google/Facebook/Cognito whose token endpoint is not at the issuer root
+// are now resolved automatically via discovery.
+func resolveTokenEndpoint(ctx context.Context, issuer string, cfg OIDCProviderConfig) string {
+	if e := strings.TrimSpace(cfg.TokenEndpoint); e != "" {
+		return e
+	}
+	if iss := strings.TrimSpace(issuer); iss != "" {
+		if _, token, err := idpOIDCDiscover(ctx, iss); err == nil && strings.TrimSpace(token) != "" {
+			return token
+		}
+	}
+	return strings.TrimRight(issuer, "/") + "/oauth/token"
+}
+
 func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req FederationOAuth2CallbackDTO) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "federation.exchange_oauth2_code")
 	defer span.End()
@@ -263,29 +370,29 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		return nil, apperror.NewValidation("identity provider is not active")
 	}
 
-	decCfg := decryptIdpConfig(idp.Config)
-	var cfg OIDCProviderConfig
-	if err := json.Unmarshal(decCfg, &cfg); err != nil {
+	cfg, err := buildOIDCConfig(idp)
+	if err != nil {
 		return nil, apperror.NewValidation("identity provider configuration is invalid")
 	}
-	if cfg.ClientID == "" || cfg.ClientSecret == "" {
+	clientSecret := idp.DecryptedProviderClientSecret()
+	if idp.ProviderClientIDOrEmpty() == "" || clientSecret == "" {
 		return nil, apperror.NewValidation("identity provider missing OAuth2 client credentials")
 	}
 
 	userinfoURL := cfg.UserinfoEndpoint
-	if userinfoURL == "" && cfg.Issuer != "" {
-		userinfoURL = strings.TrimRight(cfg.Issuer, "/") + DefaultOIDCUserinfoEndpoint
+	if userinfoURL == "" && idp.IssuerOrEmpty() != "" {
+		userinfoURL = strings.TrimRight(idp.IssuerOrEmpty(), "/") + DefaultOIDCUserinfoEndpoint
 	}
 	if userinfoURL == "" {
 		return nil, apperror.NewValidation("identity provider missing userinfo endpoint")
 	}
 
 	oauth2Cfg := &oauth2.Config{
-		ClientID:     cfg.ClientID,
-		ClientSecret: cfg.ClientSecret,
+		ClientID:     idp.ProviderClientIDOrEmpty(),
+		ClientSecret: clientSecret,
 		RedirectURL:  req.RedirectURI,
 		Endpoint: oauth2.Endpoint{
-			TokenURL:  strings.TrimRight(cfg.Issuer, "/") + "/oauth/token",
+			TokenURL:  resolveTokenEndpoint(ctx, idp.IssuerOrEmpty(), cfg),
 			AuthStyle: oauth2.AuthStyleAutoDetect,
 		},
 		Scopes: cfg.Scopes,
@@ -295,7 +402,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "oauth2 code exchange failed")
-		return nil, apperror.NewUnauthorized("failed to exchange authorization code: " + err.Error())
+		return nil, apperror.NewUnauthorized("failed to exchange authorization code")
 	}
 
 	resp, err := idpOAuth2GetUserinfo(ctx, oauth2Cfg, tok, userinfoURL)
@@ -331,6 +438,11 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		email = stringClaim(claims, "email")
 	}
 
+	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, idp.Identifier)
+	if err != nil || client == nil {
+		return nil, apperror.NewNotFound("client not found")
+	}
+
 	var user *User
 	var internalSub string
 
@@ -338,7 +450,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		existing, txErr := txUserIdentityRepo.FindByProviderAndSub(idp.Provider, externalSub)
+		existing, txErr := txUserIdentityRepo.FindByTenantProviderAndSub(idp.TenantID, idp.Provider, externalSub)
 		if txErr != nil {
 			return apperror.NewInternal("identity lookup failed", txErr)
 		}
@@ -351,7 +463,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 			_ = s.refreshMetadata(tx, existing, meta)
 		} else {
 			var isNew bool
-			user, isNew, txErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta)
+			user, isNew, txErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, client.ClientID)
 			if txErr != nil {
 				return txErr
 			}
@@ -365,13 +477,11 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		internalSub = identity.Sub
 		return nil
 	})
+	if errors.Is(err, errIdentityCreatedConcurrently) {
+		user, internalSub, err = s.resolveExistingUserIdentity(idp.TenantID, idp.Provider, externalSub, idp.Provider)
+	}
 	if err != nil {
 		return nil, err
-	}
-
-	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, idp.Identifier)
-	if err != nil || client == nil {
-		return nil, apperror.NewNotFound("client not found")
 	}
 
 	return s.generateTokens(ctx, internalSub, user, client)
@@ -392,13 +502,12 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		return nil, apperror.NewNotFound("identity provider not found")
 	}
 
-	decCfg := decryptIdpConfig(idp.Config)
-	var cfg OIDCProviderConfig
-	if err := json.Unmarshal(decCfg, &cfg); err != nil || cfg.Issuer == "" {
+	cfg, err := buildOIDCConfig(idp)
+	if err != nil || idp.IssuerOrEmpty() == "" {
 		return nil, apperror.NewValidation("identity provider is not configured for OIDC")
 	}
 
-	claims, err := idpValidateOIDCToken(s, ctx, cfg, req.ExternalToken)
+	claims, err := idpValidateOIDCToken(s, ctx, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty(), req.ExternalToken)
 	if err != nil {
 		return nil, apperror.NewUnauthorized("external token validation failed: " + err.Error())
 	}
@@ -409,7 +518,7 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 	}
 
 	// Ensure this external identity isn't already claimed by another user.
-	existing, err := s.userIdentityRepo.FindByProviderAndSub(idp.Provider, externalSub)
+	existing, err := s.userIdentityRepo.FindByTenantProviderAndSub(idp.TenantID, idp.Provider, externalSub)
 	if err != nil {
 		return nil, err
 	}
@@ -552,27 +661,21 @@ func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int
 		return nil, apperror.NewValidation("invalid email address")
 	}
 
-	idps, err := s.idpRepo.FindAllByTenantID(tenantID)
+	// Single indexed lookup on the child table (uq_idp_email_domain) replaces the
+	// former full-scan-and-JSON-parse over every provider in the tenant.
+	match, err := s.emailDomainRepo.FindByTenantAndDomain(tenantID, domain)
 	if err != nil {
 		return nil, apperror.NewInternal("provider lookup failed", err)
 	}
-
-	for _, idp := range idps {
-		decCfg := decryptIdpConfig(idp.Config)
-		var cfg OIDCProviderConfig
-		if err := json.Unmarshal(decCfg, &cfg); err != nil {
-			continue
-		}
-		for _, d := range cfg.EmailDomains {
-			if strings.EqualFold(d, domain) {
-				idpCopy := idp
-				span.SetStatus(codes.Ok, "")
-				return hrdResponseFrom(&idpCopy), nil
-			}
+	if match != nil {
+		idp, lookupErr := s.idpRepo.FindByID(match.IdentityProviderID)
+		if lookupErr == nil && idp != nil {
+			span.SetStatus(codes.Ok, "")
+			return hrdResponseFrom(idp), nil
 		}
 	}
 
-	// No external provider matched — return the default (maintainerd) IDP.
+	// No domain mapped to an external provider — return the default (maintainerd) IDP.
 	defaultIDP, _ := s.idpRepo.FindDefaultByTenantID(tenantID)
 	if defaultIDP == nil {
 		return nil, apperror.NewNotFound("no identity provider found for this tenant")
@@ -581,20 +684,195 @@ func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int
 	return hrdResponseFrom(defaultIDP), nil
 }
 
-// Internal helpers
+// HomeRealmDiscoveryByClient resolves the tenant from the public client_id and
+// delegates to HomeRealmDiscovery. The public surface only ever accepts client_id.
+func (s *federationService) HomeRealmDiscoveryByClient(ctx context.Context, clientID string, email string) (*HRDResponseDTO, error) {
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		return nil, apperror.NewValidation("client_id is required")
+	}
+
+	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, "")
+	if err != nil {
+		return nil, apperror.NewInternal("client lookup failed", err)
+	}
+	if client == nil {
+		return nil, apperror.NewNotFound("unknown client")
+	}
+
+	return s.HomeRealmDiscovery(ctx, client.TenantID, email)
+}
+
+// resolveAuthorizeEndpoint resolves a provider's authorization endpoint: the
+// explicit authorization_endpoint when configured, otherwise via OIDC discovery
+// from the issuer.
+func (s *federationService) resolveAuthorizeEndpoint(ctx context.Context, issuer string, cfg OIDCProviderConfig) (string, error) {
+	if e := strings.TrimSpace(cfg.AuthorizationEndpoint); e != "" {
+		return e, nil
+	}
+	if strings.TrimSpace(issuer) == "" {
+		return "", apperror.NewValidation("identity provider has no authorization_endpoint or issuer")
+	}
+	authorize, _, err := idpOIDCDiscover(ctx, issuer)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(authorize) == "" {
+		return "", apperror.NewValidation("OIDC discovery returned no authorization endpoint")
+	}
+	return authorize, nil
+}
+
+// ResolveBrokerProvider implements FederationService.
+func (s *federationService) ResolveBrokerProvider(ctx context.Context, idpIdentifier string) (*BrokerProviderInfo, error) {
+	idp, err := s.idpRepo.FindByIdentifier(idpIdentifier)
+	if err != nil || idp == nil {
+		return nil, apperror.NewNotFound("identity provider not found")
+	}
+	if idp.Status != "active" {
+		return nil, apperror.NewValidation("identity provider is not active")
+	}
+
+	cfg, err := buildOIDCConfig(idp)
+	if err != nil {
+		return nil, apperror.NewValidation("identity provider configuration is invalid")
+	}
+	if strings.TrimSpace(idp.ProviderClientIDOrEmpty()) == "" {
+		return nil, apperror.NewValidation("identity provider missing OAuth2 client_id")
+	}
+
+	authorize, err := s.resolveAuthorizeEndpoint(ctx, idp.IssuerOrEmpty(), cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BrokerProviderInfo{
+		AuthorizationEndpoint: authorize,
+		ClientID:              idp.ProviderClientIDOrEmpty(),
+		Scopes:                cfg.Scopes,
+	}, nil
+}
+
+// ResolveBrokerUser implements FederationService.
+func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error) {
+	idp, err := s.idpRepo.FindByID(idpID)
+	if err != nil || idp == nil {
+		return nil, apperror.NewNotFound("identity provider not found")
+	}
+	if idp.Status != "active" {
+		return nil, apperror.NewValidation("identity provider is not active")
+	}
+
+	cfg, err := buildOIDCConfig(idp)
+	if err != nil {
+		return nil, apperror.NewValidation("identity provider configuration is invalid")
+	}
+	clientSecret := idp.DecryptedProviderClientSecret()
+	if idp.ProviderClientIDOrEmpty() == "" || clientSecret == "" {
+		return nil, apperror.NewValidation("identity provider missing OAuth2 client credentials")
+	}
+
+	oauth2Cfg := &oauth2.Config{
+		ClientID:     idp.ProviderClientIDOrEmpty(),
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURI,
+		Endpoint: oauth2.Endpoint{
+			TokenURL:  resolveTokenEndpoint(ctx, idp.IssuerOrEmpty(), cfg),
+			AuthStyle: oauth2.AuthStyleAutoDetect,
+		},
+	}
+
+	tok, err := idpOAuth2ExchangeWithPKCE(ctx, oauth2Cfg, code, pkceVerifier)
+	if err != nil {
+		return nil, apperror.NewUnauthorized("failed to exchange authorization code")
+	}
+
+	rawIDTok, ok := tok.Extra("id_token").(string)
+	if !ok || strings.TrimSpace(rawIDTok) == "" {
+		return nil, apperror.NewUnauthorized("provider did not return an id_token")
+	}
+	claims, err := s.validateOIDCToken(ctx, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty(), rawIDTok)
+	if err != nil {
+		return nil, apperror.NewUnauthorized("failed to validate provider token")
+	}
+	if nonce != "" {
+		tokNonce, _ := claims["nonce"].(string)
+		if tokNonce != nonce {
+			return nil, apperror.NewUnauthorized("provider token nonce mismatch")
+		}
+	}
+
+	externalSub, ok := claims["sub"].(string)
+	if !ok || externalSub == "" {
+		return nil, apperror.NewUnauthorized("provider returned no subject claim")
+	}
+
+	email, _ := claims["email"].(string)
+	meta := extractMetadata(claims, cfg.AttributeMapping)
+
+	var user *User
+	var identitySub string
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		existing, txErr := txUserIdentityRepo.FindByTenantProviderAndSub(idp.TenantID, idp.Provider, externalSub)
+		if txErr != nil {
+			return apperror.NewInternal("identity lookup failed", txErr)
+		}
+		if existing != nil {
+			var lookupErr error
+			user, lookupErr = txUserRepo.FindByID(existing.UserID)
+			if lookupErr != nil || user == nil {
+				return apperror.NewInternal("user not found for existing identity", lookupErr)
+			}
+		} else {
+			u, _, txErr := s.provisionUser(ctx, tx, idp, externalSub, email, meta, clientID)
+			if txErr != nil {
+				return txErr
+			}
+			user = u
+		}
+
+		identity, txErr := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, idp.Provider)
+		if txErr != nil || identity == nil {
+			return apperror.NewInternal("failed to resolve internal identity", txErr)
+		}
+		identitySub = identity.Sub
+		return nil
+	})
+	if errors.Is(err, errIdentityCreatedConcurrently) {
+		user, identitySub, err = s.resolveExistingUserIdentity(idp.TenantID, idp.Provider, externalSub, idp.Provider)
+	}
+	if err != nil {
+		return nil, err
+	}
+	sessionID, err := s.createBrokerSession(ctx, user, clientID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BrokerResolvedUser{
+		UserID:      user.UserID,
+		UserUUID:    user.UserUUID,
+		IdentitySub: identitySub,
+		SessionID:   sessionID,
+	}, nil
+}
 
 // validateOIDCToken fetches the provider's OIDC discovery doc, verifies the
 // token's signature + standard claims, and returns the raw claims map.
-func (s *federationService) validateOIDCToken(ctx context.Context, cfg OIDCProviderConfig, rawToken string) (map[string]interface{}, error) {
-	provider, err := oidclib.NewProvider(ctx, cfg.Issuer)
+func (s *federationService) validateOIDCToken(ctx context.Context, issuer, clientID, rawToken string) (map[string]interface{}, error) {
+	octx := oidclib.ClientContext(ctx, idpHTTPClientFactory())
+	provider, err := oidclib.NewProvider(octx, issuer)
 	if err != nil {
-		return nil, fmt.Errorf("OIDC discovery failed for %s: %w", cfg.Issuer, err)
+		return nil, fmt.Errorf("OIDC discovery failed for %s: %w", issuer, err)
 	}
 
-	verifierCfg := &oidclib.Config{ClientID: cfg.ClientID}
-	if cfg.ClientID == "" {
+	if clientID == "" {
 		return nil, fmt.Errorf("OIDC client_id is required")
 	}
+	verifierCfg := &oidclib.Config{ClientID: clientID}
 	verifier := provider.Verifier(verifierCfg)
 
 	idToken, err := verifier.Verify(ctx, rawToken)
@@ -616,7 +894,11 @@ func (s *federationService) provisionUser(
 	externalSub string,
 	email string,
 	meta IdentityMetadata,
+	clientID int64,
 ) (*User, bool, error) {
+	if clientID <= 0 {
+		return nil, false, apperror.NewInternal("client context is required for identity provisioning", nil)
+	}
 	txUserRepo := s.userRepo.WithTx(tx)
 	txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
@@ -638,6 +920,7 @@ func (s *federationService) provisionUser(
 		// Create a new user from the external profile.
 		username := deriveUsername(meta, email)
 		newUser := &User{
+			TenantID:        idp.TenantID,
 			Email:           email,
 			Username:        username,
 			IsEmailVerified: meta.EmailVerified,
@@ -651,13 +934,18 @@ func (s *federationService) provisionUser(
 
 		// Assign default role if available.
 		if defaultRole, _ := s.findDefaultRole(s.roleRepo.WithTx(tx), idp.TenantID); defaultRole != nil {
-			_ = tx.Create(&UserRole{UserID: user.UserID, RoleID: defaultRole.RoleID}).Error
+			if err := tx.Create(&UserRole{UserID: user.UserID, RoleID: defaultRole.RoleID}).Error; err != nil {
+				return nil, false, apperror.NewInternal("failed to assign default role", err)
+			}
 		}
 	}
 
 	// Create the default (maintainerd) identity if it doesn't exist yet.
 	// This ensures our RBAC system always has a stable sub for the user.
-	defaultIdentity, _ := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderMaintainerd)
+	defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderMaintainerd)
+	if err != nil {
+		return nil, false, apperror.NewInternal("default identity lookup failed", err)
+	}
 	if defaultIdentity == nil {
 		defaultIDP, _ := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
 		var defaultIDPID *int64
@@ -665,35 +953,93 @@ func (s *federationService) provisionUser(
 			defaultIDPID = &defaultIDP.IdentityProviderID
 		}
 		defIdentity := &UserIdentity{
+			UserIdentityUUID:   uuid.New(),
 			TenantID:           idp.TenantID,
 			UserID:             user.UserID,
-			ClientID:           0,
+			ClientID:           clientID,
 			IdentityProviderID: defaultIDPID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
-		_, _ = txUserIdentityRepo.Create(defIdentity)
+		if _, err := txUserIdentityRepo.Create(defIdentity); err != nil {
+			return nil, false, apperror.NewInternal("failed to create default identity", err)
+		}
 	}
 
 	// Create the external identity.
 	idpID := idp.IdentityProviderID
 	metaJSON, _ := json.Marshal(meta)
 	extIdentity := &UserIdentity{
+		UserIdentityUUID:   uuid.New(),
 		TenantID:           idp.TenantID,
 		UserID:             user.UserID,
-		ClientID:           0,
+		ClientID:           clientID,
 		IdentityProviderID: &idpID,
 		Provider:           idp.Provider,
 		Sub:                externalSub,
 		Metadata:           datatypes.JSON(metaJSON),
 	}
-	_, err := txUserIdentityRepo.Create(extIdentity)
+	existing, created, err := txUserIdentityRepo.CreateByTenantProviderSubIfAbsent(extIdentity)
 	if err != nil {
 		return nil, false, apperror.NewInternal("failed to create external identity", err)
 	}
+	if !created && existing != nil && existing.UserID != user.UserID {
+		return nil, false, errIdentityCreatedConcurrently
+	}
 
 	return user, isNew, nil
+}
+
+func (s *federationService) resolveExistingUserIdentity(tenantID int64, provider, externalSub, tokenProvider string) (*User, string, error) {
+	existing, err := s.userIdentityRepo.FindByTenantProviderAndSub(tenantID, provider, externalSub)
+	if err != nil {
+		return nil, "", apperror.NewInternal("identity lookup failed", err)
+	}
+	if existing == nil {
+		return nil, "", apperror.NewUnauthorized("unable to resolve provider identity")
+	}
+	user, err := s.userRepo.FindByID(existing.UserID)
+	if err != nil || user == nil {
+		return nil, "", apperror.NewInternal("user lookup failed", err)
+	}
+	if tokenProvider == provider {
+		return user, existing.Sub, nil
+	}
+	identity, err := s.userIdentityRepo.FindByUserIDAndProvider(user.UserID, tokenProvider)
+	if err != nil || identity == nil {
+		return nil, "", apperror.NewInternal("identity resolution failed", err)
+	}
+	return user, identity.Sub, nil
+}
+
+func (s *federationService) createBrokerSession(ctx context.Context, user *User, clientID int64) (string, error) {
+	if s.sessionService == nil {
+		return "", nil
+	}
+	var client *Client
+	if clientID > 0 && s.clientRepo != nil {
+		client, _ = s.clientRepo.FindByID(clientID)
+	}
+	policy := s.resolveFederationSessionPolicy(client)
+	if svc, ok := s.sessionService.(policyAwareSessionService); ok {
+		if err := svc.EnforceConcurrentLimitWithPolicy(ctx, user.UserUUID, user.UserID, policy); err != nil {
+			return "", apperror.NewInternal("session limit enforcement failed", err)
+		}
+		sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+		if err != nil {
+			return "", apperror.NewInternal("session creation failed", err)
+		}
+		return sess.UserTokenUUID.String(), nil
+	}
+	if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
+		return "", apperror.NewInternal("session limit enforcement failed", err)
+	}
+	sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
+	if err != nil {
+		return "", apperror.NewInternal("session creation failed", err)
+	}
+	return sess.UserTokenUUID.String(), nil
 }
 
 func (s *federationService) refreshMetadata(tx *gorm.DB, identity *UserIdentity, meta IdentityMetadata) error {
@@ -744,7 +1090,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		*client.Domain,
 		*client.Identifier,
 		*client.Identifier,
-		client.IdentityProvider.Identifier,
+		federationTokenRealm(client),
 		accessOpts,
 	)
 	if err != nil {
@@ -757,7 +1103,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		Phone:         user.Phone,
 		PhoneVerified: user.IsPhoneVerified,
 	}
-	idToken, err := idpGenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", &jwtlib.IDTokenParams{
+	idToken, err := idpGenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, federationTokenRealm(client), profile, "", &jwtlib.IDTokenParams{
 		RequestedScopes: strings.Fields(shared.DefaultTokenScope),
 		AMR:             []string{jwtlib.AMRMFA},
 		ACR:             jwtlib.ACRLevel1,
@@ -766,7 +1112,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		return nil, apperror.NewInternal("id token generation failed", err)
 	}
 
-	refreshToken, err := idpGenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	refreshToken, err := idpGenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, federationTokenRealm(client))
 	if err != nil {
 		return nil, apperror.NewInternal("refresh token generation failed", err)
 	}
@@ -787,6 +1133,16 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		resp.SessionID = &sessionID
 	}
 	return resp, nil
+}
+
+func federationTokenRealm(client *Client) string {
+	if client == nil {
+		return ""
+	}
+	if client.Tenant != nil && strings.TrimSpace(client.Tenant.Identifier) != "" {
+		return client.Tenant.Identifier
+	}
+	return fmt.Sprintf("tenant:%d", client.TenantID)
 }
 
 func (s *federationService) resolveFederationSessionPolicy(client *Client) secpolicy.EffectiveSessionPolicy {

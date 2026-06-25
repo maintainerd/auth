@@ -20,16 +20,16 @@ func NewMagicLinkHandler(magicLinkService MagicLinkService) *MagicLinkHandler {
 	}
 }
 
-// SendMagicLinkPublic handles public magic-link requests; client_id determines
-// both the client and tenant.
+// SendMagicLinkPublic handles public magic-link requests. client_id identifies
+// the external app client.
 // Mounted on the public surface (port 8081); uses the account-facing frontend hostname.
 func (h *MagicLinkHandler) SendMagicLinkPublic(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	clientID := r.URL.Query().Get("client_id")
-	if clientID == "" || r.URL.Query().Get("tenant_id") != "" {
+	clientID, tenantID, ok := authenticationContextQuery(r)
+	if !ok {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "magic_link_missing_params",
 			ClientIP:  clientIPStr,
@@ -38,20 +38,21 @@ func (h *MagicLinkHandler) SendMagicLinkPublic(w http.ResponseWriter, r *http.Re
 			Endpoint:  "/magic-link/send",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Missing client_id or unexpected tenant_id parameter",
+			Details:   "Missing or ambiguous authentication context",
 			Severity:  "MEDIUM",
 		})
 		resp.Error(w, http.StatusBadRequest, "Public magic-link login requires client_id and does not accept tenant_id")
 		return
 	}
 
-	h.handleSendMagicLink(w, r, &clientID, startTime, sc)
+	h.handleSendMagicLink(w, r, clientID, tenantID, startTime, sc)
 }
 
 func (h *MagicLinkHandler) handleSendMagicLink(
 	w http.ResponseWriter,
 	r *http.Request,
-	clientID *string,
+	clientID,
+	tenantID *string,
 	startTime time.Time,
 	sc securityContext,
 ) {
@@ -108,7 +109,7 @@ func (h *MagicLinkHandler) handleSendMagicLink(
 		return
 	}
 
-	response, err := h.magicLinkService.SendMagicLink(r.Context(), req.Email, clientID, nil, false)
+	response, err := h.magicLinkService.SendMagicLink(r.Context(), req.Email, clientID, tenantID, false)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to send sign-in link", err)
 		return
@@ -132,8 +133,7 @@ func (h *MagicLinkHandler) handleSendMagicLink(
 
 // VerifyMagicLink consumes a magic-link token and exchanges it for a session.
 // The signed URL (with signature + expiration) is validated first, then the
-// magic-link token is verified. Accepts client_id or tenant_id query params
-// (same pattern as login).
+// magic-link token is verified. Public links must contain client_id.
 func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	sc := extractSecurityContext(r)
@@ -169,8 +169,8 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 	if t := signedParams["tenant_id"]; t != "" {
 		tenantID = &t
 	}
-	if (clientID == nil) == (tenantID == nil) {
-		resp.Error(w, http.StatusBadRequest, "Magic link must contain exactly one authentication context")
+	if clientID == nil || tenantID != nil {
+		resp.Error(w, http.StatusBadRequest, "Magic link must contain client_id and must not contain tenant_id")
 		return
 	}
 
@@ -213,5 +213,3 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 	}
 	resp.SuccessWithCookies(w, r, response, "Signed in")
 }
-
-

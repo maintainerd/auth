@@ -72,8 +72,8 @@ var migrations = []migrationEntry{
 	{"032_create_user_mfa_totp_secrets_table", migration.CreateUserMFATOTPSecretsTable},
 	{"033_create_user_mfa_webauthn_credentials_table", migration.CreateUserMFAWebAuthnCredentialsTable},
 	{"034_create_user_mfa_phones_table", migration.CreateUserMFAPhonesTable},
-		{"035_create_user_mfa_emails_table", migration.CreateUserMFAEmailsTable},
-		{"036_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
+	{"035_create_user_mfa_emails_table", migration.CreateUserMFAEmailsTable},
+	{"036_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
 	// Block 8: Tenant organisation & flows
 	{"037_create_tenant_members_table", migration.CreateTenantMembersTable},
 	{"038_create_auth_flows_table", migration.CreateAuthFlowTable},
@@ -105,6 +105,9 @@ var migrations = []migrationEntry{
 	{"060_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
 	{"061_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
 	{"062_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
+	{"063_create_client_identity_providers_table", migration.CreateClientIdentityProvidersTable},
+	{"064_create_oauth_broker_sessions_table", migration.CreateOAuthBrokerSessionsTable},
+	{"065_create_identity_provider_email_domains_table", migration.CreateIdentityProviderEmailDomainsTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

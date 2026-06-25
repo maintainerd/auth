@@ -6,8 +6,36 @@ import (
 	"strings"
 
 	"github.com/maintainerd/auth/internal/platform/database"
+	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
+
+// idpSafeColumns lists every identity_providers column EXCEPT the encrypted
+// secret columns. Admin read/list paths select these explicitly so the secret
+// never even loads into memory — the secret is write-only and only the
+// federation/broker flows (which fetch the full row) ever decrypt it.
+var idpSafeColumns = []string{
+	"identity_provider_id",
+	"identity_provider_uuid",
+	"tenant_id",
+	"name",
+	"display_name",
+	"provider",
+	"provider_type",
+	"identifier",
+	"issuer",
+	"provider_client_id",
+	"allow_jit_provisioning",
+	"config",
+	"status",
+	"is_default",
+	"is_system",
+	"created_by",
+	"updated_by",
+	"created_at",
+	"updated_at",
+	"deleted_at",
+}
 
 type IdentityProviderRepositoryGetFilter struct {
 	Search       *string
@@ -40,6 +68,14 @@ type IdentityProviderRepository interface {
 	WithTx(tx *gorm.DB) IdentityProviderRepository
 	FindByName(name string, tenantID int64) (*IdentityProvider, error)
 	FindByIdentifier(identifier string) (*IdentityProvider, error)
+	// FindByIssuer returns the active provider that claims the given issuer.
+	// Issuer is unique among active providers (uq_identity_providers_issuer), so
+	// this is the indexed lookup for federated multi-issuer token validation,
+	// replacing config-blob scans. Returns (nil, nil) when no match.
+	FindByIssuer(issuer string) (*IdentityProvider, error)
+	// FindByUUIDSafe reads a provider by UUID without selecting the encrypted
+	// secret columns. Used by admin get/read paths so the secret never loads.
+	FindByUUIDSafe(uuidVal any, preloads ...string) (*IdentityProvider, error)
 	FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error)
 	// FindByTenantAndProvider returns the active provider record matching the
 	// tenant and provider slug (e.g. "google", "cognito").
@@ -97,6 +133,36 @@ func (r *identityProviderRepository) FindByIdentifier(identifier string) (*Ident
 	return &provider, nil
 }
 
+func (r *identityProviderRepository) FindByIssuer(issuer string) (*IdentityProvider, error) {
+	var provider IdentityProvider
+	err := r.DB().
+		Where("issuer = ? AND status = ? AND deleted_at IS NULL", issuer, shared.StatusActive).
+		First(&provider).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &provider, nil
+}
+
+func (r *identityProviderRepository) FindByUUIDSafe(uuidVal any, preloads ...string) (*IdentityProvider, error) {
+	query := r.DB().Select(idpSafeColumns)
+	for _, p := range preloads {
+		query = query.Preload(p)
+	}
+	var provider IdentityProvider
+	err := query.Where("identity_provider_uuid = ?", uuidVal).First(&provider).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &provider, nil
+}
+
 func (r *identityProviderRepository) FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error) {
 	var provider IdentityProvider
 	err := r.DB().
@@ -110,7 +176,7 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 		return nil, fmt.Errorf("tenant_id is required")
 	}
 
-	query := r.DB().Model(&IdentityProvider{})
+	query := r.DB().Model(&IdentityProvider{}).Select(idpSafeColumns)
 
 	// Search across name, display_name, identifier with OR
 	if filter.Search != nil && *filter.Search != "" {
@@ -147,7 +213,9 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
-	// Sorting — protected against SQL injection via allowlist
+	// Sorting — protected against SQL injection via allowlist. EmailDomains is
+	// intentionally NOT preloaded on the list path (it is returned on get/detail);
+	// keeping list lean avoids an N-row child fan-out query.
 	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("Tenant")
 
 	return database.PaginateQuery[IdentityProvider](query, filter.Page, filter.Limit)

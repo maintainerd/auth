@@ -180,7 +180,7 @@ func (s *registerService) RegisterPublic(
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
 		var txErr error
-		Client, txErr = resolveClient(txClientRepo, clientID, tenantID)
+		Client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
 		if txErr != nil {
 			return txErr
 		}
@@ -280,7 +280,7 @@ func (s *registerService) RegisterPublic(
 			TenantID:           tenantId,
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
-			IdentityProviderID: &Client.IdentityProviderID,
+			IdentityProviderID: clientIdentityProviderIDPtr(Client),
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -452,7 +452,7 @@ func (s *registerService) Register(
 			TenantID:           tenantId,
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
-			IdentityProviderID: &Client.IdentityProviderID,
+			IdentityProviderID: clientIdentityProviderIDPtr(Client),
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -531,7 +531,7 @@ func (s *registerService) RegisterInvitePublic(
 		txRoleRepo := s.roleRepo.WithTx(tx)
 
 		var txErr error
-		Client, txErr = resolveClient(txClientRepo, &clientID, &tenantID)
+		Client, txErr = resolvePublicClient(txClientRepo, stringPtrOrNil(clientID), stringPtrOrNil(tenantID))
 		if txErr != nil {
 			return txErr
 		}
@@ -627,7 +627,7 @@ func (s *registerService) RegisterInvitePublic(
 			TenantID:           tenantId,
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
-			IdentityProviderID: &Client.IdentityProviderID,
+			IdentityProviderID: clientIdentityProviderIDPtr(Client),
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -815,7 +815,7 @@ func (s *registerService) RegisterInvite(
 			TenantID:           tenantId,
 			UserID:             createdUser.UserID,
 			ClientID:           Client.ClientID,
-			IdentityProviderID: &Client.IdentityProviderID,
+			IdentityProviderID: clientIdentityProviderIDPtr(Client),
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),

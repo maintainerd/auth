@@ -13,28 +13,33 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error {
-	appHostName := config.AppPrivateHostname
+func SeedClientURIs(db *gorm.DB, tenantID int64, _ int64) error {
+	privateHostName := config.AppPrivateHostname
+	identityHostName := config.AppFrontendIdentityHostname
 
-	// Map of client name -> URIs with their types. Only the auth-console SPA is
-	// seeded; non-system clients (public identity, third-party apps) are
-	// registered at runtime through the console.
+	// Map of client name -> URIs with their types.
 	uris := map[string][]struct {
 		URI  string
 		Type string
 	}{
-		SystemClientNameAuthConsole: {
-			{URI: "https://" + appHostName + "/callback", Type: shared.ClientURITypeRedirect},
-			{URI: "https://" + appHostName, Type: shared.ClientURITypeOrigin},
-			{URI: "https://" + appHostName, Type: shared.ClientURITypeCORSOrigin},
-			{URI: "https://" + appHostName + "/logout", Type: shared.ClientURITypeLogout},
+		shared.SystemClientNameAuthConsole: {
+			{URI: "https://" + privateHostName + "/callback", Type: shared.ClientURITypeRedirect},
+			{URI: "https://" + privateHostName, Type: shared.ClientURITypeOrigin},
+			{URI: "https://" + privateHostName, Type: shared.ClientURITypeCORSOrigin},
+			{URI: "https://" + privateHostName + "/logout", Type: shared.ClientURITypeLogout},
+		},
+		shared.SystemClientNameAuthIdentity: {
+			{URI: "https://" + identityHostName + "/callback", Type: shared.ClientURITypeRedirect},
+			{URI: "https://" + identityHostName, Type: shared.ClientURITypeOrigin},
+			{URI: "https://" + identityHostName, Type: shared.ClientURITypeCORSOrigin},
+			{URI: "https://" + identityHostName + "/logout", Type: shared.ClientURITypeLogout},
 		},
 	}
 
 	for clientName, clientURIs := range uris {
 		var client model.Client
 		err := db.
-			Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", clientName, identityProviderID, tenantID).
+			Where("name = ? AND tenant_id = ?", clientName, tenantID).
 			First(&client).Error
 		if err != nil {
 			return fmt.Errorf("auth client %q not found when seeding URIs: %w", clientName, err)

@@ -37,6 +37,12 @@ type IdentityProvider struct {
 	IsSystem             bool                   `protobuf:"varint,10,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
 	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Promoted columns. The upstream client secret is intentionally absent here and
+	// is never emitted in any response.
+	Issuer               string   `protobuf:"bytes,13,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	ProviderClientId     string   `protobuf:"bytes,14,opt,name=provider_client_id,json=providerClientId,proto3" json:"provider_client_id,omitempty"`
+	AllowJitProvisioning bool     `protobuf:"varint,15,opt,name=allow_jit_provisioning,json=allowJitProvisioning,proto3" json:"allow_jit_provisioning,omitempty"`
+	EmailDomains         []string `protobuf:"bytes,16,rep,name=email_domains,json=emailDomains,proto3" json:"email_domains,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -151,6 +157,34 @@ func (x *IdentityProvider) GetCreatedAt() *timestamppb.Timestamp {
 func (x *IdentityProvider) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *IdentityProvider) GetIssuer() string {
+	if x != nil {
+		return x.Issuer
+	}
+	return ""
+}
+
+func (x *IdentityProvider) GetProviderClientId() string {
+	if x != nil {
+		return x.ProviderClientId
+	}
+	return ""
+}
+
+func (x *IdentityProvider) GetAllowJitProvisioning() bool {
+	if x != nil {
+		return x.AllowJitProvisioning
+	}
+	return false
+}
+
+func (x *IdentityProvider) GetEmailDomains() []string {
+	if x != nil {
+		return x.EmailDomains
 	}
 	return nil
 }
@@ -636,17 +670,21 @@ func (x *GetIdentityProviderResponse) GetIdentityProvider() *IdentityProvider {
 }
 
 type CreateIdentityProviderRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Provider      string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
-	ProviderType  string                 `protobuf:"bytes,5,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"`
-	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,8,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName          string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Provider             string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	ProviderType         string                 `protobuf:"bytes,5,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
+	Config               *structpb.Struct       `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"`
+	Status               string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	ActorUserUuid        string                 `protobuf:"bytes,8,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	Issuer               string                 `protobuf:"bytes,9,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	ProviderClientId     string                 `protobuf:"bytes,10,opt,name=provider_client_id,json=providerClientId,proto3" json:"provider_client_id,omitempty"`
+	AllowJitProvisioning bool                   `protobuf:"varint,11,opt,name=allow_jit_provisioning,json=allowJitProvisioning,proto3" json:"allow_jit_provisioning,omitempty"`
+	EmailDomains         []string               `protobuf:"bytes,12,rep,name=email_domains,json=emailDomains,proto3" json:"email_domains,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CreateIdentityProviderRequest) Reset() {
@@ -735,6 +773,34 @@ func (x *CreateIdentityProviderRequest) GetActorUserUuid() string {
 	return ""
 }
 
+func (x *CreateIdentityProviderRequest) GetIssuer() string {
+	if x != nil {
+		return x.Issuer
+	}
+	return ""
+}
+
+func (x *CreateIdentityProviderRequest) GetProviderClientId() string {
+	if x != nil {
+		return x.ProviderClientId
+	}
+	return ""
+}
+
+func (x *CreateIdentityProviderRequest) GetAllowJitProvisioning() bool {
+	if x != nil {
+		return x.AllowJitProvisioning
+	}
+	return false
+}
+
+func (x *CreateIdentityProviderRequest) GetEmailDomains() []string {
+	if x != nil {
+		return x.EmailDomains
+	}
+	return nil
+}
+
 type CreateIdentityProviderResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	IdentityProvider *IdentityProvider      `protobuf:"bytes,1,opt,name=identity_provider,json=identityProvider,proto3" json:"identity_provider,omitempty"`
@@ -790,6 +856,10 @@ type UpdateIdentityProviderRequest struct {
 	Config               *structpb.Struct       `protobuf:"bytes,7,opt,name=config,proto3" json:"config,omitempty"`
 	Status               string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
 	ActorUserUuid        string                 `protobuf:"bytes,9,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	Issuer               string                 `protobuf:"bytes,10,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	ProviderClientId     string                 `protobuf:"bytes,11,opt,name=provider_client_id,json=providerClientId,proto3" json:"provider_client_id,omitempty"`
+	AllowJitProvisioning bool                   `protobuf:"varint,12,opt,name=allow_jit_provisioning,json=allowJitProvisioning,proto3" json:"allow_jit_provisioning,omitempty"`
+	EmailDomains         []string               `protobuf:"bytes,13,rep,name=email_domains,json=emailDomains,proto3" json:"email_domains,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -885,6 +955,34 @@ func (x *UpdateIdentityProviderRequest) GetActorUserUuid() string {
 		return x.ActorUserUuid
 	}
 	return ""
+}
+
+func (x *UpdateIdentityProviderRequest) GetIssuer() string {
+	if x != nil {
+		return x.Issuer
+	}
+	return ""
+}
+
+func (x *UpdateIdentityProviderRequest) GetProviderClientId() string {
+	if x != nil {
+		return x.ProviderClientId
+	}
+	return ""
+}
+
+func (x *UpdateIdentityProviderRequest) GetAllowJitProvisioning() bool {
+	if x != nil {
+		return x.AllowJitProvisioning
+	}
+	return false
+}
+
+func (x *UpdateIdentityProviderRequest) GetEmailDomains() []string {
+	if x != nil {
+		return x.EmailDomains
+	}
+	return nil
 }
 
 type UpdateIdentityProviderResponse struct {
@@ -2159,7 +2257,7 @@ var File_maintainerd_auth_v1_identity_provider_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\n" +
-	"+maintainerd/auth/v1/identity_provider.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xdb\x03\n" +
+	"+maintainerd/auth/v1/identity_provider.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xfc\x04\n" +
 	"\x10IdentityProvider\x124\n" +
 	"\x16identity_provider_uuid\x18\x01 \x01(\tR\x14identityProviderUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
@@ -2178,7 +2276,11 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xec\x02\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n" +
+	"\x06issuer\x18\r \x01(\tR\x06issuer\x12,\n" +
+	"\x12provider_client_id\x18\x0e \x01(\tR\x10providerClientId\x124\n" +
+	"\x16allow_jit_provisioning\x18\x0f \x01(\bR\x14allowJitProvisioning\x12#\n" +
+	"\remail_domains\x18\x10 \x03(\tR\femailDomains\"\xec\x02\n" +
 	"\n" +
 	"SignupFlow\x12(\n" +
 	"\x10signup_flow_uuid\x18\x01 \x01(\tR\x0esignupFlowUuid\x12\x12\n" +
@@ -2237,7 +2339,7 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"tenantUuid\x124\n" +
 	"\x16identity_provider_uuid\x18\x02 \x01(\tR\x14identityProviderUuid\"q\n" +
 	"\x1bGetIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xa9\x02\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xca\x03\n" +
 	"\x1dCreateIdentityProviderRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
@@ -2247,9 +2349,14 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\x12/\n" +
 	"\x06config\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\b \x01(\tR\ractorUserUuid\"t\n" +
+	"\x0factor_user_uuid\x18\b \x01(\tR\ractorUserUuid\x12\x16\n" +
+	"\x06issuer\x18\t \x01(\tR\x06issuer\x12,\n" +
+	"\x12provider_client_id\x18\n" +
+	" \x01(\tR\x10providerClientId\x124\n" +
+	"\x16allow_jit_provisioning\x18\v \x01(\bR\x14allowJitProvisioning\x12#\n" +
+	"\remail_domains\x18\f \x03(\tR\femailDomains\"t\n" +
 	"\x1eCreateIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xdf\x02\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\x80\x04\n" +
 	"\x1dUpdateIdentityProviderRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x124\n" +
@@ -2260,7 +2367,12 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\rprovider_type\x18\x06 \x01(\tR\fproviderType\x12/\n" +
 	"\x06config\x18\a \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
 	"\x06status\x18\b \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\"t\n" +
+	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\x12\x16\n" +
+	"\x06issuer\x18\n" +
+	" \x01(\tR\x06issuer\x12,\n" +
+	"\x12provider_client_id\x18\v \x01(\tR\x10providerClientId\x124\n" +
+	"\x16allow_jit_provisioning\x18\f \x01(\bR\x14allowJitProvisioning\x12#\n" +
+	"\remail_domains\x18\r \x03(\tR\femailDomains\"t\n" +
 	"\x1eUpdateIdentityProviderResponse\x12R\n" +
 	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xb9\x01\n" +
 	" SetIdentityProviderStatusRequest\x12\x1f\n" +

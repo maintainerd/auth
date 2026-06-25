@@ -11,6 +11,7 @@ const (
 	registrationCaptchaTokenKey requestContextKey = "registration_captcha_token"
 	loginTrustedDeviceTokenKey  requestContextKey = "login_trusted_device_token"
 	loginRememberDeviceKey      requestContextKey = "login_remember_device"
+	publicAuthSurfaceKey        requestContextKey = "public_auth_surface"
 )
 
 func contextWithRegistrationCaptchaToken(ctx context.Context, token string) context.Context {
@@ -60,4 +61,16 @@ func rememberDeviceFromContext(ctx context.Context) bool {
 	}
 	remember, _ := ctx.Value(loginRememberDeviceKey).(bool)
 	return remember
+}
+
+func contextWithPublicAuthSurface(ctx context.Context) context.Context {
+	return context.WithValue(ctx, publicAuthSurfaceKey, true)
+}
+
+func publicAuthSurfaceFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	v, _ := ctx.Value(publicAuthSurfaceKey).(bool)
+	return v
 }

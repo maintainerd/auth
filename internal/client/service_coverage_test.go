@@ -289,6 +289,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 	t.Run("create success includes generated identifier", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		expectClientIdentityProviderConnectionInsert(mock)
 		mock.ExpectCommit()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(any, ...string) (*IdentityProvider, error) {

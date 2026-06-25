@@ -176,6 +176,42 @@ func TestLoginHandler_LoginPublic_PasswordChangeRequired(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Password change required")
 }
 
+func TestLoginHandler_MFALoginVerifyInternal_RejectsClientID(t *testing.T) {
+	h := NewLoginHandler(&mockLoginService{})
+	r := newLoginRequest(t, http.MethodPost, "/login/mfa/verify?client_id=c1", MFALoginVerifyRequestDTO{
+		ChallengeToken: "challenge",
+		Method:         "totp",
+		Code:           "123456",
+	})
+	w := httptest.NewRecorder()
+
+	h.MFALoginVerifyInternal(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestLoginHandler_MFALoginVerifyPublic_RejectsTenantID(t *testing.T) {
+	called := false
+	svc := &mockLoginService{
+		completeMFALoginFn: func(challengeToken, method, code string, assertion []byte, clientID, tenantID *string) (*LoginResponseDTO, error) {
+			called = true
+			return &LoginResponseDTO{AccessToken: "tok"}, nil
+		},
+	}
+	h := NewLoginHandler(svc)
+	r := newLoginRequest(t, http.MethodPost, "/login/mfa/verify?tenant_id=tenant-a", MFALoginVerifyRequestDTO{
+		ChallengeToken: "challenge",
+		Method:         "totp",
+		Code:           "123456",
+	})
+	w := httptest.NewRecorder()
+
+	h.MFALoginVerifyPublic(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.False(t, called)
+}
+
 // ---------------------------------------------------------------------------
 // Logout
 // ---------------------------------------------------------------------------

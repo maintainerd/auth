@@ -12,12 +12,15 @@ import (
 )
 
 type mockFederationService struct {
-	exchangeExternalTokenFn func(req FederationTokenRequestDTO) (*LoginResponseDTO, error)
-	exchangeOAuth2CodeFn    func(req FederationOAuth2CallbackDTO) (*LoginResponseDTO, error)
-	homeRealmDiscoveryFn    func(tenantID int64, email string) (*HRDResponseDTO, error)
-	getUserIdentitiesFn     func(userID int64) ([]IdentityDTO, error)
-	linkIdentityFn          func(userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error)
-	unlinkIdentityFn        func(userID int64, identityUUID string) error
+	exchangeExternalTokenFn      func(req FederationTokenRequestDTO) (*LoginResponseDTO, error)
+	exchangeOAuth2CodeFn         func(req FederationOAuth2CallbackDTO) (*LoginResponseDTO, error)
+	homeRealmDiscoveryFn         func(tenantID int64, email string) (*HRDResponseDTO, error)
+	homeRealmDiscoveryByClientFn func(clientID string, email string) (*HRDResponseDTO, error)
+	resolveBrokerProviderFn      func(idpIdentifier string) (*BrokerProviderInfo, error)
+	resolveBrokerUserFn          func(idpID int64, code, verifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error)
+	getUserIdentitiesFn          func(userID int64) ([]IdentityDTO, error)
+	linkIdentityFn               func(userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error)
+	unlinkIdentityFn             func(userID int64, identityUUID string) error
 }
 
 func (m *mockFederationService) ExchangeExternalToken(_ context.Context, req FederationTokenRequestDTO) (*LoginResponseDTO, error) {
@@ -37,6 +40,24 @@ func (m *mockFederationService) HomeRealmDiscovery(_ context.Context, tenantID i
 		return m.homeRealmDiscoveryFn(tenantID, email)
 	}
 	return &HRDResponseDTO{ProviderIdentifier: "idp-1"}, nil
+}
+func (m *mockFederationService) HomeRealmDiscoveryByClient(_ context.Context, clientID string, email string) (*HRDResponseDTO, error) {
+	if m.homeRealmDiscoveryByClientFn != nil {
+		return m.homeRealmDiscoveryByClientFn(clientID, email)
+	}
+	return &HRDResponseDTO{ProviderIdentifier: "idp-1"}, nil
+}
+func (m *mockFederationService) ResolveBrokerProvider(_ context.Context, idpIdentifier string) (*BrokerProviderInfo, error) {
+	if m.resolveBrokerProviderFn != nil {
+		return m.resolveBrokerProviderFn(idpIdentifier)
+	}
+	return &BrokerProviderInfo{AuthorizationEndpoint: "https://idp.example.com/authorize", ClientID: "upstream-client"}, nil
+}
+func (m *mockFederationService) ResolveBrokerUser(_ context.Context, idpID int64, code, verifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error) {
+	if m.resolveBrokerUserFn != nil {
+		return m.resolveBrokerUserFn(idpID, code, verifier, nonce, redirectURI, clientID)
+	}
+	return &BrokerResolvedUser{UserID: 1, IdentitySub: "sub-123"}, nil
 }
 func (m *mockFederationService) GetUserIdentities(_ context.Context, userID int64) ([]IdentityDTO, error) {
 	if m.getUserIdentitiesFn != nil {
@@ -141,6 +162,28 @@ func TestFederationHandler_HomeRealmDiscovery(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewFederationHandler(&mockFederationService{}).HomeRealmDiscovery(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("missing client_id and tenant_id returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/federation/hrd?email=user@example.com", nil)
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).HomeRealmDiscovery(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("client_id success returns 200", func(t *testing.T) {
+		var capturedClientID string
+		svc := &mockFederationService{
+			homeRealmDiscoveryByClientFn: func(clientID, _ string) (*HRDResponseDTO, error) {
+				capturedClientID = clientID
+				return &HRDResponseDTO{ProviderIdentifier: "idp-1"}, nil
+			},
+		}
+		r := httptest.NewRequest(http.MethodGet, "/federation/hrd?email=user@example.com&client_id=app", nil)
+		w := httptest.NewRecorder()
+		NewFederationHandler(svc).HomeRealmDiscovery(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "app", capturedClientID)
 	})
 
 	t.Run("invalid tenant_id returns 400", func(t *testing.T) {

@@ -66,7 +66,7 @@ func (m *mockMagicLinkLoginCoordinator) IssueMagicLinkSession(_ context.Context,
 func TestSendMagicLink(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	t.Run("success rate-limit skip happy path", func(t *testing.T) {
 		initTestJWTKeysService(t)
@@ -424,7 +424,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 		userRepo := &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusInactive}, nil
+				return &User{UserID: userID, TenantID: 1, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusInactive}, nil
 			},
 		}
 		userIdentityRepo := &mockUserIdentityRepo{
@@ -467,10 +467,10 @@ func TestLoginWithMagicLink(t *testing.T) {
 		}
 		userRepo := &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+				return &User{UserID: userID, TenantID: 1, UserUUID: userUUID, Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
 			},
 			updateByIDFn: func(_ any, _ any) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Email: emailAddr, IsEmailVerified: true, Status: shared.StatusActive}, nil
+				return &User{UserID: userID, TenantID: 1, UserUUID: userUUID, Email: emailAddr, IsEmailVerified: true, Status: shared.StatusActive}, nil
 			},
 		}
 		userTokenRepo := &mockUserTokenRepo{
@@ -569,7 +569,7 @@ func TestSendMagicLink_DefaultClient(t *testing.T) {
 func TestSendMagicLink_ExistingTokensError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -615,7 +615,7 @@ func TestSendMagicLink_ExistingTokensError(t *testing.T) {
 func TestSendMagicLink_RevokeError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -664,7 +664,7 @@ func TestSendMagicLink_RevokeError(t *testing.T) {
 func TestSendMagicLink_TokenCreateError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -709,7 +709,7 @@ func TestSendMagicLink_TokenCreateError(t *testing.T) {
 func TestSendMagicLink_Internal(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -768,7 +768,7 @@ func TestSendMagicLink_Internal(t *testing.T) {
 func TestSendMagicLink_TemplateFindByNameError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -822,7 +822,7 @@ func TestSendMagicLink_TemplateFindByNameError(t *testing.T) {
 func TestSendMagicLink_TemplateParseError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -879,7 +879,7 @@ func TestSendMagicLink_TemplateParseError(t *testing.T) {
 func TestSendMagicLink_TemplateExecuteError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -936,7 +936,7 @@ func TestSendMagicLink_TemplateExecuteError(t *testing.T) {
 func TestSendMagicLink_PlaintextParseError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -995,7 +995,7 @@ func TestSendMagicLink_PlaintextParseError(t *testing.T) {
 func TestSendMagicLink_PlaintextExecuteError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -1114,7 +1114,7 @@ func TestLoginWithMagicLink_UserIdentityNotFound(t *testing.T) {
 	}
 	userRepo := &mockUserRepo{
 		findByIDFn: func(_ any, _ ...string) (*User, error) {
-			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
+			return &User{UserID: userID, TenantID: 1, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
@@ -1163,7 +1163,7 @@ func TestLoginWithMagicLink_ExistingTokensError(t *testing.T) {
 	}
 	userRepo := &mockUserRepo{
 		findByIDFn: func(_ any, _ ...string) (*User, error) {
-			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
+			return &User{UserID: userID, TenantID: 1, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
@@ -1217,7 +1217,7 @@ func TestLoginWithMagicLink_RevokeByUUIDError(t *testing.T) {
 	}
 	userRepo := &mockUserRepo{
 		findByIDFn: func(_ any, _ ...string) (*User, error) {
-			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
+			return &User{UserID: userID, TenantID: 1, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
@@ -1281,7 +1281,7 @@ func TestLoginWithMagicLink_GenerateTokenResponseError(t *testing.T) {
 	}
 	userRepo := &mockUserRepo{
 		findByIDFn: func(_ any, _ ...string) (*User, error) {
-			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive, IsEmailVerified: true}, nil
+			return &User{UserID: userID, TenantID: 1, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive, IsEmailVerified: true}, nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
@@ -1308,7 +1308,7 @@ func TestLoginWithMagicLink_GenerateTokenResponseError(t *testing.T) {
 func TestSendMagicLink_SignedURLError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	initTestJWTKeysService(t)
 	gormDB, mock := newMockGormDB(t)
@@ -1367,7 +1367,7 @@ func TestSendMagicLink_SignedURLError(t *testing.T) {
 func TestSendMagicLink_ConvertToFrontendURLError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	initTestJWTKeysService(t)
 	gormDB, mock := newMockGormDB(t)
@@ -1447,7 +1447,7 @@ func TestLoginWithMagicLink_UpdateByIDError(t *testing.T) {
 	}
 	userRepo := &mockUserRepo{
 		findByIDFn: func(_ any, _ ...string) (*User, error) {
-			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive, IsEmailVerified: false}, nil
+			return &User{UserID: userID, TenantID: 1, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive, IsEmailVerified: false}, nil
 		},
 		updateByIDFn: func(_ any, _ any) (*User, error) {
 			return nil, errors.New("update error")
@@ -1474,7 +1474,7 @@ func TestLoginWithMagicLink_UpdateByIDError(t *testing.T) {
 func TestSendMagicLink_FindByEmailError(t *testing.T) {
 	emailAddr := "test@example.com"
 	clientID := strPtr("test-client")
-	providerID := strPtr("test-provider")
+	var providerID *string
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
