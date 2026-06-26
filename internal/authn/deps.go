@@ -67,11 +67,25 @@ type Client struct {
 	SessionIdleTimeout     *int
 	SessionAbsoluteTimeout *int
 	IdentityProvider       *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	ConnectedProviders     *[]ClientIdentityProvider
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
 }
 
 func (Client) TableName() string { return "clients" }
+
+type ClientIdentityProvider struct {
+	ClientIdentityProviderID   int64
+	ClientIdentityProviderUUID uuid.UUID
+	TenantID                   int64
+	ClientID                   int64
+	IdentityProviderID         int64
+	Enabled                    bool
+	IsDefault                  bool
+	IdentityProvider           *IdentityProvider
+}
+
+func (ClientIdentityProvider) TableName() string { return "client_identity_providers" }
 
 type User struct {
 	UserID                     int64

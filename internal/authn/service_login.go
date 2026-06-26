@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -300,6 +301,11 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	if err := s.enforceLoginEmailVerification(user, clientTenantID(client)); err != nil {
 		return nil, err
 	}
+	identity, err := s.ensureUserIdentityForClient(ctx, user, client)
+	if err != nil {
+		return nil, err
+	}
+	userIdentitySub = identity.Sub
 
 	// Reset failed attempts on successful authentication.
 	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
@@ -500,6 +506,11 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	if err := s.enforceLoginEmailVerification(user, clientTenantID(client)); err != nil {
 		return nil, err
 	}
+	identity, err := s.ensureUserIdentityForClient(ctx, user, client)
+	if err != nil {
+		return nil, err
+	}
+	userIdentitySub = identity.Sub
 
 	// Reset failed attempts on successful authentication
 	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
@@ -953,6 +964,73 @@ func (s *loginService) generateTokenResponse(ctx context.Context, sub string, us
 	return s.generateTokenResponseWithAuth(ctx, sub, user, Client, []string{platformjwt.AMRPassword}, platformjwt.ACRLevel1)
 }
 
+func (s *loginService) ensureUserIdentityForClient(ctx context.Context, user *User, client *Client) (*UserIdentity, error) {
+	if user == nil || client == nil || client.ClientID == 0 || clientTenantID(client) == 0 {
+		return nil, apperror.NewUnauthorized("authentication failed")
+	}
+	identity, err := s.userIdentityRepo.FindByUserIDAndClientID(user.UserID, client.ClientID)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to load user identity", err)
+	}
+	if identity != nil {
+		if identity.Sub == "" {
+			return nil, apperror.NewUnauthorized("authentication failed")
+		}
+		return identity, nil
+	}
+
+	idpID := connectedMaintainerdIdentityProviderID(client)
+	if idpID == nil {
+		return nil, apperror.NewUnauthorized("authentication failed")
+	}
+	created, err := s.userIdentityRepo.Create(&UserIdentity{
+		TenantID:           clientTenantID(client),
+		UserID:             user.UserID,
+		ClientID:           client.ClientID,
+		IdentityProviderID: idpID,
+		Provider:           shared.ProviderMaintainerd,
+		Sub:                uuid.NewString(),
+		Metadata:           datatypes.JSON([]byte(`{}`)),
+	})
+	if err != nil {
+		return nil, apperror.NewInternal("failed to create user identity", err)
+	}
+	return created, nil
+}
+
+func connectedMaintainerdIdentityProviderID(client *Client) *int64 {
+	if client == nil {
+		return nil
+	}
+	if client.ConnectedProviders != nil {
+		for i := range *client.ConnectedProviders {
+			conn := (*client.ConnectedProviders)[i]
+			if !conn.Enabled || conn.IdentityProvider == nil {
+				continue
+			}
+			if conn.IdentityProvider.Provider == shared.IDPProviderMaintainerd {
+				id := conn.IdentityProviderID
+				if id == 0 {
+					id = conn.IdentityProvider.IdentityProviderID
+				}
+				if id > 0 {
+					return &id
+				}
+			}
+		}
+	}
+	if client.IdentityProvider != nil && client.IdentityProvider.Provider == shared.IDPProviderMaintainerd {
+		id := client.IdentityProvider.IdentityProviderID
+		if id == 0 {
+			id = client.IdentityProviderID
+		}
+		if id > 0 {
+			return &id
+		}
+	}
+	return nil
+}
+
 // generateTokenResponseWithAuth issues a full session token set with the given
 // amr/acr. Password login uses acr=1; the login MFA second step uses acr=2 so
 // the whole session satisfies step-up routes without per-action re-prompts.
@@ -1092,11 +1170,6 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 		return nil, apperror.NewUnauthorized("authentication failed")
 	}
 
-	identity, ierr := s.userIdentityRepo.FindByUserIDAndClientID(user.UserID, client.ClientID)
-	if ierr != nil || identity == nil || identity.Sub == "" {
-		return nil, apperror.NewUnauthorized("authentication failed")
-	}
-
 	amr, err := s.mfaAuthenticator.VerifyFactor(ctx, user.UserID, method, code, assertion)
 	if err != nil {
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
@@ -1114,6 +1187,10 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 	}
 	if primaryAMR, _ := claims["primary_amr"].(string); primaryAMR != "" {
 		amr = replacePrimaryAMR(amr, primaryAMR)
+	}
+	identity, err := s.ensureUserIdentityForClient(ctx, user, client)
+	if err != nil {
+		return nil, err
 	}
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{

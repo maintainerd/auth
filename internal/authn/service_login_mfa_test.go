@@ -122,6 +122,60 @@ func TestCompleteMFALogin_PreservesMagicLinkAsPrimaryAMR(t *testing.T) {
 	assert.Equal(t, platformjwt.ACRLevel2, claims["acr"])
 }
 
+func TestCompleteMFALogin_CreatesMaintainerdIdentityWhenMissing(t *testing.T) {
+	initTestJWTKeysService(t)
+	userUUID := uuid.New()
+	user := &User{UserID: 42, UserUUID: userUUID, Username: "mfa-user", Status: shared.StatusActive}
+	challenge, err := platformjwt.GenerateStepUpChallengeTokenWithContext(context.Background(), userUUID.String(), time.Minute, []string{"webauthn"})
+	require.NoError(t, err)
+	clientID := "test-client"
+	maintainerdIDP := &IdentityProvider{IdentityProviderID: 7, Provider: shared.IDPProviderMaintainerd}
+	googleIDP := &IdentityProvider{IdentityProviderID: 8, Provider: shared.IDPProviderGoogle}
+	connections := []ClientIdentityProvider{
+		{IdentityProviderID: 8, Enabled: true, IsDefault: true, IdentityProvider: googleIDP},
+		{IdentityProviderID: 7, Enabled: true, IdentityProvider: maintainerdIDP},
+	}
+	client := buildActiveClient()
+	client.ClientID = 99
+	client.IdentityProviderID = 8
+	client.IdentityProvider = googleIDP
+	client.ConnectedProviders = &connections
+	var created *UserIdentity
+	svc := &loginService{
+		userRepo: &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return user, nil }},
+		clientRepo: &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
+			return client, nil
+		}},
+		userIdentityRepo: &mockUserIdentityRepo{
+			findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil },
+			createFn: func(identity *UserIdentity) (*UserIdentity, error) {
+				created = identity
+				return identity, nil
+			},
+		},
+		authEventService: &mockAuthEventService{},
+		mfaAuthenticator: &mockMFAAuthenticator{verifyFactorFn: func(int64, string, string, []byte) ([]string, error) {
+			return []string{platformjwt.AMRPassword, "hwk"}, nil
+		}},
+	}
+
+	resp, err := svc.CompleteMFALogin(context.Background(), challenge, "webauthn", "", []byte(`{}`), &clientID, nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	assert.Equal(t, int64(1), created.TenantID)
+	assert.Equal(t, user.UserID, created.UserID)
+	assert.Equal(t, client.ClientID, created.ClientID)
+	require.NotNil(t, created.IdentityProviderID)
+	assert.Equal(t, int64(7), *created.IdentityProviderID)
+	assert.Equal(t, shared.ProviderMaintainerd, created.Provider)
+	assert.NotEmpty(t, created.Sub)
+	claims, err := platformjwt.ValidateToken(resp.AccessToken)
+	require.NoError(t, err)
+	assert.Equal(t, created.Sub, claims["sub"])
+	assert.Equal(t, platformjwt.ACRLevel2, claims["acr"])
+}
+
 func TestSendMFALoginSMS_Guards(t *testing.T) {
 	t.Run("nil authenticator", func(t *testing.T) {
 		svc := &loginService{}

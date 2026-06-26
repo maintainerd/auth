@@ -58,12 +58,12 @@ type WebAuthnService interface {
 }
 
 type webAuthnService struct {
-	db               *gorm.DB
-	wa               *webauthn.WebAuthn
-	userRepo         UserRepository
+	db                  *gorm.DB
+	wa                  *webauthn.WebAuthn
+	userRepo            UserRepository
 	mfaWebAuthnCredRepo UserMFAWebAuthnCredentialRepository
-	sessionStore     cache.WebAuthnSessionStore
-	authEventService authevent.AuthEventService
+	sessionStore        cache.WebAuthnSessionStore
+	authEventService    authevent.AuthEventService
 }
 
 // NewWebAuthnService constructs a WebAuthnService.
@@ -97,12 +97,12 @@ func NewWebAuthnService(
 	}
 
 	return &webAuthnService{
-		db:               db,
-		wa:               wa,
-		userRepo:         userRepo,
+		db:                  db,
+		wa:                  wa,
+		userRepo:            userRepo,
 		mfaWebAuthnCredRepo: mfaWebAuthnCredRepo,
-		sessionStore:     sessionStore,
-		authEventService: authEventService,
+		sessionStore:        sessionStore,
+		authEventService:    authEventService,
 	}, nil
 }
 
@@ -211,7 +211,12 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		return nil, apperror.NewInternal("failed to clear WebAuthn registration session", err)
 	}
 
+	var tenantID int64
+	if wu != nil && wu.user != nil {
+		tenantID = wu.user.TenantID
+	}
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -302,7 +307,12 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 		return nil, apperror.NewInternal("failed to clear WebAuthn authentication session", err)
 	}
 
+	var tenantID int64
+	if wu != nil && wu.user != nil {
+		tenantID = wu.user.TenantID
+	}
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),

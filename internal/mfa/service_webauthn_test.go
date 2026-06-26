@@ -94,7 +94,7 @@ func TestWebAuthnService_LoadWebAuthnUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &webAuthnService{
-				userRepo:         &mockUserRepo{findByID: tt.user, findByIDErr: tt.userErr},
+				userRepo:            &mockUserRepo{findByID: tt.user, findByIDErr: tt.userErr},
 				mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{findByUserID: tt.creds, findByUserIDErr: tt.credErr},
 			}
 
@@ -144,9 +144,9 @@ func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 
 	t.Run("finish registration load session error", func(t *testing.T) {
 		svc := &webAuthnService{
-			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
-			sessionStore:     &mockWebAuthnSessionStore{getErr: errors.New("missing")},
+			sessionStore:        &mockWebAuthnSessionStore{getErr: errors.New("missing")},
 		}
 		_, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", nil)
 		require.Error(t, err)
@@ -162,9 +162,9 @@ func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 
 	t.Run("finish authentication load session error", func(t *testing.T) {
 		svc := &webAuthnService{
-			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
-			sessionStore:     &mockWebAuthnSessionStore{getErr: errors.New("missing")},
+			sessionStore:        &mockWebAuthnSessionStore{getErr: errors.New("missing")},
 		}
 		_, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
 		require.Error(t, err)
@@ -196,9 +196,9 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			return &protocol.CredentialCreation{}, &webauthn.SessionData{Challenge: "challenge"}, nil
 		}
 		svc := &webAuthnService{
-			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
-			sessionStore:     &mockWebAuthnSessionStore{},
+			sessionStore:        &mockWebAuthnSessionStore{},
 		}
 		got, err := svc.BeginRegistration(t.Context(), mfaTestUserID)
 		require.NoError(t, err)
@@ -225,9 +225,9 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			return &protocol.CredentialAssertion{}, &webauthn.SessionData{Challenge: "challenge"}, nil
 		}
 		svc := &webAuthnService{
-			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
-			sessionStore:     &mockWebAuthnSessionStore{},
+			sessionStore:        &mockWebAuthnSessionStore{},
 		}
 		got, err := svc.BeginAuthentication(t.Context(), mfaTestUserID)
 		require.NoError(t, err)
@@ -270,8 +270,8 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		mock.ExpectCommit()
 		events := &mockAuthEventService{}
 		svc := &webAuthnService{
-			db:               db,
-			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			db:                  db,
+			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore: &mockWebAuthnSessionStore{values: map[string]*webauthn.SessionData{
 				"webauthn:session:42:reg": {Challenge: "challenge"},
@@ -335,7 +335,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		stored := &UserMFAWebAuthnCredential{CredentialID: 1, CredentialUUID: mfaTestCredentialUUID, CredentialKeyID: base64.RawURLEncoding.EncodeToString([]byte("cred-id")), SignCount: 7}
 		events := &mockAuthEventService{}
 		svc := &webAuthnService{
-			userRepo:         &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
+			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID, TenantID: mfaTestTenantID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{findByKeyID: stored},
 			sessionStore: &mockWebAuthnSessionStore{values: map[string]*webauthn.SessionData{
 				"webauthn:session:42:auth": {Challenge: "challenge"},
@@ -346,6 +346,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, stored, got)
 		assert.Len(t, events.inputs, 1)
+		assert.Equal(t, mfaTestTenantID, events.inputs[0].TenantID)
 
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
 		validateWebAuthnLogin = func(*webauthn.WebAuthn, webauthn.User, webauthn.SessionData, *protocol.ParsedCredentialAssertionData) (*webauthn.Credential, error) {
