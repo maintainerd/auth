@@ -10,6 +10,7 @@ import (
 type User struct {
 	UserID            int64
 	UserUUID          uuid.UUID
+	TenantID          int64
 	Email             string
 	Username          string
 	Phone             string `gorm:"column:phone"`

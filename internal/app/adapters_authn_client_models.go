@@ -56,6 +56,27 @@ func defaultConnectedIDPFromClient(c *client.Client) *client.IdentityProvider {
 	return first
 }
 
+func toAuthnClientIdentityProviders(c *client.Client) *[]authn.ClientIdentityProvider {
+	if c == nil || c.ConnectedProviders == nil {
+		return nil
+	}
+	out := make([]authn.ClientIdentityProvider, 0, len(*c.ConnectedProviders))
+	for i := range *c.ConnectedProviders {
+		conn := (*c.ConnectedProviders)[i]
+		out = append(out, authn.ClientIdentityProvider{
+			ClientIdentityProviderID:   conn.ClientIdentityProviderID,
+			ClientIdentityProviderUUID: conn.ClientIdentityProviderUUID,
+			TenantID:                   conn.TenantID,
+			ClientID:                   conn.ClientID,
+			IdentityProviderID:         conn.IdentityProviderID,
+			Enabled:                    conn.Enabled,
+			IsDefault:                  conn.IsDefault,
+			IdentityProvider:           toAuthnIDPFromClient(conn.IdentityProvider),
+		})
+	}
+	return &out
+}
+
 func toAuthnClient(c *client.Client) *authn.Client {
 	if c == nil {
 		return nil
@@ -73,8 +94,9 @@ func toAuthnClient(c *client.Client) *authn.Client {
 		AccessTokenTTL: c.AccessTokenTTL, RefreshTokenTTL: c.RefreshTokenTTL,
 		RequiredACR: c.RequiredACR, RequirePKCE: c.RequirePKCE,
 		SessionIdleTimeout: c.SessionIdleTimeout, SessionAbsoluteTimeout: c.SessionAbsoluteTimeout,
-		IdentityProvider: toAuthnIDPFromClient(idp),
-		CreatedAt:        c.CreatedAt, UpdatedAt: c.UpdatedAt,
+		IdentityProvider:   toAuthnIDPFromClient(idp),
+		ConnectedProviders: toAuthnClientIdentityProviders(c),
+		CreatedAt:          c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 }
 

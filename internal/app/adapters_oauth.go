@@ -42,6 +42,7 @@ func (r *oauthClientRepo) FindByClientIDAndIdentityProvider(clientID, identityPr
 	var c oauth.Client
 	err := query.
 		Preload("Tenant").
+		Preload("ClientURIs").
 		First(&c).Error
 	if err != nil {
 		return nil, firstOrNil(err)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,8 +15,8 @@ import (
 )
 
 func SeedClientURIs(db *gorm.DB, tenantID int64, _ int64) error {
-	privateHostName := config.AppPrivateHostname
-	identityHostName := config.AppFrontendIdentityHostname
+	privateHostName := normalizedHTTPSBaseURL(config.AppPrivateHostname)
+	identityHostName := normalizedHTTPSBaseURL(config.AppFrontendIdentityHostname)
 
 	// Map of client name -> URIs with their types.
 	uris := map[string][]struct {
@@ -23,16 +24,16 @@ func SeedClientURIs(db *gorm.DB, tenantID int64, _ int64) error {
 		Type string
 	}{
 		shared.SystemClientNameAuthConsole: {
-			{URI: "https://" + privateHostName + "/callback", Type: shared.ClientURITypeRedirect},
-			{URI: "https://" + privateHostName, Type: shared.ClientURITypeOrigin},
-			{URI: "https://" + privateHostName, Type: shared.ClientURITypeCORSOrigin},
-			{URI: "https://" + privateHostName + "/logout", Type: shared.ClientURITypeLogout},
+			{URI: privateHostName + "/callback", Type: shared.ClientURITypeRedirect},
+			{URI: privateHostName, Type: shared.ClientURITypeOrigin},
+			{URI: privateHostName, Type: shared.ClientURITypeCORSOrigin},
+			{URI: privateHostName + "/logout", Type: shared.ClientURITypeLogout},
 		},
 		shared.SystemClientNameAuthIdentity: {
-			{URI: "https://" + identityHostName + "/callback", Type: shared.ClientURITypeRedirect},
-			{URI: "https://" + identityHostName, Type: shared.ClientURITypeOrigin},
-			{URI: "https://" + identityHostName, Type: shared.ClientURITypeCORSOrigin},
-			{URI: "https://" + identityHostName + "/logout", Type: shared.ClientURITypeLogout},
+			{URI: identityHostName + "/callback", Type: shared.ClientURITypeRedirect},
+			{URI: identityHostName, Type: shared.ClientURITypeOrigin},
+			{URI: identityHostName, Type: shared.ClientURITypeCORSOrigin},
+			{URI: identityHostName + "/logout", Type: shared.ClientURITypeLogout},
 		},
 	}
 
@@ -85,4 +86,12 @@ func SeedClientURIs(db *gorm.DB, tenantID int64, _ int64) error {
 	}
 
 	return nil
+}
+
+func normalizedHTTPSBaseURL(hostname string) string {
+	base := strings.TrimRight(strings.TrimSpace(hostname), "/")
+	if strings.HasPrefix(base, "http://") || strings.HasPrefix(base, "https://") {
+		return base
+	}
+	return "https://" + base
 }
