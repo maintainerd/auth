@@ -113,6 +113,11 @@ type FederationService interface {
 	// caller (the broker flow) uses the resolved user to issue its own
 	// authorization code.
 	ResolveBrokerUser(ctx context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error)
+
+	// TestConnection probes the unsaved IdP configuration: OIDC discovery and
+	// JWKS endpoint validation. Reuses the SSRF-safe idpHTTPClient so external
+	// probes cannot reach local network resources.
+	TestConnection(ctx context.Context, req TestConnectionRequestDTO) (*TestConnectionResultDTO, error)
 }
 
 type federationService struct {
@@ -1286,4 +1291,85 @@ func hrdResponseFrom(idp *IdentityProvider) *HRDResponseDTO {
 		Provider:           idp.Provider,
 		DisplayName:        idp.DisplayName,
 	}
+}
+
+// ── IdP Test Connection ──────────────────────────────────────────────────────
+
+// TestConnection probes an unsaved IdP configuration by performing OIDC
+// discovery and a JWKS endpoint validation. It uses the SSRF-safe
+// idpHTTPClient (http_client.go) so external probes cannot reach local
+// network resources.
+func (s *federationService) TestConnection(_ context.Context, req TestConnectionRequestDTO) (*TestConnectionResultDTO, error) {
+	client := idpHTTPClient()
+	result := &TestConnectionResultDTO{Success: true}
+
+	addCheck := func(step, url string, ok bool, err error) {
+		c := TestCheckDTO{Step: step, URL: url, OK: ok}
+		if err != nil {
+			c.Error = err.Error()
+			result.Success = false
+		}
+		result.Checks = append(result.Checks, c)
+	}
+
+	// 1) OIDC Discovery
+	wellKnownURL := strings.TrimRight(req.DiscoveryURL, "/") + "/.well-known/openid-configuration"
+	resp, err := client.Get(wellKnownURL)
+	if err != nil {
+		addCheck("OIDC discovery", wellKnownURL, false, fmt.Errorf("GET failed: %w", err))
+		return result, nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		addCheck("OIDC discovery", wellKnownURL, false,
+			fmt.Errorf("HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode)))
+		return result, nil
+	}
+	addCheck("OIDC discovery", wellKnownURL, true, nil)
+
+	// 2) Parse discovery document
+	var metadata struct {
+		Issuer                 string `json:"issuer"`
+		AuthorizationEndpoint  string `json:"authorization_endpoint"`
+		TokenEndpoint          string `json:"token_endpoint"`
+		UserinfoEndpoint       string `json:"userinfo_endpoint"`
+		JWKSURI                string `json:"jwks_uri"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
+		addCheck("Parse discovery JSON", wellKnownURL, false,
+			fmt.Errorf("JSON decode: %w", err))
+		return result, nil
+	}
+	addCheck("Parse discovery JSON", wellKnownURL, true, nil)
+
+	if metadata.JWKSURI == "" {
+		addCheck("JWKS endpoint", wellKnownURL, false,
+			fmt.Errorf("jwks_uri is empty in discovery document"))
+		return result, nil
+	}
+
+	// 3) JWKS probe
+	jwksResp, err := client.Get(metadata.JWKSURI)
+	if err != nil {
+		addCheck("JWKS probe", metadata.JWKSURI, false, fmt.Errorf("GET failed: %w", err))
+		return result, nil
+	}
+	defer jwksResp.Body.Close()
+
+	if jwksResp.StatusCode >= 400 {
+		addCheck("JWKS probe", metadata.JWKSURI, false,
+			fmt.Errorf("HTTP %d %s", jwksResp.StatusCode, http.StatusText(jwksResp.StatusCode)))
+		return result, nil
+	}
+
+	var jwks json.RawMessage
+	if err := json.NewDecoder(jwksResp.Body).Decode(&jwks); err != nil {
+		addCheck("JWKS probe", metadata.JWKSURI, false,
+			fmt.Errorf("JSON decode: %w", err))
+		return result, nil
+	}
+	addCheck("JWKS probe", metadata.JWKSURI, true, nil)
+
+	return result, nil
 }

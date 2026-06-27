@@ -50,7 +50,7 @@ func TestFederationIdentityRoute(t *testing.T) {
 
 func TestIdentityProviderRoute(t *testing.T) {
 	r := chi.NewRouter()
-	IdentityProviderRoute(r, NewIdentityProviderHandler(&mockIdentityProviderService{}), nil, nil)
+	IdentityProviderRoute(r, NewIdentityProviderHandler(&mockIdentityProviderService{}), nil, nil, nil)
 
 	paths := []struct {
 		method string

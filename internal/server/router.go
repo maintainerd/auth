@@ -71,7 +71,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		iam.APIRoute(api, h.api, userProvider, application.Cache, tenantRateLimit)
 		iam.PermissionRoute(api, h.permission, userProvider, application.Cache, tenantRateLimit)
 		iam.PolicyRoute(api, h.policy, userProvider, application.Cache, tenantRateLimit)
-		idp.IdentityProviderRoute(api, h.identityProvider, userProvider, application.Cache, tenantRateLimit)
+		idp.IdentityProviderRoute(api, h.identityProvider, h.federation, userProvider, application.Cache, tenantRateLimit)
 		client.ClientRoute(api, h.client, userProvider, application.Cache, tenantRateLimit)
 		iam.RoleRoute(api, h.role, userProvider, application.Cache, tenantRateLimit)
 		user.UserRoute(api, h.user, h.profile, userProvider, application.Cache, tenantRateLimit)
