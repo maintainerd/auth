@@ -28,7 +28,8 @@ type OAuthAuthorizeResponseDTO struct {
 // available and which OAuth2 providers are connected. It never exposes provider
 // config or secrets.
 type OAuthConnectionsResponseDTO struct {
-	PasswordEnabled bool                 `json:"password_enabled"`
+	PasswordEnabled    bool                 `json:"password_enabled"`
+	RegistrationEnabled bool                 `json:"registration_enabled"`
 	Connections     []OAuthConnectionDTO `json:"connections"`
 }
 

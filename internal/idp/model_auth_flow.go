@@ -17,6 +17,9 @@ type AuthFlow struct {
 	Identifier   string         `gorm:"column:identifier;type:varchar(255);not null" json:"identifier"`
 	Destination string         `gorm:"column:destination;type:varchar(20);not null;default:'identity'" json:"destination"`
 	IsSystem    bool           `gorm:"column:is_system;default:false" json:"is_system"`
+	AllowRegistration    bool   `gorm:"column:allow_registration;default:false" json:"allow_registration"`
+	VerificationRequired bool   `gorm:"column:verification_required;default:false" json:"verification_required"`
+	RequiredFields       string `gorm:"column:required_fields;default:'[]'" json:"required_fields"`
 	Status       string         `gorm:"column:status;type:varchar(20);default:'active'" json:"status"`
 	ClientID     *int64         `gorm:"column:client_id" json:"client_id,omitempty"`
 	BrandingID   *int64         `gorm:"column:branding_id" json:"branding_id,omitempty"`

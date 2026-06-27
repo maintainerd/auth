@@ -281,7 +281,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		authEventService:             authEventSvc,
 		authorizationService:         iam.NewServiceAuthorizationService(r.serviceRepo, r.servicePolicyRepo),
 		oauthAuthorizeService:        oauth.NewOAuthAuthorizeService(db, oauthClientRepo, oauthClientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc, r.securitySettingRepo),
-		oauthConnectionsService:      oauth.NewOAuthConnectionsService(db, oauthClientRepo),
+		oauthConnectionsService:      oauth.NewOAuthConnectionsService(db, oauthClientRepo, r.securitySettingRepo),
 		oauthTokenService:            oauth.NewOAuthTokenService(db, oauthClientRepo, r.oauthAuthCodeRepo, r.oauthRefreshTokenRepo, oauthUserRepo, oauthUserIdentityRepo, authEventSvc, appCache, r.securitySettingRepo),
 		oauthConsentService:          oauth.NewOAuthConsentService(r.oauthConsentGrantRepo, authEventSvc),
 		oauthPARService:              oauth.NewOAuthPARService(db, oauthClientRepo, oauthClientURIRepo, r.oauthPARRequestRepo, authEventSvc, r.securitySettingRepo),

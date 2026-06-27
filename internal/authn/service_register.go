@@ -202,6 +202,23 @@ func (s *registerService) RegisterPublic(
 		if !regPolicy.SelfRegistrationEnabled {
 			return apperror.NewForbidden("self-registration is disabled for this tenant")
 		}
+		// Per-IdP gate: the client's in-house identity provider must allow
+		// registration. Defaults to true when no system IdP is connected.
+		var idpReg struct{ AllowRegistration bool }
+		if err := tx.Table("identity_providers").
+			Joins("JOIN client_identity_providers cip ON cip.identity_provider_id = identity_providers.identity_provider_id").
+			Where("cip.client_id = ? AND (identity_providers.is_system = true OR identity_providers.provider_type = ?) AND cip.enabled = true AND identity_providers.deleted_at IS NULL",
+				Client.ClientID, shared.IDPTypeSystem).
+			Select("identity_providers.allow_registration").Scan(&idpReg).Error; err == nil && !idpReg.AllowRegistration {
+			return apperror.NewForbidden("registration is disabled for this identity provider")
+		}
+		// Auth-flow gate: the client's signup flow must allow registration.
+		// No flow attached = unrestricted (default-allow).
+		var afReg struct{ AllowRegistration bool }
+		if tx.Table("auth_flows").Where("client_id = ? AND deleted_at IS NULL", Client.ClientID).
+			Select("allow_registration").Scan(&afReg).Error == nil && !afReg.AllowRegistration {
+			return apperror.NewForbidden("registration is disabled for this signup flow")
+		}
 		if err := enforceRegistrationAbuseControls(ctx, tenantId, regPolicy); err != nil {
 			return err
 		}

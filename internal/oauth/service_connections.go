@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -22,11 +23,13 @@ type OAuthConnectionInfo struct {
 }
 
 // OAuthConnectionsResult is the set of login options for a client: whether the
-// in-house username/password form is available plus the connected OAuth2
-// providers (rendered as buttons), ordered by DisplayOrder.
+// in-house username/password form is available, whether self-registration is
+// allowed, plus the connected OAuth2 providers (rendered as buttons), ordered
+// by DisplayOrder.
 type OAuthConnectionsResult struct {
-	PasswordEnabled bool
-	Connections     []OAuthConnectionInfo
+	PasswordEnabled    bool
+	RegistrationEnabled bool
+	Connections        []OAuthConnectionInfo
 }
 
 // OAuthConnectionsService resolves the enabled identity-provider connections of a
@@ -36,12 +39,13 @@ type OAuthConnectionsService interface {
 }
 
 type oauthConnectionsService struct {
-	db         *gorm.DB
-	clientRepo ClientRepository
+	db                  *gorm.DB
+	clientRepo          ClientRepository
+	securitySettingRepo secpolicy.SecuritySettingRepository // optional — nil-safe
 }
 
-func NewOAuthConnectionsService(db *gorm.DB, clientRepo ClientRepository) OAuthConnectionsService {
-	return &oauthConnectionsService{db: db, clientRepo: clientRepo}
+func NewOAuthConnectionsService(db *gorm.DB, clientRepo ClientRepository, securitySettingRepo secpolicy.SecuritySettingRepository) OAuthConnectionsService {
+	return &oauthConnectionsService{db: db, clientRepo: clientRepo, securitySettingRepo: securitySettingRepo}
 }
 
 func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID string) (*OAuthConnectionsResult, error) {
@@ -72,8 +76,9 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 	}
 
 	result := &OAuthConnectionsResult{
-		PasswordEnabled: allowedSystemClient,
-		Connections:     make([]OAuthConnectionInfo, 0, len(connections)),
+		PasswordEnabled:    allowedSystemClient,
+		RegistrationEnabled: allowedSystemClient,
+		Connections:        make([]OAuthConnectionInfo, 0, len(connections)),
 	}
 	for _, conn := range connections {
 		idp := conn.IdentityProvider
@@ -84,6 +89,24 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 		// than an OAuth2 button.
 		if idp.IsSystem || idp.ProviderType == shared.IDPTypeSystem {
 			result.PasswordEnabled = true
+			// RegistrationEnabled = tenant.self_registration_enabled
+			//   && inHouseIdP.allow_registration
+			//   && (auth_flow == nil || auth_flow.allow_registration)
+			tenantAllows := true
+			if cid := clientTenantID(client); cid > 0 && s.securitySettingRepo != nil {
+				regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, cid)
+				tenantAllows = regPolicy.SelfRegistrationEnabled
+			}
+			// Auth_flow gate: look up the client's signup flow; no flow = unrestricted.
+			afAllows := true
+			var af struct{ AllowRegistration bool }
+			if err := s.db.Table("auth_flows").Where("client_id = ? AND deleted_at IS NULL", client.ClientID).
+				Select("allow_registration").Scan(&af).Error; err == nil && af.AllowRegistration {
+				afAllows = true
+			} else if err == nil {
+				afAllows = af.AllowRegistration
+			}
+			result.RegistrationEnabled = tenantAllows && idp.AllowRegistration && afAllows
 			continue
 		}
 		displayName := idp.DisplayName
@@ -102,4 +125,21 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 
 	span.SetStatus(codes.Ok, "")
 	return result, nil
+}
+
+// clientTenantID returns the tenant ID for the OAuth client. Uses the client's
+// own TenantID column (preferred) or its identity provider's tenant.
+func clientTenantID(client *Client) int64 {
+	if client == nil {
+		return 0
+	}
+	if client.TenantID > 0 {
+		return client.TenantID
+	}
+	if client.IdentityProvider != nil {
+		if client.IdentityProvider.TenantID > 0 {
+			return client.IdentityProvider.TenantID
+		}
+	}
+	return 0
 }

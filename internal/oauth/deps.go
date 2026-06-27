@@ -47,6 +47,7 @@ type IdentityProvider struct {
 	Status               string
 	IsDefault            bool
 	IsSystem             bool
+	AllowRegistration    bool
 	Tenant               *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
