@@ -179,3 +179,24 @@ func (h *FederationHandler) UnlinkIdentity(w http.ResponseWriter, r *http.Reques
 
 	resp.Success(w, nil, "Identity unlinked successfully")
 }
+
+// TestConnection probes an unsaved IdP configuration. It accepts the raw
+// provider fields, runs OIDC discovery and a JWKS probe via the SSRF-safe
+// idpHTTPClient, and returns per-check results.
+//
+// POST /api/v1/identity_providers/test
+func (h *FederationHandler) TestConnection(w http.ResponseWriter, r *http.Request) {
+	var req TestConnectionRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+
+	result, err := h.federationSvc.TestConnection(r.Context(), req)
+	if err != nil {
+		resp.Error(w, http.StatusInternalServerError, "Test connection failed: "+err.Error())
+		return
+	}
+
+	resp.Success(w, result, "Test connection completed")
+}

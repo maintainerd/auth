@@ -46,6 +46,7 @@ func FederationIdentityRoute(
 func IdentityProviderRoute(
 	r chi.Router,
 	idpHandler *IdentityProviderHandler,
+	federationHandler *FederationHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	rateLimitMiddleware ...middleware.Middleware,
@@ -72,6 +73,13 @@ func IdentityProviderRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"idp:delete"})).
 			Delete("/{identity_provider_uuid}", idpHandler.Delete)
+
+		// Test connection — validate an unsaved IdP config before persisting.
+		// Uses the FederationHandler for OIDC discovery / JWKS probe logic.
+		if federationHandler != nil {
+			r.With(middleware.PermissionMiddleware([]string{"idp:create"})).
+				Post("/test", federationHandler.TestConnection)
+		}
 	})
 }
 

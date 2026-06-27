@@ -78,6 +78,10 @@ func (m *mockFederationService) UnlinkIdentity(_ context.Context, userID int64, 
 	return nil
 }
 
+func (m *mockFederationService) TestConnection(_ context.Context, _ TestConnectionRequestDTO) (*TestConnectionResultDTO, error) {
+	return &TestConnectionResultDTO{Success: true}, nil
+}
+
 func TestFederationHandler_ExchangeExternalToken(t *testing.T) {
 	t.Run("bad JSON returns 400", func(t *testing.T) {
 		r := badJSONReq(t, http.MethodPost, "/federation/token")

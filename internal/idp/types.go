@@ -320,3 +320,31 @@ type RoleResponseDTO struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
+
+// ── IdP Test Connection ──────────────────────────────────────────────────────
+
+// TestConnectionRequestDTO is the JSON body for POST /identity_providers/test.
+// It mirrors the unsaved fields of an IdentityProvider so the admin can validate
+// a config before persisting it.
+type TestConnectionRequestDTO struct {
+	Provider     string `json:"provider"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	DiscoveryURL string `json:"discovery_url"`
+}
+
+// TestConnectionResultDTO is the JSON response for POST /identity_providers/test.
+// Each check that passed is listed; broken checks carry an error.
+type TestConnectionResultDTO struct {
+	Success bool             `json:"success"`
+	Checks  []TestCheckDTO   `json:"checks"`
+}
+
+// TestCheckDTO describes the result of a single validation step during an IdP
+// test-connection probe.
+type TestCheckDTO struct {
+	Step  string `json:"step"`
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+	URL   string `json:"url,omitempty"`
+}
