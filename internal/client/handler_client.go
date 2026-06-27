@@ -49,6 +49,30 @@ func (h *ClientHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
 	}, "Auth client fetched successfully")
 }
 
+func (h *ClientHandler) GetPublicConsole(w http.ResponseWriter, r *http.Request) {
+	tenantIdentifier := strings.TrimSpace(r.URL.Query().Get("tenant_id"))
+	if tenantIdentifier == "" || r.URL.Query().Get("client_id") != "" {
+		resp.Error(w, http.StatusBadRequest, "tenant_id is required and client_id is not accepted")
+		return
+	}
+	publicService, ok := h.ClientService.(interface {
+		GetPublicConsoleByTenantIdentifier(context.Context, string) (*ClientPublicServiceDataResult, error)
+	})
+	if !ok {
+		resp.Error(w, http.StatusInternalServerError, "Public console client discovery is unavailable")
+		return
+	}
+	client, err := publicService.GetPublicConsoleByTenantIdentifier(r.Context(), tenantIdentifier)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Console client not found", err)
+		return
+	}
+	resp.Success(w, ClientPublicResponseDTO{
+		ClientID: client.ClientID, Name: client.Name, DisplayName: client.DisplayName,
+		ClientType: client.ClientType, Domain: client.Domain, TenantIdentifier: client.TenantIdentifier,
+	}, "Console client fetched successfully")
+}
+
 // Get all auth clients with pagination
 func (h *ClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context

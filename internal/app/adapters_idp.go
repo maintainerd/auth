@@ -32,15 +32,6 @@ func (r *idpUserRepo) WithTx(tx *gorm.DB) idp.UserRepository {
 	return &idpUserRepo{r.BaseRepository.WithTx(tx)}
 }
 
-func (r *idpUserRepo) FindByEmail(email string) (*idp.User, error) {
-	var u idp.User
-	err := r.DB().Where("email = ?", email).First(&u).Error
-	if err != nil {
-		return nil, firstOrNil(err)
-	}
-	return &u, nil
-}
-
 func (r *idpUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*idp.User, error) {
 	var u idp.User
 	err := r.DB().Joins("JOIN user_identities ON user_identities.user_id = users.user_id").

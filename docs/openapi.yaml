@@ -1240,9 +1240,11 @@ paths:
       tags: [OAuth 2.0]
       summary: OAuth 2.0 authorization endpoint
       description: >
-        RFC 6749 §4.1.1 authorization endpoint. Requires an active user session
-        (Bearer JWT). Returns a redirect URI with the authorization code, or a
-        consent challenge if the user has not yet approved the requested scopes.
+        RFC 6749 §4.1.1 authorization endpoint. Uses an existing browser or
+        Bearer session when present. Returns login_required without a session,
+        a redirect URI with the authorization code, or a consent challenge.
+        prompt=none enables non-interactive checks and returns consent_required
+        instead of starting consent UI.
       operationId: oauthAuthorize
       parameters:
         - name: response_type
@@ -1274,6 +1276,12 @@ paths:
           in: query
           schema:
             type: string
+        - name: prompt
+          in: query
+          schema:
+            type: string
+            enum: [none]
+          description: Request non-interactive authorization; no login, broker, or consent UI is started.
         - name: code_challenge
           in: query
           required: true
@@ -1300,6 +1308,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
 

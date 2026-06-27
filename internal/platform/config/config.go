@@ -66,7 +66,7 @@ var (
 
 	// Cookie Config
 	CookieSecure   bool   // defaults true; set COOKIE_SECURE=false for local dev
-	CookieSameSite string // "strict", "lax", or "none"; defaults "strict"
+	CookieSameSite string // "strict", "lax", or "none"; defaults "lax"
 )
 
 // Init loads all configuration from environment variables (and an optional .env file).
@@ -174,7 +174,7 @@ func Init() error {
 
 	// Cookie Config
 	CookieSecure = GetEnvOrDefault("COOKIE_SECURE", "true") != "false"
-	CookieSameSite = GetEnvOrDefault("COOKIE_SAMESITE", "strict")
+	CookieSameSite = GetEnvOrDefault("COOKIE_SAMESITE", "lax")
 
 	// Logging
 	LogLevel = GetEnvOrDefault("LOG_LEVEL", "info")

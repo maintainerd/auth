@@ -70,6 +70,42 @@ func actorUser(tenantID int64) *User {
 	}
 }
 
+func TestClientService_GetPublicConsoleByTenantIdentifier(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		identifier := "console-client"
+		clientRepo := &mockClientRepo{
+			findSystemByTenantIdentifierNameFn: func(tenantIdentifier, name string) (*Client, error) {
+				assert.Equal(t, "acme", tenantIdentifier)
+				assert.Equal(t, shared.SystemClientNameAuthConsole, name)
+				return &Client{
+					Name:        shared.SystemClientNameAuthConsole,
+					DisplayName: "Maintainerd Auth Console",
+					ClientType:  shared.ClientTypeSPA,
+					Identifier:  &identifier,
+					Status:      shared.StatusActive,
+					Tenant:      &Tenant{Identifier: "acme"},
+				}, nil
+			},
+		}
+		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+
+		result, err := svc.(*clientService).GetPublicConsoleByTenantIdentifier(context.Background(), " acme ")
+
+		require.NoError(t, err)
+		assert.Equal(t, identifier, result.ClientID)
+		assert.Equal(t, "acme", result.TenantIdentifier)
+	})
+
+	t.Run("missing client returns not found", func(t *testing.T) {
+		svc := buildClientService(t, &mockClientRepo{}, &mockIdentityProviderRepo{}, &mockUserRepo{})
+
+		result, err := svc.(*clientService).GetPublicConsoleByTenantIdentifier(context.Background(), "acme")
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
 // ===========================================================================
 // Get
 // ===========================================================================
@@ -1266,7 +1302,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1, TenantID: 1}, nil },
 		}
 		caRepo := &mockClientAPIRepo{
 			findByClientAndAPIFn: func(_, _ int64) (*ClientAPI, error) { return &ClientAPI{}, nil },
@@ -1289,7 +1325,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1, TenantID: 1}, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1536,7 +1572,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		}
 		permRepo := &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 1}, nil
+				return &Permission{PermissionID: 1, TenantID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
@@ -1568,7 +1604,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		}
 		permRepo := &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 1}, nil
+				return &Permission{PermissionID: 1, TenantID: 1}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1671,7 +1707,7 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		}
 		permRepo := &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 1}, nil
+				return &Permission{PermissionID: 1, TenantID: 1}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -2026,7 +2062,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1, TenantID: 1}, nil },
 		}
 		caRepo := &mockClientAPIRepo{
 			findByClientAndAPIFn: func(_, _ int64) (*ClientAPI, error) { return nil, errors.New("db err") },
@@ -2081,7 +2117,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1, TenantID: 1}, nil },
 		}
 		caRepo := &mockClientAPIRepo{
 			createFn: func(_ *ClientAPI) (*ClientAPI, error) {
@@ -2106,7 +2142,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1, TenantID: 1}, nil },
 		}
 		caRepo := &mockClientAPIRepo{
 			createFn: func(_ *ClientAPI) (*ClientAPI, error) {
@@ -2276,7 +2312,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		}
 		permRepo := &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 1}, nil
+				return &Permission{PermissionID: 1, TenantID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
@@ -2307,7 +2343,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		}
 		permRepo := &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 1}, nil
+				return &Permission{PermissionID: 1, TenantID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
@@ -2342,7 +2378,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		}
 		permRepo := &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 1}, nil
+				return &Permission{PermissionID: 1, TenantID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
@@ -2540,7 +2576,7 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		}
 		permRepo := &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 1}, nil
+				return &Permission{PermissionID: 1, TenantID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
@@ -2869,4 +2905,57 @@ func TestClientService_RemoveConnection(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+}
+
+func TestClientService_IsManagementClient(t *testing.T) {
+	tests := []struct {
+		name   string
+		repoFn func(string) (*Client, error)
+		input  string
+		want   bool
+	}{
+		{
+			name:   "auth-console system client is a management client",
+			repoFn: func(string) (*Client, error) { return &Client{Name: shared.SystemClientNameAuthConsole, IsSystem: true}, nil },
+			input:  "id",
+			want:   true,
+		},
+		{
+			name:   "non-system client named auth-console is rejected",
+			repoFn: func(string) (*Client, error) { return &Client{Name: shared.SystemClientNameAuthConsole, IsSystem: false}, nil },
+			input:  "id",
+			want:   false,
+		},
+		{
+			name:   "other system client is rejected",
+			repoFn: func(string) (*Client, error) { return &Client{Name: shared.SystemClientNameAuthIdentity, IsSystem: true}, nil },
+			input:  "id",
+			want:   false,
+		},
+		{
+			name:   "client not found is rejected",
+			repoFn: func(string) (*Client, error) { return nil, nil },
+			input:  "id",
+			want:   false,
+		},
+		{
+			name:   "repo error is rejected",
+			repoFn: func(string) (*Client, error) { return nil, errors.New("db error") },
+			input:  "id",
+			want:   false,
+		},
+		{
+			name:   "empty identifier is rejected without a lookup",
+			repoFn: func(string) (*Client, error) { t.Fatalf("repo must not be queried for an empty identifier"); return nil, nil },
+			input:  "  ",
+			want:   false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &clientService{clientRepo: &mockClientRepo{findByIdentifierFn: tc.repoFn}}
+			assert.Equal(t, tc.want, s.IsManagementClient(context.Background(), tc.input))
+		})
+	}
 }

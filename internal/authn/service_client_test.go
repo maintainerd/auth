@@ -35,12 +35,12 @@ func TestResolvePublicClient_RejectsTenantID(t *testing.T) {
 	assert.Nil(t, client)
 }
 
-func TestResolvePublicClient_ClientIDRejectsSystemClient(t *testing.T) {
+func TestResolvePublicClient_ClientIDRejectsNonFirstPartySystemClient(t *testing.T) {
 	clientID := "seeded-system-client"
 	repo := &mockClientRepo{
 		findByIdentifierFn: func(got string) (*Client, error) {
 			assert.Equal(t, clientID, got)
-			return &Client{Name: shared.SystemClientNameAuthIdentity, IsSystem: true}, nil
+			return &Client{Name: "auth-some-internal-system", IsSystem: true}, nil
 		},
 	}
 
@@ -48,4 +48,29 @@ func TestResolvePublicClient_ClientIDRejectsSystemClient(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Nil(t, client)
+}
+
+// The hosted identity UI runs on first-party SPA system clients (auth-console,
+// auth-identity). Public auth (/login, /register, …) must accept them even
+// though they are system clients, mirroring the OAuth authorize endpoint —
+// otherwise the console's hosted-login flow can pass /oauth/authorize but always
+// fails at /login.
+func TestResolvePublicClient_ClientIDAllowsFirstPartySystemClients(t *testing.T) {
+	for _, name := range []string{shared.SystemClientNameAuthConsole, shared.SystemClientNameAuthIdentity} {
+		t.Run(name, func(t *testing.T) {
+			clientID := "seeded-" + name
+			repo := &mockClientRepo{
+				findByIdentifierFn: func(got string) (*Client, error) {
+					assert.Equal(t, clientID, got)
+					return &Client{Name: name, IsSystem: true}, nil
+				},
+			}
+
+			client, err := resolvePublicClient(repo, &clientID, nil)
+
+			require.NoError(t, err)
+			require.NotNil(t, client)
+			assert.Equal(t, name, client.Name)
+		})
+	}
 }

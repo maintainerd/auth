@@ -121,19 +121,19 @@ func TestEmailVerificationHandler_SendVerificationEmail(t *testing.T) {
 
 func TestEmailVerificationHandler_VerifyEmail(t *testing.T) {
 	t.Run("invalid JSON returns 400", func(t *testing.T) {
-		r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/email-verification/verify",
+		r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/email-verification/verify?client_id=app",
 			bytes.NewBufferString(`{bad`)))
 		r.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
-		NewEmailVerificationHandler(&mockEmailVerificationService{}).VerifyEmail(w, r)
+		NewEmailVerificationHandler(&mockEmailVerificationService{}).VerifyEmailPublic(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("validation error returns 400", func(t *testing.T) {
-		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify",
+		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify?client_id=app",
 			map[string]string{"email": "", "otp": ""}))
 		w := httptest.NewRecorder()
-		NewEmailVerificationHandler(&mockEmailVerificationService{}).VerifyEmail(w, r)
+		NewEmailVerificationHandler(&mockEmailVerificationService{}).VerifyEmailPublic(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -143,10 +143,10 @@ func TestEmailVerificationHandler_VerifyEmail(t *testing.T) {
 				return nil, errors.New("invalid code")
 			},
 		}
-		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify",
+		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify?client_id=app",
 			map[string]string{"email": "user@example.com", "otp": "123456"}))
 		w := httptest.NewRecorder()
-		NewEmailVerificationHandler(svc).VerifyEmail(w, r)
+		NewEmailVerificationHandler(svc).VerifyEmailPublic(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
@@ -156,10 +156,10 @@ func TestEmailVerificationHandler_VerifyEmail(t *testing.T) {
 				return &VerifyEmailResponseDTO{Message: "verified", Success: true}, nil
 			},
 		}
-		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify",
+		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify?client_id=app",
 			map[string]string{"email": "user@example.com", "otp": "123456"}))
 		w := httptest.NewRecorder()
-		NewEmailVerificationHandler(svc).VerifyEmail(w, r)
+		NewEmailVerificationHandler(svc).VerifyEmailPublic(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
@@ -195,9 +195,9 @@ func TestEmailVerificationHandler_VerifyEmail_RateLimited(t *testing.T) {
 	cleanup := lockedRateLimiterEV(t, email)
 	defer cleanup()
 
-	r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify",
+	r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify?client_id=app",
 		map[string]string{"email": email, "otp": "123456"}))
 	w := httptest.NewRecorder()
-	NewEmailVerificationHandler(&mockEmailVerificationService{}).VerifyEmail(w, r)
+	NewEmailVerificationHandler(&mockEmailVerificationService{}).VerifyEmailPublic(w, r)
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
 }

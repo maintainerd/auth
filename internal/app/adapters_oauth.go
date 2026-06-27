@@ -1,9 +1,11 @@
 package app
 
 import (
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/auth/internal/user"
 	"gorm.io/gorm"
 )
 
@@ -114,34 +116,105 @@ func (r *oauthUserRepo) WithTx(tx *gorm.DB) oauth.UserRepository {
 	return &oauthUserRepo{r.BaseRepository.WithTx(tx)}
 }
 
-func (r *oauthUserRepo) FindByEmail(email string) (*oauth.User, error) {
-	var u oauth.User
-	err := r.DB().Where("email = ?", email).First(&u).Error
+// FindByID loads a user (with roles + permissions + profile) by user_id and
+// maps it to the oauth/authctx user shape used for token claims.
+//
+// The oauth user type (oauth.User = authctx.AuthUser) is a context/DTO struct,
+// not a GORM table model — its Roles/Permissions/Profile fields have no DB
+// columns or foreign keys, so querying GORM directly into it fails schema
+// parsing. These finders therefore query the real `users` table model and map
+// the result instead of relying on the embedded BaseRepository.
+func (r *oauthUserRepo) FindByID(id any, _ ...string) (*oauth.User, error) {
+	var u user.User
+	err := userWithRolesQuery(r.DB()).Where("user_id = ?", id).First(&u).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}
-	return &u, nil
+	return mapUserToOAuthUser(&u), nil
 }
 
 func (r *oauthUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*oauth.User, error) {
-	var u oauth.User
-	err := r.DB().Where("email = ? AND tenant_id = ?", email, tenantID).First(&u).Error
+	var u user.User
+	err := userWithRolesQuery(r.DB()).Where("email = ? AND tenant_id = ?", email, tenantID).First(&u).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}
-	return &u, nil
+	return mapUserToOAuthUser(&u), nil
 }
 
 func (r *oauthUserRepo) FindBySubAndClientID(sub, clientID string) (*oauth.User, error) {
-	var u oauth.User
-	err := r.DB().Joins("JOIN user_identities ON user_identities.user_id = users.user_id").
+	var u user.User
+	err := userWithRolesQuery(r.DB()).
+		Joins("JOIN user_identities ON user_identities.user_id = users.user_id").
 		Joins("JOIN clients ON clients.client_id = user_identities.client_id").
 		Where("user_identities.sub = ? AND clients.identifier = ?", sub, clientID).
 		First(&u).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}
-	return &u, nil
+	return mapUserToOAuthUser(&u), nil
+}
+
+// userWithRolesQuery preloads the associations needed to populate an
+// authctx.AuthUser with its roles, permissions, and profile.
+func userWithRolesQuery(db *gorm.DB) *gorm.DB {
+	return db.
+		Preload("Profile").
+		Preload("UserRoles.Role.RolePermissions.Permission")
+}
+
+// mapUserToOAuthUser maps the persisted user model to the oauth/authctx user
+// shape. It mirrors the canonical toAuthUser mapping used by the auth
+// middleware so token claims and request context agree on roles/permissions.
+func mapUserToOAuthUser(u *user.User) *oauth.User {
+	if u == nil {
+		return nil
+	}
+
+	roles := make([]authctx.AuthRole, 0, len(u.UserRoles))
+	for _, ur := range u.UserRoles {
+		if ur.Role == nil {
+			continue
+		}
+		role := ur.Role
+		perms := make([]authctx.AuthPermission, 0, len(role.RolePermissions))
+		for _, rp := range role.RolePermissions {
+			perms = append(perms, authctx.AuthPermission{
+				PermissionID:   rp.Permission.PermissionID,
+				PermissionUUID: rp.Permission.PermissionUUID,
+				Name:           rp.Permission.Name,
+			})
+		}
+		roles = append(roles, authctx.AuthRole{
+			RoleID:      role.RoleID,
+			RoleUUID:    role.RoleUUID,
+			Name:        role.Name,
+			Permissions: perms,
+		})
+	}
+
+	var profile *authctx.AuthProfile
+	if u.Profile != nil {
+		profile = &authctx.AuthProfile{
+			DisplayName: u.Profile.DisplayName,
+			FirstName:   u.Profile.FirstName,
+			LastName:    u.Profile.LastName,
+			ProfileURL:  u.Profile.ProfileURL,
+		}
+	}
+
+	return &authctx.AuthUser{
+		UserID:          u.UserID,
+		UserUUID:        u.UserUUID,
+		Roles:           roles,
+		Email:           u.Email,
+		IsEmailVerified: u.IsEmailVerified,
+		Phone:           u.Phone,
+		IsPhoneVerified: u.IsPhoneVerified,
+		Fullname:        u.Fullname,
+		UpdatedAt:       u.UpdatedAt,
+		Profile:         profile,
+	}
 }
 
 type oauthUserIdentityRepo struct {

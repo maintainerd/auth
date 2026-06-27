@@ -943,6 +943,9 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 			if role == nil {
 				return apperror.NewNotFound("role not found")
 			}
+			if role.TenantID != tenantID {
+				return apperror.NewNotFoundWithReason("role not found or access denied")
+			}
 
 			// Check if user already has this role
 			existingUserRole, err := txUserRoleRepo.FindByUserIDAndRoleID(user.UserID, role.RoleID)
@@ -1038,6 +1041,9 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 		}
 		if role == nil {
 			return apperror.NewNotFound("role not found")
+		}
+		if role.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
 		// Remove user-role association

@@ -222,6 +222,10 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 	}
 
 	if needsConsent {
+		if req.Prompt == "none" {
+			span.SetStatus(codes.Error, "consent required during non-interactive authorization")
+			return nil, apperror.NewOAuthConsentRequired("user consent is required")
+		}
 		// Create a consent challenge for the frontend.
 		challenge, oerr := s.createConsentChallenge(ctx, client, userID, req)
 		if oerr != nil {
@@ -288,7 +292,7 @@ func (s *oauthAuthorizeService) resolveAuthorizeClient(req OAuthAuthorizeRequest
 	if req.ClientID != "" {
 		client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, "")
 		if err != nil || client != nil {
-			if client != nil && client.IsSystem {
+			if client != nil && client.IsSystem && !isPublicOAuthSystemClientAllowed(client) {
 				return nil, nil
 			}
 			return client, err
@@ -298,13 +302,17 @@ func (s *oauthAuthorizeService) resolveAuthorizeClient(req OAuthAuthorizeRequest
 		if err != nil || client == nil {
 			return client, err
 		}
-		if client.IsSystem {
+		if client.IsSystem && !isPublicOAuthSystemClientAllowed(client) {
 			return nil, nil
 		}
 		return client, nil
 	}
 
 	return nil, nil
+}
+
+func isPublicOAuthSystemClientAllowed(client *Client) bool {
+	return client != nil && client.Name == shared.SystemClientNameAuthConsole
 }
 
 // GetConsentChallenge implements OAuthAuthorizeService.

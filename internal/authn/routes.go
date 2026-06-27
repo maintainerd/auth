@@ -22,12 +22,12 @@ func EmailVerificationRoute(r chi.Router, emailVerificationHandler *EmailVerific
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
 
 		r.Post("/email-verification/send", emailVerificationHandler.SendVerificationEmail)
-		r.Post("/email-verification/verify", emailVerificationHandler.VerifyEmail)
+		r.Post("/email-verification/verify", emailVerificationHandler.VerifyEmailInternal)
 	})
 }
 
 // EmailVerificationPublicRoute handles public email-verification routes
-// (send requires exactly one of client_id or tenant_id; verify is self-contained).
+// (both operations require client_id and reject tenant_id).
 // Mounted on the public surface (port 8081).
 func EmailVerificationPublicRoute(r chi.Router, emailVerificationHandler *EmailVerificationHandler) {
 	r.Group(func(r chi.Router) {
@@ -36,7 +36,7 @@ func EmailVerificationPublicRoute(r chi.Router, emailVerificationHandler *EmailV
 		r.Use(publicAuthSurface)
 
 		r.Post("/email-verification/send", emailVerificationHandler.SendVerificationEmailPublic)
-		r.Post("/email-verification/verify", emailVerificationHandler.VerifyEmail)
+		r.Post("/email-verification/verify", emailVerificationHandler.VerifyEmailPublic)
 	})
 }
 
@@ -109,6 +109,9 @@ func LoginPublicRoute(r chi.Router, loginHandler *LoginHandler) {
 		r.Post("/login", loginHandler.LoginPublic)
 
 		LoginMFAPublicRoute(r, loginHandler)
+
+		// Refresh endpoint — exchanges a refresh token for a new token set.
+		r.Post("/refresh-token", loginHandler.RefreshToken)
 
 		// Logout endpoint (clears cookies if they exist)
 		r.Post("/logout", loginHandler.Logout)

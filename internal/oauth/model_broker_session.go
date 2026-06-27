@@ -14,11 +14,12 @@ import (
 // per-attempt state and PKCE verifier used against the provider. Rows are
 // single-use (ConsumedAt) and short-lived (ExpiresAt).
 type OAuthBrokerSession struct {
-	OAuthBrokerSessionID   int64     `gorm:"column:oauth_broker_session_id;primaryKey;autoIncrement"`
-	OAuthBrokerSessionUUID uuid.UUID `gorm:"column:oauth_broker_session_uuid;type:uuid;uniqueIndex;not null"`
-	TenantID               int64     `gorm:"column:tenant_id;not null"`
-	ClientID               int64     `gorm:"column:client_id;not null"`
-	IdentityProviderID     int64     `gorm:"column:identity_provider_id;not null"`
+	OAuthBrokerSessionID       int64     `gorm:"column:oauth_broker_session_id;primaryKey;autoIncrement"`
+	OAuthBrokerSessionUUID     uuid.UUID `gorm:"column:oauth_broker_session_uuid;type:uuid;uniqueIndex;not null"`
+	TenantID                   int64     `gorm:"column:tenant_id;not null"`
+	ClientID                   int64     `gorm:"column:client_id;not null"`
+	IdentityProviderID         int64     `gorm:"column:identity_provider_id;not null"`
+	IdentityProviderIdentifier string    `gorm:"column:identity_provider_identifier;not null"`
 
 	// Original OAuth #1 (app → maintainerd) request, resumed after OAuth #2.
 	AppRedirectURI         string  `gorm:"column:app_redirect_uri;not null"`

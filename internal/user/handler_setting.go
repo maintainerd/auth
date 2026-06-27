@@ -80,7 +80,7 @@ func (h *UserSettingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete by user setting UUID
-	deletedUserSetting, err := h.userSettingService.DeleteByUUID(r.Context(), userSetting.UserSettingUUID)
+	deletedUserSetting, err := h.userSettingService.DeleteByUUID(r.Context(), userSetting.UserSettingUUID, user.UserID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Delete user setting failed", err)
 		return

@@ -152,9 +152,25 @@ func (h *EmailVerificationHandler) handleSendVerification(
 	resp.Success(w, response, "Verification email sent")
 }
 
-// VerifyEmail consumes a verification code. Public + internal share the same handler
-// because the OTP is self-contained and doesn't require a client_id at consume time.
-func (h *EmailVerificationHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+func (h *EmailVerificationHandler) VerifyEmailPublic(w http.ResponseWriter, r *http.Request) {
+	clientID, tenantID, ok := authenticationContextQuery(r)
+	if !ok {
+		resp.Error(w, http.StatusBadRequest, "Public email verification requires client_id and does not accept tenant_id")
+		return
+	}
+	h.verifyEmail(w, r, clientID, tenantID)
+}
+
+func (h *EmailVerificationHandler) VerifyEmailInternal(w http.ResponseWriter, r *http.Request) {
+	clientID, tenantID := optionalClientQuery(r)
+	if tenantID == nil || clientID != nil {
+		resp.Error(w, http.StatusBadRequest, "Internal email verification requires tenant_id and does not accept client_id")
+		return
+	}
+	h.verifyEmail(w, r, nil, tenantID)
+}
+
+func (h *EmailVerificationHandler) verifyEmail(w http.ResponseWriter, r *http.Request, clientID, tenantID *string) {
 	startTime := time.Now()
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
@@ -210,7 +226,7 @@ func (h *EmailVerificationHandler) VerifyEmail(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	response, err := h.emailVerificationService.VerifyEmail(r.Context(), req.Email, req.OTP)
+	response, err := h.emailVerificationService.VerifyEmail(r.Context(), req.Email, req.OTP, clientID, tenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to verify email", err)
 		return

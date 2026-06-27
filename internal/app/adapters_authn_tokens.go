@@ -155,8 +155,8 @@ func (a *authnUserTokenRepoAdapter) DeleteExpiredTokens(before time.Time) error 
 func (a *authnUserTokenRepoAdapter) CountActiveSessions(userID int64) (int64, error) {
 	return a.repo.CountActiveSessions(userID)
 }
-func (a *authnUserTokenRepoAdapter) TouchSession(sessionUUID uuid.UUID, now time.Time) error {
-	return a.repo.TouchSession(sessionUUID, now)
+func (a *authnUserTokenRepoAdapter) TouchSession(userID int64, sessionUUID uuid.UUID, now time.Time) error {
+	return a.repo.TouchSession(userID, sessionUUID, now)
 }
 func (a *authnUserTokenRepoAdapter) RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error {
 	return a.repo.RevokeSessionByUUID(userID, sessionUUID)

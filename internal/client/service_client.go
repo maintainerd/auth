@@ -100,6 +100,10 @@ type ClientServiceGetResult struct {
 
 type ClientService interface {
 	Get(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
+	// IsManagementClient reports whether the client identified by
+	// clientIdentifier is a first-party management client (the seeded
+	// auth-console system client) permitted to call the internal management API.
+	IsManagementClient(ctx context.Context, clientIdentifier string) bool
 	GetByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
 	// GetSecretByUUID always returns an error — secrets cannot be retrieved after creation.
 	// Use RotateSecret to obtain a new secret.
@@ -160,6 +164,44 @@ func (s *clientService) GetPublicByIdentifier(ctx context.Context, identifier st
 		Domain:           client.Domain,
 		TenantIdentifier: client.Tenant.Identifier,
 	}, nil
+}
+
+func (s *clientService) GetPublicConsoleByTenantIdentifier(ctx context.Context, tenantIdentifier string) (*ClientPublicServiceDataResult, error) {
+	client, err := s.clientRepo.FindSystemByTenantIdentifierAndName(
+		strings.TrimSpace(tenantIdentifier),
+		shared.SystemClientNameAuthConsole,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if client == nil || client.Status != shared.StatusActive || client.Identifier == nil ||
+		client.Tenant == nil {
+		return nil, apperror.NewNotFound("console client not found")
+	}
+	return &ClientPublicServiceDataResult{
+		ClientID:         *client.Identifier,
+		Name:             client.Name,
+		DisplayName:      client.DisplayName,
+		ClientType:       client.ClientType,
+		Domain:           client.Domain,
+		TenantIdentifier: client.Tenant.Identifier,
+	}, nil
+}
+
+// IsManagementClient reports whether clientIdentifier resolves to the seeded
+// first-party management client (the auth-console system client). The internal
+// management API uses this to reject tokens minted for any other client, even
+// when their subject holds the required permissions.
+func (s *clientService) IsManagementClient(_ context.Context, clientIdentifier string) bool {
+	id := strings.TrimSpace(clientIdentifier)
+	if id == "" {
+		return false
+	}
+	c, err := s.clientRepo.FindByIdentifier(id)
+	if err != nil || c == nil {
+		return false
+	}
+	return c.IsSystem && c.Name == shared.SystemClientNameAuthConsole
 }
 
 var (
@@ -1590,6 +1632,9 @@ func (s *clientService) AddClientAPIs(ctx context.Context, tenantID int64, Clien
 			if api == nil {
 				return apperror.NewNotFoundWithReason("API not found: " + apiUUID.String())
 			}
+			if api.TenantID != tenantID {
+				return apperror.NewNotFoundWithReason("API not found or access denied: " + apiUUID.String())
+			}
 
 			// Check if relationship already exists
 			existing, err := txClientAPIRepo.FindByClientAndAPI(Client.ClientID, api.APIID)
@@ -1761,6 +1806,14 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 			if permission == nil {
 				return apperror.NewNotFoundWithReason("permission not found: " + permissionUUID.String())
 			}
+			if permission.TenantID != tenantID {
+				return apperror.NewNotFoundWithReason("permission not found or access denied: " + permissionUUID.String())
+			}
+			// The permission must belong to the API being attached (mirrors the
+			// api-key reference path).
+			if permission.APIID != ClientAPI.APIID {
+				return apperror.NewValidation("permission does not belong to the specified API: " + permissionUUID.String())
+			}
 
 			// Check if relationship already exists
 			existing, err := txClientPermissionRepo.FindByClientAPIAndPermission(ClientAPI.ClientAPIID, permission.PermissionID)
@@ -1840,6 +1893,12 @@ func (s *clientService) RemoveClientAPIPermission(ctx context.Context, tenantID 
 		}
 		if permission == nil {
 			return apperror.NewNotFound("permission not found")
+		}
+		if permission.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("permission not found or access denied")
+		}
+		if permission.APIID != ClientAPI.APIID {
+			return apperror.NewValidation("permission does not belong to the specified API: " + permissionUUID.String())
 		}
 
 		// Remove the permission relationship

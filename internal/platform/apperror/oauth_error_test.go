@@ -122,6 +122,7 @@ func TestOAuthErrorConstructors(t *testing.T) {
 		{"InvalidClient", NewOAuthInvalidClient, "invalid_client", 401},
 		{"LoginRequired", NewOAuthLoginRequired, "login_required", 401},
 		{"ConsentRequired", NewOAuthConsentRequired, "consent_required", 403},
+		{"InteractionRequired", NewOAuthInteractionRequired, "interaction_required", 403},
 	}
 
 	for _, tc := range cases {

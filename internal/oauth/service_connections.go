@@ -54,7 +54,8 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 		span.SetStatus(codes.Error, "client lookup failed")
 		return nil, apperror.NewInternal("failed to load client", err)
 	}
-	if client == nil || client.Status != shared.StatusActive || client.IsSystem {
+	allowedSystemClient := client != nil && client.IsSystem && client.Name == shared.SystemClientNameAuthConsole
+	if client == nil || client.Status != shared.StatusActive || (client.IsSystem && !allowedSystemClient) {
 		span.SetStatus(codes.Error, "client not found or inactive")
 		return nil, apperror.NewNotFound("unknown or inactive client")
 	}
@@ -70,7 +71,10 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 		return nil, apperror.NewInternal("failed to load connections", err)
 	}
 
-	result := &OAuthConnectionsResult{Connections: make([]OAuthConnectionInfo, 0, len(connections))}
+	result := &OAuthConnectionsResult{
+		PasswordEnabled: allowedSystemClient,
+		Connections:     make([]OAuthConnectionInfo, 0, len(connections)),
+	}
 	for _, conn := range connections {
 		idp := conn.IdentityProvider
 		if idp == nil || idp.Status != shared.StatusActive {

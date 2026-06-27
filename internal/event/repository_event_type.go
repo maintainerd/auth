@@ -12,6 +12,9 @@ type EventTypeRepository interface {
 	FindByID(id any, preloads ...string) (*EventType, error)
 	FindByUUID(uuid any, preloads ...string) (*EventType, error)
 	FindAllActive() ([]EventType, error)
+	// FindActiveByTenantID scopes the active list to a tenant. Event types are
+	// tenant-scoped, so listing all active ones would leak other tenants' keys.
+	FindActiveByTenantID(tenantID int64) ([]EventType, error)
 	FindByKey(key string) (*EventType, error)
 	// FindByKeyAndTenantID scopes the lookup to a tenant. Event types are
 	// tenant-scoped, so the same key exists in every tenant — use this whenever
@@ -41,6 +44,12 @@ func (r *eventTypeRepository) WithTx(tx *gorm.DB) EventTypeRepository {
 func (r *eventTypeRepository) FindAllActive() ([]EventType, error) {
 	var types []EventType
 	err := r.DB().Where("is_active = ?", true).Order("key ASC").Find(&types).Error
+	return types, err
+}
+
+func (r *eventTypeRepository) FindActiveByTenantID(tenantID int64) ([]EventType, error) {
+	var types []EventType
+	err := r.DB().Where("is_active = ? AND tenant_id = ?", true, tenantID).Order("key ASC").Find(&types).Error
 	return types, err
 }
 

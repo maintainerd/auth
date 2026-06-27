@@ -3,6 +3,7 @@ package oauth
 import (
 	"net/http"
 
+	"github.com/maintainerd/auth/internal/platform/cookie"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
 
@@ -50,6 +51,11 @@ func (h *OAuthSessionHandler) EndSession(w http.ResponseWriter, r *http.Request)
 		oerr.WriteJSON(w)
 		return
 	}
+
+	// RP-Initiated Logout must end the browser session, not just revoke refresh
+	// tokens. Clear the auth cookies (access / id / refresh) so the authorize
+	// endpoint no longer sees a live session and the user is truly logged out.
+	cookie.ClearAuthCookies(w)
 
 	if redirectURI != "" {
 		http.Redirect(w, r, redirectURI, http.StatusFound)

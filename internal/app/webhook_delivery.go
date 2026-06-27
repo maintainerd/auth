@@ -305,6 +305,12 @@ func newReplayFn(
 		if outbox == nil {
 			return fmt.Errorf("event %s not found", eventID)
 		}
+		// Tenant isolation: only replay an event that belongs to the (tenant-scoped)
+		// endpoint's tenant. eventID comes from the request body, so without this an
+		// attacker could replay another tenant's outbox payload to their own endpoint.
+		if outbox.TenantID != ep.TenantID {
+			return fmt.Errorf("event %s not found", eventID)
+		}
 		body, err := buildDeliveryBody(outbox)
 		if err != nil {
 			return err

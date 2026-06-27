@@ -43,7 +43,7 @@ func (h *ConfigHandler) ListEventTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	types, err := h.eventTypeService.ListActive(r.Context())
+	types, err := h.eventTypeService.ListActive(r.Context(), tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to list event types", err)
 		return

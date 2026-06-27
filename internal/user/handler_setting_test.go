@@ -125,7 +125,7 @@ func TestUserSettingHandler_Delete_ServiceError(t *testing.T) {
 		getByUserUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
 			return &UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
 		},
-		deleteByUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
+		deleteByUUIDFn: func(uuid.UUID, int64) (*UserSettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -142,7 +142,7 @@ func TestUserSettingHandler_Delete_Success(t *testing.T) {
 		getByUserUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
 			return &UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
 		},
-		deleteByUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
+		deleteByUUIDFn: func(uuid.UUID, int64) (*UserSettingServiceDataResult, error) {
 			return &UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
 		},
 	}

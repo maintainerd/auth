@@ -222,7 +222,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 		if txErr != nil || user == nil {
 			return apperror.NewUnauthorized("authentication failed")
 		}
-		if Client.IdentityProvider != nil && user.TenantID != clientTenantID(Client) {
+		if user.TenantID != clientTenantID(Client) {
 			return apperror.NewUnauthorized("authentication failed")
 		}
 		if user.Status != shared.StatusActive {

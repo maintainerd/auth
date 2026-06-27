@@ -52,6 +52,8 @@ type testClientService struct {
 	removeConnectionFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 }
 
+func (m *testClientService) IsManagementClient(context.Context, string) bool { return false }
+
 func (m *testClientService) Get(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error) {
 	return m.getFn(ctx, filter)
 }

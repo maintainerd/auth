@@ -8,6 +8,7 @@ import (
 
 func ClientPublicRoute(r chi.Router, handler *ClientHandler) {
 	r.Get("/client", handler.GetPublic)
+	r.Get("/client/console", handler.GetPublicConsole)
 }
 
 func APIKeyRoute(

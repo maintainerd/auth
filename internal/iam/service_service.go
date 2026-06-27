@@ -460,6 +460,12 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		if service == nil {
 			return apperror.NewNotFound("service not found")
 		}
+		// Tenant isolation: the service must belong to the caller's tenant,
+		// otherwise a tenant could attach/detach its policy on another tenant's
+		// (or a system) service.
+		if service.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("service not found or access denied")
+		}
 
 		// Check if policy exists and belongs to the same tenant
 		policy, err := txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
@@ -524,6 +530,12 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 		if service == nil {
 			return apperror.NewNotFound("service not found")
+		}
+		// Tenant isolation: the service must belong to the caller's tenant,
+		// otherwise a tenant could attach/detach its policy on another tenant's
+		// (or a system) service.
+		if service.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
 		// Check if policy exists and belongs to the same tenant

@@ -367,7 +367,7 @@ func (m *mockEmailVerificationService) SendVerificationEmail(ctx context.Context
 	return &SendEmailVerificationResponseDTO{Success: true}, nil
 }
 
-func (m *mockEmailVerificationService) VerifyEmail(ctx context.Context, email, otp string) (*VerifyEmailResponseDTO, error) {
+func (m *mockEmailVerificationService) VerifyEmail(ctx context.Context, email, otp string, _ ...*string) (*VerifyEmailResponseDTO, error) {
 	if m.verifyEmailFn != nil {
 		return m.verifyEmailFn(ctx, email, otp)
 	}

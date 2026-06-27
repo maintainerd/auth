@@ -3,6 +3,7 @@ package authn
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -403,6 +404,24 @@ func (s *registerService) Register(
 		if existingUser != nil {
 			return apperror.NewConflict("user already exists")
 		}
+		if email != nil && strings.TrimSpace(*email) != "" {
+			existingEmailUser, lookupErr := txUserRepo.FindByEmailAndTenantID(*email, tenantId)
+			if lookupErr != nil {
+				return lookupErr
+			}
+			if existingEmailUser != nil {
+				return apperror.NewConflict("email already registered")
+			}
+		}
+		if phone != nil && strings.TrimSpace(*phone) != "" {
+			existingPhoneUser, lookupErr := txUserRepo.FindByPhoneAndTenantID(*phone, tenantId)
+			if lookupErr != nil {
+				return lookupErr
+			}
+			if existingPhoneUser != nil {
+				return apperror.NewConflict("phone already registered")
+			}
+		}
 
 		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
@@ -561,6 +580,9 @@ func (s *registerService) RegisterInvitePublic(
 		}
 		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
 			return apperror.NewUnauthorized("invite has expired")
+		}
+		if invite.TenantID == 0 || invite.TenantID != tenantId {
+			return apperror.NewUnauthorized("invite does not belong to the auth client tenant")
 		}
 
 		// Check if username already exists (scoped to the invite's tenant)
@@ -761,6 +783,9 @@ func (s *registerService) RegisterInvite(
 			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewValidation("invalid or inactive auth client")
+		}
+		if invite.TenantID == 0 || clientTenantID(Client) != invite.TenantID {
+			return apperror.NewUnauthorized("invite does not belong to the auth client tenant")
 		}
 
 		tenantId := invite.TenantID

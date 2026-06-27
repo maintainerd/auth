@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS oauth_broker_sessions (
     tenant_id                 BIGINT       NOT NULL,
     client_id                 BIGINT       NOT NULL,
     identity_provider_id      BIGINT       NOT NULL,
+    identity_provider_identifier TEXT      NOT NULL,
 
     app_redirect_uri          TEXT         NOT NULL,
     app_state                 TEXT,

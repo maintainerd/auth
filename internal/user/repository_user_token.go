@@ -34,7 +34,7 @@ type UserTokenRepository interface {
 	FindActiveSessions(userID int64) ([]UserToken, error)
 	FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*UserToken, error)
 	CountActiveSessions(userID int64) (int64, error)
-	TouchSession(sessionUUID uuid.UUID, now time.Time) error
+	TouchSession(userID int64, sessionUUID uuid.UUID, now time.Time) error
 	RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error
 	RevokeAllSessionsByUserID(userID int64) error
 }
@@ -142,9 +142,9 @@ func (r *userTokenRepository) CountActiveSessions(userID int64) (int64, error) {
 // TouchSession updates last_used_at for the session identified by sessionUUID.
 // This implements the sliding idle timeout: callers invoke this on every
 // authenticated request.
-func (r *userTokenRepository) TouchSession(sessionUUID uuid.UUID, now time.Time) error {
+func (r *userTokenRepository) TouchSession(userID int64, sessionUUID uuid.UUID, now time.Time) error {
 	return r.DB().Model(&UserToken{}).
-		Where("user_token_uuid = ? AND token_type = ? AND is_revoked = false", sessionUUID, shared.TokenTypeSession).
+		Where("user_token_uuid = ? AND user_id = ? AND token_type = ? AND is_revoked = false", sessionUUID, userID, shared.TokenTypeSession).
 		Update("last_used_at", now).Error
 }
 

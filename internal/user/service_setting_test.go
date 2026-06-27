@@ -23,7 +23,7 @@ func TestUserSettingService_GetByUUID(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{})
-		_, err := svc.GetByUUID(context.Background(), id)
+		_, err := svc.GetByUUID(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -31,10 +31,10 @@ func TestUserSettingService_GetByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) {
-				return &UserSetting{UserSettingUUID: id}, nil
+				return &UserSetting{UserSettingUUID: id, UserID: 1}, nil
 			},
 		}, &mockUserRepo{})
-		res, err := svc.GetByUUID(context.Background(), id)
+		res, err := svc.GetByUUID(context.Background(), id, 1)
 		require.NoError(t, err)
 		assert.Equal(t, id, res.UserSettingUUID)
 	})
@@ -69,7 +69,7 @@ func TestUserSettingService_GetByUserUUID(t *testing.T) {
 		sid := uuid.New()
 		svc := newUserSettingSvc(&mockUserSettingRepo{
 			findByUserIDFn: func(_ int64) (*UserSetting, error) {
-				return &UserSetting{UserSettingUUID: sid}, nil
+				return &UserSetting{UserSettingUUID: sid, UserID: 1}, nil
 			},
 		}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
@@ -89,7 +89,7 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{})
-		_, err := svc.DeleteByUUID(context.Background(), id)
+		_, err := svc.DeleteByUUID(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -97,11 +97,11 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 	t.Run("delete error", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) {
-				return &UserSetting{UserSettingUUID: id}, nil
+				return &UserSetting{UserSettingUUID: id, UserID: 1}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		}, &mockUserRepo{})
-		_, err := svc.DeleteByUUID(context.Background(), id)
+		_, err := svc.DeleteByUUID(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})
@@ -109,11 +109,11 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) {
-				return &UserSetting{UserSettingUUID: id}, nil
+				return &UserSetting{UserSettingUUID: id, UserID: 1}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		}, &mockUserRepo{})
-		res, err := svc.DeleteByUUID(context.Background(), id)
+		res, err := svc.DeleteByUUID(context.Background(), id, 1)
 		require.NoError(t, err)
 		assert.Equal(t, id, res.UserSettingUUID)
 	})

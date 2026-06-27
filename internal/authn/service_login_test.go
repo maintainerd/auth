@@ -234,6 +234,9 @@ func (m *mockUserRepo) FindByID(id any, p ...string) (*User, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(id, p...)
 	}
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn("")
+	}
 	return nil, nil
 }
 func (m *mockUserRepo) UpdateByUUID(id, data any) (*User, error) {
@@ -453,7 +456,7 @@ type mockUserTokenRepo struct {
 	countActiveSessionsFn       func(int64) (int64, error)
 	revokeSessionByUUIDFn       func(int64, uuid.UUID) error
 	revokeAllSessionsByUserIDFn func(int64) error
-	touchSessionFn              func(uuid.UUID, time.Time) error
+	touchSessionFn              func(int64, uuid.UUID, time.Time) error
 }
 
 func (m *mockUserTokenRepo) WithTx(_ *gorm.DB) UserTokenRepository { return m }
@@ -518,9 +521,9 @@ func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error) {
 	}
 	return 0, nil
 }
-func (m *mockUserTokenRepo) TouchSession(sessionUUID uuid.UUID, now time.Time) error {
+func (m *mockUserTokenRepo) TouchSession(userID int64, sessionUUID uuid.UUID, now time.Time) error {
 	if m.touchSessionFn != nil {
-		return m.touchSessionFn(sessionUUID, now)
+		return m.touchSessionFn(userID, sessionUUID, now)
 	}
 	return nil
 }
@@ -760,12 +763,11 @@ func TestGetUserByEmail(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:     "global lookup (tenantID=0) returns user",
-			email:    "a@b.com",
-			tenantID: 0,
-			setupRepo: func(m *mockUserRepo) {
-				m.findByEmailFn = func(e string) (*User, error) { return &User{Email: e}, nil }
-			},
+			name:      "zero tenant is rejected without a global lookup",
+			email:     "a@b.com",
+			tenantID:  0,
+			setupRepo: func(*mockUserRepo) {},
+			wantErr:   true,
 		},
 		{
 			name:     "tenant-scoped lookup returns user",
@@ -776,15 +778,6 @@ func TestGetUserByEmail(t *testing.T) {
 					return &User{Email: e}, nil
 				}
 			},
-		},
-		{
-			name:     "global lookup - user not found",
-			email:    "nope@x.com",
-			tenantID: 0,
-			setupRepo: func(m *mockUserRepo) {
-				m.findByEmailFn = func(_ string) (*User, error) { return nil, errors.New("not found") }
-			},
-			wantErr: true,
 		},
 		{
 			name:     "tenant-scoped lookup - user not found",

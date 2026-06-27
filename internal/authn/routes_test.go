@@ -27,6 +27,7 @@ func TestAuthnRoutes_RegisterEndpoints(t *testing.T) {
 		}, "/forgot-password"},
 		{"login internal", func(r chi.Router) { LoginRoute(r, NewLoginHandler(&mockLoginService{})) }, "/login"},
 		{"login public", func(r chi.Router) { LoginPublicRoute(r, NewLoginHandler(&mockLoginService{})) }, "/login"},
+		{"login public refresh", func(r chi.Router) { LoginPublicRoute(r, NewLoginHandler(&mockLoginService{})) }, "/refresh-token"},
 		{"magic link public", func(r chi.Router) { MagicLinkPublicRoute(r, NewMagicLinkHandler(&mockMagicLinkService{})) }, "/magic-link/send"},
 		{"register internal", func(r chi.Router) {
 			RegisterRoute(r, NewRegisterHandler(&mockRegisterService{}))

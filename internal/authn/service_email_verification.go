@@ -32,7 +32,7 @@ const EmailVerificationTemplateName = "user:email:verification"
 
 type EmailVerificationService interface {
 	SendVerificationEmail(ctx context.Context, email string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error)
-	VerifyEmail(ctx context.Context, email, otp string) (*VerifyEmailResponseDTO, error)
+	VerifyEmail(ctx context.Context, email, otp string, authContext ...*string) (*VerifyEmailResponseDTO, error)
 }
 
 type emailVerificationService struct {
@@ -202,7 +202,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 	return response, nil
 }
 
-func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, otp string) (*VerifyEmailResponseDTO, error) {
+func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, otp string, authContext ...*string) (*VerifyEmailResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "emailVerification.verify")
 	defer span.End()
 
@@ -214,11 +214,56 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
+		expectedTenantID := int64(0)
+		if len(authContext) >= 2 {
+			txClientRepo := s.clientRepo.WithTx(tx)
+			var authClient *Client
+			var resolveErr error
+			if publicAuthSurfaceFromContext(ctx) {
+				authClient, resolveErr = resolvePublicClient(txClientRepo, authContext[0], authContext[1])
+			} else {
+				authClient, resolveErr = resolveClient(txClientRepo, authContext[0], authContext[1])
+			}
+			if resolveErr != nil {
+				return apperror.NewInternal("failed to find auth client", resolveErr)
+			}
+			if authClient == nil || clientTenantID(authClient) == 0 {
+				return apperror.NewUnauthorized("invalid or expired verification code")
+			}
+			expectedTenantID = clientTenantID(authClient)
+		}
 
-		var txErr error
-		user, txErr = txUserRepo.FindByEmail(emailAddr)
-		if txErr != nil {
-			return apperror.NewInternal("failed to find user", txErr)
+		otpHash := crypto.HashAuthorizationCode(otp)
+
+		// Resolve the user from the verification token itself rather than a global
+		// email lookup. The OTP binds to a single user (hence a single tenant), so
+		// this avoids resolving an arbitrary user when the same email exists in more
+		// than one tenant (cross-tenant bug). The supplied email must match the
+		// token's user. The endpoint stays self-contained (no client_id needed).
+		var candidateTokens []UserToken
+		if txErr := tx.Where(
+			"token_type = ? AND token = ? AND is_revoked = false",
+			shared.TokenTypeEmailVerification, otpHash,
+		).Find(&candidateTokens).Error; txErr != nil {
+			return apperror.NewInternal("failed to find verification token", txErr)
+		}
+		var matchedToken *UserToken
+		for i := range candidateTokens {
+			candidate, lookupErr := txUserRepo.FindByID(candidateTokens[i].UserID)
+			if lookupErr != nil {
+				return apperror.NewInternal("failed to find user", lookupErr)
+			}
+			if candidate != nil &&
+				(expectedTenantID == 0 || candidate.TenantID == expectedTenantID) &&
+				strings.EqualFold(strings.TrimSpace(candidate.Email), emailAddr) {
+				// A six-digit OTP can collide. Never pick an arbitrary tenant when
+				// the same email+OTP pair is simultaneously valid more than once.
+				if user != nil {
+					return apperror.NewUnauthorized("invalid or expired verification code")
+				}
+				user = candidate
+				matchedToken = &candidateTokens[i]
+			}
 		}
 		if user == nil {
 			return apperror.NewUnauthorized("invalid or expired verification code")
@@ -228,38 +273,15 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 			return apperror.NewUnauthorized("user account is not active")
 		}
 
-		otpHash := crypto.HashAuthorizationCode(otp)
-
 		if user.IsEmailVerified {
-			var verifiedMatches []UserToken
-			if txErr := tx.Where(
-				"user_id = ? AND token_type = ? AND token = ? AND is_revoked = false",
-				user.UserID, shared.TokenTypeEmailVerification, otpHash,
-			).Find(&verifiedMatches).Error; txErr != nil {
-				return apperror.NewInternal("failed to find verification token", txErr)
-			}
-			if len(verifiedMatches) > 0 {
-				return nil
-			}
+			return nil
+		}
+
+		if matchedToken == nil {
 			return apperror.NewUnauthorized("invalid or expired verification code")
 		}
 
-		var match *UserToken
-		var matches []UserToken
-		if txErr := tx.Where(
-			"user_id = ? AND token_type = ? AND token = ? AND is_revoked = false",
-			user.UserID, shared.TokenTypeEmailVerification, otpHash,
-		).Find(&matches).Error; txErr != nil {
-			return apperror.NewInternal("failed to find verification token", txErr)
-		}
-		if len(matches) > 0 {
-			match = &matches[0]
-		}
-		if match == nil {
-			return apperror.NewUnauthorized("invalid or expired verification code")
-		}
-
-		if match.ExpiresAt != nil && time.Now().After(*match.ExpiresAt) {
+		if matchedToken.ExpiresAt != nil && time.Now().After(*matchedToken.ExpiresAt) {
 			return apperror.NewUnauthorized("verification code has expired")
 		}
 

@@ -37,6 +37,20 @@ func TestOAuthSessionHandler_EndSession_GET(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
+	t.Run("clears the session cookie so logout truly ends the session", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/oauth/end_session", nil)
+		w := httptest.NewRecorder()
+		NewOAuthSessionHandler(&mockOAuthSessionService{}).EndSession(w, r)
+
+		var accessCleared bool
+		for _, c := range w.Result().Cookies() {
+			if c.Name == "__Host-access_token" && c.Value == "" {
+				accessCleared = true
+			}
+		}
+		assert.True(t, accessCleared, "EndSession must clear the __Host-access_token cookie")
+	})
+
 	t.Run("redirect when redirect_uri is returned", func(t *testing.T) {
 		svc := &mockOAuthSessionService{
 			endSessionFn: func(context.Context, OAuthEndSessionRequestDTO) (string, *apperror.OAuthError) {

@@ -223,7 +223,7 @@ func TestAPIService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		svcRepo := &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
-				return &Service{ServiceID: 1}, nil
+				return &Service{ServiceID: 1, TenantID: tenantID}, nil
 			},
 		}
 		svc := NewAPIService(db, &mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
@@ -238,7 +238,7 @@ func TestAPIService_Create(t *testing.T) {
 		mock.ExpectCommit()
 		svcRepo := &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
-				return &Service{ServiceID: 1}, nil
+				return &Service{ServiceID: 1, TenantID: tenantID}, nil
 			},
 		}
 		createdAPI := newAPI(1, "users-api", tenantID)
@@ -847,7 +847,7 @@ func TestAPIService_Create_SaveError(t *testing.T) {
 		createOrUpdateFn: func(_ *API) (*API, error) { return nil, errors.New("save err") },
 	}
 	svcRepo := &mockServiceRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return &Service{ServiceID: 1}, nil },
+		findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return &Service{ServiceID: 1, TenantID: tenantID}, nil },
 	}
 	svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
 	_, err := svc.Create(context.Background(), 1, "api", "", "", "active", false, uuid.New().String())
@@ -862,7 +862,7 @@ func TestAPIService_Create_FetchAfterSaveError(t *testing.T) {
 		findByUUIDFn: func(_ any, _ ...string) (*API, error) { return nil, errors.New("fetch err") },
 	}
 	svcRepo := &mockServiceRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return &Service{ServiceID: 1}, nil },
+		findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return &Service{ServiceID: 1, TenantID: tenantID}, nil },
 	}
 	svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
 	_, err := svc.Create(context.Background(), 1, "api", "", "", "active", false, uuid.New().String())

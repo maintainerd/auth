@@ -49,15 +49,19 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 	r.Get("/openapi.json", ServeOpenAPISpec)
 
 	r.Route("/api/v1", func(api chi.Router) {
+		// Audience guard: the internal API is the first-party management surface.
+		// Reject any presented JWT that wasn't minted for the management
+		// (auth-console) client, so a token issued to some other public client
+		// can't be replayed here. Token-less (setup, public tenant reads) and
+		// API-key requests pass through to their own auth rules.
+		api.Use(securityMiddleware.RequireManagementClient(application.ClientService))
+
 		// Setup Routes (no authentication required)
 		setup.SetupRoute(api, h.setup)
 
-		// Internal Authentication Routes (no client_id/provider_id required)
-		authn.RegisterRoute(api, h.register)
-		authn.LoginRoute(api, h.login)
-		authn.ForgotPasswordRoute(api, h.forgotPassword)
-		authn.ResetPasswordRoute(api, h.resetPassword)
-		authn.EmailVerificationRoute(api, h.emailVerification)
+		// Interactive authentication is public-only. The console now starts an
+		// OAuth flow through the hosted identity app instead of posting
+		// credentials to the internal API.
 		user.ProfileRoute(api, h.profile, userProvider, application.Cache, tenantRateLimit)
 		user.UserSettingRoute(api, h.userSetting, userProvider, application.Cache, tenantRateLimit)
 
@@ -96,10 +100,6 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
 		idp.FederationPublicRoute(api, h.federation)
 		idp.FederationIdentityRoute(api, h.federation, userProvider, application.Cache, tenantRateLimit)
-		// SMS login (unauthenticated, tenant-scoped)
-		authn.SMSLoginInternalRoute(api, h.smsLogin)
-		// Account recovery via backup code (unauthenticated)
-		user.RecoveryRoute(api, h.account)
 	})
 	return r
 }

@@ -166,7 +166,7 @@ func TestOAuthAuthorizeHandler_Authorize_PassesQueryParams(t *testing.T) {
 	h := NewOAuthAuthorizeHandler(svc)
 	r := httptest.NewRequest(http.MethodGet,
 		"/oauth/authorize?response_type=code&client_id=myapp&redirect_uri=https://app.example.com/cb"+
-			"&scope=openid+profile&state=s1&nonce=n1"+
+			"&scope=openid+profile&state=s1&nonce=n1&prompt=none"+
 			"&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"+
 			"&code_challenge_method=S256", nil)
 	r = withUser(r)
@@ -181,8 +181,22 @@ func TestOAuthAuthorizeHandler_Authorize_PassesQueryParams(t *testing.T) {
 	assert.Equal(t, "openid profile", captured.Scope)
 	assert.Equal(t, "s1", captured.State)
 	assert.Equal(t, "n1", captured.Nonce)
+	assert.Equal(t, "none", captured.Prompt)
 	assert.Equal(t, "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", captured.CodeChallenge)
 	assert.Equal(t, "S256", captured.CodeChallengeMethod)
+}
+
+func TestOAuthAuthorizeHandler_Authorize_PromptNoneRejectsBrokerInteraction(t *testing.T) {
+	h := NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{})
+	r := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+validAuthorizeQuery()+"&prompt=none&idp_hint=google", nil)
+	w := httptest.NewRecorder()
+
+	h.Authorize(w, r)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	var body map[string]string
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
+	assert.Equal(t, "interaction_required", body["error"])
 }
 
 // ---------------------------------------------------------------------------

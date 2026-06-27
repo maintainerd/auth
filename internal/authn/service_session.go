@@ -309,7 +309,7 @@ func (s *sessionService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.
 	}
 
 	// Touch — update last_used_at for the sliding window.
-	if err := s.userTokenRepo.TouchSession(sessionUUID, now); err != nil {
+	if err := s.userTokenRepo.TouchSession(userID, sessionUUID, now); err != nil {
 		// Non-fatal: log but don't fail the request.
 		span.RecordError(err)
 	}

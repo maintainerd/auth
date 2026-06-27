@@ -703,6 +703,9 @@ func (s *authFlowService) RemoveRole(ctx context.Context, authFlowUUID uuid.UUID
 		if err != nil || role == nil {
 			return apperror.NewNotFound("role not found")
 		}
+		if role.TenantID != authFlow.TenantID {
+			return apperror.NewNotFoundWithReason("role not found: " + roleUUID.String())
+		}
 
 		// Delete signup flow role
 		return txAuthFlowRoleRepo.DeleteByAuthFlowIDAndRoleID(authFlow.AuthFlowID, role.RoleID)

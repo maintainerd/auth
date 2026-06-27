@@ -217,9 +217,8 @@ type UserRepository interface {
 	BaseRepositoryMethods[User]
 	FindByID(id any, preloads ...string) (*User, error)
 	WithTx(tx *gorm.DB) UserRepository
-	FindByEmail(email string) (*User, error)
 	// FindByEmailAndTenantID scopes the lookup to a tenant; users are isolated
-	// per tenant so a bare email may match the wrong tenant's account.
+	// per tenant and no unscoped email lookup is exposed.
 	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindBySubAndClientID(sub, clientID string) (*User, error)
 }
