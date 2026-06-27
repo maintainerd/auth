@@ -22,8 +22,11 @@ type AuthFlowServiceDataResult struct {
 	Destination string
 	Status       string
 	ClientUUID   uuid.UUID
-	BrandingUUID *uuid.UUID
-	CreatedAt    time.Time
+	BrandingUUID  *uuid.UUID
+	AllowRegistration    bool
+	VerificationRequired bool
+	RequiredFields       string
+	CreatedAt     time.Time
 	UpdatedAt    time.Time
 }
 
@@ -75,8 +78,8 @@ type AuthFlowRoleServiceListResult struct {
 type AuthFlowService interface {
 	GetAll(ctx context.Context, tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*AuthFlowServiceListResult, error)
 	GetByUUID(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64) (*AuthFlowServiceDataResult, error)
-	Create(ctx context.Context, tenantID int64, name, description, status, destination string, ClientUUID uuid.UUID, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error)
-	Update(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64, name, description, status string, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name, description, status, destination string, ClientUUID uuid.UUID, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID, allowRegistration bool, verificationRequired bool, requiredFields string) (*AuthFlowServiceDataResult, error)
+	Update(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64, name, description, status string, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID, allowRegistration bool, verificationRequired bool, requiredFields string) (*AuthFlowServiceDataResult, error)
 	UpdateStatus(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64, status string) (*AuthFlowServiceDataResult, error)
 	Delete(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64) (*AuthFlowServiceDataResult, error)
 	AssignRoles(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64, roleUUIDs []uuid.UUID) ([]AuthFlowRoleServiceDataResult, error)
@@ -285,7 +288,7 @@ func (s *authFlowService) GetByUUID(ctx context.Context, authFlowUUID uuid.UUID,
 	return toAuthFlowServiceDataResult(authFlow), nil
 }
 
-func (s *authFlowService) Create(ctx context.Context, tenantID int64, name, description, status, destination string, ClientUUID uuid.UUID, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error) {
+func (s *authFlowService) Create(ctx context.Context, tenantID int64, name, description, status, destination string, ClientUUID uuid.UUID, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID, allowRegistration bool, verificationRequired bool, requiredFields string) (*AuthFlowServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "authFlow.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
@@ -338,14 +341,17 @@ func (s *authFlowService) Create(ctx context.Context, tenantID int64, name, desc
 
 		// Create auth flow
 		authFlow := &AuthFlow{
-			TenantID:     tenantID,
-			Name:         name,
-			Description:  description,
-			Identifier:   identifier,
-			Destination: destination,
-			Status:       status,
-			ClientID:     &Client.ClientID,
-			BrandingID:   brandingID,
+			TenantID:             tenantID,
+			Name:                 name,
+			Description:          description,
+			Identifier:           identifier,
+			Destination:          destination,
+			Status:               status,
+			ClientID:             &Client.ClientID,
+			BrandingID:           brandingID,
+			AllowRegistration:    allowRegistration,
+			VerificationRequired: verificationRequired,
+			RequiredFields:       requiredFields,
 		}
 
 		created, err := txAuthFlowRepo.Create(authFlow)
@@ -379,7 +385,7 @@ func (s *authFlowService) Create(ctx context.Context, tenantID int64, name, desc
 	return s.GetByUUID(ctx, createdAuthFlow.AuthFlowUUID, tenantID)
 }
 
-func (s *authFlowService) Update(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64, name, description, status string, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID) (*AuthFlowServiceDataResult, error) {
+func (s *authFlowService) Update(ctx context.Context, authFlowUUID uuid.UUID, tenantID int64, name, description, status string, brandingUUID *uuid.UUID, roleUUIDs, callbackClientURIUUIDs []uuid.UUID, allowRegistration bool, verificationRequired bool, requiredFields string) (*AuthFlowServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "authFlow.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("authFlow.uuid", authFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
@@ -417,6 +423,9 @@ func (s *authFlowService) Update(ctx context.Context, authFlowUUID uuid.UUID, te
 		authFlow.Description = description
 		authFlow.Status = status
 		authFlow.BrandingID = brandingID
+		authFlow.AllowRegistration = allowRegistration
+		authFlow.VerificationRequired = verificationRequired
+		authFlow.RequiredFields = requiredFields
 
 		updated, err := txAuthFlowRepo.CreateOrUpdate(authFlow)
 		if err != nil {
@@ -549,8 +558,11 @@ func toAuthFlowServiceDataResult(sf *AuthFlow) *AuthFlowServiceDataResult {
 		Destination: sf.Destination,
 		Status:       sf.Status,
 		ClientUUID:   ClientUUID,
-		BrandingUUID: brandingUUID,
-		CreatedAt:    sf.CreatedAt,
+		BrandingUUID:  brandingUUID,
+		AllowRegistration:    sf.AllowRegistration,
+		VerificationRequired: sf.VerificationRequired,
+		RequiredFields:       sf.RequiredFields,
+		CreatedAt:     sf.CreatedAt,
 		UpdatedAt:    sf.UpdatedAt,
 	}
 }

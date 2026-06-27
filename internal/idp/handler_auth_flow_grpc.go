@@ -73,7 +73,7 @@ func (h *AuthFlowGRPCHandler) CreateSignupFlow(ctx context.Context, req *authv1.
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.authFlowService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), shared.DestinationIdentity, clientUUID, nil, nil, nil)
+	result, err := h.authFlowService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -89,7 +89,7 @@ func (h *AuthFlowGRPCHandler) UpdateSignupFlow(ctx context.Context, req *authv1.
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.authFlowService.Update(ctx, sfUUID, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), nil, nil, nil)
+	result, err := h.authFlowService.Update(ctx, sfUUID, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), nil, nil, nil, false, false, "[]")
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

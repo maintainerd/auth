@@ -184,6 +184,9 @@ func (h *AuthFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 		brandingUUID,
 		parseUUIDList(req.RoleIDs),
 		parseUUIDList(req.ClientURIIDs),
+		boolValue(req.AllowRegistration, true),
+		boolValue(req.VerificationRequired, false),
+		strValue(req.RequiredFields, "[]"),
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create signup flow", err)
@@ -247,6 +250,9 @@ func (h *AuthFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 		brandingUUID,
 		parseUUIDList(req.RoleIDs),
 		parseUUIDList(req.ClientURIIDs),
+		boolValue(req.AllowRegistration, true),
+		boolValue(req.VerificationRequired, false),
+		strValue(req.RequiredFields, "[]"),
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update signup flow", err)
@@ -533,6 +539,9 @@ func toAuthFlowResponseDTO(sf AuthFlowServiceDataResult) AuthFlowResponseDTO {
 	if sf.BrandingUUID != nil {
 		dto.BrandingUUID = sf.BrandingUUID.String()
 	}
+	dto.AllowRegistration = sf.AllowRegistration
+	dto.VerificationRequired = sf.VerificationRequired
+	dto.RequiredFields = sf.RequiredFields
 	return dto
 }
 
@@ -702,4 +711,14 @@ func (h *AuthFlowHandler) RemoveCallbackURI(w http.ResponseWriter, r *http.Reque
 	}
 
 	resp.Success(w, nil, "Callback URI removed successfully")
+}
+
+func boolValue(p *bool, def bool) bool {
+	if p == nil { return def }
+	return *p
+}
+
+func strValue(p *string, def string) string {
+	if p == nil { return def }
+	return *p
 }
