@@ -774,6 +774,42 @@ func TestRegisterService_Register(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("email already exists returns conflict before create", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		m := defaultRegInternalMocks()
+		m.user.findByEmailAndTenantIDFn = func(string, int64) (*User, error) {
+			return &User{UserID: 99}, nil
+		}
+		email := "existing@example.com"
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, &pid)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "email already registered")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("phone already exists returns conflict before create", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		m := defaultRegInternalMocks()
+		m.user.findByPhoneFn = func(string) (*User, error) {
+			return &User{UserID: 99}, nil
+		}
+		phone := "+1234567890"
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, &phone, &cid, &pid)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "phone already registered")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("user create error", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -950,6 +986,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		future := time.Now().Add(time.Hour)
 		return &Invite{
 			InviteUUID:   uuid.New(),
+			TenantID:     1,
 			InvitedEmail: "invite@test.com",
 			Status:       shared.StatusPending,
 			ExpiresAt:    &future,
@@ -969,6 +1006,25 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("invite tenant must match client tenant", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		m := defaultRegPublicMocks()
+		m.invite.findByTokenFn = func(string) (*Invite, error) {
+			invite := validInvite()
+			invite.TenantID = 99
+			return invite, nil
+		}
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "does not belong")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -1300,6 +1356,7 @@ func TestRegisterInvitePublic_PasswordPolicyValidationTight(t *testing.T) {
 		future := time.Now().Add(time.Hour)
 		return &Invite{
 			InviteUUID:   uuid.New(),
+			TenantID:     1,
 			InvitedEmail: "invite@test.com",
 			Status:       shared.StatusPending,
 			ExpiresAt:    &future,

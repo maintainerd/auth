@@ -166,3 +166,14 @@ func NewOAuthConsentRequired(description string) *OAuthError {
 		StatusCode:  http.StatusForbidden,
 	}
 }
+
+// NewOAuthInteractionRequired creates an error when an authorization request
+// cannot complete without user interaction (for example, an upstream broker
+// redirect requested together with prompt=none).
+func NewOAuthInteractionRequired(description string) *OAuthError {
+	return &OAuthError{
+		Code:        "interaction_required",
+		Description: description,
+		StatusCode:  http.StatusForbidden,
+	}
+}

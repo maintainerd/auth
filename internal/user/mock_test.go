@@ -839,9 +839,9 @@ func (m *mockProfileService) DeleteByUUID(_ context.Context, profileUUID uuid.UU
 type mockUserSettingService struct {
 	createOrUpdateFn            func(uuid.UUID, *string, *string, *string, map[string]any, *string, *bool, *bool, *bool, *string, *bool, *time.Time, *time.Time, *string, *string, *string, *string) (*UserSettingServiceDataResult, error)
 	createOrUpdateUserSettingFn func(uuid.UUID, *string, *string, *string, map[string]any, *string, *bool, *bool, *bool, *string, *bool, *time.Time, *time.Time, *string, *string, *string, *string) (*UserSettingServiceDataResult, error)
-	getByUUIDFn                 func(uuid.UUID) (*UserSettingServiceDataResult, error)
+	getByUUIDFn                 func(uuid.UUID, int64) (*UserSettingServiceDataResult, error)
 	getByUserUUIDFn             func(uuid.UUID) (*UserSettingServiceDataResult, error)
-	deleteByUUIDFn              func(uuid.UUID) (*UserSettingServiceDataResult, error)
+	deleteByUUIDFn              func(uuid.UUID, int64) (*UserSettingServiceDataResult, error)
 }
 
 func (m *mockUserSettingService) CreateOrUpdateUserSetting(_ context.Context, userUUID uuid.UUID, timezone, preferredLanguage, locale *string, socialLinks map[string]any, preferredContactMethod *string, marketingEmailConsent, smsNotificationsConsent, pushNotificationsConsent *bool, profileVisibility *string, dataProcessingConsent *bool, termsAcceptedAt, privacyPolicyAcceptedAt *time.Time, emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation *string) (*UserSettingServiceDataResult, error) {
@@ -853,9 +853,9 @@ func (m *mockUserSettingService) CreateOrUpdateUserSetting(_ context.Context, us
 	}
 	return &UserSettingServiceDataResult{}, nil
 }
-func (m *mockUserSettingService) GetByUUID(_ context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+func (m *mockUserSettingService) GetByUUID(_ context.Context, userSettingUUID uuid.UUID, userID int64) (*UserSettingServiceDataResult, error) {
 	if m.getByUUIDFn != nil {
-		return m.getByUUIDFn(userSettingUUID)
+		return m.getByUUIDFn(userSettingUUID, userID)
 	}
 	return &UserSettingServiceDataResult{}, nil
 }
@@ -865,9 +865,9 @@ func (m *mockUserSettingService) GetByUserUUID(_ context.Context, userUUID uuid.
 	}
 	return nil, nil
 }
-func (m *mockUserSettingService) DeleteByUUID(_ context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+func (m *mockUserSettingService) DeleteByUUID(_ context.Context, userSettingUUID uuid.UUID, userID int64) (*UserSettingServiceDataResult, error) {
 	if m.deleteByUUIDFn != nil {
-		return m.deleteByUUIDFn(userSettingUUID)
+		return m.deleteByUUIDFn(userSettingUUID, userID)
 	}
 	return &UserSettingServiceDataResult{}, nil
 }
@@ -884,7 +884,7 @@ type mockUserTokenRepo struct {
 	findActiveSessionsFn        func(int64) ([]UserToken, error)
 	findActiveSessionByUUIDFn   func(int64, uuid.UUID) (*UserToken, error)
 	countActiveSessionsFn       func(int64) (int64, error)
-	touchSessionFn              func(uuid.UUID, time.Time) error
+	touchSessionFn              func(int64, uuid.UUID, time.Time) error
 	revokeSessionByUUIDFn       func(int64, uuid.UUID) error
 	revokeAllSessionsByUserIDFn func(int64) error
 	createFn                    func(*UserToken) (*UserToken, error)
@@ -957,9 +957,9 @@ func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error) {
 	}
 	return 0, nil
 }
-func (m *mockUserTokenRepo) TouchSession(sessionUUID uuid.UUID, now time.Time) error {
+func (m *mockUserTokenRepo) TouchSession(userID int64, sessionUUID uuid.UUID, now time.Time) error {
 	if m.touchSessionFn != nil {
-		return m.touchSessionFn(sessionUUID, now)
+		return m.touchSessionFn(userID, sessionUUID, now)
 	}
 	return nil
 }

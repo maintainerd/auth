@@ -51,6 +51,9 @@ func (m *mockEventTypeRepo) Paginate(conditions map[string]any, page int, limit 
 	return nil, nil
 }
 func (m *mockEventTypeRepo) FindAllActive() ([]event.EventType, error)      { return nil, nil }
+func (m *mockEventTypeRepo) FindActiveByTenantID(int64) ([]event.EventType, error) {
+	return nil, nil
+}
 func (m *mockEventTypeRepo) FindByKey(key string) (*event.EventType, error) { return nil, nil }
 func (m *mockEventTypeRepo) FindByKeyAndTenantID(key string, tenantID int64) (*event.EventType, error) {
 	return nil, nil
@@ -133,7 +136,7 @@ func TestSubscriptionHandler_AddSubscription(t *testing.T) {
 		}
 		etRepo := &mockEventTypeRepo{
 			findByUUIDFn: func(_ string) (*event.EventType, error) {
-				return &event.EventType{EventTypeID: 5, EventTypeUUID: etUUID, Key: "user.created"}, nil
+				return &event.EventType{EventTypeID: 5, EventTypeUUID: etUUID, Key: "user.created", TenantID: 1}, nil
 			},
 		}
 		h := NewSubscriptionHandler(&mockWebhookEndpointEventRepo{}, repo, etRepo)

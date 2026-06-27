@@ -296,7 +296,7 @@ func TestVerifyEmail_UpdateByIDError(t *testing.T) {
 	gormDB, mock := newMockGormDBRegex(t)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
-		WithArgs(userID, "user:email:verification", otpHash).
+		WithArgs("user:email:verification", otpHash).
 		WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
 			AddRow(1, uuid.New(), userID, "user:email:verification", otpHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 	mock.ExpectRollback()
@@ -334,7 +334,7 @@ func TestVerifyEmail_FindExistingTokensError(t *testing.T) {
 	gormDB, mock := newMockGormDBRegex(t)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
-		WithArgs(userID, "user:email:verification", otpHash).
+		WithArgs("user:email:verification", otpHash).
 		WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
 			AddRow(1, uuid.New(), userID, "user:email:verification", otpHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 	mock.ExpectRollback()
@@ -375,7 +375,7 @@ func TestVerifyEmail_RevokeByUUIDIterationError(t *testing.T) {
 	gormDB, mock := newMockGormDBRegex(t)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
-		WithArgs(userID, "user:email:verification", otpHash).
+		WithArgs("user:email:verification", otpHash).
 		WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
 			AddRow(1, uuid.New(), userID, "user:email:verification", otpHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 	mock.ExpectRollback()
@@ -893,6 +893,9 @@ func TestVerifyEmail(t *testing.T) {
 	t.Run("user not found", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+			WithArgs("user:email:verification", otpHash).
+			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_id"}))
 		mock.ExpectRollback()
 
 		userRepo := &mockUserRepo{
@@ -911,6 +914,10 @@ func TestVerifyEmail(t *testing.T) {
 	t.Run("user lookup error", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+			WithArgs("user:email:verification", otpHash).
+			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_id", "token_type", "token", "is_revoked"}).
+				AddRow(1, userID, "user:email:verification", otpHash, false))
 		mock.ExpectRollback()
 
 		userRepo := &mockUserRepo{
@@ -931,6 +938,10 @@ func TestVerifyEmail(t *testing.T) {
 	t.Run("inactive user", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+			WithArgs("user:email:verification", otpHash).
+			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_id", "token_type", "token", "is_revoked"}).
+				AddRow(1, userID, "user:email:verification", otpHash, false))
 		mock.ExpectRollback()
 
 		userRepo := &mockUserRepo{
@@ -948,12 +959,34 @@ func TestVerifyEmail(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("ambiguous same email and OTP across tenants is rejected", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+			WithArgs("user:email:verification", otpHash).
+			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_id", "token_type", "token", "is_revoked"}).
+				AddRow(1, int64(11), "user:email:verification", otpHash, false).
+				AddRow(2, int64(22), "user:email:verification", otpHash, false))
+		mock.ExpectRollback()
+
+		userRepo := &mockUserRepo{findByIDFn: func(id any, _ ...string) (*User, error) {
+			return &User{UserID: id.(int64), Email: emailAddr, Status: shared.StatusActive}, nil
+		}}
+		svc := NewEmailVerificationService(gormDB, userRepo, &mockUserTokenRepo{}, &mockClientRepo{}, &mockEmailTemplateRepo{}, nil, nil)
+		resp, err := svc.VerifyEmail(context.Background(), emailAddr, otp)
+
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "invalid or expired verification code")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("already verified idempotent success", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		futureTime := time.Now().Add(1 * time.Hour)
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs(userID, "user:email:verification", otpHash).
+			WithArgs("user:email:verification", otpHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_id", "token_type", "token", "expires_at", "is_revoked"}).
 				AddRow(1, userID, "user:email:verification", otpHash, futureTime, false))
 		mock.ExpectCommit()
@@ -978,7 +1011,7 @@ func TestVerifyEmail(t *testing.T) {
 		gormDB, mock := newMockGormDBRegex(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs(userID, "user:email:verification", otpHash).
+			WithArgs("user:email:verification", otpHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}))
 		mock.ExpectRollback()
 
@@ -1002,7 +1035,7 @@ func TestVerifyEmail(t *testing.T) {
 		gormDB, mock := newMockGormDBRegex(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs(userID, "user:email:verification", otpHash).
+			WithArgs("user:email:verification", otpHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), userID, "user:email:verification", otpHash, pastTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 		mock.ExpectRollback()
@@ -1027,7 +1060,7 @@ func TestVerifyEmail(t *testing.T) {
 		gormDB, mock := newMockGormDBRegex(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs(userID, "user:email:verification", otpHash).
+			WithArgs("user:email:verification", otpHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), userID, "user:email:verification", otpHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 		mock.ExpectCommit()
@@ -1059,7 +1092,7 @@ func TestVerifyEmail(t *testing.T) {
 		gormDB, mock := newMockGormDBRegex(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs(userID, "user:email:verification", otpHash).
+			WithArgs("user:email:verification", otpHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), userID, "user:email:verification", otpHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 		mock.ExpectCommit()

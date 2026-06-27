@@ -12,6 +12,7 @@ type OAuthAuthorizeRequestDTO struct {
 	State               string `json:"state"`
 	Nonce               string `json:"nonce"`
 	IdpHint             string `json:"idp_hint"`
+	Prompt              string `json:"prompt"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
 }

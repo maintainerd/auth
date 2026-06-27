@@ -261,13 +261,10 @@ type UserRepository interface {
 	FindByUUID(uuid any, preloads ...string) (*User, error)
 	UpdateByID(id any, updatedData any) (*User, error)
 	WithTx(tx *gorm.DB) UserRepository
-	FindByUsername(username string) (*User, error)
-	FindByEmail(email string) (*User, error)
 	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindByUsernameAndTenantID(username string, tenantID int64) (*User, error)
 	FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error)
 	FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error)
-	FindByPhone(phone string) (*User, error)
 	FindSuperAdmin() (*User, error)
 	FindRoles(userID int64) ([]Role, error)
 	FindBySubAndClientID(sub, clientID string) (*User, error)
@@ -279,7 +276,6 @@ type UserRepository interface {
 	ClearEmailChange(id uuid.UUID) error
 	UpdateEmail(id uuid.UUID, email string) error
 	UpdateUsername(id uuid.UUID, username string) error
-	FindByPendingEmail(email string) (*User, error)
 }
 
 type UserIdentityRepository interface {
@@ -316,7 +312,7 @@ type UserTokenRepository interface {
 	FindActiveSessions(userID int64) ([]UserToken, error)
 	FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*UserToken, error)
 	CountActiveSessions(userID int64) (int64, error)
-	TouchSession(sessionUUID uuid.UUID, now time.Time) error
+	TouchSession(userID int64, sessionUUID uuid.UUID, now time.Time) error
 	RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error
 	RevokeAllSessionsByUserID(userID int64) error
 }

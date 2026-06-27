@@ -49,9 +49,9 @@ type UserSettingService interface {
 		termsAcceptedAt, privacyPolicyAcceptedAt *time.Time,
 		emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation *string,
 	) (*UserSettingServiceDataResult, error)
-	GetByUUID(ctx context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error)
+	GetByUUID(ctx context.Context, userSettingUUID uuid.UUID, userID int64) (*UserSettingServiceDataResult, error)
 	GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*UserSettingServiceDataResult, error)
-	DeleteByUUID(ctx context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, userSettingUUID uuid.UUID, userID int64) (*UserSettingServiceDataResult, error)
 }
 
 type userSettingService struct {
@@ -201,7 +201,7 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 	return toUserSettingServiceDataResult(updatedUserSetting), nil
 }
 
-func (s *userSettingService) GetByUUID(ctx context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+func (s *userSettingService) GetByUUID(ctx context.Context, userSettingUUID uuid.UUID, userID int64) (*UserSettingServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user_setting.get_by_uuid")
 	defer span.End()
 	span.SetAttributes(attribute.String("user_setting_uuid", userSettingUUID.String()))
@@ -210,6 +210,11 @@ func (s *userSettingService) GetByUUID(ctx context.Context, userSettingUUID uuid
 	if err != nil || userSetting == nil {
 		span.SetStatus(codes.Error, "user setting not found")
 		return nil, apperror.NewNotFoundWithReason("user setting not found")
+	}
+	// Ownership guard: the user setting must belong to the requesting user,
+	// preventing IDOR if this method is ever routed with a request-supplied UUID.
+	if userSetting.UserID != userID {
+		return nil, apperror.NewNotFoundWithReason("user setting not found or access denied")
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -238,7 +243,7 @@ func (s *userSettingService) GetByUserUUID(ctx context.Context, userUUID uuid.UU
 	return toUserSettingServiceDataResult(userSetting), nil
 }
 
-func (s *userSettingService) DeleteByUUID(ctx context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+func (s *userSettingService) DeleteByUUID(ctx context.Context, userSettingUUID uuid.UUID, userID int64) (*UserSettingServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user_setting.delete_by_uuid")
 	defer span.End()
 	span.SetAttributes(attribute.String("user_setting_uuid", userSettingUUID.String()))
@@ -248,6 +253,11 @@ func (s *userSettingService) DeleteByUUID(ctx context.Context, userSettingUUID u
 	if err != nil || userSetting == nil {
 		span.SetStatus(codes.Error, "user setting not found")
 		return nil, apperror.NewNotFoundWithReason("user setting not found")
+	}
+	// Ownership guard: the setting must belong to the requesting user, preventing
+	// IDOR if this method is ever routed with a request-supplied UUID.
+	if userSetting.UserID != userID {
+		return nil, apperror.NewNotFoundWithReason("user setting not found or access denied")
 	}
 
 	// Delete the user setting

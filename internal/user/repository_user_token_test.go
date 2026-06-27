@@ -373,13 +373,14 @@ func TestUserTokenRepository_TouchSession(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserTokenRepository(db)
 		now := time.Now()
+		userID := int64(1)
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "user_tokens" SET "last_used_at"=\$1,"updated_at"=\$2 WHERE user_token_uuid = \$3 AND token_type = \$4 AND is_revoked = false`).
+		mock.ExpectExec(`UPDATE "user_tokens" SET "last_used_at"=\$1,"updated_at"=\$2 WHERE user_token_uuid = \$3 AND user_id = \$4 AND token_type = \$5 AND is_revoked = false`).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
-		err := repo.TouchSession(sessionUUID, now)
+		err := repo.TouchSession(userID, sessionUUID, now)
 		require.NoError(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -393,7 +394,7 @@ func TestUserTokenRepository_TouchSession(t *testing.T) {
 			WillReturnError(errors.New("db error"))
 		mock.ExpectRollback()
 
-		err := repo.TouchSession(uuid.New(), time.Now())
+		err := repo.TouchSession(int64(1), uuid.New(), time.Now())
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})

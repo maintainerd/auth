@@ -77,16 +77,6 @@ func (a *authnUserRepoAdapter) Paginate(c map[string]any, page, limit int, p ...
 	return &authn.PaginationResult[authn.User]{Data: mapAuthnUsers(r.Data), Total: r.Total, Page: r.Page, Limit: r.Limit, TotalPages: r.TotalPages}, nil
 }
 
-func (a *authnUserRepoAdapter) FindByUsername(username string) (*authn.User, error) {
-	r, err := a.repo.FindByUsername(username)
-	return toAuthnUser(r), err
-}
-
-func (a *authnUserRepoAdapter) FindByEmail(email string) (*authn.User, error) {
-	r, err := a.repo.FindByEmail(email)
-	return toAuthnUser(r), err
-}
-
 func (a *authnUserRepoAdapter) FindByEmailAndTenantID(email string, tenantID int64) (*authn.User, error) {
 	r, err := a.repo.FindByEmailAndTenantID(email, tenantID)
 	return toAuthnUser(r), err
@@ -104,11 +94,6 @@ func (a *authnUserRepoAdapter) FindByPhoneAndTenantID(phone string, tenantID int
 
 func (a *authnUserRepoAdapter) FindByPendingEmailAndTenantID(email string, tenantID int64) (*authn.User, error) {
 	r, err := a.repo.FindByPendingEmailAndTenantID(email, tenantID)
-	return toAuthnUser(r), err
-}
-
-func (a *authnUserRepoAdapter) FindByPhone(phone string) (*authn.User, error) {
-	r, err := a.repo.FindByPhone(phone)
 	return toAuthnUser(r), err
 }
 
@@ -176,9 +161,4 @@ func (a *authnUserRepoAdapter) UpdateEmail(id uuid.UUID, email string) error {
 
 func (a *authnUserRepoAdapter) UpdateUsername(id uuid.UUID, username string) error {
 	return a.repo.UpdateUsername(id, username)
-}
-
-func (a *authnUserRepoAdapter) FindByPendingEmail(email string) (*authn.User, error) {
-	r, err := a.repo.FindByPendingEmail(email)
-	return toAuthnUser(r), err
 }

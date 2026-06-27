@@ -37,6 +37,7 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 		State:               q.Get("state"),
 		Nonce:               q.Get("nonce"),
 		IdpHint:             q.Get("idp_hint"),
+		Prompt:              q.Get("prompt"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
 	}
@@ -49,6 +50,14 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 	// When idp_hint is present, the client is directing the user to a specific
 	// upstream provider — start the broker leg unconditionally.
 	if req.IdpHint != "" {
+		if req.Prompt == "none" {
+			if oerr := h.authorizeService.PrepareAuthorize(r.Context(), req); oerr != nil {
+				oerr.WriteJSON(w)
+				return
+			}
+			apperror.NewOAuthInteractionRequired("the requested identity provider requires user interaction").WriteJSON(w)
+			return
+		}
 		result, oerr := h.authorizeService.StartBroker(r.Context(), req)
 		if oerr != nil {
 			oerr.WriteJSON(w)

@@ -28,18 +28,18 @@ func TestUserRepository_WithTx(t *testing.T) {
 	assert.NotSame(t, repo, txRepo)
 }
 
-func TestUserRepository_FindByUsername(t *testing.T) {
+func TestUserRepository_FindByUsernameAndTenantID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
 		rows := sqlmock.NewRows([]string{"user_id", "user_uuid", "username", "email"}).
 			AddRow(42, testUserUUID, "testuser", "test@test.com")
-		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE username = \$1 AND "users"\."deleted_at" IS NULL ORDER BY "users"\."user_id" LIMIT \$2`).
-			WithArgs("testuser", 1).
+		mock.ExpectQuery(`SELECT .+ FROM "users"`).
+			WithArgs("testuser", int64(1), 1).
 			WillReturnRows(rows)
 
-		result, err := repo.FindByUsername("testuser")
+		result, err := repo.FindByUsernameAndTenantID("testuser", 1)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, "testuser", result.Username)
@@ -53,7 +53,7 @@ func TestUserRepository_FindByUsername(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
 
-		result, err := repo.FindByUsername("missing")
+		result, err := repo.FindByUsernameAndTenantID("missing", 1)
 		require.NoError(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -66,24 +66,24 @@ func TestUserRepository_FindByUsername(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
 			WillReturnError(errors.New("db error"))
 
-		_, err := repo.FindByUsername("testuser")
+		_, err := repo.FindByUsernameAndTenantID("testuser", 1)
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
 
-func TestUserRepository_FindByEmail(t *testing.T) {
+func TestUserRepository_FindByEmailAndTenantID_AdditionalCases(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
 		rows := sqlmock.NewRows([]string{"user_id", "user_uuid", "email"}).
 			AddRow(42, testUserUUID, "test@test.com")
-		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE email = \$1 AND "users"\."deleted_at" IS NULL ORDER BY "users"\."user_id" LIMIT \$2`).
-			WithArgs("test@test.com", 1).
+		mock.ExpectQuery(`SELECT .+ FROM "users"`).
+			WithArgs("test@test.com", int64(1), 1).
 			WillReturnRows(rows)
 
-		result, err := repo.FindByEmail("test@test.com")
+		result, err := repo.FindByEmailAndTenantID("test@test.com", 1)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, "test@test.com", result.Email)
@@ -97,7 +97,7 @@ func TestUserRepository_FindByEmail(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
 
-		result, err := repo.FindByEmail("missing@test.com")
+		result, err := repo.FindByEmailAndTenantID("missing@test.com", 1)
 		require.NoError(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -110,7 +110,7 @@ func TestUserRepository_FindByEmail(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
 			WillReturnError(errors.New("db error"))
 
-		_, err := repo.FindByEmail("test@test.com")
+		_, err := repo.FindByEmailAndTenantID("test@test.com", 1)
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -160,18 +160,18 @@ func TestUserRepository_FindByEmailAndTenantID(t *testing.T) {
 	})
 }
 
-func TestUserRepository_FindByPhone(t *testing.T) {
+func TestUserRepository_FindByPhoneAndTenantID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
 		rows := sqlmock.NewRows([]string{"user_id", "user_uuid", "phone"}).
 			AddRow(42, testUserUUID, "1234567890")
-		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE phone = \$1 AND "users"\."deleted_at" IS NULL ORDER BY "users"\."user_id" LIMIT \$2`).
-			WithArgs("1234567890", 1).
+		mock.ExpectQuery(`SELECT .+ FROM "users"`).
+			WithArgs("1234567890", int64(1), 1).
 			WillReturnRows(rows)
 
-		result, err := repo.FindByPhone("1234567890")
+		result, err := repo.FindByPhoneAndTenantID("1234567890", 1)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, "1234567890", result.Phone)
@@ -185,7 +185,7 @@ func TestUserRepository_FindByPhone(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
 
-		result, err := repo.FindByPhone("000")
+		result, err := repo.FindByPhoneAndTenantID("000", 1)
 		require.NoError(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -198,7 +198,7 @@ func TestUserRepository_FindByPhone(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
 			WillReturnError(errors.New("db error"))
 
-		_, err := repo.FindByPhone("1234567890")
+		_, err := repo.FindByPhoneAndTenantID("1234567890", 1)
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -687,18 +687,18 @@ func TestUserRepository_UpdateUsername(t *testing.T) {
 	})
 }
 
-func TestUserRepository_FindByPendingEmail(t *testing.T) {
+func TestUserRepository_FindByPendingEmailAndTenantID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
 		rows := sqlmock.NewRows([]string{"user_id", "user_uuid", "pending_email"}).
 			AddRow(42, testUserUUID, "pending@test.com")
-		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE pending_email = \$1 AND "users"\."deleted_at" IS NULL ORDER BY "users"\."user_id" LIMIT \$2`).
-			WithArgs("pending@test.com", 1).
+		mock.ExpectQuery(`SELECT .+ FROM "users"`).
+			WithArgs("pending@test.com", int64(1), 1).
 			WillReturnRows(rows)
 
-		result, err := repo.FindByPendingEmail("pending@test.com")
+		result, err := repo.FindByPendingEmailAndTenantID("pending@test.com", 1)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, "pending@test.com", *result.PendingEmail)
@@ -712,7 +712,7 @@ func TestUserRepository_FindByPendingEmail(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
 
-		result, err := repo.FindByPendingEmail("missing@test.com")
+		result, err := repo.FindByPendingEmailAndTenantID("missing@test.com", 1)
 		require.NoError(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -725,7 +725,7 @@ func TestUserRepository_FindByPendingEmail(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
 			WillReturnError(errors.New("db error"))
 
-		_, err := repo.FindByPendingEmail("pending@test.com")
+		_, err := repo.FindByPendingEmailAndTenantID("pending@test.com", 1)
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})

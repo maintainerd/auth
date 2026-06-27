@@ -158,9 +158,9 @@ func TestOAuthAuthorizeService_StartBroker(t *testing.T) {
 		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_id = \$1.*enabled = \$2`).
 			WithArgs(int64(10), true).
 			WillReturnRows(sqlmock.NewRows([]string{
-				"client_identity_provider_id", "client_identity_provider_uuid", "client_id",
+				"client_identity_provider_id", "client_identity_provider_uuid", "client_id", "tenant_id",
 				"identity_provider_id", "is_default", "enabled", "display_order",
-			}).AddRow(1, uuid.New(), 10, 100, false, true, 0))
+			}).AddRow(1, uuid.New(), 10, 1, 100, false, true, 0))
 		mock.ExpectQuery(`SELECT \* FROM "identity_providers"`).
 			WillReturnRows(sqlmock.NewRows([]string{
 				"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "display_name",
@@ -201,12 +201,12 @@ func TestOAuthAuthorizeService_HandleCallback(t *testing.T) {
 	sessionRows := func() *sqlmock.Rows {
 		return sqlmock.NewRows([]string{
 			"oauth_broker_session_id", "oauth_broker_session_uuid", "tenant_id", "client_id",
-			"identity_provider_id", "app_redirect_uri", "app_state", "app_scope", "app_nonce",
+			"identity_provider_id", "identity_provider_identifier", "app_redirect_uri", "app_state", "app_scope", "app_nonce",
 			"app_code_challenge", "app_code_challenge_method", "idp_state", "idp_pkce_verifier",
 			"idp_nonce", "expires_at", "consumed_at", "created_at",
 		}).AddRow(
 			int64(1), uuid.New(), int64(1), int64(10),
-			int64(100), "https://example.com/callback", "app-state", "openid profile", "app-nonce",
+			int64(100), "google", "https://example.com/callback", "app-state", "openid profile", "app-nonce",
 			strings.Repeat("A", 43), "S256", "state-1", "pkce-verifier",
 			"idp-nonce", time.Now().Add(time.Minute), nil, time.Now(),
 		)
@@ -303,6 +303,23 @@ func TestOAuthAuthorizeService_HandleCallback(t *testing.T) {
 		assert.False(t, codeCreated)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("rejects callback when provider path does not match the broker session", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.ExpectQuery(`SELECT \* FROM "oauth_broker_sessions" WHERE idp_state = .*consumed_at IS NULL`).
+			WillReturnRows(sessionRows())
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{}, &mockOAuthConsentChallRepo{}, &mockAuthEventService{})
+
+		redirectURL, accessToken, oerr := svc.HandleCallback(ctx, "github", "provider-code", "state-1")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Empty(t, redirectURL)
+		assert.Empty(t, accessToken)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 // ── TestOAuthAuthorizeService_Authorize ─────────────────────────────────────
@@ -367,6 +384,42 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, challengeUUID.String(), result.ConsentChallenge)
 		assert.Empty(t, result.RedirectURI)
+	})
+
+	t.Run("prompt none returns consent_required instead of creating UI challenge", func(t *testing.T) {
+		client := activeClientWithConsent()
+		db, _ := newMockDB(t)
+		challengeCreated := false
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{
+				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
+					return nil, nil
+				},
+			},
+			&mockOAuthConsentChallRepo{
+				createFn: func(c *OAuthConsentChallenge) (*OAuthConsentChallenge, error) {
+					challengeCreated = true
+					return c, nil
+				},
+			},
+			&mockAuthEventService{},
+		)
+
+		req := validAuthorizeRequest()
+		req.Prompt = "none"
+		result, oerr := svc.Authorize(ctx, req, 1, 1)
+		require.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "consent_required", oerr.Code)
+		assert.False(t, challengeCreated)
 	})
 
 	t.Run("skips consent when all scopes already granted", func(t *testing.T) {
@@ -712,8 +765,9 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		assert.Equal(t, "server_error", oerr.Code)
 	})
 
-	t.Run("explicit system client_id is rejected on public authorize", func(t *testing.T) {
+	t.Run("non-console system client_id is rejected on public authorize", func(t *testing.T) {
 		client := activeClient()
+		client.Name = "some-system-client"
 		client.IsSystem = true
 		db, _ := newMockDB(t)
 
@@ -734,6 +788,32 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+
+	t.Run("auth-console system client_id is allowed on public authorize", func(t *testing.T) {
+		client := activeClient()
+		client.Name = shared.SystemClientNameAuthConsole
+		client.IsSystem = true
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 1)
+
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "https://example.com/callback?code=")
 	})
 
 	t.Run("authorize without state or nonce", func(t *testing.T) {

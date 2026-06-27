@@ -54,6 +54,22 @@ func TestTokenHelper_GenerateTokenSetWithAuthContext_CustomContext(t *testing.T)
 	assert.NotEmpty(t, refreshToken)
 }
 
+func TestTokenHelper_GenerateTokenSetWithAuthContext_StampsTenantClaim(t *testing.T) {
+	initTestJWTKeysService(t)
+	user := buildActiveUser(t, "Password123!")
+	client := buildActiveClient()
+	client.TenantID = 42
+
+	accessToken, _, _, err := generateTokenSetWithAuthContext(context.Background(), "sub-1", user, client, tokenAuthContext{
+		ExtraAccessClaims: map[string]any{"tenant_id": 0},
+	})
+	require.NoError(t, err)
+
+	claims, err := jwt.ValidateToken(accessToken)
+	require.NoError(t, err)
+	assert.Equal(t, float64(42), claims["tenant_id"])
+}
+
 func TestTokenHelper_ResponseBuilders(t *testing.T) {
 	issuedAt := time.Now().Unix()
 	login := buildLoginTokenResponse("access", "id", "refresh", issuedAt)

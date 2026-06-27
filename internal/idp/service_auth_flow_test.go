@@ -820,7 +820,7 @@ func TestAuthFlowService_RemoveRole(t *testing.T) {
 			deleteByAuthFlowIDAndRoleIDFn: func(_, _ int64) error { return errors.New("del err") },
 		}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
-				return &Role{RoleID: 10, RoleUUID: roleUUID}, nil
+				return &Role{RoleID: 10, RoleUUID: roleUUID, TenantID: 1}, nil
 			},
 		}, defaultCR())
 		err := svc.RemoveRole(context.Background(), sf.AuthFlowUUID, 1, roleUUID)
@@ -836,7 +836,7 @@ func TestAuthFlowService_RemoveRole(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*AuthFlow, error) { return sf, nil },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
-				return &Role{RoleID: 10, RoleUUID: roleUUID}, nil
+				return &Role{RoleID: 10, RoleUUID: roleUUID, TenantID: 1}, nil
 			},
 		}, defaultCR())
 		err := svc.RemoveRole(context.Background(), sf.AuthFlowUUID, 1, roleUUID)

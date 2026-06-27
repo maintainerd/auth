@@ -203,6 +203,14 @@ type mockClientService struct {
 	addClientAPIPermsFn   func(int64, uuid.UUID, uuid.UUID, []uuid.UUID) error
 	removeClientAPIPermFn func(int64, uuid.UUID, uuid.UUID, uuid.UUID) error
 	rotateSecretFn        func(uuid.UUID, int64, uuid.UUID, int) (string, error)
+	isManagementClientFn  func(string) bool
+}
+
+func (m *mockClientService) IsManagementClient(_ context.Context, identifier string) bool {
+	if m.isManagementClientFn != nil {
+		return m.isManagementClientFn(identifier)
+	}
+	return false
 }
 
 func (m *mockClientService) Get(_ context.Context, f ClientServiceGetFilter) (*ClientServiceGetResult, error) {

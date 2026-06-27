@@ -17,6 +17,7 @@ func (r *OAuthAuthorizeRequestDTO) Validate() error {
 	r.State = security.SanitizeInput(r.State)
 	r.Nonce = security.SanitizeInput(r.Nonce)
 	r.IdpHint = security.SanitizeInput(r.IdpHint)
+	r.Prompt = security.SanitizeInput(r.Prompt)
 	r.CodeChallenge = security.SanitizeInput(r.CodeChallenge)
 	r.CodeChallengeMethod = security.SanitizeInput(r.CodeChallengeMethod)
 
@@ -57,6 +58,11 @@ func (r *OAuthAuthorizeRequestDTO) Validate() error {
 		),
 		validation.Field(&r.IdpHint,
 			validation.Length(0, 255).Error("idp_hint must not exceed 255 characters"),
+		),
+		validation.Field(&r.Prompt,
+			validation.When(r.Prompt != "",
+				validation.In("none").Error("only prompt=none is supported"),
+			),
 		),
 	)
 }

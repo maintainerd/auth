@@ -98,6 +98,14 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 	}
 	if len(authCtx.ExtraAccessClaims) > 0 {
 		accessOpts.ExtraClaims = authCtx.ExtraAccessClaims
+		// The policy layer requests the tenant_id claim with a 0 placeholder
+		// (tokenAuthContextWithPolicy has no client/tenant context). Stamp the
+		// authoritative tenant here so authn-issued access tokens never carry
+		// tenant_id: 0 — mirroring the OAuth token path (oauth/service_token.go),
+		// which already sets client.TenantID.
+		if _, ok := accessOpts.ExtraClaims["tenant_id"]; ok {
+			accessOpts.ExtraClaims["tenant_id"] = clientTenantID(client)
+		}
 	}
 
 	accessToken, err = jwt.GenerateAccessTokenWithOptionsContext(

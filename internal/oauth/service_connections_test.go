@@ -29,13 +29,30 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("system client is rejected", func(t *testing.T) {
+	t.Run("non-console system client is rejected", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
-			return &Client{ClientID: 1, Status: shared.StatusActive, IsSystem: true}, nil
+			return &Client{ClientID: 1, Name: shared.SystemClientNameAuthIdentity, Status: shared.StatusActive, IsSystem: true}, nil
 		}})
 		_, err := svc.ListConnections(ctx, "my-client")
 		require.Error(t, err)
+	})
+
+	t.Run("auth-console system client enables password", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_id = \$1.*enabled = \$2`).
+			WithArgs(int64(10), true).
+			WillReturnRows(sqlmock.NewRows([]string{"client_identity_provider_id"}))
+
+		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
+			return &Client{ClientID: 10, Name: shared.SystemClientNameAuthConsole, Status: shared.StatusActive, IsSystem: true}, nil
+		}})
+
+		result, err := svc.ListConnections(ctx, "my-client")
+		require.NoError(t, err)
+		assert.True(t, result.PasswordEnabled)
+		assert.Empty(t, result.Connections)
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("connection query error", func(t *testing.T) {

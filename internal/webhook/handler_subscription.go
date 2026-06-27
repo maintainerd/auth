@@ -123,6 +123,12 @@ func (h *SubscriptionHandler) AddSubscription(w http.ResponseWriter, r *http.Req
 		resp.Error(w, http.StatusNotFound, "Event type not found")
 		return
 	}
+	// Tenant isolation: the event type must belong to the caller's tenant,
+	// otherwise an endpoint could be subscribed to another tenant's event type.
+	if et.TenantID != tenant.TenantID {
+		resp.Error(w, http.StatusNotFound, "Event type not found")
+		return
+	}
 
 	entry := WebhookEndpointEvent{
 		WebhookEndpointID: ep.WebhookEndpointID,
@@ -177,6 +183,10 @@ func (h *SubscriptionHandler) RemoveSubscription(w http.ResponseWriter, r *http.
 
 	et, err := h.eventTypeRepo.FindByUUID(req.EventTypeUUID)
 	if err != nil || et == nil {
+		resp.Error(w, http.StatusNotFound, "Event type not found")
+		return
+	}
+	if et.TenantID != tenant.TenantID {
 		resp.Error(w, http.StatusNotFound, "Event type not found")
 		return
 	}

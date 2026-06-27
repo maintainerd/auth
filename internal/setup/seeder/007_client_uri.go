@@ -15,7 +15,7 @@ import (
 )
 
 func SeedClientURIs(db *gorm.DB, tenantID int64, _ int64) error {
-	privateHostName := normalizedHTTPSBaseURL(config.AppPrivateHostname)
+	consoleHostName := normalizedHTTPSBaseURL(config.AppFrontendConsoleHostname)
 	identityHostName := normalizedHTTPSBaseURL(config.AppFrontendIdentityHostname)
 
 	// Map of client name -> URIs with their types.
@@ -24,10 +24,10 @@ func SeedClientURIs(db *gorm.DB, tenantID int64, _ int64) error {
 		Type string
 	}{
 		shared.SystemClientNameAuthConsole: {
-			{URI: privateHostName + "/callback", Type: shared.ClientURITypeRedirect},
-			{URI: privateHostName, Type: shared.ClientURITypeOrigin},
-			{URI: privateHostName, Type: shared.ClientURITypeCORSOrigin},
-			{URI: privateHostName + "/logout", Type: shared.ClientURITypeLogout},
+			{URI: consoleHostName + "/auth/callback", Type: shared.ClientURITypeRedirect},
+			{URI: consoleHostName, Type: shared.ClientURITypeOrigin},
+			{URI: consoleHostName, Type: shared.ClientURITypeCORSOrigin},
+			{URI: consoleHostName + "/logout", Type: shared.ClientURITypeLogout},
 		},
 		shared.SystemClientNameAuthIdentity: {
 			{URI: identityHostName + "/callback", Type: shared.ClientURITypeRedirect},

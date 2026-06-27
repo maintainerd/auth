@@ -27,6 +27,20 @@ func TestOAuthAuthorizeRequestDTO_Validate(t *testing.T) {
 		require.NoError(t, r.Validate())
 	})
 
+	t.Run("prompt none is valid", func(t *testing.T) {
+		r := validReq()
+		r.Prompt = "none"
+		require.NoError(t, r.Validate())
+	})
+
+	t.Run("unsupported prompt is rejected", func(t *testing.T) {
+		r := validReq()
+		r.Prompt = "none login"
+		err := r.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "prompt")
+	})
+
 	t.Run("missing response_type", func(t *testing.T) {
 		r := validReq()
 		r.ResponseType = ""

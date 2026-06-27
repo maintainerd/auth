@@ -105,19 +105,20 @@ func (s *oauthAuthorizeService) StartBroker(ctx context.Context, req OAuthAuthor
 
 	// Persist the broker session that correlates OAuth #1 ↔ OAuth #2.
 	session := &OAuthBrokerSession{
-		TenantID:               idp.TenantID,
-		ClientID:               client.ClientID,
-		IdentityProviderID:     idp.IdentityProviderID,
-		AppRedirectURI:         req.RedirectURI,
-		AppState:               ptr.PtrOrNil(req.State),
-		AppScope:               ptr.PtrOrNil(req.Scope),
-		AppNonce:               ptr.PtrOrNil(req.Nonce),
-		AppCodeChallenge:       ptr.PtrOrNil(req.CodeChallenge),
-		AppCodeChallengeMethod: ptr.PtrOrNil(req.CodeChallengeMethod),
-		IdpState:               idpState,
-		IdpPKCEVerifier:        verifier,
-		IdpNonce:               ptr.Ptr(idpNonce),
-		ExpiresAt:              time.Now().Add(brokerSessionTTL),
+		TenantID:                   client.TenantID,
+		ClientID:                   client.ClientID,
+		IdentityProviderID:         idp.IdentityProviderID,
+		IdentityProviderIdentifier: idp.Identifier,
+		AppRedirectURI:             req.RedirectURI,
+		AppState:                   ptr.PtrOrNil(req.State),
+		AppScope:                   ptr.PtrOrNil(req.Scope),
+		AppNonce:                   ptr.PtrOrNil(req.Nonce),
+		AppCodeChallenge:           ptr.PtrOrNil(req.CodeChallenge),
+		AppCodeChallengeMethod:     ptr.PtrOrNil(req.CodeChallengeMethod),
+		IdpState:                   idpState,
+		IdpPKCEVerifier:            verifier,
+		IdpNonce:                   ptr.Ptr(idpNonce),
+		ExpiresAt:                  time.Now().Add(brokerSessionTTL),
 	}
 	if _, err := NewOAuthBrokerSessionRepository(s.db).Create(session); err != nil {
 		span.RecordError(err)
@@ -146,7 +147,7 @@ func (s *oauthAuthorizeService) findEnabledConnection(client *Client, idpHint st
 	for i := range conns {
 		idp := conns[i].IdentityProvider
 		if idp != nil && idp.Status == shared.StatusActive && idp.Identifier == idpHint {
-			if idp.TenantID != client.TenantID || (conns[i].TenantID != 0 && conns[i].TenantID != client.TenantID) {
+			if idp.TenantID != client.TenantID || conns[i].TenantID != client.TenantID {
 				return nil, apperror.NewOAuthInvalidRequest("the requested identity provider is not enabled for this client")
 			}
 			return &conns[i], nil
@@ -203,6 +204,9 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 	if session == nil || session.IsExpired() || session.IsConsumed() {
 		return "", "", apperror.NewOAuthInvalidRequest("broker session is expired, already used, or invalid")
 	}
+	if session.IdentityProviderIdentifier == "" || session.IdentityProviderIdentifier != idpIdentifier {
+		return "", "", apperror.NewOAuthInvalidRequest("broker callback identity provider does not match the login session")
+	}
 	// Exchange the provider code and resolve the user.
 	if brokerCallbackResolver == nil {
 		return "", "", apperror.NewOAuthServerError("broker callback not configured")
@@ -236,6 +240,9 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 		span.RecordError(cerr)
 		span.SetStatus(codes.Error, "app client lookup failed")
 		return "", "", apperror.NewOAuthInvalidRequest("unknown client context")
+	}
+	if appClient.TenantID != session.TenantID {
+		return "", "", apperror.NewOAuthInvalidRequest("broker session tenant does not match the client")
 	}
 
 	// Atomically mark the broker session consumed and issue our own authorization

@@ -50,16 +50,12 @@ type UserRepository interface {
 	DeleteByID(id any) error
 	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[User], error)
 	WithTx(tx *gorm.DB) UserRepository
-	FindByUsername(username string) (*User, error)
-	FindByEmail(email string) (*User, error)
 	// Tenant-scoped lookups. Users are isolated per tenant (email/username are
-	// unique per tenant), so these MUST be used wherever a tenant is known —
-	// the unscoped variants above can match the wrong tenant's user.
+	// unique per tenant), so unscoped variants are deliberately not exposed.
 	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindByUsernameAndTenantID(username string, tenantID int64) (*User, error)
 	FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error)
 	FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error)
-	FindByPhone(phone string) (*User, error)
 	FindSuperAdmin() (*User, error)
 	FindRoles(userID int64) ([]Role, error)
 	FindRolesPaginated(filter GetUserRolesFilter) (*PaginationResult[Role], error)
@@ -74,7 +70,6 @@ type UserRepository interface {
 	ClearEmailChange(userUUID uuid.UUID) error
 	UpdateEmail(userUUID uuid.UUID, email string) error
 	UpdateUsername(userUUID uuid.UUID, username string) error
-	FindByPendingEmail(email string) (*User, error)
 }
 
 type userRepository struct {
@@ -91,38 +86,6 @@ func (r *userRepository) WithTx(tx *gorm.DB) UserRepository {
 	return &userRepository{
 		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
-}
-
-func (r *userRepository) FindByUsername(username string) (*User, error) {
-	var user User
-	err := r.DB().
-		Where("username = ?", username).
-		First(&user).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &user, nil
-}
-
-func (r *userRepository) FindByEmail(email string) (*User, error) {
-	var user User
-	err := r.DB().
-		Where("email = ?", email).
-		First(&user).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &user, nil
 }
 
 func (r *userRepository) FindByEmailAndTenantID(email string, tenantID int64) (*User, error) {
@@ -177,22 +140,6 @@ func (r *userRepository) FindByPendingEmailAndTenantID(email string, tenantID in
 	var user User
 	err := r.DB().
 		Where("pending_email = ? AND tenant_id = ?", email, tenantID).
-		First(&user).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &user, nil
-}
-
-func (r *userRepository) FindByPhone(phone string) (*User, error) {
-	var user User
-	err := r.DB().
-		Where("phone = ?", phone).
 		First(&user).Error
 
 	if err != nil {
@@ -340,20 +287,6 @@ func (r *userRepository) UpdateUsername(userUUID uuid.UUID, username string) err
 	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("username", username).Error
-}
-
-func (r *userRepository) FindByPendingEmail(email string) (*User, error) {
-	var user User
-	err := r.DB().
-		Where("pending_email = ?", email).
-		First(&user).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &user, nil
 }
 
 func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[User], error) {

@@ -41,12 +41,27 @@ func resolvePublicClient(
 		if err != nil || client == nil {
 			return client, err
 		}
-		if client.IsSystem {
+		if client.IsSystem && !isPublicAuthSystemClientAllowed(client) {
 			return nil, nil
 		}
 		return client, nil
 	}
 	return nil, nil
+}
+
+// isPublicAuthSystemClientAllowed reports whether a seeded system client may
+// drive the public auth surface. The first-party SPA login clients
+// (auth-console, auth-identity) front the hosted identity UI and must be
+// accepted on public auth routes even though they are system clients; all other
+// system clients stay rejected. This mirrors isPublicOAuthSystemClientAllowed on
+// the OAuth authorize endpoint so /oauth/authorize and /login agree on which
+// client may complete the hosted login flow.
+func isPublicAuthSystemClientAllowed(client *Client) bool {
+	if client == nil {
+		return false
+	}
+	return client.Name == shared.SystemClientNameAuthConsole ||
+		client.Name == shared.SystemClientNameAuthIdentity
 }
 
 func resolveClientForContext(

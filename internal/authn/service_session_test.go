@@ -420,7 +420,7 @@ func TestSessionService_ValidateAndTouch(t *testing.T) {
 			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
 				return &UserToken{UserTokenUUID: sessionUUID}, nil
 			},
-			touchSessionFn: func(uuid.UUID, time.Time) error {
+			touchSessionFn: func(int64, uuid.UUID, time.Time) error {
 				return errors.New("touch error")
 			},
 		}

@@ -283,6 +283,23 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 		assert.Contains(t, oerr.Description, "not issued to this client")
 	})
 
+	t.Run("authorization_code — tenant mismatch", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		svc := newOAuthTokenSvc(db, &mockClientRepo{},
+			&mockOAuthAuthCodeRepo{findByCodeHashFn: func(string) (*OAuthAuthorizationCode, error) {
+				return &OAuthAuthorizationCode{ClientID: 10, TenantID: 99, ExpiresAt: time.Now().Add(time.Minute)}, nil
+			}},
+			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType: "authorization_code", Code: "code123",
+			RedirectURI: "https://example.com/callback", CodeVerifier: "abc",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Contains(t, oerr.Description, "not issued to this tenant")
+	})
+
 	t.Run("authorization_code — redirect URI mismatch", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectClientLookup(mock, mockClientRows())
@@ -292,6 +309,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return &OAuthAuthorizationCode{
 						ClientID:    10,
+						TenantID:    1,
 						RedirectURI: "https://other.com/callback",
 						ExpiresAt:   time.Now().Add(10 * time.Minute),
 					}, nil
@@ -320,6 +338,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return &OAuthAuthorizationCode{
 						ClientID:            10,
+						TenantID:            1,
 						RedirectURI:         "https://example.com/callback",
 						CodeChallenge:       "invalidchallenge",
 						CodeChallengeMethod: "S256",
@@ -353,6 +372,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return &OAuthAuthorizationCode{
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						RedirectURI:         "https://example.com/callback",
 						CodeChallenge:       challenge,
@@ -390,6 +410,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return &OAuthAuthorizationCode{
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						RedirectURI:         "https://example.com/callback",
 						CodeChallenge:       challenge,
@@ -428,6 +449,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return &OAuthAuthorizationCode{
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						RedirectURI:         "https://example.com/callback",
 						CodeChallenge:       challenge,
@@ -645,6 +667,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return &OAuthAuthorizationCode{
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						RedirectURI:         "https://example.com/callback",
 						Scope:               "openid profile",
@@ -785,6 +808,22 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 		assert.Contains(t, oerr.Description, "not issued to this client")
 	})
 
+	t.Run("tenant mismatch", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{findByTokenHashFn: func(string) (*OAuthRefreshToken, error) {
+				return &OAuthRefreshToken{ClientID: 10, TenantID: 99, ExpiresAt: time.Now().Add(time.Minute)}, nil
+			}},
+			&mockUserRepo{}, &mockUserIdentityRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType: "refresh_token", RefreshToken: "some-token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Contains(t, oerr.Description, "not issued to this tenant")
+	})
+
 	t.Run("transaction error", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectClientLookup(mock, mockClientRows())
@@ -795,6 +834,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
 					return &OAuthRefreshToken{
 						ClientID:  10,
+						TenantID:  1,
 						UserID:    1,
 						ExpiresAt: time.Now().Add(10 * time.Minute),
 					}, nil
@@ -920,6 +960,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
@@ -950,6 +991,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
@@ -1034,6 +1076,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
@@ -1068,6 +1111,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						Scope:               "openid",
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
@@ -1122,6 +1166,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						Scope:               "openid profile",
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
@@ -1164,6 +1209,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						Scope:               "openid profile",
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
@@ -1213,6 +1259,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						Scope:               "openid profile",
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
@@ -1259,6 +1306,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
+						TenantID:            1,
 						UserID:              1,
 						Scope:               "openid profile",
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),

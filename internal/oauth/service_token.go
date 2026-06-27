@@ -185,6 +185,10 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 		span.SetStatus(codes.Error, "client mismatch")
 		return nil, apperror.NewOAuthInvalidGrant("the authorization code was not issued to this client")
 	}
+	if authCode.TenantID == 0 || authCode.TenantID != client.TenantID {
+		span.SetStatus(codes.Error, "tenant mismatch")
+		return nil, apperror.NewOAuthInvalidGrant("the authorization code was not issued to this tenant")
+	}
 
 	if oerr := validateClientAllowedScopes(client, authCode.Scope); oerr != nil {
 		span.SetStatus(codes.Error, "scope not allowed")
@@ -316,6 +320,10 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 	if storedToken.ClientID != client.ClientID {
 		span.SetStatus(codes.Error, "client mismatch")
 		return nil, apperror.NewOAuthInvalidGrant("the refresh token was not issued to this client")
+	}
+	if storedToken.TenantID == 0 || storedToken.TenantID != client.TenantID {
+		span.SetStatus(codes.Error, "tenant mismatch")
+		return nil, apperror.NewOAuthInvalidGrant("the refresh token was not issued to this tenant")
 	}
 
 	// Rotate: revoke the old token and issue a new one in the same family.

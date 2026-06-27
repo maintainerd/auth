@@ -724,7 +724,7 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 	targetUserID := target.UserID
 
 	targetTenantID := mfaUserTenantID(ctx, s.db, targetUserID)
-	if targetTenantID != 0 && targetTenantID != tenantID {
+	if targetTenantID == 0 || targetTenantID != tenantID {
 		return apperror.NewForbidden("target user does not belong to your tenant")
 	}
 
@@ -806,7 +806,7 @@ func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, me
 	targetUserID := target.UserID
 
 	targetTenantID := mfaUserTenantID(ctx, s.db, targetUserID)
-	if targetTenantID != 0 && targetTenantID != tenantID {
+	if targetTenantID == 0 || targetTenantID != tenantID {
 		return apperror.NewForbidden("target user does not belong to your tenant")
 	}
 

@@ -173,7 +173,6 @@ type UserRepository interface {
 	WithTx(tx *gorm.DB) UserRepository
 	FindByUUID(uuid any, preloads ...string) (*User, error)
 	FindByID(id any, preloads ...string) (*User, error)
-	FindByEmail(email string) (*User, error)
 	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
 }
 

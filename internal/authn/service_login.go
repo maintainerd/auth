@@ -561,18 +561,16 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
 }
 
-// GetUserByEmail looks up a user by email, scoped to the given tenant when
-// tenantID > 0. Falls back to a global lookup only when no tenant is specified.
+// GetUserByEmail looks up a user by email within an explicit tenant. A global
+// fallback is intentionally forbidden because email addresses are unique only
+// inside a tenant.
 func (s *loginService) GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error) {
 	_, span := otel.Tracer("service").Start(ctx, "login.getUserByEmail")
 	defer span.End()
-	var user *User
-	var err error
-	if tenantID > 0 {
-		user, err = s.userRepo.FindByEmailAndTenantID(email, tenantID)
-	} else {
-		user, err = s.userRepo.FindByEmail(email)
+	if tenantID <= 0 {
+		return nil, apperror.NewValidation("tenant_id is required")
 	}
+	user, err := s.userRepo.FindByEmailAndTenantID(email, tenantID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "get user by email failed")

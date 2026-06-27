@@ -12,7 +12,7 @@ import (
 
 // EventTypeService is the business-layer service for event_types (catalog).
 type EventTypeService interface {
-	ListActive(ctx context.Context) ([]EventTypeServiceDataResult, error)
+	ListActive(ctx context.Context, tenantID int64) ([]EventTypeServiceDataResult, error)
 	ListAll(ctx context.Context) ([]EventTypeServiceDataResult, error)
 	ListByCategory(ctx context.Context, category string) ([]EventTypeServiceDataResult, error)
 }
@@ -25,11 +25,11 @@ func NewEventTypeServiceImpl(eventTypeRepo EventTypeRepository) EventTypeService
 	return &eventTypeServiceImpl{eventTypeRepo: eventTypeRepo}
 }
 
-func (s *eventTypeServiceImpl) ListActive(ctx context.Context) ([]EventTypeServiceDataResult, error) {
+func (s *eventTypeServiceImpl) ListActive(ctx context.Context, tenantID int64) ([]EventTypeServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "eventType.listActive")
 	defer span.End()
 
-	types, err := s.eventTypeRepo.FindAllActive()
+	types, err := s.eventTypeRepo.FindActiveByTenantID(tenantID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "list event types failed")

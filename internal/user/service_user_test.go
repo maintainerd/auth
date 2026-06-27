@@ -1294,7 +1294,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		urr.findByUserIDAndRoleIDFn = func(_, _ int64) (*UserRole, error) { return nil, errors.New("ur find err") }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
@@ -1314,7 +1314,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 			}
 			return nil, errors.New("fetch err")
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -1333,7 +1333,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 			}
 			return &User{UserUUID: uid}, nil
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		urr.findByUserIDAndRoleIDFn = func(_, _ int64) (*UserRole, error) { return &UserRole{}, nil }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
@@ -1354,7 +1354,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 			}
 			return &User{UserUUID: uid}, nil
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		// Inject token repo manually since fullUserSvc passes nil
 		svcImpl := svc.(*userService)
@@ -1371,7 +1371,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		urr.createFn = func(_ *UserRole) (*UserRole, error) { return nil, errors.New("ur create err") }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
@@ -1394,7 +1394,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 				{TenantID: 1, Sub: "same-sub"},
 			}}, nil
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
@@ -1474,7 +1474,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 			}
 			return nil, errors.New("fetch err")
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -1488,7 +1488,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		urr.deleteByUserIDAndRoleIDFn = func(_, _ int64) error { return errors.New("del ur err") }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
@@ -1508,7 +1508,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 			}
 			return &User{UserUUID: uid}, nil
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
@@ -1528,7 +1528,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 			}
 			return &User{UserUUID: uid}, nil
 		}
-		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5, TenantID: 1}, nil }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		svcImpl := svc.(*userService)
 		svcImpl.userTokenRepo = mockTokenRepo

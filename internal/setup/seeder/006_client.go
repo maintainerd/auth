@@ -17,7 +17,7 @@ import (
 )
 
 func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
-	privateHostName := config.AppPrivateHostname
+	consoleHostName := config.AppFrontendConsoleHostname
 	identityHostName := config.AppFrontendIdentityHostname
 
 	consoleID, err := crypto.GenerateIdentifier(32)
@@ -36,7 +36,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			Name:        shared.SystemClientNameAuthConsole,
 			DisplayName: "Maintainerd Auth Console",
 			ClientType:  shared.ClientTypeSPA,
-			Domain:      strPtr(privateHostName),
+			Domain:      strPtr(consoleHostName),
 			Identifier:  strPtr(consoleID),
 			SecretHash:  nil, // public client (TokenAuthMethodNone) — no secret
 			Config: datatypes.JSON([]byte(`{

@@ -786,6 +786,11 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock := newMockGormDB(t)
+			// A resolvable target user reaches the (now fail-closed) tenant guard,
+			// which requires the target's tenant to match the caller's.
+			if tt.user != nil {
+				expectUserTenantIDLookup(mock, 1)
+			}
 			if tt.dbErr {
 				mock.ExpectBegin()
 				expectMFAUpdate(mock, "users").WillReturnError(errors.New("db down"))
@@ -813,6 +818,7 @@ func TestMFAService_AdminResetMFA(t *testing.T) {
 func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 	t.Run("success resets a single factor and syncs state", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
+		expectUserTenantIDLookup(mock, 1)
 		// 1) is_totp_enabled = false
 		mock.ExpectBegin()
 		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -846,10 +852,13 @@ func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 	})
 
 	t.Run("unsupported method", func(t *testing.T) {
-		svc := &mfaService{userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}}}
+		db, mock := newMockGormDB(t)
+		expectUserTenantIDLookup(mock, 1)
+		svc := &mfaService{db: db, userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}}}
 		err := svc.AdminResetMFAMethod(t.Context(), mfaTestUserUUID.String(), "carrier-pigeon", 99, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported MFA method")
+		assertExpectationsMet(t, mock)
 	})
 
 	tests := []struct {
@@ -868,7 +877,10 @@ func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			db, mock := newMockGormDB(t)
+			expectUserTenantIDLookup(mock, 1)
 			svc := &mfaService{
+				db:               db,
 				userRepo:         &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}},
 				mfaTotpRepo:         &mockMFATOTPSecretRepo{disableErr: tt.totpErr},
 				mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{deleteAllErr: tt.webErr},
@@ -879,6 +891,7 @@ func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 			err := svc.AdminResetMFAMethod(t.Context(), mfaTestUserUUID.String(), tt.method, 99, 1)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
+			assertExpectationsMet(t, mock)
 		})
 	}
 }

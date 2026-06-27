@@ -42,7 +42,7 @@ func TestServiceService_AssignAndRemovePolicy_EmitWebhookEvents(t *testing.T) {
 	mock.ExpectCommit()
 	svc := NewServiceService(db, &mockServiceRepo{
 		findByUUIDFn: func(any, ...string) (*Service, error) {
-			return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			return &Service{ServiceID: 1, ServiceUUID: svcUUID, TenantID: tenantID}, nil
 		},
 	}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
 		findByServiceAndPolicyFn: func(int64, int64) (*ServicePolicy, error) { return nil, nil },
@@ -61,7 +61,7 @@ func TestServiceService_AssignAndRemovePolicy_EmitWebhookEvents(t *testing.T) {
 	mock.ExpectCommit()
 	svc = NewServiceService(db, &mockServiceRepo{
 		findByUUIDFn: func(any, ...string) (*Service, error) {
-			return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			return &Service{ServiceID: 1, ServiceUUID: svcUUID, TenantID: tenantID}, nil
 		},
 	}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
 		findByServiceAndPolicyFn: func(int64, int64) (*ServicePolicy, error) {

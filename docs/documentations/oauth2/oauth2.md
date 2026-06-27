@@ -190,6 +190,7 @@ The primary grant type for all interactive user flows.
 | `redirect_uri` | CONDITIONAL | Required if multiple redirect URIs registered |
 | `scope` | OPTIONAL | Space-delimited scope list |
 | `state` | RECOMMENDED | Opaque CSRF protection value |
+| `prompt` | OPTIONAL | `none` for non-interactive authorization; returns `login_required`, `consent_required`, or `interaction_required` instead of showing UI |
 | `code_challenge` | REQUIRED | PKCE challenge derived from verifier |
 | `code_challenge_method` | OPTIONAL | `S256` (default if omitted), `plain` NOT supported |
 
@@ -928,10 +929,10 @@ A CHECK constraint (`chk_clients_token_auth_method`) ensures `token_endpoint_aut
 3. Validate `redirect_uri` against registered URIs (exact string match)
 4. Validate `scope` against client's allowed scopes
 5. Validate `code_challenge_method` is `S256`
-6. If user is not authenticated → redirect user-agent to the client's `LoginURI` (frontend) with a `login_challenge` parameter so the frontend can authenticate the user, then retry
+6. If user is not authenticated → return `login_required`; the hosted identity UI preserves the request, authenticates the user, then retries
 7. If user is authenticated → check consent
 8. If consent exists → issue authorization code and redirect to `redirect_uri`
-9. If consent needed → create a consent challenge record and redirect user-agent to the frontend consent URL with a `consent_challenge` parameter
+9. If consent is needed and `prompt=none` → return `consent_required`; otherwise create a consent challenge for the frontend
 10. (Consent resolution happens via `GET/POST /oauth/consent` below)
 
 **Error handling**: If `redirect_uri` is invalid or missing, return a JSON error response (do NOT redirect). For all other errors, redirect to `redirect_uri` with error parameters.

@@ -188,6 +188,11 @@ func (s *apiService) Create(ctx context.Context, tenantID int64, name string, di
 		if err != nil || service == nil {
 			return apperror.NewNotFound("service not found")
 		}
+		// Tenant isolation: the referenced service must belong to the caller's
+		// tenant, otherwise an API could be created against another tenant's service.
+		if service.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("service not found or access denied")
+		}
 
 		// Generate identifier
 		idSuffix, err := crypto.GenerateIdentifier(12)

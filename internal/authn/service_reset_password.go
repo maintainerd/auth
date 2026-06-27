@@ -121,7 +121,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			return apperror.NewNotFound("user not found")
 		}
 
-		if Client.IdentityProvider != nil && user.TenantID != clientTenantID(Client) {
+		if user.TenantID != clientTenantID(Client) {
 			return apperror.NewUnauthorized("invalid or expired reset token")
 		}
 
@@ -131,10 +131,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Validate password against tenant policy
-		var tenantID int64
-		if Client.IdentityProvider != nil {
-			tenantID = clientTenantID(Client)
-		}
+		tenantID := clientTenantID(Client)
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantID)
 		if err := security.ValidatePasswordPolicy(newPassword, policy); err != nil {
 			return apperror.NewValidation(err.Error())
