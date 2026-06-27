@@ -168,7 +168,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 		cr := defaultCR()
 		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return nil, nil }
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "auth client not found")
 	})
@@ -182,7 +182,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*AuthFlow, error) { return nil, errors.New("name err") },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
 	})
@@ -196,7 +196,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*AuthFlow, error) { return &AuthFlow{Name: "test-flow"}, nil },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name already exists")
 	})
@@ -212,7 +212,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 		cr := defaultCR()
 		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1, TenantID: 1}, nil }
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
 	})
@@ -229,7 +229,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 				return nil, errors.New("ident err")
 			},
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ident err")
 	})
@@ -243,7 +243,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*AuthFlow, error) { return nil, nil },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 	})
 
@@ -257,7 +257,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*AuthFlow, error) { return nil, nil },
 			createFn:     func(_ *AuthFlow) (*AuthFlow, error) { return nil, errors.New("create err") },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
 	})
@@ -275,7 +275,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 				return sf, nil
 			},
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -293,7 +293,7 @@ func TestAuthFlowService_Create(t *testing.T) {
 				return sf, nil
 			},
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, cr)
-		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil)
+		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, shared.DestinationIdentity, clientUUID, nil, nil, nil, false, false, "[]")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -313,7 +313,7 @@ func TestAuthFlowService_Update(t *testing.T) {
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*AuthFlow, error) { return nil, nil },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, "new", "desc", shared.StatusActive, nil, nil, nil)
+		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, "new", "desc", shared.StatusActive, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "signup flow not found")
 	})
@@ -326,7 +326,7 @@ func TestAuthFlowService_Update(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*AuthFlow, error) { return sf, nil },
 			findByNameAndTenantIDFn:            func(_ string, _ int64) (*AuthFlow, error) { return nil, errors.New("name err") },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, nil, nil)
+		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
 	})
@@ -341,7 +341,7 @@ func TestAuthFlowService_Update(t *testing.T) {
 				return &AuthFlow{AuthFlowID: 999, Name: "different-name"}, nil
 			},
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, nil, nil)
+		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name already exists")
 	})
@@ -356,7 +356,7 @@ func TestAuthFlowService_Update(t *testing.T) {
 				return &AuthFlow{AuthFlowID: sf.AuthFlowID}, nil // same ID → no conflict
 			},
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, nil, nil)
+		res, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, nil, nil, false, false, "[]")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -368,7 +368,7 @@ func TestAuthFlowService_Update(t *testing.T) {
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*AuthFlow, error) { return sf, nil },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, nil, nil)
+		res, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, nil, nil, false, false, "[]")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -380,7 +380,7 @@ func TestAuthFlowService_Update(t *testing.T) {
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*AuthFlow, error) { return sf, nil },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, nil, nil)
+		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 	})
 
@@ -394,7 +394,7 @@ func TestAuthFlowService_Update(t *testing.T) {
 				return nil, errors.New("update err")
 			},
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, nil, nil)
+		_, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, nil, nil, false, false, "[]")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})
@@ -406,7 +406,7 @@ func TestAuthFlowService_Update(t *testing.T) {
 		svc := NewAuthFlowService(db, &mockAuthFlowRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*AuthFlow, error) { return sf, nil },
 		}, &mockAuthFlowRoleRepo{}, &mockAuthFlowCallbackURIRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, nil, nil)
+		res, err := svc.Update(context.Background(), sf.AuthFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, nil, nil, false, false, "[]")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})

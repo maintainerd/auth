@@ -135,6 +135,7 @@ type IdentityProviderDetailResponseDTO struct {
 	Issuer               string             `json:"issuer,omitempty"`
 	ProviderClientID     string             `json:"provider_client_id,omitempty"`
 	AllowJITProvisioning bool               `json:"allow_jit_provisioning"`
+	AllowRegistration    bool               `json:"allow_registration"`
 	EmailDomains         []string           `json:"email_domains"`
 	Config               *datatypes.JSON    `json:"config,omitempty"`
 	Tenant               *TenantResponseDTO `json:"tenant,omitempty"`
@@ -159,14 +160,13 @@ type IdentityProviderCreateRequestDTO struct {
 	ProviderClientID     string         `json:"provider_client_id"`
 	ProviderClientSecret string         `json:"provider_client_secret"`
 	AllowJITProvisioning bool           `json:"allow_jit_provisioning"`
+	AllowRegistration    bool           `json:"allow_registration"`
 	EmailDomains         []string       `json:"email_domains"`
 	Config               datatypes.JSON `json:"config"`
 	Status               string         `json:"status"`
 }
 
-// Update identity provider request DTO (without tenant_id). ProviderClientSecret follows
-// the write-only contract: blank or the redaction sentinel preserves the stored
-// secret.
+// Update identity provider request dto
 type IdentityProviderUpdateRequestDTO struct {
 	Name                 string         `json:"name"`
 	DisplayName          string         `json:"display_name"`
@@ -176,6 +176,7 @@ type IdentityProviderUpdateRequestDTO struct {
 	ProviderClientID     string         `json:"provider_client_id"`
 	ProviderClientSecret string         `json:"provider_client_secret"`
 	AllowJITProvisioning bool           `json:"allow_jit_provisioning"`
+	AllowRegistration    bool           `json:"allow_registration"`
 	EmailDomains         []string       `json:"email_domains"`
 	Config               datatypes.JSON `json:"config"`
 	Status               string         `json:"status"`
@@ -212,32 +213,41 @@ type AuthFlowResponseDTO struct {
 	Status       string    `json:"status"`
 	ClientUUID   string    `json:"client_id,omitempty"`
 	BrandingUUID string    `json:"branding_id,omitempty"`
+	AllowRegistration    bool   `json:"allow_registration"`
+	VerificationRequired bool   `json:"verification_required"`
+	RequiredFields       string `json:"required_fields"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // Create auth flow request dto
 type AuthFlowCreateRequestDTO struct {
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	Destination  string   `json:"destination"`
-	Status       *string  `json:"status,omitempty"`
-	ClientUUID   string   `json:"client_id"`
-	BrandingUUID *string  `json:"branding_id,omitempty"`
-	RoleIDs      []string `json:"role_ids,omitempty"`
-	ClientURIIDs []string `json:"client_uri_ids,omitempty"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Destination           string   `json:"destination"`
+	Status                *string  `json:"status,omitempty"`
+	ClientUUID            string   `json:"client_id"`
+	BrandingUUID          *string  `json:"branding_id,omitempty"`
+	RoleIDs               []string `json:"role_ids,omitempty"`
+	ClientURIIDs          []string `json:"client_uri_ids,omitempty"`
+	AllowRegistration     *bool    `json:"allow_registration,omitempty"`
+	VerificationRequired  *bool    `json:"verification_required,omitempty"`
+	RequiredFields        *string  `json:"required_fields,omitempty"`
 }
 
 // Update auth flow request dto. RoleIDs / ClientURIIDs, when present, replace the
 // flow's role / callback-URI membership to exactly the provided set (an empty
 // array clears it; omitting the field leaves it untouched).
 type AuthFlowUpdateRequestDTO struct {
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	Status       *string  `json:"status,omitempty"`
-	BrandingUUID *string  `json:"branding_id,omitempty"`
-	RoleIDs      []string `json:"role_ids,omitempty"`
-	ClientURIIDs []string `json:"client_uri_ids,omitempty"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Status                *string  `json:"status,omitempty"`
+	BrandingUUID          *string  `json:"branding_id,omitempty"`
+	RoleIDs               []string `json:"role_ids,omitempty"`
+	ClientURIIDs          []string `json:"client_uri_ids,omitempty"`
+	AllowRegistration     *bool    `json:"allow_registration,omitempty"`
+	VerificationRequired  *bool    `json:"verification_required,omitempty"`
+	RequiredFields        *string  `json:"required_fields,omitempty"`
 }
 
 // Update signup flow status request dto

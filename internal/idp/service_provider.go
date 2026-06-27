@@ -27,6 +27,7 @@ type IdentityProviderServiceDataResult struct {
 	Issuer               string
 	ProviderClientID     string
 	AllowJITProvisioning bool
+	AllowRegistration    bool
 	EmailDomains         []string
 	Config               *datatypes.JSON
 	Tenant               *TenantServiceDataResult
@@ -49,6 +50,7 @@ type IdentityProviderCreateInput struct {
 	ProviderClientID     string
 	ProviderClientSecret string
 	AllowJITProvisioning bool
+	AllowRegistration    bool
 	EmailDomains         []string
 	Config               datatypes.JSON
 	Status               string
@@ -70,6 +72,7 @@ type IdentityProviderUpdateInput struct {
 	ProviderClientID     string
 	ProviderClientSecret string
 	AllowJITProvisioning bool
+	AllowRegistration    bool
 	EmailDomains         []string
 	Config               datatypes.JSON
 	Status               string
@@ -286,6 +289,7 @@ func (s *identityProviderService) Create(ctx context.Context, in IdentityProvide
 			ProviderClientID:              ptrIfNotBlank(in.ProviderClientID),
 			ProviderClientSecretEncrypted: encSecret,
 			AllowJITProvisioning:          in.AllowJITProvisioning,
+			AllowRegistration:             in.AllowRegistration,
 			Config:                        in.Config,
 			TenantID:                      tenant.TenantID,
 			Status:                        in.Status,
@@ -398,6 +402,7 @@ func (s *identityProviderService) Update(ctx context.Context, in IdentityProvide
 		idp.ProviderClientID = ptrIfNotBlank(in.ProviderClientID)
 		idp.ProviderClientSecretEncrypted = encSecret
 		idp.AllowJITProvisioning = in.AllowJITProvisioning
+		idp.AllowRegistration = in.AllowRegistration
 		idp.Config = in.Config
 		idp.Status = in.Status
 		// IsDefault and IsSystem are system-managed, don't update them in user requests
@@ -610,6 +615,7 @@ func toIdpServiceDataResult(idp *IdentityProvider) *IdentityProviderServiceDataR
 		Issuer:               idp.IssuerOrEmpty(),
 		ProviderClientID:     idp.ProviderClientIDOrEmpty(),
 		AllowJITProvisioning: idp.AllowJITProvisioning,
+		AllowRegistration:    idp.AllowRegistration,
 		EmailDomains:         domains,
 		// The encrypted secret column is never selected on read paths, so it
 		// never reaches this result. Config holds only non-secret JSONB fields.
