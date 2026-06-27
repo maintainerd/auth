@@ -26,6 +26,7 @@ type IdentityProvider struct {
 	ProviderClientID              *string `gorm:"column:provider_client_id"`
 	ProviderClientSecretEncrypted *string `gorm:"column:provider_client_secret_encrypted"`
 	AllowJITProvisioning          bool    `gorm:"column:allow_jit_provisioning;default:false"`
+	AllowRegistration             bool    `gorm:"column:allow_registration;default:true"`
 
 	Config    datatypes.JSON `gorm:"column:config"`
 	Status    string         `gorm:"column:status;default:'inactive'"`

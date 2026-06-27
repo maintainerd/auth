@@ -17,14 +17,14 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 
 	t.Run("client lookup error", func(t *testing.T) {
 		db, _ := newMockDB(t)
-		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) { return nil, errors.New("db error") }})
+		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) { return nil, errors.New("db error") }}, nil)
 		_, err := svc.ListConnections(ctx, "my-client")
 		require.Error(t, err)
 	})
 
 	t.Run("unknown client", func(t *testing.T) {
 		db, _ := newMockDB(t)
-		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) { return nil, nil }})
+		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) { return nil, nil }}, nil)
 		_, err := svc.ListConnections(ctx, "my-client")
 		require.Error(t, err)
 	})
@@ -33,7 +33,7 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
 			return &Client{ClientID: 1, Name: shared.SystemClientNameAuthIdentity, Status: shared.StatusActive, IsSystem: true}, nil
-		}})
+		}}, nil)
 		_, err := svc.ListConnections(ctx, "my-client")
 		require.Error(t, err)
 	})
@@ -46,7 +46,7 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 
 		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
 			return &Client{ClientID: 10, Name: shared.SystemClientNameAuthConsole, Status: shared.StatusActive, IsSystem: true}, nil
-		}})
+		}}, nil)
 
 		result, err := svc.ListConnections(ctx, "my-client")
 		require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers"`).WillReturnError(errors.New("db error"))
 		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
 			return &Client{ClientID: 10, Status: shared.StatusActive}, nil
-		}})
+		}}, nil)
 		_, err := svc.ListConnections(ctx, "my-client")
 		require.Error(t, err)
 	})
@@ -87,7 +87,7 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 
 		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
 			return &Client{ClientID: 10, Status: shared.StatusActive}, nil
-		}})
+		}}, nil)
 
 		result, err := svc.ListConnections(ctx, "my-client")
 		require.NoError(t, err)
