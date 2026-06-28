@@ -27,6 +27,7 @@ type repos struct {
 	tenantRepo                tenant.TenantRepository
 	tenantMemberRepo          tenant.TenantMemberRepository
 	idpRepo                   idp.IdentityProviderRepository
+	idpAllowedAudienceRepo    idp.IdentityProviderAllowedAudienceRepository
 	roleRepo                  iam.RoleRepository
 	rolePermissionRepo        iam.RolePermissionRepository
 	clientRepo                client.ClientRepository
@@ -89,6 +90,7 @@ func initRepos(db *gorm.DB) *repos {
 		tenantRepo:                tenant.NewTenantRepository(db),
 		tenantMemberRepo:          tenant.NewTenantMemberRepository(db),
 		idpRepo:                   idp.NewIdentityProviderRepository(db),
+		idpAllowedAudienceRepo:    idp.NewIdentityProviderAllowedAudienceRepository(db),
 		roleRepo:                  iam.NewRoleRepository(db),
 		rolePermissionRepo:        iam.NewRolePermissionRepository(db),
 		clientRepo:                client.NewClientRepository(db),

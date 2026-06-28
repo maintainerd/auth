@@ -79,6 +79,8 @@ type App struct {
 	MFAService                   mfa.MFAService
 	WebAuthnService              mfa.WebAuthnService
 	FederationService            idp.FederationService
+	IDPRepo                      idp.IdentityProviderRepository
+	IDPAllowedAudienceRepo       idp.IdentityProviderAllowedAudienceRepository
 	EventService                 event.EventService
 	EventTypeService             event.EventTypeService
 	TenantEventTypeConfigService event.TenantEventTypeConfigService
@@ -158,6 +160,8 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		MFAService:                   s.mfaService,
 		WebAuthnService:              s.webAuthnService,
 		FederationService:            s.federationService,
+		IDPRepo:                      r.idpRepo,
+		IDPAllowedAudienceRepo:       r.idpAllowedAudienceRepo,
 		EventService:                 s.eventService,
 		EventTypeService:             s.eventTypeService,
 		TenantEventTypeConfigService: s.tenantEventTypeConfigService,

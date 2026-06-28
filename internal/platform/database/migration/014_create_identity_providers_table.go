@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS identity_providers (
     provider_client_secret_encrypted TEXT,
     allow_jit_provisioning          BOOLEAN NOT NULL DEFAULT FALSE,
     allow_registration              BOOLEAN NOT NULL DEFAULT TRUE,
+    allow_token_federation          BOOLEAN NOT NULL DEFAULT FALSE,
     config                  JSONB,
     status                  VARCHAR(20) DEFAULT 'inactive',
     is_default              BOOLEAN DEFAULT FALSE,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
@@ -138,6 +139,14 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 	// Global IP rate limit — 100 req/min per IP on the public port
 	r.Use(securityMiddleware.IPRateLimitMiddleware(application.RedisClient, 100, time.Minute))
 
+	// Multi-issuer auth middleware: intercepts foreign OIDC ID tokens (Mode B)
+	// and resolves the principal before UserContextMiddleware runs. Maintainerd
+	// tokens and unauthenticated requests pass through unchanged.
+	if application.FederationService != nil && application.IDPRepo != nil && application.IDPAllowedAudienceRepo != nil {
+		multiIssuerMW := buildMultiIssuerMiddleware(application)
+		r.Use(multiIssuerMW)
+	}
+
 	// Health / readiness probes (no auth, no rate-limit)
 	r.Get("/health", handleHealth)
 	r.Get("/healthz", handleHealthz)
@@ -259,4 +268,65 @@ func (a *ipRestrictionAdapter) GetActiveIPRestrictions(ctx context.Context, tena
 		result[i] = securityMiddleware.IPRestriction{Type: r.Type, IPAddress: r.IPAddress}
 	}
 	return result, nil
+}
+
+func buildMultiIssuerMiddleware(app *Application) func(http.Handler) http.Handler {
+	return securityMiddleware.MultiIssuerAuthMiddleware(
+		func(issuer string) (*securityMiddleware.FederatedIDPRecord, error) {
+			idp, err := app.IDPRepo.FindByIssuer(issuer)
+			if err != nil || idp == nil {
+				return nil, err
+			}
+			return &securityMiddleware.FederatedIDPRecord{
+				IdentityProviderID:   idp.IdentityProviderID,
+				TenantID:             idp.TenantID,
+				Provider:             idp.Provider,
+				AllowTokenFederation: idp.AllowTokenFederation,
+				AllowJITProvisioning: idp.AllowJITProvisioning,
+				Status:               idp.Status,
+			}, nil
+		},
+		func(idpID int64) ([]securityMiddleware.FederatedAudienceRecord, error) {
+			audiences, err := app.IDPAllowedAudienceRepo.FindByProviderID(idpID)
+			if err != nil {
+				return nil, err
+			}
+			result := make([]securityMiddleware.FederatedAudienceRecord, len(audiences))
+			for i, a := range audiences {
+				result[i] = securityMiddleware.FederatedAudienceRecord{Audience: a.Audience}
+			}
+			return result, nil
+		},
+		func(ctx context.Context, rawToken string, idpID int64, audAllowed func(aud string) bool) (*securityMiddleware.FederatedPrincipal, error) {
+			found, err := app.IDPRepo.FindByID(idpID)
+			if err != nil || found == nil {
+				return nil, err
+			}
+			if svc, ok := app.FederationService.(idp.PrincipalResolver); ok {
+				p, err := svc.ResolvePrincipal(ctx, rawToken, found, audAllowed)
+				if err != nil {
+					return nil, err
+				}
+				return &securityMiddleware.FederatedPrincipal{
+					UserID:   p.UserID,
+					UserUUID: p.UserUUID,
+					TenantID: p.TenantID,
+				}, nil
+			}
+			return nil, err
+		},
+		func(ctx context.Context, userID int64, tenantID int64) (*authctx.AuthContext, error) {
+			usr, err := app.UserService.FindByUserID(ctx, userID)
+			if err != nil || usr == nil {
+				return nil, err
+			}
+			uc := toUserContextByTenant(usr, tenantID)
+			return &authctx.AuthContext{
+				User:     uc.User,
+				Tenant:   uc.Tenant,
+				Provider: uc.Provider,
+				Client:   uc.Client,
+			}, nil
+		},
+	)
 }

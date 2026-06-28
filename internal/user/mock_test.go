@@ -653,6 +653,7 @@ type mockUserService struct {
 	getUserIdentitiesFn    func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
 	getUserIdentsFn        func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
 	findBySubAndClientIDFn func(string, string) (*User, error)
+	findByUserIDFn         func(int64) (*User, error)
 	forcePasswordChangeFn  func(uuid.UUID, bool) error
 	getUserMFAFn           func(uuid.UUID, int64) (*UserMFAResponseDTO, error)
 	ensureUserInTenantFn   func(uuid.UUID, int64) (int64, error)
@@ -749,6 +750,12 @@ func (m *mockUserService) RevokeUserSession(_ context.Context, _ uuid.UUID, _ in
 func (m *mockUserService) FindBySubAndClientID(_ context.Context, sub string, clientID string) (*User, error) {
 	if m.findBySubAndClientIDFn != nil {
 		return m.findBySubAndClientIDFn(sub, clientID)
+	}
+	return nil, nil
+}
+func (m *mockUserService) FindByUserID(_ context.Context, userID int64) (*User, error) {
+	if m.findByUserIDFn != nil {
+		return m.findByUserIDFn(userID)
 	}
 	return nil, nil
 }

@@ -103,6 +103,9 @@ func (h *IdentityProviderGRPCHandler) CreateIdentityProvider(ctx context.Context
 		Issuer:               req.GetIssuer(),
 		ProviderClientID:     req.GetProviderClientId(),
 		AllowJITProvisioning: req.GetAllowJitProvisioning(),
+		AllowRegistration:    true,
+		AllowTokenFederation: req.GetAllowTokenFederation(),
+		AllowedAudiences:     req.GetAllowedAudiences(),
 		EmailDomains:         req.GetEmailDomains(),
 		Config:               structToJSON(req.GetConfig()),
 		Status:               req.GetStatus(),
@@ -138,6 +141,9 @@ func (h *IdentityProviderGRPCHandler) UpdateIdentityProvider(ctx context.Context
 		Issuer:               req.GetIssuer(),
 		ProviderClientID:     req.GetProviderClientId(),
 		AllowJITProvisioning: req.GetAllowJitProvisioning(),
+		AllowRegistration:    true,
+		AllowTokenFederation: req.GetAllowTokenFederation(),
+		AllowedAudiences:     req.GetAllowedAudiences(),
 		EmailDomains:         req.GetEmailDomains(),
 		Config:               structToJSON(req.GetConfig()),
 		Status:               req.GetStatus(),
@@ -223,6 +229,8 @@ func toIdpProto(result *IdentityProviderServiceDataResult) *authv1.IdentityProvi
 		Issuer:               result.Issuer,
 		ProviderClientId:     result.ProviderClientID,
 		AllowJitProvisioning: result.AllowJITProvisioning,
+		AllowTokenFederation: result.AllowTokenFederation,
+		AllowedAudiences:     result.AllowedAudiences,
 		EmailDomains:         result.EmailDomains,
 	}
 }

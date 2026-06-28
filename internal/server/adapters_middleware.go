@@ -78,6 +78,35 @@ func toUserContext(u *user.User, clientID string) *authctx.UserContext {
 	}
 }
 
+func toUserContextByTenant(u *user.User, tenantID int64) *authctx.UserContext {
+	var tenant *authctx.AuthTenant
+	for i := range u.UserIdentities {
+		identity := &u.UserIdentities[i]
+		if identity.TenantID == tenantID || (identity.Tenant != nil && identity.Tenant.TenantID == tenantID) {
+			if identity.Tenant != nil {
+				tenant = &authctx.AuthTenant{
+					TenantID:    identity.Tenant.TenantID,
+					TenantUUID:  identity.Tenant.TenantUUID,
+					Name:        identity.Tenant.Name,
+					DisplayName: identity.Tenant.DisplayName,
+					Identifier:  identity.Tenant.Identifier,
+				}
+			} else {
+				tenant = &authctx.AuthTenant{TenantID: tenantID}
+			}
+			break
+		}
+	}
+	if tenant == nil {
+		tenant = &authctx.AuthTenant{TenantID: tenantID}
+	}
+
+	return &authctx.UserContext{
+		User:   toAuthUser(u, tenantID),
+		Tenant: tenant,
+	}
+}
+
 func toAuthUser(u *user.User, tenantID int64) *authctx.AuthUser {
 	if u == nil {
 		return nil

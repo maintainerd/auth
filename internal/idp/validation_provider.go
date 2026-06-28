@@ -17,6 +17,7 @@ func isExternalProviderType(providerType string) bool {
 // Validation for create request
 func (r IdentityProviderCreateRequestDTO) Validate() error {
 	requireExternalCreds := isExternalProviderType(r.ProviderType) && r.Status == shared.StatusActive
+	requireTokenFederation := r.AllowTokenFederation && r.Status == shared.StatusActive
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -35,11 +36,22 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 			validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise).Error("Provider type must be one of: system, social, enterprise"),
 		),
 		validation.Field(&r.Issuer,
-			validation.When(requireExternalCreds, validation.Required.Error("Issuer is required for active social/enterprise providers")),
+			validation.When(requireExternalCreds || requireTokenFederation, validation.Required.Error("Issuer is required for active social/enterprise or token-federation providers")),
 			validation.When(strings.TrimSpace(r.Issuer) != "", is.URL.Error("Issuer must be a valid URL")),
 		),
 		validation.Field(&r.ProviderClientID,
 			validation.When(requireExternalCreds, validation.Required.Error("Provider client ID is required for active social/enterprise providers")),
+		),
+		validation.Field(&r.AllowedAudiences,
+			validation.When(requireTokenFederation,
+				validation.By(func(value interface{}) error {
+					auds, ok := value.([]string)
+					if !ok || len(auds) == 0 {
+						return validation.NewError("validation_required", "At least one allowed audience is required when token federation is enabled")
+					}
+					return nil
+				}),
+			),
 		),
 		validation.Field(&r.EmailDomains,
 			validation.When(len(r.EmailDomains) > 0,
@@ -56,6 +68,7 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 // Validation for update request
 func (r IdentityProviderUpdateRequestDTO) Validate() error {
 	requireExternalCreds := isExternalProviderType(r.ProviderType) && r.Status == shared.StatusActive
+	requireTokenFederation := r.AllowTokenFederation && r.Status == shared.StatusActive
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -74,11 +87,22 @@ func (r IdentityProviderUpdateRequestDTO) Validate() error {
 			validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise).Error("Provider type must be one of: system, social, enterprise"),
 		),
 		validation.Field(&r.Issuer,
-			validation.When(requireExternalCreds, validation.Required.Error("Issuer is required for active social/enterprise providers")),
+			validation.When(requireExternalCreds || requireTokenFederation, validation.Required.Error("Issuer is required for active social/enterprise or token-federation providers")),
 			validation.When(strings.TrimSpace(r.Issuer) != "", is.URL.Error("Issuer must be a valid URL")),
 		),
 		validation.Field(&r.ProviderClientID,
 			validation.When(requireExternalCreds, validation.Required.Error("Provider client ID is required for active social/enterprise providers")),
+		),
+		validation.Field(&r.AllowedAudiences,
+			validation.When(requireTokenFederation,
+				validation.By(func(value interface{}) error {
+					auds, ok := value.([]string)
+					if !ok || len(auds) == 0 {
+						return validation.NewError("validation_required", "At least one allowed audience is required when token federation is enabled")
+					}
+					return nil
+				}),
+			),
 		),
 		validation.Field(&r.EmailDomains,
 			validation.When(len(r.EmailDomains) > 0,

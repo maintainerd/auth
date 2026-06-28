@@ -26,6 +26,8 @@ var idpSafeColumns = []string{
 	"issuer",
 	"provider_client_id",
 	"allow_jit_provisioning",
+	"allow_registration",
+	"allow_token_federation",
 	"config",
 	"status",
 	"is_default",

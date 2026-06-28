@@ -48,6 +48,8 @@ message IdentityProvider {
   string provider_client_id = 14;
   bool allow_jit_provisioning = 15;
   repeated string email_domains = 16;
+  bool allow_token_federation = 17;
+  repeated string allowed_audiences = 18;
 }
 
 message SignupFlow {
@@ -114,6 +116,8 @@ message CreateIdentityProviderRequest {
   string provider_client_id = 10;
   bool allow_jit_provisioning = 11;
   repeated string email_domains = 12;
+  bool allow_token_federation = 13;
+  repeated string allowed_audiences = 14;
 }
 
 message CreateIdentityProviderResponse {
@@ -134,6 +138,8 @@ message UpdateIdentityProviderRequest {
   string provider_client_id = 11;
   bool allow_jit_provisioning = 12;
   repeated string email_domains = 13;
+  bool allow_token_federation = 14;
+  repeated string allowed_audiences = 15;
 }
 
 message UpdateIdentityProviderResponse {

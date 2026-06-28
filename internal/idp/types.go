@@ -67,6 +67,7 @@ type IdentityProviderResponseDTO struct {
 	Issuer               string    `json:"issuer,omitempty"`
 	ProviderClientID     string    `json:"provider_client_id,omitempty"`
 	AllowJITProvisioning bool      `json:"allow_jit_provisioning"`
+	AllowTokenFederation bool      `json:"allow_token_federation"`
 	EmailDomains         []string  `json:"email_domains"`
 	Status               string    `json:"status"`
 	IsDefault            bool      `json:"is_default"`
@@ -136,6 +137,8 @@ type IdentityProviderDetailResponseDTO struct {
 	ProviderClientID     string             `json:"provider_client_id,omitempty"`
 	AllowJITProvisioning bool               `json:"allow_jit_provisioning"`
 	AllowRegistration    bool               `json:"allow_registration"`
+	AllowTokenFederation bool               `json:"allow_token_federation"`
+	AllowedAudiences     []string           `json:"allowed_audiences"`
 	EmailDomains         []string           `json:"email_domains"`
 	Config               *datatypes.JSON    `json:"config,omitempty"`
 	Tenant               *TenantResponseDTO `json:"tenant,omitempty"`
@@ -148,9 +151,9 @@ type IdentityProviderDetailResponseDTO struct {
 
 // Create identity provider request DTO. Security-critical/queried fields are
 // now first-class top-level inputs (promoted out of the config JSONB blob):
-// issuer, provider_client_id, provider_client_secret (write-only), allow_jit_provisioning and
-// email_domains. Config carries only the remaining JSONB fields (endpoints /
-// scopes / attribute_mapping / system settings).
+// issuer, provider_client_id, provider_client_secret (write-only), allow_jit_provisioning,
+// allow_token_federation, allowed_audiences and email_domains. Config carries only the
+// remaining JSONB fields (endpoints / scopes / attribute_mapping / system settings).
 type IdentityProviderCreateRequestDTO struct {
 	Name                 string         `json:"name"`
 	DisplayName          string         `json:"display_name"`
@@ -161,6 +164,8 @@ type IdentityProviderCreateRequestDTO struct {
 	ProviderClientSecret string         `json:"provider_client_secret"`
 	AllowJITProvisioning bool           `json:"allow_jit_provisioning"`
 	AllowRegistration    bool           `json:"allow_registration"`
+	AllowTokenFederation bool           `json:"allow_token_federation"`
+	AllowedAudiences     []string       `json:"allowed_audiences"`
 	EmailDomains         []string       `json:"email_domains"`
 	Config               datatypes.JSON `json:"config"`
 	Status               string         `json:"status"`
@@ -177,6 +182,8 @@ type IdentityProviderUpdateRequestDTO struct {
 	ProviderClientSecret string         `json:"provider_client_secret"`
 	AllowJITProvisioning bool           `json:"allow_jit_provisioning"`
 	AllowRegistration    bool           `json:"allow_registration"`
+	AllowTokenFederation bool           `json:"allow_token_federation"`
+	AllowedAudiences     []string       `json:"allowed_audiences"`
 	EmailDomains         []string       `json:"email_domains"`
 	Config               datatypes.JSON `json:"config"`
 	Status               string         `json:"status"`
