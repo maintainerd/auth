@@ -244,6 +244,7 @@ type mockAuthFlowRepo struct {
 	findPaginatedFn               func(AuthFlowRepositoryGetFilter) (*PaginationResult[AuthFlow], error)
 	findByUUIDAndTenantIDFn       func(uuid.UUID, int64, ...string) (*AuthFlow, error)
 	findByIdentifierAndClientIDFn func(string, int64) (*AuthFlow, error)
+	findByClientIDFn              func(int64) ([]AuthFlow, error)
 	findByNameFn                  func(string) (*AuthFlow, error)
 	findByNameAndTenantIDFn       func(string, int64) (*AuthFlow, error)
 	createFn                      func(*AuthFlow) (*AuthFlow, error)
@@ -291,6 +292,12 @@ func (m *mockAuthFlowRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, p
 func (m *mockAuthFlowRepo) FindByIdentifierAndClientID(identifier string, clientID int64) (*AuthFlow, error) {
 	if m.findByIdentifierAndClientIDFn != nil {
 		return m.findByIdentifierAndClientIDFn(identifier, clientID)
+	}
+	return nil, nil
+}
+func (m *mockAuthFlowRepo) FindByClientID(clientID int64) ([]AuthFlow, error) {
+	if m.findByClientIDFn != nil {
+		return m.findByClientIDFn(clientID)
 	}
 	return nil, nil
 }

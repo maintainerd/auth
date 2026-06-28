@@ -25,8 +25,9 @@ func toAuthnIDPFromClient(p *client.IdentityProvider) *authn.IdentityProvider {
 		IdentityProviderID: p.IdentityProviderID, IdentityProviderUUID: p.IdentityProviderUUID,
 		TenantID: p.TenantID, Name: p.Name, Provider: p.Provider, ProviderType: p.ProviderType,
 		Identifier: p.Identifier, Status: p.Status, IsDefault: p.IsDefault, IsSystem: p.IsSystem,
-		Tenant:    toAuthnTenantFromClient(p.Tenant),
-		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+		AllowRegistration: p.AllowRegistration,
+		Tenant:            toAuthnTenantFromClient(p.Tenant),
+		CreatedAt:         p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 }
 

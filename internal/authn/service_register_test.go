@@ -14,7 +14,23 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
+
+type registrationFlowRepoStub struct {
+	flows   []RegistrationFlow
+	flowErr error
+	roleIDs []int64
+	roleErr error
+}
+
+func (r *registrationFlowRepoStub) WithTx(*gorm.DB) AuthFlowRoleRepository { return r }
+func (r *registrationFlowRepoStub) FindRoleIDsByAuthFlowID(int64) ([]int64, error) {
+	return r.roleIDs, r.roleErr
+}
+func (r *registrationFlowRepoStub) FindByClientID(int64) ([]RegistrationFlow, error) {
+	return r.flows, r.flowErr
+}
 
 // regMocks bundles every mock repo needed by NewRegistrationService.
 type regMocks struct {
@@ -205,6 +221,86 @@ func TestRegisterService_FindDefaultRole(t *testing.T) {
 		assert.Nil(t, role)
 		assert.Contains(t, err.Error(), "registered role not found for tenant")
 	})
+}
+
+func TestRegistrationFlowPolicy(t *testing.T) {
+	t.Run("no attached flow is unrestricted", func(t *testing.T) {
+		svc := &registerService{authFlowRoleRepo: &registrationFlowRepoStub{}}
+		flow, err := svc.registrationFlowForClient(nil, 1)
+		require.NoError(t, err)
+		assert.Nil(t, flow)
+	})
+
+	t.Run("attached flows with no active opt-in are forbidden", func(t *testing.T) {
+		svc := &registerService{authFlowRoleRepo: &registrationFlowRepoStub{flows: []RegistrationFlow{
+			{AuthFlowID: 1, Status: shared.StatusInactive, AllowRegistration: true},
+			{AuthFlowID: 2, Status: shared.StatusActive, AllowRegistration: false},
+		}}}
+		flow, err := svc.registrationFlowForClient(nil, 1)
+		require.Error(t, err)
+		assert.Nil(t, flow)
+		assert.Contains(t, err.Error(), "disabled for this signup flow")
+	})
+
+	t.Run("first active opt-in flow supplies policy", func(t *testing.T) {
+		svc := &registerService{authFlowRoleRepo: &registrationFlowRepoStub{flows: []RegistrationFlow{
+			{AuthFlowID: 3, Status: shared.StatusActive, AllowRegistration: true, VerificationRequired: true, RequiredFields: `["email"]`},
+		}}}
+		flow, err := svc.registrationFlowForClient(nil, 1)
+		require.NoError(t, err)
+		require.NotNil(t, flow)
+		assert.Equal(t, int64(3), flow.AuthFlowID)
+		assert.True(t, flow.VerificationRequired)
+	})
+}
+
+func TestEnforceRequiredRegistrationFields(t *testing.T) {
+	email := "user@example.com"
+	phone := "+12125551234"
+	tests := []struct {
+		name     string
+		required string
+		fullname string
+		email    *string
+		phone    *string
+		wantErr  string
+	}{
+		{name: "all configured fields present", required: `["email","fullname","phone"]`, fullname: "User Name", email: &email, phone: &phone},
+		{name: "email missing", required: `["email"]`, wantErr: "email is required"},
+		{name: "fullname missing", required: `["fullname"]`, email: &email, wantErr: "fullname is required"},
+		{name: "phone missing", required: `["phone"]`, email: &email, wantErr: "phone is required"},
+		{name: "invalid json", required: `{}`, wantErr: "JSON string array"},
+		{name: "unsupported field", required: `["address"]`, wantErr: "unsupported"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := enforceRequiredRegistrationFields(&RegistrationFlow{RequiredFields: tc.required}, tc.fullname, tc.email, tc.phone)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+func TestAssignRegistrationFlowRoles(t *testing.T) {
+	repo := &registrationFlowRepoStub{roleIDs: []int64{10, 20}}
+	created := make([]int64, 0, 1)
+	userRoles := &mockUserRoleRepo{
+		findByUserIDAndRoleIDFn: func(_, roleID int64) (*UserRole, error) {
+			assert.Equal(t, int64(20), roleID)
+			return nil, nil
+		},
+		createFn: func(role *UserRole) (*UserRole, error) {
+			created = append(created, role.RoleID)
+			return role, nil
+		},
+	}
+	svc := &registerService{authFlowRoleRepo: repo}
+	require.NoError(t, svc.assignRegistrationFlowRoles(nil, userRoles, 7, 10, &RegistrationFlow{AuthFlowID: 3}))
+	assert.Equal(t, []int64{20}, created)
 }
 
 // lockedRateLimiterReg starts a miniredis instance, pre-sets the lock key

@@ -1,13 +1,40 @@
 package idp
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/auth/internal/shared"
 )
 
+func validateRequiredFieldsJSON(raw *string) error {
+	if raw == nil {
+		return nil
+	}
+	var fields []string
+	if err := json.Unmarshal([]byte(*raw), &fields); err != nil {
+		return fmt.Errorf("required_fields must be a JSON string array")
+	}
+	allowed := map[string]bool{"username": true, "password": true, "fullname": true, "email": true, "phone": true}
+	seen := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		field = strings.ToLower(strings.TrimSpace(field))
+		if !allowed[field] {
+			return fmt.Errorf("unsupported required field: %s", field)
+		}
+		if seen[field] {
+			return fmt.Errorf("duplicate required field: %s", field)
+		}
+		seen[field] = true
+	}
+	return nil
+}
+
 func (r AuthFlowCreateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
+	if err := validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Signup flow name is required"),
 			validation.Length(1, 100).Error("Signup flow name must be between 1 and 100 characters"),
@@ -22,11 +49,14 @@ func (r AuthFlowCreateRequestDTO) Validate() error {
 			validation.Required.Error("Auth client UUID is required"),
 			is.UUID.Error("Invalid auth client UUID format"),
 		),
-	)
+	); err != nil {
+		return err
+	}
+	return validateRequiredFieldsJSON(r.RequiredFields)
 }
 
 func (r AuthFlowUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
+	if err := validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Signup flow name is required"),
 			validation.Length(1, 100).Error("Signup flow name must be between 1 and 100 characters"),
@@ -37,7 +67,10 @@ func (r AuthFlowUpdateRequestDTO) Validate() error {
 		validation.Field(&r.Status,
 			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
-	)
+	); err != nil {
+		return err
+	}
+	return validateRequiredFieldsJSON(r.RequiredFields)
 }
 
 func (r AuthFlowUpdateStatusRequestDTO) Validate() error {

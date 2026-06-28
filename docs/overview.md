@@ -297,8 +297,8 @@ A **signup flow** defines the registration experience for a specific client with
 
 Each signup flow has:
 - A name and identifier tied to a specific client.
-- A `config` JSONB with the flow-specific rules (required fields, domain restrictions, etc.).
-- An assigned set of roles automatically granted to users who register through this flow (`signup_flow_roles`).
+- Explicit self-registration, verification, and required-field policy (`allow_registration`, `verification_required`, `required_fields`).
+- An assigned set of roles automatically granted to users who register through this flow (`auth_flow_roles`).
 
 ---
 
