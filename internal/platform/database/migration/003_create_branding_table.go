@@ -11,7 +11,7 @@ import (
 // All theme tokens (primary/secondary colors, panel/sidebar/app backgrounds,
 // fonts, …) live in the `metadata` JSONB so the palette can grow without schema
 // changes. Only stable, first-class fields get columns (logo, favicon, legal
-// URLs). No custom CSS / layouts by design.
+// URLs and the selected hosted-login layout). Custom CSS remains unsupported.
 func CreateBrandingTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS branding (
     name                 VARCHAR(100),
     is_system            BOOLEAN NOT NULL DEFAULT false,
     is_active            BOOLEAN NOT NULL DEFAULT false,
+    layout               VARCHAR(32) NOT NULL DEFAULT 'centered',
     company_name         VARCHAR(255),
     logo_url             TEXT,
     favicon_url          TEXT,
@@ -45,6 +46,17 @@ BEGIN
         ALTER TABLE branding
             ADD CONSTRAINT fk_branding_tenant_id FOREIGN KEY (tenant_id)
             REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_branding_layout'
+    ) THEN
+        ALTER TABLE branding
+            ADD CONSTRAINT chk_branding_layout
+            CHECK (layout IN ('centered', 'full_page', 'split'));
     END IF;
 END$$;
 -- NOTE: FK constraints for created_by/updated_by are added in migration 026

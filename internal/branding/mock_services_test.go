@@ -19,10 +19,10 @@ func (m *testBrandingTenantResolver) GetByUUID(ctx context.Context, tenantUUID u
 }
 
 type testBrandingService struct {
-	getFn      func(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error)
-	updateFn   func(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
-	activateFn func(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
-	deleteFn   func(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) error
+	getFn       func(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error)
+	updateFn    func(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	activateFn  func(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
+	deleteFn    func(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) error
 	getPublicFn func(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error)
 }
 
@@ -33,24 +33,30 @@ func (m *testBrandingService) Update(ctx context.Context, tenantID int64, name, 
 	return m.updateFn(ctx, tenantID, name, companyName, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL)
 }
 func (m *testBrandingService) Activate(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error) {
-	if m.activateFn != nil { return m.activateFn(ctx, brandingUUID, tenantID) }
+	if m.activateFn != nil {
+		return m.activateFn(ctx, brandingUUID, tenantID)
+	}
 	return &BrandingServiceDataResult{}, nil
 }
 func (m *testBrandingService) Delete(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) error {
-	if m.deleteFn != nil { return m.deleteFn(ctx, brandingUUID, tenantID) }
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, brandingUUID, tenantID)
+	}
 	return nil
 }
 func (m *testBrandingService) GetPublic(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error) {
-	if m.getPublicFn != nil { return m.getPublicFn(ctx, tenantID) }
+	if m.getPublicFn != nil {
+		return m.getPublicFn(ctx, tenantID)
+	}
 	return &BrandingServiceDataResult{}, nil
 }
 func (m *testBrandingService) List(ctx context.Context, tenantID int64) ([]*BrandingServiceDataResult, error) {
 	return nil, nil
 }
-func (m *testBrandingService) Create(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+func (m *testBrandingService) Create(ctx context.Context, tenantID int64, name, layout, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	return &BrandingServiceDataResult{}, nil
 }
-func (m *testBrandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+func (m *testBrandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, layout, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	return &BrandingServiceDataResult{}, nil
 }
 

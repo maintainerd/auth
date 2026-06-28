@@ -108,6 +108,11 @@ const (
 	LoginTemplateCreative  = "creative"
 	LoginTemplateCustom    = "custom"
 
+	// Branding layouts (Branding.Layout)
+	BrandingLayoutCentered = "centered"
+	BrandingLayoutFullPage = "full_page"
+	BrandingLayoutSplit    = "split"
+
 	// Policy statement effects (PolicyStatement.Effect)
 	PolicyEffectAllow = "allow"
 	PolicyEffectDeny  = "deny"

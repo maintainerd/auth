@@ -66,7 +66,7 @@ func (h *BrandingHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.brandingService.Create(
 		r.Context(), tenant.TenantID,
-		req.Name, req.CompanyName, req.LogoURL, req.FaviconURL,
+		req.Name, req.Layout, req.CompanyName, req.LogoURL, req.FaviconURL,
 		req.Metadata,
 		req.SupportURL, req.PrivacyPolicyURL, req.TermsOfServiceURL,
 	)
@@ -120,7 +120,7 @@ func (h *BrandingHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.brandingService.UpdateByUUID(
 		r.Context(), brandingUUID, tenant.TenantID,
-		req.Name, req.CompanyName, req.LogoURL, req.FaviconURL,
+		req.Name, req.Layout, req.CompanyName, req.LogoURL, req.FaviconURL,
 		req.Metadata,
 		req.SupportURL, req.PrivacyPolicyURL, req.TermsOfServiceURL,
 	)
@@ -187,6 +187,7 @@ func toBrandingResponseDTO(b *BrandingServiceDataResult) BrandingResponseDTO {
 		Name:              b.Name,
 		IsSystem:          b.IsSystem,
 		IsActive:          b.IsActive,
+		Layout:            b.Layout,
 		CompanyName:       b.CompanyName,
 		LogoURL:           b.LogoURL,
 		FaviconURL:        b.FaviconURL,

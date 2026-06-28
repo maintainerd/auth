@@ -11,12 +11,13 @@ import (
 
 type mockBrandingRepo struct {
 	findByTenantIDFn    func(int64) (*Branding, error)
+	findByUUIDFn        func(uuid.UUID) (*Branding, error)
 	findAllByTenantIDFn func(int64) ([]Branding, error)
-	createFn         func(*Branding) (*Branding, error)
-	createOrUpdateFn func(*Branding) (*Branding, error)
-	findActiveFn     func(int64) (*Branding, error)
-	findSystemFn     func(int64) (*Branding, error)
-	deactivateAllFn  func(int64) error
+	createFn            func(*Branding) (*Branding, error)
+	createOrUpdateFn    func(*Branding) (*Branding, error)
+	findActiveFn        func(int64) (*Branding, error)
+	findSystemFn        func(int64) (*Branding, error)
+	deactivateAllFn     func(int64) error
 }
 
 func (m *mockBrandingRepo) WithTx(_ *gorm.DB) BrandingRepository { return m }
@@ -63,8 +64,14 @@ func (m *mockBrandingRepo) CreateOrUpdate(e *Branding) (*Branding, error) {
 	}
 	return e, nil
 }
-func (m *mockBrandingRepo) FindAll(p ...string) ([]Branding, error)           { return nil, nil }
-func (m *mockBrandingRepo) FindByUUID(id any, p ...string) (*Branding, error) { return nil, nil }
+func (m *mockBrandingRepo) FindAll(p ...string) ([]Branding, error) { return nil, nil }
+func (m *mockBrandingRepo) FindByUUID(id any, p ...string) (*Branding, error) {
+	if m.findByUUIDFn != nil {
+		brandingUUID, _ := id.(uuid.UUID)
+		return m.findByUUIDFn(brandingUUID)
+	}
+	return nil, nil
+}
 func (m *mockBrandingRepo) FindByUUIDs(ids []string, p ...string) ([]Branding, error) {
 	return nil, nil
 }
@@ -207,5 +214,3 @@ func (m *mockSMSTemplateRepo) Paginate(c map[string]any, pg, lim int, p ...strin
 func (m *mockSMSTemplateRepo) WithTx(_ *gorm.DB) SMSTemplateRepository { return m }
 
 // ---------------------------------------------------------------------------
-
-
