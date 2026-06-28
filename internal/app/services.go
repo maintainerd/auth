@@ -244,7 +244,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		permissionService:        iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache, eventSvc, authzInvalidator),
 		tenantService:            tenant.NewTenantService(r.tenantRepo, tenantUOW, eventSvc, tenantSeederAdapter{}),
 		tenantMemberService:      tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW, eventSvc, newTenantUserProvisioner(userSvc)),
-		idpService:               idp.NewIdentityProviderService(db, r.idpRepo, idpEmailDomainRepo, idpTenantRepo, idpUserRepo),
+		idpService:               idp.NewIdentityProviderService(db, r.idpRepo, idpEmailDomainRepo, r.idpAllowedAudienceRepo, idpTenantRepo, idpUserRepo),
 		clientService:            client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
 		roleService:              iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
 		userService:              userSvc,

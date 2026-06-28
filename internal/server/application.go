@@ -80,6 +80,8 @@ type Application struct {
 	MFAService                   mfa.MFAService
 	WebAuthnService              mfa.WebAuthnService
 	FederationService            idp.FederationService
+	IDPRepo                      idp.IdentityProviderRepository
+	IDPAllowedAudienceRepo       idp.IdentityProviderAllowedAudienceRepository
 	EventTypeService             event.EventTypeService
 	TenantEventTypeConfigService event.TenantEventTypeConfigService
 	EventRouteService            event.EventRouteService

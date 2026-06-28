@@ -27,6 +27,7 @@ type IdentityProvider struct {
 	ProviderClientSecretEncrypted *string `gorm:"column:provider_client_secret_encrypted"`
 	AllowJITProvisioning          bool    `gorm:"column:allow_jit_provisioning;default:false"`
 	AllowRegistration             bool    `gorm:"column:allow_registration;default:true"`
+	AllowTokenFederation         bool    `gorm:"column:allow_token_federation;default:false"`
 
 	Config    datatypes.JSON `gorm:"column:config"`
 	Status    string         `gorm:"column:status;default:'inactive'"`
@@ -39,8 +40,9 @@ type IdentityProvider struct {
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
-	Tenant       *Tenant                       `gorm:"foreignKey:TenantID;references:TenantID"`
-	EmailDomains []IdentityProviderEmailDomain `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	Tenant           *Tenant                           `gorm:"foreignKey:TenantID;references:TenantID"`
+	EmailDomains     []IdentityProviderEmailDomain     `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	AllowedAudiences []IdentityProviderAllowedAudience `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
 }
 
 func (IdentityProvider) TableName() string {
@@ -88,6 +90,19 @@ type IdentityProviderEmailDomain struct {
 
 func (IdentityProviderEmailDomain) TableName() string {
 	return "identity_provider_email_domains"
+}
+
+type IdentityProviderAllowedAudience struct {
+	IdentityProviderAllowedAudienceID int64          `gorm:"column:identity_provider_allowed_audience_id;primaryKey"`
+	TenantID                          int64          `gorm:"column:tenant_id"`
+	IdentityProviderID                int64          `gorm:"column:identity_provider_id"`
+	Audience                          string         `gorm:"column:audience"`
+	CreatedAt                         time.Time      `gorm:"column:created_at;autoCreateTime"`
+	DeletedAt                         gorm.DeletedAt `gorm:"column:deleted_at;index"`
+}
+
+func (IdentityProviderAllowedAudience) TableName() string {
+	return "identity_provider_allowed_audiences"
 }
 
 func (ip *IdentityProvider) BeforeCreate(tx *gorm.DB) (err error) {

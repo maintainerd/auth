@@ -28,6 +28,8 @@ type IdentityProviderServiceDataResult struct {
 	ProviderClientID     string
 	AllowJITProvisioning bool
 	AllowRegistration    bool
+	AllowTokenFederation bool
+	AllowedAudiences     []string
 	EmailDomains         []string
 	Config               *datatypes.JSON
 	Tenant               *TenantServiceDataResult
@@ -39,8 +41,9 @@ type IdentityProviderServiceDataResult struct {
 }
 
 // IdentityProviderCreateInput carries every create-time input. issuer, provider_client_id,
-// provider_client_secret, allow_jit_provisioning and email_domains are promoted out of the
-// config JSONB blob and threaded here as first-class fields.
+// provider_client_secret, allow_jit_provisioning, allow_token_federation, allowed_audiences
+// and email_domains are promoted out of the config JSONB blob and threaded here as
+// first-class fields.
 type IdentityProviderCreateInput struct {
 	Name                 string
 	DisplayName          string
@@ -51,6 +54,8 @@ type IdentityProviderCreateInput struct {
 	ProviderClientSecret string
 	AllowJITProvisioning bool
 	AllowRegistration    bool
+	AllowTokenFederation bool
+	AllowedAudiences     []string
 	EmailDomains         []string
 	Config               datatypes.JSON
 	Status               string
@@ -73,6 +78,8 @@ type IdentityProviderUpdateInput struct {
 	ProviderClientSecret string
 	AllowJITProvisioning bool
 	AllowRegistration    bool
+	AllowTokenFederation bool
+	AllowedAudiences     []string
 	EmailDomains         []string
 	Config               datatypes.JSON
 	Status               string
@@ -115,26 +122,29 @@ type IdentityProviderService interface {
 }
 
 type identityProviderService struct {
-	db              *gorm.DB
-	idpRepo         IdentityProviderRepository
-	emailDomainRepo IdentityProviderEmailDomainRepository
-	tenantRepo      TenantRepository
-	userRepo        UserRepository
+	db                  *gorm.DB
+	idpRepo             IdentityProviderRepository
+	emailDomainRepo     IdentityProviderEmailDomainRepository
+	allowedAudienceRepo IdentityProviderAllowedAudienceRepository
+	tenantRepo          TenantRepository
+	userRepo            UserRepository
 }
 
 func NewIdentityProviderService(
 	db *gorm.DB,
 	idpRepo IdentityProviderRepository,
 	emailDomainRepo IdentityProviderEmailDomainRepository,
+	allowedAudienceRepo IdentityProviderAllowedAudienceRepository,
 	tenantRepo TenantRepository,
 	userRepo UserRepository,
 ) IdentityProviderService {
 	return &identityProviderService{
-		db:              db,
-		idpRepo:         idpRepo,
-		emailDomainRepo: emailDomainRepo,
-		tenantRepo:      tenantRepo,
-		userRepo:        userRepo,
+		db:                  db,
+		idpRepo:             idpRepo,
+		emailDomainRepo:     emailDomainRepo,
+		allowedAudienceRepo: allowedAudienceRepo,
+		tenantRepo:          tenantRepo,
+		userRepo:            userRepo,
 	}
 }
 
@@ -290,24 +300,28 @@ func (s *identityProviderService) Create(ctx context.Context, in IdentityProvide
 			ProviderClientSecretEncrypted: encSecret,
 			AllowJITProvisioning:          in.AllowJITProvisioning,
 			AllowRegistration:             in.AllowRegistration,
+			AllowTokenFederation:          in.AllowTokenFederation,
 			Config:                        in.Config,
 			TenantID:                      tenant.TenantID,
 			Status:                        in.Status,
-			IsDefault:                     false, // System-managed field, always default to false for user-created providers
-			IsSystem:                      false, // System-managed field, always default to false for user-created providers
+			IsDefault:                     false,
+			IsSystem:                      false,
 		}
 
 		if _, err := txIdpRepo.CreateOrUpdate(newIdp); err != nil {
 			return err
 		}
 
-		// Replace email-domain membership transactionally.
 		if err := txEmailDomainRepo.ReplaceForProvider(tenant.TenantID, newIdp.IdentityProviderID, in.EmailDomains); err != nil {
 			return err
 		}
+		if s.allowedAudienceRepo != nil {
+			if err := s.allowedAudienceRepo.WithTx(tx).ReplaceForProvider(tenant.TenantID, newIdp.IdentityProviderID, in.AllowedAudiences); err != nil {
+				return err
+			}
+		}
 
-		// Fetch idp (safe — no secret) with Tenant + EmailDomains preloaded.
-		createdIdp, err = txIdpRepo.FindByUUIDSafe(newIdp.IdentityProviderUUID, "Tenant", "EmailDomains")
+		createdIdp, err = txIdpRepo.FindByUUIDSafe(newIdp.IdentityProviderUUID, "Tenant", "EmailDomains", "AllowedAudiences")
 		if err != nil {
 			return err
 		}
@@ -403,21 +417,24 @@ func (s *identityProviderService) Update(ctx context.Context, in IdentityProvide
 		idp.ProviderClientSecretEncrypted = encSecret
 		idp.AllowJITProvisioning = in.AllowJITProvisioning
 		idp.AllowRegistration = in.AllowRegistration
+		idp.AllowTokenFederation = in.AllowTokenFederation
 		idp.Config = in.Config
 		idp.Status = in.Status
-		// IsDefault and IsSystem are system-managed, don't update them in user requests
 
 		if _, err := txIdpRepo.CreateOrUpdate(idp); err != nil {
 			return err
 		}
 
-		// Replace email-domain membership transactionally.
 		if err := txEmailDomainRepo.ReplaceForProvider(idp.TenantID, idp.IdentityProviderID, in.EmailDomains); err != nil {
 			return err
 		}
+		if s.allowedAudienceRepo != nil {
+			if err := s.allowedAudienceRepo.WithTx(tx).ReplaceForProvider(idp.TenantID, idp.IdentityProviderID, in.AllowedAudiences); err != nil {
+				return err
+			}
+		}
 
-		// Re-fetch safe (no secret) for the response.
-		updatedIdp, err = txIdpRepo.FindByUUIDSafe(in.IdpUUID, "Tenant", "EmailDomains")
+		updatedIdp, err = txIdpRepo.FindByUUIDSafe(in.IdpUUID, "Tenant", "EmailDomains", "AllowedAudiences")
 		if err != nil {
 			return err
 		}
@@ -487,7 +504,7 @@ func (s *identityProviderService) SetStatusByUUID(ctx context.Context, idpUUID u
 		}
 
 		// Re-fetch safe (no secret) for the response.
-		updatedIdp, err = txIdpRepo.FindByUUIDSafe(idpUUID, "Tenant", "EmailDomains")
+		updatedIdp, err = txIdpRepo.FindByUUIDSafe(idpUUID, "Tenant", "EmailDomains", "AllowedAudiences")
 		if err != nil {
 			return err
 		}
@@ -605,6 +622,11 @@ func toIdpServiceDataResult(idp *IdentityProvider) *IdentityProviderServiceDataR
 		domains = append(domains, d.Domain)
 	}
 
+	audiences := make([]string, 0, len(idp.AllowedAudiences))
+	for _, a := range idp.AllowedAudiences {
+		audiences = append(audiences, a.Audience)
+	}
+
 	result := &IdentityProviderServiceDataResult{
 		IdentityProviderUUID: idp.IdentityProviderUUID,
 		Name:                 idp.Name,
@@ -616,9 +638,9 @@ func toIdpServiceDataResult(idp *IdentityProvider) *IdentityProviderServiceDataR
 		ProviderClientID:     idp.ProviderClientIDOrEmpty(),
 		AllowJITProvisioning: idp.AllowJITProvisioning,
 		AllowRegistration:    idp.AllowRegistration,
+		AllowTokenFederation: idp.AllowTokenFederation,
+		AllowedAudiences:     audiences,
 		EmailDomains:         domains,
-		// The encrypted secret column is never selected on read paths, so it
-		// never reaches this result. Config holds only non-secret JSONB fields.
 		Config:    cfg,
 		Status:    idp.Status,
 		IsDefault: idp.IsDefault,

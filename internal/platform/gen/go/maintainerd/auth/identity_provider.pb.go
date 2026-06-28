@@ -43,6 +43,8 @@ type IdentityProvider struct {
 	ProviderClientId     string   `protobuf:"bytes,14,opt,name=provider_client_id,json=providerClientId,proto3" json:"provider_client_id,omitempty"`
 	AllowJitProvisioning bool     `protobuf:"varint,15,opt,name=allow_jit_provisioning,json=allowJitProvisioning,proto3" json:"allow_jit_provisioning,omitempty"`
 	EmailDomains         []string `protobuf:"bytes,16,rep,name=email_domains,json=emailDomains,proto3" json:"email_domains,omitempty"`
+	AllowTokenFederation bool     `protobuf:"varint,17,opt,name=allow_token_federation,json=allowTokenFederation,proto3" json:"allow_token_federation,omitempty"`
+	AllowedAudiences     []string `protobuf:"bytes,18,rep,name=allowed_audiences,json=allowedAudiences,proto3" json:"allowed_audiences,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -185,6 +187,20 @@ func (x *IdentityProvider) GetAllowJitProvisioning() bool {
 func (x *IdentityProvider) GetEmailDomains() []string {
 	if x != nil {
 		return x.EmailDomains
+	}
+	return nil
+}
+
+func (x *IdentityProvider) GetAllowTokenFederation() bool {
+	if x != nil {
+		return x.AllowTokenFederation
+	}
+	return false
+}
+
+func (x *IdentityProvider) GetAllowedAudiences() []string {
+	if x != nil {
+		return x.AllowedAudiences
 	}
 	return nil
 }
@@ -683,6 +699,8 @@ type CreateIdentityProviderRequest struct {
 	ProviderClientId     string                 `protobuf:"bytes,10,opt,name=provider_client_id,json=providerClientId,proto3" json:"provider_client_id,omitempty"`
 	AllowJitProvisioning bool                   `protobuf:"varint,11,opt,name=allow_jit_provisioning,json=allowJitProvisioning,proto3" json:"allow_jit_provisioning,omitempty"`
 	EmailDomains         []string               `protobuf:"bytes,12,rep,name=email_domains,json=emailDomains,proto3" json:"email_domains,omitempty"`
+	AllowTokenFederation bool                   `protobuf:"varint,13,opt,name=allow_token_federation,json=allowTokenFederation,proto3" json:"allow_token_federation,omitempty"`
+	AllowedAudiences     []string               `protobuf:"bytes,14,rep,name=allowed_audiences,json=allowedAudiences,proto3" json:"allowed_audiences,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -801,6 +819,20 @@ func (x *CreateIdentityProviderRequest) GetEmailDomains() []string {
 	return nil
 }
 
+func (x *CreateIdentityProviderRequest) GetAllowTokenFederation() bool {
+	if x != nil {
+		return x.AllowTokenFederation
+	}
+	return false
+}
+
+func (x *CreateIdentityProviderRequest) GetAllowedAudiences() []string {
+	if x != nil {
+		return x.AllowedAudiences
+	}
+	return nil
+}
+
 type CreateIdentityProviderResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	IdentityProvider *IdentityProvider      `protobuf:"bytes,1,opt,name=identity_provider,json=identityProvider,proto3" json:"identity_provider,omitempty"`
@@ -860,6 +892,8 @@ type UpdateIdentityProviderRequest struct {
 	ProviderClientId     string                 `protobuf:"bytes,11,opt,name=provider_client_id,json=providerClientId,proto3" json:"provider_client_id,omitempty"`
 	AllowJitProvisioning bool                   `protobuf:"varint,12,opt,name=allow_jit_provisioning,json=allowJitProvisioning,proto3" json:"allow_jit_provisioning,omitempty"`
 	EmailDomains         []string               `protobuf:"bytes,13,rep,name=email_domains,json=emailDomains,proto3" json:"email_domains,omitempty"`
+	AllowTokenFederation bool                   `protobuf:"varint,14,opt,name=allow_token_federation,json=allowTokenFederation,proto3" json:"allow_token_federation,omitempty"`
+	AllowedAudiences     []string               `protobuf:"bytes,15,rep,name=allowed_audiences,json=allowedAudiences,proto3" json:"allowed_audiences,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -981,6 +1015,20 @@ func (x *UpdateIdentityProviderRequest) GetAllowJitProvisioning() bool {
 func (x *UpdateIdentityProviderRequest) GetEmailDomains() []string {
 	if x != nil {
 		return x.EmailDomains
+	}
+	return nil
+}
+
+func (x *UpdateIdentityProviderRequest) GetAllowTokenFederation() bool {
+	if x != nil {
+		return x.AllowTokenFederation
+	}
+	return false
+}
+
+func (x *UpdateIdentityProviderRequest) GetAllowedAudiences() []string {
+	if x != nil {
+		return x.AllowedAudiences
 	}
 	return nil
 }
@@ -2257,7 +2305,7 @@ var File_maintainerd_auth_v1_identity_provider_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\n" +
-	"+maintainerd/auth/v1/identity_provider.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xfc\x04\n" +
+	"+maintainerd/auth/v1/identity_provider.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xdf\x05\n" +
 	"\x10IdentityProvider\x124\n" +
 	"\x16identity_provider_uuid\x18\x01 \x01(\tR\x14identityProviderUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
@@ -2280,7 +2328,9 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x06issuer\x18\r \x01(\tR\x06issuer\x12,\n" +
 	"\x12provider_client_id\x18\x0e \x01(\tR\x10providerClientId\x124\n" +
 	"\x16allow_jit_provisioning\x18\x0f \x01(\bR\x14allowJitProvisioning\x12#\n" +
-	"\remail_domains\x18\x10 \x03(\tR\femailDomains\"\xec\x02\n" +
+	"\remail_domains\x18\x10 \x03(\tR\femailDomains\x124\n" +
+	"\x16allow_token_federation\x18\x11 \x01(\bR\x14allowTokenFederation\x12+\n" +
+	"\x11allowed_audiences\x18\x12 \x03(\tR\x10allowedAudiences\"\xec\x02\n" +
 	"\n" +
 	"SignupFlow\x12(\n" +
 	"\x10signup_flow_uuid\x18\x01 \x01(\tR\x0esignupFlowUuid\x12\x12\n" +
@@ -2339,7 +2389,7 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"tenantUuid\x124\n" +
 	"\x16identity_provider_uuid\x18\x02 \x01(\tR\x14identityProviderUuid\"q\n" +
 	"\x1bGetIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xca\x03\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xad\x04\n" +
 	"\x1dCreateIdentityProviderRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
@@ -2354,9 +2404,11 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x12provider_client_id\x18\n" +
 	" \x01(\tR\x10providerClientId\x124\n" +
 	"\x16allow_jit_provisioning\x18\v \x01(\bR\x14allowJitProvisioning\x12#\n" +
-	"\remail_domains\x18\f \x03(\tR\femailDomains\"t\n" +
+	"\remail_domains\x18\f \x03(\tR\femailDomains\x124\n" +
+	"\x16allow_token_federation\x18\r \x01(\bR\x14allowTokenFederation\x12+\n" +
+	"\x11allowed_audiences\x18\x0e \x03(\tR\x10allowedAudiences\"t\n" +
 	"\x1eCreateIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\x80\x04\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xe3\x04\n" +
 	"\x1dUpdateIdentityProviderRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x124\n" +
@@ -2372,7 +2424,9 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	" \x01(\tR\x06issuer\x12,\n" +
 	"\x12provider_client_id\x18\v \x01(\tR\x10providerClientId\x124\n" +
 	"\x16allow_jit_provisioning\x18\f \x01(\bR\x14allowJitProvisioning\x12#\n" +
-	"\remail_domains\x18\r \x03(\tR\femailDomains\"t\n" +
+	"\remail_domains\x18\r \x03(\tR\femailDomains\x124\n" +
+	"\x16allow_token_federation\x18\x0e \x01(\bR\x14allowTokenFederation\x12+\n" +
+	"\x11allowed_audiences\x18\x0f \x03(\tR\x10allowedAudiences\"t\n" +
 	"\x1eUpdateIdentityProviderResponse\x12R\n" +
 	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xb9\x01\n" +
 	" SetIdentityProviderStatusRequest\x12\x1f\n" +

@@ -1082,3 +1082,25 @@ func validateTokenClaims(claims jwtlib.MapClaims) error {
 
 	return nil
 }
+
+// ParseTokenUnverified decodes a raw JWT string without any signature
+// verification. It returns the parsed claims as a map and the token's
+// signing algorithm. Used by multi-issuer middleware to peek at the
+// issuer claim before deciding which validation path to take.
+func ParseTokenUnverified(rawToken string) (map[string]interface{}, string, error) {
+	parser := jwtlib.NewParser()
+	token, _, err := parser.ParseUnverified(rawToken, jwtlib.MapClaims{})
+	if err != nil {
+		return nil, "", err
+	}
+	claims, ok := token.Claims.(jwtlib.MapClaims)
+	if !ok {
+		return nil, "", fmt.Errorf("invalid claims type")
+	}
+	alg := token.Method.Alg()
+	result := make(map[string]interface{}, len(claims))
+	for k, v := range claims {
+		result[k] = v
+	}
+	return result, alg, nil
+}

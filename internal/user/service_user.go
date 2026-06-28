@@ -96,6 +96,10 @@ type UserService interface {
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
 	// Used by UserContextMiddleware to populate the request context.
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error)
+	// FindByUserID loads a user by primary key with roles, permissions,
+	// identities, and identity tenants preloaded. Used by multi-issuer
+	// middleware to build AuthContext for federated principals.
+	FindByUserID(ctx context.Context, userID int64) (*User, error)
 	// ForcePasswordChange sets or clears the force_password_change flag for a user.
 	ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, tenantID int64, force bool) error
 	GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error)
@@ -1363,6 +1367,15 @@ func (s *userService) FindBySubAndClientID(ctx context.Context, sub string, clie
 	}
 	span.SetStatus(codes.Ok, "")
 	return user, nil
+}
+
+func (s *userService) FindByUserID(ctx context.Context, userID int64) (*User, error) {
+	return s.userRepo.FindByID(userID,
+		"UserIdentities.Tenant",
+		"UserIdentities.Client.IdentityProvider",
+		"UserRoles.Role.RolePermissions.Permission",
+		"Profile",
+	)
 }
 
 func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error) {

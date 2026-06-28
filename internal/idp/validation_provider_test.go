@@ -179,3 +179,63 @@ func TestIdentityProviderFilterDto_Validate(t *testing.T) {
 		require.Error(t, f.Validate())
 	})
 }
+
+func TestIdentityProviderCreateValidation_TokenFederation(t *testing.T) {
+	t.Run("token federation enabled with issuer and audiences passes", func(t *testing.T) {
+		d := validIDPCreate()
+		d.AllowTokenFederation = true
+		d.AllowedAudiences = []string{"app-1"}
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("token federation enabled requires audiences", func(t *testing.T) {
+		d := validIDPCreate()
+		d.AllowTokenFederation = true
+		d.AllowedAudiences = nil
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("token federation enabled requires issuer", func(t *testing.T) {
+		d := validIDPCreate()
+		d.AllowTokenFederation = true
+		d.AllowedAudiences = []string{"app-1"}
+		d.Issuer = ""
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("token federation off with no audiences is ok", func(t *testing.T) {
+		d := validIDPCreate()
+		d.AllowTokenFederation = false
+		d.AllowedAudiences = nil
+		assert.NoError(t, d.Validate())
+	})
+}
+
+func TestIdentityProviderUpdateValidation_TokenFederation(t *testing.T) {
+	t.Run("token federation enabled with audiences passes", func(t *testing.T) {
+		d := validIDPUpdate()
+		d.AllowTokenFederation = true
+		d.AllowedAudiences = []string{"app-1"}
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("token federation enabled requires audiences", func(t *testing.T) {
+		d := validIDPUpdate()
+		d.AllowTokenFederation = true
+		d.AllowedAudiences = nil
+		require.Error(t, d.Validate())
+	})
+}
+
+func validIDPUpdate() IdentityProviderUpdateRequestDTO {
+	return IdentityProviderUpdateRequestDTO{
+		Name:             "my-idp",
+		DisplayName:      "My Identity Provider",
+		Provider:         shared.IDPProviderGoogle,
+		ProviderType:     shared.IDPTypeSocial,
+		Issuer:           "https://accounts.google.com",
+		ProviderClientID: "test-client",
+		Config:           validOAuth2ConfigJSON(),
+		Status:           shared.StatusActive,
+	}
+}

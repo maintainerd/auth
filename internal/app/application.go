@@ -63,6 +63,8 @@ func (a *App) ServerApplication() *server.Application {
 		MFAService:                   a.MFAService,
 		WebAuthnService:              a.WebAuthnService,
 		FederationService:            a.FederationService,
+		IDPRepo:                      a.IDPRepo,
+		IDPAllowedAudienceRepo:       a.IDPAllowedAudienceRepo,
 		EventTypeService:             a.EventTypeService,
 		TenantEventTypeConfigService: a.TenantEventTypeConfigService,
 		EventRouteService:            a.EventRouteService,

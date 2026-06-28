@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	oidclib "github.com/coreos/go-oidc/v3/oidc"
@@ -133,6 +134,8 @@ type federationService struct {
 	sessionService      authn.SessionService
 	eventService        event.EventService
 	securitySettingRepo secpolicy.SecuritySettingRepository
+
+	providerCache sync.Map
 }
 
 func NewFederationService(
@@ -869,7 +872,7 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 // token's signature + standard claims, and returns the raw claims map.
 func (s *federationService) validateOIDCToken(ctx context.Context, issuer, clientID, rawToken string) (map[string]interface{}, error) {
 	octx := oidclib.ClientContext(ctx, idpHTTPClientFactory())
-	provider, err := oidclib.NewProvider(octx, issuer)
+	provider, err := s.getOrDiscoverProvider(octx, issuer)
 	if err != nil {
 		return nil, fmt.Errorf("OIDC discovery failed for %s: %w", issuer, err)
 	}
@@ -880,14 +883,35 @@ func (s *federationService) validateOIDCToken(ctx context.Context, issuer, clien
 	verifierCfg := &oidclib.Config{ClientID: clientID}
 	verifier := provider.Verifier(verifierCfg)
 
-	idToken, err := verifier.Verify(ctx, rawToken)
-	if err != nil {
-		return nil, fmt.Errorf("token verification failed: %w", err)
+	idToken, verr := verifier.Verify(ctx, rawToken)
+	if verr != nil {
+		s.providerCache.Delete(issuer)
+		provider, err = s.getOrDiscoverProvider(octx, issuer)
+		if err != nil {
+			return nil, fmt.Errorf("OIDC re-discovery failed for %s: %w", issuer, err)
+		}
+		verifier = provider.Verifier(verifierCfg)
+		idToken, verr = verifier.Verify(ctx, rawToken)
+	}
+	if verr != nil {
+		return nil, fmt.Errorf("token verification failed: %w", verr)
 	}
 
 	var claims map[string]interface{}
 	_ = idToken.Claims(&claims)
 	return claims, nil
+}
+
+func (s *federationService) getOrDiscoverProvider(ctx context.Context, issuer string) (*oidclib.Provider, error) {
+	if cached, ok := s.providerCache.Load(issuer); ok {
+		return cached.(*oidclib.Provider), nil
+	}
+	provider, err := oidclib.NewProvider(ctx, issuer)
+	if err != nil {
+		return nil, err
+	}
+	s.providerCache.Store(issuer, provider)
+	return provider, nil
 }
 
 // provisionUser creates a new User + default identity + external identity for
@@ -901,9 +925,6 @@ func (s *federationService) provisionUser(
 	meta IdentityMetadata,
 	clientID int64,
 ) (*User, bool, error) {
-	if clientID <= 0 {
-		return nil, false, apperror.NewInternal("client context is required for identity provisioning", nil)
-	}
 	txUserRepo := s.userRepo.WithTx(tx)
 	txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
