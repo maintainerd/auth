@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"strings"
 	"time"
@@ -136,6 +137,124 @@ func enforceRegistrationAbuseControls(ctx context.Context, tenantID int64, regPo
 	return nil
 }
 
+func enforceIdentityProviderRegistrationGate(client *Client) error {
+	if client == nil || client.ConnectedProviders == nil {
+		return nil
+	}
+	for _, connection := range *client.ConnectedProviders {
+		provider := connection.IdentityProvider
+		if !connection.Enabled || provider == nil || (!provider.IsSystem && provider.ProviderType != shared.IDPTypeSystem) {
+			continue
+		}
+		if provider.Status != shared.StatusActive || !provider.AllowRegistration {
+			return apperror.NewForbidden("registration is disabled for this identity provider")
+		}
+		return nil
+	}
+	// A client without an in-house provider has no per-IdP registration gate.
+	return nil
+}
+
+func (s *registerService) registrationFlowForClient(tx *gorm.DB, clientID int64) (*RegistrationFlow, error) {
+	if s.authFlowRoleRepo == nil {
+		return nil, nil
+	}
+	txRepo := s.authFlowRoleRepo.WithTx(tx)
+	reader, ok := txRepo.(registrationFlowReader)
+	if !ok {
+		return nil, nil
+	}
+	flows, err := reader.FindByClientID(clientID)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to load signup flow", err)
+	}
+	if len(flows) == 0 {
+		return nil, nil
+	}
+	for i := range flows {
+		if flows[i].Status == shared.StatusActive && flows[i].AllowRegistration {
+			return &flows[i], nil
+		}
+	}
+	return nil, apperror.NewForbidden("registration is disabled for this signup flow")
+}
+
+func parseRequiredRegistrationFields(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	var fields []string
+	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
+		return nil, apperror.NewValidation("signup flow required_fields must be a JSON string array")
+	}
+	return fields, nil
+}
+
+func enforceRequiredRegistrationFields(flow *RegistrationFlow, fullname string, email, phone *string) error {
+	if flow == nil {
+		return nil
+	}
+	fields, err := parseRequiredRegistrationFields(flow.RequiredFields)
+	if err != nil {
+		return err
+	}
+	for _, field := range fields {
+		switch strings.ToLower(strings.TrimSpace(field)) {
+		case "", "username", "password":
+			// Username and password are always required by RegisterRequestDTO.
+		case "fullname":
+			if strings.TrimSpace(fullname) == "" {
+				return apperror.NewValidation("fullname is required by the signup flow")
+			}
+		case "email":
+			if email == nil || strings.TrimSpace(*email) == "" {
+				return apperror.NewValidation("email is required by the signup flow")
+			}
+		case "phone":
+			if phone == nil || strings.TrimSpace(*phone) == "" {
+				return apperror.NewValidation("phone is required by the signup flow")
+			}
+		default:
+			return apperror.NewValidation("unsupported signup flow required field: " + field)
+		}
+	}
+	return nil
+}
+
+func effectiveRegistrationPolicy(base *secpolicy.RegistrationPolicy, flow *RegistrationFlow) *secpolicy.RegistrationPolicy {
+	effective := *base
+	if flow != nil && flow.VerificationRequired {
+		effective.RequireEmailVerification = true
+	}
+	return &effective
+}
+
+func (s *registerService) assignRegistrationFlowRoles(tx *gorm.DB, userRoleRepo UserRoleRepository, userID, defaultRoleID int64, flow *RegistrationFlow) error {
+	if flow == nil || s.authFlowRoleRepo == nil {
+		return nil
+	}
+	roleIDs, err := s.authFlowRoleRepo.WithTx(tx).FindRoleIDsByAuthFlowID(flow.AuthFlowID)
+	if err != nil {
+		return err
+	}
+	for _, roleID := range roleIDs {
+		if roleID == defaultRoleID {
+			continue
+		}
+		existing, err := userRoleRepo.FindByUserIDAndRoleID(userID, roleID)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			continue
+		}
+		if _, err := userRoleRepo.Create(&UserRole{UserID: userID, RoleID: roleID}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // RegisterPublic registers new users for public-facing applications.  clientID
 // and tenantID are optional (pointer params).  When omitted the system client
 // is used.  When clientID is set the tenant is derived from the client record
@@ -172,6 +291,7 @@ func (s *registerService) RegisterPublic(
 	var Client *Client
 	var userIdentitySub string
 	var needEmailVerification bool
+	var registrationFlow *RegistrationFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -198,26 +318,23 @@ func (s *registerService) RegisterPublic(
 
 		// Enforce tenant registration policy (self-service path).
 		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId)
-		needEmailVerification = regPolicy.RequireEmailVerification
 		if !regPolicy.SelfRegistrationEnabled {
 			return apperror.NewForbidden("self-registration is disabled for this tenant")
 		}
-		// Per-IdP gate: the client's in-house identity provider must allow
-		// registration. Defaults to true when no system IdP is connected.
-		var idpReg struct{ AllowRegistration bool }
-		if err := tx.Table("identity_providers").
-			Joins("JOIN client_identity_providers cip ON cip.identity_provider_id = identity_providers.identity_provider_id").
-			Where("cip.client_id = ? AND (identity_providers.is_system = true OR identity_providers.provider_type = ?) AND cip.enabled = true AND identity_providers.deleted_at IS NULL",
-				Client.ClientID, shared.IDPTypeSystem).
-			Select("identity_providers.allow_registration").Scan(&idpReg).Error; err == nil && !idpReg.AllowRegistration {
-			return apperror.NewForbidden("registration is disabled for this identity provider")
+		if err := enforceIdentityProviderRegistrationGate(Client); err != nil {
+			return err
 		}
-		// Auth-flow gate: the client's signup flow must allow registration.
-		// No flow attached = unrestricted (default-allow).
-		var afReg struct{ AllowRegistration bool }
-		if tx.Table("auth_flows").Where("client_id = ? AND deleted_at IS NULL", Client.ClientID).
-			Select("allow_registration").Scan(&afReg).Error == nil && !afReg.AllowRegistration {
-			return apperror.NewForbidden("registration is disabled for this signup flow")
+		registrationFlow, txErr = s.registrationFlowForClient(tx, Client.ClientID)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = enforceRequiredRegistrationFields(registrationFlow, fullname, email, phone); txErr != nil {
+			return txErr
+		}
+		regPolicy = effectiveRegistrationPolicy(regPolicy, registrationFlow)
+		needEmailVerification = regPolicy.RequireEmailVerification
+		if registrationFlow != nil && registrationFlow.VerificationRequired && (email == nil || strings.TrimSpace(*email) == "") {
+			return apperror.NewValidation("email is required when signup verification is enabled")
 		}
 		if err := enforceRegistrationAbuseControls(ctx, tenantId, regPolicy); err != nil {
 			return err
@@ -323,6 +440,9 @@ func (s *registerService) RegisterPublic(
 		if txErr != nil {
 			return txErr
 		}
+		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, registrationFlow); txErr != nil {
+			return txErr
+		}
 
 		return nil
 	})
@@ -371,6 +491,7 @@ func (s *registerService) Register(
 	var Client *Client
 	var userIdentitySub string
 	var needEmailVerification bool
+	var registrationFlow *RegistrationFlow
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -399,9 +520,23 @@ func (s *registerService) Register(
 
 		// Enforce tenant registration policy.
 		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId)
-		needEmailVerification = regPolicy.RequireEmailVerification
 		if !regPolicy.SelfRegistrationEnabled {
 			return apperror.NewForbidden("self-registration is disabled for this tenant")
+		}
+		if err := enforceIdentityProviderRegistrationGate(Client); err != nil {
+			return err
+		}
+		registrationFlow, txErr = s.registrationFlowForClient(tx, Client.ClientID)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = enforceRequiredRegistrationFields(registrationFlow, fullname, email, phone); txErr != nil {
+			return txErr
+		}
+		regPolicy = effectiveRegistrationPolicy(regPolicy, registrationFlow)
+		needEmailVerification = regPolicy.RequireEmailVerification
+		if registrationFlow != nil && registrationFlow.VerificationRequired && (email == nil || strings.TrimSpace(*email) == "") {
+			return apperror.NewValidation("email is required when signup verification is enabled")
 		}
 		if err := enforceRegistrationAbuseControls(ctx, tenantId, regPolicy); err != nil {
 			return err
@@ -513,6 +648,9 @@ func (s *registerService) Register(
 		}
 		_, txErr = txUserRoleRepo.Create(userRole)
 		if txErr != nil {
+			return txErr
+		}
+		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, registrationFlow); txErr != nil {
 			return txErr
 		}
 

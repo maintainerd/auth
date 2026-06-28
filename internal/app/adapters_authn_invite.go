@@ -14,15 +14,34 @@ import (
 // ---------------------------------------------------------------------------
 
 type authnAuthFlowRoleRepoAdapter struct {
-	repo idp.AuthFlowRoleRepository
+	repo     idp.AuthFlowRoleRepository
+	flowRepo idp.AuthFlowRepository
 }
 
-func newAuthnAuthFlowRoleRepoAdapter(repo idp.AuthFlowRoleRepository) authn.AuthFlowRoleRepository {
-	return &authnAuthFlowRoleRepoAdapter{repo: repo}
+func newAuthnAuthFlowRoleRepoAdapter(repo idp.AuthFlowRoleRepository, flowRepo idp.AuthFlowRepository) authn.AuthFlowRoleRepository {
+	return &authnAuthFlowRoleRepoAdapter{repo: repo, flowRepo: flowRepo}
 }
 
 func (a *authnAuthFlowRoleRepoAdapter) WithTx(tx *gorm.DB) authn.AuthFlowRoleRepository {
-	return &authnAuthFlowRoleRepoAdapter{repo: a.repo.WithTx(tx)}
+	return &authnAuthFlowRoleRepoAdapter{repo: a.repo.WithTx(tx), flowRepo: a.flowRepo.WithTx(tx)}
+}
+
+func (a *authnAuthFlowRoleRepoAdapter) FindByClientID(clientID int64) ([]authn.RegistrationFlow, error) {
+	flows, err := a.flowRepo.FindByClientID(clientID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]authn.RegistrationFlow, len(flows))
+	for i, flow := range flows {
+		result[i] = authn.RegistrationFlow{
+			AuthFlowID:           flow.AuthFlowID,
+			Status:               flow.Status,
+			AllowRegistration:    flow.AllowRegistration,
+			VerificationRequired: flow.VerificationRequired,
+			RequiredFields:       flow.RequiredFields,
+		}
+	}
+	return result, nil
 }
 
 func (a *authnAuthFlowRoleRepoAdapter) FindRoleIDsByAuthFlowID(authFlowID int64) ([]int64, error) {

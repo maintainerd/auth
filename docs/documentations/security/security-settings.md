@@ -290,7 +290,7 @@ Defaults below are the seeded **Business SaaS** baseline (`internal/secpolicy/de
 | `captcha_on_signup` | bool | `true` | — |
 | `registration_rate_limit_per_ip_per_hour` | int | `10` | ≥1 |
 
-**Enforcement** (public registration): `self_registration_enabled=false` → 403; email domain allow/block (case-insensitive, supports `*.domain`); captcha verified when `captcha_on_signup`; per-IP rate limit; new users start `pending` (so login is blocked) until email verified, unless `auto_confirm_enabled`/verification not required; role assignment is not configurable here and always uses the system `registered` role.
+**Enforcement** (public and internal self-registration): `self_registration_enabled=false` → 403; the connected in-house IdP and an attached active auth flow must also allow registration; email domain allow/block is case-insensitive and supports `*.domain`; captcha and per-IP rate limits are enforced. New users always receive the system `registered` role plus any additional roles assigned to the selected self-registration auth flow. Flow-level `verification_required` tightens the tenant policy, and `required_fields` is enforced by the registration service.
 
 ### 5.7 `threat_config`
 

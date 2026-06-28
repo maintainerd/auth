@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/maintainerd/auth/internal/platform/apperror"
@@ -27,9 +28,37 @@ type OAuthConnectionInfo struct {
 // allowed, plus the connected OAuth2 providers (rendered as buttons), ordered
 // by DisplayOrder.
 type OAuthConnectionsResult struct {
-	PasswordEnabled    bool
-	RegistrationEnabled bool
-	Connections        []OAuthConnectionInfo
+	PasswordEnabled      bool
+	RegistrationEnabled  bool
+	VerificationRequired bool
+	RequiredFields       []string
+	Connections          []OAuthConnectionInfo
+}
+
+type oauthRegistrationFlow struct {
+	Status               string
+	AllowRegistration    bool
+	VerificationRequired bool
+	RequiredFields       string
+}
+
+func (s *oauthConnectionsService) registrationFlow(clientID int64) (bool, *oauthRegistrationFlow, error) {
+	var flows []oauthRegistrationFlow
+	if err := s.db.Table("auth_flows").
+		Where("client_id = ? AND deleted_at IS NULL", clientID).
+		Order("auth_flow_id ASC").
+		Find(&flows).Error; err != nil {
+		return false, nil, err
+	}
+	if len(flows) == 0 {
+		return false, nil, nil
+	}
+	for i := range flows {
+		if flows[i].Status == shared.StatusActive && flows[i].AllowRegistration {
+			return true, &flows[i], nil
+		}
+	}
+	return true, nil, nil
 }
 
 // OAuthConnectionsService resolves the enabled identity-provider connections of a
@@ -76,9 +105,10 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 	}
 
 	result := &OAuthConnectionsResult{
-		PasswordEnabled:    allowedSystemClient,
+		PasswordEnabled:     allowedSystemClient,
 		RegistrationEnabled: allowedSystemClient,
-		Connections:        make([]OAuthConnectionInfo, 0, len(connections)),
+		RequiredFields:      []string{},
+		Connections:         make([]OAuthConnectionInfo, 0, len(connections)),
 	}
 	for _, conn := range connections {
 		idp := conn.IdentityProvider
@@ -97,16 +127,23 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 				regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, cid)
 				tenantAllows = regPolicy.SelfRegistrationEnabled
 			}
-			// Auth_flow gate: look up the client's signup flow; no flow = unrestricted.
-			afAllows := true
-			var af struct{ AllowRegistration bool }
-			if err := s.db.Table("auth_flows").Where("client_id = ? AND deleted_at IS NULL", client.ClientID).
-				Select("allow_registration").Scan(&af).Error; err == nil && af.AllowRegistration {
-				afAllows = true
-			} else if err == nil {
-				afAllows = af.AllowRegistration
+			// Auth-flow gate: no attached flow is unrestricted; attached flows
+			// are invite-only unless at least one active flow explicitly allows
+			// self-service registration.
+			flowExists, flow, flowErr := s.registrationFlow(client.ClientID)
+			if flowErr != nil {
+				return nil, apperror.NewInternal("failed to load signup flow", flowErr)
 			}
+			afAllows := !flowExists || flow != nil
 			result.RegistrationEnabled = tenantAllows && idp.AllowRegistration && afAllows
+			if flow != nil {
+				result.VerificationRequired = flow.VerificationRequired
+				if strings.TrimSpace(flow.RequiredFields) != "" {
+					if err := json.Unmarshal([]byte(flow.RequiredFields), &result.RequiredFields); err != nil {
+						return nil, apperror.NewInternal("invalid signup flow required_fields", err)
+					}
+				}
+			}
 			continue
 		}
 		displayName := idp.DisplayName

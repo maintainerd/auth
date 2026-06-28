@@ -7,6 +7,7 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -253,6 +254,35 @@ func TestAuthFlowRepository_FindByIdentifierAndClientID(t *testing.T) {
 		result, err := repo.FindByIdentifierAndClientID("my-flow", 1)
 		require.Error(t, err)
 		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestAuthFlowRepository_FindByClientID(t *testing.T) {
+	t.Run("returns attached flows in stable order", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT \* FROM "auth_flows" WHERE client_id = \$1.*ORDER BY auth_flow_id ASC`).
+			WithArgs(int64(9)).
+			WillReturnRows(sqlmock.NewRows([]string{"auth_flow_id", "client_id", "status", "allow_registration"}).
+				AddRow(1, 9, shared.StatusActive, true).
+				AddRow(2, 9, shared.StatusInactive, false))
+		repo := NewAuthFlowRepository(gdb)
+		flows, err := repo.FindByClientID(9)
+		require.NoError(t, err)
+		require.Len(t, flows, 2)
+		assert.Equal(t, int64(1), flows[0].AuthFlowID)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("propagates database error", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT \* FROM "auth_flows" WHERE client_id = \$1`).
+			WithArgs(int64(9)).
+			WillReturnError(errors.New("db error"))
+		repo := NewAuthFlowRepository(gdb)
+		flows, err := repo.FindByClientID(9)
+		require.Error(t, err)
+		assert.Nil(t, flows)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

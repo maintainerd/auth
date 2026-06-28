@@ -40,6 +40,7 @@ type IdentityProvider struct {
 	Status               string
 	IsSystem             bool
 	IsDefault            bool
+	AllowRegistration    bool
 	Tenant               *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
@@ -347,4 +348,22 @@ type UserPasswordHistoryRepository interface {
 type AuthFlowRoleRepository interface {
 	WithTx(tx *gorm.DB) AuthFlowRoleRepository
 	FindRoleIDsByAuthFlowID(authFlowID int64) ([]int64, error)
+}
+
+// RegistrationFlow is the self-service policy attached to a client. Auth-flow
+// CRUD is owned by idp; registration only needs these policy fields and the
+// role source ID.
+type RegistrationFlow struct {
+	AuthFlowID           int64
+	Status               string
+	AllowRegistration    bool
+	VerificationRequired bool
+	RequiredFields       string
+}
+
+// registrationFlowReader is an optional extension implemented by the
+// production auth-flow adapter. Invite-only test doubles can keep satisfying
+// the narrower AuthFlowRoleRepository contract.
+type registrationFlowReader interface {
+	FindByClientID(clientID int64) ([]RegistrationFlow, error)
 }

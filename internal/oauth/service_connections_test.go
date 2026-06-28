@@ -79,11 +79,14 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 		mock.ExpectQuery(`SELECT \* FROM "identity_providers"`).
 			WillReturnRows(sqlmock.NewRows([]string{
 				"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "display_name",
-				"provider", "provider_type", "identifier", "status", "is_default", "is_system",
+				"provider", "provider_type", "identifier", "status", "is_default", "is_system", "allow_registration",
 			}).
-				AddRow(100, uuid.New(), 1, "maintainerd", "Built-in", "maintainerd", shared.IDPTypeSystem, "sys-idp", shared.StatusActive, true, true).
-				AddRow(101, uuid.New(), 1, "google", "Google", "google", "social", "google-idp", shared.StatusActive, false, false).
-				AddRow(102, uuid.New(), 1, "facebook", "Facebook", "facebook", "social", "fb-idp", shared.StatusInactive, false, false))
+				AddRow(100, uuid.New(), 1, "maintainerd", "Built-in", "maintainerd", shared.IDPTypeSystem, "sys-idp", shared.StatusActive, true, true, true).
+				AddRow(101, uuid.New(), 1, "google", "Google", "google", "social", "google-idp", shared.StatusActive, false, false, true).
+				AddRow(102, uuid.New(), 1, "facebook", "Facebook", "facebook", "social", "fb-idp", shared.StatusInactive, false, false, true))
+		mock.ExpectQuery(`SELECT \* FROM "auth_flows" WHERE client_id = \$1 AND deleted_at IS NULL ORDER BY auth_flow_id ASC`).
+			WithArgs(int64(10)).
+			WillReturnRows(sqlmock.NewRows([]string{"auth_flow_id", "status", "allow_registration", "verification_required", "required_fields"}))
 
 		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
 			return &Client{ClientID: 10, Status: shared.StatusActive}, nil
@@ -97,4 +100,55 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 		assert.Equal(t, "Google", result.Connections[0].DisplayName)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+}
+
+func TestOAuthConnectionsService_RegistrationFlow(t *testing.T) {
+	tests := []struct {
+		name       string
+		rows       *sqlmock.Rows
+		queryErr   error
+		wantExists bool
+		wantFlow   bool
+		wantErr    bool
+	}{
+		{
+			name: "no attached flow is unrestricted",
+			rows: sqlmock.NewRows([]string{"auth_flow_id", "status", "allow_registration", "verification_required", "required_fields"}),
+		},
+		{
+			name: "active opt-in flow is selected",
+			rows: sqlmock.NewRows([]string{"auth_flow_id", "status", "allow_registration", "verification_required", "required_fields"}).
+				AddRow(1, shared.StatusActive, true, true, `["email"]`),
+			wantExists: true,
+			wantFlow:   true,
+		},
+		{
+			name: "attached disabled flow is invite-only",
+			rows: sqlmock.NewRows([]string{"auth_flow_id", "status", "allow_registration", "verification_required", "required_fields"}).
+				AddRow(1, shared.StatusActive, false, false, `[]`),
+			wantExists: true,
+		},
+		{name: "query error propagates", queryErr: errors.New("db error"), wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock := newMockDB(t)
+			expectation := mock.ExpectQuery(`SELECT \* FROM "auth_flows" WHERE client_id = \$1 AND deleted_at IS NULL ORDER BY auth_flow_id ASC`).WithArgs(int64(10))
+			if tc.queryErr != nil {
+				expectation.WillReturnError(tc.queryErr)
+			} else {
+				expectation.WillReturnRows(tc.rows)
+			}
+			svc := &oauthConnectionsService{db: db}
+			exists, flow, err := svc.registrationFlow(10)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tc.wantExists, exists)
+			assert.Equal(t, tc.wantFlow, flow != nil)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }

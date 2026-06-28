@@ -52,19 +52,19 @@ func SeedAuthFlows(db *gorm.DB, tenantID int64) error {
 
 	if err := seedAuthFlowWithRoleNames(db, tenantID, SystemAuthFlowRegistered,
 		"Default tenant onboarding — grants the registered role (console)",
-		shared.DestinationConsole, &consoleClient, "registered"); err != nil {
+		shared.DestinationConsole, &consoleClient, true, "registered"); err != nil {
 		return err
 	}
 
 	if err := seedAuthFlowWithRoleNames(db, tenantID, SystemAuthFlowIdentity,
 		"Public onboarding — grants the registered role (identity)",
-		shared.DestinationIdentity, &identityClient, "registered"); err != nil {
+		shared.DestinationIdentity, &identityClient, true, "registered"); err != nil {
 		return err
 	}
 
 	if err := seedAuthFlowWithRoleNames(db, tenantID, SystemAuthFlowOwner,
 		"Owner invitation — grants registered and super-admin roles (console)",
-		shared.DestinationConsole, &consoleClient, "registered", "super-admin"); err != nil {
+		shared.DestinationConsole, &consoleClient, false, "registered", "super-admin"); err != nil {
 		return err
 	}
 
@@ -73,11 +73,16 @@ func SeedAuthFlows(db *gorm.DB, tenantID int64) error {
 }
 
 func seedAuthFlowWithRoleNames(db *gorm.DB, tenantID int64, name, description, destination string,
-	client *model.Client, roleNames ...string) error {
+	client *model.Client, allowRegistration bool, roleNames ...string) error {
 
 	var existing model.AuthFlow
 	err := db.Where("name = ? AND tenant_id = ?", name, tenantID).First(&existing).Error
 	if err == nil {
+		if existing.AllowRegistration != allowRegistration {
+			if updateErr := db.Model(&existing).Update("allow_registration", allowRegistration).Error; updateErr != nil {
+				return updateErr
+			}
+		}
 		slog.Info("Auth flow already exists, skipping", "name", name, "id", existing.AuthFlowID)
 		return nil
 	}
@@ -91,15 +96,16 @@ func seedAuthFlowWithRoleNames(db *gorm.DB, tenantID int64, name, description, d
 	}
 
 	af := &model.AuthFlow{
-		AuthFlowUUID: uuid.New(),
-		TenantID:     tenantID,
-		Name:         name,
-		Description:  description,
-		Identifier:   identifier,
-		Destination:  destination,
-		IsSystem:     true,
-		Status:       shared.StatusActive,
-		ClientID:     &client.ClientID,
+		AuthFlowUUID:      uuid.New(),
+		TenantID:          tenantID,
+		Name:              name,
+		Description:       description,
+		Identifier:        identifier,
+		Destination:       destination,
+		IsSystem:          true,
+		AllowRegistration: allowRegistration,
+		Status:            shared.StatusActive,
+		ClientID:          &client.ClientID,
 	}
 	if err := db.Create(af).Error; err != nil {
 		return err

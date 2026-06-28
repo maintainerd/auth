@@ -28,6 +28,7 @@ type AuthFlowRepository interface {
 	FindPaginated(filter AuthFlowRepositoryGetFilter) (*PaginationResult[AuthFlow], error)
 	FindByUUIDAndTenantID(authFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*AuthFlow, error)
 	FindByIdentifierAndClientID(identifier string, clientID int64) (*AuthFlow, error)
+	FindByClientID(clientID int64) ([]AuthFlow, error)
 	FindByName(name string) (*AuthFlow, error)
 	FindByNameAndTenantID(name string, tenantID int64) (*AuthFlow, error)
 }
@@ -88,6 +89,12 @@ func (r *authFlowRepository) FindByIdentifierAndClientID(identifier string, clie
 		return nil, err
 	}
 	return &authFlow, nil
+}
+
+func (r *authFlowRepository) FindByClientID(clientID int64) ([]AuthFlow, error) {
+	var flows []AuthFlow
+	err := r.DB().Where("client_id = ?", clientID).Order("auth_flow_id ASC").Find(&flows).Error
+	return flows, err
 }
 
 func (r *authFlowRepository) FindByUUIDAndTenantID(authFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*AuthFlow, error) {

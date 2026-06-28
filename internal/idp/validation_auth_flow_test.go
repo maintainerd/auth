@@ -63,6 +63,27 @@ func TestAuthFlowCreateRequestDto_Validate(t *testing.T) {
 		d.ClientUUID = "not-a-uuid"
 		require.Error(t, d.Validate())
 	})
+
+	t.Run("valid required fields", func(t *testing.T) {
+		fields := `["email","fullname","phone"]`
+		d := valid
+		d.RequiredFields = &fields
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("required fields must be a string array", func(t *testing.T) {
+		fields := `{"email":true}`
+		d := valid
+		d.RequiredFields = &fields
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("unknown required field is rejected", func(t *testing.T) {
+		fields := `["address"]`
+		d := valid
+		d.RequiredFields = &fields
+		require.Error(t, d.Validate())
+	})
 }
 
 func TestAuthFlowUpdateRequestDto_Validate(t *testing.T) {
