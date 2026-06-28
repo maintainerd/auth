@@ -11,6 +11,7 @@ import (
 func validBrandingUpdate() BrandingUpdateRequestDTO {
 	return BrandingUpdateRequestDTO{
 		CompanyName: "Acme Corp",
+		Layout:      "centered",
 	}
 }
 
@@ -39,6 +40,20 @@ func TestBrandingUpdateRequestDTO_Validate(t *testing.T) {
 
 	t.Run("valid full", func(t *testing.T) {
 		assert.NoError(t, validBrandingUpdate().Validate())
+	})
+
+	for _, layout := range []string{"centered", "full_page", "split"} {
+		t.Run("valid layout "+layout, func(t *testing.T) {
+			d := validBrandingUpdate()
+			d.Layout = layout
+			assert.NoError(t, d.Validate())
+		})
+	}
+
+	t.Run("invalid layout", func(t *testing.T) {
+		d := validBrandingUpdate()
+		d.Layout = "sidebar"
+		require.Error(t, d.Validate())
 	})
 
 	t.Run("company_name too long", func(t *testing.T) {

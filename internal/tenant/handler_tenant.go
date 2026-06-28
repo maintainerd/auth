@@ -226,6 +226,7 @@ func (h *TenantHandler) toPublicResponse(ctx context.Context, tenant TenantServi
 	if h.brandingService != nil {
 		if b, err := h.brandingService.GetPublic(ctx, tenant.TenantID); err == nil && b != nil {
 			res.Branding = &BrandingPublic{
+				Layout:            b.Layout,
 				CompanyName:       b.CompanyName,
 				LogoURL:           b.LogoURL,
 				FaviconURL:        b.FaviconURL,

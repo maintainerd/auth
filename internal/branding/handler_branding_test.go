@@ -44,6 +44,32 @@ func TestBrandingHandler_List_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestBrandingHandler_Create_Layout(t *testing.T) {
+	svc := &mockBrandingService{
+		createFn: func(_ int64, _ string, layout string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), Layout: layout}, nil
+		},
+	}
+	h := NewBrandingHandler(svc)
+	r := withTenant(jsonReq(t, http.MethodPost, "/branding", map[string]any{"name": "Acme", "layout": "full_page"}))
+	w := httptest.NewRecorder()
+
+	h.Create(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"layout":"full_page"`)
+}
+
+func TestBrandingHandler_Create_InvalidLayout(t *testing.T) {
+	h := NewBrandingHandler(&mockBrandingService{})
+	r := withTenant(jsonReq(t, http.MethodPost, "/branding", map[string]any{"name": "Acme", "layout": "sidebar"}))
+	w := httptest.NewRecorder()
+
+	h.Create(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 func TestBrandingHandler_Update_NoTenant(t *testing.T) {
 	h := NewBrandingHandler(&mockBrandingService{})
 	r := httptest.NewRequest(http.MethodPut, "/branding", nil)
@@ -79,7 +105,7 @@ func TestBrandingHandler_Update_ValidationError(t *testing.T) {
 
 func TestBrandingHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockBrandingService{
-		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, _ string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -93,14 +119,15 @@ func TestBrandingHandler_Update_ServiceError(t *testing.T) {
 
 func TestBrandingHandler_Update_Success(t *testing.T) {
 	svc := &mockBrandingService{
-		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
-			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme"}, nil
+		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, layout string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme", Layout: layout}, nil
 		},
 	}
 	h := NewBrandingHandler(svc)
-	body := map[string]any{"company_name": "Acme"}
+	body := map[string]any{"company_name": "Acme", "layout": "split"}
 	r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/branding", body)), "branding_uuid", uuid.New().String())
 	w := httptest.NewRecorder()
 	h.Update(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"layout":"split"`)
 }

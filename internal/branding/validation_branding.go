@@ -5,6 +5,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 var httpURL = validation.By(func(value any) error {
@@ -38,6 +39,13 @@ func (r BrandingUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Name,
 			validation.Length(0, 100).Error("Name must not exceed 100 characters"),
+		),
+		validation.Field(&r.Layout,
+			validation.In(
+				shared.BrandingLayoutCentered,
+				shared.BrandingLayoutFullPage,
+				shared.BrandingLayoutSplit,
+			).Error("Layout must be centered, full_page, or split"),
 		),
 		validation.Field(&r.SupportURL,
 			validation.Length(0, 2048).Error("Support URL must not exceed 2048 characters"),

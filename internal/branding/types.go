@@ -13,6 +13,7 @@ type BrandingResponseDTO struct {
 	Name              string         `json:"name"`
 	IsSystem          bool           `json:"is_system"`
 	IsActive          bool           `json:"is_active"`
+	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
 	LogoURL           string         `json:"logo_url"`
 	FaviconURL        string         `json:"favicon_url"`
@@ -27,6 +28,7 @@ type BrandingResponseDTO struct {
 // BrandingUpdateRequestDTO is the request body for updating branding.
 type BrandingUpdateRequestDTO struct {
 	Name              string         `json:"name"`
+	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
 	LogoURL           string         `json:"logo_url"`
 	FaviconURL        string         `json:"favicon_url"`

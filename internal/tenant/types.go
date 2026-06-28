@@ -53,6 +53,7 @@ type RegistrationConfigPublic struct {
 }
 
 type BrandingPublic struct {
+	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
 	LogoURL           string         `json:"logo_url"`
 	FaviconURL        string         `json:"favicon_url"`

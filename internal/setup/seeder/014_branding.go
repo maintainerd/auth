@@ -16,6 +16,7 @@ type Branding struct {
 	Name              string         `gorm:"column:name;type:varchar(100)"`
 	IsSystem          bool           `gorm:"column:is_system;not null;default:false"`
 	IsActive          bool           `gorm:"column:is_active;not null;default:false"`
+	Layout            string         `gorm:"column:layout;type:varchar(32);not null;default:centered"`
 	CompanyName       string         `gorm:"column:company_name;type:varchar(255)"`
 	LogoURL           string         `gorm:"column:logo_url;type:text"`
 	FaviconURL        string         `gorm:"column:favicon_url;type:text"`
@@ -90,6 +91,7 @@ func SeedBranding(db *gorm.DB, tenantID int64) error {
 			BrandingUUID: uuid.New(),
 			TenantID:     tenantID,
 			Name:         t.name,
+			Layout:       "centered",
 			CompanyName:  "Maintainerd-Auth",
 			IsSystem:     true,
 			IsActive:     t.active,

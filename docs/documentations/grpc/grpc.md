@@ -178,8 +178,10 @@ step-up/re-auth claim.
 > setup RPCs are closed and only `GetSetupStatus` remains. Controller registration after
 > that uses normal PDP-gated `AssignServicePolicy`.
 
-For the exhaustive per-RPC list and statuses, see the backlog at
-[docs/planning/grpc-feature-list.md](../../planning/grpc-feature-list.md).
+The former per-RPC planning backlog was retired when the planning folder was consolidated.
+Use the service tables in this document for the gRPC reference and track current pre-release
+work in
+[docs/planning/develop-before-v0.1.0.md](../../planning/develop-before-v0.1.0.md).
 
 ---
 

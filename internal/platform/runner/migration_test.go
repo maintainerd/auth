@@ -12,10 +12,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func TestMigrations_RegisterSetupStatesTable(t *testing.T) {
+func TestMigrations_RegisterLatestMigration(t *testing.T) {
 	require.NotEmpty(t, migrations)
 	last := migrations[len(migrations)-1]
-	assert.Equal(t, "065_create_identity_provider_email_domains_table", last.Version)
+	assert.Equal(t, "066_create_identity_provider_allowed_audiences_table", last.Version)
 	assert.NotNil(t, last.Fn)
 }
 
