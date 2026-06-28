@@ -102,10 +102,13 @@ go test ./...            # run tests
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) for details.
+Copyright 2026 Reyco Seguma.
+
+Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for the
+license terms and [NOTICE](NOTICE) for attribution.
 
 ---
 
 <p align="center">
-  <em>Built by <a href="https://github.com/xreyc">@xreyc</a> and the Maintainerd community.</em>
+  <em>Built by <a href="https://github.com/xreyc">Reyco Seguma (@xreyc)</a> and the Maintainerd community.</em>
 </p>
