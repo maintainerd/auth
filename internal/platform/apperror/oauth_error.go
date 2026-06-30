@@ -10,14 +10,11 @@ import (
 // defined in RFC 6749 §5.2. It carries an error code, human-readable description,
 // optional URI pointing to error documentation, and the HTTP status code to use.
 type OAuthError struct {
-	// Code is the OAuth error code (e.g. "invalid_request", "unauthorized_client").
-	Code string `json:"error"`
-	// Description is a human-readable explanation of the error.
+	Code        string `json:"error"`
 	Description string `json:"error_description,omitempty"`
-	// URI is an optional link to a page describing the error in more detail.
-	URI string `json:"error_uri,omitempty"`
-	// StatusCode is the HTTP status code to return (not serialized to JSON).
-	StatusCode int `json:"-"`
+	URI         string `json:"error_uri,omitempty"`
+	RequestID   string `json:"request_id,omitempty"`
+	StatusCode  int    `json:"-"`
 }
 
 // Error implements the error interface.

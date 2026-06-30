@@ -156,7 +156,11 @@ func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.Create
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, req.GetIdentityProviderUuid(), actorUUID)
+	allowReg := true
+	if req.AllowRegistration != nil {
+		allowReg = *req.AllowRegistration
+	}
+	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, req.GetIdentityProviderUuid(), nil, allowReg, actorUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -191,7 +195,7 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, actorUUID)
+	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, nil, req.AllowRegistration, actorUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -602,18 +606,20 @@ func toClientProto(result *ClientServiceDataResult) *authv1.Client {
 		}
 	}
 	return &authv1.Client{
-		ClientUuid:       result.ClientUUID.String(),
-		Name:             result.Name,
-		DisplayName:      result.DisplayName,
-		ClientType:       result.ClientType,
-		Domain:           stringPtr(result.Domain),
-		Status:           result.Status,
-		IsDefault:        result.IsDefault,
-		IsSystem:         result.IsSystem,
-		IdentityProvider: idp,
-		Uris:             uris,
-		CreatedAt:        timestamppb.New(result.CreatedAt),
-		UpdatedAt:        timestamppb.New(result.UpdatedAt),
+		ClientUuid:        result.ClientUUID.String(),
+		Name:              result.Name,
+		DisplayName:       result.DisplayName,
+		ClientType:        result.ClientType,
+		Domain:            stringPtr(result.Domain),
+		Status:            result.Status,
+		IsDefault:         result.IsDefault,
+		IsSystem:          result.IsSystem,
+		IdentityProvider:  idp,
+		Uris:              uris,
+		CreatedAt:         timestamppb.New(result.CreatedAt),
+		UpdatedAt:         timestamppb.New(result.UpdatedAt),
+		BrandingId:        brandingUUIDToString(result.BrandingUUID),
+		AllowRegistration: result.AllowRegistration,
 	}
 }
 
@@ -650,4 +656,11 @@ func stringPtr(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func brandingUUIDToString(b *uuid.UUID) string {
+	if b == nil {
+		return ""
+	}
+	return b.String()
 }

@@ -9,26 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAuthFlow_TableName(t *testing.T) {
-	assert.Equal(t, "auth_flows", AuthFlow{}.TableName())
+func TestRegistrationFlow_TableName(t *testing.T) {
+	assert.Equal(t, "registration_flows", RegistrationFlow{}.TableName())
 }
 
-func TestAuthFlow_BeforeCreate(t *testing.T) {
+func TestRegistrationFlow_BeforeCreate(t *testing.T) {
 	t.Run("assigns uuid and default status when empty", func(t *testing.T) {
-		flow := &AuthFlow{}
+		flow := &RegistrationFlow{}
 		require.NoError(t, flow.BeforeCreate(nil))
-		assert.NotEqual(t, uuid.Nil, flow.AuthFlowUUID)
+		assert.NotEqual(t, uuid.Nil, flow.RegistrationFlowUUID)
 		assert.Equal(t, shared.StatusActive, flow.Status)
 	})
 
 	t.Run("keeps existing uuid and status", func(t *testing.T) {
 		existing := uuid.New()
-		flow := &AuthFlow{
-			AuthFlowUUID: existing,
-			Status:       shared.StatusInactive,
+		flow := &RegistrationFlow{
+			RegistrationFlowUUID: existing,
+			Status:               shared.StatusInactive,
 		}
 		require.NoError(t, flow.BeforeCreate(nil))
-		assert.Equal(t, existing, flow.AuthFlowUUID)
+		assert.Equal(t, existing, flow.RegistrationFlowUUID)
 		assert.Equal(t, shared.StatusInactive, flow.Status)
 	})
 }

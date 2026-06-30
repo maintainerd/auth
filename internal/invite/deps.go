@@ -86,24 +86,22 @@ type RoleRepository interface {
 	FindByUUIDs(uuids []string, preloads ...string) ([]Role, error)
 }
 
-type AuthFlow struct {
-	AuthFlowID   int64
-	AuthFlowUUID uuid.UUID
-	TenantID     int64
-	Name         string
-	Identifier   string
-	Destination  string
-	IsSystem     bool
-	Status       string
-	CreatedAt    time.Time
+type RegistrationFlow struct {
+	RegistrationFlowID   int64
+	RegistrationFlowUUID uuid.UUID
+	TenantID             int64
+	Name                 string
+	Identifier           string
+	IsSystem             bool
+	Status               string
+	CreatedAt            time.Time
 }
 
-func (AuthFlow) TableName() string { return "auth_flows" }
+func (RegistrationFlow) TableName() string { return "registration_flows" }
 
-type AuthFlowRepository interface {
-	BaseRepositoryMethods[AuthFlow]
-	FindByID(id any, preloads ...string) (*AuthFlow, error)
-	WithTx(tx *gorm.DB) AuthFlowRepository
-	FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, preloads ...string) (*AuthFlow, error)
-	FindByNameAndTenantID(name string, tenantID int64) (*AuthFlow, error)
+type RegistrationFlowRepository interface {
+	BaseRepositoryMethods[RegistrationFlow]
+	FindByID(id any, preloads ...string) (*RegistrationFlow, error)
+	WithTx(tx *gorm.DB) RegistrationFlowRepository
+	FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, preloads ...string) (*RegistrationFlow, error)
 }

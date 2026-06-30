@@ -3,6 +3,7 @@ package invite
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"html/template"
 	"os"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -34,18 +36,19 @@ func inviteTTL() time.Duration {
 }
 
 type InviteService interface {
-	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, authFlowUUID *string) (*Invite, error)
+	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, registrationFlowUUID *string, callbackURL *string) (*Invite, error)
 	ResendInvite(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) (*Invite, error)
 	ListInvites(ctx context.Context, tenantID int64) ([]Invite, error)
 	RevokeInvite(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) error
+	GetByToken(ctx context.Context, inviteToken string) (*Invite, error)
 }
 
 type inviteService struct {
-	db                *gorm.DB
-	inviteRepo        InviteRepository
-	clientRepo        ClientRepository
-	emailTemplateRepo branding.EmailTemplateRepository
-	authFlowRepo      AuthFlowRepository
+	db                   *gorm.DB
+	inviteRepo           InviteRepository
+	clientRepo           ClientRepository
+	emailTemplateRepo    branding.EmailTemplateRepository
+	registrationFlowRepo RegistrationFlowRepository
 }
 
 func NewInviteService(
@@ -53,14 +56,14 @@ func NewInviteService(
 	inviteRepo InviteRepository,
 	clientRepo ClientRepository,
 	emailTemplateRepo branding.EmailTemplateRepository,
-	authFlowRepo AuthFlowRepository,
+	registrationFlowRepo RegistrationFlowRepository,
 ) InviteService {
 	return &inviteService{
-		db:                db,
-		inviteRepo:        inviteRepo,
-		clientRepo:        clientRepo,
-		emailTemplateRepo: emailTemplateRepo,
-		authFlowRepo:      authFlowRepo,
+		db:                   db,
+		inviteRepo:           inviteRepo,
+		clientRepo:           clientRepo,
+		emailTemplateRepo:    emailTemplateRepo,
+		registrationFlowRepo: registrationFlowRepo,
 	}
 }
 
@@ -69,19 +72,19 @@ func (s *inviteService) SendInvite(
 	tenantID int64,
 	email string,
 	userID int64,
-	authFlowUUID *string,
+	registrationFlowUUID *string,
+	callbackURL *string,
 ) (*Invite, error) {
 	_, span := otel.Tracer("service").Start(ctx, "invite.send")
 	defer span.End()
 
 	var invite *Invite
-	var authFlowDestination string
-	var authFlowIdentifier string
 	var clientIdentifier string
+	var clientIsSystem bool
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		clientRepo := s.clientRepo.WithTx(tx)
-		authFlowRepo := s.authFlowRepo.WithTx(tx)
+		registrationFlowRepo := s.registrationFlowRepo.WithTx(tx)
 		inviteRepo := s.inviteRepo.WithTx(tx)
 
 		Client, err := clientRepo.FindSystem()
@@ -95,6 +98,7 @@ func (s *inviteService) SendInvite(
 			return apperror.NewValidation("invalid client or identity provider")
 		}
 		clientIdentifier = *Client.Identifier
+		clientIsSystem = Client.IsSystem
 
 		// The system client's tenant is the tenant this invite belongs under.
 		systemTenantID := Client.TenantID
@@ -118,33 +122,43 @@ func (s *inviteService) SendInvite(
 			ExpiresAt:       expiresAt,
 		}
 
-		if authFlowUUID != nil && *authFlowUUID != "" {
-			authFlowUUIDParsed, err := uuid.Parse(*authFlowUUID)
+		if registrationFlowUUID != nil && *registrationFlowUUID != "" {
+			registrationFlowUUIDParsed, err := uuid.Parse(*registrationFlowUUID)
 			if err != nil {
-				return apperror.NewValidation("invalid auth flow UUID")
+				return apperror.NewValidation("invalid registration flow UUID")
 			}
-			authFlow, err := authFlowRepo.FindByUUIDAndTenantID(authFlowUUIDParsed, systemTenantID)
-			if err != nil || authFlow == nil {
-				return apperror.NewNotFoundWithReason("auth flow not found")
+			registrationFlow, err := registrationFlowRepo.FindByUUIDAndTenantID(registrationFlowUUIDParsed, systemTenantID)
+			if err != nil || registrationFlow == nil {
+				return apperror.NewNotFoundWithReason("registration flow not found")
 			}
-			invite.AuthFlowID = &authFlow.AuthFlowID
+			if registrationFlow.Status != shared.StatusActive {
+				return apperror.NewValidation("registration flow is inactive")
+			}
+			invite.RegistrationFlowID = &registrationFlow.RegistrationFlowID
 
-			authFlowDestination = authFlow.Destination
-			authFlowIdentifier = authFlow.Identifier
-		} else {
-			defaultAuthFlow, err := authFlowRepo.FindByNameAndTenantID("system:onboarding:registered", systemTenantID)
-			if err == nil && defaultAuthFlow != nil {
-				invite.AuthFlowID = &defaultAuthFlow.AuthFlowID
-				authFlowDestination = defaultAuthFlow.Destination
-				authFlowIdentifier = defaultAuthFlow.Identifier
+			// Use the flow's client for callback/branding resolution.
+			var flowClientID int64
+			if err := tx.Table("registration_flows").
+				Select("client_id").
+				Where("registration_flow_id = ?", registrationFlow.RegistrationFlowID).
+				Scan(&flowClientID).Error; err == nil && flowClientID > 0 {
+				invite.ClientID = flowClientID
+				clientIsSystem = false
+				var flowClientIdentifier string
+				if err := tx.Table("clients").
+					Select("identifier").
+					Where("client_id = ?", flowClientID).
+					Scan(&flowClientIdentifier).Error; err == nil && flowClientIdentifier != "" {
+					clientIdentifier = flowClientIdentifier
+				}
 			}
 		}
 
-		if invite.AuthFlowID != nil {
-			authFlowID := *invite.AuthFlowID
+		if invite.RegistrationFlowID != nil {
+			registrationFlowID := *invite.RegistrationFlowID
 			var flowRoleIDs []int64
-			if err := tx.Table("auth_flow_roles").
-				Where("auth_flow_id = ?", authFlowID).
+			if err := tx.Table("registration_flow_roles").
+				Where("registration_flow_id = ?", registrationFlowID).
 				Pluck("role_id", &flowRoleIDs).Error; err != nil {
 				return err
 			}
@@ -161,6 +175,17 @@ func (s *inviteService) SendInvite(
 			}
 		}
 
+		if callbackURL != nil && *callbackURL != "" {
+			var uris []clientURI
+			if err := tx.Where("client_id = ? AND type = ?", invite.ClientID, shared.ClientURITypeRedirect).Find(&uris).Error; err != nil {
+				return err
+			}
+			if err := validateCallbackURL(callbackURL, uris); err != nil {
+				return apperror.NewValidation("invalid callback URL: " + err.Error())
+			}
+			invite.CallbackURL = callbackURL
+		}
+
 		if _, err := inviteRepo.Create(invite); err != nil {
 			return err
 		}
@@ -174,15 +199,12 @@ func (s *inviteService) SendInvite(
 		return nil, err
 	}
 
-	// Generate signed invite URL (API domain)
+	// Generate signed invite URL (API domain) — all invites go to the identity app.
 	params := map[string]string{
 		"invite_token": invite.InviteToken,
 		"email":        invite.InvitedEmail,
 	}
-	if authFlowIdentifier != "" {
-		params["auth_flow"] = authFlowIdentifier
-	}
-	if authFlowDestination == shared.DestinationConsole {
+	if clientIsSystem {
 		var tenantIdentifier string
 		if err := s.db.Model(&TenantRecord{}).Select("identifier").Where("tenant_id = ?", invite.TenantID).Scan(&tenantIdentifier).Error; err != nil || tenantIdentifier == "" {
 			return nil, apperror.NewInternal("failed to resolve invite tenant", err)
@@ -197,14 +219,7 @@ func (s *inviteService) SendInvite(
 		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
 	}
 
-	// Convert it to frontend URL — choose hostname based on auth flow's destination
-	var frontendBaseURL string
-	switch authFlowDestination {
-	case shared.DestinationConsole:
-		frontendBaseURL = config.AppFrontendConsoleHostname + "/register/invite"
-	default:
-		frontendBaseURL = config.AppFrontendIdentityHostname + "/register/invite"
-	}
+	frontendBaseURL := config.AppFrontendIdentityHostname + "/register/invite"
 	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to convert invite URL", err)
@@ -248,24 +263,13 @@ func (s *inviteService) ResendInvite(
 		"invite_token": inviteToken,
 		"email":        existing.InvitedEmail,
 	}
-	var frontendBaseURL string
-	var authFlowIdentifier string
-	if existing.AuthFlowID != nil {
-		authFlow, afErr := s.authFlowRepo.FindByID(*existing.AuthFlowID)
-		if afErr == nil && authFlow != nil {
-			authFlowIdentifier = authFlow.Identifier
-			if authFlow.Destination == shared.DestinationConsole {
-				frontendBaseURL = config.AppFrontendConsoleHostname + "/register/invite"
-			}
-		}
+
+	// All invites go to the identity app. Determine surface param by client type.
+	var clientIsSystem bool
+	if err := s.db.Model(&Client{}).Select("is_system").Where("client_id = ?", existing.ClientID).Scan(&clientIsSystem).Error; err != nil {
+		return nil, apperror.NewInternal("failed to resolve invite client", err)
 	}
-	if frontendBaseURL == "" {
-		frontendBaseURL = config.AppFrontendIdentityHostname + "/register/invite"
-	}
-	if authFlowIdentifier != "" {
-		params["auth_flow"] = authFlowIdentifier
-	}
-	if frontendBaseURL == config.AppFrontendConsoleHostname+"/register/invite" {
+	if clientIsSystem {
 		var tenantIdentifier string
 		if err := s.db.Model(&TenantRecord{}).Select("identifier").Where("tenant_id = ?", existing.TenantID).Scan(&tenantIdentifier).Error; err != nil || tenantIdentifier == "" {
 			return nil, apperror.NewInternal("failed to resolve invite tenant", err)
@@ -278,6 +282,7 @@ func (s *inviteService) ResendInvite(
 		}
 		params["client_id"] = clientIdentifier
 	}
+	frontendBaseURL := config.AppFrontendIdentityHostname + "/register/invite"
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
 	if err != nil {
@@ -377,4 +382,37 @@ func (s *inviteService) RevokeInvite(ctx context.Context, inviteUUID uuid.UUID, 
 	}
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+func (s *inviteService) GetByToken(ctx context.Context, inviteToken string) (*Invite, error) {
+	_, span := otel.Tracer("service").Start(ctx, "invite.get_by_token")
+	defer span.End()
+	invite, err := s.inviteRepo.FindByToken(inviteToken)
+	if err != nil {
+		return nil, err
+	}
+	if invite == nil {
+		return nil, apperror.NewNotFoundWithReason("invite not found")
+	}
+	return invite, nil
+}
+
+type clientURI struct {
+	URI  string
+	Type string
+}
+
+func validateCallbackURL(callbackURL *string, uris []clientURI) error {
+	if callbackURL == nil || *callbackURL == "" {
+		return nil
+	}
+	if err := security.ValidateRedirectURI(*callbackURL); err != nil {
+		return fmt.Errorf("dangerous redirect: %w", err)
+	}
+	for _, uri := range uris {
+		if uri.Type == shared.ClientURITypeRedirect && uri.URI == *callbackURL {
+			return nil
+		}
+	}
+	return fmt.Errorf("callback URL does not match any registered redirect URI")
 }

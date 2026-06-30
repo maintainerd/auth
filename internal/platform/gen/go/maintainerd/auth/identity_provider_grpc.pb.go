@@ -312,405 +312,406 @@ var IdentityProviderService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	SignupFlowService_ListSignupFlows_FullMethodName       = "/maintainerd.auth.v1.SignupFlowService/ListSignupFlows"
-	SignupFlowService_GetSignupFlow_FullMethodName         = "/maintainerd.auth.v1.SignupFlowService/GetSignupFlow"
-	SignupFlowService_CreateSignupFlow_FullMethodName      = "/maintainerd.auth.v1.SignupFlowService/CreateSignupFlow"
-	SignupFlowService_UpdateSignupFlow_FullMethodName      = "/maintainerd.auth.v1.SignupFlowService/UpdateSignupFlow"
-	SignupFlowService_SetSignupFlowStatus_FullMethodName   = "/maintainerd.auth.v1.SignupFlowService/SetSignupFlowStatus"
-	SignupFlowService_DeleteSignupFlow_FullMethodName      = "/maintainerd.auth.v1.SignupFlowService/DeleteSignupFlow"
-	SignupFlowService_AssignSignupFlowRoles_FullMethodName = "/maintainerd.auth.v1.SignupFlowService/AssignSignupFlowRoles"
-	SignupFlowService_ListSignupFlowRoles_FullMethodName   = "/maintainerd.auth.v1.SignupFlowService/ListSignupFlowRoles"
-	SignupFlowService_RemoveSignupFlowRole_FullMethodName  = "/maintainerd.auth.v1.SignupFlowService/RemoveSignupFlowRole"
+	RegistrationFlowService_ListRegistrationFlows_FullMethodName       = "/maintainerd.auth.v1.RegistrationFlowService/ListRegistrationFlows"
+	RegistrationFlowService_GetRegistrationFlow_FullMethodName         = "/maintainerd.auth.v1.RegistrationFlowService/GetRegistrationFlow"
+	RegistrationFlowService_CreateRegistrationFlow_FullMethodName      = "/maintainerd.auth.v1.RegistrationFlowService/CreateRegistrationFlow"
+	RegistrationFlowService_UpdateRegistrationFlow_FullMethodName      = "/maintainerd.auth.v1.RegistrationFlowService/UpdateRegistrationFlow"
+	RegistrationFlowService_SetRegistrationFlowStatus_FullMethodName   = "/maintainerd.auth.v1.RegistrationFlowService/SetRegistrationFlowStatus"
+	RegistrationFlowService_DeleteRegistrationFlow_FullMethodName      = "/maintainerd.auth.v1.RegistrationFlowService/DeleteRegistrationFlow"
+	RegistrationFlowService_AssignRegistrationFlowRoles_FullMethodName = "/maintainerd.auth.v1.RegistrationFlowService/AssignRegistrationFlowRoles"
+	RegistrationFlowService_ListRegistrationFlowRoles_FullMethodName   = "/maintainerd.auth.v1.RegistrationFlowService/ListRegistrationFlowRoles"
+	RegistrationFlowService_RemoveRegistrationFlowRole_FullMethodName  = "/maintainerd.auth.v1.RegistrationFlowService/RemoveRegistrationFlowRole"
 )
 
-// SignupFlowServiceClient is the client API for SignupFlowService service.
+// RegistrationFlowServiceClient is the client API for RegistrationFlowService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type SignupFlowServiceClient interface {
-	ListSignupFlows(ctx context.Context, in *ListSignupFlowsRequest, opts ...grpc.CallOption) (*ListSignupFlowsResponse, error)
-	GetSignupFlow(ctx context.Context, in *GetSignupFlowRequest, opts ...grpc.CallOption) (*GetSignupFlowResponse, error)
-	CreateSignupFlow(ctx context.Context, in *CreateSignupFlowRequest, opts ...grpc.CallOption) (*CreateSignupFlowResponse, error)
-	UpdateSignupFlow(ctx context.Context, in *UpdateSignupFlowRequest, opts ...grpc.CallOption) (*UpdateSignupFlowResponse, error)
-	SetSignupFlowStatus(ctx context.Context, in *SetSignupFlowStatusRequest, opts ...grpc.CallOption) (*SetSignupFlowStatusResponse, error)
-	DeleteSignupFlow(ctx context.Context, in *DeleteSignupFlowRequest, opts ...grpc.CallOption) (*DeleteSignupFlowResponse, error)
-	AssignSignupFlowRoles(ctx context.Context, in *AssignSignupFlowRolesRequest, opts ...grpc.CallOption) (*AssignSignupFlowRolesResponse, error)
-	ListSignupFlowRoles(ctx context.Context, in *ListSignupFlowRolesRequest, opts ...grpc.CallOption) (*ListSignupFlowRolesResponse, error)
-	RemoveSignupFlowRole(ctx context.Context, in *RemoveSignupFlowRoleRequest, opts ...grpc.CallOption) (*RemoveSignupFlowRoleResponse, error)
+type RegistrationFlowServiceClient interface {
+	ListRegistrationFlows(ctx context.Context, in *ListRegistrationFlowsRequest, opts ...grpc.CallOption) (*ListRegistrationFlowsResponse, error)
+	GetRegistrationFlow(ctx context.Context, in *GetRegistrationFlowRequest, opts ...grpc.CallOption) (*GetRegistrationFlowResponse, error)
+	CreateRegistrationFlow(ctx context.Context, in *CreateRegistrationFlowRequest, opts ...grpc.CallOption) (*CreateRegistrationFlowResponse, error)
+	UpdateRegistrationFlow(ctx context.Context, in *UpdateRegistrationFlowRequest, opts ...grpc.CallOption) (*UpdateRegistrationFlowResponse, error)
+	SetRegistrationFlowStatus(ctx context.Context, in *SetRegistrationFlowStatusRequest, opts ...grpc.CallOption) (*SetRegistrationFlowStatusResponse, error)
+	DeleteRegistrationFlow(ctx context.Context, in *DeleteRegistrationFlowRequest, opts ...grpc.CallOption) (*DeleteRegistrationFlowResponse, error)
+	AssignRegistrationFlowRoles(ctx context.Context, in *AssignRegistrationFlowRolesRequest, opts ...grpc.CallOption) (*AssignRegistrationFlowRolesResponse, error)
+	ListRegistrationFlowRoles(ctx context.Context, in *ListRegistrationFlowRolesRequest, opts ...grpc.CallOption) (*ListRegistrationFlowRolesResponse, error)
+	RemoveRegistrationFlowRole(ctx context.Context, in *RemoveRegistrationFlowRoleRequest, opts ...grpc.CallOption) (*RemoveRegistrationFlowRoleResponse, error)
 }
 
-type signupFlowServiceClient struct {
+type registrationFlowServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewSignupFlowServiceClient(cc grpc.ClientConnInterface) SignupFlowServiceClient {
-	return &signupFlowServiceClient{cc}
+func NewRegistrationFlowServiceClient(cc grpc.ClientConnInterface) RegistrationFlowServiceClient {
+	return &registrationFlowServiceClient{cc}
 }
 
-func (c *signupFlowServiceClient) ListSignupFlows(ctx context.Context, in *ListSignupFlowsRequest, opts ...grpc.CallOption) (*ListSignupFlowsResponse, error) {
+func (c *registrationFlowServiceClient) ListRegistrationFlows(ctx context.Context, in *ListRegistrationFlowsRequest, opts ...grpc.CallOption) (*ListRegistrationFlowsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListSignupFlowsResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_ListSignupFlows_FullMethodName, in, out, cOpts...)
+	out := new(ListRegistrationFlowsResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_ListRegistrationFlows_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *signupFlowServiceClient) GetSignupFlow(ctx context.Context, in *GetSignupFlowRequest, opts ...grpc.CallOption) (*GetSignupFlowResponse, error) {
+func (c *registrationFlowServiceClient) GetRegistrationFlow(ctx context.Context, in *GetRegistrationFlowRequest, opts ...grpc.CallOption) (*GetRegistrationFlowResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetSignupFlowResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_GetSignupFlow_FullMethodName, in, out, cOpts...)
+	out := new(GetRegistrationFlowResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_GetRegistrationFlow_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *signupFlowServiceClient) CreateSignupFlow(ctx context.Context, in *CreateSignupFlowRequest, opts ...grpc.CallOption) (*CreateSignupFlowResponse, error) {
+func (c *registrationFlowServiceClient) CreateRegistrationFlow(ctx context.Context, in *CreateRegistrationFlowRequest, opts ...grpc.CallOption) (*CreateRegistrationFlowResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateSignupFlowResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_CreateSignupFlow_FullMethodName, in, out, cOpts...)
+	out := new(CreateRegistrationFlowResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_CreateRegistrationFlow_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *signupFlowServiceClient) UpdateSignupFlow(ctx context.Context, in *UpdateSignupFlowRequest, opts ...grpc.CallOption) (*UpdateSignupFlowResponse, error) {
+func (c *registrationFlowServiceClient) UpdateRegistrationFlow(ctx context.Context, in *UpdateRegistrationFlowRequest, opts ...grpc.CallOption) (*UpdateRegistrationFlowResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateSignupFlowResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_UpdateSignupFlow_FullMethodName, in, out, cOpts...)
+	out := new(UpdateRegistrationFlowResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_UpdateRegistrationFlow_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *signupFlowServiceClient) SetSignupFlowStatus(ctx context.Context, in *SetSignupFlowStatusRequest, opts ...grpc.CallOption) (*SetSignupFlowStatusResponse, error) {
+func (c *registrationFlowServiceClient) SetRegistrationFlowStatus(ctx context.Context, in *SetRegistrationFlowStatusRequest, opts ...grpc.CallOption) (*SetRegistrationFlowStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SetSignupFlowStatusResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_SetSignupFlowStatus_FullMethodName, in, out, cOpts...)
+	out := new(SetRegistrationFlowStatusResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_SetRegistrationFlowStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *signupFlowServiceClient) DeleteSignupFlow(ctx context.Context, in *DeleteSignupFlowRequest, opts ...grpc.CallOption) (*DeleteSignupFlowResponse, error) {
+func (c *registrationFlowServiceClient) DeleteRegistrationFlow(ctx context.Context, in *DeleteRegistrationFlowRequest, opts ...grpc.CallOption) (*DeleteRegistrationFlowResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteSignupFlowResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_DeleteSignupFlow_FullMethodName, in, out, cOpts...)
+	out := new(DeleteRegistrationFlowResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_DeleteRegistrationFlow_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *signupFlowServiceClient) AssignSignupFlowRoles(ctx context.Context, in *AssignSignupFlowRolesRequest, opts ...grpc.CallOption) (*AssignSignupFlowRolesResponse, error) {
+func (c *registrationFlowServiceClient) AssignRegistrationFlowRoles(ctx context.Context, in *AssignRegistrationFlowRolesRequest, opts ...grpc.CallOption) (*AssignRegistrationFlowRolesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AssignSignupFlowRolesResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_AssignSignupFlowRoles_FullMethodName, in, out, cOpts...)
+	out := new(AssignRegistrationFlowRolesResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_AssignRegistrationFlowRoles_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *signupFlowServiceClient) ListSignupFlowRoles(ctx context.Context, in *ListSignupFlowRolesRequest, opts ...grpc.CallOption) (*ListSignupFlowRolesResponse, error) {
+func (c *registrationFlowServiceClient) ListRegistrationFlowRoles(ctx context.Context, in *ListRegistrationFlowRolesRequest, opts ...grpc.CallOption) (*ListRegistrationFlowRolesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListSignupFlowRolesResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_ListSignupFlowRoles_FullMethodName, in, out, cOpts...)
+	out := new(ListRegistrationFlowRolesResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_ListRegistrationFlowRoles_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *signupFlowServiceClient) RemoveSignupFlowRole(ctx context.Context, in *RemoveSignupFlowRoleRequest, opts ...grpc.CallOption) (*RemoveSignupFlowRoleResponse, error) {
+func (c *registrationFlowServiceClient) RemoveRegistrationFlowRole(ctx context.Context, in *RemoveRegistrationFlowRoleRequest, opts ...grpc.CallOption) (*RemoveRegistrationFlowRoleResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RemoveSignupFlowRoleResponse)
-	err := c.cc.Invoke(ctx, SignupFlowService_RemoveSignupFlowRole_FullMethodName, in, out, cOpts...)
+	out := new(RemoveRegistrationFlowRoleResponse)
+	err := c.cc.Invoke(ctx, RegistrationFlowService_RemoveRegistrationFlowRole_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// SignupFlowServiceServer is the server API for SignupFlowService service.
-// All implementations must embed UnimplementedSignupFlowServiceServer
+// RegistrationFlowServiceServer is the server API for RegistrationFlowService service.
+// All implementations must embed UnimplementedRegistrationFlowServiceServer
 // for forward compatibility.
-type SignupFlowServiceServer interface {
-	ListSignupFlows(context.Context, *ListSignupFlowsRequest) (*ListSignupFlowsResponse, error)
-	GetSignupFlow(context.Context, *GetSignupFlowRequest) (*GetSignupFlowResponse, error)
-	CreateSignupFlow(context.Context, *CreateSignupFlowRequest) (*CreateSignupFlowResponse, error)
-	UpdateSignupFlow(context.Context, *UpdateSignupFlowRequest) (*UpdateSignupFlowResponse, error)
-	SetSignupFlowStatus(context.Context, *SetSignupFlowStatusRequest) (*SetSignupFlowStatusResponse, error)
-	DeleteSignupFlow(context.Context, *DeleteSignupFlowRequest) (*DeleteSignupFlowResponse, error)
-	AssignSignupFlowRoles(context.Context, *AssignSignupFlowRolesRequest) (*AssignSignupFlowRolesResponse, error)
-	ListSignupFlowRoles(context.Context, *ListSignupFlowRolesRequest) (*ListSignupFlowRolesResponse, error)
-	RemoveSignupFlowRole(context.Context, *RemoveSignupFlowRoleRequest) (*RemoveSignupFlowRoleResponse, error)
-	mustEmbedUnimplementedSignupFlowServiceServer()
+type RegistrationFlowServiceServer interface {
+	ListRegistrationFlows(context.Context, *ListRegistrationFlowsRequest) (*ListRegistrationFlowsResponse, error)
+	GetRegistrationFlow(context.Context, *GetRegistrationFlowRequest) (*GetRegistrationFlowResponse, error)
+	CreateRegistrationFlow(context.Context, *CreateRegistrationFlowRequest) (*CreateRegistrationFlowResponse, error)
+	UpdateRegistrationFlow(context.Context, *UpdateRegistrationFlowRequest) (*UpdateRegistrationFlowResponse, error)
+	SetRegistrationFlowStatus(context.Context, *SetRegistrationFlowStatusRequest) (*SetRegistrationFlowStatusResponse, error)
+	DeleteRegistrationFlow(context.Context, *DeleteRegistrationFlowRequest) (*DeleteRegistrationFlowResponse, error)
+	AssignRegistrationFlowRoles(context.Context, *AssignRegistrationFlowRolesRequest) (*AssignRegistrationFlowRolesResponse, error)
+	ListRegistrationFlowRoles(context.Context, *ListRegistrationFlowRolesRequest) (*ListRegistrationFlowRolesResponse, error)
+	RemoveRegistrationFlowRole(context.Context, *RemoveRegistrationFlowRoleRequest) (*RemoveRegistrationFlowRoleResponse, error)
+	mustEmbedUnimplementedRegistrationFlowServiceServer()
 }
 
-// UnimplementedSignupFlowServiceServer must be embedded to have
+// UnimplementedRegistrationFlowServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedSignupFlowServiceServer struct{}
+type UnimplementedRegistrationFlowServiceServer struct{}
 
-func (UnimplementedSignupFlowServiceServer) ListSignupFlows(context.Context, *ListSignupFlowsRequest) (*ListSignupFlowsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListSignupFlows not implemented")
+func (UnimplementedRegistrationFlowServiceServer) ListRegistrationFlows(context.Context, *ListRegistrationFlowsRequest) (*ListRegistrationFlowsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRegistrationFlows not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) GetSignupFlow(context.Context, *GetSignupFlowRequest) (*GetSignupFlowResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSignupFlow not implemented")
+func (UnimplementedRegistrationFlowServiceServer) GetRegistrationFlow(context.Context, *GetRegistrationFlowRequest) (*GetRegistrationFlowResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRegistrationFlow not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) CreateSignupFlow(context.Context, *CreateSignupFlowRequest) (*CreateSignupFlowResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateSignupFlow not implemented")
+func (UnimplementedRegistrationFlowServiceServer) CreateRegistrationFlow(context.Context, *CreateRegistrationFlowRequest) (*CreateRegistrationFlowResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateRegistrationFlow not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) UpdateSignupFlow(context.Context, *UpdateSignupFlowRequest) (*UpdateSignupFlowResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateSignupFlow not implemented")
+func (UnimplementedRegistrationFlowServiceServer) UpdateRegistrationFlow(context.Context, *UpdateRegistrationFlowRequest) (*UpdateRegistrationFlowResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateRegistrationFlow not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) SetSignupFlowStatus(context.Context, *SetSignupFlowStatusRequest) (*SetSignupFlowStatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetSignupFlowStatus not implemented")
+func (UnimplementedRegistrationFlowServiceServer) SetRegistrationFlowStatus(context.Context, *SetRegistrationFlowStatusRequest) (*SetRegistrationFlowStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetRegistrationFlowStatus not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) DeleteSignupFlow(context.Context, *DeleteSignupFlowRequest) (*DeleteSignupFlowResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteSignupFlow not implemented")
+func (UnimplementedRegistrationFlowServiceServer) DeleteRegistrationFlow(context.Context, *DeleteRegistrationFlowRequest) (*DeleteRegistrationFlowResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteRegistrationFlow not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) AssignSignupFlowRoles(context.Context, *AssignSignupFlowRolesRequest) (*AssignSignupFlowRolesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AssignSignupFlowRoles not implemented")
+func (UnimplementedRegistrationFlowServiceServer) AssignRegistrationFlowRoles(context.Context, *AssignRegistrationFlowRolesRequest) (*AssignRegistrationFlowRolesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssignRegistrationFlowRoles not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) ListSignupFlowRoles(context.Context, *ListSignupFlowRolesRequest) (*ListSignupFlowRolesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListSignupFlowRoles not implemented")
+func (UnimplementedRegistrationFlowServiceServer) ListRegistrationFlowRoles(context.Context, *ListRegistrationFlowRolesRequest) (*ListRegistrationFlowRolesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRegistrationFlowRoles not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) RemoveSignupFlowRole(context.Context, *RemoveSignupFlowRoleRequest) (*RemoveSignupFlowRoleResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RemoveSignupFlowRole not implemented")
+func (UnimplementedRegistrationFlowServiceServer) RemoveRegistrationFlowRole(context.Context, *RemoveRegistrationFlowRoleRequest) (*RemoveRegistrationFlowRoleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveRegistrationFlowRole not implemented")
 }
-func (UnimplementedSignupFlowServiceServer) mustEmbedUnimplementedSignupFlowServiceServer() {}
-func (UnimplementedSignupFlowServiceServer) testEmbeddedByValue()                           {}
+func (UnimplementedRegistrationFlowServiceServer) mustEmbedUnimplementedRegistrationFlowServiceServer() {
+}
+func (UnimplementedRegistrationFlowServiceServer) testEmbeddedByValue() {}
 
-// UnsafeSignupFlowServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to SignupFlowServiceServer will
+// UnsafeRegistrationFlowServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to RegistrationFlowServiceServer will
 // result in compilation errors.
-type UnsafeSignupFlowServiceServer interface {
-	mustEmbedUnimplementedSignupFlowServiceServer()
+type UnsafeRegistrationFlowServiceServer interface {
+	mustEmbedUnimplementedRegistrationFlowServiceServer()
 }
 
-func RegisterSignupFlowServiceServer(s grpc.ServiceRegistrar, srv SignupFlowServiceServer) {
-	// If the following call pancis, it indicates UnimplementedSignupFlowServiceServer was
+func RegisterRegistrationFlowServiceServer(s grpc.ServiceRegistrar, srv RegistrationFlowServiceServer) {
+	// If the following call pancis, it indicates UnimplementedRegistrationFlowServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&SignupFlowService_ServiceDesc, srv)
+	s.RegisterService(&RegistrationFlowService_ServiceDesc, srv)
 }
 
-func _SignupFlowService_ListSignupFlows_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListSignupFlowsRequest)
+func _RegistrationFlowService_ListRegistrationFlows_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRegistrationFlowsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).ListSignupFlows(ctx, in)
+		return srv.(RegistrationFlowServiceServer).ListRegistrationFlows(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_ListSignupFlows_FullMethodName,
+		FullMethod: RegistrationFlowService_ListRegistrationFlows_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).ListSignupFlows(ctx, req.(*ListSignupFlowsRequest))
+		return srv.(RegistrationFlowServiceServer).ListRegistrationFlows(ctx, req.(*ListRegistrationFlowsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SignupFlowService_GetSignupFlow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetSignupFlowRequest)
+func _RegistrationFlowService_GetRegistrationFlow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRegistrationFlowRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).GetSignupFlow(ctx, in)
+		return srv.(RegistrationFlowServiceServer).GetRegistrationFlow(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_GetSignupFlow_FullMethodName,
+		FullMethod: RegistrationFlowService_GetRegistrationFlow_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).GetSignupFlow(ctx, req.(*GetSignupFlowRequest))
+		return srv.(RegistrationFlowServiceServer).GetRegistrationFlow(ctx, req.(*GetRegistrationFlowRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SignupFlowService_CreateSignupFlow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateSignupFlowRequest)
+func _RegistrationFlowService_CreateRegistrationFlow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateRegistrationFlowRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).CreateSignupFlow(ctx, in)
+		return srv.(RegistrationFlowServiceServer).CreateRegistrationFlow(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_CreateSignupFlow_FullMethodName,
+		FullMethod: RegistrationFlowService_CreateRegistrationFlow_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).CreateSignupFlow(ctx, req.(*CreateSignupFlowRequest))
+		return srv.(RegistrationFlowServiceServer).CreateRegistrationFlow(ctx, req.(*CreateRegistrationFlowRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SignupFlowService_UpdateSignupFlow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateSignupFlowRequest)
+func _RegistrationFlowService_UpdateRegistrationFlow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateRegistrationFlowRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).UpdateSignupFlow(ctx, in)
+		return srv.(RegistrationFlowServiceServer).UpdateRegistrationFlow(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_UpdateSignupFlow_FullMethodName,
+		FullMethod: RegistrationFlowService_UpdateRegistrationFlow_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).UpdateSignupFlow(ctx, req.(*UpdateSignupFlowRequest))
+		return srv.(RegistrationFlowServiceServer).UpdateRegistrationFlow(ctx, req.(*UpdateRegistrationFlowRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SignupFlowService_SetSignupFlowStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetSignupFlowStatusRequest)
+func _RegistrationFlowService_SetRegistrationFlowStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetRegistrationFlowStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).SetSignupFlowStatus(ctx, in)
+		return srv.(RegistrationFlowServiceServer).SetRegistrationFlowStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_SetSignupFlowStatus_FullMethodName,
+		FullMethod: RegistrationFlowService_SetRegistrationFlowStatus_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).SetSignupFlowStatus(ctx, req.(*SetSignupFlowStatusRequest))
+		return srv.(RegistrationFlowServiceServer).SetRegistrationFlowStatus(ctx, req.(*SetRegistrationFlowStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SignupFlowService_DeleteSignupFlow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteSignupFlowRequest)
+func _RegistrationFlowService_DeleteRegistrationFlow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteRegistrationFlowRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).DeleteSignupFlow(ctx, in)
+		return srv.(RegistrationFlowServiceServer).DeleteRegistrationFlow(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_DeleteSignupFlow_FullMethodName,
+		FullMethod: RegistrationFlowService_DeleteRegistrationFlow_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).DeleteSignupFlow(ctx, req.(*DeleteSignupFlowRequest))
+		return srv.(RegistrationFlowServiceServer).DeleteRegistrationFlow(ctx, req.(*DeleteRegistrationFlowRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SignupFlowService_AssignSignupFlowRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AssignSignupFlowRolesRequest)
+func _RegistrationFlowService_AssignRegistrationFlowRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssignRegistrationFlowRolesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).AssignSignupFlowRoles(ctx, in)
+		return srv.(RegistrationFlowServiceServer).AssignRegistrationFlowRoles(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_AssignSignupFlowRoles_FullMethodName,
+		FullMethod: RegistrationFlowService_AssignRegistrationFlowRoles_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).AssignSignupFlowRoles(ctx, req.(*AssignSignupFlowRolesRequest))
+		return srv.(RegistrationFlowServiceServer).AssignRegistrationFlowRoles(ctx, req.(*AssignRegistrationFlowRolesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SignupFlowService_ListSignupFlowRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListSignupFlowRolesRequest)
+func _RegistrationFlowService_ListRegistrationFlowRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRegistrationFlowRolesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).ListSignupFlowRoles(ctx, in)
+		return srv.(RegistrationFlowServiceServer).ListRegistrationFlowRoles(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_ListSignupFlowRoles_FullMethodName,
+		FullMethod: RegistrationFlowService_ListRegistrationFlowRoles_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).ListSignupFlowRoles(ctx, req.(*ListSignupFlowRolesRequest))
+		return srv.(RegistrationFlowServiceServer).ListRegistrationFlowRoles(ctx, req.(*ListRegistrationFlowRolesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SignupFlowService_RemoveSignupFlowRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RemoveSignupFlowRoleRequest)
+func _RegistrationFlowService_RemoveRegistrationFlowRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveRegistrationFlowRoleRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SignupFlowServiceServer).RemoveSignupFlowRole(ctx, in)
+		return srv.(RegistrationFlowServiceServer).RemoveRegistrationFlowRole(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SignupFlowService_RemoveSignupFlowRole_FullMethodName,
+		FullMethod: RegistrationFlowService_RemoveRegistrationFlowRole_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SignupFlowServiceServer).RemoveSignupFlowRole(ctx, req.(*RemoveSignupFlowRoleRequest))
+		return srv.(RegistrationFlowServiceServer).RemoveRegistrationFlowRole(ctx, req.(*RemoveRegistrationFlowRoleRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// SignupFlowService_ServiceDesc is the grpc.ServiceDesc for SignupFlowService service.
+// RegistrationFlowService_ServiceDesc is the grpc.ServiceDesc for RegistrationFlowService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var SignupFlowService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "maintainerd.auth.v1.SignupFlowService",
-	HandlerType: (*SignupFlowServiceServer)(nil),
+var RegistrationFlowService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "maintainerd.auth.v1.RegistrationFlowService",
+	HandlerType: (*RegistrationFlowServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListSignupFlows",
-			Handler:    _SignupFlowService_ListSignupFlows_Handler,
+			MethodName: "ListRegistrationFlows",
+			Handler:    _RegistrationFlowService_ListRegistrationFlows_Handler,
 		},
 		{
-			MethodName: "GetSignupFlow",
-			Handler:    _SignupFlowService_GetSignupFlow_Handler,
+			MethodName: "GetRegistrationFlow",
+			Handler:    _RegistrationFlowService_GetRegistrationFlow_Handler,
 		},
 		{
-			MethodName: "CreateSignupFlow",
-			Handler:    _SignupFlowService_CreateSignupFlow_Handler,
+			MethodName: "CreateRegistrationFlow",
+			Handler:    _RegistrationFlowService_CreateRegistrationFlow_Handler,
 		},
 		{
-			MethodName: "UpdateSignupFlow",
-			Handler:    _SignupFlowService_UpdateSignupFlow_Handler,
+			MethodName: "UpdateRegistrationFlow",
+			Handler:    _RegistrationFlowService_UpdateRegistrationFlow_Handler,
 		},
 		{
-			MethodName: "SetSignupFlowStatus",
-			Handler:    _SignupFlowService_SetSignupFlowStatus_Handler,
+			MethodName: "SetRegistrationFlowStatus",
+			Handler:    _RegistrationFlowService_SetRegistrationFlowStatus_Handler,
 		},
 		{
-			MethodName: "DeleteSignupFlow",
-			Handler:    _SignupFlowService_DeleteSignupFlow_Handler,
+			MethodName: "DeleteRegistrationFlow",
+			Handler:    _RegistrationFlowService_DeleteRegistrationFlow_Handler,
 		},
 		{
-			MethodName: "AssignSignupFlowRoles",
-			Handler:    _SignupFlowService_AssignSignupFlowRoles_Handler,
+			MethodName: "AssignRegistrationFlowRoles",
+			Handler:    _RegistrationFlowService_AssignRegistrationFlowRoles_Handler,
 		},
 		{
-			MethodName: "ListSignupFlowRoles",
-			Handler:    _SignupFlowService_ListSignupFlowRoles_Handler,
+			MethodName: "ListRegistrationFlowRoles",
+			Handler:    _RegistrationFlowService_ListRegistrationFlowRoles_Handler,
 		},
 		{
-			MethodName: "RemoveSignupFlowRole",
-			Handler:    _SignupFlowService_RemoveSignupFlowRole_Handler,
+			MethodName: "RemoveRegistrationFlowRole",
+			Handler:    _RegistrationFlowService_RemoveRegistrationFlowRole_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

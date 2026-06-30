@@ -526,6 +526,8 @@ type mockOAuthAuthorizeService struct {
 	startBrokerFn         func(context.Context, OAuthAuthorizeRequestDTO) (*OAuthAuthorizeResult, *apperror.OAuthError)
 	handleCallbackFn      func(context.Context, string, string, string) (string, string, *apperror.OAuthError)
 	prepareAuthorizeFn    func(context.Context, OAuthAuthorizeRequestDTO) *apperror.OAuthError
+	prepareAuthSignupFn   func(context.Context, OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError)
+	continueAuthorizeFn   func(context.Context, string, int64, int64) (string, *apperror.OAuthError)
 	getConsentChallengeFn func(context.Context, uuid.UUID, int64) (*OAuthConsentChallengeResponseDTO, error)
 	handleConsentFn       func(context.Context, OAuthConsentDecisionDTO, int64) (*OAuthConsentDecisionResult, *apperror.OAuthError)
 }
@@ -565,6 +567,18 @@ func (m *mockOAuthAuthorizeService) HandleConsent(ctx context.Context, decision 
 		return m.handleConsentFn(ctx, decision, userID)
 	}
 	return nil, nil
+}
+func (m *mockOAuthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
+	if m.prepareAuthSignupFn != nil {
+		return m.prepareAuthSignupFn(ctx, req)
+	}
+	return "", nil
+}
+func (m *mockOAuthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (string, *apperror.OAuthError) {
+	if m.continueAuthorizeFn != nil {
+		return m.continueAuthorizeFn(ctx, requestID, userID, tenantID)
+	}
+	return "", nil
 }
 
 type mockBrokerProviderResolver struct {

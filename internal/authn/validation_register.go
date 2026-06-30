@@ -80,6 +80,7 @@ func (q *RegisterQueryDTO) Validate() error {
 	// Sanitize inputs first
 	q.ClientID = security.SanitizeInput(q.ClientID)
 	q.TenantID = security.SanitizeInput(q.TenantID)
+	q.RegistrationFlow = security.SanitizeInput(q.RegistrationFlow)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
@@ -87,6 +88,9 @@ func (q *RegisterQueryDTO) Validate() error {
 		),
 		validation.Field(&q.TenantID,
 			validation.Length(0, 255).Error("Tenant ID must not exceed 255 characters"),
+		),
+		validation.Field(&q.RegistrationFlow,
+			validation.Length(0, 255).Error("Registration flow identifier must not exceed 255 characters"),
 		),
 	)
 }
@@ -98,7 +102,6 @@ func (q *RegisterInviteQueryDTO) Validate() error {
 	q.InviteToken = security.SanitizeInput(q.InviteToken)
 	q.Expires = security.SanitizeInput(q.Expires)
 	q.Sig = security.SanitizeInput(q.Sig)
-	q.AuthFlow = security.SanitizeInput(q.AuthFlow)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
@@ -119,9 +122,6 @@ func (q *RegisterInviteQueryDTO) Validate() error {
 			validation.Required.Error("Signature is required"),
 			validation.Length(1, 500).Error("Signature must not exceed 500 characters"),
 		),
-		validation.Field(&q.AuthFlow,
-			validation.Length(0, 255).Error("Auth flow identifier must not exceed 255 characters"),
-		),
 	)
 }
 
@@ -130,7 +130,6 @@ func (q *RegisterInviteQueryDTO) ValidateInternal() error {
 	q.InviteToken = security.SanitizeInput(q.InviteToken)
 	q.Expires = security.SanitizeInput(q.Expires)
 	q.Sig = security.SanitizeInput(q.Sig)
-	q.AuthFlow = security.SanitizeInput(q.AuthFlow)
 	q.ClientID = security.SanitizeInput(q.ClientID)
 	q.TenantID = security.SanitizeInput(q.TenantID)
 
@@ -146,9 +145,6 @@ func (q *RegisterInviteQueryDTO) ValidateInternal() error {
 		validation.Field(&q.Sig,
 			validation.Required.Error("Signature is required"),
 			validation.Length(1, 500).Error("Signature must not exceed 500 characters"),
-		),
-		validation.Field(&q.AuthFlow,
-			validation.Length(0, 255).Error("Auth flow identifier must not exceed 255 characters"),
 		),
 		validation.Field(&q.ClientID,
 			validation.Length(0, 255).Error("Client ID must not exceed 255 characters"),

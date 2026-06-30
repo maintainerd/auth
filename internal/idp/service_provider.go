@@ -641,12 +641,12 @@ func toIdpServiceDataResult(idp *IdentityProvider) *IdentityProviderServiceDataR
 		AllowTokenFederation: idp.AllowTokenFederation,
 		AllowedAudiences:     audiences,
 		EmailDomains:         domains,
-		Config:    cfg,
-		Status:    idp.Status,
-		IsDefault: idp.IsDefault,
-		IsSystem:  idp.IsSystem,
-		CreatedAt: idp.CreatedAt,
-		UpdatedAt: idp.UpdatedAt,
+		Config:               cfg,
+		Status:               idp.Status,
+		IsDefault:            idp.IsDefault,
+		IsSystem:             idp.IsSystem,
+		CreatedAt:            idp.CreatedAt,
+		UpdatedAt:            idp.UpdatedAt,
 	}
 
 	if idp.Tenant != nil {

@@ -50,7 +50,7 @@ func (m *mockEventTypeRepo) DeleteByID(id any) error     { return nil }
 func (m *mockEventTypeRepo) Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*database.PaginationResult[event.EventType], error) {
 	return nil, nil
 }
-func (m *mockEventTypeRepo) FindAllActive() ([]event.EventType, error)      { return nil, nil }
+func (m *mockEventTypeRepo) FindAllActive() ([]event.EventType, error) { return nil, nil }
 func (m *mockEventTypeRepo) FindActiveByTenantID(int64) ([]event.EventType, error) {
 	return nil, nil
 }

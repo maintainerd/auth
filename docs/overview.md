@@ -19,7 +19,7 @@ This document is the conceptual entry point for **maintainerd-auth**. Read this 
 - [Services, APIs, and Permissions](#services-apis-and-permissions)
 - [Policies](#policies)
 - [API Keys](#api-keys)
-- [Signup Flows](#signup-flows)
+- [Registration Flows](#registration-flows)
 - [Invites](#invites)
 - [Branding and Templates](#branding-and-templates)
 - [Settings](#settings)
@@ -123,7 +123,7 @@ TENANT  (one record per running instance)
 │
 ├── APIKeys → APIKeyAPIs → APIKeyPermissions
 ├── Roles   → RolePermissions → Permissions
-├── SignupFlows → SignupFlowRoles → Roles
+├── RegistrationFlows → RegistrationFlowRoles → Roles
 ├── Invites → InviteRoles → Roles
 ├── login_templates     — auth-identity UI branding
 ├── email_templates     — transactional email content
@@ -146,7 +146,7 @@ TENANT  (one record per running instance)
 
 The **tenant** is the root entity — there is exactly one tenant record per running instance. It does not represent a user or an application. It represents the organization that owns the deployment.
 
-Everything in the system lives under the tenant. The tenant record holds the instance identity (`identifier`, `name`, `display_name`, `status`) and owns all application-level configuration directly: users, roles, permissions, identity providers, clients, API keys, signup flows, invites, branding/templates, and security settings.
+Everything in the system lives under the tenant. The tenant record holds the instance identity (`identifier`, `name`, `display_name`, `status`) and owns all application-level configuration directly: users, roles, permissions, identity providers, clients, API keys, registration flows, invites, branding/templates, and security settings.
 
 The tenant also owns instance-wide concerns: IP restrictions, email and SMS delivery, branding for the admin console, rate limits, audit configuration, webhooks, and maintenance mode.
 
@@ -209,7 +209,7 @@ The system tenant's built-in IDP has at least one pre-seeded client that represe
 
 ### Roles
 
-A **role** is a named collection of permissions scoped to the tenant. Roles are assigned to users directly (`user_roles`) or automatically via signup flows.
+A **role** is a named collection of permissions scoped to the tenant. Roles are assigned to users directly (`user_roles`) or automatically via registration flows.
 
 Each role has:
 - A name and description.
@@ -291,14 +291,14 @@ Each key has:
 
 ---
 
-## Signup Flows
+## Registration Flows
 
-A **signup flow** defines the registration experience for a specific client within the tenant. Different clients can have different signup configurations — a consumer app can allow open registration while a B2B client in the same tenant requires an invite.
+A **registration flow** defines a specialized registration experience for a specific client within the tenant. Different flows can enforce different registration fields and assign different roles.
 
-Each signup flow has:
+Each registration flow has:
 - A name and identifier tied to a specific client.
 - Explicit self-registration, verification, and required-field policy (`allow_registration`, `verification_required`, `required_fields`).
-- An assigned set of roles automatically granted to users who register through this flow (`auth_flow_roles`).
+- An assigned set of roles automatically granted to users who register through this flow (`registration_flow_roles`).
 
 ---
 

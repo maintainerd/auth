@@ -345,7 +345,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		m.user.findByUsernameFn = func(string) (*User, error) { return nil, errors.New("username error") }
 		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, &cid, &pid)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, &cid, &pid, "")
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -360,7 +360,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		m.user.findByEmailFn = func(string) (*User, error) { return nil, errors.New("email error") }
 		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", &email, nil, &cid, &pid)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", &email, nil, &cid, &pid, "")
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -375,7 +375,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		m.user.findByPhoneFn = func(string) (*User, error) { return nil, errors.New("phone error") }
 		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, &phone, &cid, &pid)
+		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, &phone, &cid, &pid, "")
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -390,14 +390,14 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 			name: "register public hash error",
 			m:    defaultRegPublicMocks,
 			run: func(s RegisterService) (*RegisterResponseDTO, error) {
-				return s.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, &cid, &pid)
+				return s.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, &cid, &pid, "")
 			},
 		},
 		{
 			name: "register internal hash error",
 			m:    defaultRegInternalMocks,
 			run: func(s RegisterService) (*RegisterResponseDTO, error) {
-				return s.Register(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, nil, nil)
+				return s.Register(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, nil, nil, "")
 			},
 		},
 	} {
@@ -431,7 +431,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		m := defaultRegInternalMocks()
 		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.Register(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, nil, nil)
+		resp, err := svc.Register(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, nil, nil, "")
 
 		require.Error(t, err)
 		assert.Nil(t, resp)

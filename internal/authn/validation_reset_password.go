@@ -10,5 +10,3 @@ func (dto ResetPasswordRequestDTO) Validate() error {
 		// Token is optional in request body - can come from signed URL instead
 	)
 }
-
-

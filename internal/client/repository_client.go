@@ -72,6 +72,7 @@ func (r *clientRepository) FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID 
 	var client Client
 	err := r.DB().
 		Preload("Tenant").
+		Preload("Branding").
 		Preload("ConnectedProviders.IdentityProvider").
 		Preload("ClientURIs").
 		Where("client_uuid = ? AND tenant_id = ?", clientUUID, tenantID).
@@ -269,6 +270,7 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 	// Sorting — protected against SQL injection via allowlist
 	query = query.Order(database.SanitizeOrderPrefixed("clients.", filter.SortBy, filter.SortOrder, "clients.created_at DESC")).
 		Preload("Tenant").
+		Preload("Branding").
 		Preload("ConnectedProviders", "enabled = ?", true).
 		Preload("ConnectedProviders.IdentityProvider").
 		Preload("ClientURIs")

@@ -46,16 +46,16 @@ func NewSMSConfigService(smsConfigRepo SMSConfigRepository) SMSConfigService {
 
 func toSMSConfigServiceDataResult(sc *SMSConfig) *SMSConfigServiceDataResult {
 	return &SMSConfigServiceDataResult{
-		SMSConfigUUID: sc.SMSConfigUUID,
-		Provider:      sc.Provider,
-		AccountSID:    sc.AccountSID,
-		FromNumber:    sc.FromNumber,
-		SenderID:      sc.SenderID,
+		SMSConfigUUID:  sc.SMSConfigUUID,
+		Provider:       sc.Provider,
+		AccountSID:     sc.AccountSID,
+		FromNumber:     sc.FromNumber,
+		SenderID:       sc.SenderID,
 		TestMode:       sc.TestMode,
 		DailySendLimit: sc.DailySendLimit,
 		Status:         sc.Status,
-		CreatedAt:     sc.CreatedAt,
-		UpdatedAt:     sc.UpdatedAt,
+		CreatedAt:      sc.CreatedAt,
+		UpdatedAt:      sc.UpdatedAt,
 	}
 }
 

@@ -72,7 +72,7 @@ func controlPolicyDocument() model.PolicyDocument {
 					"auth_event:*",
 					"account:*:self",
 					"profile:*",
-					"auth-flow:*",
+					"registration-flow:*",
 					"security-setting:*",
 					"ip-restriction-rule:*",
 					"email-template:*",

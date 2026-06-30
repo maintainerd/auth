@@ -78,9 +78,9 @@ func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		EmailVerified: auth.User.IsEmailVerified,
 		PhoneVerified: auth.User.IsPhoneVerified,
 		Profiles:      profiles,
-		Roles:           roleNames,
-		Permissions:     permissions,
-		Tenant:          tenant,
+		Roles:         roleNames,
+		Permissions:   permissions,
+		Tenant:        tenant,
 	}, "Account retrieved")
 }
 

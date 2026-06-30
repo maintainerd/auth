@@ -3,11 +3,13 @@ package invite
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 // InviteHandler handles HTTP requests for user invitation management.
@@ -54,7 +56,7 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send invite associated with tenant
-	_, err := h.service.SendInvite(r.Context(), tenant.TenantID, req.Email, user.UserID, req.AuthFlowUUID)
+	_, err := h.service.SendInvite(r.Context(), tenant.TenantID, req.Email, user.UserID, req.RegistrationFlowUUID, req.CallbackURL)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to send invite", err)
 		return
@@ -134,4 +136,26 @@ func (h *InviteHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp.Success(w, nil, "Invite revoked successfully")
+}
+
+func (h *InviteHandler) GetInviteContext(w http.ResponseWriter, r *http.Request) {
+	inviteToken := r.URL.Query().Get("invite_token")
+	if inviteToken == "" {
+		resp.Error(w, http.StatusBadRequest, "Invite token is required")
+		return
+	}
+	invite, err := h.service.GetByToken(r.Context(), inviteToken)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get invite", err)
+		return
+	}
+	if invite.Status != shared.StatusPending {
+		resp.Error(w, http.StatusGone, "Invite is no longer valid")
+		return
+	}
+	if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
+		resp.Error(w, http.StatusGone, "Invite has expired")
+		return
+	}
+	resp.Success(w, toInviteContextResponseDTO(*invite), "Invite retrieved")
 }

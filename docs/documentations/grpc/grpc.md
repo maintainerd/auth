@@ -165,7 +165,7 @@ step-up/re-auth claim.
 | `UserService` | Admin user CRUD, status, verify, roles | `user:*` (+step-up on status/delete/roles) |
 | `UserProfileService` | Admin management of a user's profiles | `user:read|update|delete` |
 | `InviteService.SendInvite` | Trigger a user invitation | `user:invite` |
-| `IdentityProviderService`, `SignupFlowService` | Federation + signup config | `idp:*`, `signup-flow:*` |
+| `IdentityProviderService`, `RegistrationFlowService` | Federation + registration config | `idp:*`, `registration-flow:*` |
 | `SecuritySettingService`, `IPRestrictionRuleService` | Security policy + IP rules | `security-setting:*`, `ip-restriction-rule:*` |
 | `BrandingService`, `EmailTemplateService`, `SMSTemplateService`, `LoginTemplateService` | Branding + templates | `branding:*`, `*-template:*` |
 | `EmailConfigService`, `SMSConfigService` | Notifier delivery config | `email-config:*`, `sms-config:*` |

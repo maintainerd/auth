@@ -45,18 +45,20 @@ type ClientURIServiceDataResult struct {
 }
 
 type ClientServiceDataResult struct {
-	ClientUUID       uuid.UUID
-	Name             string
-	DisplayName      string
-	ClientType       string
-	Domain           *string
-	ClientURIs       *[]ClientURIServiceDataResult
-	IdentityProvider *IdentityProviderServiceDataResult
-	Connections      *[]ClientIdentityProviderServiceDataResult
-	Permissions      *[]PermissionServiceDataResult
-	Status           string
-	IsDefault        bool
-	IsSystem         bool
+	ClientUUID        uuid.UUID
+	Name              string
+	DisplayName       string
+	ClientType        string
+	Domain            *string
+	ClientURIs        *[]ClientURIServiceDataResult
+	IdentityProvider  *IdentityProviderServiceDataResult
+	Connections       *[]ClientIdentityProviderServiceDataResult
+	Permissions       *[]PermissionServiceDataResult
+	Status            string
+	IsDefault         bool
+	IsSystem          bool
+	BrandingUUID      *uuid.UUID
+	AllowRegistration bool
 
 	// Security posture / per-client overrides (nil = inherit tenant default)
 	RequirePKCE            *bool
@@ -109,8 +111,8 @@ type ClientService interface {
 	// Use RotateSecret to obtain a new secret.
 	GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
 	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
-	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
+	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	// RotateSecret generates a new secret, hashes and persists it, and keeps the old
 	// hash valid for the specified grace period (gracePeriodHours=0 revokes immediately).
 	// Returns the new plaintext secret once — it cannot be retrieved again.
@@ -377,7 +379,19 @@ func (s *clientService) GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUI
 	return Client.Config, nil
 }
 
-func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error) {
+func (s *clientService) resolveBrandingID(tx *gorm.DB, tenantID int64, brandingUUID uuid.UUID) (*int64, error) {
+	var b Branding
+	err := tx.Where("branding_uuid = ? AND tenant_id = ?", brandingUUID, tenantID).First(&b).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NewNotFoundWithReason("branding not found")
+		}
+		return nil, err
+	}
+	return &b.BrandingID, nil
+}
+
+func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.create")
 	defer span.End()
 	span.SetAttributes(
@@ -445,10 +459,19 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			SecretEncrypted: &secretEncrypted,
 			Config:          config,
 
-			TenantID:  tenantID,
-			Status:    status,
-			IsDefault: isDefault,
-			IsSystem:  false,
+			TenantID:          tenantID,
+			Status:            status,
+			IsDefault:         isDefault,
+			IsSystem:          false,
+			AllowRegistration: allowRegistration,
+		}
+
+		if brandingUUID != nil {
+			brandingID, err := s.resolveBrandingID(tx, tenantID, *brandingUUID)
+			if err != nil {
+				return err
+			}
+			newClient.BrandingID = brandingID
 		}
 
 		// Mirror OAuth settings from config into the first-class columns the
@@ -463,7 +486,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			return err
 		}
 
-		createdClient, err = txClientRepo.FindByUUID(newClient.ClientUUID, "Tenant", "ConnectedProviders.IdentityProvider", "ClientURIs")
+		createdClient, err = txClientRepo.FindByUUID(newClient.ClientUUID, "Tenant", "Branding", "ConnectedProviders.IdentityProvider", "ClientURIs")
 		if err != nil {
 			return err
 		}
@@ -650,7 +673,7 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 	return plaintextSecret, nil
 }
 
-func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.update")
 	defer span.End()
 	span.SetAttributes(
@@ -707,6 +730,19 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		Client.Config = config
 		Client.Status = status
 		Client.IsDefault = isDefault
+		if allowRegistration != nil {
+			Client.AllowRegistration = *allowRegistration
+		}
+
+		if brandingUUID == nil {
+			Client.BrandingID = nil
+		} else {
+			brandingID, err := s.resolveBrandingID(tx, tenantID, *brandingUUID)
+			if err != nil {
+				return err
+			}
+			Client.BrandingID = brandingID
+		}
 
 		// Mirror OAuth settings from config into the first-class columns the
 		// authorization and token-issuance paths read at runtime.
@@ -1475,12 +1511,17 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 		Status:                 Client.Status,
 		IsDefault:              Client.IsDefault,
 		IsSystem:               Client.IsSystem,
+		AllowRegistration:      Client.AllowRegistration,
 		RequirePKCE:            Client.RequirePKCE,
 		RequiredACR:            Client.RequiredACR,
 		SessionIdleTimeout:     Client.SessionIdleTimeout,
 		SessionAbsoluteTimeout: Client.SessionAbsoluteTimeout,
 		CreatedAt:              Client.CreatedAt,
 		UpdatedAt:              Client.UpdatedAt,
+	}
+
+	if Client.Branding != nil {
+		result.BrandingUUID = &Client.Branding.BrandingUUID
 	}
 
 	if Client.ConnectedProviders != nil && len(*Client.ConnectedProviders) > 0 {

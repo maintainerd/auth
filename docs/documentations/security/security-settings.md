@@ -1,6 +1,6 @@
 # Security Settings — System Reference
 
-> **Status**: implemented and in use. This is the authoritative reference for the tenant security-settings subsystem: data model, configuration API (with request/response structures), every config field and its default, runtime enforcement, the client-override model, the auth-flow behaviors driven by these settings, and standards compliance.
+> **Status**: implemented and in use. This is the authoritative reference for the tenant security-settings subsystem: data model, configuration API (with request/response structures), every config field and its default, runtime enforcement, the client-override model, the authentication behaviors driven by these settings, and standards compliance.
 >
 > **Audience**: backend developers, frontend integrators, and AI agents extending or integrating this system. Everything needed to integrate or upgrade is here — you should not need to read the source to integrate.
 >
@@ -290,7 +290,7 @@ Defaults below are the seeded **Business SaaS** baseline (`internal/secpolicy/de
 | `captcha_on_signup` | bool | `true` | — |
 | `registration_rate_limit_per_ip_per_hour` | int | `10` | ≥1 |
 
-**Enforcement** (public and internal self-registration): `self_registration_enabled=false` → 403; the connected in-house IdP and an attached active auth flow must also allow registration; email domain allow/block is case-insensitive and supports `*.domain`; captcha and per-IP rate limits are enforced. New users always receive the system `registered` role plus any additional roles assigned to the selected self-registration auth flow. Flow-level `verification_required` tightens the tenant policy, and `required_fields` is enforced by the registration service.
+**Enforcement** (public and internal self-registration): `self_registration_enabled=false` → 403; the connected in-house IdP and an attached active registration flow must also allow registration; email domain allow/block is case-insensitive and supports `*.domain`; captcha and per-IP rate limits are enforced. New users always receive the system `registered` role plus any additional roles assigned to the selected registration flow. Flow-level `verification_required` tightens the tenant policy, and `required_fields` is enforced by the registration service.
 
 ### 5.7 `threat_config`
 

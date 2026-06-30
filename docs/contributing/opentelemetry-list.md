@@ -237,7 +237,7 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 - [x] `CreateAdmin`
 - [x] `CreateProfile`
 
-### service/signup_flow.go
+### service/registration_flow.go
 
 - [x] `GetAll`
 - [x] `GetByUUID`

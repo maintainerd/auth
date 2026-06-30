@@ -22,15 +22,16 @@ var (
 )
 
 type mockInviteService struct {
-	sendInviteFn   func(int64, string, int64, *string) (*Invite, error)
+	sendInviteFn   func(int64, string, int64, *string, *string) (*Invite, error)
 	resendInviteFn func(uuid.UUID, int64) (*Invite, error)
 	listInvitesFn  func(int64) ([]Invite, error)
 	revokeInviteFn func(uuid.UUID, int64) error
+	getByTokenFn   func(string) (*Invite, error)
 }
 
-func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email string, userID int64, authFlowUUID *string) (*Invite, error) {
+func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email string, userID int64, registrationFlowUUID *string, callbackURL *string) (*Invite, error) {
 	if m.sendInviteFn != nil {
-		return m.sendInviteFn(tenantID, email, userID, authFlowUUID)
+		return m.sendInviteFn(tenantID, email, userID, registrationFlowUUID, callbackURL)
 	}
 	return nil, nil
 }
@@ -54,6 +55,13 @@ func (m *mockInviteService) RevokeInvite(_ context.Context, inviteUUID uuid.UUID
 		return m.revokeInviteFn(inviteUUID, tenantID)
 	}
 	return nil
+}
+
+func (m *mockInviteService) GetByToken(_ context.Context, inviteToken string) (*Invite, error) {
+	if m.getByTokenFn != nil {
+		return m.getByTokenFn(inviteToken)
+	}
+	return nil, nil
 }
 
 func withTenant(r *http.Request) *http.Request {

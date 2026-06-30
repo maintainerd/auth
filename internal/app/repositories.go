@@ -48,9 +48,8 @@ type repos struct {
 	apiKeyRepo                client.APIKeyRepository
 	apiKeyAPIRepo             client.APIKeyAPIRepository
 	apiKeyPermissionRepo      client.APIKeyPermissionRepository
-	authFlowRepo              idp.AuthFlowRepository
-	authFlowRoleRepo          idp.AuthFlowRoleRepository
-	authFlowCallbackURIRepo   idp.AuthFlowCallbackURIRepository
+	registrationFlowRepo      idp.RegistrationFlowRepository
+	registrationFlowRoleRepo  idp.RegistrationFlowRoleRepository
 	securitySettingRepo       secpolicy.SecuritySettingRepository
 	securitySettingsAuditRepo secpolicy.SecuritySettingsAuditRepository
 	ipRestrictionRuleRepo     secpolicy.IPRestrictionRuleRepository
@@ -111,9 +110,8 @@ func initRepos(db *gorm.DB) *repos {
 		apiKeyRepo:                client.NewAPIKeyRepository(db),
 		apiKeyAPIRepo:             client.NewAPIKeyAPIRepository(db),
 		apiKeyPermissionRepo:      client.NewAPIKeyPermissionRepository(db),
-		authFlowRepo:              idp.NewAuthFlowRepository(db),
-		authFlowRoleRepo:          idp.NewAuthFlowRoleRepository(db),
-		authFlowCallbackURIRepo:   idp.NewAuthFlowCallbackURIRepository(db),
+		registrationFlowRepo:      idp.NewRegistrationFlowRepository(db),
+		registrationFlowRoleRepo:  idp.NewRegistrationFlowRoleRepository(db),
 		securitySettingRepo:       secpolicy.NewSecuritySettingRepository(db),
 		securitySettingsAuditRepo: secpolicy.NewSecuritySettingsAuditRepository(db),
 		ipRestrictionRuleRepo:     secpolicy.NewIPRestrictionRuleRepository(db),

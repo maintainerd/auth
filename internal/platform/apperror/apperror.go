@@ -100,7 +100,7 @@ func (e *UnauthorizedError) Error() string {
 
 // ValidationError indicates a business-rule validation failure that is NOT an
 // input-format problem (those are caught earlier by DTO validation in the handler).
-// Examples: "cannot delete system policy", "signup flow must have at least one role".
+// Examples: "cannot delete system policy", "registration flow must have at least one role".
 type ValidationError struct {
 	Reason string
 }

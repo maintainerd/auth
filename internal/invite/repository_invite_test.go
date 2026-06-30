@@ -223,8 +223,8 @@ func TestInviteRepository_MarkAsUsed(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "invites" SET .+ WHERE invite_uuid = \$3 AND "invites"\."deleted_at" IS NULL`).
-			WithArgs(shared.StatusAccepted, sqlmock.AnyArg(), testUUID).
+		mock.ExpectExec(`UPDATE "invites" SET .+ WHERE \(invite_uuid = \$3 AND status = \$4\) AND "invites"\."deleted_at" IS NULL`).
+			WithArgs(shared.StatusAccepted, sqlmock.AnyArg(), testUUID, shared.StatusPending).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
@@ -237,8 +237,8 @@ func TestInviteRepository_MarkAsUsed(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "invites" SET .+ WHERE invite_uuid = \$3 AND "invites"\."deleted_at" IS NULL`).
-			WithArgs(shared.StatusAccepted, sqlmock.AnyArg(), testUUID).
+		mock.ExpectExec(`UPDATE "invites" SET .+ WHERE \(invite_uuid = \$3 AND status = \$4\) AND "invites"\."deleted_at" IS NULL`).
+			WithArgs(shared.StatusAccepted, sqlmock.AnyArg(), testUUID, shared.StatusPending).
 			WillReturnError(assert.AnError)
 		mock.ExpectRollback()
 

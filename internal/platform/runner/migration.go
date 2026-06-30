@@ -76,9 +76,8 @@ var migrations = []migrationEntry{
 	{"036_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
 	// Block 8: Tenant organisation & flows
 	{"037_create_tenant_members_table", migration.CreateTenantMembersTable},
-	{"038_create_auth_flows_table", migration.CreateAuthFlowTable},
-	{"039_create_auth_flow_roles_table", migration.CreateAuthFlowRoleTable},
-	{"040_create_auth_flow_callback_uris_table", migration.CreateAuthFlowCallbackURITable},
+	{"038_create_registration_flows_table", migration.CreateRegistrationFlowTable},
+	{"039_create_registration_flow_roles_table", migration.CreateRegistrationFlowRoleTable},
 	{"041_create_invites_table", migration.CreateInvitesTable},
 	// Block 9: Security
 	{"042_create_security_settings_table", migration.CreateSecuritySettingsTable},
@@ -109,6 +108,7 @@ var migrations = []migrationEntry{
 	{"064_create_oauth_broker_sessions_table", migration.CreateOAuthBrokerSessionsTable},
 	{"065_create_identity_provider_email_domains_table", migration.CreateIdentityProviderEmailDomainsTable},
 	{"066_create_identity_provider_allowed_audiences_table", migration.CreateIdentityProviderAllowedAudiencesTable},
+	{"067_create_oauth_authorize_requests_table", migration.CreateOAuthAuthorizeRequestsTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

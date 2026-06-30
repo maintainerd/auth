@@ -17,6 +17,8 @@ func (r *OAuthAuthorizeRequestDTO) Validate() error {
 	r.State = security.SanitizeInput(r.State)
 	r.Nonce = security.SanitizeInput(r.Nonce)
 	r.IdpHint = security.SanitizeInput(r.IdpHint)
+	r.ScreenHint = security.SanitizeInput(r.ScreenHint)
+	r.RegistrationFlow = security.SanitizeInput(r.RegistrationFlow)
 	r.Prompt = security.SanitizeInput(r.Prompt)
 	r.CodeChallenge = security.SanitizeInput(r.CodeChallenge)
 	r.CodeChallengeMethod = security.SanitizeInput(r.CodeChallengeMethod)
@@ -63,6 +65,14 @@ func (r *OAuthAuthorizeRequestDTO) Validate() error {
 			validation.When(r.Prompt != "",
 				validation.In("none").Error("only prompt=none is supported"),
 			),
+		),
+		validation.Field(&r.ScreenHint,
+			validation.When(r.ScreenHint != "",
+				validation.In("signup", "login").Error("screen_hint must be 'signup' or 'login'"),
+			),
+		),
+		validation.Field(&r.RegistrationFlow,
+			validation.Length(0, 255).Error("registration_flow must not exceed 255 characters"),
 		),
 	)
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func TestSendInviteRequest_Validate(t *testing.T) {
-	authFlowStr := "00000000-0000-0000-0000-000000000001"
+	registrationFlowStr := "00000000-0000-0000-0000-000000000001"
 
 	tests := []struct {
 		name    string
@@ -21,8 +21,8 @@ func TestSendInviteRequest_Validate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid with email and auth_flow",
-			dto:     SendInviteRequest{Email: "user@example.com", AuthFlowUUID: &authFlowStr},
+			name:    "valid with email and registration_flow",
+			dto:     SendInviteRequest{Email: "user@example.com", RegistrationFlowUUID: &registrationFlowStr},
 			wantErr: false,
 		},
 		{

@@ -37,6 +37,8 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 		State:               q.Get("state"),
 		Nonce:               q.Get("nonce"),
 		IdpHint:             q.Get("idp_hint"),
+		ScreenHint:          q.Get("screen_hint"),
+		RegistrationFlow:    q.Get("registration_flow"),
 		Prompt:              q.Get("prompt"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
@@ -72,6 +74,21 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 		// No session: validate the client + redirect_uri so we never render a
 		// login page for an unknown client or an unregistered redirect, then ask
 		// the identity app to log the user in.
+		if req.ScreenHint == "signup" {
+			if oerr := h.authorizeService.PrepareAuthorize(r.Context(), req); oerr != nil {
+				oerr.WriteJSON(w)
+				return
+			}
+			requestID, oerr := h.authorizeService.PrepareAuthorizeSignup(r.Context(), req)
+			if oerr != nil {
+				oerr.WriteJSON(w)
+				return
+			}
+			loginErr := apperror.NewOAuthLoginRequired("authentication required")
+			loginErr.RequestID = requestID
+			loginErr.WriteJSON(w)
+			return
+		}
 		if oerr := h.authorizeService.PrepareAuthorize(r.Context(), req); oerr != nil {
 			oerr.WriteJSON(w)
 			return
@@ -152,4 +169,36 @@ func (h *OAuthAuthorizeHandler) HandleConsent(w http.ResponseWriter, r *http.Req
 	resp.Success(w, OAuthConsentDecisionResponseDTO{
 		RedirectURI: result.RedirectURI,
 	}, "Consent processed")
+}
+
+type ContinueAuthorizeRequest struct {
+	RequestID string `json:"request_id"`
+}
+
+func (h *OAuthAuthorizeHandler) ContinueAuthorize(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.AuthFromRequest(r)
+	if auth.User == nil || auth.Tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	var req ContinueAuthorizeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if req.RequestID == "" {
+		resp.Error(w, http.StatusBadRequest, "request_id is required")
+		return
+	}
+
+	redirectURI, oerr := h.authorizeService.ContinueAuthorize(r.Context(), req.RequestID, auth.User.UserID, auth.Tenant.TenantID)
+	if oerr != nil {
+		oerr.WriteJSON(w)
+		return
+	}
+
+	resp.Success(w, OAuthAuthorizeResponseDTO{
+		RedirectURI: redirectURI,
+	}, "Authorization continued")
 }

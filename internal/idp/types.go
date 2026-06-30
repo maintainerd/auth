@@ -210,60 +210,51 @@ type IdentityProviderFilterDTO struct {
 	PaginationRequestDTO
 }
 
-// Auth flow output structure
-type AuthFlowResponseDTO struct {
-	AuthFlowUUID string    `json:"auth_flow_id"`
-	Name         string    `json:"name"`
-	Description  string    `json:"description"`
-	Identifier   string    `json:"identifier"`
-	Destination  string    `json:"destination"`
-	Status       string    `json:"status"`
-	ClientUUID   string    `json:"client_id,omitempty"`
-	BrandingUUID string    `json:"branding_id,omitempty"`
-	AllowRegistration    bool   `json:"allow_registration"`
-	VerificationRequired bool   `json:"verification_required"`
-	RequiredFields       string `json:"required_fields"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+// Registration flow output structure
+type RegistrationFlowResponseDTO struct {
+	RegistrationFlowUUID string    `json:"registration_flow_id"`
+	Name                 string    `json:"name"`
+	Description          string    `json:"description"`
+	Identifier           string    `json:"identifier"`
+	Status               string    `json:"status"`
+	ClientUUID           string    `json:"client_id,omitempty"`
+	VerificationRequired bool      `json:"verification_required"`
+	RequiredFields       string    `json:"required_fields"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
-// Create auth flow request dto
-type AuthFlowCreateRequestDTO struct {
-	Name                  string   `json:"name"`
-	Description           string   `json:"description"`
-	Destination           string   `json:"destination"`
-	Status                *string  `json:"status,omitempty"`
-	ClientUUID            string   `json:"client_id"`
-	BrandingUUID          *string  `json:"branding_id,omitempty"`
-	RoleIDs               []string `json:"role_ids,omitempty"`
-	ClientURIIDs          []string `json:"client_uri_ids,omitempty"`
-	AllowRegistration     *bool    `json:"allow_registration,omitempty"`
-	VerificationRequired  *bool    `json:"verification_required,omitempty"`
-	RequiredFields        *string  `json:"required_fields,omitempty"`
+// Create registration flow request dto
+type RegistrationFlowCreateRequestDTO struct {
+	Name                 string   `json:"name"`
+	Description          string   `json:"description"`
+	Identifier           *string  `json:"identifier,omitempty"`
+	Status               *string  `json:"status,omitempty"`
+	ClientUUID           string   `json:"client_id"`
+	RoleIDs              []string `json:"role_ids,omitempty"`
+	VerificationRequired *bool    `json:"verification_required,omitempty"`
+	RequiredFields       *string  `json:"required_fields,omitempty"`
 }
 
-// Update auth flow request dto. RoleIDs / ClientURIIDs, when present, replace the
+// Update registration flow request dto. RoleIDs / ClientURIIDs, when present, replace the
 // flow's role / callback-URI membership to exactly the provided set (an empty
 // array clears it; omitting the field leaves it untouched).
-type AuthFlowUpdateRequestDTO struct {
-	Name                  string   `json:"name"`
-	Description           string   `json:"description"`
-	Status                *string  `json:"status,omitempty"`
-	BrandingUUID          *string  `json:"branding_id,omitempty"`
-	RoleIDs               []string `json:"role_ids,omitempty"`
-	ClientURIIDs          []string `json:"client_uri_ids,omitempty"`
-	AllowRegistration     *bool    `json:"allow_registration,omitempty"`
-	VerificationRequired  *bool    `json:"verification_required,omitempty"`
-	RequiredFields        *string  `json:"required_fields,omitempty"`
+type RegistrationFlowUpdateRequestDTO struct {
+	Name                 string   `json:"name"`
+	Description          string   `json:"description"`
+	Status               *string  `json:"status,omitempty"`
+	RoleIDs              []string `json:"role_ids,omitempty"`
+	VerificationRequired *bool    `json:"verification_required,omitempty"`
+	RequiredFields       *string  `json:"required_fields,omitempty"`
 }
 
-// Update signup flow status request dto
-type AuthFlowUpdateStatusRequestDTO struct {
+// Update registration flow status request dto
+type RegistrationFlowUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
 }
 
-// Signup flow listing request dto
-type AuthFlowFilterDTO struct {
+// Registration flow listing request dto
+type RegistrationFlowFilterDTO struct {
 	Name       *string  `json:"name"`
 	Identifier *string  `json:"identifier"`
 	Status     []string `json:"status"`
@@ -273,35 +264,20 @@ type AuthFlowFilterDTO struct {
 	PaginationRequestDTO
 }
 
-// Validate validates the signup flow filter DTO.
+// Validate validates the registration flow filter DTO.
 
-// Signup flow role output structure
-type AuthFlowRoleResponseDTO struct {
-	AuthFlowRoleUUID string    `json:"auth_flow_role_id"`
-	AuthFlowUUID     string    `json:"auth_flow_id"`
-	RoleUUID         string    `json:"role_id"`
-	RoleName         string    `json:"role_name,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
+// Registration flow role output structure
+type RegistrationFlowRoleResponseDTO struct {
+	RegistrationFlowRoleUUID string    `json:"registration_flow_role_id"`
+	RegistrationFlowUUID     string    `json:"registration_flow_id"`
+	RoleUUID                 string    `json:"role_id"`
+	RoleName                 string    `json:"role_name,omitempty"`
+	CreatedAt                time.Time `json:"created_at"`
 }
 
-// Assign roles to signup flow request dto
-type AuthFlowAssignRolesRequestDTO struct {
+// Assign roles to registration flow request dto
+type RegistrationFlowAssignRolesRequestDTO struct {
 	RoleUUIDs []string `json:"role_uuids"`
-}
-
-// Auth flow callback URI output structure
-type AuthFlowCallbackURIResponseDTO struct {
-	AuthFlowCallbackURIUUID string    `json:"auth_flow_callback_uri_id"`
-	AuthFlowUUID            string    `json:"auth_flow_id"`
-	ClientURIUUID           string    `json:"client_uri_id"`
-	URI                     string    `json:"uri"`
-	CreatedAt               time.Time `json:"created_at"`
-}
-
-// Assign callback URIs to an auth flow request dto. Each UUID must reference one
-// of the flow's client's registered URIs.
-type AuthFlowAssignCallbackURIsRequestDTO struct {
-	ClientURIUUIDs []string `json:"client_uri_uuids"`
 }
 
 type LoginResponseDTO struct {
@@ -353,8 +329,8 @@ type TestConnectionRequestDTO struct {
 // TestConnectionResultDTO is the JSON response for POST /identity_providers/test.
 // Each check that passed is listed; broken checks carry an error.
 type TestConnectionResultDTO struct {
-	Success bool             `json:"success"`
-	Checks  []TestCheckDTO   `json:"checks"`
+	Success bool           `json:"success"`
+	Checks  []TestCheckDTO `json:"checks"`
 }
 
 // TestCheckDTO describes the result of a single validation step during an IdP

@@ -115,7 +115,7 @@ type Role struct {
 func (Role) TableName() string { return "roles" }
 
 // ClientURI is a lightweight read-model of a client's registered URI, used to
-// resolve/preload callback URIs attached to an auth flow.
+// resolve/preload callback URIs attached to a registration flow.
 type ClientURI struct {
 	ClientURIID   int64     `gorm:"column:client_uri_id;primaryKey"`
 	ClientURIUUID uuid.UUID `gorm:"column:client_uri_uuid"`
@@ -130,7 +130,7 @@ type ClientURI struct {
 func (ClientURI) TableName() string { return "client_uris" }
 
 // Branding is a lightweight read-model used to resolve a branding template by
-// UUID and surface its UUID/name on an auth flow.
+// UUID and surface its UUID/name on a registration flow.
 type Branding struct {
 	BrandingID   int64     `gorm:"column:branding_id;primaryKey"`
 	BrandingUUID uuid.UUID `gorm:"column:branding_uuid"`

@@ -36,5 +36,3 @@ func TestResetPasswordRequestDto_Validate(t *testing.T) {
 		})
 	}
 }
-
-

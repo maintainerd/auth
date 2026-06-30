@@ -75,8 +75,8 @@ func SeedTenant(db *gorm.DB, tenantID int64) error {
 		return fmt.Errorf("seed role permissions: %w", err)
 	}
 
-	if err := SeedAuthFlows(db, tenantID); err != nil {
-		return fmt.Errorf("seed auth flows: %w", err)
+	if err := SeedRegistrationFlows(db, tenantID); err != nil {
+		return fmt.Errorf("seed registration flows: %w", err)
 	}
 
 	if err := SeedEmailTemplates(db, tenantID); err != nil {

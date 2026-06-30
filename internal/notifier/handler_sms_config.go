@@ -97,15 +97,15 @@ func (h *SMSConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 func toSMSConfigResponseDTO(sc *SMSConfigServiceDataResult) SMSConfigResponseDTO {
 	return SMSConfigResponseDTO{
-		SMSConfigID: sc.SMSConfigUUID.String(),
-		Provider:    sc.Provider,
-		AccountSID:  sc.AccountSID,
-		FromNumber:  sc.FromNumber,
-		SenderID:    sc.SenderID,
+		SMSConfigID:    sc.SMSConfigUUID.String(),
+		Provider:       sc.Provider,
+		AccountSID:     sc.AccountSID,
+		FromNumber:     sc.FromNumber,
+		SenderID:       sc.SenderID,
 		TestMode:       sc.TestMode,
 		DailySendLimit: sc.DailySendLimit,
 		Status:         sc.Status,
-		CreatedAt:   sc.CreatedAt,
-		UpdatedAt:   sc.UpdatedAt,
+		CreatedAt:      sc.CreatedAt,
+		UpdatedAt:      sc.UpdatedAt,
 	}
 }

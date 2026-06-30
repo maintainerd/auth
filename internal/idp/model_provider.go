@@ -27,7 +27,7 @@ type IdentityProvider struct {
 	ProviderClientSecretEncrypted *string `gorm:"column:provider_client_secret_encrypted"`
 	AllowJITProvisioning          bool    `gorm:"column:allow_jit_provisioning;default:false"`
 	AllowRegistration             bool    `gorm:"column:allow_registration;default:true"`
-	AllowTokenFederation         bool    `gorm:"column:allow_token_federation;default:false"`
+	AllowTokenFederation          bool    `gorm:"column:allow_token_federation;default:false"`
 
 	Config    datatypes.JSON `gorm:"column:config"`
 	Status    string         `gorm:"column:status;default:'inactive'"`

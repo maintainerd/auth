@@ -15,7 +15,8 @@ func NewOAuthConnectionsHandler(connectionsService OAuthConnectionsService) *OAu
 	return &OAuthConnectionsHandler{connectionsService: connectionsService}
 }
 
-// ListConnections handles GET /oauth/connections?client_id=… (public,
+// ListConnections handles GET /oauth/connections?client_id=…&registration_flow=…
+// (public,
 // unauthenticated). It returns the login options for a client — whether
 // username/password is available and the connected OAuth2 providers — so the
 // hosted identity app can render its login page. Provider secrets/config are
@@ -34,11 +35,10 @@ func (h *OAuthConnectionsHandler) ListConnections(w http.ResponseWriter, r *http
 	}
 
 	dto := OAuthConnectionsResponseDTO{
-		PasswordEnabled:      result.PasswordEnabled,
-		RegistrationEnabled:  result.RegistrationEnabled,
-		VerificationRequired: result.VerificationRequired,
-		RequiredFields:       result.RequiredFields,
-		Connections:          make([]OAuthConnectionDTO, 0, len(result.Connections)),
+		PasswordEnabled:     result.PasswordEnabled,
+		RegistrationEnabled: result.RegistrationEnabled,
+		Branding:            result.Branding,
+		Connections:         make([]OAuthConnectionDTO, 0, len(result.Connections)),
 	}
 	for _, c := range result.Connections {
 		dto.Connections = append(dto.Connections, OAuthConnectionDTO(c))

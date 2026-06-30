@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/authctx"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
@@ -78,7 +78,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		user.UserRoute(api, h.user, h.profile, userProvider, application.Cache, tenantRateLimit)
 		invite.InviteRoute(api, h.invite, userProvider, application.Cache, tenantRateLimit)
 		client.APIKeyRoute(api, h.apiKey, userProvider, application.Cache, tenantRateLimit)
-		idp.AuthFlowRoute(api, h.authFlow, userProvider, application.Cache, tenantRateLimit)
+		idp.RegistrationFlowRoute(api, h.registrationFlow, userProvider, application.Cache, tenantRateLimit)
 		secpolicy.SecuritySettingRoute(api, h.securitySetting, userProvider, application.Cache, tenantRateLimit)
 		secpolicy.IPRestrictionRuleRoute(api, h.ipRestrictionRule, userProvider, application.Cache, tenantRateLimit)
 		branding.EmailTemplateRoute(api, h.emailTemplate, userProvider, application.Cache, tenantRateLimit)
@@ -185,6 +185,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		// Remaining public authentication routes
 		authn.EmailVerificationPublicRoute(api, h.emailVerification)
 		authn.MagicLinkPublicRoute(api, h.magicLink)
+		invite.InvitePublicRoute(api, h.invite)
 
 		// Cookie-auth state-changing routes — apply CSRF protection
 		api.Group(func(cookieAuth chi.Router) {

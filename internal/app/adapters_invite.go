@@ -28,36 +28,27 @@ func (r *inviteClientRepo) FindSystem() (*invite.Client, error) {
 	return &c, nil
 }
 
-type inviteAuthFlowRepo struct {
-	*database.BaseRepository[invite.AuthFlow]
+type inviteRegistrationFlowRepo struct {
+	*database.BaseRepository[invite.RegistrationFlow]
 }
 
-func newInviteAuthFlowRepo(db *gorm.DB) invite.AuthFlowRepository {
-	return &inviteAuthFlowRepo{database.NewBaseRepository[invite.AuthFlow](db, "auth_flow_uuid", "auth_flow_id")}
+func newInviteRegistrationFlowRepo(db *gorm.DB) invite.RegistrationFlowRepository {
+	return &inviteRegistrationFlowRepo{database.NewBaseRepository[invite.RegistrationFlow](db, "registration_flow_uuid", "registration_flow_id")}
 }
 
-func (r *inviteAuthFlowRepo) WithTx(tx *gorm.DB) invite.AuthFlowRepository {
-	return &inviteAuthFlowRepo{r.BaseRepository.WithTx(tx)}
+func (r *inviteRegistrationFlowRepo) WithTx(tx *gorm.DB) invite.RegistrationFlowRepository {
+	return &inviteRegistrationFlowRepo{r.BaseRepository.WithTx(tx)}
 }
 
-func (r *inviteAuthFlowRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, preloads ...string) (*invite.AuthFlow, error) {
-	var af invite.AuthFlow
-	query := r.DB().Where("auth_flow_uuid = ? AND tenant_id = ?", id, tenantID)
+func (r *inviteRegistrationFlowRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, preloads ...string) (*invite.RegistrationFlow, error) {
+	var flow invite.RegistrationFlow
+	query := r.DB().Where("registration_flow_uuid = ? AND tenant_id = ?", id, tenantID)
 	for _, p := range preloads {
 		query = query.Preload(p)
 	}
-	err := query.First(&af).Error
+	err := query.First(&flow).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}
-	return &af, nil
-}
-
-func (r *inviteAuthFlowRepo) FindByNameAndTenantID(name string, tenantID int64) (*invite.AuthFlow, error) {
-	var af invite.AuthFlow
-	err := r.DB().Where("name = ? AND tenant_id = ?", name, tenantID).First(&af).Error
-	if err != nil {
-		return nil, firstOrNil(err)
-	}
-	return &af, nil
+	return &flow, nil
 }

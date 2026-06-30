@@ -236,11 +236,11 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("auth_event:read", "Read auth events", tenantID, apiID),
 		newPermission("auth_event:delete", "Delete auth events (retention)", tenantID, apiID),
 
-		// Auth Flows (hosted login/registration presets)
-		newPermission("auth-flow:read", "Read auth flows", tenantID, apiID),
-		newPermission("auth-flow:create", "Create auth flow", tenantID, apiID),
-		newPermission("auth-flow:update", "Update auth flow", tenantID, apiID),
-		newPermission("auth-flow:delete", "Delete auth flow", tenantID, apiID),
+		// Registration flows (specialized registration presets)
+		newPermission("registration-flow:read", "Read registration flows", tenantID, apiID),
+		newPermission("registration-flow:create", "Create registration flow", tenantID, apiID),
+		newPermission("registration-flow:update", "Update registration flow", tenantID, apiID),
+		newPermission("registration-flow:delete", "Delete registration flow", tenantID, apiID),
 
 		// Security Settings
 		newPermission("security-setting:read", "Read security settings", tenantID, apiID),

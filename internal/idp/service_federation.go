@@ -1351,11 +1351,11 @@ func (s *federationService) TestConnection(_ context.Context, req TestConnection
 
 	// 2) Parse discovery document
 	var metadata struct {
-		Issuer                 string `json:"issuer"`
-		AuthorizationEndpoint  string `json:"authorization_endpoint"`
-		TokenEndpoint          string `json:"token_endpoint"`
-		UserinfoEndpoint       string `json:"userinfo_endpoint"`
-		JWKSURI                string `json:"jwks_uri"`
+		Issuer                string `json:"issuer"`
+		AuthorizationEndpoint string `json:"authorization_endpoint"`
+		TokenEndpoint         string `json:"token_endpoint"`
+		UserinfoEndpoint      string `json:"userinfo_endpoint"`
+		JWKSURI               string `json:"jwks_uri"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
 		addCheck("Parse discovery JSON", wellKnownURL, false,

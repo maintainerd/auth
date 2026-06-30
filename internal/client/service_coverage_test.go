@@ -256,7 +256,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return actorUser(tenantID), nil }}
 		svc := NewClientService(db, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 
-		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), uuid.New())
+		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), nil, true, uuid.New())
 
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -279,7 +279,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return actorUser(tenantID), nil }}
 		svc := NewClientService(db, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 
-		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), uuid.New())
+		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), nil, true, uuid.New())
 
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -305,7 +305,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 		}
 		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 
-		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), uuid.New())
+		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), nil, true, uuid.New())
 
 		require.NoError(t, err)
 		assert.Equal(t, "client-id", result.ClientIdentifier)

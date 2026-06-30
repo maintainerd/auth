@@ -2,9 +2,9 @@ package oauth
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 
+	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
@@ -28,41 +28,12 @@ type OAuthConnectionInfo struct {
 // allowed, plus the connected OAuth2 providers (rendered as buttons), ordered
 // by DisplayOrder.
 type OAuthConnectionsResult struct {
-	PasswordEnabled      bool
-	RegistrationEnabled  bool
-	VerificationRequired bool
-	RequiredFields       []string
-	Connections          []OAuthConnectionInfo
+	PasswordEnabled     bool
+	RegistrationEnabled bool
+	Branding            *branding.ClientBrandingResponse
+	Connections         []OAuthConnectionInfo
 }
 
-type oauthRegistrationFlow struct {
-	Status               string
-	AllowRegistration    bool
-	VerificationRequired bool
-	RequiredFields       string
-}
-
-func (s *oauthConnectionsService) registrationFlow(clientID int64) (bool, *oauthRegistrationFlow, error) {
-	var flows []oauthRegistrationFlow
-	if err := s.db.Table("auth_flows").
-		Where("client_id = ? AND deleted_at IS NULL", clientID).
-		Order("auth_flow_id ASC").
-		Find(&flows).Error; err != nil {
-		return false, nil, err
-	}
-	if len(flows) == 0 {
-		return false, nil, nil
-	}
-	for i := range flows {
-		if flows[i].Status == shared.StatusActive && flows[i].AllowRegistration {
-			return true, &flows[i], nil
-		}
-	}
-	return true, nil, nil
-}
-
-// OAuthConnectionsService resolves the enabled identity-provider connections of a
-// client so the hosted identity app can render its login page.
 type OAuthConnectionsService interface {
 	ListConnections(ctx context.Context, clientID string) (*OAuthConnectionsResult, error)
 }
@@ -70,11 +41,12 @@ type OAuthConnectionsService interface {
 type oauthConnectionsService struct {
 	db                  *gorm.DB
 	clientRepo          ClientRepository
-	securitySettingRepo secpolicy.SecuritySettingRepository // optional — nil-safe
+	securitySettingRepo secpolicy.SecuritySettingRepository
+	brandingResolver    *branding.ClientBrandingResolver
 }
 
-func NewOAuthConnectionsService(db *gorm.DB, clientRepo ClientRepository, securitySettingRepo secpolicy.SecuritySettingRepository) OAuthConnectionsService {
-	return &oauthConnectionsService{db: db, clientRepo: clientRepo, securitySettingRepo: securitySettingRepo}
+func NewOAuthConnectionsService(db *gorm.DB, clientRepo ClientRepository, securitySettingRepo secpolicy.SecuritySettingRepository, brandingResolver *branding.ClientBrandingResolver) OAuthConnectionsService {
+	return &oauthConnectionsService{db: db, clientRepo: clientRepo, securitySettingRepo: securitySettingRepo, brandingResolver: brandingResolver}
 }
 
 func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID string) (*OAuthConnectionsResult, error) {
@@ -93,6 +65,11 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 		return nil, apperror.NewNotFound("unknown or inactive client")
 	}
 
+	var resolvedBranding *branding.ClientBrandingResponse
+	if s.brandingResolver != nil && client != nil {
+		resolvedBranding = s.brandingResolver.ResolveForClient(client.BrandingID, client.TenantID)
+	}
+
 	var connections []ClientIdentityProvider
 	if err := s.db.
 		Preload("IdentityProvider").
@@ -107,7 +84,7 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 	result := &OAuthConnectionsResult{
 		PasswordEnabled:     allowedSystemClient,
 		RegistrationEnabled: allowedSystemClient,
-		RequiredFields:      []string{},
+		Branding:            resolvedBranding,
 		Connections:         make([]OAuthConnectionInfo, 0, len(connections)),
 	}
 	for _, conn := range connections {
@@ -115,35 +92,14 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 		if idp == nil || idp.Status != shared.StatusActive {
 			continue
 		}
-		// The built-in (system) provider drives the username/password form rather
-		// than an OAuth2 button.
 		if idp.IsSystem || idp.ProviderType == shared.IDPTypeSystem {
 			result.PasswordEnabled = true
-			// RegistrationEnabled = tenant.self_registration_enabled
-			//   && inHouseIdP.allow_registration
-			//   && (auth_flow == nil || auth_flow.allow_registration)
 			tenantAllows := true
 			if cid := clientTenantID(client); cid > 0 && s.securitySettingRepo != nil {
 				regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, cid)
 				tenantAllows = regPolicy.SelfRegistrationEnabled
 			}
-			// Auth-flow gate: no attached flow is unrestricted; attached flows
-			// are invite-only unless at least one active flow explicitly allows
-			// self-service registration.
-			flowExists, flow, flowErr := s.registrationFlow(client.ClientID)
-			if flowErr != nil {
-				return nil, apperror.NewInternal("failed to load signup flow", flowErr)
-			}
-			afAllows := !flowExists || flow != nil
-			result.RegistrationEnabled = tenantAllows && idp.AllowRegistration && afAllows
-			if flow != nil {
-				result.VerificationRequired = flow.VerificationRequired
-				if strings.TrimSpace(flow.RequiredFields) != "" {
-					if err := json.Unmarshal([]byte(flow.RequiredFields), &result.RequiredFields); err != nil {
-						return nil, apperror.NewInternal("invalid signup flow required_fields", err)
-					}
-				}
-			}
+			result.RegistrationEnabled = tenantAllows && client.AllowRegistration && idp.AllowRegistration
 			continue
 		}
 		displayName := idp.DisplayName

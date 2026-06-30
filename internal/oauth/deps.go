@@ -102,6 +102,8 @@ type Client struct {
 	RequiredACR             *string           `gorm:"column:required_acr"`
 	SessionIdleTimeout      *int              `gorm:"column:session_idle_timeout"`
 	SessionAbsoluteTimeout  *int              `gorm:"column:session_absolute_timeout"`
+	BrandingID              *int64            `gorm:"column:branding_id"`
+	AllowRegistration       bool              `gorm:"column:allow_registration;not null;default:true"`
 	RequireConsent          bool              `gorm:"column:require_consent"`
 	AllowedScopes           pq.StringArray    `gorm:"column:allowed_scopes;type:text[]"`
 	ClientURIs              *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`

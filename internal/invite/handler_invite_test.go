@@ -35,7 +35,7 @@ func TestInviteHandler_Send_BadJSON(t *testing.T) {
 
 func TestInviteHandler_Send_ServiceError(t *testing.T) {
 	svc := &mockInviteService{
-		sendInviteFn: func(tid int64, email string, uid int64, authFlowUUID *string) (*Invite, error) {
+		sendInviteFn: func(tid int64, email string, uid int64, registrationFlowUUID *string, callbackURL *string) (*Invite, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -58,7 +58,7 @@ func TestInviteHandler_Send_ValidationError(t *testing.T) {
 
 func TestInviteHandler_Send_Success(t *testing.T) {
 	svc := &mockInviteService{
-		sendInviteFn: func(tid int64, email string, uid int64, authFlowUUID *string) (*Invite, error) {
+		sendInviteFn: func(tid int64, email string, uid int64, registrationFlowUUID *string, callbackURL *string) (*Invite, error) {
 			return &Invite{}, nil
 		},
 	}

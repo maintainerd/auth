@@ -35,6 +35,11 @@ func (r ClientCreateRequestDTO) Validate() error {
 				is.UUID.Error("Identity Provider UUID must be a valid UUID"),
 			),
 		),
+		validation.Field(&r.BrandingUUID,
+			validation.When(r.BrandingUUID != nil && *r.BrandingUUID != "",
+				is.UUID.Error("branding_id must be a valid UUID"),
+			),
+		),
 	)
 }
 

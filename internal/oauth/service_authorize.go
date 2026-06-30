@@ -80,6 +80,14 @@ type OAuthAuthorizeService interface {
 	// persists the consent grant and issues an authorization code. On denial,
 	// it returns a redirect with an error.
 	HandleConsent(ctx context.Context, decision OAuthConsentDecisionDTO, userID int64) (*OAuthConsentDecisionResult, *apperror.OAuthError)
+
+	// PrepareAuthorizeSignup persists the authorize request for a signup flow
+	// (screen_hint=signup, no session) and returns the request_id for the SPA.
+	PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError)
+
+	// ContinueAuthorize resumes a persisted authorize request after registration,
+	// issuing an authorization code bound to the authenticated user.
+	ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (string, *apperror.OAuthError)
 }
 
 type oauthAuthorizeService struct {
@@ -91,6 +99,7 @@ type oauthAuthorizeService struct {
 	consentChallRepo    OAuthConsentChallengeRepository
 	authEventService    authevent.AuthEventService
 	securitySettingRepo secpolicy.SecuritySettingRepository
+	authReqRepo         OAuthAuthorizeRequestRepository
 }
 
 // NewOAuthAuthorizeService creates a new OAuthAuthorizeService.
@@ -102,6 +111,7 @@ func NewOAuthAuthorizeService(
 	consentGrantRepo OAuthConsentGrantRepository,
 	consentChallRepo OAuthConsentChallengeRepository,
 	authEventService authevent.AuthEventService,
+	authReqRepo OAuthAuthorizeRequestRepository,
 	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) OAuthAuthorizeService {
 	var settings secpolicy.SecuritySettingRepository
@@ -117,6 +127,7 @@ func NewOAuthAuthorizeService(
 		consentChallRepo:    consentChallRepo,
 		authEventService:    authEventService,
 		securitySettingRepo: settings,
+		authReqRepo:         authReqRepo,
 	}
 }
 
@@ -284,7 +295,30 @@ func (s *oauthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthA
 		return oerr
 	}
 
+	if req.ScreenHint == "signup" && req.RegistrationFlow != "" {
+		if oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, req.RegistrationFlow); oerr != nil {
+			return oerr
+		}
+	}
+
 	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *oauthAuthorizeService) validateRegistrationFlowForAuthorize(clientID int64, identifier string) *apperror.OAuthError {
+	var flow struct {
+		Status string
+	}
+	err := s.db.Table("registration_flows").
+		Where("client_id = ? AND identifier = ? AND deleted_at IS NULL", clientID, identifier).
+		Select("status").
+		First(&flow).Error
+	if err != nil {
+		return apperror.NewOAuthInvalidRequest("unknown registration flow")
+	}
+	if flow.Status != shared.StatusActive {
+		return apperror.NewOAuthInvalidRequest("registration flow is inactive")
+	}
 	return nil
 }
 
@@ -677,4 +711,117 @@ func splitScopes(scope string) []string {
 		}
 	}
 	return result
+}
+
+const authorizeRequestTTL = 10 * time.Minute
+
+func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
+	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.prepare_authorize_signup")
+	defer span.End()
+
+	client, err := s.resolveAuthorizeClient(req)
+	if err != nil {
+		span.RecordError(err)
+		return "", apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+	if client == nil || client.Status != shared.StatusActive {
+		return "", apperror.NewOAuthInvalidRequest("unknown or inactive client context")
+	}
+	if oerr := s.validateRedirectURI(client, req.RedirectURI); oerr != nil {
+		return "", oerr
+	}
+
+	authReq := &OAuthAuthorizeRequest{
+		ClientID:            client.ClientID,
+		RedirectURI:         req.RedirectURI,
+		ResponseType:        req.ResponseType,
+		Scope:               ptr.PtrOrNil(req.Scope),
+		State:               ptr.PtrOrNil(req.State),
+		Nonce:               ptr.PtrOrNil(req.Nonce),
+		CodeChallenge:       ptr.PtrOrNil(req.CodeChallenge),
+		CodeChallengeMethod: ptr.PtrOrNil(req.CodeChallengeMethod),
+		ScreenHint:          ptr.Ptr(req.ScreenHint),
+		RegistrationFlow:    ptr.PtrOrNil(req.RegistrationFlow),
+		Status:              "pending",
+		ExpiresAt:           time.Now().Add(authorizeRequestTTL),
+	}
+	if _, err := s.authReqRepo.Create(authReq); err != nil {
+		span.RecordError(err)
+		return "", apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+	span.SetStatus(codes.Ok, "")
+	return authReq.OAuthAuthorizeRequestUUID.String(), nil
+}
+
+func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (string, *apperror.OAuthError) {
+	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.continue_authorize")
+	defer span.End()
+
+	requestUUID, err := uuid.Parse(requestID)
+	if err != nil {
+		return "", apperror.NewOAuthInvalidRequest("invalid request_id")
+	}
+
+	savedReq, err := s.authReqRepo.FindByUUID(requestUUID)
+	if err != nil {
+		span.RecordError(err)
+		return "", apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+	if savedReq == nil {
+		return "", apperror.NewOAuthInvalidRequest("authorize request not found or already used")
+	}
+	if savedReq.IsExpired() {
+		return "", apperror.NewOAuthInvalidRequest("authorize request has expired")
+	}
+
+	req := OAuthAuthorizeRequestDTO{
+		ResponseType:        savedReq.ResponseType,
+		RedirectURI:         savedReq.RedirectURI,
+		Scope:               ptrOrEmpty(savedReq.Scope),
+		State:               ptrOrEmpty(savedReq.State),
+		Nonce:               ptrOrEmpty(savedReq.Nonce),
+		CodeChallenge:       ptrOrEmpty(savedReq.CodeChallenge),
+		CodeChallengeMethod: ptrOrEmpty(savedReq.CodeChallengeMethod),
+		RegistrationFlow:    ptrOrEmpty(savedReq.RegistrationFlow),
+	}
+
+	redirectURL := ""
+	var issueOErr *apperror.OAuthError
+	if txErr := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := s.authReqRepo.WithTx(tx).Consume(savedReq.OAuthAuthorizeRequestID, tenantID, time.Now()); err != nil {
+			return err
+		}
+		txSvc := *s
+		txSvc.authCodeRepo = s.authCodeRepo.WithTx(tx)
+		var oerr *apperror.OAuthError
+		redirectURL, oerr = txSvc.issueAuthorizationCodeForClientAndUser(ctx, savedReq.ClientID, userID, req)
+		if oerr != nil {
+			issueOErr = oerr
+			return oerr
+		}
+		return nil
+	}); txErr != nil {
+		span.RecordError(txErr)
+		if errors.Is(txErr, ErrAlreadyConsumed) {
+			return "", apperror.NewOAuthInvalidRequest("authorize request has already been used")
+		}
+		if issueOErr != nil {
+			return "", issueOErr
+		}
+		return "", apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return redirectURL, nil
+}
+
+func (s *oauthAuthorizeService) issueAuthorizationCodeForClientAndUser(ctx context.Context, clientID int64, userID int64, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
+	client, err := s.clientRepo.FindByID(clientID)
+	if err != nil || client == nil {
+		return "", apperror.NewOAuthInvalidRequest("unknown client context")
+	}
+	if client.Status != shared.StatusActive {
+		return "", apperror.NewOAuthInvalidRequest("client is inactive")
+	}
+	return s.issueAuthorizationCode(ctx, client, userID, req)
 }

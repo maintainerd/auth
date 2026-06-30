@@ -67,6 +67,8 @@ type Client struct {
 	RequirePKCE            *bool
 	SessionIdleTimeout     *int
 	SessionAbsoluteTimeout *int
+	BrandingID             *int64
+	AllowRegistration      bool
 	IdentityProvider       *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
 	ConnectedProviders     *[]ClientIdentityProvider
 	CreatedAt              time.Time
@@ -174,15 +176,15 @@ type Role struct {
 func (Role) TableName() string { return "roles" }
 
 type Invite struct {
-	InviteID     int64
-	InviteUUID   uuid.UUID
-	TenantID     int64
-	InvitedEmail string
-	AuthFlowID   *int64
-	Status       string
-	ExpiresAt    *time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	InviteID           int64
+	InviteUUID         uuid.UUID
+	TenantID           int64
+	InvitedEmail       string
+	RegistrationFlowID *int64
+	Status             string
+	ExpiresAt          *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 func (Invite) TableName() string { return "invites" }
@@ -335,6 +337,7 @@ type InviteRepository interface {
 	BaseRepositoryMethods[Invite]
 	WithTx(tx *gorm.DB) InviteRepository
 	FindByToken(token string) (*Invite, error)
+	FindByTokenForUpdate(token string) (*Invite, error)
 	MarkAsUsed(inviteUUID uuid.UUID) error
 }
 
@@ -345,25 +348,20 @@ type UserPasswordHistoryRepository interface {
 	PruneExcess(userID int64, keepCount int) error
 }
 
-type AuthFlowRoleRepository interface {
-	WithTx(tx *gorm.DB) AuthFlowRoleRepository
-	FindRoleIDsByAuthFlowID(authFlowID int64) ([]int64, error)
+type RegistrationFlowRoleRepository interface {
+	WithTx(tx *gorm.DB) RegistrationFlowRoleRepository
+	FindByID(registrationFlowID int64) (*RegistrationFlow, error)
+	FindByIdentifierAndClientID(identifier string, clientID int64) (*RegistrationFlow, error)
+	FindRoleIDsByRegistrationFlowID(registrationFlowID int64) ([]int64, error)
 }
 
-// RegistrationFlow is the self-service policy attached to a client. Auth-flow
-// CRUD is owned by idp; registration only needs these policy fields and the
-// role source ID.
+// RegistrationFlow is the explicitly selected registration policy. CRUD is
+// owned by idp; registration only needs the selection, policy, and role fields.
 type RegistrationFlow struct {
-	AuthFlowID           int64
+	RegistrationFlowID   int64
+	TenantID             int64
+	ClientID             int64
 	Status               string
-	AllowRegistration    bool
 	VerificationRequired bool
 	RequiredFields       string
-}
-
-// registrationFlowReader is an optional extension implemented by the
-// production auth-flow adapter. Invite-only test doubles can keep satisfying
-// the narrower AuthFlowRoleRepository contract.
-type registrationFlowReader interface {
-	FindByClientID(clientID int64) ([]RegistrationFlow, error)
 }

@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAuthFlowCreateRequestDto_Validate(t *testing.T) {
-	valid := AuthFlowCreateRequestDTO{
+func TestRegistrationFlowCreateRequestDto_Validate(t *testing.T) {
+	valid := RegistrationFlowCreateRequestDTO{
 		Name:        "default-flow",
-		Description: "The default signup flow",
+		Description: "The default registration flow",
 		ClientUUID:  uuid.New().String(),
 	}
 
@@ -86,8 +86,8 @@ func TestAuthFlowCreateRequestDto_Validate(t *testing.T) {
 	})
 }
 
-func TestAuthFlowUpdateRequestDto_Validate(t *testing.T) {
-	d := AuthFlowUpdateRequestDTO{
+func TestRegistrationFlowUpdateRequestDto_Validate(t *testing.T) {
+	d := RegistrationFlowUpdateRequestDTO{
 		Name:        "updated-flow",
 		Description: "Updated description",
 	}
@@ -97,51 +97,51 @@ func TestAuthFlowUpdateRequestDto_Validate(t *testing.T) {
 	require.Error(t, d.Validate())
 }
 
-func TestAuthFlowUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, AuthFlowUpdateStatusRequestDTO{Status: shared.StatusActive}.Validate())
-	assert.NoError(t, AuthFlowUpdateStatusRequestDTO{Status: shared.StatusInactive}.Validate())
-	require.Error(t, AuthFlowUpdateStatusRequestDTO{Status: ""}.Validate())
-	require.Error(t, AuthFlowUpdateStatusRequestDTO{Status: "bad"}.Validate())
+func TestRegistrationFlowUpdateStatusRequestDto_Validate(t *testing.T) {
+	assert.NoError(t, RegistrationFlowUpdateStatusRequestDTO{Status: shared.StatusActive}.Validate())
+	assert.NoError(t, RegistrationFlowUpdateStatusRequestDTO{Status: shared.StatusInactive}.Validate())
+	require.Error(t, RegistrationFlowUpdateStatusRequestDTO{Status: ""}.Validate())
+	require.Error(t, RegistrationFlowUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
 
-func TestAuthFlowFilterDto_Validate(t *testing.T) {
+func TestRegistrationFlowFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := AuthFlowFilterDTO{PaginationRequestDTO: validPagination()}
+		f := RegistrationFlowFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {
-		f := AuthFlowFilterDTO{PaginationRequestDTO: validPagination(), Status: []string{"bad"}}
+		f := RegistrationFlowFilterDTO{PaginationRequestDTO: validPagination(), Status: []string{"bad"}}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("invalid client_uuid", func(t *testing.T) {
 		s := "not-a-uuid"
-		f := AuthFlowFilterDTO{PaginationRequestDTO: validPagination(), ClientUUID: &s}
+		f := RegistrationFlowFilterDTO{PaginationRequestDTO: validPagination(), ClientUUID: &s}
 		require.Error(t, f.Validate())
 	})
 }
 
-// ------ AuthFlowRoleDTO tests ------
+// ------ RegistrationFlowRoleDTO tests ------
 
-func TestAuthFlowAssignRolesRequestDto_Validate(t *testing.T) {
+func TestRegistrationFlowAssignRolesRequestDto_Validate(t *testing.T) {
 	t.Run("valid single role", func(t *testing.T) {
-		d := AuthFlowAssignRolesRequestDTO{RoleUUIDs: []string{uuid.New().String()}}
+		d := RegistrationFlowAssignRolesRequestDTO{RoleUUIDs: []string{uuid.New().String()}}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("missing role_uuids", func(t *testing.T) {
-		d := AuthFlowAssignRolesRequestDTO{}
+		d := RegistrationFlowAssignRolesRequestDTO{}
 		require.Error(t, d.Validate())
 	})
 
 	t.Run("empty role_uuids", func(t *testing.T) {
-		d := AuthFlowAssignRolesRequestDTO{RoleUUIDs: []string{}}
+		d := RegistrationFlowAssignRolesRequestDTO{RoleUUIDs: []string{}}
 		require.Error(t, d.Validate())
 	})
 
 	t.Run("invalid uuid in list", func(t *testing.T) {
-		d := AuthFlowAssignRolesRequestDTO{RoleUUIDs: []string{"not-a-uuid"}}
+		d := RegistrationFlowAssignRolesRequestDTO{RoleUUIDs: []string{"not-a-uuid"}}
 		require.Error(t, d.Validate())
 	})
 }

@@ -30,7 +30,7 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 
 	err := db.WithContext(ctx).
 		Table("email_config").
-		Select("provider, host, port, username, password_encrypted, from_address, from_name, " +
+		Select("provider, host, port, username, password_encrypted, from_address, from_name, "+
 			"'' AS api_key, '' AS domain, '' AS region, status").
 		Where("tenant_id = ? AND status = ? AND deleted_at IS NULL", tenantID, shared.StatusActive).
 		First(&cfg).Error
@@ -41,7 +41,7 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 		}
 		err = db.WithContext(ctx).
 			Table("email_config ec").
-			Select("ec.provider, ec.host, ec.port, ec.username, ec.password_encrypted, " +
+			Select("ec.provider, ec.host, ec.port, ec.username, ec.password_encrypted, "+
 				"ec.from_address, ec.from_name, '' AS api_key, '' AS domain, '' AS region, ec.status").
 			Joins("JOIN tenants t ON ec.tenant_id = t.tenant_id").
 			Where("t.is_system = true AND ec.status = ? AND ec.deleted_at IS NULL", shared.StatusActive).

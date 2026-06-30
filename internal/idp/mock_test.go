@@ -238,160 +238,112 @@ func (m *mockIdentityProviderEmailDomainRepo) ReplaceForProvider(tenantID, idpID
 	return nil
 }
 
-type mockAuthFlowRepo struct {
-	mockBaseRepo[AuthFlow]
-	findByUUIDFn                  func(any, ...string) (*AuthFlow, error)
-	findPaginatedFn               func(AuthFlowRepositoryGetFilter) (*PaginationResult[AuthFlow], error)
-	findByUUIDAndTenantIDFn       func(uuid.UUID, int64, ...string) (*AuthFlow, error)
-	findByIdentifierAndClientIDFn func(string, int64) (*AuthFlow, error)
-	findByClientIDFn              func(int64) ([]AuthFlow, error)
-	findByNameFn                  func(string) (*AuthFlow, error)
-	findByNameAndTenantIDFn       func(string, int64) (*AuthFlow, error)
-	createFn                      func(*AuthFlow) (*AuthFlow, error)
-	createOrUpdateFn              func(*AuthFlow) (*AuthFlow, error)
+type mockRegistrationFlowRepo struct {
+	mockBaseRepo[RegistrationFlow]
+	findByUUIDFn                  func(any, ...string) (*RegistrationFlow, error)
+	findPaginatedFn               func(RegistrationFlowRepositoryGetFilter) (*PaginationResult[RegistrationFlow], error)
+	findByUUIDAndTenantIDFn       func(uuid.UUID, int64, ...string) (*RegistrationFlow, error)
+	findByIdentifierAndClientIDFn func(string, int64) (*RegistrationFlow, error)
+	findByNameFn                  func(string) (*RegistrationFlow, error)
+	findByNameAndTenantIDFn       func(string, int64) (*RegistrationFlow, error)
+	createFn                      func(*RegistrationFlow) (*RegistrationFlow, error)
+	createOrUpdateFn              func(*RegistrationFlow) (*RegistrationFlow, error)
 	deleteByUUIDFn                func(any) error
 }
 
-func (m *mockAuthFlowRepo) WithTx(_ *gorm.DB) AuthFlowRepository { return m }
-func (m *mockAuthFlowRepo) Create(e *AuthFlow) (*AuthFlow, error) {
+func (m *mockRegistrationFlowRepo) WithTx(_ *gorm.DB) RegistrationFlowRepository { return m }
+func (m *mockRegistrationFlowRepo) Create(e *RegistrationFlow) (*RegistrationFlow, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockAuthFlowRepo) CreateOrUpdate(e *AuthFlow) (*AuthFlow, error) {
+func (m *mockRegistrationFlowRepo) CreateOrUpdate(e *RegistrationFlow) (*RegistrationFlow, error) {
 	if m.createOrUpdateFn != nil {
 		return m.createOrUpdateFn(e)
 	}
 	return e, nil
 }
-func (m *mockAuthFlowRepo) FindByUUID(id any, p ...string) (*AuthFlow, error) {
+func (m *mockRegistrationFlowRepo) FindByUUID(id any, p ...string) (*RegistrationFlow, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowRepo) DeleteByUUID(id any) error {
+func (m *mockRegistrationFlowRepo) DeleteByUUID(id any) error {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id)
 	}
 	return nil
 }
-func (m *mockAuthFlowRepo) FindPaginated(f AuthFlowRepositoryGetFilter) (*PaginationResult[AuthFlow], error) {
+func (m *mockRegistrationFlowRepo) FindPaginated(f RegistrationFlowRepositoryGetFilter) (*PaginationResult[RegistrationFlow], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(f)
 	}
-	return &PaginationResult[AuthFlow]{}, nil
+	return &PaginationResult[RegistrationFlow]{}, nil
 }
-func (m *mockAuthFlowRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, p ...string) (*AuthFlow, error) {
+func (m *mockRegistrationFlowRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, p ...string) (*RegistrationFlow, error) {
 	if m.findByUUIDAndTenantIDFn != nil {
 		return m.findByUUIDAndTenantIDFn(id, tenantID, p...)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowRepo) FindByIdentifierAndClientID(identifier string, clientID int64) (*AuthFlow, error) {
+func (m *mockRegistrationFlowRepo) FindByIdentifierAndClientID(identifier string, clientID int64) (*RegistrationFlow, error) {
 	if m.findByIdentifierAndClientIDFn != nil {
 		return m.findByIdentifierAndClientIDFn(identifier, clientID)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowRepo) FindByClientID(clientID int64) ([]AuthFlow, error) {
-	if m.findByClientIDFn != nil {
-		return m.findByClientIDFn(clientID)
-	}
-	return nil, nil
-}
-func (m *mockAuthFlowRepo) FindByName(name string) (*AuthFlow, error) {
+func (m *mockRegistrationFlowRepo) FindByName(name string) (*RegistrationFlow, error) {
 	if m.findByNameFn != nil {
 		return m.findByNameFn(name)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowRepo) FindByNameAndTenantID(name string, tenantID int64) (*AuthFlow, error) {
+func (m *mockRegistrationFlowRepo) FindByNameAndTenantID(name string, tenantID int64) (*RegistrationFlow, error) {
 	if m.findByNameAndTenantIDFn != nil {
 		return m.findByNameAndTenantIDFn(name, tenantID)
 	}
 	return nil, nil
 }
 
-type mockAuthFlowRoleRepo struct {
-	mockBaseRepo[AuthFlowRole]
-	findByAuthFlowIDFn            func(int64) ([]AuthFlowRole, error)
-	findByAuthFlowIDPaginatedFn   func(int64, int, int) ([]AuthFlowRole, int64, error)
-	deleteByAuthFlowIDAndRoleIDFn func(int64, int64) error
-	findByAuthFlowIDAndRoleIDFn   func(int64, int64) (*AuthFlowRole, error)
-	createFn                      func(*AuthFlowRole) (*AuthFlowRole, error)
+type mockRegistrationFlowRoleRepo struct {
+	mockBaseRepo[RegistrationFlowRole]
+	findByRegistrationFlowIDFn            func(int64) ([]RegistrationFlowRole, error)
+	findByRegistrationFlowIDPaginatedFn   func(int64, int, int) ([]RegistrationFlowRole, int64, error)
+	deleteByRegistrationFlowIDAndRoleIDFn func(int64, int64) error
+	findByRegistrationFlowIDAndRoleIDFn   func(int64, int64) (*RegistrationFlowRole, error)
+	createFn                              func(*RegistrationFlowRole) (*RegistrationFlowRole, error)
 }
 
-func (m *mockAuthFlowRoleRepo) WithTx(_ *gorm.DB) AuthFlowRoleRepository { return m }
-func (m *mockAuthFlowRoleRepo) Create(e *AuthFlowRole) (*AuthFlowRole, error) {
+func (m *mockRegistrationFlowRoleRepo) WithTx(_ *gorm.DB) RegistrationFlowRoleRepository { return m }
+func (m *mockRegistrationFlowRoleRepo) Create(e *RegistrationFlowRole) (*RegistrationFlowRole, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockAuthFlowRoleRepo) FindByAuthFlowID(authFlowID int64) ([]AuthFlowRole, error) {
-	if m.findByAuthFlowIDFn != nil {
-		return m.findByAuthFlowIDFn(authFlowID)
+func (m *mockRegistrationFlowRoleRepo) FindByRegistrationFlowID(registrationFlowID int64) ([]RegistrationFlowRole, error) {
+	if m.findByRegistrationFlowIDFn != nil {
+		return m.findByRegistrationFlowIDFn(registrationFlowID)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowRoleRepo) FindByAuthFlowIDPaginated(authFlowID int64, page, limit int) ([]AuthFlowRole, int64, error) {
-	if m.findByAuthFlowIDPaginatedFn != nil {
-		return m.findByAuthFlowIDPaginatedFn(authFlowID, page, limit)
+func (m *mockRegistrationFlowRoleRepo) FindByRegistrationFlowIDPaginated(registrationFlowID int64, page, limit int) ([]RegistrationFlowRole, int64, error) {
+	if m.findByRegistrationFlowIDPaginatedFn != nil {
+		return m.findByRegistrationFlowIDPaginatedFn(registrationFlowID, page, limit)
 	}
 	return nil, 0, nil
 }
-func (m *mockAuthFlowRoleRepo) DeleteByAuthFlowIDAndRoleID(authFlowID, roleID int64) error {
-	if m.deleteByAuthFlowIDAndRoleIDFn != nil {
-		return m.deleteByAuthFlowIDAndRoleIDFn(authFlowID, roleID)
+func (m *mockRegistrationFlowRoleRepo) DeleteByRegistrationFlowIDAndRoleID(registrationFlowID, roleID int64) error {
+	if m.deleteByRegistrationFlowIDAndRoleIDFn != nil {
+		return m.deleteByRegistrationFlowIDAndRoleIDFn(registrationFlowID, roleID)
 	}
 	return nil
 }
-func (m *mockAuthFlowRoleRepo) FindByAuthFlowIDAndRoleID(authFlowID, roleID int64) (*AuthFlowRole, error) {
-	if m.findByAuthFlowIDAndRoleIDFn != nil {
-		return m.findByAuthFlowIDAndRoleIDFn(authFlowID, roleID)
-	}
-	return nil, nil
-}
-
-type mockAuthFlowCallbackURIRepo struct {
-	mockBaseRepo[AuthFlowCallbackURI]
-	findByAuthFlowIDFn                 func(int64) ([]AuthFlowCallbackURI, error)
-	findByAuthFlowIDPaginatedFn        func(int64, int, int) ([]AuthFlowCallbackURI, int64, error)
-	deleteByAuthFlowIDAndClientURIIDFn func(int64, int64) error
-	findByAuthFlowIDAndClientURIIDFn   func(int64, int64) (*AuthFlowCallbackURI, error)
-	createFn                           func(*AuthFlowCallbackURI) (*AuthFlowCallbackURI, error)
-}
-
-func (m *mockAuthFlowCallbackURIRepo) WithTx(_ *gorm.DB) AuthFlowCallbackURIRepository { return m }
-func (m *mockAuthFlowCallbackURIRepo) Create(e *AuthFlowCallbackURI) (*AuthFlowCallbackURI, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
-}
-func (m *mockAuthFlowCallbackURIRepo) FindByAuthFlowID(authFlowID int64) ([]AuthFlowCallbackURI, error) {
-	if m.findByAuthFlowIDFn != nil {
-		return m.findByAuthFlowIDFn(authFlowID)
-	}
-	return nil, nil
-}
-func (m *mockAuthFlowCallbackURIRepo) FindByAuthFlowIDPaginated(authFlowID int64, page, limit int) ([]AuthFlowCallbackURI, int64, error) {
-	if m.findByAuthFlowIDPaginatedFn != nil {
-		return m.findByAuthFlowIDPaginatedFn(authFlowID, page, limit)
-	}
-	return nil, 0, nil
-}
-func (m *mockAuthFlowCallbackURIRepo) DeleteByAuthFlowIDAndClientURIID(authFlowID, clientURIID int64) error {
-	if m.deleteByAuthFlowIDAndClientURIIDFn != nil {
-		return m.deleteByAuthFlowIDAndClientURIIDFn(authFlowID, clientURIID)
-	}
-	return nil
-}
-func (m *mockAuthFlowCallbackURIRepo) FindByAuthFlowIDAndClientURIID(authFlowID, clientURIID int64) (*AuthFlowCallbackURI, error) {
-	if m.findByAuthFlowIDAndClientURIIDFn != nil {
-		return m.findByAuthFlowIDAndClientURIIDFn(authFlowID, clientURIID)
+func (m *mockRegistrationFlowRoleRepo) FindByRegistrationFlowIDAndRoleID(registrationFlowID, roleID int64) (*RegistrationFlowRole, error) {
+	if m.findByRegistrationFlowIDAndRoleIDFn != nil {
+		return m.findByRegistrationFlowIDAndRoleIDFn(registrationFlowID, roleID)
 	}
 	return nil, nil
 }
@@ -551,88 +503,66 @@ func (m *mockIdentityProviderService) DeleteByUUID(_ context.Context, id uuid.UU
 	return nil, nil
 }
 
-type mockAuthFlowService struct {
-	getAllFn       func(int64, *string, *string, []string, *uuid.UUID, int, int, string, string) (*AuthFlowServiceListResult, error)
-	getByUUIDFn    func(uuid.UUID, int64) (*AuthFlowServiceDataResult, error)
-	createFn       func(int64, string, string, string, uuid.UUID) (*AuthFlowServiceDataResult, error)
-	updateFn       func(uuid.UUID, int64, string, string, string) (*AuthFlowServiceDataResult, error)
-	updateStatusFn func(uuid.UUID, int64, string) (*AuthFlowServiceDataResult, error)
-	deleteFn       func(uuid.UUID, int64) (*AuthFlowServiceDataResult, error)
-	assignRolesFn  func(uuid.UUID, int64, []uuid.UUID) ([]AuthFlowRoleServiceDataResult, error)
-	getRolesFn     func(uuid.UUID, int64, int, int) (*AuthFlowRoleServiceListResult, error)
+type mockRegistrationFlowService struct {
+	getAllFn       func(int64, *string, *string, []string, *uuid.UUID, int, int, string, string) (*RegistrationFlowServiceListResult, error)
+	getByUUIDFn    func(uuid.UUID, int64) (*RegistrationFlowServiceDataResult, error)
+	createFn       func(int64, string, string, string, uuid.UUID) (*RegistrationFlowServiceDataResult, error)
+	updateFn       func(uuid.UUID, int64, string, string, string) (*RegistrationFlowServiceDataResult, error)
+	updateStatusFn func(uuid.UUID, int64, string) (*RegistrationFlowServiceDataResult, error)
+	deleteFn       func(uuid.UUID, int64) (*RegistrationFlowServiceDataResult, error)
+	assignRolesFn  func(uuid.UUID, int64, []uuid.UUID) ([]RegistrationFlowRoleServiceDataResult, error)
+	getRolesFn     func(uuid.UUID, int64, int, int) (*RegistrationFlowRoleServiceListResult, error)
 	removeRoleFn   func(uuid.UUID, int64, uuid.UUID) error
-
-	assignCallbackURIsFn func(uuid.UUID, int64, []uuid.UUID) ([]AuthFlowCallbackURIServiceDataResult, error)
-	getCallbackURIsFn    func(uuid.UUID, int64, int, int) (*AuthFlowCallbackURIServiceListResult, error)
-	removeCallbackURIFn  func(uuid.UUID, int64, uuid.UUID) error
 }
 
-func (m *mockAuthFlowService) GetAll(_ context.Context, tenantID int64, name, identifier *string, status []string, clientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*AuthFlowServiceListResult, error) {
+func (m *mockRegistrationFlowService) GetAll(_ context.Context, tenantID int64, name, identifier *string, status []string, clientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*RegistrationFlowServiceListResult, error) {
 	if m.getAllFn != nil {
 		return m.getAllFn(tenantID, name, identifier, status, clientUUID, page, limit, sortBy, sortOrder)
 	}
-	return &AuthFlowServiceListResult{}, nil
+	return &RegistrationFlowServiceListResult{}, nil
 }
-func (m *mockAuthFlowService) GetByUUID(_ context.Context, id uuid.UUID, tenantID int64) (*AuthFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) GetByUUID(_ context.Context, id uuid.UUID, tenantID int64) (*RegistrationFlowServiceDataResult, error) {
 	if m.getByUUIDFn != nil {
 		return m.getByUUIDFn(id, tenantID)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowService) Create(_ context.Context, tenantID int64, name, desc, status, destination string, clientUUID uuid.UUID, _ *uuid.UUID, _, _ []uuid.UUID, _ bool, _ bool, _ string) (*AuthFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) Create(_ context.Context, tenantID int64, name, desc, status string, clientUUID uuid.UUID, _ *string, _ []uuid.UUID, _ bool, _ string) (*RegistrationFlowServiceDataResult, error) {
 	return m.createFn(tenantID, name, desc, status, clientUUID)
 }
-func (m *mockAuthFlowService) Update(_ context.Context, id uuid.UUID, tenantID int64, name, desc, status string, _ *uuid.UUID, _, _ []uuid.UUID, _ bool, _ bool, _ string) (*AuthFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) Update(_ context.Context, id uuid.UUID, tenantID int64, name, desc, status string, _ []uuid.UUID, _ bool, _ string) (*RegistrationFlowServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tenantID, name, desc, status)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowService) UpdateStatus(_ context.Context, id uuid.UUID, tenantID int64, status string) (*AuthFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) UpdateStatus(_ context.Context, id uuid.UUID, tenantID int64, status string) (*RegistrationFlowServiceDataResult, error) {
 	if m.updateStatusFn != nil {
 		return m.updateStatusFn(id, tenantID, status)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowService) Delete(_ context.Context, id uuid.UUID, tenantID int64) (*AuthFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) Delete(_ context.Context, id uuid.UUID, tenantID int64) (*RegistrationFlowServiceDataResult, error) {
 	if m.deleteFn != nil {
 		return m.deleteFn(id, tenantID)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowService) AssignRoles(_ context.Context, id uuid.UUID, tenantID int64, roles []uuid.UUID) ([]AuthFlowRoleServiceDataResult, error) {
+func (m *mockRegistrationFlowService) AssignRoles(_ context.Context, id uuid.UUID, tenantID int64, roles []uuid.UUID) ([]RegistrationFlowRoleServiceDataResult, error) {
 	if m.assignRolesFn != nil {
 		return m.assignRolesFn(id, tenantID, roles)
 	}
 	return nil, nil
 }
-func (m *mockAuthFlowService) GetRoles(_ context.Context, id uuid.UUID, tenantID int64, page, limit int) (*AuthFlowRoleServiceListResult, error) {
+func (m *mockRegistrationFlowService) GetRoles(_ context.Context, id uuid.UUID, tenantID int64, page, limit int) (*RegistrationFlowRoleServiceListResult, error) {
 	if m.getRolesFn != nil {
 		return m.getRolesFn(id, tenantID, page, limit)
 	}
-	return &AuthFlowRoleServiceListResult{}, nil
+	return &RegistrationFlowRoleServiceListResult{}, nil
 }
-func (m *mockAuthFlowService) RemoveRole(_ context.Context, id uuid.UUID, tenantID int64, roleUUID uuid.UUID) error {
+func (m *mockRegistrationFlowService) RemoveRole(_ context.Context, id uuid.UUID, tenantID int64, roleUUID uuid.UUID) error {
 	if m.removeRoleFn != nil {
 		return m.removeRoleFn(id, tenantID, roleUUID)
-	}
-	return nil
-}
-func (m *mockAuthFlowService) AssignCallbackURIs(_ context.Context, id uuid.UUID, tenantID int64, clientURIUUIDs []uuid.UUID) ([]AuthFlowCallbackURIServiceDataResult, error) {
-	if m.assignCallbackURIsFn != nil {
-		return m.assignCallbackURIsFn(id, tenantID, clientURIUUIDs)
-	}
-	return nil, nil
-}
-func (m *mockAuthFlowService) GetCallbackURIs(_ context.Context, id uuid.UUID, tenantID int64, page, limit int) (*AuthFlowCallbackURIServiceListResult, error) {
-	if m.getCallbackURIsFn != nil {
-		return m.getCallbackURIsFn(id, tenantID, page, limit)
-	}
-	return &AuthFlowCallbackURIServiceListResult{}, nil
-}
-func (m *mockAuthFlowService) RemoveCallbackURI(_ context.Context, id uuid.UUID, tenantID int64, clientURIUUID uuid.UUID) error {
-	if m.removeCallbackURIFn != nil {
-		return m.removeCallbackURIFn(id, tenantID, clientURIUUID)
 	}
 	return nil
 }

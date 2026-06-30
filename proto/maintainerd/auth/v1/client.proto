@@ -59,6 +59,8 @@ message Client {
   repeated ClientURI uris = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
+  string branding_id = 13;
+  bool allow_registration = 14;
 }
 
 message ClientIdentityProvider {
@@ -179,6 +181,8 @@ message CreateClientRequest {
   string status = 7;
   string identity_provider_uuid = 8;
   string actor_user_uuid = 9;
+  string branding_id = 10;
+  optional bool allow_registration = 11;
 }
 
 message CreateClientResponse {
@@ -202,6 +206,8 @@ message UpdateClientRequest {
   google.protobuf.Struct config = 7;
   string status = 8;
   string actor_user_uuid = 9;
+  string branding_id = 10;
+  optional bool allow_registration = 11;
 }
 
 message UpdateClientResponse {

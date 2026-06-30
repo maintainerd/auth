@@ -205,35 +205,35 @@ func (x *IdentityProvider) GetAllowedAudiences() []string {
 	return nil
 }
 
-type SignupFlow struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	SignupFlowUuid string                 `protobuf:"bytes,1,opt,name=signup_flow_uuid,json=signupFlowUuid,proto3" json:"signup_flow_uuid,omitempty"`
-	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Identifier     string                 `protobuf:"bytes,4,opt,name=identifier,proto3" json:"identifier,omitempty"`
-	Config         *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
-	Status         string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	ClientUuid     string                 `protobuf:"bytes,7,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type RegistrationFlow struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlowUuid string                 `protobuf:"bytes,1,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
+	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description          string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Identifier           string                 `protobuf:"bytes,4,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	Config               *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
+	Status               string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	ClientUuid           string                 `protobuf:"bytes,7,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *SignupFlow) Reset() {
-	*x = SignupFlow{}
+func (x *RegistrationFlow) Reset() {
+	*x = RegistrationFlow{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SignupFlow) String() string {
+func (x *RegistrationFlow) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SignupFlow) ProtoMessage() {}
+func (*RegistrationFlow) ProtoMessage() {}
 
-func (x *SignupFlow) ProtoReflect() protoreflect.Message {
+func (x *RegistrationFlow) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -245,103 +245,103 @@ func (x *SignupFlow) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SignupFlow.ProtoReflect.Descriptor instead.
-func (*SignupFlow) Descriptor() ([]byte, []int) {
+// Deprecated: Use RegistrationFlow.ProtoReflect.Descriptor instead.
+func (*RegistrationFlow) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SignupFlow) GetSignupFlowUuid() string {
+func (x *RegistrationFlow) GetRegistrationFlowUuid() string {
 	if x != nil {
-		return x.SignupFlowUuid
+		return x.RegistrationFlowUuid
 	}
 	return ""
 }
 
-func (x *SignupFlow) GetName() string {
+func (x *RegistrationFlow) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *SignupFlow) GetDescription() string {
+func (x *RegistrationFlow) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
 	return ""
 }
 
-func (x *SignupFlow) GetIdentifier() string {
+func (x *RegistrationFlow) GetIdentifier() string {
 	if x != nil {
 		return x.Identifier
 	}
 	return ""
 }
 
-func (x *SignupFlow) GetConfig() *structpb.Struct {
+func (x *RegistrationFlow) GetConfig() *structpb.Struct {
 	if x != nil {
 		return x.Config
 	}
 	return nil
 }
 
-func (x *SignupFlow) GetStatus() string {
+func (x *RegistrationFlow) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-func (x *SignupFlow) GetClientUuid() string {
+func (x *RegistrationFlow) GetClientUuid() string {
 	if x != nil {
 		return x.ClientUuid
 	}
 	return ""
 }
 
-func (x *SignupFlow) GetCreatedAt() *timestamppb.Timestamp {
+func (x *RegistrationFlow) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
 	return nil
 }
 
-func (x *SignupFlow) GetUpdatedAt() *timestamppb.Timestamp {
+func (x *RegistrationFlow) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
 	}
 	return nil
 }
 
-type SignupFlowRole struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	SignupFlowRoleUuid string                 `protobuf:"bytes,1,opt,name=signup_flow_role_uuid,json=signupFlowRoleUuid,proto3" json:"signup_flow_role_uuid,omitempty"`
-	RoleUuid           string                 `protobuf:"bytes,2,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
-	RoleName           string                 `protobuf:"bytes,3,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	RoleDescription    string                 `protobuf:"bytes,4,opt,name=role_description,json=roleDescription,proto3" json:"role_description,omitempty"`
-	RoleIsDefault      bool                   `protobuf:"varint,5,opt,name=role_is_default,json=roleIsDefault,proto3" json:"role_is_default,omitempty"`
-	RoleIsSystem       bool                   `protobuf:"varint,6,opt,name=role_is_system,json=roleIsSystem,proto3" json:"role_is_system,omitempty"`
-	RoleStatus         string                 `protobuf:"bytes,7,opt,name=role_status,json=roleStatus,proto3" json:"role_status,omitempty"`
-	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+type RegistrationFlowRole struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlowRoleUuid string                 `protobuf:"bytes,1,opt,name=registration_flow_role_uuid,json=registrationFlowRoleUuid,proto3" json:"registration_flow_role_uuid,omitempty"`
+	RoleUuid                 string                 `protobuf:"bytes,2,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	RoleName                 string                 `protobuf:"bytes,3,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	RoleDescription          string                 `protobuf:"bytes,4,opt,name=role_description,json=roleDescription,proto3" json:"role_description,omitempty"`
+	RoleIsDefault            bool                   `protobuf:"varint,5,opt,name=role_is_default,json=roleIsDefault,proto3" json:"role_is_default,omitempty"`
+	RoleIsSystem             bool                   `protobuf:"varint,6,opt,name=role_is_system,json=roleIsSystem,proto3" json:"role_is_system,omitempty"`
+	RoleStatus               string                 `protobuf:"bytes,7,opt,name=role_status,json=roleStatus,proto3" json:"role_status,omitempty"`
+	CreatedAt                *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt                *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
-func (x *SignupFlowRole) Reset() {
-	*x = SignupFlowRole{}
+func (x *RegistrationFlowRole) Reset() {
+	*x = RegistrationFlowRole{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SignupFlowRole) String() string {
+func (x *RegistrationFlowRole) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SignupFlowRole) ProtoMessage() {}
+func (*RegistrationFlowRole) ProtoMessage() {}
 
-func (x *SignupFlowRole) ProtoReflect() protoreflect.Message {
+func (x *RegistrationFlowRole) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -353,68 +353,68 @@ func (x *SignupFlowRole) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SignupFlowRole.ProtoReflect.Descriptor instead.
-func (*SignupFlowRole) Descriptor() ([]byte, []int) {
+// Deprecated: Use RegistrationFlowRole.ProtoReflect.Descriptor instead.
+func (*RegistrationFlowRole) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SignupFlowRole) GetSignupFlowRoleUuid() string {
+func (x *RegistrationFlowRole) GetRegistrationFlowRoleUuid() string {
 	if x != nil {
-		return x.SignupFlowRoleUuid
+		return x.RegistrationFlowRoleUuid
 	}
 	return ""
 }
 
-func (x *SignupFlowRole) GetRoleUuid() string {
+func (x *RegistrationFlowRole) GetRoleUuid() string {
 	if x != nil {
 		return x.RoleUuid
 	}
 	return ""
 }
 
-func (x *SignupFlowRole) GetRoleName() string {
+func (x *RegistrationFlowRole) GetRoleName() string {
 	if x != nil {
 		return x.RoleName
 	}
 	return ""
 }
 
-func (x *SignupFlowRole) GetRoleDescription() string {
+func (x *RegistrationFlowRole) GetRoleDescription() string {
 	if x != nil {
 		return x.RoleDescription
 	}
 	return ""
 }
 
-func (x *SignupFlowRole) GetRoleIsDefault() bool {
+func (x *RegistrationFlowRole) GetRoleIsDefault() bool {
 	if x != nil {
 		return x.RoleIsDefault
 	}
 	return false
 }
 
-func (x *SignupFlowRole) GetRoleIsSystem() bool {
+func (x *RegistrationFlowRole) GetRoleIsSystem() bool {
 	if x != nil {
 		return x.RoleIsSystem
 	}
 	return false
 }
 
-func (x *SignupFlowRole) GetRoleStatus() string {
+func (x *RegistrationFlowRole) GetRoleStatus() string {
 	if x != nil {
 		return x.RoleStatus
 	}
 	return ""
 }
 
-func (x *SignupFlowRole) GetCreatedAt() *timestamppb.Timestamp {
+func (x *RegistrationFlowRole) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
 	return nil
 }
 
-func (x *SignupFlowRole) GetUpdatedAt() *timestamppb.Timestamp {
+func (x *RegistrationFlowRole) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
 	}
@@ -1293,7 +1293,7 @@ func (x *DeleteIdentityProviderResponse) GetIdentityProvider() *IdentityProvider
 	return nil
 }
 
-type ListSignupFlowsRequest struct {
+type ListRegistrationFlowsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -1305,20 +1305,20 @@ type ListSignupFlowsRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListSignupFlowsRequest) Reset() {
-	*x = ListSignupFlowsRequest{}
+func (x *ListRegistrationFlowsRequest) Reset() {
+	*x = ListRegistrationFlowsRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListSignupFlowsRequest) String() string {
+func (x *ListRegistrationFlowsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListSignupFlowsRequest) ProtoMessage() {}
+func (*ListRegistrationFlowsRequest) ProtoMessage() {}
 
-func (x *ListSignupFlowsRequest) ProtoReflect() protoreflect.Message {
+func (x *ListRegistrationFlowsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1330,75 +1330,75 @@ func (x *ListSignupFlowsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListSignupFlowsRequest.ProtoReflect.Descriptor instead.
-func (*ListSignupFlowsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListRegistrationFlowsRequest.ProtoReflect.Descriptor instead.
+func (*ListRegistrationFlowsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *ListSignupFlowsRequest) GetTenantUuid() string {
+func (x *ListRegistrationFlowsRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *ListSignupFlowsRequest) GetName() string {
+func (x *ListRegistrationFlowsRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *ListSignupFlowsRequest) GetIdentifier() string {
+func (x *ListRegistrationFlowsRequest) GetIdentifier() string {
 	if x != nil {
 		return x.Identifier
 	}
 	return ""
 }
 
-func (x *ListSignupFlowsRequest) GetStatus() []string {
+func (x *ListRegistrationFlowsRequest) GetStatus() []string {
 	if x != nil {
 		return x.Status
 	}
 	return nil
 }
 
-func (x *ListSignupFlowsRequest) GetClientUuid() string {
+func (x *ListRegistrationFlowsRequest) GetClientUuid() string {
 	if x != nil {
 		return x.ClientUuid
 	}
 	return ""
 }
 
-func (x *ListSignupFlowsRequest) GetPagination() *Pagination {
+func (x *ListRegistrationFlowsRequest) GetPagination() *Pagination {
 	if x != nil {
 		return x.Pagination
 	}
 	return nil
 }
 
-type ListSignupFlowsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SignupFlows   []*SignupFlow          `protobuf:"bytes,1,rep,name=signup_flows,json=signupFlows,proto3" json:"signup_flows,omitempty"`
-	Page          *PageMetadata          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type ListRegistrationFlowsResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlows []*RegistrationFlow    `protobuf:"bytes,1,rep,name=registration_flows,json=registrationFlows,proto3" json:"registration_flows,omitempty"`
+	Page              *PageMetadata          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
-func (x *ListSignupFlowsResponse) Reset() {
-	*x = ListSignupFlowsResponse{}
+func (x *ListRegistrationFlowsResponse) Reset() {
+	*x = ListRegistrationFlowsResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListSignupFlowsResponse) String() string {
+func (x *ListRegistrationFlowsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListSignupFlowsResponse) ProtoMessage() {}
+func (*ListRegistrationFlowsResponse) ProtoMessage() {}
 
-func (x *ListSignupFlowsResponse) ProtoReflect() protoreflect.Message {
+func (x *ListRegistrationFlowsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1410,47 +1410,47 @@ func (x *ListSignupFlowsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListSignupFlowsResponse.ProtoReflect.Descriptor instead.
-func (*ListSignupFlowsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListRegistrationFlowsResponse.ProtoReflect.Descriptor instead.
+func (*ListRegistrationFlowsResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *ListSignupFlowsResponse) GetSignupFlows() []*SignupFlow {
+func (x *ListRegistrationFlowsResponse) GetRegistrationFlows() []*RegistrationFlow {
 	if x != nil {
-		return x.SignupFlows
+		return x.RegistrationFlows
 	}
 	return nil
 }
 
-func (x *ListSignupFlowsResponse) GetPage() *PageMetadata {
+func (x *ListRegistrationFlowsResponse) GetPage() *PageMetadata {
 	if x != nil {
 		return x.Page
 	}
 	return nil
 }
 
-type GetSignupFlowRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SignupFlowUuid string                 `protobuf:"bytes,2,opt,name=signup_flow_uuid,json=signupFlowUuid,proto3" json:"signup_flow_uuid,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type GetRegistrationFlowRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *GetSignupFlowRequest) Reset() {
-	*x = GetSignupFlowRequest{}
+func (x *GetRegistrationFlowRequest) Reset() {
+	*x = GetRegistrationFlowRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetSignupFlowRequest) String() string {
+func (x *GetRegistrationFlowRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetSignupFlowRequest) ProtoMessage() {}
+func (*GetRegistrationFlowRequest) ProtoMessage() {}
 
-func (x *GetSignupFlowRequest) ProtoReflect() protoreflect.Message {
+func (x *GetRegistrationFlowRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1462,46 +1462,46 @@ func (x *GetSignupFlowRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetSignupFlowRequest.ProtoReflect.Descriptor instead.
-func (*GetSignupFlowRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetRegistrationFlowRequest.ProtoReflect.Descriptor instead.
+func (*GetRegistrationFlowRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *GetSignupFlowRequest) GetTenantUuid() string {
+func (x *GetRegistrationFlowRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *GetSignupFlowRequest) GetSignupFlowUuid() string {
+func (x *GetRegistrationFlowRequest) GetRegistrationFlowUuid() string {
 	if x != nil {
-		return x.SignupFlowUuid
+		return x.RegistrationFlowUuid
 	}
 	return ""
 }
 
-type GetSignupFlowResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SignupFlow    *SignupFlow            `protobuf:"bytes,1,opt,name=signup_flow,json=signupFlow,proto3" json:"signup_flow,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type GetRegistrationFlowResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlow *RegistrationFlow      `protobuf:"bytes,1,opt,name=registration_flow,json=registrationFlow,proto3" json:"registration_flow,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *GetSignupFlowResponse) Reset() {
-	*x = GetSignupFlowResponse{}
+func (x *GetRegistrationFlowResponse) Reset() {
+	*x = GetRegistrationFlowResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetSignupFlowResponse) String() string {
+func (x *GetRegistrationFlowResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetSignupFlowResponse) ProtoMessage() {}
+func (*GetRegistrationFlowResponse) ProtoMessage() {}
 
-func (x *GetSignupFlowResponse) ProtoReflect() protoreflect.Message {
+func (x *GetRegistrationFlowResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1513,19 +1513,19 @@ func (x *GetSignupFlowResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetSignupFlowResponse.ProtoReflect.Descriptor instead.
-func (*GetSignupFlowResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetRegistrationFlowResponse.ProtoReflect.Descriptor instead.
+func (*GetRegistrationFlowResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *GetSignupFlowResponse) GetSignupFlow() *SignupFlow {
+func (x *GetRegistrationFlowResponse) GetRegistrationFlow() *RegistrationFlow {
 	if x != nil {
-		return x.SignupFlow
+		return x.RegistrationFlow
 	}
 	return nil
 }
 
-type CreateSignupFlowRequest struct {
+type CreateRegistrationFlowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -1537,20 +1537,20 @@ type CreateSignupFlowRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CreateSignupFlowRequest) Reset() {
-	*x = CreateSignupFlowRequest{}
+func (x *CreateRegistrationFlowRequest) Reset() {
+	*x = CreateRegistrationFlowRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateSignupFlowRequest) String() string {
+func (x *CreateRegistrationFlowRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateSignupFlowRequest) ProtoMessage() {}
+func (*CreateRegistrationFlowRequest) ProtoMessage() {}
 
-func (x *CreateSignupFlowRequest) ProtoReflect() protoreflect.Message {
+func (x *CreateRegistrationFlowRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1562,74 +1562,74 @@ func (x *CreateSignupFlowRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateSignupFlowRequest.ProtoReflect.Descriptor instead.
-func (*CreateSignupFlowRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateRegistrationFlowRequest.ProtoReflect.Descriptor instead.
+func (*CreateRegistrationFlowRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *CreateSignupFlowRequest) GetTenantUuid() string {
+func (x *CreateRegistrationFlowRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *CreateSignupFlowRequest) GetName() string {
+func (x *CreateRegistrationFlowRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *CreateSignupFlowRequest) GetDescription() string {
+func (x *CreateRegistrationFlowRequest) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
 	return ""
 }
 
-func (x *CreateSignupFlowRequest) GetConfig() *structpb.Struct {
+func (x *CreateRegistrationFlowRequest) GetConfig() *structpb.Struct {
 	if x != nil {
 		return x.Config
 	}
 	return nil
 }
 
-func (x *CreateSignupFlowRequest) GetStatus() string {
+func (x *CreateRegistrationFlowRequest) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-func (x *CreateSignupFlowRequest) GetClientUuid() string {
+func (x *CreateRegistrationFlowRequest) GetClientUuid() string {
 	if x != nil {
 		return x.ClientUuid
 	}
 	return ""
 }
 
-type CreateSignupFlowResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SignupFlow    *SignupFlow            `protobuf:"bytes,1,opt,name=signup_flow,json=signupFlow,proto3" json:"signup_flow,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type CreateRegistrationFlowResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlow *RegistrationFlow      `protobuf:"bytes,1,opt,name=registration_flow,json=registrationFlow,proto3" json:"registration_flow,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *CreateSignupFlowResponse) Reset() {
-	*x = CreateSignupFlowResponse{}
+func (x *CreateRegistrationFlowResponse) Reset() {
+	*x = CreateRegistrationFlowResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateSignupFlowResponse) String() string {
+func (x *CreateRegistrationFlowResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateSignupFlowResponse) ProtoMessage() {}
+func (*CreateRegistrationFlowResponse) ProtoMessage() {}
 
-func (x *CreateSignupFlowResponse) ProtoReflect() protoreflect.Message {
+func (x *CreateRegistrationFlowResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1641,44 +1641,44 @@ func (x *CreateSignupFlowResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateSignupFlowResponse.ProtoReflect.Descriptor instead.
-func (*CreateSignupFlowResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateRegistrationFlowResponse.ProtoReflect.Descriptor instead.
+func (*CreateRegistrationFlowResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *CreateSignupFlowResponse) GetSignupFlow() *SignupFlow {
+func (x *CreateRegistrationFlowResponse) GetRegistrationFlow() *RegistrationFlow {
 	if x != nil {
-		return x.SignupFlow
+		return x.RegistrationFlow
 	}
 	return nil
 }
 
-type UpdateSignupFlowRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SignupFlowUuid string                 `protobuf:"bytes,2,opt,name=signup_flow_uuid,json=signupFlowUuid,proto3" json:"signup_flow_uuid,omitempty"`
-	Name           string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description    string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	Config         *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
-	Status         string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type UpdateRegistrationFlowRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
+	Name                 string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description          string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Config               *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
+	Status               string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *UpdateSignupFlowRequest) Reset() {
-	*x = UpdateSignupFlowRequest{}
+func (x *UpdateRegistrationFlowRequest) Reset() {
+	*x = UpdateRegistrationFlowRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdateSignupFlowRequest) String() string {
+func (x *UpdateRegistrationFlowRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdateSignupFlowRequest) ProtoMessage() {}
+func (*UpdateRegistrationFlowRequest) ProtoMessage() {}
 
-func (x *UpdateSignupFlowRequest) ProtoReflect() protoreflect.Message {
+func (x *UpdateRegistrationFlowRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1690,74 +1690,74 @@ func (x *UpdateSignupFlowRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdateSignupFlowRequest.ProtoReflect.Descriptor instead.
-func (*UpdateSignupFlowRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateRegistrationFlowRequest.ProtoReflect.Descriptor instead.
+func (*UpdateRegistrationFlowRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *UpdateSignupFlowRequest) GetTenantUuid() string {
+func (x *UpdateRegistrationFlowRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *UpdateSignupFlowRequest) GetSignupFlowUuid() string {
+func (x *UpdateRegistrationFlowRequest) GetRegistrationFlowUuid() string {
 	if x != nil {
-		return x.SignupFlowUuid
+		return x.RegistrationFlowUuid
 	}
 	return ""
 }
 
-func (x *UpdateSignupFlowRequest) GetName() string {
+func (x *UpdateRegistrationFlowRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *UpdateSignupFlowRequest) GetDescription() string {
+func (x *UpdateRegistrationFlowRequest) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
 	return ""
 }
 
-func (x *UpdateSignupFlowRequest) GetConfig() *structpb.Struct {
+func (x *UpdateRegistrationFlowRequest) GetConfig() *structpb.Struct {
 	if x != nil {
 		return x.Config
 	}
 	return nil
 }
 
-func (x *UpdateSignupFlowRequest) GetStatus() string {
+func (x *UpdateRegistrationFlowRequest) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-type UpdateSignupFlowResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SignupFlow    *SignupFlow            `protobuf:"bytes,1,opt,name=signup_flow,json=signupFlow,proto3" json:"signup_flow,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type UpdateRegistrationFlowResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlow *RegistrationFlow      `protobuf:"bytes,1,opt,name=registration_flow,json=registrationFlow,proto3" json:"registration_flow,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *UpdateSignupFlowResponse) Reset() {
-	*x = UpdateSignupFlowResponse{}
+func (x *UpdateRegistrationFlowResponse) Reset() {
+	*x = UpdateRegistrationFlowResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdateSignupFlowResponse) String() string {
+func (x *UpdateRegistrationFlowResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdateSignupFlowResponse) ProtoMessage() {}
+func (*UpdateRegistrationFlowResponse) ProtoMessage() {}
 
-func (x *UpdateSignupFlowResponse) ProtoReflect() protoreflect.Message {
+func (x *UpdateRegistrationFlowResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1769,41 +1769,41 @@ func (x *UpdateSignupFlowResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdateSignupFlowResponse.ProtoReflect.Descriptor instead.
-func (*UpdateSignupFlowResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateRegistrationFlowResponse.ProtoReflect.Descriptor instead.
+func (*UpdateRegistrationFlowResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *UpdateSignupFlowResponse) GetSignupFlow() *SignupFlow {
+func (x *UpdateRegistrationFlowResponse) GetRegistrationFlow() *RegistrationFlow {
 	if x != nil {
-		return x.SignupFlow
+		return x.RegistrationFlow
 	}
 	return nil
 }
 
-type SetSignupFlowStatusRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SignupFlowUuid string                 `protobuf:"bytes,2,opt,name=signup_flow_uuid,json=signupFlowUuid,proto3" json:"signup_flow_uuid,omitempty"`
-	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type SetRegistrationFlowStatusRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
+	Status               string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *SetSignupFlowStatusRequest) Reset() {
-	*x = SetSignupFlowStatusRequest{}
+func (x *SetRegistrationFlowStatusRequest) Reset() {
+	*x = SetRegistrationFlowStatusRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetSignupFlowStatusRequest) String() string {
+func (x *SetRegistrationFlowStatusRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetSignupFlowStatusRequest) ProtoMessage() {}
+func (*SetRegistrationFlowStatusRequest) ProtoMessage() {}
 
-func (x *SetSignupFlowStatusRequest) ProtoReflect() protoreflect.Message {
+func (x *SetRegistrationFlowStatusRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1815,53 +1815,53 @@ func (x *SetSignupFlowStatusRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetSignupFlowStatusRequest.ProtoReflect.Descriptor instead.
-func (*SetSignupFlowStatusRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetRegistrationFlowStatusRequest.ProtoReflect.Descriptor instead.
+func (*SetRegistrationFlowStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *SetSignupFlowStatusRequest) GetTenantUuid() string {
+func (x *SetRegistrationFlowStatusRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *SetSignupFlowStatusRequest) GetSignupFlowUuid() string {
+func (x *SetRegistrationFlowStatusRequest) GetRegistrationFlowUuid() string {
 	if x != nil {
-		return x.SignupFlowUuid
+		return x.RegistrationFlowUuid
 	}
 	return ""
 }
 
-func (x *SetSignupFlowStatusRequest) GetStatus() string {
+func (x *SetRegistrationFlowStatusRequest) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-type SetSignupFlowStatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SignupFlow    *SignupFlow            `protobuf:"bytes,1,opt,name=signup_flow,json=signupFlow,proto3" json:"signup_flow,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type SetRegistrationFlowStatusResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlow *RegistrationFlow      `protobuf:"bytes,1,opt,name=registration_flow,json=registrationFlow,proto3" json:"registration_flow,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *SetSignupFlowStatusResponse) Reset() {
-	*x = SetSignupFlowStatusResponse{}
+func (x *SetRegistrationFlowStatusResponse) Reset() {
+	*x = SetRegistrationFlowStatusResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetSignupFlowStatusResponse) String() string {
+func (x *SetRegistrationFlowStatusResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetSignupFlowStatusResponse) ProtoMessage() {}
+func (*SetRegistrationFlowStatusResponse) ProtoMessage() {}
 
-func (x *SetSignupFlowStatusResponse) ProtoReflect() protoreflect.Message {
+func (x *SetRegistrationFlowStatusResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1873,40 +1873,40 @@ func (x *SetSignupFlowStatusResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetSignupFlowStatusResponse.ProtoReflect.Descriptor instead.
-func (*SetSignupFlowStatusResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetRegistrationFlowStatusResponse.ProtoReflect.Descriptor instead.
+func (*SetRegistrationFlowStatusResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *SetSignupFlowStatusResponse) GetSignupFlow() *SignupFlow {
+func (x *SetRegistrationFlowStatusResponse) GetRegistrationFlow() *RegistrationFlow {
 	if x != nil {
-		return x.SignupFlow
+		return x.RegistrationFlow
 	}
 	return nil
 }
 
-type DeleteSignupFlowRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SignupFlowUuid string                 `protobuf:"bytes,2,opt,name=signup_flow_uuid,json=signupFlowUuid,proto3" json:"signup_flow_uuid,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type DeleteRegistrationFlowRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *DeleteSignupFlowRequest) Reset() {
-	*x = DeleteSignupFlowRequest{}
+func (x *DeleteRegistrationFlowRequest) Reset() {
+	*x = DeleteRegistrationFlowRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DeleteSignupFlowRequest) String() string {
+func (x *DeleteRegistrationFlowRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DeleteSignupFlowRequest) ProtoMessage() {}
+func (*DeleteRegistrationFlowRequest) ProtoMessage() {}
 
-func (x *DeleteSignupFlowRequest) ProtoReflect() protoreflect.Message {
+func (x *DeleteRegistrationFlowRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1918,46 +1918,46 @@ func (x *DeleteSignupFlowRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeleteSignupFlowRequest.ProtoReflect.Descriptor instead.
-func (*DeleteSignupFlowRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use DeleteRegistrationFlowRequest.ProtoReflect.Descriptor instead.
+func (*DeleteRegistrationFlowRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *DeleteSignupFlowRequest) GetTenantUuid() string {
+func (x *DeleteRegistrationFlowRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *DeleteSignupFlowRequest) GetSignupFlowUuid() string {
+func (x *DeleteRegistrationFlowRequest) GetRegistrationFlowUuid() string {
 	if x != nil {
-		return x.SignupFlowUuid
+		return x.RegistrationFlowUuid
 	}
 	return ""
 }
 
-type DeleteSignupFlowResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SignupFlow    *SignupFlow            `protobuf:"bytes,1,opt,name=signup_flow,json=signupFlow,proto3" json:"signup_flow,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type DeleteRegistrationFlowResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlow *RegistrationFlow      `protobuf:"bytes,1,opt,name=registration_flow,json=registrationFlow,proto3" json:"registration_flow,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *DeleteSignupFlowResponse) Reset() {
-	*x = DeleteSignupFlowResponse{}
+func (x *DeleteRegistrationFlowResponse) Reset() {
+	*x = DeleteRegistrationFlowResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DeleteSignupFlowResponse) String() string {
+func (x *DeleteRegistrationFlowResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DeleteSignupFlowResponse) ProtoMessage() {}
+func (*DeleteRegistrationFlowResponse) ProtoMessage() {}
 
-func (x *DeleteSignupFlowResponse) ProtoReflect() protoreflect.Message {
+func (x *DeleteRegistrationFlowResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1969,41 +1969,41 @@ func (x *DeleteSignupFlowResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeleteSignupFlowResponse.ProtoReflect.Descriptor instead.
-func (*DeleteSignupFlowResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use DeleteRegistrationFlowResponse.ProtoReflect.Descriptor instead.
+func (*DeleteRegistrationFlowResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *DeleteSignupFlowResponse) GetSignupFlow() *SignupFlow {
+func (x *DeleteRegistrationFlowResponse) GetRegistrationFlow() *RegistrationFlow {
 	if x != nil {
-		return x.SignupFlow
+		return x.RegistrationFlow
 	}
 	return nil
 }
 
-type AssignSignupFlowRolesRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SignupFlowUuid string                 `protobuf:"bytes,2,opt,name=signup_flow_uuid,json=signupFlowUuid,proto3" json:"signup_flow_uuid,omitempty"`
-	RoleUuids      []string               `protobuf:"bytes,3,rep,name=role_uuids,json=roleUuids,proto3" json:"role_uuids,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type AssignRegistrationFlowRolesRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
+	RoleUuids            []string               `protobuf:"bytes,3,rep,name=role_uuids,json=roleUuids,proto3" json:"role_uuids,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *AssignSignupFlowRolesRequest) Reset() {
-	*x = AssignSignupFlowRolesRequest{}
+func (x *AssignRegistrationFlowRolesRequest) Reset() {
+	*x = AssignRegistrationFlowRolesRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AssignSignupFlowRolesRequest) String() string {
+func (x *AssignRegistrationFlowRolesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AssignSignupFlowRolesRequest) ProtoMessage() {}
+func (*AssignRegistrationFlowRolesRequest) ProtoMessage() {}
 
-func (x *AssignSignupFlowRolesRequest) ProtoReflect() protoreflect.Message {
+func (x *AssignRegistrationFlowRolesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2015,53 +2015,53 @@ func (x *AssignSignupFlowRolesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AssignSignupFlowRolesRequest.ProtoReflect.Descriptor instead.
-func (*AssignSignupFlowRolesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use AssignRegistrationFlowRolesRequest.ProtoReflect.Descriptor instead.
+func (*AssignRegistrationFlowRolesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *AssignSignupFlowRolesRequest) GetTenantUuid() string {
+func (x *AssignRegistrationFlowRolesRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *AssignSignupFlowRolesRequest) GetSignupFlowUuid() string {
+func (x *AssignRegistrationFlowRolesRequest) GetRegistrationFlowUuid() string {
 	if x != nil {
-		return x.SignupFlowUuid
+		return x.RegistrationFlowUuid
 	}
 	return ""
 }
 
-func (x *AssignSignupFlowRolesRequest) GetRoleUuids() []string {
+func (x *AssignRegistrationFlowRolesRequest) GetRoleUuids() []string {
 	if x != nil {
 		return x.RoleUuids
 	}
 	return nil
 }
 
-type AssignSignupFlowRolesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Roles         []*SignupFlowRole      `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+type AssignRegistrationFlowRolesResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Roles         []*RegistrationFlowRole `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AssignSignupFlowRolesResponse) Reset() {
-	*x = AssignSignupFlowRolesResponse{}
+func (x *AssignRegistrationFlowRolesResponse) Reset() {
+	*x = AssignRegistrationFlowRolesResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AssignSignupFlowRolesResponse) String() string {
+func (x *AssignRegistrationFlowRolesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AssignSignupFlowRolesResponse) ProtoMessage() {}
+func (*AssignRegistrationFlowRolesResponse) ProtoMessage() {}
 
-func (x *AssignSignupFlowRolesResponse) ProtoReflect() protoreflect.Message {
+func (x *AssignRegistrationFlowRolesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2073,41 +2073,41 @@ func (x *AssignSignupFlowRolesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AssignSignupFlowRolesResponse.ProtoReflect.Descriptor instead.
-func (*AssignSignupFlowRolesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use AssignRegistrationFlowRolesResponse.ProtoReflect.Descriptor instead.
+func (*AssignRegistrationFlowRolesResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{28}
 }
 
-func (x *AssignSignupFlowRolesResponse) GetRoles() []*SignupFlowRole {
+func (x *AssignRegistrationFlowRolesResponse) GetRoles() []*RegistrationFlowRole {
 	if x != nil {
 		return x.Roles
 	}
 	return nil
 }
 
-type ListSignupFlowRolesRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SignupFlowUuid string                 `protobuf:"bytes,2,opt,name=signup_flow_uuid,json=signupFlowUuid,proto3" json:"signup_flow_uuid,omitempty"`
-	Pagination     *Pagination            `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type ListRegistrationFlowRolesRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
+	Pagination           *Pagination            `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *ListSignupFlowRolesRequest) Reset() {
-	*x = ListSignupFlowRolesRequest{}
+func (x *ListRegistrationFlowRolesRequest) Reset() {
+	*x = ListRegistrationFlowRolesRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListSignupFlowRolesRequest) String() string {
+func (x *ListRegistrationFlowRolesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListSignupFlowRolesRequest) ProtoMessage() {}
+func (*ListRegistrationFlowRolesRequest) ProtoMessage() {}
 
-func (x *ListSignupFlowRolesRequest) ProtoReflect() protoreflect.Message {
+func (x *ListRegistrationFlowRolesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2119,54 +2119,54 @@ func (x *ListSignupFlowRolesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListSignupFlowRolesRequest.ProtoReflect.Descriptor instead.
-func (*ListSignupFlowRolesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListRegistrationFlowRolesRequest.ProtoReflect.Descriptor instead.
+func (*ListRegistrationFlowRolesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *ListSignupFlowRolesRequest) GetTenantUuid() string {
+func (x *ListRegistrationFlowRolesRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *ListSignupFlowRolesRequest) GetSignupFlowUuid() string {
+func (x *ListRegistrationFlowRolesRequest) GetRegistrationFlowUuid() string {
 	if x != nil {
-		return x.SignupFlowUuid
+		return x.RegistrationFlowUuid
 	}
 	return ""
 }
 
-func (x *ListSignupFlowRolesRequest) GetPagination() *Pagination {
+func (x *ListRegistrationFlowRolesRequest) GetPagination() *Pagination {
 	if x != nil {
 		return x.Pagination
 	}
 	return nil
 }
 
-type ListSignupFlowRolesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Roles         []*SignupFlowRole      `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
-	Page          *PageMetadata          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+type ListRegistrationFlowRolesResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Roles         []*RegistrationFlowRole `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+	Page          *PageMetadata           `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListSignupFlowRolesResponse) Reset() {
-	*x = ListSignupFlowRolesResponse{}
+func (x *ListRegistrationFlowRolesResponse) Reset() {
+	*x = ListRegistrationFlowRolesResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListSignupFlowRolesResponse) String() string {
+func (x *ListRegistrationFlowRolesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListSignupFlowRolesResponse) ProtoMessage() {}
+func (*ListRegistrationFlowRolesResponse) ProtoMessage() {}
 
-func (x *ListSignupFlowRolesResponse) ProtoReflect() protoreflect.Message {
+func (x *ListRegistrationFlowRolesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2178,48 +2178,48 @@ func (x *ListSignupFlowRolesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListSignupFlowRolesResponse.ProtoReflect.Descriptor instead.
-func (*ListSignupFlowRolesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListRegistrationFlowRolesResponse.ProtoReflect.Descriptor instead.
+func (*ListRegistrationFlowRolesResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{30}
 }
 
-func (x *ListSignupFlowRolesResponse) GetRoles() []*SignupFlowRole {
+func (x *ListRegistrationFlowRolesResponse) GetRoles() []*RegistrationFlowRole {
 	if x != nil {
 		return x.Roles
 	}
 	return nil
 }
 
-func (x *ListSignupFlowRolesResponse) GetPage() *PageMetadata {
+func (x *ListRegistrationFlowRolesResponse) GetPage() *PageMetadata {
 	if x != nil {
 		return x.Page
 	}
 	return nil
 }
 
-type RemoveSignupFlowRoleRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SignupFlowUuid string                 `protobuf:"bytes,2,opt,name=signup_flow_uuid,json=signupFlowUuid,proto3" json:"signup_flow_uuid,omitempty"`
-	RoleUuid       string                 `protobuf:"bytes,3,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type RemoveRegistrationFlowRoleRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
+	RoleUuid             string                 `protobuf:"bytes,3,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *RemoveSignupFlowRoleRequest) Reset() {
-	*x = RemoveSignupFlowRoleRequest{}
+func (x *RemoveRegistrationFlowRoleRequest) Reset() {
+	*x = RemoveRegistrationFlowRoleRequest{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RemoveSignupFlowRoleRequest) String() string {
+func (x *RemoveRegistrationFlowRoleRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RemoveSignupFlowRoleRequest) ProtoMessage() {}
+func (*RemoveRegistrationFlowRoleRequest) ProtoMessage() {}
 
-func (x *RemoveSignupFlowRoleRequest) ProtoReflect() protoreflect.Message {
+func (x *RemoveRegistrationFlowRoleRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2231,53 +2231,53 @@ func (x *RemoveSignupFlowRoleRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RemoveSignupFlowRoleRequest.ProtoReflect.Descriptor instead.
-func (*RemoveSignupFlowRoleRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RemoveRegistrationFlowRoleRequest.ProtoReflect.Descriptor instead.
+func (*RemoveRegistrationFlowRoleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *RemoveSignupFlowRoleRequest) GetTenantUuid() string {
+func (x *RemoveRegistrationFlowRoleRequest) GetTenantUuid() string {
 	if x != nil {
 		return x.TenantUuid
 	}
 	return ""
 }
 
-func (x *RemoveSignupFlowRoleRequest) GetSignupFlowUuid() string {
+func (x *RemoveRegistrationFlowRoleRequest) GetRegistrationFlowUuid() string {
 	if x != nil {
-		return x.SignupFlowUuid
+		return x.RegistrationFlowUuid
 	}
 	return ""
 }
 
-func (x *RemoveSignupFlowRoleRequest) GetRoleUuid() string {
+func (x *RemoveRegistrationFlowRoleRequest) GetRoleUuid() string {
 	if x != nil {
 		return x.RoleUuid
 	}
 	return ""
 }
 
-type RemoveSignupFlowRoleResponse struct {
+type RemoveRegistrationFlowRoleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Removed       bool                   `protobuf:"varint,1,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RemoveSignupFlowRoleResponse) Reset() {
-	*x = RemoveSignupFlowRoleResponse{}
+func (x *RemoveRegistrationFlowRoleResponse) Reset() {
+	*x = RemoveRegistrationFlowRoleResponse{}
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RemoveSignupFlowRoleResponse) String() string {
+func (x *RemoveRegistrationFlowRoleResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RemoveSignupFlowRoleResponse) ProtoMessage() {}
+func (*RemoveRegistrationFlowRoleResponse) ProtoMessage() {}
 
-func (x *RemoveSignupFlowRoleResponse) ProtoReflect() protoreflect.Message {
+func (x *RemoveRegistrationFlowRoleResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_maintainerd_auth_v1_identity_provider_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2289,12 +2289,12 @@ func (x *RemoveSignupFlowRoleResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RemoveSignupFlowRoleResponse.ProtoReflect.Descriptor instead.
-func (*RemoveSignupFlowRoleResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use RemoveRegistrationFlowRoleResponse.ProtoReflect.Descriptor instead.
+func (*RemoveRegistrationFlowRoleResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{32}
 }
 
-func (x *RemoveSignupFlowRoleResponse) GetRemoved() bool {
+func (x *RemoveRegistrationFlowRoleResponse) GetRemoved() bool {
 	if x != nil {
 		return x.Removed
 	}
@@ -2330,10 +2330,9 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x16allow_jit_provisioning\x18\x0f \x01(\bR\x14allowJitProvisioning\x12#\n" +
 	"\remail_domains\x18\x10 \x03(\tR\femailDomains\x124\n" +
 	"\x16allow_token_federation\x18\x11 \x01(\bR\x14allowTokenFederation\x12+\n" +
-	"\x11allowed_audiences\x18\x12 \x03(\tR\x10allowedAudiences\"\xec\x02\n" +
-	"\n" +
-	"SignupFlow\x12(\n" +
-	"\x10signup_flow_uuid\x18\x01 \x01(\tR\x0esignupFlowUuid\x12\x12\n" +
+	"\x11allowed_audiences\x18\x12 \x03(\tR\x10allowedAudiences\"\xfe\x02\n" +
+	"\x10RegistrationFlow\x124\n" +
+	"\x16registration_flow_uuid\x18\x01 \x01(\tR\x14registrationFlowUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1e\n" +
 	"\n" +
@@ -2346,9 +2345,9 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x8d\x03\n" +
-	"\x0eSignupFlowRole\x121\n" +
-	"\x15signup_flow_role_uuid\x18\x01 \x01(\tR\x12signupFlowRoleUuid\x12\x1b\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x9f\x03\n" +
+	"\x14RegistrationFlowRole\x12=\n" +
+	"\x1bregistration_flow_role_uuid\x18\x01 \x01(\tR\x18registrationFlowRoleUuid\x12\x1b\n" +
 	"\trole_uuid\x18\x02 \x01(\tR\broleUuid\x12\x1b\n" +
 	"\trole_name\x18\x03 \x01(\tR\broleName\x12)\n" +
 	"\x10role_description\x18\x04 \x01(\tR\x0froleDescription\x12&\n" +
@@ -2443,8 +2442,8 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x16identity_provider_uuid\x18\x02 \x01(\tR\x14identityProviderUuid\x12&\n" +
 	"\x0factor_user_uuid\x18\x03 \x01(\tR\ractorUserUuid\"t\n" +
 	"\x1eDeleteIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xe7\x01\n" +
-	"\x16ListSignupFlowsRequest\x12\x1f\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xed\x01\n" +
+	"\x1cListRegistrationFlowsRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1e\n" +
@@ -2456,18 +2455,17 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"clientUuid\x12?\n" +
 	"\n" +
 	"pagination\x18\x06 \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
-	"pagination\"\x94\x01\n" +
-	"\x17ListSignupFlowsResponse\x12B\n" +
-	"\fsignup_flows\x18\x01 \x03(\v2\x1f.maintainerd.auth.v1.SignupFlowR\vsignupFlows\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"a\n" +
-	"\x14GetSignupFlowRequest\x12\x1f\n" +
+	"pagination\"\xac\x01\n" +
+	"\x1dListRegistrationFlowsResponse\x12T\n" +
+	"\x12registration_flows\x18\x01 \x03(\v2%.maintainerd.auth.v1.RegistrationFlowR\x11registrationFlows\x125\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"s\n" +
+	"\x1aGetRegistrationFlowRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12(\n" +
-	"\x10signup_flow_uuid\x18\x02 \x01(\tR\x0esignupFlowUuid\"Y\n" +
-	"\x15GetSignupFlowResponse\x12@\n" +
-	"\vsignup_flow\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.SignupFlowR\n" +
-	"signupFlow\"\xda\x01\n" +
-	"\x17CreateSignupFlowRequest\x12\x1f\n" +
+	"tenantUuid\x124\n" +
+	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\"q\n" +
+	"\x1bGetRegistrationFlowResponse\x12R\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\xe0\x01\n" +
+	"\x1dCreateRegistrationFlowRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -2475,60 +2473,56 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1f\n" +
 	"\vclient_uuid\x18\x06 \x01(\tR\n" +
-	"clientUuid\"\\\n" +
-	"\x18CreateSignupFlowResponse\x12@\n" +
-	"\vsignup_flow\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.SignupFlowR\n" +
-	"signupFlow\"\xe3\x01\n" +
-	"\x17UpdateSignupFlowRequest\x12\x1f\n" +
+	"clientUuid\"t\n" +
+	"\x1eCreateRegistrationFlowResponse\x12R\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\xf5\x01\n" +
+	"\x1dUpdateRegistrationFlowRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12(\n" +
-	"\x10signup_flow_uuid\x18\x02 \x01(\tR\x0esignupFlowUuid\x12\x12\n" +
+	"tenantUuid\x124\n" +
+	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12/\n" +
 	"\x06config\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
-	"\x06status\x18\x06 \x01(\tR\x06status\"\\\n" +
-	"\x18UpdateSignupFlowResponse\x12@\n" +
-	"\vsignup_flow\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.SignupFlowR\n" +
-	"signupFlow\"\x7f\n" +
-	"\x1aSetSignupFlowStatusRequest\x12\x1f\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\"t\n" +
+	"\x1eUpdateRegistrationFlowResponse\x12R\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\x91\x01\n" +
+	" SetRegistrationFlowStatusRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12(\n" +
-	"\x10signup_flow_uuid\x18\x02 \x01(\tR\x0esignupFlowUuid\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\"_\n" +
-	"\x1bSetSignupFlowStatusResponse\x12@\n" +
-	"\vsignup_flow\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.SignupFlowR\n" +
-	"signupFlow\"d\n" +
-	"\x17DeleteSignupFlowRequest\x12\x1f\n" +
+	"tenantUuid\x124\n" +
+	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\"w\n" +
+	"!SetRegistrationFlowStatusResponse\x12R\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"v\n" +
+	"\x1dDeleteRegistrationFlowRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12(\n" +
-	"\x10signup_flow_uuid\x18\x02 \x01(\tR\x0esignupFlowUuid\"\\\n" +
-	"\x18DeleteSignupFlowResponse\x12@\n" +
-	"\vsignup_flow\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.SignupFlowR\n" +
-	"signupFlow\"\x88\x01\n" +
-	"\x1cAssignSignupFlowRolesRequest\x12\x1f\n" +
+	"tenantUuid\x124\n" +
+	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\"t\n" +
+	"\x1eDeleteRegistrationFlowResponse\x12R\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\x9a\x01\n" +
+	"\"AssignRegistrationFlowRolesRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12(\n" +
-	"\x10signup_flow_uuid\x18\x02 \x01(\tR\x0esignupFlowUuid\x12\x1d\n" +
+	"tenantUuid\x124\n" +
+	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x1d\n" +
 	"\n" +
-	"role_uuids\x18\x03 \x03(\tR\troleUuids\"Z\n" +
-	"\x1dAssignSignupFlowRolesResponse\x129\n" +
-	"\x05roles\x18\x01 \x03(\v2#.maintainerd.auth.v1.SignupFlowRoleR\x05roles\"\xa8\x01\n" +
-	"\x1aListSignupFlowRolesRequest\x12\x1f\n" +
+	"role_uuids\x18\x03 \x03(\tR\troleUuids\"f\n" +
+	"#AssignRegistrationFlowRolesResponse\x12?\n" +
+	"\x05roles\x18\x01 \x03(\v2).maintainerd.auth.v1.RegistrationFlowRoleR\x05roles\"\xba\x01\n" +
+	" ListRegistrationFlowRolesRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12(\n" +
-	"\x10signup_flow_uuid\x18\x02 \x01(\tR\x0esignupFlowUuid\x12?\n" +
+	"tenantUuid\x124\n" +
+	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12?\n" +
 	"\n" +
 	"pagination\x18\x03 \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
-	"pagination\"\x8f\x01\n" +
-	"\x1bListSignupFlowRolesResponse\x129\n" +
-	"\x05roles\x18\x01 \x03(\v2#.maintainerd.auth.v1.SignupFlowRoleR\x05roles\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x85\x01\n" +
-	"\x1bRemoveSignupFlowRoleRequest\x12\x1f\n" +
+	"pagination\"\x9b\x01\n" +
+	"!ListRegistrationFlowRolesResponse\x12?\n" +
+	"\x05roles\x18\x01 \x03(\v2).maintainerd.auth.v1.RegistrationFlowRoleR\x05roles\x125\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x97\x01\n" +
+	"!RemoveRegistrationFlowRoleRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12(\n" +
-	"\x10signup_flow_uuid\x18\x02 \x01(\tR\x0esignupFlowUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\"8\n" +
-	"\x1cRemoveSignupFlowRoleResponse\x12\x18\n" +
+	"tenantUuid\x124\n" +
+	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x1b\n" +
+	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\">\n" +
+	"\"RemoveRegistrationFlowRoleResponse\x12\x18\n" +
 	"\aremoved\x18\x01 \x01(\bR\aremoved2\xac\x06\n" +
 	"\x17IdentityProviderService\x12~\n" +
 	"\x15ListIdentityProviders\x121.maintainerd.auth.v1.ListIdentityProvidersRequest\x1a2.maintainerd.auth.v1.ListIdentityProvidersResponse\x12x\n" +
@@ -2536,17 +2530,17 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x16CreateIdentityProvider\x122.maintainerd.auth.v1.CreateIdentityProviderRequest\x1a3.maintainerd.auth.v1.CreateIdentityProviderResponse\x12\x81\x01\n" +
 	"\x16UpdateIdentityProvider\x122.maintainerd.auth.v1.UpdateIdentityProviderRequest\x1a3.maintainerd.auth.v1.UpdateIdentityProviderResponse\x12\x8a\x01\n" +
 	"\x19SetIdentityProviderStatus\x125.maintainerd.auth.v1.SetIdentityProviderStatusRequest\x1a6.maintainerd.auth.v1.SetIdentityProviderStatusResponse\x12\x81\x01\n" +
-	"\x16DeleteIdentityProvider\x122.maintainerd.auth.v1.DeleteIdentityProviderRequest\x1a3.maintainerd.auth.v1.DeleteIdentityProviderResponse2\xad\b\n" +
-	"\x11SignupFlowService\x12l\n" +
-	"\x0fListSignupFlows\x12+.maintainerd.auth.v1.ListSignupFlowsRequest\x1a,.maintainerd.auth.v1.ListSignupFlowsResponse\x12f\n" +
-	"\rGetSignupFlow\x12).maintainerd.auth.v1.GetSignupFlowRequest\x1a*.maintainerd.auth.v1.GetSignupFlowResponse\x12o\n" +
-	"\x10CreateSignupFlow\x12,.maintainerd.auth.v1.CreateSignupFlowRequest\x1a-.maintainerd.auth.v1.CreateSignupFlowResponse\x12o\n" +
-	"\x10UpdateSignupFlow\x12,.maintainerd.auth.v1.UpdateSignupFlowRequest\x1a-.maintainerd.auth.v1.UpdateSignupFlowResponse\x12x\n" +
-	"\x13SetSignupFlowStatus\x12/.maintainerd.auth.v1.SetSignupFlowStatusRequest\x1a0.maintainerd.auth.v1.SetSignupFlowStatusResponse\x12o\n" +
-	"\x10DeleteSignupFlow\x12,.maintainerd.auth.v1.DeleteSignupFlowRequest\x1a-.maintainerd.auth.v1.DeleteSignupFlowResponse\x12~\n" +
-	"\x15AssignSignupFlowRoles\x121.maintainerd.auth.v1.AssignSignupFlowRolesRequest\x1a2.maintainerd.auth.v1.AssignSignupFlowRolesResponse\x12x\n" +
-	"\x13ListSignupFlowRoles\x12/.maintainerd.auth.v1.ListSignupFlowRolesRequest\x1a0.maintainerd.auth.v1.ListSignupFlowRolesResponse\x12{\n" +
-	"\x14RemoveSignupFlowRole\x120.maintainerd.auth.v1.RemoveSignupFlowRoleRequest\x1a1.maintainerd.auth.v1.RemoveSignupFlowRoleResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x16DeleteIdentityProvider\x122.maintainerd.auth.v1.DeleteIdentityProviderRequest\x1a3.maintainerd.auth.v1.DeleteIdentityProviderResponse2\xdc\t\n" +
+	"\x17RegistrationFlowService\x12~\n" +
+	"\x15ListRegistrationFlows\x121.maintainerd.auth.v1.ListRegistrationFlowsRequest\x1a2.maintainerd.auth.v1.ListRegistrationFlowsResponse\x12x\n" +
+	"\x13GetRegistrationFlow\x12/.maintainerd.auth.v1.GetRegistrationFlowRequest\x1a0.maintainerd.auth.v1.GetRegistrationFlowResponse\x12\x81\x01\n" +
+	"\x16CreateRegistrationFlow\x122.maintainerd.auth.v1.CreateRegistrationFlowRequest\x1a3.maintainerd.auth.v1.CreateRegistrationFlowResponse\x12\x81\x01\n" +
+	"\x16UpdateRegistrationFlow\x122.maintainerd.auth.v1.UpdateRegistrationFlowRequest\x1a3.maintainerd.auth.v1.UpdateRegistrationFlowResponse\x12\x8a\x01\n" +
+	"\x19SetRegistrationFlowStatus\x125.maintainerd.auth.v1.SetRegistrationFlowStatusRequest\x1a6.maintainerd.auth.v1.SetRegistrationFlowStatusResponse\x12\x81\x01\n" +
+	"\x16DeleteRegistrationFlow\x122.maintainerd.auth.v1.DeleteRegistrationFlowRequest\x1a3.maintainerd.auth.v1.DeleteRegistrationFlowResponse\x12\x90\x01\n" +
+	"\x1bAssignRegistrationFlowRoles\x127.maintainerd.auth.v1.AssignRegistrationFlowRolesRequest\x1a8.maintainerd.auth.v1.AssignRegistrationFlowRolesResponse\x12\x8a\x01\n" +
+	"\x19ListRegistrationFlowRoles\x125.maintainerd.auth.v1.ListRegistrationFlowRolesRequest\x1a6.maintainerd.auth.v1.ListRegistrationFlowRolesResponse\x12\x8d\x01\n" +
+	"\x1aRemoveRegistrationFlowRole\x126.maintainerd.auth.v1.RemoveRegistrationFlowRoleRequest\x1a7.maintainerd.auth.v1.RemoveRegistrationFlowRoleResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_identity_provider_proto_rawDescOnce sync.Once
@@ -2562,53 +2556,53 @@ func file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP() []byte {
 
 var file_maintainerd_auth_v1_identity_provider_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_maintainerd_auth_v1_identity_provider_proto_goTypes = []any{
-	(*IdentityProvider)(nil),                  // 0: maintainerd.auth.v1.IdentityProvider
-	(*SignupFlow)(nil),                        // 1: maintainerd.auth.v1.SignupFlow
-	(*SignupFlowRole)(nil),                    // 2: maintainerd.auth.v1.SignupFlowRole
-	(*ListIdentityProvidersRequest)(nil),      // 3: maintainerd.auth.v1.ListIdentityProvidersRequest
-	(*ListIdentityProvidersResponse)(nil),     // 4: maintainerd.auth.v1.ListIdentityProvidersResponse
-	(*GetIdentityProviderRequest)(nil),        // 5: maintainerd.auth.v1.GetIdentityProviderRequest
-	(*GetIdentityProviderResponse)(nil),       // 6: maintainerd.auth.v1.GetIdentityProviderResponse
-	(*CreateIdentityProviderRequest)(nil),     // 7: maintainerd.auth.v1.CreateIdentityProviderRequest
-	(*CreateIdentityProviderResponse)(nil),    // 8: maintainerd.auth.v1.CreateIdentityProviderResponse
-	(*UpdateIdentityProviderRequest)(nil),     // 9: maintainerd.auth.v1.UpdateIdentityProviderRequest
-	(*UpdateIdentityProviderResponse)(nil),    // 10: maintainerd.auth.v1.UpdateIdentityProviderResponse
-	(*SetIdentityProviderStatusRequest)(nil),  // 11: maintainerd.auth.v1.SetIdentityProviderStatusRequest
-	(*SetIdentityProviderStatusResponse)(nil), // 12: maintainerd.auth.v1.SetIdentityProviderStatusResponse
-	(*DeleteIdentityProviderRequest)(nil),     // 13: maintainerd.auth.v1.DeleteIdentityProviderRequest
-	(*DeleteIdentityProviderResponse)(nil),    // 14: maintainerd.auth.v1.DeleteIdentityProviderResponse
-	(*ListSignupFlowsRequest)(nil),            // 15: maintainerd.auth.v1.ListSignupFlowsRequest
-	(*ListSignupFlowsResponse)(nil),           // 16: maintainerd.auth.v1.ListSignupFlowsResponse
-	(*GetSignupFlowRequest)(nil),              // 17: maintainerd.auth.v1.GetSignupFlowRequest
-	(*GetSignupFlowResponse)(nil),             // 18: maintainerd.auth.v1.GetSignupFlowResponse
-	(*CreateSignupFlowRequest)(nil),           // 19: maintainerd.auth.v1.CreateSignupFlowRequest
-	(*CreateSignupFlowResponse)(nil),          // 20: maintainerd.auth.v1.CreateSignupFlowResponse
-	(*UpdateSignupFlowRequest)(nil),           // 21: maintainerd.auth.v1.UpdateSignupFlowRequest
-	(*UpdateSignupFlowResponse)(nil),          // 22: maintainerd.auth.v1.UpdateSignupFlowResponse
-	(*SetSignupFlowStatusRequest)(nil),        // 23: maintainerd.auth.v1.SetSignupFlowStatusRequest
-	(*SetSignupFlowStatusResponse)(nil),       // 24: maintainerd.auth.v1.SetSignupFlowStatusResponse
-	(*DeleteSignupFlowRequest)(nil),           // 25: maintainerd.auth.v1.DeleteSignupFlowRequest
-	(*DeleteSignupFlowResponse)(nil),          // 26: maintainerd.auth.v1.DeleteSignupFlowResponse
-	(*AssignSignupFlowRolesRequest)(nil),      // 27: maintainerd.auth.v1.AssignSignupFlowRolesRequest
-	(*AssignSignupFlowRolesResponse)(nil),     // 28: maintainerd.auth.v1.AssignSignupFlowRolesResponse
-	(*ListSignupFlowRolesRequest)(nil),        // 29: maintainerd.auth.v1.ListSignupFlowRolesRequest
-	(*ListSignupFlowRolesResponse)(nil),       // 30: maintainerd.auth.v1.ListSignupFlowRolesResponse
-	(*RemoveSignupFlowRoleRequest)(nil),       // 31: maintainerd.auth.v1.RemoveSignupFlowRoleRequest
-	(*RemoveSignupFlowRoleResponse)(nil),      // 32: maintainerd.auth.v1.RemoveSignupFlowRoleResponse
-	(*structpb.Struct)(nil),                   // 33: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),             // 34: google.protobuf.Timestamp
-	(*Pagination)(nil),                        // 35: maintainerd.auth.v1.Pagination
-	(*PageMetadata)(nil),                      // 36: maintainerd.auth.v1.PageMetadata
+	(*IdentityProvider)(nil),                    // 0: maintainerd.auth.v1.IdentityProvider
+	(*RegistrationFlow)(nil),                    // 1: maintainerd.auth.v1.RegistrationFlow
+	(*RegistrationFlowRole)(nil),                // 2: maintainerd.auth.v1.RegistrationFlowRole
+	(*ListIdentityProvidersRequest)(nil),        // 3: maintainerd.auth.v1.ListIdentityProvidersRequest
+	(*ListIdentityProvidersResponse)(nil),       // 4: maintainerd.auth.v1.ListIdentityProvidersResponse
+	(*GetIdentityProviderRequest)(nil),          // 5: maintainerd.auth.v1.GetIdentityProviderRequest
+	(*GetIdentityProviderResponse)(nil),         // 6: maintainerd.auth.v1.GetIdentityProviderResponse
+	(*CreateIdentityProviderRequest)(nil),       // 7: maintainerd.auth.v1.CreateIdentityProviderRequest
+	(*CreateIdentityProviderResponse)(nil),      // 8: maintainerd.auth.v1.CreateIdentityProviderResponse
+	(*UpdateIdentityProviderRequest)(nil),       // 9: maintainerd.auth.v1.UpdateIdentityProviderRequest
+	(*UpdateIdentityProviderResponse)(nil),      // 10: maintainerd.auth.v1.UpdateIdentityProviderResponse
+	(*SetIdentityProviderStatusRequest)(nil),    // 11: maintainerd.auth.v1.SetIdentityProviderStatusRequest
+	(*SetIdentityProviderStatusResponse)(nil),   // 12: maintainerd.auth.v1.SetIdentityProviderStatusResponse
+	(*DeleteIdentityProviderRequest)(nil),       // 13: maintainerd.auth.v1.DeleteIdentityProviderRequest
+	(*DeleteIdentityProviderResponse)(nil),      // 14: maintainerd.auth.v1.DeleteIdentityProviderResponse
+	(*ListRegistrationFlowsRequest)(nil),        // 15: maintainerd.auth.v1.ListRegistrationFlowsRequest
+	(*ListRegistrationFlowsResponse)(nil),       // 16: maintainerd.auth.v1.ListRegistrationFlowsResponse
+	(*GetRegistrationFlowRequest)(nil),          // 17: maintainerd.auth.v1.GetRegistrationFlowRequest
+	(*GetRegistrationFlowResponse)(nil),         // 18: maintainerd.auth.v1.GetRegistrationFlowResponse
+	(*CreateRegistrationFlowRequest)(nil),       // 19: maintainerd.auth.v1.CreateRegistrationFlowRequest
+	(*CreateRegistrationFlowResponse)(nil),      // 20: maintainerd.auth.v1.CreateRegistrationFlowResponse
+	(*UpdateRegistrationFlowRequest)(nil),       // 21: maintainerd.auth.v1.UpdateRegistrationFlowRequest
+	(*UpdateRegistrationFlowResponse)(nil),      // 22: maintainerd.auth.v1.UpdateRegistrationFlowResponse
+	(*SetRegistrationFlowStatusRequest)(nil),    // 23: maintainerd.auth.v1.SetRegistrationFlowStatusRequest
+	(*SetRegistrationFlowStatusResponse)(nil),   // 24: maintainerd.auth.v1.SetRegistrationFlowStatusResponse
+	(*DeleteRegistrationFlowRequest)(nil),       // 25: maintainerd.auth.v1.DeleteRegistrationFlowRequest
+	(*DeleteRegistrationFlowResponse)(nil),      // 26: maintainerd.auth.v1.DeleteRegistrationFlowResponse
+	(*AssignRegistrationFlowRolesRequest)(nil),  // 27: maintainerd.auth.v1.AssignRegistrationFlowRolesRequest
+	(*AssignRegistrationFlowRolesResponse)(nil), // 28: maintainerd.auth.v1.AssignRegistrationFlowRolesResponse
+	(*ListRegistrationFlowRolesRequest)(nil),    // 29: maintainerd.auth.v1.ListRegistrationFlowRolesRequest
+	(*ListRegistrationFlowRolesResponse)(nil),   // 30: maintainerd.auth.v1.ListRegistrationFlowRolesResponse
+	(*RemoveRegistrationFlowRoleRequest)(nil),   // 31: maintainerd.auth.v1.RemoveRegistrationFlowRoleRequest
+	(*RemoveRegistrationFlowRoleResponse)(nil),  // 32: maintainerd.auth.v1.RemoveRegistrationFlowRoleResponse
+	(*structpb.Struct)(nil),                     // 33: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),               // 34: google.protobuf.Timestamp
+	(*Pagination)(nil),                          // 35: maintainerd.auth.v1.Pagination
+	(*PageMetadata)(nil),                        // 36: maintainerd.auth.v1.PageMetadata
 }
 var file_maintainerd_auth_v1_identity_provider_proto_depIdxs = []int32{
 	33, // 0: maintainerd.auth.v1.IdentityProvider.config:type_name -> google.protobuf.Struct
 	34, // 1: maintainerd.auth.v1.IdentityProvider.created_at:type_name -> google.protobuf.Timestamp
 	34, // 2: maintainerd.auth.v1.IdentityProvider.updated_at:type_name -> google.protobuf.Timestamp
-	33, // 3: maintainerd.auth.v1.SignupFlow.config:type_name -> google.protobuf.Struct
-	34, // 4: maintainerd.auth.v1.SignupFlow.created_at:type_name -> google.protobuf.Timestamp
-	34, // 5: maintainerd.auth.v1.SignupFlow.updated_at:type_name -> google.protobuf.Timestamp
-	34, // 6: maintainerd.auth.v1.SignupFlowRole.created_at:type_name -> google.protobuf.Timestamp
-	34, // 7: maintainerd.auth.v1.SignupFlowRole.updated_at:type_name -> google.protobuf.Timestamp
+	33, // 3: maintainerd.auth.v1.RegistrationFlow.config:type_name -> google.protobuf.Struct
+	34, // 4: maintainerd.auth.v1.RegistrationFlow.created_at:type_name -> google.protobuf.Timestamp
+	34, // 5: maintainerd.auth.v1.RegistrationFlow.updated_at:type_name -> google.protobuf.Timestamp
+	34, // 6: maintainerd.auth.v1.RegistrationFlowRole.created_at:type_name -> google.protobuf.Timestamp
+	34, // 7: maintainerd.auth.v1.RegistrationFlowRole.updated_at:type_name -> google.protobuf.Timestamp
 	35, // 8: maintainerd.auth.v1.ListIdentityProvidersRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
 	0,  // 9: maintainerd.auth.v1.ListIdentityProvidersResponse.identity_providers:type_name -> maintainerd.auth.v1.IdentityProvider
 	36, // 10: maintainerd.auth.v1.ListIdentityProvidersResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
@@ -2619,50 +2613,50 @@ var file_maintainerd_auth_v1_identity_provider_proto_depIdxs = []int32{
 	0,  // 15: maintainerd.auth.v1.UpdateIdentityProviderResponse.identity_provider:type_name -> maintainerd.auth.v1.IdentityProvider
 	0,  // 16: maintainerd.auth.v1.SetIdentityProviderStatusResponse.identity_provider:type_name -> maintainerd.auth.v1.IdentityProvider
 	0,  // 17: maintainerd.auth.v1.DeleteIdentityProviderResponse.identity_provider:type_name -> maintainerd.auth.v1.IdentityProvider
-	35, // 18: maintainerd.auth.v1.ListSignupFlowsRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
-	1,  // 19: maintainerd.auth.v1.ListSignupFlowsResponse.signup_flows:type_name -> maintainerd.auth.v1.SignupFlow
-	36, // 20: maintainerd.auth.v1.ListSignupFlowsResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
-	1,  // 21: maintainerd.auth.v1.GetSignupFlowResponse.signup_flow:type_name -> maintainerd.auth.v1.SignupFlow
-	33, // 22: maintainerd.auth.v1.CreateSignupFlowRequest.config:type_name -> google.protobuf.Struct
-	1,  // 23: maintainerd.auth.v1.CreateSignupFlowResponse.signup_flow:type_name -> maintainerd.auth.v1.SignupFlow
-	33, // 24: maintainerd.auth.v1.UpdateSignupFlowRequest.config:type_name -> google.protobuf.Struct
-	1,  // 25: maintainerd.auth.v1.UpdateSignupFlowResponse.signup_flow:type_name -> maintainerd.auth.v1.SignupFlow
-	1,  // 26: maintainerd.auth.v1.SetSignupFlowStatusResponse.signup_flow:type_name -> maintainerd.auth.v1.SignupFlow
-	1,  // 27: maintainerd.auth.v1.DeleteSignupFlowResponse.signup_flow:type_name -> maintainerd.auth.v1.SignupFlow
-	2,  // 28: maintainerd.auth.v1.AssignSignupFlowRolesResponse.roles:type_name -> maintainerd.auth.v1.SignupFlowRole
-	35, // 29: maintainerd.auth.v1.ListSignupFlowRolesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
-	2,  // 30: maintainerd.auth.v1.ListSignupFlowRolesResponse.roles:type_name -> maintainerd.auth.v1.SignupFlowRole
-	36, // 31: maintainerd.auth.v1.ListSignupFlowRolesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	35, // 18: maintainerd.auth.v1.ListRegistrationFlowsRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	1,  // 19: maintainerd.auth.v1.ListRegistrationFlowsResponse.registration_flows:type_name -> maintainerd.auth.v1.RegistrationFlow
+	36, // 20: maintainerd.auth.v1.ListRegistrationFlowsResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	1,  // 21: maintainerd.auth.v1.GetRegistrationFlowResponse.registration_flow:type_name -> maintainerd.auth.v1.RegistrationFlow
+	33, // 22: maintainerd.auth.v1.CreateRegistrationFlowRequest.config:type_name -> google.protobuf.Struct
+	1,  // 23: maintainerd.auth.v1.CreateRegistrationFlowResponse.registration_flow:type_name -> maintainerd.auth.v1.RegistrationFlow
+	33, // 24: maintainerd.auth.v1.UpdateRegistrationFlowRequest.config:type_name -> google.protobuf.Struct
+	1,  // 25: maintainerd.auth.v1.UpdateRegistrationFlowResponse.registration_flow:type_name -> maintainerd.auth.v1.RegistrationFlow
+	1,  // 26: maintainerd.auth.v1.SetRegistrationFlowStatusResponse.registration_flow:type_name -> maintainerd.auth.v1.RegistrationFlow
+	1,  // 27: maintainerd.auth.v1.DeleteRegistrationFlowResponse.registration_flow:type_name -> maintainerd.auth.v1.RegistrationFlow
+	2,  // 28: maintainerd.auth.v1.AssignRegistrationFlowRolesResponse.roles:type_name -> maintainerd.auth.v1.RegistrationFlowRole
+	35, // 29: maintainerd.auth.v1.ListRegistrationFlowRolesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	2,  // 30: maintainerd.auth.v1.ListRegistrationFlowRolesResponse.roles:type_name -> maintainerd.auth.v1.RegistrationFlowRole
+	36, // 31: maintainerd.auth.v1.ListRegistrationFlowRolesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
 	3,  // 32: maintainerd.auth.v1.IdentityProviderService.ListIdentityProviders:input_type -> maintainerd.auth.v1.ListIdentityProvidersRequest
 	5,  // 33: maintainerd.auth.v1.IdentityProviderService.GetIdentityProvider:input_type -> maintainerd.auth.v1.GetIdentityProviderRequest
 	7,  // 34: maintainerd.auth.v1.IdentityProviderService.CreateIdentityProvider:input_type -> maintainerd.auth.v1.CreateIdentityProviderRequest
 	9,  // 35: maintainerd.auth.v1.IdentityProviderService.UpdateIdentityProvider:input_type -> maintainerd.auth.v1.UpdateIdentityProviderRequest
 	11, // 36: maintainerd.auth.v1.IdentityProviderService.SetIdentityProviderStatus:input_type -> maintainerd.auth.v1.SetIdentityProviderStatusRequest
 	13, // 37: maintainerd.auth.v1.IdentityProviderService.DeleteIdentityProvider:input_type -> maintainerd.auth.v1.DeleteIdentityProviderRequest
-	15, // 38: maintainerd.auth.v1.SignupFlowService.ListSignupFlows:input_type -> maintainerd.auth.v1.ListSignupFlowsRequest
-	17, // 39: maintainerd.auth.v1.SignupFlowService.GetSignupFlow:input_type -> maintainerd.auth.v1.GetSignupFlowRequest
-	19, // 40: maintainerd.auth.v1.SignupFlowService.CreateSignupFlow:input_type -> maintainerd.auth.v1.CreateSignupFlowRequest
-	21, // 41: maintainerd.auth.v1.SignupFlowService.UpdateSignupFlow:input_type -> maintainerd.auth.v1.UpdateSignupFlowRequest
-	23, // 42: maintainerd.auth.v1.SignupFlowService.SetSignupFlowStatus:input_type -> maintainerd.auth.v1.SetSignupFlowStatusRequest
-	25, // 43: maintainerd.auth.v1.SignupFlowService.DeleteSignupFlow:input_type -> maintainerd.auth.v1.DeleteSignupFlowRequest
-	27, // 44: maintainerd.auth.v1.SignupFlowService.AssignSignupFlowRoles:input_type -> maintainerd.auth.v1.AssignSignupFlowRolesRequest
-	29, // 45: maintainerd.auth.v1.SignupFlowService.ListSignupFlowRoles:input_type -> maintainerd.auth.v1.ListSignupFlowRolesRequest
-	31, // 46: maintainerd.auth.v1.SignupFlowService.RemoveSignupFlowRole:input_type -> maintainerd.auth.v1.RemoveSignupFlowRoleRequest
+	15, // 38: maintainerd.auth.v1.RegistrationFlowService.ListRegistrationFlows:input_type -> maintainerd.auth.v1.ListRegistrationFlowsRequest
+	17, // 39: maintainerd.auth.v1.RegistrationFlowService.GetRegistrationFlow:input_type -> maintainerd.auth.v1.GetRegistrationFlowRequest
+	19, // 40: maintainerd.auth.v1.RegistrationFlowService.CreateRegistrationFlow:input_type -> maintainerd.auth.v1.CreateRegistrationFlowRequest
+	21, // 41: maintainerd.auth.v1.RegistrationFlowService.UpdateRegistrationFlow:input_type -> maintainerd.auth.v1.UpdateRegistrationFlowRequest
+	23, // 42: maintainerd.auth.v1.RegistrationFlowService.SetRegistrationFlowStatus:input_type -> maintainerd.auth.v1.SetRegistrationFlowStatusRequest
+	25, // 43: maintainerd.auth.v1.RegistrationFlowService.DeleteRegistrationFlow:input_type -> maintainerd.auth.v1.DeleteRegistrationFlowRequest
+	27, // 44: maintainerd.auth.v1.RegistrationFlowService.AssignRegistrationFlowRoles:input_type -> maintainerd.auth.v1.AssignRegistrationFlowRolesRequest
+	29, // 45: maintainerd.auth.v1.RegistrationFlowService.ListRegistrationFlowRoles:input_type -> maintainerd.auth.v1.ListRegistrationFlowRolesRequest
+	31, // 46: maintainerd.auth.v1.RegistrationFlowService.RemoveRegistrationFlowRole:input_type -> maintainerd.auth.v1.RemoveRegistrationFlowRoleRequest
 	4,  // 47: maintainerd.auth.v1.IdentityProviderService.ListIdentityProviders:output_type -> maintainerd.auth.v1.ListIdentityProvidersResponse
 	6,  // 48: maintainerd.auth.v1.IdentityProviderService.GetIdentityProvider:output_type -> maintainerd.auth.v1.GetIdentityProviderResponse
 	8,  // 49: maintainerd.auth.v1.IdentityProviderService.CreateIdentityProvider:output_type -> maintainerd.auth.v1.CreateIdentityProviderResponse
 	10, // 50: maintainerd.auth.v1.IdentityProviderService.UpdateIdentityProvider:output_type -> maintainerd.auth.v1.UpdateIdentityProviderResponse
 	12, // 51: maintainerd.auth.v1.IdentityProviderService.SetIdentityProviderStatus:output_type -> maintainerd.auth.v1.SetIdentityProviderStatusResponse
 	14, // 52: maintainerd.auth.v1.IdentityProviderService.DeleteIdentityProvider:output_type -> maintainerd.auth.v1.DeleteIdentityProviderResponse
-	16, // 53: maintainerd.auth.v1.SignupFlowService.ListSignupFlows:output_type -> maintainerd.auth.v1.ListSignupFlowsResponse
-	18, // 54: maintainerd.auth.v1.SignupFlowService.GetSignupFlow:output_type -> maintainerd.auth.v1.GetSignupFlowResponse
-	20, // 55: maintainerd.auth.v1.SignupFlowService.CreateSignupFlow:output_type -> maintainerd.auth.v1.CreateSignupFlowResponse
-	22, // 56: maintainerd.auth.v1.SignupFlowService.UpdateSignupFlow:output_type -> maintainerd.auth.v1.UpdateSignupFlowResponse
-	24, // 57: maintainerd.auth.v1.SignupFlowService.SetSignupFlowStatus:output_type -> maintainerd.auth.v1.SetSignupFlowStatusResponse
-	26, // 58: maintainerd.auth.v1.SignupFlowService.DeleteSignupFlow:output_type -> maintainerd.auth.v1.DeleteSignupFlowResponse
-	28, // 59: maintainerd.auth.v1.SignupFlowService.AssignSignupFlowRoles:output_type -> maintainerd.auth.v1.AssignSignupFlowRolesResponse
-	30, // 60: maintainerd.auth.v1.SignupFlowService.ListSignupFlowRoles:output_type -> maintainerd.auth.v1.ListSignupFlowRolesResponse
-	32, // 61: maintainerd.auth.v1.SignupFlowService.RemoveSignupFlowRole:output_type -> maintainerd.auth.v1.RemoveSignupFlowRoleResponse
+	16, // 53: maintainerd.auth.v1.RegistrationFlowService.ListRegistrationFlows:output_type -> maintainerd.auth.v1.ListRegistrationFlowsResponse
+	18, // 54: maintainerd.auth.v1.RegistrationFlowService.GetRegistrationFlow:output_type -> maintainerd.auth.v1.GetRegistrationFlowResponse
+	20, // 55: maintainerd.auth.v1.RegistrationFlowService.CreateRegistrationFlow:output_type -> maintainerd.auth.v1.CreateRegistrationFlowResponse
+	22, // 56: maintainerd.auth.v1.RegistrationFlowService.UpdateRegistrationFlow:output_type -> maintainerd.auth.v1.UpdateRegistrationFlowResponse
+	24, // 57: maintainerd.auth.v1.RegistrationFlowService.SetRegistrationFlowStatus:output_type -> maintainerd.auth.v1.SetRegistrationFlowStatusResponse
+	26, // 58: maintainerd.auth.v1.RegistrationFlowService.DeleteRegistrationFlow:output_type -> maintainerd.auth.v1.DeleteRegistrationFlowResponse
+	28, // 59: maintainerd.auth.v1.RegistrationFlowService.AssignRegistrationFlowRoles:output_type -> maintainerd.auth.v1.AssignRegistrationFlowRolesResponse
+	30, // 60: maintainerd.auth.v1.RegistrationFlowService.ListRegistrationFlowRoles:output_type -> maintainerd.auth.v1.ListRegistrationFlowRolesResponse
+	32, // 61: maintainerd.auth.v1.RegistrationFlowService.RemoveRegistrationFlowRole:output_type -> maintainerd.auth.v1.RemoveRegistrationFlowRoleResponse
 	47, // [47:62] is the sub-list for method output_type
 	32, // [32:47] is the sub-list for method input_type
 	32, // [32:32] is the sub-list for extension type_name
