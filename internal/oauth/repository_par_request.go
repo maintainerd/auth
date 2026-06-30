@@ -62,8 +62,19 @@ func (r *oauthPARRequestRepository) MarkUsed(id int64) error {
 
 // DeleteExpired removes PAR requests that expired before the given cutoff.
 func (r *oauthPARRequestRepository) DeleteExpired(before time.Time) (int64, error) {
-	result := r.DB().
-		Where("expires_at < ?", before).
-		Delete(&OAuthPARRequest{})
-	return result.RowsAffected, result.Error
+	var total int64
+	for {
+		result := r.DB().
+			Where("expires_at < ?", before).
+			Limit(10000).
+			Delete(&OAuthPARRequest{})
+		if result.Error != nil {
+			return total, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		total += result.RowsAffected
+	}
+	return total, nil
 }

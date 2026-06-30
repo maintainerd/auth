@@ -94,9 +94,18 @@ func (r *userTokenRepository) DeleteByUserID(userID int64) error {
 }
 
 func (r *userTokenRepository) DeleteExpiredTokens(before time.Time) error {
-	return r.DB().
-		Where("expires_at IS NOT NULL AND expires_at < ?", before).
-		Delete(&UserToken{}).Error
+	for {
+		result := r.DB().
+			Where("expires_at IS NOT NULL AND expires_at < ?", before).
+			Limit(10000).
+			Delete(&UserToken{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return nil
+		}
+	}
 }
 
 // FindActiveSessions returns all non-revoked, non-expired session tokens for

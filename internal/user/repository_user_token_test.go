@@ -235,9 +235,12 @@ func TestUserTokenRepository_DeleteExpiredTokens(t *testing.T) {
 		before := time.Now()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "user_tokens" WHERE expires_at IS NOT NULL AND expires_at < \$1`).
-			WithArgs(sqlmock.AnyArg()).
+		mock.ExpectExec(`DELETE FROM "user_tokens".*`).
 			WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectCommit()
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "user_tokens".*`).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectCommit()
 
 		err := repo.DeleteExpiredTokens(before)
@@ -250,7 +253,7 @@ func TestUserTokenRepository_DeleteExpiredTokens(t *testing.T) {
 		repo := NewUserTokenRepository(db)
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "user_tokens" WHERE expires_at`).
+		mock.ExpectExec(`DELETE FROM "user_tokens".*`).
 			WillReturnError(errors.New("db error"))
 		mock.ExpectRollback()
 

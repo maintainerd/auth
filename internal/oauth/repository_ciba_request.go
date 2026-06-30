@@ -105,8 +105,19 @@ func (r *oauthCIBARequestRepository) MarkNotificationSent(id int64) error {
 
 // DeleteExpired removes CIBA requests that expired before the given cutoff.
 func (r *oauthCIBARequestRepository) DeleteExpired(before time.Time) (int64, error) {
-	result := r.DB().
-		Where("expires_at < ?", before).
-		Delete(&OAuthCIBARequest{})
-	return result.RowsAffected, result.Error
+	var total int64
+	for {
+		result := r.DB().
+			Where("expires_at < ?", before).
+			Limit(10000).
+			Delete(&OAuthCIBARequest{})
+		if result.Error != nil {
+			return total, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		total += result.RowsAffected
+	}
+	return total, nil
 }

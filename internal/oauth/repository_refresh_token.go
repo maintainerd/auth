@@ -131,10 +131,21 @@ func (r *oauthRefreshTokenRepository) UpdateLastUsed(tokenID int64) error {
 // DeleteExpired removes refresh tokens that expired before the given cutoff.
 // Returns the number of rows deleted.
 func (r *oauthRefreshTokenRepository) DeleteExpired(before time.Time) (int64, error) {
-	result := r.DB().
-		Where("expires_at < ?", before).
-		Delete(&OAuthRefreshToken{})
-	return result.RowsAffected, result.Error
+	var total int64
+	for {
+		result := r.DB().
+			Where("expires_at < ?", before).
+			Limit(10000).
+			Delete(&OAuthRefreshToken{})
+		if result.Error != nil {
+			return total, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		total += result.RowsAffected
+	}
+	return total, nil
 }
 
 // CountByUserAndClient returns the total number of active refresh tokens for
