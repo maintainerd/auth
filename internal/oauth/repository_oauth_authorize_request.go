@@ -14,6 +14,7 @@ type OAuthAuthorizeRequestRepository interface {
 	WithTx(tx *gorm.DB) OAuthAuthorizeRequestRepository
 	FindByUUID(uuid uuid.UUID) (*OAuthAuthorizeRequest, error)
 	Consume(id int64, tenantID int64, at time.Time) error
+	DeleteExpired(before time.Time) (int64, error)
 }
 
 type oauthAuthorizeRequestRepository struct {
@@ -61,6 +62,24 @@ func (r *oauthAuthorizeRequestRepository) Consume(id int64, tenantID int64, at t
 		return ErrAlreadyConsumed
 	}
 	return nil
+}
+
+func (r *oauthAuthorizeRequestRepository) DeleteExpired(before time.Time) (int64, error) {
+	var total int64
+	for {
+		result := r.DB().
+			Where("expires_at < ?", before).
+			Limit(10000).
+			Delete(&OAuthAuthorizeRequest{})
+		if result.Error != nil {
+			return total, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		total += result.RowsAffected
+	}
+	return total, nil
 }
 
 var ErrAuthorizeRequestAlreadyConsumed = errors.New("authorize request already consumed")

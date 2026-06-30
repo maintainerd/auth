@@ -1484,8 +1484,9 @@ func (m *mockSMSOtpRepo) WithTx(*gorm.DB) notifier.UserOTPRepository { return m 
 func (m *mockSMSOtpRepo) FindValid(channel, recipient string) (*notifier.UserOTP, error) {
 	return m.findValid, m.findValidErr
 }
-func (m *mockSMSOtpRepo) RecordFailure(int64, int) error { return m.recordFailErr }
-func (m *mockSMSOtpRepo) MarkUsed(int64) error           { return m.markUsedErr }
+func (m *mockSMSOtpRepo) RecordFailure(int64, int) error         { return m.recordFailErr }
+func (m *mockSMSOtpRepo) MarkUsed(int64) error                   { return m.markUsedErr }
+func (m *mockSMSOtpRepo) DeleteExpired(time.Time) (int64, error) { return 0, nil }
 
 type mockMFAPhoneRepo struct {
 	mockBaseRepositoryMethods[UserMFAPhone]

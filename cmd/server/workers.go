@@ -7,6 +7,7 @@ import (
 
 	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/runner"
 	appserver "github.com/maintainerd/auth/internal/server"
@@ -18,6 +19,7 @@ var (
 	startTenantRetentionRunner = tenant.StartRetentionRunner
 	startKeyRotationRunner     = runner.StartKeyRotationRunner
 	startSecretRefreshRunner   = runner.StartSecretRefreshRunner
+	startCleanupRunner         = oauth.StartCleanupRunner
 	startGRPCServer            = appserver.StartGRPCServer
 )
 
@@ -27,6 +29,10 @@ func startBackgroundWorkers(ctx context.Context, application *app.App, serverApp
 	// Retention runs periodically and exits when ctx is cancelled.
 	go startRetentionRunner(ctx, application.AuthEventService, authevent.DefaultRetentionPeriod, authevent.DefaultRetentionInterval)
 	go startTenantRetentionRunner(ctx, application.DB, tenant.DefaultTenantRetentionPeriod, tenant.DefaultTenantRetentionInterval)
+
+	// Ephemeral-row cleanup runs at 5-minute intervals to prevent unbounded
+	// growth of short-lived tables (OAuth codes, tokens, challenges, OTPs, etc.).
+	go startCleanupRunner(ctx, application.DB, 5*time.Minute)
 
 	keyRotationPeriod := time.Duration(config.JWTKeyRotationPeriodSeconds) * time.Second
 	if keyRotationPeriod <= 0 {

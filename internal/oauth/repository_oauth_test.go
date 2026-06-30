@@ -125,6 +125,9 @@ func TestOAuthAuthorizationCodeRepository(t *testing.T) {
 	mock.ExpectBegin()
 	expectOAuthDelete(mock, "oauth_authorization_codes").WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectCommit()
+	mock.ExpectBegin()
+	expectOAuthDelete(mock, "oauth_authorization_codes").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 
 	got, err := repo.FindByCodeHash("hash")
 	require.NoError(t, err)
@@ -167,6 +170,9 @@ func TestOAuthCIBARequestRepository(t *testing.T) {
 	mock.ExpectBegin()
 	expectOAuthDelete(mock, "oauth_ciba_requests").WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectCommit()
+	mock.ExpectBegin()
+	expectOAuthDelete(mock, "oauth_ciba_requests").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 
 	// ── calls ──
 	got, err := repo.FindByAuthReqIDHash("hash")
@@ -207,6 +213,9 @@ func TestOAuthConsentChallengeRepository(t *testing.T) {
 		expectOAuthDelete(mock, "oauth_consent_challenges").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 	}
+	mock.ExpectBegin()
+	expectOAuthDelete(mock, "oauth_consent_challenges").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 
 	got, err := repo.FindChallengeByUUID(testResourceUUID)
 	require.NoError(t, err)
@@ -314,6 +323,9 @@ func TestOAuthDeviceCodeRepository(t *testing.T) {
 	mock.ExpectBegin()
 	expectOAuthDelete(mock, "oauth_device_codes").WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectCommit()
+	mock.ExpectBegin()
+	expectOAuthDelete(mock, "oauth_device_codes").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 
 	got, err := repo.FindByDeviceCodeHash("hash")
 	require.NoError(t, err)
@@ -361,6 +373,9 @@ func TestOAuthPARRequestRepository(t *testing.T) {
 	mock.ExpectBegin()
 	expectOAuthDelete(mock, "oauth_par_requests").WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectCommit()
+	mock.ExpectBegin()
+	expectOAuthDelete(mock, "oauth_par_requests").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 
 	got, err := repo.FindByRequestURIHash("hash")
 	require.NoError(t, err)
@@ -395,6 +410,9 @@ func TestOAuthRefreshTokenRepository(t *testing.T) {
 	}
 	mock.ExpectBegin()
 	expectOAuthDelete(mock, "oauth_refresh_tokens").WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectCommit()
+	mock.ExpectBegin()
+	expectOAuthDelete(mock, "oauth_refresh_tokens").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 	expectOAuthCount(mock, "oauth_refresh_tokens").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(4))
 

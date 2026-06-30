@@ -33,6 +33,7 @@ type InviteRepository interface {
 	MarkAsUsed(inviteUUID uuid.UUID) error
 	RevokeByUUID(inviteUUID uuid.UUID) error
 	ResetForResend(inviteUUID uuid.UUID, newToken string, newExpiry time.Time) error
+	DeleteExpired(before time.Time) (int64, error)
 }
 
 type inviteRepository struct {
@@ -146,4 +147,22 @@ func (r *inviteRepository) ResetForResend(inviteUUID uuid.UUID, newToken string,
 			"expires_at":   newExpiry,
 			"used_at":      nil,
 		}).Error
+}
+
+func (r *inviteRepository) DeleteExpired(before time.Time) (int64, error) {
+	var total int64
+	for {
+		result := r.DB().
+			Where("status = 'expired' OR expires_at < ?", before).
+			Limit(10000).
+			Delete(&Invite{})
+		if result.Error != nil {
+			return total, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		total += result.RowsAffected
+	}
+	return total, nil
 }

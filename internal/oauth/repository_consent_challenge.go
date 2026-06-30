@@ -64,8 +64,19 @@ func (r *oauthConsentChallengeRepository) DeleteChallengeByUUID(challengeUUID uu
 // DeleteExpired removes consent challenges that expired before the given
 // cutoff time. Returns the number of rows deleted.
 func (r *oauthConsentChallengeRepository) DeleteExpired(before time.Time) (int64, error) {
-	result := r.DB().
-		Where("expires_at < ?", before).
-		Delete(&OAuthConsentChallenge{})
-	return result.RowsAffected, result.Error
+	var total int64
+	for {
+		result := r.DB().
+			Where("expires_at < ?", before).
+			Limit(10000).
+			Delete(&OAuthConsentChallenge{})
+		if result.Error != nil {
+			return total, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		total += result.RowsAffected
+	}
+	return total, nil
 }

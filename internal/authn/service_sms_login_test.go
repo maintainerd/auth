@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
@@ -75,6 +76,7 @@ func (m *mockSMSOtpRepo) MarkUsed(id int64) error {
 	}
 	return nil
 }
+func (m *mockSMSOtpRepo) DeleteExpired(before time.Time) (int64, error) { return 0, nil }
 
 // ---------------------------------------------------------------------------
 // TestSendOTP

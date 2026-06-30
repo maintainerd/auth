@@ -14,6 +14,7 @@ type UserOTPRepository interface {
 	FindValid(channel, recipient string) (*UserOTP, error)
 	RecordFailure(id int64, maxAttempts int) error
 	MarkUsed(id int64) error
+	DeleteExpired(before time.Time) (int64, error)
 }
 
 type userOTPRepository struct {
@@ -60,4 +61,22 @@ func (r *userOTPRepository) MarkUsed(id int64) error {
 	return r.DB().Model(&UserOTP{}).
 		Where("user_otp_id = ?", id).
 		Update("used", true).Error
+}
+
+func (r *userOTPRepository) DeleteExpired(before time.Time) (int64, error) {
+	var total int64
+	for {
+		result := r.DB().
+			Where("expires_at < ?", before).
+			Limit(10000).
+			Delete(&UserOTP{})
+		if result.Error != nil {
+			return total, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		total += result.RowsAffected
+	}
+	return total, nil
 }

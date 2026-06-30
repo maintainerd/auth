@@ -108,8 +108,19 @@ func (r *oauthDeviceCodeRepository) UpdateLastPollAt(id int64) error {
 
 // DeleteExpired removes device codes that expired before the given cutoff.
 func (r *oauthDeviceCodeRepository) DeleteExpired(before time.Time) (int64, error) {
-	result := r.DB().
-		Where("expires_at < ?", before).
-		Delete(&OAuthDeviceCode{})
-	return result.RowsAffected, result.Error
+	var total int64
+	for {
+		result := r.DB().
+			Where("expires_at < ?", before).
+			Limit(10000).
+			Delete(&OAuthDeviceCode{})
+		if result.Error != nil {
+			return total, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		total += result.RowsAffected
+	}
+	return total, nil
 }
