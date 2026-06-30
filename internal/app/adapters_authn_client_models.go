@@ -95,6 +95,8 @@ func toAuthnClient(c *client.Client) *authn.Client {
 		AccessTokenTTL: c.AccessTokenTTL, RefreshTokenTTL: c.RefreshTokenTTL,
 		RequiredACR: c.RequiredACR, RequirePKCE: c.RequirePKCE,
 		SessionIdleTimeout: c.SessionIdleTimeout, SessionAbsoluteTimeout: c.SessionAbsoluteTimeout,
+		BrandingID:         c.BrandingID,
+		AllowRegistration:  c.AllowRegistration,
 		IdentityProvider:   toAuthnIDPFromClient(idp),
 		ConnectedProviders: toAuthnClientIdentityProviders(c),
 		CreatedAt:          c.CreatedAt, UpdatedAt: c.UpdatedAt,
@@ -113,7 +115,9 @@ func toClientClient(c *authn.Client) *client.Client {
 		AccessTokenTTL: c.AccessTokenTTL, RefreshTokenTTL: c.RefreshTokenTTL,
 		RequiredACR: c.RequiredACR, RequirePKCE: c.RequirePKCE,
 		SessionIdleTimeout: c.SessionIdleTimeout, SessionAbsoluteTimeout: c.SessionAbsoluteTimeout,
-		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
+		BrandingID:        c.BrandingID,
+		AllowRegistration: c.AllowRegistration,
+		CreatedAt:         c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 }
 

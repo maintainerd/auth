@@ -19,7 +19,7 @@ This file is intentionally an implementation-facing checklist. Marketing copy an
 - [ ] Passwordless email OTP login as a standalone sign-in flow
 - [x] Email verification OTP for signup and email verification
 - [x] Forgot password and reset password token flow
-- [x] User registration with signup-flow support and role assignment
+- [x] User registration with registration-flow support and role assignment
 - [x] Invite-based registration with pre-assigned roles
 - [x] Internal login on the management surface without mandatory `client_id`
 - [x] Public login on the identity surface with `client_id` and `provider_id`
@@ -139,7 +139,7 @@ This file is intentionally an implementation-facing checklist. Marketing copy an
 - [x] Backend service-to-service APIs remain in this repo; external SDKs are separate consumers of these APIs
 - [x] IAM policy update and service-policy assignment/removal webhook invalidation events
 - [x] API keys scoped to APIs and permissions
-- [x] Signup flows with automatic role assignment
+- [x] Registration flows with automatic role assignment
 - [x] Invite system with pre-assigned roles
 - [x] Permission middleware on management routes
 - [x] Per-tenant settings for rate limits, audit config, and maintenance mode

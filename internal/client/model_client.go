@@ -19,6 +19,15 @@ const (
 	TokenAuthMethodSelfSignedTLSClientAuth = "self_signed_tls_client_auth"
 )
 
+type Branding struct {
+	BrandingID   int64     `gorm:"column:branding_id;primaryKey"`
+	BrandingUUID uuid.UUID `gorm:"column:branding_uuid"`
+	TenantID     int64     `gorm:"column:tenant_id"`
+	Name         string    `gorm:"column:name"`
+}
+
+func (Branding) TableName() string { return "branding" }
+
 // OAuth grant type constants.
 const (
 	GrantTypeAuthorizationCode = "authorization_code"
@@ -70,10 +79,12 @@ type Client struct {
 	PreviousSecretExpiresAt *time.Time `gorm:"column:previous_secret_expires_at"`
 
 	// Free-form config blob + lifecycle
-	Config    datatypes.JSON `gorm:"column:config"`
-	Status    string         `gorm:"column:status;default:'inactive'"`
-	IsDefault bool           `gorm:"column:is_default;default:false"`
-	IsSystem  bool           `gorm:"column:is_system;default:false"`
+	Config            datatypes.JSON `gorm:"column:config"`
+	Status            string         `gorm:"column:status;default:'inactive'"`
+	IsDefault         bool           `gorm:"column:is_default;default:false"`
+	IsSystem          bool           `gorm:"column:is_system;default:false"`
+	BrandingID        *int64         `gorm:"column:branding_id" json:"branding_id,omitempty"`
+	AllowRegistration bool           `gorm:"column:allow_registration;not null;default:true" json:"allow_registration"`
 
 	// OAuth 2.0 core
 	TokenEndpointAuthMethod string         `gorm:"column:token_endpoint_auth_method;default:'client_secret_basic'"`
@@ -119,6 +130,7 @@ type Client struct {
 
 	// Relationships
 	Tenant             *Tenant                   `gorm:"foreignKey:TenantID;references:TenantID"`
+	Branding           *Branding                 `gorm:"foreignKey:BrandingID;references:BrandingID"`
 	ConnectedProviders *[]ClientIdentityProvider `gorm:"foreignKey:ClientID;references:ClientID"`
 	ClientURIs         *[]ClientURI              `gorm:"foreignKey:ClientID;references:ClientID"`
 	ClientAPIs         *[]ClientAPI              `gorm:"foreignKey:ClientID;references:ClientID"`

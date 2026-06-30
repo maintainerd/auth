@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +41,7 @@ func withEmptyUACtx(r *http.Request) *http.Request {
 
 func TestRegisterHandler_RegisterPublic_RequiresClientID(t *testing.T) {
 	svc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph, c, pr *string) (*RegisterResponseDTO, error) {
+		registerPublicFn: func(u, f, p string, e, ph, c, pr *string, _ string) (*RegisterResponseDTO, error) {
 			return &RegisterResponseDTO{}, nil
 		},
 	}
@@ -78,7 +81,7 @@ func TestRegisterHandler_RegisterPublic_InvalidBody(t *testing.T) {
 
 func TestRegisterHandler_RegisterPublic_ServiceError(t *testing.T) {
 	svc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph *string, c, pr *string) (*RegisterResponseDTO, error) {
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr *string, _ string) (*RegisterResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -93,7 +96,7 @@ func TestRegisterHandler_RegisterPublic_ServiceError(t *testing.T) {
 
 func TestRegisterHandler_RegisterPublic_Success(t *testing.T) {
 	svc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph *string, c, pr *string) (*RegisterResponseDTO, error) {
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr *string, _ string) (*RegisterResponseDTO, error) {
 			return &RegisterResponseDTO{}, nil
 		},
 	}
@@ -126,7 +129,7 @@ func TestRegisterHandler_Register_InvalidBody(t *testing.T) {
 
 func TestRegisterHandler_Register_ServiceError(t *testing.T) {
 	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string) (*RegisterResponseDTO, error) {
+		registerFn: func(u, f, p string, e, ph, c, pr *string, _ string) (*RegisterResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -141,7 +144,7 @@ func TestRegisterHandler_Register_ServiceError(t *testing.T) {
 
 func TestRegisterHandler_Register_Success(t *testing.T) {
 	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string) (*RegisterResponseDTO, error) {
+		registerFn: func(u, f, p string, e, ph, c, pr *string, _ string) (*RegisterResponseDTO, error) {
 			return &RegisterResponseDTO{}, nil
 		},
 	}
@@ -152,6 +155,13 @@ func TestRegisterHandler_Register_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Register(w, r)
 	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
+func testInvitePublicURL(clientID, inviteToken string) string {
+	params := map[string]string{"client_id": clientID, "invite_token": inviteToken}
+	u, _ := signedurl.GenerateSignedURL("/public/register/invite", params, time.Hour)
+	parsed, _ := url.Parse(u)
+	return "/public/register/invite?" + parsed.RawQuery
 }
 
 // ---------------------------------------------------------------------------
@@ -174,7 +184,8 @@ func TestRegisterHandler_RegisterInvitePublic_ServiceError(t *testing.T) {
 		},
 	}
 	h := NewRegisterHandler(svc)
-	r := regRequest(t, "/public/register/invite?client_id=c1&invite_token=tok&expires=9999999999&sig=fake",
+	u := testInvitePublicURL("c1", "tok")
+	r := regRequest(t, u,
 		map[string]string{"username": "user1", "password": "pass1"})
 	w := httptest.NewRecorder()
 	h.RegisterInvitePublic(w, r)
@@ -217,7 +228,7 @@ func TestRegisterHandler_Register_ValidationError(t *testing.T) {
 // pointer-assign branches (lines 163-165, 166-168).
 func TestRegisterHandler_Register_RejectsClientContext(t *testing.T) {
 	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string) (*RegisterResponseDTO, error) {
+		registerFn: func(u, f, p string, e, ph, c, pr *string, _ string) (*RegisterResponseDTO, error) {
 			return &RegisterResponseDTO{}, nil
 		},
 	}
@@ -232,12 +243,11 @@ func TestRegisterHandler_Register_RejectsClientContext(t *testing.T) {
 
 // ── RegisterInvitePublic ──────────────────────────────────────────────────────
 
-const invitePublicURL = "/public/register/invite?client_id=c1&invite_token=tok&expires=9999999999&sig=fake"
-
-// BadJSON: query params valid, body malformed → covers decode error path.
+// BadJSON: query params valid, body malformed -> covers decode error path.
 func TestRegisterHandler_RegisterInvitePublic_BadJSON(t *testing.T) {
 	h := NewRegisterHandler(&mockRegisterService{})
-	r := httptest.NewRequest(http.MethodPost, invitePublicURL, bytes.NewBufferString("{bad}"))
+	u := testInvitePublicURL("c1", "tok")
+	r := httptest.NewRequest(http.MethodPost, u, bytes.NewBufferString("{bad}"))
 	r.Header.Set("Content-Type", "application/json")
 	r = withSecurityCtx(r)
 	w := httptest.NewRecorder()
@@ -248,7 +258,8 @@ func TestRegisterHandler_RegisterInvitePublic_BadJSON(t *testing.T) {
 // ValidationError: query params valid, body decodes but fails LoginRequestDTO.Validate().
 func TestRegisterHandler_RegisterInvitePublic_ValidationError(t *testing.T) {
 	h := NewRegisterHandler(&mockRegisterService{})
-	r := regRequest(t, invitePublicURL, map[string]string{})
+	u := testInvitePublicURL("c1", "tok")
+	r := regRequest(t, u, map[string]string{})
 	w := httptest.NewRecorder()
 	h.RegisterInvitePublic(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -262,7 +273,8 @@ func TestRegisterHandler_RegisterInvitePublic_Success(t *testing.T) {
 		},
 	}
 	h := NewRegisterHandler(svc)
-	r := regRequest(t, invitePublicURL, map[string]string{"username": "user1", "password": "pass1"})
+	u := testInvitePublicURL("c1", "tok")
+	r := regRequest(t, u, map[string]string{"username": "user1", "password": "pass1"})
 	w := httptest.NewRecorder()
 	h.RegisterInvitePublic(w, r)
 	assert.Equal(t, http.StatusCreated, w.Code)

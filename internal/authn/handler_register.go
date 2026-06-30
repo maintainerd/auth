@@ -7,6 +7,7 @@ import (
 
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 )
 
 type RegisterHandler struct {
@@ -109,7 +110,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	// Public registration attempt (client_id required; tenant_id rejected).
 	ctx := contextWithRegistrationCaptchaToken(r.Context(), req.CaptchaToken)
 	tokenResponse, err := h.registerService.RegisterPublic(
-		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, tenantIDPtr,
+		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, tenantIDPtr, q.RegistrationFlow,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -205,7 +206,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Internal registration attempt (client_id/tenant_id optional)
 	ctx := contextWithRegistrationCaptchaToken(r.Context(), req.CaptchaToken)
 	tokenResponse, err := h.registerService.Register(
-		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, nil, tenantIDPtr,
+		ctx, req.Username, req.Fullname, req.Password, req.Email, req.Phone, nil, tenantIDPtr, r.URL.Query().Get("registration_flow"),
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -250,10 +251,14 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 		InviteToken: r.URL.Query().Get("invite_token"),
 		Expires:     r.URL.Query().Get("expires"),
 		Sig:         r.URL.Query().Get("sig"),
-		AuthFlow:    r.URL.Query().Get("auth_flow"),
 	}
 	if _, _, ok := authenticationContextQuery(r); !ok {
 		resp.Error(w, http.StatusBadRequest, "Public invite registration requires client_id and does not accept tenant_id")
+		return
+	}
+
+	if _, err := signedurl.ValidateSignedURL(r.URL.Query()); err != nil {
+		resp.ValidationError(w, err)
 		return
 	}
 
@@ -307,7 +312,11 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 		InviteToken: r.URL.Query().Get("invite_token"),
 		Expires:     r.URL.Query().Get("expires"),
 		Sig:         r.URL.Query().Get("sig"),
-		AuthFlow:    r.URL.Query().Get("auth_flow"),
+	}
+
+	if _, err := signedurl.ValidateSignedURL(r.URL.Query()); err != nil {
+		resp.ValidationError(w, err)
+		return
 	}
 
 	if err := q.ValidateInternal(); err != nil {

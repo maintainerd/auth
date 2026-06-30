@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS clients (
     status                       VARCHAR(20) DEFAULT 'inactive',
     is_default                   BOOLEAN DEFAULT FALSE,
     is_system                    BOOLEAN DEFAULT FALSE,
+    branding_id                  BIGINT,
+    allow_registration           BOOLEAN NOT NULL DEFAULT TRUE,
 
     -- OAuth 2.0 core
     token_endpoint_auth_method   VARCHAR(30) NOT NULL DEFAULT 'client_secret_basic',
@@ -141,6 +143,14 @@ BEGIN
             REFERENCES services(service_id) ON DELETE SET NULL;
     END IF;
 
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_clients_branding_id'
+    ) THEN
+        ALTER TABLE clients
+            ADD CONSTRAINT fk_clients_branding_id FOREIGN KEY (branding_id)
+            REFERENCES branding(branding_id) ON DELETE SET NULL;
+    END IF;
+
 END$$;
 
 -- ADD INDEXES
@@ -154,6 +164,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_tenant_name ON clients (tenant_id, 
 CREATE INDEX IF NOT EXISTS idx_clients_identifier ON clients (identifier) WHERE identifier IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_identifier ON clients (identifier) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_clients_is_system ON clients (is_system) WHERE is_system = TRUE;
+CREATE INDEX IF NOT EXISTS idx_clients_branding_id ON clients (branding_id) WHERE branding_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients (created_at);
 CREATE INDEX IF NOT EXISTS idx_clients_deleted_at ON clients (deleted_at) WHERE deleted_at IS NULL;
 

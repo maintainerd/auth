@@ -32,7 +32,7 @@ func newOAuthAuthorizeSvc(
 	consentChallRepo *mockOAuthConsentChallRepo,
 	authEventSvc *mockAuthEventService,
 ) OAuthAuthorizeService {
-	return NewOAuthAuthorizeService(db, clientRepo, clientURIRepo, authCodeRepo, consentGrantRepo, consentChallRepo, authEventSvc)
+	return NewOAuthAuthorizeService(db, clientRepo, clientURIRepo, authCodeRepo, consentGrantRepo, consentChallRepo, authEventSvc, NewOAuthAuthorizeRequestRepository(db))
 }
 
 func validAuthorizeRequest() OAuthAuthorizeRequestDTO {

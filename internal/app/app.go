@@ -50,7 +50,7 @@ type App struct {
 	EmailVerificationService     authn.EmailVerificationService
 	MagicLinkService             authn.MagicLinkService
 	SetupService                 setup.SetupService
-	AuthFlowService              idp.AuthFlowService
+	RegistrationFlowService      idp.RegistrationFlowService
 	APIKeyService                client.APIKeyService
 	SecuritySettingService       secpolicy.SecuritySettingService
 	IPRestrictionRuleService     secpolicy.IPRestrictionRuleService
@@ -131,7 +131,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		EmailVerificationService:     s.emailVerificationService,
 		MagicLinkService:             s.magicLinkService,
 		SetupService:                 s.setupService,
-		AuthFlowService:              s.authFlowService,
+		RegistrationFlowService:      s.registrationFlowService,
 		APIKeyService:                s.apiKeyService,
 		SecuritySettingService:       s.securitySettingService,
 		IPRestrictionRuleService:     s.ipRestrictionRuleService,

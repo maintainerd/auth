@@ -3,12 +3,15 @@ package idp
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/auth/internal/shared"
 )
+
+var ValidationIdentifierRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9-_]*$`)
 
 func validateRequiredFieldsJSON(raw *string) error {
 	if raw == nil {
@@ -18,7 +21,7 @@ func validateRequiredFieldsJSON(raw *string) error {
 	if err := json.Unmarshal([]byte(*raw), &fields); err != nil {
 		return fmt.Errorf("required_fields must be a JSON string array")
 	}
-	allowed := map[string]bool{"username": true, "password": true, "fullname": true, "email": true, "phone": true}
+	allowed := map[string]bool{"fullname": true, "email": true, "phone": true}
 	seen := make(map[string]bool, len(fields))
 	for _, field := range fields {
 		field = strings.ToLower(strings.TrimSpace(field))
@@ -33,11 +36,11 @@ func validateRequiredFieldsJSON(raw *string) error {
 	return nil
 }
 
-func (r AuthFlowCreateRequestDTO) Validate() error {
+func (r RegistrationFlowCreateRequestDTO) Validate() error {
 	if err := validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
-			validation.Required.Error("Signup flow name is required"),
-			validation.Length(1, 100).Error("Signup flow name must be between 1 and 100 characters"),
+			validation.Required.Error("Registration flow name is required"),
+			validation.Length(1, 100).Error("Registration flow name must be between 1 and 100 characters"),
 		),
 		validation.Field(&r.Description,
 			validation.Required.Error("Description is required"),
@@ -49,17 +52,23 @@ func (r AuthFlowCreateRequestDTO) Validate() error {
 			validation.Required.Error("Auth client UUID is required"),
 			is.UUID.Error("Invalid auth client UUID format"),
 		),
+		validation.Field(&r.Identifier,
+			validation.When(r.Identifier != nil && *r.Identifier != "",
+				validation.Length(1, 255).Error("identifier must be between 1 and 255 characters"),
+				validation.Match(ValidationIdentifierRegex).Error("identifier must contain only lowercase letters, numbers, hyphens, and colons"),
+			),
+		),
 	); err != nil {
 		return err
 	}
 	return validateRequiredFieldsJSON(r.RequiredFields)
 }
 
-func (r AuthFlowUpdateRequestDTO) Validate() error {
+func (r RegistrationFlowUpdateRequestDTO) Validate() error {
 	if err := validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
-			validation.Required.Error("Signup flow name is required"),
-			validation.Length(1, 100).Error("Signup flow name must be between 1 and 100 characters"),
+			validation.Required.Error("Registration flow name is required"),
+			validation.Length(1, 100).Error("Registration flow name must be between 1 and 100 characters"),
 		),
 		validation.Field(&r.Description,
 			validation.Required.Error("Description is required"),
@@ -73,7 +82,7 @@ func (r AuthFlowUpdateRequestDTO) Validate() error {
 	return validateRequiredFieldsJSON(r.RequiredFields)
 }
 
-func (r AuthFlowUpdateStatusRequestDTO) Validate() error {
+func (r RegistrationFlowUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -82,7 +91,7 @@ func (r AuthFlowUpdateStatusRequestDTO) Validate() error {
 	)
 }
 
-func (f AuthFlowFilterDTO) Validate() error {
+func (f RegistrationFlowFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
@@ -98,21 +107,11 @@ func (f AuthFlowFilterDTO) Validate() error {
 	)
 }
 
-func (r AuthFlowAssignRolesRequestDTO) Validate() error {
+func (r RegistrationFlowAssignRolesRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.RoleUUIDs,
 			validation.Required.Error("Role UUIDs are required"),
 			validation.Length(1, 0).Error("At least one role UUID is required"),
-			validation.Each(is.UUID.Error("Invalid UUID provided")),
-		),
-	)
-}
-
-func (r AuthFlowAssignCallbackURIsRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.ClientURIUUIDs,
-			validation.Required.Error("Client URI UUIDs are required"),
-			validation.Length(1, 0).Error("At least one client URI UUID is required"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
 		),
 	)

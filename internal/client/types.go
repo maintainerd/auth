@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/branding"
 	"gorm.io/datatypes"
 )
 
@@ -151,18 +152,20 @@ type ClientAPIPermissionsResponseDTO struct {
 
 // Auth client output structure
 type ClientResponseDTO struct {
-	ClientUUID       uuid.UUID                    `json:"client_id"`
-	Name             string                       `json:"name"`
-	DisplayName      string                       `json:"display_name"`
-	ClientType       string                       `json:"client_type"`
-	Domain           *string                      `json:"domain,omitempty"`
-	URIs             []ClientURIResponseDTO       `json:"uris,omitempty"`
-	IdentityProvider *IdentityProviderResponseDTO `json:"identity_provider,omitempty"`
-	Connections      []ClientIdentityProviderDTO  `json:"connections,omitempty"`
-	Permissions      *[]PermissionResponseDTO     `json:"permissions,omitempty"`
-	Status           string                       `json:"status"`
-	IsDefault        bool                         `json:"is_default"`
-	IsSystem         bool                         `json:"is_system"`
+	ClientUUID        uuid.UUID                    `json:"client_id"`
+	Name              string                       `json:"name"`
+	DisplayName       string                       `json:"display_name"`
+	ClientType        string                       `json:"client_type"`
+	Domain            *string                      `json:"domain,omitempty"`
+	URIs              []ClientURIResponseDTO       `json:"uris,omitempty"`
+	IdentityProvider  *IdentityProviderResponseDTO `json:"identity_provider,omitempty"`
+	Connections       []ClientIdentityProviderDTO  `json:"connections,omitempty"`
+	Permissions       *[]PermissionResponseDTO     `json:"permissions,omitempty"`
+	Status            string                       `json:"status"`
+	IsDefault         bool                         `json:"is_default"`
+	IsSystem          bool                         `json:"is_system"`
+	BrandingUUID      *string                      `json:"branding_id,omitempty"`
+	AllowRegistration bool                         `json:"allow_registration"`
 
 	// Security posture / per-client overrides. The override fields are null when
 	// the client inherits the tenant security_settings default.
@@ -176,12 +179,13 @@ type ClientResponseDTO struct {
 }
 
 type ClientPublicResponseDTO struct {
-	ClientID         string  `json:"client_id"`
-	Name             string  `json:"name"`
-	DisplayName      string  `json:"display_name"`
-	ClientType       string  `json:"client_type"`
-	Domain           *string `json:"domain,omitempty"`
-	TenantIdentifier string  `json:"tenant_id"`
+	ClientID         string                           `json:"client_id"`
+	Name             string                           `json:"name"`
+	DisplayName      string                           `json:"display_name"`
+	ClientType       string                           `json:"client_type"`
+	Domain           *string                          `json:"domain,omitempty"`
+	TenantIdentifier string                           `json:"tenant_id"`
+	Branding         *branding.ClientBrandingResponse `json:"branding,omitempty"`
 }
 
 type ClientIdentityProviderDTO struct {
@@ -223,18 +227,22 @@ type ClientCreateRequestDTO struct {
 	Config               datatypes.JSON `json:"config"`
 	Status               string         `json:"status"`
 	IdentityProviderUUID string         `json:"identity_provider_id"`
+	BrandingUUID         *string        `json:"branding_id,omitempty"`
+	AllowRegistration    *bool          `json:"allow_registration,omitempty"`
 }
 
 // Validation
 
 // Update auth client request DTO
 type ClientUpdateRequestDTO struct {
-	Name        string         `json:"name"`
-	DisplayName string         `json:"display_name"`
-	ClientType  string         `json:"client_type"`
-	Domain      string         `json:"domain"`
-	Config      datatypes.JSON `json:"config"`
-	Status      string         `json:"status"`
+	Name              string         `json:"name"`
+	DisplayName       string         `json:"display_name"`
+	ClientType        string         `json:"client_type"`
+	Domain            string         `json:"domain"`
+	Config            datatypes.JSON `json:"config"`
+	Status            string         `json:"status"`
+	BrandingUUID      *string        `json:"branding_id,omitempty"`
+	AllowRegistration *bool          `json:"allow_registration,omitempty"`
 }
 
 // Validation

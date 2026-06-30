@@ -52,7 +52,6 @@ func TestEmailTemplateRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 	}
 }
 
-
 func TestSMSTemplateRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 	router := chi.NewRouter()
 	SMSTemplateRoute(router, NewSMSTemplateHandler(&mockSMSTemplateService{}), nil, nil)

@@ -51,7 +51,7 @@ type svcs struct {
 	emailVerificationService     authn.EmailVerificationService
 	magicLinkService             authn.MagicLinkService
 	setupService                 setup.SetupService
-	authFlowService              idp.AuthFlowService
+	registrationFlowService      idp.RegistrationFlowService
 	policyService                iam.PolicyService
 	apiKeyService                client.APIKeyService
 	securitySettingService       secpolicy.SecuritySettingService
@@ -248,13 +248,13 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		clientService:            client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
 		roleService:              iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
 		userService:              userSvc,
-		registerService:          authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnAuthFlowRoleRepoAdapter(r.authFlowRoleRepo, r.authFlowRepo), emailVerificationSvc),
+		registerService:          authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnRegistrationFlowRoleRepoAdapter(r.registrationFlowRoleRepo, r.registrationFlowRepo), emailVerificationSvc),
 		loginService:             authn.NewLoginService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo, appCache),
 		sessionService:           sessionSvc,
 		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo),
 		profileRepo:              r.profileRepo,
 		userSettingService:       user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
-		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), r.emailTemplateRepo, newInviteAuthFlowRepo(db)),
+		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), r.emailTemplateRepo, newInviteRegistrationFlowRepo(db)),
 		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
 		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
 		emailVerificationService: emailVerificationSvc,
@@ -266,7 +266,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 				ServicePolicyRepo: r.servicePolicyRepo,
 			},
 		),
-		authFlowService:              idp.NewAuthFlowService(db, r.authFlowRepo, r.authFlowRoleRepo, r.authFlowCallbackURIRepo, idpRoleRepo, idpClientRepo),
+		registrationFlowService:      idp.NewRegistrationFlowService(db, r.registrationFlowRepo, r.registrationFlowRoleRepo, idpRoleRepo, idpClientRepo),
 		policyService:                iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo, eventSvc, authEventSvc),
 		apiKeyService:                client.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyAPIRepo, r.apiKeyPermissionRepo, clientAPIRepo, clientUserRepo, clientPermissionRepo, eventSvc),
 		securitySettingService:       secpolicy.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
@@ -280,8 +280,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		webhookEndpointService:       webhook.NewWebhookEndpointService(r.webhookEndpointRepo),
 		authEventService:             authEventSvc,
 		authorizationService:         iam.NewServiceAuthorizationService(r.serviceRepo, r.servicePolicyRepo),
-		oauthAuthorizeService:        oauth.NewOAuthAuthorizeService(db, oauthClientRepo, oauthClientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc, r.securitySettingRepo),
-		oauthConnectionsService:      oauth.NewOAuthConnectionsService(db, oauthClientRepo, r.securitySettingRepo),
+		oauthAuthorizeService:        oauth.NewOAuthAuthorizeService(db, oauthClientRepo, oauthClientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc, oauth.NewOAuthAuthorizeRequestRepository(db), r.securitySettingRepo),
+		oauthConnectionsService:      oauth.NewOAuthConnectionsService(db, oauthClientRepo, r.securitySettingRepo, branding.NewClientBrandingResolver(db)),
 		oauthTokenService:            oauth.NewOAuthTokenService(db, oauthClientRepo, r.oauthAuthCodeRepo, r.oauthRefreshTokenRepo, oauthUserRepo, oauthUserIdentityRepo, authEventSvc, appCache, r.securitySettingRepo),
 		oauthConsentService:          oauth.NewOAuthConsentService(r.oauthConsentGrantRepo, authEventSvc),
 		oauthPARService:              oauth.NewOAuthPARService(db, oauthClientRepo, oauthClientURIRepo, r.oauthPARRequestRepo, authEventSvc, r.securitySettingRepo),
@@ -363,7 +363,7 @@ func tenantCascadeModels() []any {
 		&secpolicy.SecuritySetting{},
 
 		&invite.Invite{},
-		&idp.AuthFlow{},
+		&idp.RegistrationFlow{},
 		&idp.IdentityProvider{},
 
 		&client.ClientURI{},

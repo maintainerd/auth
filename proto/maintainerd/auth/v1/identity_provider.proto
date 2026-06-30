@@ -17,16 +17,16 @@ service IdentityProviderService {
   rpc DeleteIdentityProvider(DeleteIdentityProviderRequest) returns (DeleteIdentityProviderResponse);
 }
 
-service SignupFlowService {
-  rpc ListSignupFlows(ListSignupFlowsRequest) returns (ListSignupFlowsResponse);
-  rpc GetSignupFlow(GetSignupFlowRequest) returns (GetSignupFlowResponse);
-  rpc CreateSignupFlow(CreateSignupFlowRequest) returns (CreateSignupFlowResponse);
-  rpc UpdateSignupFlow(UpdateSignupFlowRequest) returns (UpdateSignupFlowResponse);
-  rpc SetSignupFlowStatus(SetSignupFlowStatusRequest) returns (SetSignupFlowStatusResponse);
-  rpc DeleteSignupFlow(DeleteSignupFlowRequest) returns (DeleteSignupFlowResponse);
-  rpc AssignSignupFlowRoles(AssignSignupFlowRolesRequest) returns (AssignSignupFlowRolesResponse);
-  rpc ListSignupFlowRoles(ListSignupFlowRolesRequest) returns (ListSignupFlowRolesResponse);
-  rpc RemoveSignupFlowRole(RemoveSignupFlowRoleRequest) returns (RemoveSignupFlowRoleResponse);
+service RegistrationFlowService {
+  rpc ListRegistrationFlows(ListRegistrationFlowsRequest) returns (ListRegistrationFlowsResponse);
+  rpc GetRegistrationFlow(GetRegistrationFlowRequest) returns (GetRegistrationFlowResponse);
+  rpc CreateRegistrationFlow(CreateRegistrationFlowRequest) returns (CreateRegistrationFlowResponse);
+  rpc UpdateRegistrationFlow(UpdateRegistrationFlowRequest) returns (UpdateRegistrationFlowResponse);
+  rpc SetRegistrationFlowStatus(SetRegistrationFlowStatusRequest) returns (SetRegistrationFlowStatusResponse);
+  rpc DeleteRegistrationFlow(DeleteRegistrationFlowRequest) returns (DeleteRegistrationFlowResponse);
+  rpc AssignRegistrationFlowRoles(AssignRegistrationFlowRolesRequest) returns (AssignRegistrationFlowRolesResponse);
+  rpc ListRegistrationFlowRoles(ListRegistrationFlowRolesRequest) returns (ListRegistrationFlowRolesResponse);
+  rpc RemoveRegistrationFlowRole(RemoveRegistrationFlowRoleRequest) returns (RemoveRegistrationFlowRoleResponse);
 }
 
 message IdentityProvider {
@@ -52,8 +52,8 @@ message IdentityProvider {
   repeated string allowed_audiences = 18;
 }
 
-message SignupFlow {
-  string signup_flow_uuid = 1;
+message RegistrationFlow {
+  string registration_flow_uuid = 1;
   string name = 2;
   string description = 3;
   string identifier = 4;
@@ -64,8 +64,8 @@ message SignupFlow {
   google.protobuf.Timestamp updated_at = 9;
 }
 
-message SignupFlowRole {
-  string signup_flow_role_uuid = 1;
+message RegistrationFlowRole {
+  string registration_flow_role_uuid = 1;
   string role_uuid = 2;
   string role_name = 3;
   string role_description = 4;
@@ -167,7 +167,7 @@ message DeleteIdentityProviderResponse {
   IdentityProvider identity_provider = 1;
 }
 
-message ListSignupFlowsRequest {
+message ListRegistrationFlowsRequest {
   string tenant_uuid = 1;
   string name = 2;
   string identifier = 3;
@@ -176,21 +176,21 @@ message ListSignupFlowsRequest {
   Pagination pagination = 6;
 }
 
-message ListSignupFlowsResponse {
-  repeated SignupFlow signup_flows = 1;
+message ListRegistrationFlowsResponse {
+  repeated RegistrationFlow registration_flows = 1;
   PageMetadata page = 2;
 }
 
-message GetSignupFlowRequest {
+message GetRegistrationFlowRequest {
   string tenant_uuid = 1;
-  string signup_flow_uuid = 2;
+  string registration_flow_uuid = 2;
 }
 
-message GetSignupFlowResponse {
-  SignupFlow signup_flow = 1;
+message GetRegistrationFlowResponse {
+  RegistrationFlow registration_flow = 1;
 }
 
-message CreateSignupFlowRequest {
+message CreateRegistrationFlowRequest {
   string tenant_uuid = 1;
   string name = 2;
   string description = 3;
@@ -199,69 +199,69 @@ message CreateSignupFlowRequest {
   string client_uuid = 6;
 }
 
-message CreateSignupFlowResponse {
-  SignupFlow signup_flow = 1;
+message CreateRegistrationFlowResponse {
+  RegistrationFlow registration_flow = 1;
 }
 
-message UpdateSignupFlowRequest {
+message UpdateRegistrationFlowRequest {
   string tenant_uuid = 1;
-  string signup_flow_uuid = 2;
+  string registration_flow_uuid = 2;
   string name = 3;
   string description = 4;
   google.protobuf.Struct config = 5;
   string status = 6;
 }
 
-message UpdateSignupFlowResponse {
-  SignupFlow signup_flow = 1;
+message UpdateRegistrationFlowResponse {
+  RegistrationFlow registration_flow = 1;
 }
 
-message SetSignupFlowStatusRequest {
+message SetRegistrationFlowStatusRequest {
   string tenant_uuid = 1;
-  string signup_flow_uuid = 2;
+  string registration_flow_uuid = 2;
   string status = 3;
 }
 
-message SetSignupFlowStatusResponse {
-  SignupFlow signup_flow = 1;
+message SetRegistrationFlowStatusResponse {
+  RegistrationFlow registration_flow = 1;
 }
 
-message DeleteSignupFlowRequest {
+message DeleteRegistrationFlowRequest {
   string tenant_uuid = 1;
-  string signup_flow_uuid = 2;
+  string registration_flow_uuid = 2;
 }
 
-message DeleteSignupFlowResponse {
-  SignupFlow signup_flow = 1;
+message DeleteRegistrationFlowResponse {
+  RegistrationFlow registration_flow = 1;
 }
 
-message AssignSignupFlowRolesRequest {
+message AssignRegistrationFlowRolesRequest {
   string tenant_uuid = 1;
-  string signup_flow_uuid = 2;
+  string registration_flow_uuid = 2;
   repeated string role_uuids = 3;
 }
 
-message AssignSignupFlowRolesResponse {
-  repeated SignupFlowRole roles = 1;
+message AssignRegistrationFlowRolesResponse {
+  repeated RegistrationFlowRole roles = 1;
 }
 
-message ListSignupFlowRolesRequest {
+message ListRegistrationFlowRolesRequest {
   string tenant_uuid = 1;
-  string signup_flow_uuid = 2;
+  string registration_flow_uuid = 2;
   Pagination pagination = 3;
 }
 
-message ListSignupFlowRolesResponse {
-  repeated SignupFlowRole roles = 1;
+message ListRegistrationFlowRolesResponse {
+  repeated RegistrationFlowRole roles = 1;
   PageMetadata page = 2;
 }
 
-message RemoveSignupFlowRoleRequest {
+message RemoveRegistrationFlowRoleRequest {
   string tenant_uuid = 1;
-  string signup_flow_uuid = 2;
+  string registration_flow_uuid = 2;
   string role_uuid = 3;
 }
 
-message RemoveSignupFlowRoleResponse {
+message RemoveRegistrationFlowRoleResponse {
   bool removed = 1;
 }

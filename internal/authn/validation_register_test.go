@@ -94,7 +94,7 @@ func TestRegisterQueryDto_Validate(t *testing.T) {
 func TestRegisterInviteQueryDto_Validate(t *testing.T) {
 	valid := RegisterInviteQueryDTO{
 		ClientID:    "c1",
-		TenantID:  "p1",
+		TenantID:    "p1",
 		InviteToken: "token123",
 		Expires:     "1700000000",
 		Sig:         "abc123sig",
@@ -123,7 +123,7 @@ func TestRegisterInviteQueryDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("missing sig", func(t *testing.T) {
+	t.Run("missing sig is rejected", func(t *testing.T) {
 		d := valid
 		d.Sig = ""
 		require.Error(t, d.Validate())

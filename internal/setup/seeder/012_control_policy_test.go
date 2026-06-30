@@ -88,7 +88,7 @@ func TestControlPolicyDocumentShape(t *testing.T) {
 		"api_key:update",
 		"user:invite",
 		"auth_event:read",
-		"auth-flow:update",
+		"registration-flow:update",
 		"security-setting:update",
 		"ip-restriction-rule:create",
 		"email-template:update",

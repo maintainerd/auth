@@ -24,21 +24,23 @@ const (
 )
 
 type Client struct {
-	state            protoimpl.MessageState  `protogen:"open.v1"`
-	ClientUuid       string                  `protobuf:"bytes,1,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	Name             string                  `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName      string                  `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	ClientType       string                  `protobuf:"bytes,4,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
-	Domain           string                  `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
-	Status           string                  `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	IsDefault        bool                    `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
-	IsSystem         bool                    `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	IdentityProvider *ClientIdentityProvider `protobuf:"bytes,9,opt,name=identity_provider,json=identityProvider,proto3" json:"identity_provider,omitempty"`
-	Uris             []*ClientURI            `protobuf:"bytes,10,rep,name=uris,proto3" json:"uris,omitempty"`
-	CreatedAt        *timestamppb.Timestamp  `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt        *timestamppb.Timestamp  `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state             protoimpl.MessageState  `protogen:"open.v1"`
+	ClientUuid        string                  `protobuf:"bytes,1,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	Name              string                  `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName       string                  `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	ClientType        string                  `protobuf:"bytes,4,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
+	Domain            string                  `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
+	Status            string                  `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	IsDefault         bool                    `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	IsSystem          bool                    `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	IdentityProvider  *ClientIdentityProvider `protobuf:"bytes,9,opt,name=identity_provider,json=identityProvider,proto3" json:"identity_provider,omitempty"`
+	Uris              []*ClientURI            `protobuf:"bytes,10,rep,name=uris,proto3" json:"uris,omitempty"`
+	CreatedAt         *timestamppb.Timestamp  `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt         *timestamppb.Timestamp  `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	BrandingId        string                  `protobuf:"bytes,13,opt,name=branding_id,json=brandingId,proto3" json:"branding_id,omitempty"`
+	AllowRegistration bool                    `protobuf:"varint,14,opt,name=allow_registration,json=allowRegistration,proto3" json:"allow_registration,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Client) Reset() {
@@ -153,6 +155,20 @@ func (x *Client) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Client) GetBrandingId() string {
+	if x != nil {
+		return x.BrandingId
+	}
+	return ""
+}
+
+func (x *Client) GetAllowRegistration() bool {
+	if x != nil {
+		return x.AllowRegistration
+	}
+	return false
 }
 
 type ClientIdentityProvider struct {
@@ -1202,6 +1218,8 @@ type CreateClientRequest struct {
 	Status               string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	IdentityProviderUuid string                 `protobuf:"bytes,8,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
 	ActorUserUuid        string                 `protobuf:"bytes,9,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	BrandingId           string                 `protobuf:"bytes,10,opt,name=branding_id,json=brandingId,proto3" json:"branding_id,omitempty"`
+	AllowRegistration    *bool                  `protobuf:"varint,11,opt,name=allow_registration,json=allowRegistration,proto3,oneof" json:"allow_registration,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1297,6 +1315,20 @@ func (x *CreateClientRequest) GetActorUserUuid() string {
 		return x.ActorUserUuid
 	}
 	return ""
+}
+
+func (x *CreateClientRequest) GetBrandingId() string {
+	if x != nil {
+		return x.BrandingId
+	}
+	return ""
+}
+
+func (x *CreateClientRequest) GetAllowRegistration() bool {
+	if x != nil && x.AllowRegistration != nil {
+		return *x.AllowRegistration
+	}
+	return false
 }
 
 type CreateClientResponse struct {
@@ -1412,18 +1444,20 @@ func (x *ClientCredentials) GetClientSecret() string {
 }
 
 type UpdateClientRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	ClientType    string                 `protobuf:"bytes,5,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
-	Domain        string                 `protobuf:"bytes,6,opt,name=domain,proto3" json:"domain,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,7,opt,name=config,proto3" json:"config,omitempty"`
-	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,9,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	ClientUuid        string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	Name              string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName       string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	ClientType        string                 `protobuf:"bytes,5,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
+	Domain            string                 `protobuf:"bytes,6,opt,name=domain,proto3" json:"domain,omitempty"`
+	Config            *structpb.Struct       `protobuf:"bytes,7,opt,name=config,proto3" json:"config,omitempty"`
+	Status            string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	ActorUserUuid     string                 `protobuf:"bytes,9,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	BrandingId        string                 `protobuf:"bytes,10,opt,name=branding_id,json=brandingId,proto3" json:"branding_id,omitempty"`
+	AllowRegistration *bool                  `protobuf:"varint,11,opt,name=allow_registration,json=allowRegistration,proto3,oneof" json:"allow_registration,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateClientRequest) Reset() {
@@ -1517,6 +1551,20 @@ func (x *UpdateClientRequest) GetActorUserUuid() string {
 		return x.ActorUserUuid
 	}
 	return ""
+}
+
+func (x *UpdateClientRequest) GetBrandingId() string {
+	if x != nil {
+		return x.BrandingId
+	}
+	return ""
+}
+
+func (x *UpdateClientRequest) GetAllowRegistration() bool {
+	if x != nil && x.AllowRegistration != nil {
+		return *x.AllowRegistration
+	}
+	return false
 }
 
 type UpdateClientResponse struct {
@@ -4519,7 +4567,7 @@ var File_maintainerd_auth_v1_client_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\n" +
-	" maintainerd/auth/v1/client.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xf1\x03\n" +
+	" maintainerd/auth/v1/client.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xc1\x04\n" +
 	"\x06Client\x12\x1f\n" +
 	"\vclient_uuid\x18\x01 \x01(\tR\n" +
 	"clientUuid\x12\x12\n" +
@@ -4538,7 +4586,10 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb0\x03\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1f\n" +
+	"\vbranding_id\x18\r \x01(\tR\n" +
+	"brandingId\x12-\n" +
+	"\x12allow_registration\x18\x0e \x01(\bR\x11allowRegistration\"\xb0\x03\n" +
 	"\x16ClientIdentityProvider\x124\n" +
 	"\x16identity_provider_uuid\x18\x01 \x01(\tR\x14identityProviderUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
@@ -4644,7 +4695,7 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\vclient_uuid\x18\x02 \x01(\tR\n" +
 	"clientUuid\"J\n" +
 	"\x17GetClientConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xcd\x02\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xb9\x03\n" +
 	"\x13CreateClientRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
@@ -4656,7 +4707,12 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\x06config\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\x124\n" +
 	"\x16identity_provider_uuid\x18\b \x01(\tR\x14identityProviderUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\"\x95\x01\n" +
+	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\x12\x1f\n" +
+	"\vbranding_id\x18\n" +
+	" \x01(\tR\n" +
+	"brandingId\x122\n" +
+	"\x12allow_registration\x18\v \x01(\bH\x00R\x11allowRegistration\x88\x01\x01B\x15\n" +
+	"\x13_allow_registration\"\x95\x01\n" +
 	"\x14CreateClientResponse\x123\n" +
 	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\x12H\n" +
 	"\vcredentials\x18\x02 \x01(\v2&.maintainerd.auth.v1.ClientCredentialsR\vcredentials\"v\n" +
@@ -4664,7 +4720,7 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\vclient_uuid\x18\x01 \x01(\tR\n" +
 	"clientUuid\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12#\n" +
-	"\rclient_secret\x18\x03 \x01(\tR\fclientSecret\"\xb8\x02\n" +
+	"\rclient_secret\x18\x03 \x01(\tR\fclientSecret\"\xa4\x03\n" +
 	"\x13UpdateClientRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1f\n" +
@@ -4677,7 +4733,12 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\x06domain\x18\x06 \x01(\tR\x06domain\x12/\n" +
 	"\x06config\x18\a \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
 	"\x06status\x18\b \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\"K\n" +
+	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\x12\x1f\n" +
+	"\vbranding_id\x18\n" +
+	" \x01(\tR\n" +
+	"brandingId\x122\n" +
+	"\x12allow_registration\x18\v \x01(\bH\x00R\x11allowRegistration\x88\x01\x01B\x15\n" +
+	"\x13_allow_registration\"K\n" +
 	"\x14UpdateClientResponse\x123\n" +
 	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"\x9a\x01\n" +
 	"\x16SetClientStatusRequest\x12\x1f\n" +
@@ -5192,6 +5253,8 @@ func file_maintainerd_auth_v1_client_proto_init() {
 	}
 	file_maintainerd_auth_v1_tenant_proto_init()
 	file_maintainerd_auth_v1_client_proto_msgTypes[6].OneofWrappers = []any{}
+	file_maintainerd_auth_v1_client_proto_msgTypes[16].OneofWrappers = []any{}
+	file_maintainerd_auth_v1_client_proto_msgTypes[19].OneofWrappers = []any{}
 	file_maintainerd_auth_v1_client_proto_msgTypes[55].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

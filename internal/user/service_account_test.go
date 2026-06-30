@@ -873,11 +873,11 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 		mock.ExpectRollback()
 
 		svc := &accountService{
-			db:               db,
-			userRepo:         &mockUserRepo{},
-			clientRepo:       &mockClientRepo{},
-			userIdentityRepo: &mockUserIdentityRepo{},
-			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
+			db:                db,
+			userRepo:          &mockUserRepo{},
+			clientRepo:        &mockClientRepo{},
+			userIdentityRepo:  &mockUserIdentityRepo{},
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return nil, nil },
 			},
@@ -902,10 +902,10 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 
 		idp := &IdentityProvider{Identifier: identifier}
 		svc := &accountService{
-			db:               db,
-			userRepo:         &mockUserRepo{},
-			userIdentityRepo: &mockUserIdentityRepo{},
-			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
+			db:                db,
+			userRepo:          &mockUserRepo{},
+			userIdentityRepo:  &mockUserIdentityRepo{},
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -944,9 +944,9 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			},
 		}
 		svc := &accountService{
-			db:               db,
-			userIdentityRepo: &mockUserIdentityRepo{},
-			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
+			db:                db,
+			userIdentityRepo:  &mockUserIdentityRepo{},
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -986,9 +986,9 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			},
 		}
 		svc := &accountService{
-			db:               db,
-			userIdentityRepo: &mockUserIdentityRepo{},
-			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
+			db:                db,
+			userIdentityRepo:  &mockUserIdentityRepo{},
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -1028,9 +1028,9 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			},
 		}
 		svc := &accountService{
-			db:               db,
-			userIdentityRepo: &mockUserIdentityRepo{},
-			mfaBackupCodeRepo:   &mockUserMFABackupCodeRepo{},
+			db:                db,
+			userIdentityRepo:  &mockUserIdentityRepo{},
+			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{},
 			identityProviderRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
 			},

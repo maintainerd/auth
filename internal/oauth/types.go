@@ -1,5 +1,9 @@
 package oauth
 
+import (
+	"github.com/maintainerd/auth/internal/branding"
+)
+
 // Authorization Endpoint
 
 // OAuthAuthorizeRequestDTO captures the query parameters for the
@@ -12,6 +16,8 @@ type OAuthAuthorizeRequestDTO struct {
 	State               string `json:"state"`
 	Nonce               string `json:"nonce"`
 	IdpHint             string `json:"idp_hint"`
+	ScreenHint          string `json:"screen_hint"`
+	RegistrationFlow    string `json:"registration_flow"`
 	Prompt              string `json:"prompt"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
@@ -28,11 +34,10 @@ type OAuthAuthorizeResponseDTO struct {
 // available and which OAuth2 providers are connected. It never exposes provider
 // config or secrets.
 type OAuthConnectionsResponseDTO struct {
-	PasswordEnabled      bool                 `json:"password_enabled"`
-	RegistrationEnabled  bool                 `json:"registration_enabled"`
-	VerificationRequired bool                 `json:"verification_required"`
-	RequiredFields       []string             `json:"required_fields"`
-	Connections          []OAuthConnectionDTO `json:"connections"`
+	PasswordEnabled     bool                             `json:"password_enabled"`
+	RegistrationEnabled bool                             `json:"registration_enabled"`
+	Branding            *branding.ClientBrandingResponse `json:"branding,omitempty"`
+	Connections         []OAuthConnectionDTO             `json:"connections"`
 }
 
 // OAuthConnectionDTO is one connected identity provider (an OAuth2 login button).

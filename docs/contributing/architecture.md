@@ -534,7 +534,7 @@ err := s.db.Transaction(func(tx *gorm.DB) error {
 | `SecuritySettingService` | IP restriction rules, security policies. |
 | `ForgotPasswordService` | Password reset flow initiation. |
 | `ResetPasswordService` | Password reset execution. |
-| `SignupFlowService` | Configurable signup flow management. |
+| `RegistrationFlowService` | Configurable registration-flow management. |
 | `EmailTemplateService` | Email template management. |
 | `SMSTemplateService` | SMS template management. |
 | `LoginTemplateService` | Login page template management. |

@@ -11,7 +11,7 @@ func toAuthnInvite(i *invite.Invite) *authn.Invite {
 	}
 	return &authn.Invite{
 		InviteID: i.InviteID, InviteUUID: i.InviteUUID, TenantID: i.TenantID,
-		InvitedEmail: i.InvitedEmail, AuthFlowID: i.AuthFlowID,
+		InvitedEmail: i.InvitedEmail, RegistrationFlowID: i.RegistrationFlowID,
 		Status: i.Status, ExpiresAt: i.ExpiresAt,
 		CreatedAt: i.CreatedAt, UpdatedAt: i.UpdatedAt,
 	}
@@ -23,7 +23,7 @@ func toInviteInvite(i *authn.Invite) *invite.Invite {
 	}
 	return &invite.Invite{
 		InviteID: i.InviteID, InviteUUID: i.InviteUUID, TenantID: i.TenantID,
-		InvitedEmail: i.InvitedEmail, AuthFlowID: i.AuthFlowID,
+		InvitedEmail: i.InvitedEmail, RegistrationFlowID: i.RegistrationFlowID,
 		Status: i.Status, ExpiresAt: i.ExpiresAt,
 		CreatedAt: i.CreatedAt, UpdatedAt: i.UpdatedAt,
 	}

@@ -132,17 +132,17 @@ type MFAService interface {
 }
 
 type mfaService struct {
-	db               *gorm.DB
-	userRepo         UserRepository
+	db                  *gorm.DB
+	userRepo            UserRepository
 	mfaTotpRepo         UserMFATOTPSecretRepository
 	mfaWebAuthnCredRepo UserMFAWebAuthnCredentialRepository
-	webAuthnSvc      WebAuthnService
+	webAuthnSvc         WebAuthnService
 	mfaBackupCodeRepo   UserMFABackupCodeRepository
-	mfaPhoneRepo     UserMFAPhoneRepository
-	emailOTPRepo     UserMFAEmailRepository
-	smsOtpRepo       notifier.UserOTPRepository
-	secSettingRepo   secpolicy.SecuritySettingRepository
-	authEventService authevent.AuthEventService
+	mfaPhoneRepo        UserMFAPhoneRepository
+	emailOTPRepo        UserMFAEmailRepository
+	smsOtpRepo          notifier.UserOTPRepository
+	secSettingRepo      secpolicy.SecuritySettingRepository
+	authEventService    authevent.AuthEventService
 }
 
 type trustedDeviceToken struct {
@@ -177,17 +177,17 @@ func NewMFAService(
 	authEventService authevent.AuthEventService,
 ) MFAService {
 	return &mfaService{
-		db:               db,
-		userRepo:         userRepo,
+		db:                  db,
+		userRepo:            userRepo,
 		mfaTotpRepo:         mfaTotpRepo,
 		mfaWebAuthnCredRepo: mfaWebAuthnCredRepo,
-		webAuthnSvc:      webAuthnSvc,
+		webAuthnSvc:         webAuthnSvc,
 		mfaBackupCodeRepo:   mfaBackupCodeRepo,
-		mfaPhoneRepo:     mfaPhoneRepo,
-		emailOTPRepo:     emailOTPRepo,
-		smsOtpRepo:       smsOtpRepo,
-		secSettingRepo:   secSettingRepo,
-		authEventService: authEventService,
+		mfaPhoneRepo:        mfaPhoneRepo,
+		emailOTPRepo:        emailOTPRepo,
+		smsOtpRepo:          smsOtpRepo,
+		secSettingRepo:      secSettingRepo,
+		authEventService:    authEventService,
 	}
 }
 

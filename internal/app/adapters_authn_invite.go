@@ -10,42 +10,54 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// authn.AuthFlowRoleRepository adapter — wraps idp.AuthFlowRoleRepository
+// authn.RegistrationFlowRoleRepository adapter — wraps idp.RegistrationFlowRoleRepository
 // ---------------------------------------------------------------------------
 
-type authnAuthFlowRoleRepoAdapter struct {
-	repo     idp.AuthFlowRoleRepository
-	flowRepo idp.AuthFlowRepository
+type authnRegistrationFlowRoleRepoAdapter struct {
+	repo     idp.RegistrationFlowRoleRepository
+	flowRepo idp.RegistrationFlowRepository
 }
 
-func newAuthnAuthFlowRoleRepoAdapter(repo idp.AuthFlowRoleRepository, flowRepo idp.AuthFlowRepository) authn.AuthFlowRoleRepository {
-	return &authnAuthFlowRoleRepoAdapter{repo: repo, flowRepo: flowRepo}
+func newAuthnRegistrationFlowRoleRepoAdapter(repo idp.RegistrationFlowRoleRepository, flowRepo idp.RegistrationFlowRepository) authn.RegistrationFlowRoleRepository {
+	return &authnRegistrationFlowRoleRepoAdapter{repo: repo, flowRepo: flowRepo}
 }
 
-func (a *authnAuthFlowRoleRepoAdapter) WithTx(tx *gorm.DB) authn.AuthFlowRoleRepository {
-	return &authnAuthFlowRoleRepoAdapter{repo: a.repo.WithTx(tx), flowRepo: a.flowRepo.WithTx(tx)}
+func (a *authnRegistrationFlowRoleRepoAdapter) WithTx(tx *gorm.DB) authn.RegistrationFlowRoleRepository {
+	return &authnRegistrationFlowRoleRepoAdapter{repo: a.repo.WithTx(tx), flowRepo: a.flowRepo.WithTx(tx)}
 }
 
-func (a *authnAuthFlowRoleRepoAdapter) FindByClientID(clientID int64) ([]authn.RegistrationFlow, error) {
-	flows, err := a.flowRepo.FindByClientID(clientID)
+func (a *authnRegistrationFlowRoleRepoAdapter) FindByID(registrationFlowID int64) (*authn.RegistrationFlow, error) {
+	flow, err := a.flowRepo.FindByID(registrationFlowID)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]authn.RegistrationFlow, len(flows))
-	for i, flow := range flows {
-		result[i] = authn.RegistrationFlow{
-			AuthFlowID:           flow.AuthFlowID,
-			Status:               flow.Status,
-			AllowRegistration:    flow.AllowRegistration,
-			VerificationRequired: flow.VerificationRequired,
-			RequiredFields:       flow.RequiredFields,
-		}
-	}
-	return result, nil
+	return toAuthnRegistrationFlow(flow), nil
 }
 
-func (a *authnAuthFlowRoleRepoAdapter) FindRoleIDsByAuthFlowID(authFlowID int64) ([]int64, error) {
-	roles, err := a.repo.FindByAuthFlowID(authFlowID)
+func (a *authnRegistrationFlowRoleRepoAdapter) FindByIdentifierAndClientID(identifier string, clientID int64) (*authn.RegistrationFlow, error) {
+	flow, err := a.flowRepo.FindByIdentifierAndClientID(identifier, clientID)
+	if err != nil {
+		return nil, err
+	}
+	return toAuthnRegistrationFlow(flow), nil
+}
+
+func toAuthnRegistrationFlow(flow *idp.RegistrationFlow) *authn.RegistrationFlow {
+	if flow == nil {
+		return nil
+	}
+	return &authn.RegistrationFlow{
+		RegistrationFlowID:   flow.RegistrationFlowID,
+		TenantID:             flow.TenantID,
+		ClientID:             flow.ClientID,
+		Status:               flow.Status,
+		VerificationRequired: flow.VerificationRequired,
+		RequiredFields:       flow.RequiredFields,
+	}
+}
+
+func (a *authnRegistrationFlowRoleRepoAdapter) FindRoleIDsByRegistrationFlowID(registrationFlowID int64) ([]int64, error) {
+	roles, err := a.repo.FindByRegistrationFlowID(registrationFlowID)
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +142,11 @@ func (a *authnInviteRepoAdapter) Paginate(c map[string]any, page, limit int, p .
 
 func (a *authnInviteRepoAdapter) FindByToken(token string) (*authn.Invite, error) {
 	r, err := a.repo.FindByToken(token)
+	return toAuthnInvite(r), err
+}
+
+func (a *authnInviteRepoAdapter) FindByTokenForUpdate(token string) (*authn.Invite, error) {
+	r, err := a.repo.FindByTokenForUpdate(token)
 	return toAuthnInvite(r), err
 }
 

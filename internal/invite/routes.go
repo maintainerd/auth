@@ -1,6 +1,9 @@
 package invite
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -22,7 +25,7 @@ func InviteRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:invite"})).
 			Get("/", inviteHandler.List)
 
-		// Inviting a user (and granting it roles via an auth_flow) is sensitive, so
+		// Inviting a user (and granting it roles via a registration_flow) is sensitive, so
 		// it requires the "user:invite" permission AND a stepped-up (acr=2) session.
 		r.With(middleware.PermissionMiddleware([]string{"user:invite"}), middleware.RequireStepUp).
 			Post("/", inviteHandler.Send)
@@ -33,5 +36,21 @@ func InviteRoute(
 		// Revoke a pending invitation.
 		r.With(middleware.PermissionMiddleware([]string{"user:invite"})).
 			Delete("/{invite_uuid}", inviteHandler.Revoke)
+	})
+}
+
+func publicAuthSurface(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+	})
+}
+
+func InvitePublicRoute(r chi.Router, inviteHandler *InviteHandler) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(publicAuthSurface)
+
+		r.Get("/invite", inviteHandler.GetInviteContext)
 	})
 }

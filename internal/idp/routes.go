@@ -83,70 +83,55 @@ func IdentityProviderRoute(
 	})
 }
 
-func AuthFlowRoute(
+func RegistrationFlowRoute(
 	r chi.Router,
-	authFlowHandler *AuthFlowHandler,
+	registrationFlowHandler *RegistrationFlowHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	rateLimitMiddleware ...middleware.Middleware,
 ) {
-	r.Route("/auth_flows", func(r chi.Router) {
+	r.Route("/registration_flows", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
-		// Get all signup flows with pagination and filtering
-		r.With(middleware.PermissionMiddleware([]string{"auth-flow:read"})).
-			Get("/", authFlowHandler.GetAll)
+		// Get all registration flows with pagination and filtering
+		r.With(middleware.PermissionMiddleware([]string{"registration-flow:read"})).
+			Get("/", registrationFlowHandler.GetAll)
 
-		// Get signup flow by UUID
-		r.With(middleware.PermissionMiddleware([]string{"auth-flow:read"})).
-			Get("/{auth_flow_uuid}", authFlowHandler.Get)
+		// Get registration flow by UUID
+		r.With(middleware.PermissionMiddleware([]string{"registration-flow:read"})).
+			Get("/{registration_flow_uuid}", registrationFlowHandler.Get)
 
-		// Create signup flow
-		r.With(middleware.PermissionMiddleware([]string{"auth-flow:create"})).
-			Post("/", authFlowHandler.Create)
+		// Create registration flow
+		r.With(middleware.PermissionMiddleware([]string{"registration-flow:create"})).
+			Post("/", registrationFlowHandler.Create)
 
-		// Update signup flow
-		r.With(middleware.PermissionMiddleware([]string{"auth-flow:update"})).
-			Put("/{auth_flow_uuid}", authFlowHandler.Update)
+		// Update registration flow
+		r.With(middleware.PermissionMiddleware([]string{"registration-flow:update"})).
+			Put("/{registration_flow_uuid}", registrationFlowHandler.Update)
 
-		// Update signup flow status
-		r.With(middleware.PermissionMiddleware([]string{"auth-flow:update"})).
-			Patch("/{auth_flow_uuid}/status", authFlowHandler.UpdateStatus)
+		// Update registration flow status
+		r.With(middleware.PermissionMiddleware([]string{"registration-flow:update"})).
+			Patch("/{registration_flow_uuid}/status", registrationFlowHandler.UpdateStatus)
 
-		// Delete signup flow
-		r.With(middleware.PermissionMiddleware([]string{"auth-flow:delete"})).
-			Delete("/{auth_flow_uuid}", authFlowHandler.Delete)
+		// Delete registration flow
+		r.With(middleware.PermissionMiddleware([]string{"registration-flow:delete"})).
+			Delete("/{registration_flow_uuid}", registrationFlowHandler.Delete)
 
-		// Signup flow role management
-		r.Route("/{auth_flow_uuid}/roles", func(r chi.Router) {
-			// Assign roles to signup flow
-			r.With(middleware.PermissionMiddleware([]string{"auth-flow:update"})).
-				Post("/", authFlowHandler.AssignRoles)
+		// Registration flow role management
+		r.Route("/{registration_flow_uuid}/roles", func(r chi.Router) {
+			// Assign roles to registration flow
+			r.With(middleware.PermissionMiddleware([]string{"registration-flow:update"})).
+				Post("/", registrationFlowHandler.AssignRoles)
 
-			// Get all roles assigned to signup flow
-			r.With(middleware.PermissionMiddleware([]string{"auth-flow:read"})).
-				Get("/", authFlowHandler.GetRoles)
+			// Get all roles assigned to registration flow
+			r.With(middleware.PermissionMiddleware([]string{"registration-flow:read"})).
+				Get("/", registrationFlowHandler.GetRoles)
 
-			// Remove a role from signup flow
-			r.With(middleware.PermissionMiddleware([]string{"auth-flow:update"})).
-				Delete("/{role_uuid}", authFlowHandler.RemoveRole)
-		})
-
-		// Auth flow callback URI management
-		r.Route("/{auth_flow_uuid}/callback_uris", func(r chi.Router) {
-			// Attach callback URIs (from the client's registered URIs)
-			r.With(middleware.PermissionMiddleware([]string{"auth-flow:update"})).
-				Post("/", authFlowHandler.AssignCallbackURIs)
-
-			// List callback URIs attached to the flow
-			r.With(middleware.PermissionMiddleware([]string{"auth-flow:read"})).
-				Get("/", authFlowHandler.GetCallbackURIs)
-
-			// Detach a callback URI from the flow
-			r.With(middleware.PermissionMiddleware([]string{"auth-flow:update"})).
-				Delete("/{client_uri_uuid}", authFlowHandler.RemoveCallbackURI)
+			// Remove a role from registration flow
+			r.With(middleware.PermissionMiddleware([]string{"registration-flow:update"})).
+				Delete("/{role_uuid}", registrationFlowHandler.RemoveRole)
 		})
 	})
 }

@@ -127,6 +127,12 @@ func (m *mockInviteRepo) FindByToken(token string) (*Invite, error) {
 	}
 	return nil, nil
 }
+func (m *mockInviteRepo) FindByTokenForUpdate(token string) (*Invite, error) {
+	if m.findByTokenFn != nil {
+		return m.findByTokenFn(token)
+	}
+	return nil, nil
+}
 func (m *mockInviteRepo) MarkAsUsed(id uuid.UUID) error {
 	if m.markAsUsedFn != nil {
 		return m.markAsUsedFn(id)
@@ -302,22 +308,22 @@ func (m *mockLoginService) Logout(ctx context.Context, accessToken string) error
 // ---------------------------------------------------------------------------
 
 type mockRegisterService struct {
-	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error)
-	registerFn             func(username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error)
+	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error)
+	registerFn             func(username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error)
 	registerInvitePublicFn func(username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error)
 	registerInviteFn       func(username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error)
 }
 
-func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error) {
+func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error) {
 	if m.registerPublicFn != nil {
-		return m.registerPublicFn(username, fullname, password, email, phone, clientID, tenantID)
+		return m.registerPublicFn(username, fullname, password, email, phone, clientID, tenantID, registrationFlowIdentifier)
 	}
 	return nil, nil
 }
 
-func (m *mockRegisterService) Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error) {
+func (m *mockRegisterService) Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error) {
 	if m.registerFn != nil {
-		return m.registerFn(username, fullname, password, email, phone, clientID, tenantID)
+		return m.registerFn(username, fullname, password, email, phone, clientID, tenantID, registrationFlowIdentifier)
 	}
 	return nil, nil
 }

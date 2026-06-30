@@ -27,26 +27,26 @@ var secHashPassword = security.HashPassword
 var secHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
 type RegisterService interface {
-	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error)
+	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error)
 	RegisterInvitePublic(ctx context.Context, username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error)
 	RegisterInvite(ctx context.Context, username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error)
-	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string) (*RegisterResponseDTO, error)
+	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error)
 }
 
 type registerService struct {
-	db                   *gorm.DB
-	clientRepo           ClientRepository
-	userRepo             UserRepository
-	userRoleRepo         UserRoleRepository
-	userTokenRepo        UserTokenRepository
-	userIdentityRepo     UserIdentityRepository
-	roleRepo             RoleRepository
-	inviteRepo           InviteRepository
-	identityProviderRepo IdentityProviderRepository
-	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → use defaults
-	passwordHistoryRepo  UserPasswordHistoryRepository       // nil → skip history
-	authFlowRoleRepo     AuthFlowRoleRepository
-	emailVerificationSvc EmailVerificationService
+	db                       *gorm.DB
+	clientRepo               ClientRepository
+	userRepo                 UserRepository
+	userRoleRepo             UserRoleRepository
+	userTokenRepo            UserTokenRepository
+	userIdentityRepo         UserIdentityRepository
+	roleRepo                 RoleRepository
+	inviteRepo               InviteRepository
+	identityProviderRepo     IdentityProviderRepository
+	securitySettingRepo      secpolicy.SecuritySettingRepository // nil → use defaults
+	passwordHistoryRepo      UserPasswordHistoryRepository       // nil → skip history
+	registrationFlowRoleRepo RegistrationFlowRoleRepository
+	emailVerificationSvc     EmailVerificationService
 }
 
 func NewRegistrationService(
@@ -61,7 +61,7 @@ func NewRegistrationService(
 	identityProviderRepo IdentityProviderRepository,
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
-	authFlowRoleRepo AuthFlowRoleRepository,
+	registrationFlowRoleRepo RegistrationFlowRoleRepository,
 	emailVerificationSvc ...EmailVerificationService,
 ) RegisterService {
 	var emailSvc EmailVerificationService
@@ -70,19 +70,19 @@ func NewRegistrationService(
 	}
 
 	return &registerService{
-		db:                   db,
-		clientRepo:           clientRepo,
-		userRepo:             userRepo,
-		userRoleRepo:         userRoleRepo,
-		userTokenRepo:        userTokenRepo,
-		userIdentityRepo:     userIdentityRepo,
-		roleRepo:             roleRepo,
-		inviteRepo:           inviteRepo,
-		identityProviderRepo: identityProviderRepo,
-		securitySettingRepo:  securitySettingRepo,
-		passwordHistoryRepo:  passwordHistoryRepo,
-		authFlowRoleRepo:     authFlowRoleRepo,
-		emailVerificationSvc: emailSvc,
+		db:                       db,
+		clientRepo:               clientRepo,
+		userRepo:                 userRepo,
+		userRoleRepo:             userRoleRepo,
+		userTokenRepo:            userTokenRepo,
+		userIdentityRepo:         userIdentityRepo,
+		roleRepo:                 roleRepo,
+		inviteRepo:               inviteRepo,
+		identityProviderRepo:     identityProviderRepo,
+		securitySettingRepo:      securitySettingRepo,
+		passwordHistoryRepo:      passwordHistoryRepo,
+		registrationFlowRoleRepo: registrationFlowRoleRepo,
+		emailVerificationSvc:     emailSvc,
 	}
 }
 
@@ -155,28 +155,46 @@ func enforceIdentityProviderRegistrationGate(client *Client) error {
 	return nil
 }
 
-func (s *registerService) registrationFlowForClient(tx *gorm.DB, clientID int64) (*RegistrationFlow, error) {
-	if s.authFlowRoleRepo == nil {
+func (s *registerService) registrationFlowByIdentifier(tx *gorm.DB, clientID int64, identifier string) (*RegistrationFlow, error) {
+	identifier = strings.TrimSpace(identifier)
+	if identifier == "" {
 		return nil, nil
 	}
-	txRepo := s.authFlowRoleRepo.WithTx(tx)
-	reader, ok := txRepo.(registrationFlowReader)
-	if !ok {
-		return nil, nil
+	if s.registrationFlowRoleRepo == nil {
+		return nil, apperror.NewInternal("registration flow repository is unavailable", nil)
 	}
-	flows, err := reader.FindByClientID(clientID)
+	txRepo := s.registrationFlowRoleRepo.WithTx(tx)
+	flow, err := txRepo.FindByIdentifierAndClientID(identifier, clientID)
 	if err != nil {
-		return nil, apperror.NewInternal("failed to load signup flow", err)
+		return nil, apperror.NewInternal("failed to load registration flow", err)
 	}
-	if len(flows) == 0 {
+	if flow == nil {
+		return nil, apperror.NewNotFoundWithReason("registration flow not found for this client")
+	}
+	if flow.Status != shared.StatusActive {
+		return nil, apperror.NewForbidden("registration flow is inactive")
+	}
+	return flow, nil
+}
+
+func (s *registerService) validateInviteRegistrationFlow(tx *gorm.DB, invite *Invite) (*RegistrationFlow, error) {
+	if invite == nil || invite.RegistrationFlowID == nil {
 		return nil, nil
 	}
-	for i := range flows {
-		if flows[i].Status == shared.StatusActive && flows[i].AllowRegistration {
-			return &flows[i], nil
-		}
+	if s.registrationFlowRoleRepo == nil {
+		return nil, apperror.NewInternal("registration flow repository is unavailable", nil)
 	}
-	return nil, apperror.NewForbidden("registration is disabled for this signup flow")
+	flow, err := s.registrationFlowRoleRepo.WithTx(tx).FindByID(*invite.RegistrationFlowID)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to load invite registration flow", err)
+	}
+	if flow == nil || flow.TenantID != invite.TenantID {
+		return nil, apperror.NewUnauthorized("invite registration flow is invalid")
+	}
+	if flow.Status != shared.StatusActive {
+		return nil, apperror.NewUnauthorized("invite registration flow is inactive")
+	}
+	return flow, nil
 }
 
 func parseRequiredRegistrationFields(raw string) ([]string, error) {
@@ -185,7 +203,7 @@ func parseRequiredRegistrationFields(raw string) ([]string, error) {
 	}
 	var fields []string
 	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
-		return nil, apperror.NewValidation("signup flow required_fields must be a JSON string array")
+		return nil, apperror.NewValidation("registration flow required_fields must be a JSON string array")
 	}
 	return fields, nil
 }
@@ -204,18 +222,18 @@ func enforceRequiredRegistrationFields(flow *RegistrationFlow, fullname string, 
 			// Username and password are always required by RegisterRequestDTO.
 		case "fullname":
 			if strings.TrimSpace(fullname) == "" {
-				return apperror.NewValidation("fullname is required by the signup flow")
+				return apperror.NewValidation("fullname is required by the registration flow")
 			}
 		case "email":
 			if email == nil || strings.TrimSpace(*email) == "" {
-				return apperror.NewValidation("email is required by the signup flow")
+				return apperror.NewValidation("email is required by the registration flow")
 			}
 		case "phone":
 			if phone == nil || strings.TrimSpace(*phone) == "" {
-				return apperror.NewValidation("phone is required by the signup flow")
+				return apperror.NewValidation("phone is required by the registration flow")
 			}
 		default:
-			return apperror.NewValidation("unsupported signup flow required field: " + field)
+			return apperror.NewValidation("unsupported registration flow required field: " + field)
 		}
 	}
 	return nil
@@ -230,10 +248,10 @@ func effectiveRegistrationPolicy(base *secpolicy.RegistrationPolicy, flow *Regis
 }
 
 func (s *registerService) assignRegistrationFlowRoles(tx *gorm.DB, userRoleRepo UserRoleRepository, userID, defaultRoleID int64, flow *RegistrationFlow) error {
-	if flow == nil || s.authFlowRoleRepo == nil {
+	if flow == nil || s.registrationFlowRoleRepo == nil {
 		return nil
 	}
-	roleIDs, err := s.authFlowRoleRepo.WithTx(tx).FindRoleIDsByAuthFlowID(flow.AuthFlowID)
+	roleIDs, err := s.registrationFlowRoleRepo.WithTx(tx).FindRoleIDsByRegistrationFlowID(flow.RegistrationFlowID)
 	if err != nil {
 		return err
 	}
@@ -270,6 +288,7 @@ func (s *registerService) RegisterPublic(
 	phone *string,
 	clientID,
 	tenantID *string,
+	registrationFlowIdentifier string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.public")
 	defer span.End()
@@ -321,10 +340,13 @@ func (s *registerService) RegisterPublic(
 		if !regPolicy.SelfRegistrationEnabled {
 			return apperror.NewForbidden("self-registration is disabled for this tenant")
 		}
+		if !Client.AllowRegistration {
+			return apperror.NewForbidden("self-registration is disabled for this client")
+		}
 		if err := enforceIdentityProviderRegistrationGate(Client); err != nil {
 			return err
 		}
-		registrationFlow, txErr = s.registrationFlowForClient(tx, Client.ClientID)
+		registrationFlow, txErr = s.registrationFlowByIdentifier(tx, Client.ClientID, registrationFlowIdentifier)
 		if txErr != nil {
 			return txErr
 		}
@@ -476,6 +498,7 @@ func (s *registerService) Register(
 	phone *string,
 	clientID,
 	tenantID *string,
+	registrationFlowIdentifier string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.internal")
 	defer span.End()
@@ -523,10 +546,13 @@ func (s *registerService) Register(
 		if !regPolicy.SelfRegistrationEnabled {
 			return apperror.NewForbidden("self-registration is disabled for this tenant")
 		}
+		if !Client.AllowRegistration {
+			return apperror.NewForbidden("self-registration is disabled for this client")
+		}
 		if err := enforceIdentityProviderRegistrationGate(Client); err != nil {
 			return err
 		}
-		registrationFlow, txErr = s.registrationFlowForClient(tx, Client.ClientID)
+		registrationFlow, txErr = s.registrationFlowByIdentifier(tx, Client.ClientID, registrationFlowIdentifier)
 		if txErr != nil {
 			return txErr
 		}
@@ -721,7 +747,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Validate invite token
-		invite, txErr := txInviteRepo.FindByToken(inviteToken)
+		invite, txErr := txInviteRepo.FindByTokenForUpdate(inviteToken)
 		if txErr != nil {
 			return apperror.NewUnauthorized("invalid invite token")
 		}
@@ -738,6 +764,10 @@ func (s *registerService) RegisterInvitePublic(
 		}
 		if invite.TenantID == 0 || invite.TenantID != tenantId {
 			return apperror.NewUnauthorized("invite does not belong to the auth client tenant")
+		}
+		inviteFlow, txErr := s.validateInviteRegistrationFlow(tx, invite)
+		if txErr != nil {
+			return txErr
 		}
 
 		// Check if username already exists (scoped to the invite's tenant)
@@ -832,32 +862,8 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 
-		// If invite references an auth_flow, grant its roles
-		if invite.AuthFlowID != nil && s.authFlowRoleRepo != nil {
-			txAuthFlowRoleRepo := s.authFlowRoleRepo.WithTx(tx)
-			roleIDs, txErr := txAuthFlowRoleRepo.FindRoleIDsByAuthFlowID(*invite.AuthFlowID)
-			if txErr != nil {
-				return txErr
-			}
-			for _, roleID := range roleIDs {
-				if roleID == defaultRole.RoleID {
-					continue // already assigned
-				}
-				existingRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, roleID)
-				if txErr != nil {
-					return txErr
-				}
-				if existingRole != nil {
-					continue
-				}
-				_, txErr = txUserRoleRepo.Create(&UserRole{
-					UserID: createdUser.UserID,
-					RoleID: roleID,
-				})
-				if txErr != nil {
-					return txErr
-				}
-			}
+		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, inviteFlow); txErr != nil {
+			return txErr
 		}
 
 		// Mark invite as used
@@ -907,7 +913,7 @@ func (s *registerService) RegisterInvite(
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 
-		invite, txErr := txInviteRepo.FindByToken(inviteToken)
+		invite, txErr := txInviteRepo.FindByTokenForUpdate(inviteToken)
 		if txErr != nil {
 			return apperror.NewUnauthorized("invalid invite token")
 		}
@@ -941,6 +947,10 @@ func (s *registerService) RegisterInvite(
 		}
 		if invite.TenantID == 0 || clientTenantID(Client) != invite.TenantID {
 			return apperror.NewUnauthorized("invite does not belong to the auth client tenant")
+		}
+		inviteFlow, txErr := s.validateInviteRegistrationFlow(tx, invite)
+		if txErr != nil {
+			return txErr
 		}
 
 		tenantId := invite.TenantID
@@ -1021,31 +1031,8 @@ func (s *registerService) RegisterInvite(
 			return txErr
 		}
 
-		if invite.AuthFlowID != nil && s.authFlowRoleRepo != nil {
-			txAuthFlowRoleRepo := s.authFlowRoleRepo.WithTx(tx)
-			roleIDs, txErr := txAuthFlowRoleRepo.FindRoleIDsByAuthFlowID(*invite.AuthFlowID)
-			if txErr != nil {
-				return txErr
-			}
-			for _, roleID := range roleIDs {
-				if roleID == defaultRole.RoleID {
-					continue
-				}
-				existingRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, roleID)
-				if txErr != nil {
-					return txErr
-				}
-				if existingRole != nil {
-					continue
-				}
-				_, txErr = txUserRoleRepo.Create(&UserRole{
-					UserID: createdUser.UserID,
-					RoleID: roleID,
-				})
-				if txErr != nil {
-					return txErr
-				}
-			}
+		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, inviteFlow); txErr != nil {
+			return txErr
 		}
 
 		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)

@@ -31,7 +31,7 @@ func (h *InviteGRPCHandler) SendInvite(ctx context.Context, req *authv1.SendInvi
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
-	_, err = h.inviteService.SendInvite(ctx, tenantID, req.GetEmail(), 0, nil)
+	_, err = h.inviteService.SendInvite(ctx, tenantID, req.GetEmail(), 0, nil, nil)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

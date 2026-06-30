@@ -146,7 +146,7 @@ maintainerd-auth/
 │   ├── tenant/                     # tenants, members, settings
 │   ├── iam/                        # services (resources), APIs, permissions, roles, policies
 │   ├── client/                     # OAuth clients, API keys
-│   ├── idp/                        # identity providers, federation, signup flows
+│   ├── idp/                        # identity providers, federation, registration flows
 │   ├── invite/                     # invitations
 │   ├── secpolicy/                  # security settings, IP restrictions
 │   ├── branding/                   # branding + email/sms/login templates
@@ -420,25 +420,25 @@ client/
 
 ---
 
-### 4.8 `internal/idp/` — Identity providers, federation, signup flows
+### 4.8 `internal/idp/` — Identity providers, federation, registration flows
 
 ```
 idp/
 ├── registry.go                     # new: type Deps, Registry, NewRegistry for IDP wiring
 ├── routes.go                       # was: rest/route/identity_provider.go, federation.go, signup_flow.go
 ├── types.go                        # was: dto/idp.go, federation.go, signup_flow.go, signup_flow_role.go
-├── repository.go                   # interfaces for identity_provider, signup_flow, signup_flow_role
+├── repository.go                   # interfaces for identity_provider, registration_flow, registration_flow_role
 ├── repository_gorm.go              # was: repository/identity_provider.go, signup_flow.go, signup_flow_role.go
 ├── provider.go                     # IdentityProvider model + ProviderService — was: model/identity_provider.go + service/identity_provider.go
 ├── handler_provider.go             # was: rest/handler/identity_provider.go
 ├── federation.go                   # Federation model/service — was: model/federation.go + service/federation.go
 ├── handler_federation.go           # was: rest/handler/federation.go
-├── signup_flow.go                  # SignupFlow model + SignupFlowService — was: model/signup_flow.go + service/signup_flow.go
-├── signup_flow_role.go             # SignupFlowRole pivot model — was: model/signup_flow_role.go
-└── handler_signup_flow.go          # was: rest/handler/signup_flow.go
+├── registration_flow.go            # RegistrationFlow model + RegistrationFlowService — was: model/signup_flow.go + service/signup_flow.go
+├── registration_flow_role.go       # RegistrationFlowRole pivot model — was: model/signup_flow_role.go
+└── handler_registration_flow.go    # was: rest/handler/signup_flow.go
 ```
 
-**Owns aggregates (GORM models):** `IdentityProvider`, `Federation`, `SignupFlow`, `SignupFlowRole`. Cross-aggregate references are `uuid.UUID`.
+**Owns aggregates (GORM models):** `IdentityProvider`, `Federation`, `RegistrationFlow`, `RegistrationFlowRole`. Cross-aggregate references are `uuid.UUID`.
 
 ---
 
@@ -758,7 +758,7 @@ Every existing file → new location.
 | `internal/service/service.go` | `internal/iam/service.go` |
 | `internal/service/session.go` | `internal/authn/session.go` |
 | `internal/service/setup.go` | `internal/setup/setup.go` |
-| `internal/service/signup_flow.go` | `internal/idp/signup_flow.go` |
+| `internal/service/signup_flow.go` | `internal/idp/registration_flow.go` |
 | `internal/service/sms_config.go` | `internal/notifier/sms_config.go` |
 | `internal/service/sms_login.go` | `internal/authn/sms_login.go` |
 | `internal/service/sms_template.go` | `internal/branding/sms_template.go` |
@@ -819,7 +819,7 @@ Every existing file → new location.
 | `internal/rest/handler/security_setting.go` | `internal/secpolicy/handler_setting.go` |
 | `internal/rest/handler/service.go` | `internal/iam/handler_service.go` |
 | `internal/rest/handler/setup.go` | `internal/setup/handler_setup.go` |
-| `internal/rest/handler/signup_flow.go` | `internal/idp/handler_signup_flow.go` |
+| `internal/rest/handler/signup_flow.go` | `internal/idp/handler_registration_flow.go` |
 | `internal/rest/handler/sms_config.go` | `internal/notifier/handler_sms_config.go` |
 | `internal/rest/handler/sms_login.go` | `internal/authn/handler_sms_login.go` |
 | `internal/rest/handler/sms_template.go` | `internal/branding/handler_sms_template.go` |
@@ -1018,8 +1018,8 @@ Each model file in `internal/model/` moves into the domain that owns the aggrega
 | `internal/model/api_key_permission.go` | `internal/client/api_key_permission.go` |
 | `internal/model/identity_provider.go` | `internal/idp/provider.go` |
 | `internal/model/federation.go` | `internal/idp/federation.go` |
-| `internal/model/signup_flow.go` | `internal/idp/signup_flow.go` |
-| `internal/model/signup_flow_role.go` | `internal/idp/signup_flow_role.go` |
+| `internal/model/signup_flow.go` | `internal/idp/registration_flow.go` |
+| `internal/model/signup_flow_role.go` | `internal/idp/registration_flow_role.go` |
 | `internal/model/invite.go` | `internal/invite/invite.go` |
 | `internal/model/invite_role.go` | `internal/invite/invite_role.go` |
 | `internal/model/security_setting.go` | `internal/secpolicy/setting.go` |

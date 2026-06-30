@@ -34,7 +34,7 @@ func (a *App) ServerApplication() *server.Application {
 		EmailVerificationService:     a.EmailVerificationService,
 		MagicLinkService:             a.MagicLinkService,
 		SetupService:                 a.SetupService,
-		AuthFlowService:              a.AuthFlowService,
+		RegistrationFlowService:      a.RegistrationFlowService,
 		APIKeyService:                a.APIKeyService,
 		SecuritySettingService:       a.SecuritySettingService,
 		IPRestrictionRuleService:     a.IPRestrictionRuleService,
