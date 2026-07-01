@@ -209,6 +209,9 @@ func (m *mockPermissionRepo) FindByUUIDs(ids []string, p ...string) ([]Permissio
 	}
 	return nil, nil
 }
+func (m *mockPermissionRepo) FindByUUIDsAndTenantID(uuids []string, tenantID int64) ([]Permission, error) {
+	return m.FindByUUIDs(uuids)
+}
 func (m *mockPermissionRepo) CreateOrUpdate(e *Permission) (*Permission, error) {
 	if m.createOrUpdateFn != nil {
 		return m.createOrUpdateFn(e)

@@ -188,8 +188,8 @@ Prior sessions made isolation solid across users, clients, iam (most paths), inv
 
 `internal/iam/service_role.go:684` fetches permissions via `FindByUUIDs` without a tenant predicate (post-fetch check exists but is fragile).
 
-- [ ] Add and use `FindByUUIDsAndTenantID(uuids, tenantID)` so the predicate is in SQL.
-- **Acceptance:** Cross-tenant permission UUIDs are never loaded into memory.
+- [x] Added and used `FindByUUIDsAndTenantID(uuids, tenantID)` so the predicate is in SQL. Replaced fragile post-fetch tenant check in AddRolePermissions.
+- [x] **Acceptance:** Cross-tenant permission UUIDs are never loaded into memory.
 
 ### B4 — Add tenant guard when loading a client for a user identity (LOW)
 
