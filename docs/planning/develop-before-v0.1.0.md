@@ -225,8 +225,8 @@ Backend is `PUT /{tenant_uuid}/status` (`internal/tenant/routes.go:59`) but cons
 
 `internal/branding/handler_branding.go:86` calls `GetPublic(r.Context(), 1)`.
 
-- [ ] Resolve the tenant from the request (host/subdomain, or `tenant_id`/`client_id` query) and fall back to the system tenant when unresolved. Remove the hardcoded `1`.
-- **Acceptance:** `/public/branding` returns the requesting tenant's branding.
+- [x] Resolve the tenant from request query (`tenant_id` param); fall back to global system branding when unresolved. Removed hardcoded `1`. Added `FindSystemDefault()` to branding repo for global system fallback.
+- [x] **Acceptance:** `/public/branding` returns the requesting tenant's branding.
 
 ### C3 — Logo storage as DB blob behind a URL (NEW BE)
 
