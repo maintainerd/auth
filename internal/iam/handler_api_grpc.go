@@ -42,7 +42,7 @@ func (h *APIGRPCHandler) ListAPIs(ctx context.Context, req *authv1.ListAPIsReque
 		if err != nil {
 			return nil, err
 		}
-		resolved, err := h.apiService.GetServiceIDByUUID(ctx, serviceUUID)
+		resolved, err := h.apiService.GetServiceIDByUUID(ctx, serviceUUID, scope.TenantID)
 		if err != nil {
 			return nil, apperror.ToGRPCError(err)
 		}

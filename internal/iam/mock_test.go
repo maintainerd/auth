@@ -732,7 +732,7 @@ func (m *mockAPIService) GetByUUID(_ context.Context, id uuid.UUID, tenantID int
 	}
 	return &APIServiceDataResult{}, nil
 }
-func (m *mockAPIService) GetServiceIDByUUID(_ context.Context, id uuid.UUID) (int64, error) {
+func (m *mockAPIService) GetServiceIDByUUID(_ context.Context, id uuid.UUID, _ int64) (int64, error) {
 	if m.getServiceIDByUUIDFn != nil {
 		return m.getServiceIDByUUIDFn(id)
 	}

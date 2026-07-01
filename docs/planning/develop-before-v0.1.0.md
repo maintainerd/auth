@@ -181,8 +181,8 @@ Prior sessions made isolation solid across users, clients, iam (most paths), inv
 
 `internal/iam/service_api.go:148` returns a service ID from a plain `FindByUUID` with no tenant assertion.
 
-- [ ] After fetch, assert the service belongs to the tenant (via `tenant_services` or a `FindByUUIDAndTenantID` equivalent); return NotFound on mismatch.
-- **Acceptance:** Cross-tenant service UUID resolves to NotFound.
+- [x] After fetch, assert the service belongs to the tenant (service.TenantID == tenantID); return NotFound on mismatch. Added tenantID param to GetServiceIDByUUID and updated REST + gRPC handlers.
+- [x] **Acceptance:** Cross-tenant service UUID resolves to NotFound.
 
 ### B3 — Enforce tenant predicate in SQL for role-permission assignment (LOW)
 
