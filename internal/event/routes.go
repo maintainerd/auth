@@ -44,6 +44,9 @@ func ConfigRoute(
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:read"})).
 			Get("/", managementHandler.ListEventRoutes)
 
+		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:read"})).
+			Get("/{event_route_uuid}", managementHandler.GetEventRoute)
+
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:create"})).
 			Post("/", managementHandler.CreateEventRoute)
 

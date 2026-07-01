@@ -260,9 +260,9 @@ Backend is `PUT /{tenant_uuid}/status` (`internal/tenant/routes.go:59`) but cons
 
 ### C7 — Add missing authenticated detail endpoints (GAP)
 
-- [ ] Add authenticated `GET /invites/{invite_uuid}` (tenant-scoped) so console invite details don't depend on the list page.
-- [ ] Add `GET /event-routes/{event_route_uuid}` for event-route detail.
-- **Acceptance:** Invite and event-route detail pages load directly by id.
+- [x] Added authenticated `GET /invite/{invite_uuid}` (tenant-scoped) so console invite details don't depend on the list page.
+- [x] Added `GET /event-routes/{event_route_uuid}` for event-route detail.
+- [x] **Acceptance:** Invite and event-route detail pages load directly by id.
 
 ### C8 — IdP list "Token Federation" badge data (already mostly done)
 
