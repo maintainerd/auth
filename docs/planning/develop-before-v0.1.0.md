@@ -142,27 +142,27 @@ Migration `051`. The unique `(user_id, client_id)` already serves the consent ch
 
 Migration `041`. `invite_token` is already UNIQUE (redundant `idx_invites_token`); `status` is low-cardinality; email index isn't tenant-scoped.
 
-- [ ] Remove `idx_invites_token` and `idx_invites_status`. Replace the bare email index with `idx_invites_tenant_email` on `(tenant_id, invited_email) WHERE deleted_at IS NULL`.
-- **Acceptance:** Tenant-scoped invite lookups use the composite; no redundant indexes.
+- [x] Remove `idx_invites_token` and `idx_invites_status`. Replace the bare email index with `idx_invites_tenant_email` on `(tenant_id, invited_email) WHERE deleted_at IS NULL`.
+- [x] **Acceptance:** Tenant-scoped invite lookups use the composite; no redundant indexes.
 
 ### A12 — Tenant-scope the `users.phone` index (MEDIUM)
 
 Migration `024`. `idx_users_phone` is global but lookups are tenant-scoped.
 
-- [ ] Replace `idx_users_phone` with `idx_users_tenant_phone` on `(tenant_id, phone) WHERE deleted_at IS NULL AND phone IS NOT NULL`.
-- **Acceptance:** Phone lookups use the tenant-scoped index.
+- [x] Replace `idx_users_phone` with `idx_users_tenant_phone` on `(tenant_id, phone) WHERE deleted_at IS NULL AND phone IS NOT NULL`.
+- [x] **Acceptance:** Phone lookups use the tenant-scoped index.
 
 ### A13 — Per-tenant unique constraints for role/api/permission names (HIGH)
 
 Uniqueness for role name, API name/identifier, and permission name is enforced only in the service layer (race-prone). Edit the original create migrations + GORM models in place.
 
-- [ ] Add `uq_roles_tenant_name`, `uq_apis_tenant_identifier`, `uq_permissions_tenant_name` composite unique indexes (scoped `WHERE deleted_at IS NULL` where soft delete applies).
-- **Acceptance:** Concurrent creates with duplicate names fail at the DB, not just the service.
+- [x] Add `uq_roles_tenant_name`, `uq_apis_tenant_identifier`, `uq_permissions_tenant_name` composite unique indexes. All three already exist in migrations (permissions uses stronger `(tenant_id, api_id, name)`).
+- [x] **Acceptance:** Concurrent creates with duplicate names fail at the DB, not just the service.
 
 ### A14 — Document post-release index-migration safety (MEDIUM)
 
-- [ ] Add a note to `docs/contributing/database-migrations.md`: once the create-only freeze lifts at first production deploy, all new index DDL on `users`, `auth_events`, `oauth_refresh_tokens`, `user_identities` must use `CREATE INDEX CONCURRENTLY` (outside a transaction).
-- **Acceptance:** The rule is written.
+- [x] Add a note to `docs/contributing/database-migrations.md`: once the create-only freeze lifts at first production deploy, all new index DDL on `users`, `auth_events`, `oauth_refresh_tokens`, `user_identities` must use `CREATE INDEX CONCURRENTLY` (outside a transaction).
+- [x] **Acceptance:** The rule is written.
 
 ---
 

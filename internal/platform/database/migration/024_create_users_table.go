@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users (tenant_id);
 -- or username may exist independently in different tenants ("separate worlds").
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_tenant_username ON users (tenant_id, username) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_tenant_email ON users (tenant_id, email) WHERE deleted_at IS NULL AND email IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_users_phone ON users (phone);
+CREATE INDEX IF NOT EXISTS idx_users_tenant_phone ON users (tenant_id, phone) WHERE deleted_at IS NULL AND phone IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users (deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_users_password_changed_at ON users(password_changed_at)

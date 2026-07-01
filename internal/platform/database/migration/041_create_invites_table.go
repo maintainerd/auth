@@ -84,10 +84,8 @@ CREATE INDEX IF NOT EXISTS idx_invites_uuid ON invites (invite_uuid);
 CREATE INDEX IF NOT EXISTS idx_invites_tenant_id ON invites (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_invites_client_id ON invites (client_id);
 CREATE INDEX IF NOT EXISTS idx_invites_registration_flow_id ON invites (registration_flow_id);
-CREATE INDEX IF NOT EXISTS idx_invites_email ON invites (invited_email);
+CREATE INDEX IF NOT EXISTS idx_invites_tenant_email ON invites (tenant_id, invited_email) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_invites_invited_by_user_id ON invites (invited_by_user_id);
-CREATE INDEX IF NOT EXISTS idx_invites_token ON invites (invite_token);
-CREATE INDEX IF NOT EXISTS idx_invites_status ON invites (status);
 CREATE INDEX IF NOT EXISTS idx_invites_created_at ON invites (created_at);
 CREATE INDEX IF NOT EXISTS idx_invites_deleted_at ON invites (deleted_at) WHERE deleted_at IS NULL;
 `
