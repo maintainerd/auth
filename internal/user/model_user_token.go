@@ -18,11 +18,11 @@ type UserToken struct {
 	UserTokenUUID uuid.UUID  `gorm:"column:user_token_uuid;unique"`
 	UserID        int64      `gorm:"column:user_id"`
 	TokenType     string     `gorm:"column:token_type"`
-	Token         string     `gorm:"column:token"` // hashed
+	Token         string     `gorm:"column:token;uniqueIndex:idx_user_tokens_token_unique"` // hashed
 	UserAgent     *string    `gorm:"column:user_agent"`
 	IPAddress     *string    `gorm:"column:ip_address"`
 	IsRevoked     bool       `gorm:"column:is_revoked;default:false"`
-	ExpiresAt     *time.Time `gorm:"column:expires_at"`
+	ExpiresAt     *time.Time `gorm:"column:expires_at;index:idx_user_tokens_expires_at,where:expires_at IS NOT NULL"`
 
 	// Session-specific fields — only populated for shared.TokenTypeSession records.
 	LastUsedAt         *time.Time `gorm:"column:last_used_at"`
