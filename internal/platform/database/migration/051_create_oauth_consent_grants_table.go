@@ -52,8 +52,8 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_oauth_consent_grants_user ON oauth_consent_grants (user_id);
-CREATE INDEX IF NOT EXISTS idx_oauth_consent_grants_client ON oauth_consent_grants (client_id);
+-- Consent lookups always carry (user_id, client_id), which the unique
+-- constraint uq_oauth_consent_user_client already covers.
 `
 	return db.Exec(sql).Error
 }

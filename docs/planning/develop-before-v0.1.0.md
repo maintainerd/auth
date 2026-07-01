@@ -135,8 +135,8 @@ Migration `025`. Lookups always carry `tenant_id + provider`, so the standalone 
 
 Migration `051`. The unique `(user_id, client_id)` already serves the consent check.
 
-- [ ] Remove the standalone `idx_oauth_consent_grants_user`. Keep a `client_id` index only if a client-scoped "revoke all consents for client" path exists; otherwise remove it too.
-- **Acceptance:** Consent lookup still indexed; fewer indexes to maintain.
+- [x] Remove the standalone `idx_oauth_consent_grants_user` and `idx_oauth_consent_grants_client`. The unique `(user_id, client_id)` serves all consent lookups; no client-scoped revocation path exists.
+- [x] **Acceptance:** Consent lookup still indexed; fewer indexes to maintain.
 
 ### A11 — Fix `invites` indexes (MEDIUM)
 
