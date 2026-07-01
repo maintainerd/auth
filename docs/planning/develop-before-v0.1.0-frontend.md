@@ -37,13 +37,13 @@ _Verified against source + green builds (`tsc -b`, `npm run lint`, `npm run buil
 - [x] D — Feature completeness & wiring (11/11 — D1 phone-verify now implemented end-to-end)
 - [x] E — UX completeness & no silent failures (8/8)
 - [x] F — Routing & resilience (4/4)
-- [x] G — Accessibility (5/5 — automated axe in CI, both repos, zero violations)
+- [ ] G — Accessibility (4/5 — G1–G4 done; G5 target+measures documented, automated axe deferred with the Playwright tooling)
 - [x] H — Dead code & type hygiene (6/6)
 - [ ] I — Docker production-grade (5/6 — I3 digest-pin is owner-manual; I6/I8 image publish removed from scope)
 - [x] J — Open-source readiness (8/8)
-- [x] K — Responsiveness, cross-browser & testing (5/5 — automated CI gates: responsive viewports, chromium/firefox/webkit, unit coverage, backend-less E2E, bundle+Lighthouse; live-stack E2E folds into L3)
-- [ ] L — Frontend release gate (4/5 — L1 build + L4 contract + L5 K-rollup + L6 secret/dead-code done; only L3 live-stack smoke remains; L2/L7 image build/tag/publish removed from scope)
-- [ ] All frontend v0.1.0 work complete — **all implementable engineering is done and verified; the only remaining boxes are L3 live-stack smoke, I3 digest-pin, and your manual image build/tag/publish**
+- [ ] K — Responsiveness, cross-browser & testing (1/5 — K3 unit coverage active + K5 bundle budget met; K1/K2/K4 + K5 Lighthouse DEFERRED to a Playwright expert)
+- [ ] L — Frontend release gate (3/5 — L1 build + L4 contract + L6 secret/dead-code done; L5 depends on deferred K; L3 live-stack smoke remains; L2/L7 image build/tag/publish removed from scope)
+- [ ] All frontend v0.1.0 work complete — **all in-scope engineering done and verified; Playwright E2E/a11y/cross-browser + Lighthouse are DEFERRED to a Playwright expert (unit tests remain the automated gate); remaining owner items: L3 live-stack smoke, I3 digest-pin, manual image build/tag/publish**
 
 ---
 
@@ -372,7 +372,7 @@ CONSOLE eagerly imports ~80 pages into one bundle; IDENTITY ships a single 647 K
 
 ### G5 — Set and verify a WCAG target [BOTH]
 
-- [x] Adopt WCAG 2.1 AA as the target; run an automated a11y check (axe) on the identity auth screens and key console pages, fix violations, and document the target plus any known exceptions. **DONE (2026-07-04):** both repos now run an automated `@axe-core/playwright` scan against the backend-less production preview (`npm run a11y`, `tests/e2e/a11y.spec.ts`, wired into the CI `a11y` job) with `withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa'])`, failing on any serious/critical violation. Identity scans `/login`, `/register`, `/forgot-password`, `/reset-password`, `/magic-link`; console scans `/login`, `/service-unavailable`, `/no-access`. **All scanned routes report zero violations** (verified: identity 5 passed/3 session-gated-skips, console 3 passed). Session-gated/authenticated routes are documented as out-of-preview-scope in each repo's `docs/accessibility.md`.
+- [ ] Adopt WCAG 2.1 AA as the target; run an automated a11y check (axe) on the identity auth screens and key console pages, fix violations, and document the target plus any known exceptions. **PARTIAL / DEFERRED (2026-07-04):** WCAG 2.1 AA target adopted + documented in each repo's `docs/accessibility.md`, with in-code measures in place (aria-live errors, aria-pressed MFA method picker, field-error `aria-invalid`/`aria-describedby` wiring). The **automated axe scan was built (axe via Playwright, zero violations) but then removed with the rest of the Playwright tooling** — the automated a11y gate is deferred to the upcoming Playwright E2E suite (to be added by a Playwright expert). For now a11y is maintained via the in-code measures + manual review.
 - **Acceptance:** Auth screens and key admin pages pass an automated WCAG 2.1 AA check.
 
 ---
@@ -531,14 +531,14 @@ Both have a CI workflow running lint + test + build.
 
 The hosted login is user-facing and will be opened on phones; the console must be usable on tablet/desktop.
 
-- [x] IDENTITY: verify every auth screen (login, registration, invite, MFA, consent, recovery, account) renders and is usable at mobile widths (320–414px), tablet, and desktop; fix overflow, tap-target size, and viewport meta.
-- [x] CONSOLE: verify the admin layout is usable down to tablet width; tables scroll/stack rather than break.
-- **DONE (2026-07-04):** an automated Playwright responsive spec (`tests/e2e/responsive.spec.ts`) loads the auth/static routes at mobile (375×667), tablet (768×1024), and desktop (1440×900) and asserts **no horizontal overflow**, primary heading + submit control visible, and a mobile tap-target floor — green in CI. A real-device spot-check remains a light manual nicety but the automated viewport gate is in place.
+- [ ] IDENTITY: verify every auth screen (login, registration, invite, MFA, consent, recovery, account) renders and is usable at mobile widths (320–414px), tablet, and desktop; fix overflow, tap-target size, and viewport meta.
+- [ ] CONSOLE: verify the admin layout is usable down to tablet width; tables scroll/stack rather than break.
+- **DEFERRED (2026-07-04):** static structure is in place (viewport meta, responsive breakpoints, scrollable `DataTable`). An automated Playwright responsive-viewport spec was built but removed with the Playwright tooling; responsive verification is deferred to the upcoming Playwright suite + manual check.
 - **Acceptance:** No broken layout or unreachable control across mobile/tablet/desktop.
 
 ### K2 — Cross-browser verification [BOTH]
 
-- [x] Verify both apps on current Chrome, Firefox, Safari, and Edge — especially WebAuthn/passkey ceremonies, clipboard, and cookie behavior (SameSite) on Safari. **DONE (2026-07-04):** the Playwright config defines **chromium, firefox, and webkit** projects (webkit is Safari's engine; Chrome/Edge share Chromium) and the CI `e2e` job runs the a11y/responsive/journey specs across all three (`--with-deps`). Locally verified on chromium (firefox/webkit browsers are installed manually — `npx playwright install --with-deps chromium firefox webkit`). Manual spot-checks of real Safari/Edge WebAuthn + SameSite remain a light owner nicety, but the automated cross-engine gate is in place.
+- [ ] Verify both apps on current Chrome, Firefox, Safari, and Edge — especially WebAuthn/passkey ceremonies, clipboard, and cookie behavior (SameSite) on Safari. **DEFERRED (2026-07-04):** cross-browser Playwright projects (chromium/firefox/webkit) were built but removed with the Playwright tooling; cross-browser verification is deferred to the upcoming Playwright suite (Playwright expert) + manual Safari/Edge checks.
 - **Acceptance:** Core flows work on all four browsers; document any known limitation.
 
 ### K3 — Frontend unit tests + coverage gate [BOTH]
@@ -548,12 +548,12 @@ The hosted login is user-facing and will be opened on phones; the console must b
 
 ### K4 — Automated end-to-end tests (Playwright) [BOTH]
 
-- [x] Add a Playwright E2E suite covering core journeys: identity login, OAuth authorize→consent→token, registration (normal/flow/invite), MFA enroll + login, password reset, lockout/429; console login + representative admin CRUD. Wire into CI. **DONE (2026-07-04):** a Playwright E2E suite exists in both repos, wired into the CI `e2e` job as a hard gate. `tests/e2e/journeys.spec.ts` covers all **backend-less** journeys — form-validation errors, inter-page navigation, invalid reset/magic-link states, and off-origin redirect-safety (identity); OAuth login CTA + error routes (console) — and passes green. The **stack-dependent** journeys (login→OAuth→token, registration, MFA enroll+login, password reset, lockout/429, admin CRUD) are wired as `test.skip`-guarded stubs that run when `E2E_BASE_URL` points at a live backend — that final live run is the owner/L3 gate (shared with backend tracker J3), and is intentionally not faked.
+- [ ] Add a Playwright E2E suite covering core journeys: identity login, OAuth authorize→consent→token, registration (normal/flow/invite), MFA enroll + login, password reset, lockout/429; console login + representative admin CRUD. Wire into CI. **DEFERRED (2026-07-04):** a Playwright E2E suite (backend-less journeys + stack-gated stubs) was built and passing, then **removed at the owner's request** — Playwright E2E will be re-introduced by a Playwright expert. For now Vitest unit tests (K3) are the automated test gate.
 - **Acceptance:** Core journeys are covered by automated E2E in CI (shared with backend tracker J3).
 
 ### K5 — Bundle budget + Lighthouse pass [BOTH]
 
-- [x] After route-based code splitting (F4), confirm the initial bundle is within a documented budget; run Lighthouse on the identity login and a console page and meet agreed performance + accessibility scores. **DONE (2026-07-04):** bundle budget documented in each repo's `docs/performance.md` — **no chunk exceeds 500 KB** (console largest: ui-vendor 201 KB, data-vendor 155 KB; identity largest 422 KB). Lighthouse CI (`lighthouserc.json`, `npm run lighthouse`, CI `lighthouse` job) runs against the preview `/login`: median **accessibility 1.00** (hard gate), performance 0.86–0.88 and best-practices 0.96 (warn, since perf varies in CI).
+- [ ] After route-based code splitting (F4), confirm the initial bundle is within a documented budget; run Lighthouse on the identity login and a console page and meet agreed performance + accessibility scores. **PARTIAL / DEFERRED (2026-07-04):** bundle budget is DONE and documented in each repo's `docs/performance.md` — **no chunk exceeds 500 KB** (console largest: ui-vendor 201 KB, data-vendor 155 KB; identity largest 422 KB), measured from `npm run build`. The **Lighthouse CI gate was built (a11y 1.00) but removed with the Playwright/browser tooling** — the Lighthouse run is deferred to the Playwright/expert work.
 - **Acceptance:** Bundle within budget; Lighthouse perf + a11y meet the documented threshold.
 
 ---
@@ -574,7 +574,7 @@ The hosted login is user-facing and will be opened on phones; the console must b
 
 ### L5 — Responsive, cross-browser & test gates pass [BOTH]
 
-- [x] Confirm Section K passes: responsive/mobile, cross-browser, unit coverage, Playwright E2E, and bundle/Lighthouse thresholds. **DONE (2026-07-04):** all of Section K's automated CI gates are in place and green — K1 responsive-viewport specs, K2 chromium/firefox/webkit projects, K3 unit coverage, K4 backend-less E2E journeys, K5 bundle budget + Lighthouse a11y. The only residual is the live-stack E2E run (K4 stubs / L3) and real-device Safari/Edge spot-checks, which fold into the L3 owner gate.
+- [ ] Confirm Section K passes: responsive/mobile, cross-browser, unit coverage, Playwright E2E, and bundle/Lighthouse thresholds. **PARTIAL (2026-07-04):** K3 (Vitest unit coverage) is the active automated test gate and passes; the K5 bundle budget is met. K1/K2/K4 and the K5 Lighthouse run are **deferred** to the upcoming Playwright suite (Playwright expert) — see those items.
 
 ### L6 — Secret & dead-code scan [BOTH]
 
