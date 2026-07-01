@@ -59,6 +59,12 @@ func (m *testBrandingService) Create(ctx context.Context, tenantID int64, name, 
 func (m *testBrandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, layout, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	return &BrandingServiceDataResult{}, nil
 }
+func (m *testBrandingService) GetLogoData(ctx context.Context, brandingUUID uuid.UUID) ([]byte, string, error) {
+	return nil, "", nil
+}
+func (m *testBrandingService) SetLogoData(ctx context.Context, brandingUUID uuid.UUID, data []byte, contentType string) error {
+	return nil
+}
 
 type testEmailTemplateService struct {
 	getAllFn       func(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error)

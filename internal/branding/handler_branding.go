@@ -1,7 +1,9 @@
 package branding
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -75,6 +77,17 @@ func (h *BrandingHandler) Create(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Failed to create branding", err)
 		return
 	}
+
+	if req.LogoData != "" && req.LogoContentType != "" {
+		logoBytes, err := base64.StdEncoding.DecodeString(req.LogoData)
+		if err == nil {
+			brandingUUID := result.BrandingUUID
+			if err := h.brandingService.SetLogoData(r.Context(), brandingUUID, logoBytes, req.LogoContentType); err == nil {
+				result.LogoURL = fmt.Sprintf("/public/branding/%s/logo", result.BrandingUUID)
+			}
+		}
+	}
+
 	resp.Success(w, toBrandingResponseDTO(result), "Branding created successfully")
 }
 
@@ -94,6 +107,33 @@ func (h *BrandingHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp.Success(w, toBrandingResponseDTO(result), "Branding retrieved successfully")
+}
+
+// ServeLogo streams the stored logo bytes for a branding record.
+//
+// GET /public/branding/{branding_id}/logo
+func (h *BrandingHandler) ServeLogo(w http.ResponseWriter, r *http.Request) {
+	brandingUUID, err := uuid.Parse(chi.URLParam(r, "branding_id"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid branding UUID")
+		return
+	}
+
+	data, contentType, err := h.brandingService.GetLogoData(r.Context(), brandingUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Logo not found", err)
+		return
+	}
+
+	if len(data) == 0 {
+		resp.Error(w, http.StatusNotFound, "No logo stored for this branding")
+		return
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("ETag", `"`+brandingUUID.String()+`"`)
+	w.Write(data)
 }
 
 // Update modifies a specific branding theme.

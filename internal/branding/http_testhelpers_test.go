@@ -128,7 +128,13 @@ func (m *mockBrandingService) GetPublic(ctx context.Context, tenantID int64) (*B
 	if m.getPublicFn != nil {
 		return m.getPublicFn(tenantID)
 	}
-	return &BrandingServiceDataResult{}, nil
+	return nil, nil
+}
+func (m *mockBrandingService) GetLogoData(ctx context.Context, brandingUUID uuid.UUID) ([]byte, string, error) {
+	return nil, "", nil
+}
+func (m *mockBrandingService) SetLogoData(ctx context.Context, brandingUUID uuid.UUID, data []byte, contentType string) error {
+	return nil
 }
 
 // ---------------------------------------------------------------------------
