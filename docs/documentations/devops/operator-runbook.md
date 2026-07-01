@@ -85,6 +85,26 @@ docker compose up -d --scale auth=3
 
 Or in Kubernetes: `kubectl scale deployment auth --replicas=3`
 
+### Connection pooling with PgBouncer
+
+For production deployments with multiple app instances, front Postgres with
+PgBouncer in transaction mode to reduce connection overhead. Size per-instance
+`DB_MAX_OPEN_CONNS` as:
+
+```
+DB_MAX_OPEN_CONNS = (max_connections − reserved) / instance_count
+```
+
+- `max_connections`: your Postgres server's `max_connections` setting
+- `reserved`: connections for maintenance, monitoring, and admin (typically 5–10)
+- `instance_count`: number of auth service replicas
+
+Example for 3 replicas with Postgres `max_connections = 100` and `reserved = 10`:
+
+```
+DB_MAX_OPEN_CONNS = (100 − 10) / 3 = 30
+```
+
 ### Session stickiness
 
 Cookie-based sessions (`__Host-access_token`) don't require stickiness — the JWT is self-contained. If using reference tokens, all instances share the same Redis denylist.

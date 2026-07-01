@@ -33,6 +33,7 @@ func InitDB() (*gorm.DB, error) {
 	sqlDB.SetMaxOpenConns(DBMaxOpenConns)
 	sqlDB.SetMaxIdleConns(DBMaxIdleConns)
 	sqlDB.SetConnMaxLifetime(time.Duration(DBConnMaxLifetimeSec) * time.Second)
+	sqlDB.SetConnMaxIdleTime(90 * time.Second)
 
 	slog.Info("Database connected",
 		"max_open_conns", DBMaxOpenConns,

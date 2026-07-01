@@ -120,9 +120,9 @@ Migration `049`. CASCADE deletes and user-scoped revocation currently seq-scan (
 
 Pooling is configured (`config/db.go:33-35`, env defaults `config.go:170-172`).
 
-- [ ] Add `sqlDB.SetConnMaxIdleTime(90 * time.Second)` in `config/db.go` after the existing pool config.
-- [ ] In the deploy config/docs, document fronting Postgres with PgBouncer (transaction mode) and sizing `DB_MAX_OPEN_CONNS` per instance to `(max_connections − reserved) / instance_count`.
-- **Acceptance:** Idle connections reclaim within 90s; pooling guidance is documented.
+- [x] Add `sqlDB.SetConnMaxIdleTime(90 * time.Second)` in `config/db.go` after the existing pool config.
+- [x] In the deploy config/docs, document fronting Postgres with PgBouncer (transaction mode) and sizing `DB_MAX_OPEN_CONNS` per instance to `(max_connections − reserved) / instance_count`.
+- [x] **Acceptance:** Idle connections reclaim within 90s; pooling guidance is documented.
 
 ### A9 — Remove redundant single-column indexes on `user_identities` (MEDIUM)
 
