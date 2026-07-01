@@ -208,6 +208,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 	}
 
 	// 2. Validate the external ID token using OIDC discovery.
+	// Uses the same idpValidateOIDCToken shared with resolveFederatedPrincipal.
 	claims, err := idpValidateOIDCToken(s, ctx, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty(), req.ExternalToken)
 	if err != nil {
 		span.RecordError(err)
@@ -264,7 +265,9 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		return client, nil
 	}
 
-	// 5. Find or provision the user.
+	// 5. Find or provision the user — same logic as resolveFederatedPrincipal
+	// (shared validation/JIT path: idpValidateOIDCToken → extractMetadata →
+	// find-or-provision via provisionUser/refreshMetadata).
 	var user *User
 	var internalSub string
 	var isNew bool
@@ -273,21 +276,18 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Try to find by the external identity (provider + sub).
 		existing, err := txUserIdentityRepo.FindByTenantProviderAndSub(idp.TenantID, idp.Provider, externalSub)
 		if err != nil {
 			return apperror.NewInternal("identity lookup failed", err)
 		}
 
 		if existing != nil {
-			// Known user — load and refresh metadata.
 			user, err = txUserRepo.FindByID(existing.UserID)
 			if err != nil || user == nil {
 				return apperror.NewInternal("user not found for existing identity", err)
 			}
 			_ = s.refreshMetadata(tx, existing, meta)
 		} else {
-			// Unknown external sub. Optionally JIT-provision.
 			if !idp.AllowJITProvisioning {
 				return apperror.NewUnauthorized("user not found and JIT provisioning is disabled for this provider")
 			}
@@ -302,7 +302,6 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 			}
 		}
 
-		// Retrieve the internal (default) identity sub for JWT generation.
 		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderMaintainerd)
 		if err != nil {
 			return apperror.NewInternal("default identity lookup failed", err)

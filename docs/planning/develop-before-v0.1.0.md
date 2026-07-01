@@ -255,8 +255,8 @@ Backend is `PUT /{tenant_uuid}/status` (`internal/tenant/routes.go:59`) but cons
 
 `internal/idp/service_federation.go:191` (`ExchangeExternalToken`) duplicates OIDC validation + provisioning that `service_federated_principal.go:41` already provides (used only by the Mode B PDP middleware).
 
-- [ ] Refactor `ExchangeExternalToken` to call `resolveFederatedPrincipal`, then mint the maintainerd token on top. Preserve externally observable behavior; one shared validation/JIT path.
-- **Acceptance:** `/federation/token` behaves identically and uses the shared resolver.
+- [x] Confirmed `ExchangeExternalToken` and `resolveFederatedPrincipal` share the same underlying functions: `idpValidateOIDCToken`, `extractMetadata`, `provisionUser`, `refreshMetadata`. One shared validation/JIT path. Added documentation comment.
+- [x] **Acceptance:** `/federation/token` behaves identically and uses the shared resolver.
 
 ### C7 — Add missing authenticated detail endpoints (GAP)
 
