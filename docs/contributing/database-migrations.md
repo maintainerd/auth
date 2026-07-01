@@ -68,3 +68,22 @@ CI always starts from an empty database, so it always reflects the edited migrat
 3. Update any affected seeders, repositories, and tests.
 4. Reset your local DB and run the app to confirm the schema applies cleanly from empty.
 5. Do **not** create a new `*_add_*` / `*_alter_*` migration.
+
+## Post-release index creation
+
+Once this policy freezes at first deployment (see above), all new index DDL on the
+following high-volume tables **must** use `CREATE INDEX CONCURRENTLY` (outside a
+transaction, in its own migration):
+
+- `users`
+- `auth_events`
+- `oauth_refresh_tokens`
+- `user_identities`
+
+`CONCURRENTLY` avoids locking the table for writes during index builds. The
+migration function must run `CREATE INDEX CONCURRENTLY IF NOT EXISTS` as a
+standalone `db.Exec` (GORM wraps statements in a transaction by default, which
+is incompatible with `CONCURRENTLY` — pass `SkipDefaultTransaction` on the
+session or use raw `*sql.DB`).
+
+Regular (non-CONCURRENTLY) index DDL remains acceptable for all other tables.
