@@ -241,8 +241,8 @@ Backend is `PUT /{tenant_uuid}/status` (`internal/tenant/routes.go:59`) but cons
 
 `internal/webhook/repository_delivery_history.go` exists but is unrouted.
 
-- [ ] Add `GET /webhook-endpoints/{id}/deliveries` (tenant-scoped, paginated) with a handler returning status, timestamp, and response code per delivery.
-- **Acceptance:** The endpoint returns paginated, tenant-scoped delivery history.
+- [x] Added `GET /webhook-endpoints/{id}/deliveries` (tenant-scoped, paginated) with a handler returning status, timestamp, and response code per delivery.
+- [x] **Acceptance:** The endpoint returns paginated, tenant-scoped delivery history.
 
 ### C5 — Add `RequireStepUp` to API-permission mutation routes (HARDENING)
 
