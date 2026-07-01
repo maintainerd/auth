@@ -218,8 +218,8 @@ Prior sessions made isolation solid across users, clients, iam (most paths), inv
 
 Backend is `PUT /{tenant_uuid}/status` (`internal/tenant/routes.go:59`) but console `updateTenantStatus` issues `patch()` (`../maintainerd-auth-console/src/services/api/tenants/index.ts:86-90`) → 405.
 
-- [ ] Change the console call to `put()`. (Backend stays `PUT`.)
-- **Acceptance:** Enabling/disabling a tenant from the console succeeds.
+- [x] Changed the console call from `patch()` to `put()`. (Backend stays `PUT`.)
+- [x] **Acceptance:** Enabling/disabling a tenant from the console succeeds.
 
 ### C2 — Fix hardcoded tenant-1 public branding (BUG)
 
