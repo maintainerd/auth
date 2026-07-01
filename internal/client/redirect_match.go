@@ -7,17 +7,22 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 )
 
-func MatchClientRedirectURI(client *Client, candidate string) error {
+type RedirectURIMatch struct {
+	URI  string
+	Type string
+}
+
+func MatchClientRedirectURI(uris []RedirectURIMatch, candidate string) error {
 	if err := security.ValidateRedirectURI(candidate); err != nil {
-		return fmt.Errorf("dangerous redirect: %w", err)
+		return fmt.Errorf("forbidden scheme: %w", err)
 	}
-	if client == nil || client.ClientURIs == nil {
-		return fmt.Errorf("client has no registered redirect URIs")
+	if len(uris) == 0 {
+		return fmt.Errorf("no redirect URIs registered for this client")
 	}
-	for _, uri := range *client.ClientURIs {
+	for _, uri := range uris {
 		if uri.Type == shared.ClientURITypeRedirect && uri.URI == candidate {
 			return nil
 		}
 	}
-	return fmt.Errorf("redirect URI does not match any registered redirect URI")
+	return fmt.Errorf("redirect_uri does not match any registered redirect URIs")
 }

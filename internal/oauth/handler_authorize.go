@@ -198,7 +198,14 @@ func (h *OAuthAuthorizeHandler) ContinueAuthorize(w http.ResponseWriter, r *http
 		return
 	}
 
+	if redirectURI.ConsentChallenge != "" {
+		resp.Success(w, OAuthConsentRequiredResponseDTO{
+			ConsentChallenge: redirectURI.ConsentChallenge,
+		}, "Consent required")
+		return
+	}
+
 	resp.Success(w, OAuthAuthorizeResponseDTO{
-		RedirectURI: redirectURI,
+		RedirectURI: redirectURI.RedirectURI,
 	}, "Authorization continued")
 }

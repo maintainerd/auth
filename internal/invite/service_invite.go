@@ -3,7 +3,6 @@ package invite
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"html/template"
 	"os"
 	"strconv"
@@ -11,12 +10,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/branding"
+	clientpkg "github.com/maintainerd/auth/internal/client"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -406,13 +405,9 @@ func validateCallbackURL(callbackURL *string, uris []clientURI) error {
 	if callbackURL == nil || *callbackURL == "" {
 		return nil
 	}
-	if err := security.ValidateRedirectURI(*callbackURL); err != nil {
-		return fmt.Errorf("dangerous redirect: %w", err)
+	matches := make([]clientpkg.RedirectURIMatch, len(uris))
+	for i, u := range uris {
+		matches[i] = clientpkg.RedirectURIMatch{URI: u.URI, Type: u.Type}
 	}
-	for _, uri := range uris {
-		if uri.Type == shared.ClientURITypeRedirect && uri.URI == *callbackURL {
-			return nil
-		}
-	}
-	return fmt.Errorf("callback URL does not match any registered redirect URI")
+	return clientpkg.MatchClientRedirectURI(matches, *callbackURL)
 }

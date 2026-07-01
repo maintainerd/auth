@@ -12,4 +12,5 @@ type PaginationResult[T any] struct {
 	Page       int
 	Limit      int
 	TotalPages int
+	NextCursor *int64
 }

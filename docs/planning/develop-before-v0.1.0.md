@@ -87,11 +87,11 @@ Migration `027_create_user_tokens_table.go`.
 
 `base_repository.go` `Paginate`/`PaginateQuery` use OFFSET/LIMIT (`:271-272`, `:305-306`), which degrades at depth, and `COUNT(*)` over multi-million-row tables is expensive.
 
-- [ ] Add `PaginateKeyset[T](query *gorm.DB, afterID int64, limit int)` in `base_repository.go`: `WHERE <pk> < ? ORDER BY <pk> DESC LIMIT ?`, no `COUNT`, no `OFFSET`; return rows + `next_cursor` (last PK).
-- [ ] Switch `internal/authevent/repository_event.go:132` (`FindPaginated`) and the user-list repository to keyset on `auth_event_id`/`user_id` for the default `created_at DESC` ordering.
-- [ ] For `auth_events` total count with no filter, return an estimate from `pg_class.reltuples` instead of exact `COUNT(*)`.
-- [ ] Keep offset pagination for low-cardinality admin tables (clients, roles, tenants).
-- **Acceptance:** Deep pages on users and auth_events return in constant time regardless of page depth.
+- [x] Add `PaginateKeyset[T](query *gorm.DB, afterID int64, limit int, pkColumn string, getCursor func(T) int64)` in `base_repository.go`: `WHERE <pk> < ? ORDER BY <pk> DESC LIMIT ?`, no `COUNT`, no `OFFSET`; return rows + `next_cursor` (last PK).
+- [x] Switch `internal/authevent/repository_event.go:132` (`FindPaginated`) and the user-list repository to keyset on `auth_event_id`/`user_id` for the default `created_at DESC` ordering.
+- [x] For `auth_events` total count with no filter, return an estimate from `pg_class.reltuples` instead of exact `COUNT(*)`.
+- [x] Keep offset pagination for low-cardinality admin tables (clients, roles, tenants).
+- [x] **Acceptance:** Deep pages on users and auth_events return in constant time regardless of page depth.
 
 ### A5 — Partition `auth_events` by time + add target index (HIGH)
 

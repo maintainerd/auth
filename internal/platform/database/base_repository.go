@@ -316,3 +316,40 @@ func PaginateQuery[T any](query *gorm.DB, page, limit int) (*PaginationResult[T]
 		TotalPages: totalPages,
 	}, nil
 }
+
+// PaginateKeyset returns a page of rows using keyset (cursor-based) pagination
+// ordered by the given primary-key column descending. It accepts an afterID
+// cursor from the previous page (0 for the first page) and returns the next
+// cursor (the PK of the last row) or nil when there are no more pages.
+// No COUNT or OFFSET is used — performance is constant regardless of page depth.
+//
+// pkColumn must match the database column name for the primary key (e.g. "auth_event_id").
+// getCursor extracts the PK value from a row so the function can compute nextCursor.
+func PaginateKeyset[T any](query *gorm.DB, afterID int64, limit int, pkColumn string, getCursor func(T) int64) ([]T, *int64, error) {
+	if limit < 1 {
+		limit = pagination.DefaultPageSize
+	}
+
+	if afterID > 0 {
+		query = query.Where(pkColumn+" < ?", afterID)
+	}
+	query = query.Order(pkColumn + " DESC").Limit(limit + 1)
+
+	var entities []T
+	if err := query.Find(&entities).Error; err != nil {
+		return nil, nil, err
+	}
+
+	hasMore := len(entities) > limit
+	if hasMore {
+		entities = entities[:limit]
+	}
+
+	var nextCursor *int64
+	if len(entities) > 0 {
+		c := getCursor(entities[len(entities)-1])
+		nextCursor = &c
+	}
+
+	return entities, nextCursor, nil
+}
