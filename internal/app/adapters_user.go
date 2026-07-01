@@ -103,6 +103,12 @@ func (r *userClientRepo) FindByClientIDAndIdentityProvider(clientID, identityPro
 	return &c, nil
 }
 
+func (r *userClientRepo) FindByIDs(ids []int64) ([]user.Client, error) {
+	var clients []user.Client
+	err := r.DB().Model(&user.Client{}).Where("client_id IN ?", ids).Find(&clients).Error
+	return clients, err
+}
+
 type userIDPRepo struct {
 	*database.BaseRepository[user.IdentityProvider]
 }

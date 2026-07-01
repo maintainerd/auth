@@ -938,15 +938,18 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 		}
 
 		// Validate and assign roles
-		for _, roleUUID := range roleUUIDs {
-			// Find role by UUID
-			role, err := txRoleRepo.FindByUUID(roleUUID)
-			if err != nil {
-				return err
-			}
-			if role == nil {
-				return apperror.NewNotFound("role not found")
-			}
+		roleUUIDStrs := make([]string, len(roleUUIDs))
+		for i, id := range roleUUIDs {
+			roleUUIDStrs[i] = id.String()
+		}
+		roles, err := txRoleRepo.FindByUUIDs(roleUUIDStrs)
+		if err != nil {
+			return err
+		}
+		if len(roles) != len(roleUUIDs) {
+			return apperror.NewNotFound("role not found")
+		}
+		for _, role := range roles {
 			if role.TenantID != tenantID {
 				return apperror.NewNotFoundWithReason("role not found or access denied")
 			}
@@ -1300,21 +1303,31 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID,
 	}
 
 	identities := make([]UserIdentityServiceDataResult, len(result.Data))
-	for i, identity := range result.Data {
-		var Client *ClientServiceDataResult
+
+	clientIDs := make([]int64, 0, len(result.Data))
+	for _, identity := range result.Data {
 		if identity.ClientID > 0 {
-			ac, err := s.clientRepo.FindByID(identity.ClientID)
-			if err == nil && ac != nil {
-				Client = ToClientServiceDataResult(ac)
+			clientIDs = append(clientIDs, identity.ClientID)
+		}
+	}
+	clientMap := make(map[int64]*ClientServiceDataResult)
+	if len(clientIDs) > 0 {
+		clients, err := s.clientRepo.FindByIDs(clientIDs)
+		if err == nil {
+			for i := range clients {
+				res := ToClientServiceDataResult(&clients[i])
+				clientMap[clients[i].ClientID] = res
 			}
 		}
+	}
 
+	for i, identity := range result.Data {
 		identities[i] = UserIdentityServiceDataResult{
 			UserIdentityUUID: identity.UserIdentityUUID,
 			Provider:         identity.Provider,
 			Sub:              identity.Sub,
 			Metadata:         identity.Metadata,
-			Client:           Client,
+			Client:           clientMap[identity.ClientID],
 			CreatedAt:        identity.CreatedAt,
 			UpdatedAt:        identity.UpdatedAt,
 		}

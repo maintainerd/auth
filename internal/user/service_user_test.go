@@ -1665,7 +1665,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 			}, nil
 		}
 		cr.findByIDFn = func(_ any, _ ...string) (*Client, error) {
-			return &Client{ClientUUID: uuid.New(), Name: "main"}, nil
+			return &Client{ClientID: 5, ClientUUID: uuid.New(), Name: "main"}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)

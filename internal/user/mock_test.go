@@ -467,6 +467,19 @@ func (m *mockRoleRepo) FindByUUID(id any, p ...string) (*Role, error) {
 	}
 	return nil, nil
 }
+func (m *mockRoleRepo) FindByUUIDs(uuids []string, p ...string) ([]Role, error) {
+	results := make([]Role, 0, len(uuids))
+	for _, id := range uuids {
+		r, err := m.FindByUUID(id, p...)
+		if err != nil {
+			return nil, err
+		}
+		if r != nil {
+			results = append(results, *r)
+		}
+	}
+	return results, nil
+}
 func (m *mockRoleRepo) FindByNameAndTenantID(name string, tenantID int64) (*Role, error) {
 	if m.findByNameAndTenantIDFn != nil {
 		return m.findByNameAndTenantIDFn(name, tenantID)
@@ -519,6 +532,20 @@ func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (
 }
 func (m *mockClientRepo) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error) {
 	return m.FindSystemByTenantIdentifier(tenantIdentifier)
+}
+
+func (m *mockClientRepo) FindByIDs(ids []int64) ([]Client, error) {
+	results := make([]Client, 0, len(ids))
+	for _, id := range ids {
+		c, err := m.FindByID(id)
+		if err != nil {
+			return nil, err
+		}
+		if c != nil {
+			results = append(results, *c)
+		}
+	}
+	return results, nil
 }
 
 type mockIdentityProviderRepo struct {

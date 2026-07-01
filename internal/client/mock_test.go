@@ -394,6 +394,23 @@ func (m *mockAPIRepo) FindByUUID(id any, p ...string) (*API, error) {
 	}
 	return nil, nil
 }
+func (m *mockAPIRepo) FindByUUIDs(uuids []string, p ...string) ([]API, error) {
+	results := make([]API, 0, len(uuids))
+	for _, id := range uuids {
+		uid, err := uuid.Parse(id)
+		if err != nil {
+			uid = uuid.Nil
+		}
+		a, err := m.FindByUUID(uid, p...)
+		if err != nil {
+			return nil, err
+		}
+		if a != nil {
+			results = append(results, *a)
+		}
+	}
+	return results, nil
+}
 
 type mockPermissionRepo struct {
 	mockBaseRepo[Permission]
@@ -406,6 +423,23 @@ func (m *mockPermissionRepo) FindByUUID(id any, p ...string) (*Permission, error
 		return m.findByUUIDFn(id, p...)
 	}
 	return nil, nil
+}
+func (m *mockPermissionRepo) FindByUUIDs(uuids []string, p ...string) ([]Permission, error) {
+	results := make([]Permission, 0, len(uuids))
+	for _, id := range uuids {
+		uid, err := uuid.Parse(id)
+		if err != nil {
+			uid = uuid.Nil
+		}
+		p, err := m.FindByUUID(uid, p...)
+		if err != nil {
+			return nil, err
+		}
+		if p != nil {
+			results = append(results, *p)
+		}
+	}
+	return results, nil
 }
 
 type mockIdentityProviderRepo struct {

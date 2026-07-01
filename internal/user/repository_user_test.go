@@ -301,6 +301,8 @@ func TestUserRepository_FindRolesPaginated(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"role_id", "role_uuid", "name"}).
 				AddRow(10, testResourceUUID, shared.RoleRegistered).
 				AddRow(20, testUserUUID, "admin"))
+		mock.ExpectQuery(`SELECT .+ FROM "role_permissions"`).
+			WillReturnRows(sqlmock.NewRows([]string{"role_permission_id", "role_id", "permission_id"}))
 
 		result, err := repo.FindRolesPaginated(GetUserRolesFilter{
 			UserID: 42, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
@@ -353,6 +355,8 @@ func TestUserRepository_FindRolesPaginated(t *testing.T) {
 		mock.ExpectQuery(`SELECT .+ FROM "roles"`).
 			WillReturnRows(sqlmock.NewRows([]string{"role_id", "role_uuid", "name"}).
 				AddRow(10, testResourceUUID, shared.RoleRegistered))
+		mock.ExpectQuery(`SELECT .+ FROM "role_permissions"`).
+			WillReturnRows(sqlmock.NewRows([]string{"role_permission_id", "role_id", "permission_id"}))
 
 		result, err := repo.FindRolesPaginated(GetUserRolesFilter{
 			UserID: 42, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,

@@ -188,6 +188,7 @@ type RoleRepository interface {
 	BaseRepositoryMethods[Role]
 	WithTx(tx *gorm.DB) RoleRepository
 	FindByUUID(uuid any, preloads ...string) (*Role, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]Role, error)
 	FindByNameAndTenantID(name string, tenantID int64) (*Role, error)
 	FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[Role], error)
 }
@@ -196,6 +197,7 @@ type ClientRepository interface {
 	BaseRepositoryMethods[Client]
 	WithTx(tx *gorm.DB) ClientRepository
 	FindByID(id any, preloads ...string) (*Client, error)
+	FindByIDs(ids []int64) ([]Client, error)
 	FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*Client, error)
 	FindDefaultByTenantID(tenantID int64) (*Client, error)
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*Client, error)
