@@ -80,8 +80,8 @@ Hottest OAuth table (every refresh). Migration `050_create_oauth_refresh_tokens_
 
 Migration `027_create_user_tokens_table.go`.
 
-- [ ] Ensure `idx_user_tokens_user_id` on `user_id`, a unique index on `token_hash`, and `idx_user_tokens_expires_at` on `expires_at WHERE expires_at IS NOT NULL` exist. Add any missing (edit migration 027 in place).
-- **Acceptance:** Token lookup and cleanup use indexes.
+- [x] Ensure `idx_user_tokens_user_id` on `user_id`, a unique index on `token_hash`, and `idx_user_tokens_expires_at` on `expires_at WHERE expires_at IS NOT NULL` exist. Added missing unique index on token (replaced regular index) and partial index on expires_at; updated GORM model tags.
+- [x] **Acceptance:** Token lookup and cleanup use indexes.
 
 ### A4 — Keyset pagination for high-volume lists (HIGH)
 

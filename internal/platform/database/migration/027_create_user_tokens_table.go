@@ -43,8 +43,9 @@ END$$;
 CREATE INDEX IF NOT EXISTS idx_user_tokens_uuid ON user_tokens (user_token_uuid);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_token_type ON user_tokens (token_type);
-CREATE INDEX IF NOT EXISTS idx_user_tokens_token ON user_tokens (token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_tokens_token_unique ON user_tokens (token);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_created_at ON user_tokens (created_at);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_expires_at ON user_tokens (expires_at) WHERE expires_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_user_tokens_session_active ON user_tokens (user_id, token_type, is_revoked, absolute_expires_at);
 `
 	return db.Exec(sql).Error
