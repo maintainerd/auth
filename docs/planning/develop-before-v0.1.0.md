@@ -111,10 +111,10 @@ Migration `049`. CASCADE deletes and user-scoped revocation currently seq-scan (
 
 ### A7 — Eliminate N+1 in list mappers and assignment loops (HIGH)
 
-- [ ] `internal/user/service_user.go:1303-1321` — collect all `ClientID`s and do one `clientRepo.FindByIDs(ids)` (add `FindByIDs` if absent), map via `map[int64]*Client`.
-- [ ] `internal/user/service_user.go:941-946`, `internal/client/service_api_key.go:643-663` and `:829-853` — replace per-UUID `FindByUUID` loops with one `FindByUUIDs(uuids)` and assert returned count equals requested count.
-- [ ] `internal/user/repository_user.go:187-206` (`FindRolesPaginated`) — add `.Preload("RolePermissions.Permission")`.
-- **Acceptance:** Listing identities, roles, and assigning roles/permissions each issue a constant number of queries.
+- [x] `internal/user/service_user.go:1303-1321` — collect all `ClientID`s and do one `clientRepo.FindByIDs(ids)` (added `FindByIDs`), map via `map[int64]*Client`.
+- [x] `internal/user/service_user.go:941-946`, `internal/client/service_api_key.go:643-663` and `:829-853` — replaced per-UUID `FindByUUID` loops with one `FindByUUIDs(uuids)` and assert returned count equals requested count.
+- [x] `internal/user/repository_user.go:187-206` (`FindRolesPaginated`) — added `.Preload("RolePermissions.Permission")`.
+- [x] **Acceptance:** Listing identities, roles, and assigning roles/permissions each issue a constant number of queries.
 
 ### A8 — Tune connection pool (MEDIUM)
 

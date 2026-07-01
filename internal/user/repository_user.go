@@ -203,6 +203,7 @@ func (r *userRepository) FindRolesPaginated(filter GetUserRolesFilter) (*Paginat
 
 	query = query.Order(database.SanitizeOrderPrefixed("roles.", filter.SortBy, filter.SortOrder, "roles.created_at DESC"))
 
+	query = query.Preload("RolePermissions.Permission")
 	return database.PaginateQuery[Role](query, filter.Page, filter.Limit)
 }
 

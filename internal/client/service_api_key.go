@@ -640,17 +640,20 @@ func (s *apiKeyService) AddAPIKeyAPIs(ctx context.Context, tenantID int64, apiKe
 		}
 
 		// Process each API UUID
-		for _, apiUUID := range apiUUIDs {
-			// Get API
-			api, err := apiRepo.FindByUUID(apiUUID)
-			if err != nil {
-				return err
-			}
-			if api == nil {
-				return apperror.NewNotFoundWithReason("API not found: " + apiUUID.String())
-			}
+		apiUUIDStrs := make([]string, len(apiUUIDs))
+		for i, id := range apiUUIDs {
+			apiUUIDStrs[i] = id.String()
+		}
+		apis, err := apiRepo.FindByUUIDs(apiUUIDStrs)
+		if err != nil {
+			return err
+		}
+		if len(apis) != len(apiUUIDs) {
+			return apperror.NewNotFoundWithReason("API not found")
+		}
+		for _, api := range apis {
 			if api.TenantID != tenantID {
-				return apperror.NewNotFoundWithReason("API not found or access denied: " + apiUUID.String())
+				return apperror.NewNotFoundWithReason("API not found or access denied")
 			}
 
 			// Check if relationship already exists
@@ -826,22 +829,25 @@ func (s *apiKeyService) AddAPIKeyAPIPermissions(ctx context.Context, tenantID in
 		}
 
 		// Process each permission UUID
-		for _, permissionUUID := range permissionUUIDs {
-			// Get permission
-			permission, err := permissionRepo.FindByUUID(permissionUUID)
-			if err != nil {
-				return err
-			}
-			if permission == nil {
-				return apperror.NewNotFoundWithReason("permission not found: " + permissionUUID.String())
-			}
+		permUUIDStrs := make([]string, len(permissionUUIDs))
+		for i, id := range permissionUUIDs {
+			permUUIDStrs[i] = id.String()
+		}
+		permissions, err := permissionRepo.FindByUUIDs(permUUIDStrs)
+		if err != nil {
+			return err
+		}
+		if len(permissions) != len(permissionUUIDs) {
+			return apperror.NewNotFoundWithReason("permission not found")
+		}
+		for _, permission := range permissions {
 			if permission.TenantID != tenantID {
-				return apperror.NewNotFoundWithReason("permission not found or access denied: " + permissionUUID.String())
+				return apperror.NewNotFoundWithReason("permission not found or access denied")
 			}
 
 			// Validate that the permission belongs to the specified API
 			if permission.APIID != api.APIID {
-				return apperror.NewValidation("permission does not belong to the specified API: " + permissionUUID.String())
+				return apperror.NewValidation("permission does not belong to the specified API")
 			}
 
 			// Check if relationship already exists

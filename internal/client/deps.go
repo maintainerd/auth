@@ -114,12 +114,14 @@ type APIRepository interface {
 	BaseRepositoryMethods[API]
 	WithTx(tx *gorm.DB) APIRepository
 	FindByUUID(uuid any, preloads ...string) (*API, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]API, error)
 }
 
 type PermissionRepository interface {
 	BaseRepositoryMethods[Permission]
 	WithTx(tx *gorm.DB) PermissionRepository
 	FindByUUID(uuid any, preloads ...string) (*Permission, error)
+	FindByUUIDs(uuids []string, preloads ...string) ([]Permission, error)
 }
 
 type IdentityProviderRepository interface {
