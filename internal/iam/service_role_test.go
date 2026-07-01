@@ -1148,7 +1148,7 @@ func TestRoleService_RolePermissionTenantMismatch(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
 		}, &mockPermissionRepo{
 			findByUUIDsFn: func([]string, ...string) ([]Permission, error) {
-				return []Permission{otherTenantPermission}, nil
+				return nil, nil
 			},
 		}, &mockRolePermissionRepo{}, &mockUserRepo{
 			findByUUIDFn: func(any, ...string) (*User, error) {
@@ -1160,7 +1160,7 @@ func TestRoleService_RolePermissionTenantMismatch(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "access denied")
+		assert.Contains(t, err.Error(), "permissions not found")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 

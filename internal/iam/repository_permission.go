@@ -28,6 +28,7 @@ type PermissionRepository interface {
 	FindByUUIDs(uuids []string, preloads ...string) ([]Permission, error)
 	WithTx(tx *gorm.DB) PermissionRepository
 	FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*Permission, error)
+	FindByUUIDsAndTenantID(uuids []string, tenantID int64) ([]Permission, error)
 	FindByName(name string, tenantID int64) (*Permission, error)
 	FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[Permission], error)
 	DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error
@@ -64,6 +65,14 @@ func (r *permissionRepository) FindByUUIDAndTenantID(permissionUUID uuid.UUID, t
 	}
 
 	return &permission, nil
+}
+
+func (r *permissionRepository) FindByUUIDsAndTenantID(uuids []string, tenantID int64) ([]Permission, error) {
+	var permissions []Permission
+	err := r.DB().
+		Where("permission_uuid IN ? AND tenant_id = ?", uuids, tenantID).
+		Find(&permissions).Error
+	return permissions, err
 }
 
 func (r *permissionRepository) FindByName(name string, tenantID int64) (*Permission, error) {
