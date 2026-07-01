@@ -107,7 +107,10 @@ func OAuthPublicRoute(
 			case "urn:openid:params:grant-type:ciba":
 				cibaHandler.ExchangeToken(w, req)
 			default:
-				tokenHandler.Token(w, req)
+				// authorization_code (and other standard grants): deliver
+				// httpOnly session cookies when the client asks for cookie-based
+				// delivery (the admin console), in addition to the body tokens.
+				deliverAuthCookies(w, req, tokenHandler.Token)
 			}
 		}
 		if tokenRateLimit != nil {
