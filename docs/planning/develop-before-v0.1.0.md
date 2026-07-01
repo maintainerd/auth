@@ -128,8 +128,8 @@ Pooling is configured (`config/db.go:33-35`, env defaults `config.go:170-172`).
 
 Migration `025`. Lookups always carry `tenant_id + provider`, so the standalone `sub`/`provider` indexes add write cost for no read benefit.
 
-- [ ] Remove `idx_user_identities_sub` and `idx_user_identities_provider`. Keep `user_id`, `client_id`, `tenant_id`, and the composite unique `(tenant_id, provider, sub)`.
-- **Acceptance:** Identity writes are cheaper; provider+sub lookups still use the composite prefix.
+- [x] Remove `idx_user_identities_sub` and `idx_user_identities_provider`. Keep `user_id`, `client_id`, `tenant_id`, and the composite unique `(tenant_id, provider, sub)`.
+- [x] **Acceptance:** Identity writes are cheaper; provider+sub lookups still use the composite prefix.
 
 ### A10 — Trim redundant indexes on `oauth_consent_grants` (MEDIUM)
 
