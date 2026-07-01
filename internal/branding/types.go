@@ -31,6 +31,8 @@ type BrandingUpdateRequestDTO struct {
 	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
 	LogoURL           string         `json:"logo_url"`
+	LogoData          string         `json:"logo_data,omitempty"`
+	LogoContentType   string         `json:"logo_content_type,omitempty"`
 	FaviconURL        string         `json:"favicon_url"`
 	SupportURL        string         `json:"support_url"`
 	PrivacyPolicyURL  string         `json:"privacy_policy_url"`

@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS branding (
     layout               VARCHAR(32) NOT NULL DEFAULT 'centered',
     company_name         VARCHAR(255),
     logo_url             TEXT,
+    logo_data            BYTEA,
+    logo_content_type    VARCHAR(255),
     favicon_url          TEXT,
     support_url          TEXT,
     privacy_policy_url   TEXT,

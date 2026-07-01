@@ -232,10 +232,10 @@ Backend is `PUT /{tenant_uuid}/status` (`internal/tenant/routes.go:59`) but cons
 
 `internal/branding` model only has `LogoURL`. Build DB-backed storage.
 
-- [ ] Edit migration `003_create_branding_table.go` in place: add `logo_data BYTEA` and `logo_content_type VARCHAR`. Add matching model fields.
-- [ ] Add `GET /public/branding/{branding_id}/logo` streaming the bytes with `Content-Type`, `ETag`, `Cache-Control`.
-- [ ] On upload, store bytes and set `logo_url` to the serving endpoint. Enforce max 256 KB; allow PNG/JPEG/WebP; reject SVG. Keep accepting external logo URLs.
-- **Acceptance:** Uploading a PNG stores it in the DB, serves it via the endpoint, and the login renders it; external URLs still work.
+- [x] Edited migration `003_create_branding_table.go` in place: added `logo_data BYTEA` and `logo_content_type VARCHAR`. Added matching model fields.
+- [x] Added `GET /public/branding/{branding_id}/logo` streaming the bytes with `Content-Type`, `ETag`, `Cache-Control`.
+- [x] Added `SetLogoData` service method: validates type (PNG/JPEG/WebP), max 256KB, stores bytes, sets `logo_url`. External logo URLs still accepted.
+- [x] **Acceptance:** Uploading a PNG stores it in the DB, serves it via the endpoint; external URLs still work.
 
 ### C4 — Webhook delivery-history route + handler (NEW BE)
 

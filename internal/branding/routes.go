@@ -36,6 +36,7 @@ func BrandingRoute(
 // (non-sensitive: colors + logo only). Mounted on the public router (port 8081).
 func BrandingPublicRoute(r chi.Router, brandingHandler *BrandingHandler) {
 	r.Get("/public/branding", brandingHandler.GetPublic)
+	r.Get("/public/branding/{branding_id}/logo", brandingHandler.ServeLogo)
 }
 
 func EmailTemplateRoute(

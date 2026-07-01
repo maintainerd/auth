@@ -2,6 +2,7 @@ package branding
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,6 +43,8 @@ type BrandingService interface {
 	Activate(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
 	Delete(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) error
 	GetPublic(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error)
+	GetLogoData(ctx context.Context, brandingUUID uuid.UUID) ([]byte, string, error)
+	SetLogoData(ctx context.Context, brandingUUID uuid.UUID, data []byte, contentType string) error
 }
 
 type brandingService struct {
@@ -210,6 +213,38 @@ func (s *brandingService) Delete(ctx context.Context, brandingUUID uuid.UUID, te
 // GetPublic returns the active branding for public (unauthenticated) consumption.
 func (s *brandingService) GetPublic(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error) {
 	return s.Get(ctx, tenantID)
+}
+
+func (s *brandingService) GetLogoData(ctx context.Context, brandingUUID uuid.UUID) ([]byte, string, error) {
+	b, err := s.brandingRepo.FindByUUID(brandingUUID)
+	if err != nil || b == nil {
+		return nil, "", apperror.NewNotFound("branding not found")
+	}
+	return b.LogoData, b.LogoContentType, nil
+}
+
+func (s *brandingService) SetLogoData(ctx context.Context, brandingUUID uuid.UUID, data []byte, contentType string) error {
+	b, err := s.brandingRepo.FindByUUID(brandingUUID)
+	if err != nil || b == nil {
+		return apperror.NewNotFound("branding not found")
+	}
+
+	allowedTypes := map[string]bool{"image/png": true, "image/jpeg": true, "image/webp": true}
+	if !allowedTypes[contentType] {
+		return apperror.NewValidation("logo must be PNG, JPEG, or WebP")
+	}
+
+	const maxSize = 256 * 1024
+	if len(data) > maxSize {
+		return apperror.NewValidation("logo must be under 256 KB")
+	}
+
+	b.LogoData = data
+	b.LogoContentType = contentType
+	b.LogoURL = fmt.Sprintf("/public/branding/%s/logo", brandingUUID.String())
+
+	_, err = s.brandingRepo.CreateOrUpdate(b)
+	return err
 }
 
 // List returns every branding record (themes) for a tenant.

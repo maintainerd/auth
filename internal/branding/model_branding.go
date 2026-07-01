@@ -18,6 +18,8 @@ type Branding struct {
 	Layout            string    `gorm:"column:layout;type:varchar(32);not null;default:centered" json:"layout"`
 	CompanyName       string    `gorm:"column:company_name;type:varchar(255)" json:"company_name"`
 	LogoURL           string    `gorm:"column:logo_url;type:text" json:"logo_url"`
+	LogoData          []byte    `gorm:"column:logo_data;type:bytes" json:"-"`
+	LogoContentType   string    `gorm:"column:logo_content_type;type:varchar(255)" json:"-"`
 	FaviconURL        string    `gorm:"column:favicon_url;type:text" json:"favicon_url"`
 	SupportURL        string    `gorm:"column:support_url;type:text" json:"support_url"`
 	PrivacyPolicyURL  string    `gorm:"column:privacy_policy_url;type:text" json:"privacy_policy_url"`

@@ -17,6 +17,7 @@ type BrandingRepository interface {
 	FindAllByTenantID(tenantID int64) ([]Branding, error)
 	FindActive(tenantID int64) (*Branding, error)
 	FindSystem(tenantID int64) (*Branding, error)
+	FindSystemDefault() (*Branding, error)
 	DeactivateAll(tenantID int64) error
 }
 

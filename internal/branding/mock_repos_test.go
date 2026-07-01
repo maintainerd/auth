@@ -52,6 +52,9 @@ func (m *mockBrandingRepo) FindSystem(tenantID int64) (*Branding, error) {
 	}
 	return nil, nil
 }
+func (m *mockBrandingRepo) FindSystemDefault() (*Branding, error) {
+	return m.FindSystem(0)
+}
 func (m *mockBrandingRepo) DeactivateAll(tenantID int64) error {
 	if m.deactivateAllFn != nil {
 		return m.deactivateAllFn(tenantID)
