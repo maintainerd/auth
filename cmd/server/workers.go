@@ -27,12 +27,15 @@ var (
 // bootstrap context is cancelled during shutdown.
 func startBackgroundWorkers(ctx context.Context, application *app.App, serverApplication *appserver.Application) {
 	// Retention runs periodically and exits when ctx is cancelled.
-	go startRetentionRunner(ctx, application.AuthEventService, authevent.DefaultRetentionPeriod, authevent.DefaultRetentionInterval)
+	go startRetentionRunner(ctx, application.AuthEventService, application.DB, authevent.DefaultRetentionPeriod, authevent.DefaultRetentionInterval)
 	go startTenantRetentionRunner(ctx, application.DB, tenant.DefaultTenantRetentionPeriod, tenant.DefaultTenantRetentionInterval)
 
 	// Ephemeral-row cleanup runs at 5-minute intervals to prevent unbounded
 	// growth of short-lived tables (OAuth codes, tokens, challenges, OTPs, etc.).
 	go startCleanupRunner(ctx, application.DB, 5*time.Minute)
+
+	// Partition manager pre-creates next month's auth_events partition daily.
+	authevent.StartPartitionManager(ctx, application.DB, 24*time.Hour)
 
 	keyRotationPeriod := time.Duration(config.JWTKeyRotationPeriodSeconds) * time.Second
 	if keyRotationPeriod <= 0 {

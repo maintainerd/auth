@@ -97,10 +97,10 @@ Migration `027_create_user_tokens_table.go`.
 
 The audit log is the fastest-growing table; retention is 365 days. Migration `048`.
 
-- [ ] Convert `auth_events` to `PARTITION BY RANGE (created_at)` with monthly partitions; change the PK to `PRIMARY KEY (auth_event_id, created_at)`.
-- [ ] Add a partition-management routine that pre-creates next month's partition and lets the retention runner `DROP` partitions older than the cutoff instead of `DELETE`.
-- [ ] Add `idx_auth_events_target` on `(target_user_id, created_at DESC)`.
-- **Acceptance:** Inserts and per-user queries stay fast as the log grows; retention drops whole partitions.
+- [x] Convert `auth_events` to `PARTITION BY RANGE (created_at)` with monthly partitions; change the PK to `PRIMARY KEY (auth_event_id, created_at)`.
+- [x] Add a partition-management routine that pre-creates next month's partition and lets the retention runner `DROP` partitions older than the cutoff instead of `DELETE`.
+- [x] Add `idx_auth_events_target` on `(target_user_id, created_at DESC)`.
+- [x] **Acceptance:** Inserts and per-user queries stay fast as the log grows; retention drops whole partitions.
 
 ### A6 — Index `oauth_authorization_codes.user_id` (HIGH)
 

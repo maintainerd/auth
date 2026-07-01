@@ -12,6 +12,7 @@ import (
 	appserver "github.com/maintainerd/auth/internal/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
@@ -41,7 +42,7 @@ func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
 	var grpcWg sync.WaitGroup
 	grpcWg.Add(1)
 
-	startRetentionRunner = func(context.Context, authevent.RetentionDeleter, time.Duration, time.Duration) {
+	startRetentionRunner = func(context.Context, authevent.RetentionDeleter, *gorm.DB, time.Duration, time.Duration) {
 		calls <- workerCall{name: "retention"}
 	}
 	startKeyRotationRunner = func(_ context.Context, period time.Duration) {
@@ -103,7 +104,7 @@ func TestStartBackgroundWorkers_UsesDefaultSecurityRunnerPeriods(t *testing.T) {
 	keyRotationPeriods := make(chan time.Duration, 1)
 	secretRefreshPeriods := make(chan time.Duration, 1)
 
-	startRetentionRunner = func(context.Context, authevent.RetentionDeleter, time.Duration, time.Duration) {}
+	startRetentionRunner = func(context.Context, authevent.RetentionDeleter, *gorm.DB, time.Duration, time.Duration) {}
 	startKeyRotationRunner = func(_ context.Context, period time.Duration) {
 		keyRotationPeriods <- period
 	}

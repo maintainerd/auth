@@ -11,11 +11,11 @@ import (
 // AuthEvent represents a security event stored in the auth_events table.
 // Events are immutable (append-only) following OWASP tamper-protection guidance.
 type AuthEvent struct {
-	AuthEventID   int64          `gorm:"column:auth_event_id;primaryKey;autoIncrement"`
-	AuthEventUUID uuid.UUID      `gorm:"column:auth_event_uuid;type:uuid;uniqueIndex;not null"`
+	AuthEventID   int64          `gorm:"column:auth_event_id;primaryKey;not null"`
+	AuthEventUUID uuid.UUID      `gorm:"column:auth_event_uuid;type:uuid;not null"`
 	TenantID      int64          `gorm:"column:tenant_id;not null"`
 	ActorUserID   *int64         `gorm:"column:actor_user_id"`
-	TargetUserID  *int64         `gorm:"column:target_user_id"`
+	TargetUserID  *int64         `gorm:"column:target_user_id;index:idx_auth_events_target,composite:created_at"`
 	IPAddress     string         `gorm:"column:ip_address;type:inet;not null"`
 	UserAgent     *string        `gorm:"column:user_agent;type:text"`
 	Category      string         `gorm:"column:category;type:varchar(20);not null"`
@@ -26,7 +26,7 @@ type AuthEvent struct {
 	ErrorReason   *string        `gorm:"column:error_reason;type:varchar(255)"`
 	TraceID       *string        `gorm:"column:trace_id;type:varchar(32)"`
 	Metadata      datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
-	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
+	CreatedAt     time.Time      `gorm:"column:created_at;primaryKey;autoCreateTime;not null"`
 
 	// Relationships
 }

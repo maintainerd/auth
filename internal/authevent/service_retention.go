@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -28,7 +30,7 @@ type auditConfigRetentionDeleter interface {
 // StartRetentionRunner starts a background goroutine that periodically deletes
 // auth events older than the configured retention period. It respects context
 // cancellation for graceful shutdown.
-func StartRetentionRunner(ctx context.Context, deleter RetentionDeleter, retention, interval time.Duration) {
+func StartRetentionRunner(ctx context.Context, deleter RetentionDeleter, db *gorm.DB, retention, interval time.Duration) {
 	if retention <= 0 {
 		retention = DefaultRetentionPeriod
 	}
@@ -54,13 +56,19 @@ func StartRetentionRunner(ctx context.Context, deleter RetentionDeleter, retenti
 			count, cutoff, err := deleteExpiredAuthEvents(ctx, deleter, now, retention)
 			if err != nil {
 				slog.Error("retention: failed to delete old auth events", "error", err)
-				continue
-			}
-			if count > 0 {
+			} else if count > 0 {
 				slog.Info("retention: deleted old auth events",
 					"count", count,
 					"cutoff", cutoff.Format(time.RFC3339),
 				)
+			}
+
+			cutoffForPartitions := now.Add(-retention)
+			dropped, err := DropExpiredPartitions(ctx, db, cutoffForPartitions)
+			if err != nil {
+				slog.Error("retention: failed to drop expired partitions", "error", err)
+			} else if dropped > 0 {
+				slog.Info("retention: dropped expired partitions", "count", dropped)
 			}
 		}
 	}

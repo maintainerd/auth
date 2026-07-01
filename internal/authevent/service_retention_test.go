@@ -48,7 +48,7 @@ func TestStartRetentionRunner_DeletesAndShutdown(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		StartRetentionRunner(ctx, deleter, 24*time.Hour, 10*time.Millisecond)
+		StartRetentionRunner(ctx, deleter, nil, 24*time.Hour, 10*time.Millisecond)
 		close(done)
 	}()
 
@@ -66,7 +66,7 @@ func TestStartRetentionRunner_ErrorContinues(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		StartRetentionRunner(ctx, deleter, 24*time.Hour, 10*time.Millisecond)
+		StartRetentionRunner(ctx, deleter, nil, 24*time.Hour, 10*time.Millisecond)
 		close(done)
 	}()
 
@@ -82,7 +82,7 @@ func TestStartRetentionRunner_DefaultsOnZero(t *testing.T) {
 	deleter := &mockRetentionDeleter{count: 0}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	StartRetentionRunner(ctx, deleter, 0, 0)
+	StartRetentionRunner(ctx, deleter, nil, 0, 0)
 }
 
 func TestStartRetentionRunner_ZeroCount(t *testing.T) {
@@ -91,7 +91,7 @@ func TestStartRetentionRunner_ZeroCount(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		StartRetentionRunner(ctx, deleter, 24*time.Hour, 10*time.Millisecond)
+		StartRetentionRunner(ctx, deleter, nil, 24*time.Hour, 10*time.Millisecond)
 		close(done)
 	}()
 
