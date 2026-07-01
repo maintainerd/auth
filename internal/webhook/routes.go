@@ -12,6 +12,7 @@ func WebhookEndpointRoute(
 	webhookEndpointHandler *WebhookEndpointHandler,
 	replayHandler *ReplayHandler,
 	subscriptionHandler *SubscriptionHandler,
+	deliveryHistoryHandler *DeliveryHistoryHandler,
 	endpointRepo WebhookEndpointRepository,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
@@ -56,6 +57,10 @@ func WebhookEndpointRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:update"})).
 			Delete("/{webhook_endpoint_uuid}/subscriptions", subscriptionHandler.RemoveSubscription)
+
+		// Delivery history
+		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:read"})).
+			Get("/{webhook_endpoint_uuid}/deliveries", deliveryHistoryHandler.GetDeliveries)
 	})
 
 	r.Route("/webhook-replay", func(r chi.Router) {

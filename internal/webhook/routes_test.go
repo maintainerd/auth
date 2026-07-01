@@ -13,7 +13,7 @@ func TestWebhookEndpointRoute(t *testing.T) {
 	t.Run("registers protected routes", func(t *testing.T) {
 		router := chi.NewRouter()
 
-		WebhookEndpointRoute(router, NewWebhookEndpointHandler(&mockWebhookEndpointService{}), nil, nil, nil, nil, nil)
+		WebhookEndpointRoute(router, NewWebhookEndpointHandler(&mockWebhookEndpointService{}), nil, nil, nil, nil, nil, nil)
 
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/webhook-endpoints/", nil))

@@ -2,7 +2,20 @@ package webhook
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
+
+type DeliveryHistoryResponseDTO struct {
+	DeliveryHistoryUUID uuid.UUID `json:"delivery_history_uuid"`
+	EventType           string    `json:"event_type"`
+	AttemptCount        int       `json:"attempt_count"`
+	FinalStatus         string    `json:"final_status"`
+	ResponseStatus      *int      `json:"response_status,omitempty"`
+	ResponseSummary     string    `json:"response_summary"`
+	IsReplay            bool      `json:"is_replay"`
+	CreatedAt           time.Time `json:"created_at"`
+}
 
 // WebhookEndpointResponseDTO is the JSON representation of a webhook endpoint.
 type WebhookEndpointResponseDTO struct {

@@ -87,7 +87,11 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		tenant.TenantSettingRoute(api, h.tenantSetting, userProvider, application.Cache, tenantRateLimit)
 		notifier.EmailConfigRoute(api, h.emailConfig, userProvider, application.Cache, tenantRateLimit)
 		notifier.SMSConfigRoute(api, h.smsConfig, userProvider, application.Cache, tenantRateLimit)
-		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.WebhookReplayHandler, application.WebhookSubscriptionHandler, application.WebhookEndpointRepo, userProvider, application.Cache, tenantRateLimit)
+		deliveryHistoryHandler := webhook.NewDeliveryHistoryHandler(
+			webhook.NewDeliveryHistoryRepository(application.DB),
+			application.WebhookEndpointRepo,
+		)
+		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.WebhookReplayHandler, application.WebhookSubscriptionHandler, deliveryHistoryHandler, application.WebhookEndpointRepo, userProvider, application.Cache, tenantRateLimit)
 		authevent.AuthEventRoute(api, h.authEvent, userProvider, application.Cache, tenantRateLimit)
 		event.ConfigRoute(api, h.eventConfig, h.eventManagement, userProvider, application.Cache, tenantRateLimit)
 		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache, tenantRateLimit)
