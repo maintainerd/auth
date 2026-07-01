@@ -585,6 +585,9 @@ func (m *mockRoleRepo) FindByNameAndTenantID(name string, tenantID int64) (*Role
 	}
 	return nil, nil
 }
+func (m *mockRoleRepo) FindByUUIDAndTenantID(roleUUID uuid.UUID, tenantID int64) (*Role, error) {
+	return m.FindByUUID(roleUUID)
+}
 func (m *mockRoleRepo) FindAllByTenantID(tenantID int64) ([]Role, error) {
 	if m.findAllByTenantIDFn != nil {
 		return m.findAllByTenantIDFn(tenantID)

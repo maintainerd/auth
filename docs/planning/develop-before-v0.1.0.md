@@ -174,8 +174,8 @@ Prior sessions made isolation solid across users, clients, iam (most paths), inv
 
 `internal/iam/service_permission.go:106` and `:115` resolve caller-supplied `filter.APIUUID`/`filter.RoleUUID` via plain `FindByUUID` with no tenant check, leaking existence of other tenants' APIs/roles.
 
-- [ ] Replace with `apiRepo.FindByUUIDAndTenantID(*filter.APIUUID, filter.TenantID)` and `roleRepo.FindByUUIDAndTenantID(*filter.RoleUUID, filter.TenantID)`; return NotFound on mismatch.
-- **Acceptance:** A foreign API/role UUID returns NotFound, not an empty 200.
+- [x] Replace with `apiRepo.FindByUUIDAndTenantID(*filter.APIUUID, filter.TenantID)` and added `roleRepo.FindByUUIDAndTenantID(*filter.RoleUUID, filter.TenantID)` (added method to RoleRepository). Return NotFound on mismatch.
+- [x] **Acceptance:** A foreign API/role UUID returns NotFound, not an empty 200.
 
 ### B2 — Tenant-scope `GetServiceIDByUUID` (LOW)
 

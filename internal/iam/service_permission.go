@@ -103,7 +103,11 @@ func (s *permissionService) Get(ctx context.Context, filter PermissionServiceGet
 
 	// Get api if uuid exist
 	if filter.APIUUID != nil {
-		api, err := s.apiRepo.FindByUUID(*filter.APIUUID)
+		apiUUID, err := uuid.Parse(*filter.APIUUID)
+		if err != nil {
+			return nil, apperror.NewNotFound("api not found")
+		}
+		api, err := s.apiRepo.FindByUUIDAndTenantID(apiUUID, filter.TenantID)
 		if err != nil || api == nil {
 			return nil, apperror.NewNotFound("api not found")
 		}
@@ -112,7 +116,11 @@ func (s *permissionService) Get(ctx context.Context, filter PermissionServiceGet
 
 	// Get role if uuid exist
 	if filter.RoleUUID != nil {
-		role, err := s.roleRepo.FindByUUID(*filter.RoleUUID)
+		roleUUID, err := uuid.Parse(*filter.RoleUUID)
+		if err != nil {
+			return nil, apperror.NewNotFound("role not found")
+		}
+		role, err := s.roleRepo.FindByUUIDAndTenantID(roleUUID, filter.TenantID)
 		if err != nil || role == nil {
 			return nil, apperror.NewNotFound("role not found")
 		}

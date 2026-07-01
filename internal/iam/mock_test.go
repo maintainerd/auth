@@ -146,7 +146,7 @@ func (m *mockAPIRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64) (*API,
 	if m.findByUUIDAndTenantIDFn != nil {
 		return m.findByUUIDAndTenantIDFn(id, tenantID)
 	}
-	return nil, nil
+	return m.FindByUUID(id)
 }
 func (m *mockAPIRepo) FindByName(name string, tenantID int64) (*API, error) {
 	if m.findByNameFn != nil {
@@ -334,6 +334,7 @@ type mockRoleRepo struct {
 	mockBaseRepo[Role]
 	findByUUIDFn                 func(any, ...string) (*Role, error)
 	findByNameAndTenantIDFn      func(string, int64) (*Role, error)
+	findByUUIDAndTenantIDFn      func(uuid.UUID, int64) (*Role, error)
 	findAllByTenantIDFn          func(int64) ([]Role, error)
 	findPaginatedFn              func(RoleRepositoryGetFilter) (*PaginationResult[Role], error)
 	getPermissionsByRoleUUIDFn   func(RoleRepositoryGetPermissionsFilter) (*PaginationResult[Permission], error)
@@ -371,6 +372,12 @@ func (m *mockRoleRepo) FindByNameAndTenantID(name string, tenantID int64) (*Role
 		return m.findByNameAndTenantIDFn(name, tenantID)
 	}
 	return nil, nil
+}
+func (m *mockRoleRepo) FindByUUIDAndTenantID(roleUUID uuid.UUID, tenantID int64) (*Role, error) {
+	if m.findByUUIDAndTenantIDFn != nil {
+		return m.findByUUIDAndTenantIDFn(roleUUID, tenantID)
+	}
+	return m.FindByUUID(roleUUID)
 }
 func (m *mockRoleRepo) FindAllByTenantID(tenantID int64) ([]Role, error) {
 	if m.findAllByTenantIDFn != nil {
