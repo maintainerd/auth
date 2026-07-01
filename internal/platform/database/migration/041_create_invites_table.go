@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS invites (
     invite_token        TEXT NOT NULL UNIQUE,
     registration_flow_id        BIGINT,
     callback_url        TEXT,
-    status              VARCHAR(20),
+    status              VARCHAR(20) NOT NULL DEFAULT 'pending',
     expires_at          TIMESTAMPTZ,
     used_at             TIMESTAMPTZ,
     created_by          BIGINT,
@@ -76,6 +76,14 @@ BEGIN
         ALTER TABLE invites
             ADD CONSTRAINT fk_invites_updated_by FOREIGN KEY (updated_by)
             REFERENCES users(user_id) ON DELETE SET NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_invites_status'
+    ) THEN
+        ALTER TABLE invites
+            ADD CONSTRAINT chk_invites_status
+            CHECK (status IN ('pending', 'accepted', 'expired', 'revoked'));
     END IF;
 END$$;
 

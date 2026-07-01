@@ -17,7 +17,7 @@ type Invite struct {
 	InviteToken        string         `gorm:"column:invite_token;unique"`
 	RegistrationFlowID *int64         `gorm:"column:registration_flow_id"`
 	CallbackURL        *string        `gorm:"column:callback_url"`
-	Status             string         `gorm:"column:status;default:pending"` // pending, accepted, expired, revoked
+	Status             string         `gorm:"column:status;not null;default:pending"` // pending, accepted, expired, revoked
 	ExpiresAt          *time.Time     `gorm:"column:expires_at"`
 	UsedAt             *time.Time     `gorm:"column:used_at"`
 	CreatedBy          *int64         `gorm:"column:created_by"`
