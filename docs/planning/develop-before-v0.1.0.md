@@ -106,8 +106,8 @@ The audit log is the fastest-growing table; retention is 365 days. Migration `04
 
 Migration `049`. CASCADE deletes and user-scoped revocation currently seq-scan (leading index column is `client_id`).
 
-- [ ] Add `idx_oauth_auth_codes_user_id` on `user_id`.
-- **Acceptance:** `EXPLAIN` on a `user_id`-only delete/lookup shows an index scan.
+- [x] Add `idx_oauth_auth_codes_user_id` on `user_id`.
+- [x] **Acceptance:** `EXPLAIN` on a `user_id`-only delete/lookup shows an index scan.
 
 ### A7 — Eliminate N+1 in list mappers and assignment loops (HIGH)
 

@@ -15,7 +15,7 @@ type OAuthAuthorizationCode struct {
 	OAuthAuthorizationCodeUUID uuid.UUID  `gorm:"column:oauth_authorization_code_uuid;type:uuid;uniqueIndex;not null"`
 	CodeHash                   string     `gorm:"column:code_hash;uniqueIndex;not null"`
 	ClientID                   int64      `gorm:"column:client_id;not null"`
-	UserID                     int64      `gorm:"column:user_id;not null"`
+	UserID                     int64      `gorm:"column:user_id;index:idx_oauth_auth_codes_user_id;not null"`
 	TenantID                   int64      `gorm:"column:tenant_id;not null"`
 	RedirectURI                string     `gorm:"column:redirect_uri;not null"`
 	Scope                      string     `gorm:"column:scope;not null;default:''"`

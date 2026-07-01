@@ -62,6 +62,7 @@ END$$;
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_code_hash ON oauth_authorization_codes (code_hash);
 CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_expires ON oauth_authorization_codes (expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_user_id ON oauth_authorization_codes (user_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_client_user ON oauth_authorization_codes (client_id, user_id);
 `
 	return db.Exec(sql).Error
