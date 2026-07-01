@@ -73,8 +73,8 @@ Expired OAuth/token rows are never deleted; only `oauth_broker_sessions` is swep
 
 Hottest OAuth table (every refresh). Migration `050_create_oauth_refresh_tokens_table.go`.
 
-- [ ] Ensure these exist (edit migration 050 in place): unique index on `token_hash`; `idx_oauth_refresh_tokens_family` on the family/family_uuid column used for family revocation; `idx_oauth_refresh_tokens_expires_at` on `expires_at`; `idx_oauth_refresh_tokens_user_client` on `(user_id, client_id)`. Add any missing.
-- **Acceptance:** Token refresh, family revocation, and expiry cleanup all hit an index (`EXPLAIN` shows index scans).
+- [x] Ensure these exist (edit migration 050 in place): unique index on `token_hash`; `idx_oauth_refresh_tokens_family` on the family/family_uuid column used for family revocation; `idx_oauth_refresh_tokens_expires_at` on `expires_at`; `idx_oauth_refresh_tokens_user_client` on `(user_id, client_id)`. All present; added matching index tags to the GORM model.
+- [x] **Acceptance:** Token refresh, family revocation, and expiry cleanup all hit an index (`EXPLAIN` shows index scans).
 
 ### A3 — Verify/add indexes on `user_tokens` (CRITICAL)
 
