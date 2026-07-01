@@ -138,6 +138,31 @@ func (h *InviteHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, nil, "Invite revoked successfully")
 }
 
+// Get returns invite details by UUID, scoped to the authenticated tenant.
+//
+// GET /invite/{invite_uuid}
+func (h *InviteHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	inviteUUID, err := uuid.Parse(chi.URLParam(r, "invite_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid invite UUID")
+		return
+	}
+
+	invite, err := h.service.GetByUUID(r.Context(), inviteUUID, tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get invite", err)
+		return
+	}
+
+	resp.Success(w, toInviteResponseDTO(*invite), "Invite retrieved successfully")
+}
+
 func (h *InviteHandler) GetInviteContext(w http.ResponseWriter, r *http.Request) {
 	inviteToken := r.URL.Query().Get("invite_token")
 	if inviteToken == "" {

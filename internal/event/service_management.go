@@ -23,6 +23,7 @@ import (
 // EventRouteService manages per-tenant broker route configurations.
 type EventRouteService interface {
 	ListByTenant(ctx context.Context, tenantID int64) ([]EventRouteServiceResult, error)
+	GetByUUID(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID) (*EventRouteServiceResult, error)
 	Create(ctx context.Context, tenantID int64, eventTypeUUID string) (*EventRouteServiceResult, error)
 	Update(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID, enabled bool) (*EventRouteServiceResult, error)
 	Delete(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID) error
@@ -55,8 +56,6 @@ func (s *eventRouteServiceImpl) ListByTenant(ctx context.Context, tenantID int64
 
 	routes, err := s.eventRouteRepo.FindByTenantID(tenantID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "list event routes failed")
 		return nil, err
 	}
 
@@ -78,8 +77,35 @@ func (s *eventRouteServiceImpl) ListByTenant(ctx context.Context, tenantID int64
 			UpdatedAt:      r.UpdatedAt,
 		}
 	}
-	span.SetStatus(codes.Ok, "")
 	return result, nil
+}
+
+func (s *eventRouteServiceImpl) GetByUUID(ctx context.Context, tenantID int64, eventRouteUUID uuid.UUID) (*EventRouteServiceResult, error) {
+	route, err := s.eventRouteRepo.FindByUUID(eventRouteUUID)
+	if err != nil {
+		return nil, err
+	}
+	if route == nil {
+		return nil, apperror.NewNotFound("event route not found")
+	}
+	if route.TenantID != tenantID {
+		return nil, apperror.NewNotFound("event route not found")
+	}
+	key := ""
+	eventTypeUUIDStr := ""
+	if et, _ := s.eventTypeRepo.FindByID(route.EventTypeID); et != nil {
+		key = et.Key
+		eventTypeUUIDStr = et.EventTypeUUID.String()
+	}
+	return &EventRouteServiceResult{
+		EventRouteUUID: route.EventRouteUUID.String(),
+		EventTypeUUID:  eventTypeUUIDStr,
+		EventTypeKey:   key,
+		Channel:        route.Channel,
+		Enabled:        route.Enabled,
+		CreatedAt:      route.CreatedAt,
+		UpdatedAt:      route.UpdatedAt,
+	}, nil
 }
 
 func (s *eventRouteServiceImpl) Create(ctx context.Context, tenantID int64, eventTypeUUID string) (*EventRouteServiceResult, error) {
@@ -254,6 +280,40 @@ func (h *ManagementHandler) ListEventRoutes(w http.ResponseWriter, r *http.Reque
 	}
 
 	resp.Success(w, result, "Event routes retrieved successfully")
+}
+
+// GetEventRoute returns a single event route by UUID.
+//
+// GET /event-routes/{event_route_uuid}
+func (h *ManagementHandler) GetEventRoute(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	eventRouteUUID, err := uuid.Parse(chi.URLParam(r, "event_route_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid event route UUID")
+		return
+	}
+
+	route, err := h.eventRouteService.GetByUUID(r.Context(), tenant.TenantID, eventRouteUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get event route", err)
+		return
+	}
+
+	response := eventRouteResponseDTO{
+		UUID:          route.EventRouteUUID,
+		EventTypeUUID: route.EventTypeUUID,
+		EventTypeKey:  route.EventTypeKey,
+		Channel:       route.Channel,
+		Enabled:       route.Enabled,
+		CreatedAt:     route.CreatedAt,
+		UpdatedAt:     route.UpdatedAt,
+	}
+	resp.Success(w, response, "Event route retrieved successfully")
 }
 
 // CreateEventRoute creates a new broker route for the tenant.

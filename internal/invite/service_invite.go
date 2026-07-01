@@ -39,6 +39,7 @@ type InviteService interface {
 	ResendInvite(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) (*Invite, error)
 	ListInvites(ctx context.Context, tenantID int64) ([]Invite, error)
 	RevokeInvite(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) error
+	GetByUUID(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) (*Invite, error)
 	GetByToken(ctx context.Context, inviteToken string) (*Invite, error)
 }
 
@@ -365,6 +366,17 @@ func (s *inviteService) ListInvites(ctx context.Context, tenantID int64) ([]Invi
 	_, span := otel.Tracer("service").Start(ctx, "invite.list")
 	defer span.End()
 	return s.inviteRepo.FindAllByTenantID(tenantID)
+}
+
+func (s *inviteService) GetByUUID(ctx context.Context, inviteUUID uuid.UUID, tenantID int64) (*Invite, error) {
+	invite, err := s.inviteRepo.FindByUUIDAndTenantID(inviteUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if invite == nil {
+		return nil, apperror.NewNotFound("invite not found")
+	}
+	return invite, nil
 }
 
 // RevokeInvite marks a pending invitation as revoked. Scoped to the tenant so an

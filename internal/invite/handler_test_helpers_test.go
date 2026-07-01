@@ -64,6 +64,10 @@ func (m *mockInviteService) GetByToken(_ context.Context, inviteToken string) (*
 	return nil, nil
 }
 
+func (m *mockInviteService) GetByUUID(_ context.Context, inviteUUID uuid.UUID, tenantID int64) (*Invite, error) {
+	return nil, nil
+}
+
 func withTenant(r *http.Request) *http.Request {
 	tenant := &Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
 	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant})
