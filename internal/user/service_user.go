@@ -1315,6 +1315,9 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID,
 		clients, err := s.clientRepo.FindByIDs(clientIDs)
 		if err == nil {
 			for i := range clients {
+				if clients[i].TenantID != tenantID {
+					continue
+				}
 				res := ToClientServiceDataResult(&clients[i])
 				clientMap[clients[i].ClientID] = res
 			}

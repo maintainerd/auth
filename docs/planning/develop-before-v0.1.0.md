@@ -195,8 +195,8 @@ Prior sessions made isolation solid across users, clients, iam (most paths), inv
 
 `internal/user/service_user.go:1306` loads each identity's client via plain `FindByID`.
 
-- [ ] After fetch, guard `client.TenantID == tenantID`; clear/skip the client field on mismatch.
-- **Acceptance:** Identity client data is never cross-tenant.
+- [x] After fetch, guard `client.TenantID == tenantID`; skip the client field on mismatch.
+- [x] **Acceptance:** Identity client data is never cross-tenant.
 
 ### B5 — Validate the invite's adopted flow client is same-tenant (INFO→fix)
 
