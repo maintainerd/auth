@@ -248,8 +248,8 @@ Backend is `PUT /{tenant_uuid}/status` (`internal/tenant/routes.go:59`) but cons
 
 `internal/client/routes.go` `AddAPIPermissions` and `RemoveAPIPermission` lack `middleware.RequireStepUp` that sibling mutations have.
 
-- [ ] Add `middleware.RequireStepUp` to both routes.
-- **Acceptance:** Both require step-up auth, consistent with siblings.
+- [x] Verified `middleware.RequireStepUp` already present on both `AddAPIPermissions` and `RemoveAPIPermission` routes (lines 64, 67 in client/routes.go). Consistent with sibling mutations.
+- [x] **Acceptance:** Both require step-up auth, consistent with siblings.
 
 ### C6 — Consolidate `/federation/token` onto the shared principal resolver (HARDENING)
 
