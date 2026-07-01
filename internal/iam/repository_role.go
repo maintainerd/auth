@@ -46,6 +46,7 @@ type RoleRepository interface {
 	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[Role], error)
 	WithTx(tx *gorm.DB) RoleRepository
 	FindByNameAndTenantID(name string, tenantID int64) (*Role, error)
+	FindByUUIDAndTenantID(roleUUID uuid.UUID, tenantID int64) (*Role, error)
 	FindAllByTenantID(tenantID int64) ([]Role, error)
 	FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[Role], error)
 	GetPermissionsByRoleUUID(filter RoleRepositoryGetPermissionsFilter) (*PaginationResult[Permission], error)
@@ -87,6 +88,20 @@ func (r *roleRepository) FindByNameAndTenantID(name string, tenantID int64) (*Ro
 		return nil, err
 	}
 
+	return &role, nil
+}
+
+func (r *roleRepository) FindByUUIDAndTenantID(roleUUID uuid.UUID, tenantID int64) (*Role, error) {
+	var role Role
+	err := r.DB().
+		Where("role_uuid = ? AND tenant_id = ?", roleUUID, tenantID).
+		First(&role).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
 	return &role, nil
 }
 
