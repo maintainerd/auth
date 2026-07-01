@@ -141,6 +141,13 @@ func (s *inviteService) SendInvite(
 				Select("client_id").
 				Where("registration_flow_id = ?", registrationFlow.RegistrationFlowID).
 				Scan(&flowClientID).Error; err == nil && flowClientID > 0 {
+				var flowClientTenantID int64
+				if err := tx.Table("clients").
+					Select("tenant_id").
+					Where("client_id = ?", flowClientID).
+					Scan(&flowClientTenantID).Error; err != nil || flowClientTenantID != invite.TenantID {
+					return apperror.NewNotFoundWithReason("registration flow client not found or access denied")
+				}
 				invite.ClientID = flowClientID
 				clientIsSystem = false
 				var flowClientIdentifier string

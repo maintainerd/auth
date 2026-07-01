@@ -202,8 +202,8 @@ Prior sessions made isolation solid across users, clients, iam (most paths), inv
 
 `internal/invite/service_invite.go:129,144` adopts the registration flow's `client_id` (looked up under system tenant) without checking it belongs to the inviting tenant.
 
-- [ ] After adopting `flowClientID`, verify the resolved client's `tenant_id` equals the invite's tenant; reject on mismatch.
-- **Acceptance:** An invite cannot bind to another tenant's client.
+- [x] After adopting `flowClientID`, verify the resolved client's `tenant_id` equals the invite's tenant; reject on mismatch.
+- [x] **Acceptance:** An invite cannot bind to another tenant's client.
 
 ### B6 — Full isolation regression test pass (HIGH)
 
