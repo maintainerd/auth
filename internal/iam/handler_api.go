@@ -80,7 +80,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Look up service by UUID to get service_id
-		serviceIDValue, err := h.apiService.GetServiceIDByUUID(r.Context(), serviceUUID)
+		serviceIDValue, err := h.apiService.GetServiceIDByUUID(r.Context(), serviceUUID, tenant.TenantID)
 		if err != nil {
 			resp.HandleServiceError(w, r, "Service not found", err)
 			return

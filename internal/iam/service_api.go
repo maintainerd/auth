@@ -53,7 +53,7 @@ type APIServiceGetResult struct {
 type APIService interface {
 	Get(ctx context.Context, filter APIServiceGetFilter) (*APIServiceGetResult, error)
 	GetByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
-	GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UUID) (int64, error)
+	GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64) (int64, error)
 	Create(ctx context.Context, tenantID int64, name string, displayName string, description string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
 	Update(ctx context.Context, apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, status string, serviceUUID string) (*APIServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64, status string) (*APIServiceDataResult, error)
@@ -140,7 +140,7 @@ func (s *apiService) GetByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID 
 	return toAPIServiceDataResult(api), nil
 }
 
-func (s *apiService) GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UUID) (int64, error) {
+func (s *apiService) GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64) (int64, error) {
 	_, span := otel.Tracer("service").Start(ctx, "api.getServiceID")
 	defer span.End()
 	span.SetAttributes(attribute.String("uuid", serviceUUID.String()))
@@ -152,6 +152,10 @@ func (s *apiService) GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UU
 		return 0, apperror.NewNotFound("service not found")
 	}
 	if service == nil {
+		span.SetStatus(codes.Error, "service not found")
+		return 0, apperror.NewNotFound("service not found")
+	}
+	if service.TenantID != tenantID {
 		span.SetStatus(codes.Error, "service not found")
 		return 0, apperror.NewNotFound("service not found")
 	}

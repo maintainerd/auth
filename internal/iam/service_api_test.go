@@ -138,15 +138,16 @@ func TestAPIService_Get(t *testing.T) {
 
 func TestAPIService_GetServiceIDByUUID(t *testing.T) {
 	serviceUUID := uuid.New()
+	tenantID := int64(1)
 
 	t.Run("service found → returns ID", func(t *testing.T) {
 		svcRepo := &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
-				return &Service{ServiceID: 42}, nil
+				return &Service{ServiceID: 42, TenantID: tenantID}, nil
 			},
 		}
 		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		id, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID)
+		id, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID, tenantID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(42), id)
 	})
@@ -156,7 +157,7 @@ func TestAPIService_GetServiceIDByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}
 		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID)
+		_, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
@@ -169,10 +170,22 @@ func TestAPIService_GetServiceIDByUUID(t *testing.T) {
 		}
 		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
 
-		id, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID)
+		id, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID, tenantID)
 
 		require.Error(t, err)
 		assert.Zero(t, id)
+		assert.Contains(t, err.Error(), "service not found")
+	})
+
+	t.Run("cross-tenant service → not found", func(t *testing.T) {
+		svcRepo := &mockServiceRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 42, TenantID: 999}, nil
+			},
+		}
+		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
+		_, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID, tenantID)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
 }
