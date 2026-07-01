@@ -65,8 +65,12 @@ func (r *brandingRepository) FindAllByTenantID(tenantID int64) ([]Branding, erro
 }
 
 // FindActive returns the active branding for a tenant, or falls back to the
-// system branding if no custom active record exists.
+// system branding if no custom active record exists. When tenantID is 0,
+// resolves the global system branding (active, is_system=true) directly.
 func (r *brandingRepository) FindActive(tenantID int64) (*Branding, error) {
+	if tenantID == 0 {
+		return r.FindSystemDefault()
+	}
 	var b Branding
 	err := r.DB().
 		Where("tenant_id = ? AND is_active = ? AND deleted_at IS NULL", tenantID, true).
@@ -78,6 +82,17 @@ func (r *brandingRepository) FindActive(tenantID int64) (*Branding, error) {
 		return nil, err
 	}
 	return r.FindSystem(tenantID)
+}
+
+func (r *brandingRepository) FindSystemDefault() (*Branding, error) {
+	var b Branding
+	err := r.DB().
+		Where("is_system = true AND is_active = true AND deleted_at IS NULL").
+		First(&b).Error
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
 }
 
 // FindSystem returns the immutable system branding record.

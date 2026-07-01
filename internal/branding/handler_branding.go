@@ -3,6 +3,7 @@ package branding
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -79,11 +80,15 @@ func (h *BrandingHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // GetPublic returns the active branding for unauthenticated access.
 //
-// GET /public/branding
+// GET /public/branding?tenant_id=<id>&client_id=<identifier>
 func (h *BrandingHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
-	// For now, serve the system tenant's active branding.
-	// In the future this could resolve tenant from origin/hostname.
-	result, err := h.brandingService.GetPublic(r.Context(), 1)
+	tenantID := int64(0)
+	if v := r.URL.Query().Get("tenant_id"); v != "" {
+		if tid, err := strconv.ParseInt(v, 10, 64); err == nil {
+			tenantID = tid
+		}
+	}
+	result, err := h.brandingService.GetPublic(r.Context(), tenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get public branding", err)
 		return
