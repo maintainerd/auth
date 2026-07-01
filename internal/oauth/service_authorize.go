@@ -9,11 +9,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
+	clientpkg "github.com/maintainerd/auth/internal/client"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -87,7 +87,7 @@ type OAuthAuthorizeService interface {
 
 	// ContinueAuthorize resumes a persisted authorize request after registration,
 	// issuing an authorization code bound to the authenticated user.
-	ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (string, *apperror.OAuthError)
+	ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
 }
 
 type oauthAuthorizeService struct {
@@ -562,25 +562,19 @@ func (s *oauthAuthorizeService) clientSupportsResponseType(client *Client, respo
 }
 
 // validateRedirectURI checks the redirect_uri against the client's registered
-// redirect URIs. Exact match is required per RFC 6749 §3.1.2.3.
-// Dangerous schemes (javascript:, data:, vbscript:) are rejected before the
-// registered-URI check to prevent open-redirect → code-execution attacks.
+// redirect URIs. Delegates to the shared client.MatchClientRedirectURI.
 func (s *oauthAuthorizeService) validateRedirectURI(client *Client, redirectURI string) *apperror.OAuthError {
-	if err := security.ValidateRedirectURI(redirectURI); err != nil {
-		return apperror.NewOAuthInvalidRequest(err.Error())
-	}
-
-	if client.ClientURIs == nil {
-		return apperror.NewOAuthInvalidRequest("no redirect URIs registered for this client")
-	}
-
-	for _, uri := range *client.ClientURIs {
-		if uri.Type == shared.ClientURITypeRedirect && uri.URI == redirectURI {
-			return nil
+	var uris []clientpkg.RedirectURIMatch
+	if client.ClientURIs != nil {
+		uris = make([]clientpkg.RedirectURIMatch, len(*client.ClientURIs))
+		for i, u := range *client.ClientURIs {
+			uris[i] = clientpkg.RedirectURIMatch{URI: u.URI, Type: u.Type}
 		}
 	}
-
-	return apperror.NewOAuthInvalidRequest("redirect_uri does not match any registered redirect URIs")
+	if err := clientpkg.MatchClientRedirectURI(uris, redirectURI); err != nil {
+		return apperror.NewOAuthInvalidRequest(err.Error())
+	}
+	return nil
 }
 
 // needsConsent determines whether the user needs to provide consent for the
@@ -753,29 +747,38 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 	return authReq.OAuthAuthorizeRequestUUID.String(), nil
 }
 
-func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (string, *apperror.OAuthError) {
+func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.continue_authorize")
 	defer span.End()
 
 	requestUUID, err := uuid.Parse(requestID)
 	if err != nil {
-		return "", apperror.NewOAuthInvalidRequest("invalid request_id")
+		return nil, apperror.NewOAuthInvalidRequest("invalid request_id")
 	}
 
 	savedReq, err := s.authReqRepo.FindByUUID(requestUUID)
 	if err != nil {
 		span.RecordError(err)
-		return "", apperror.NewOAuthServerError("an unexpected error occurred")
+		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 	if savedReq == nil {
-		return "", apperror.NewOAuthInvalidRequest("authorize request not found or already used")
+		return nil, apperror.NewOAuthInvalidRequest("authorize request not found or already used")
 	}
 	if savedReq.IsExpired() {
-		return "", apperror.NewOAuthInvalidRequest("authorize request has expired")
+		return nil, apperror.NewOAuthInvalidRequest("authorize request has expired")
+	}
+
+	client, err := s.clientRepo.FindByID(savedReq.ClientID)
+	if err != nil || client == nil {
+		return nil, apperror.NewOAuthInvalidRequest("unknown client context")
+	}
+	if client.Status != shared.StatusActive {
+		return nil, apperror.NewOAuthInvalidRequest("client is inactive")
 	}
 
 	req := OAuthAuthorizeRequestDTO{
 		ResponseType:        savedReq.ResponseType,
+		ClientID:            ptrOrEmpty(client.Identifier),
 		RedirectURI:         savedReq.RedirectURI,
 		Scope:               ptrOrEmpty(savedReq.Scope),
 		State:               ptrOrEmpty(savedReq.State),
@@ -785,43 +788,36 @@ func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID
 		RegistrationFlow:    ptrOrEmpty(savedReq.RegistrationFlow),
 	}
 
-	redirectURL := ""
-	var issueOErr *apperror.OAuthError
+	var result *OAuthAuthorizeResult
+	var authOErr *apperror.OAuthError
 	if txErr := s.db.Transaction(func(tx *gorm.DB) error {
-		if err := s.authReqRepo.WithTx(tx).Consume(savedReq.OAuthAuthorizeRequestID, tenantID, time.Now()); err != nil {
+		txConsumeRepo := s.authReqRepo.WithTx(tx)
+		if err := txConsumeRepo.Consume(savedReq.OAuthAuthorizeRequestID, tenantID, time.Now()); err != nil {
 			return err
 		}
 		txSvc := *s
+		txSvc.clientRepo = s.clientRepo.WithTx(tx)
+		txSvc.clientURIRepo = s.clientURIRepo.WithTx(tx)
 		txSvc.authCodeRepo = s.authCodeRepo.WithTx(tx)
-		var oerr *apperror.OAuthError
-		redirectURL, oerr = txSvc.issueAuthorizationCodeForClientAndUser(ctx, savedReq.ClientID, userID, req)
-		if oerr != nil {
-			issueOErr = oerr
-			return oerr
+		txSvc.consentGrantRepo = s.consentGrantRepo.WithTx(tx)
+		txSvc.consentChallRepo = s.consentChallRepo.WithTx(tx)
+		txSvc.authReqRepo = txConsumeRepo
+		result, authOErr = txSvc.Authorize(ctx, req, userID, tenantID)
+		if authOErr != nil {
+			return authOErr
 		}
 		return nil
 	}); txErr != nil {
 		span.RecordError(txErr)
 		if errors.Is(txErr, ErrAlreadyConsumed) {
-			return "", apperror.NewOAuthInvalidRequest("authorize request has already been used")
+			return nil, apperror.NewOAuthInvalidRequest("authorize request has already been used")
 		}
-		if issueOErr != nil {
-			return "", issueOErr
+		if authOErr != nil {
+			return nil, authOErr
 		}
-		return "", apperror.NewOAuthServerError("an unexpected error occurred")
+		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return redirectURL, nil
-}
-
-func (s *oauthAuthorizeService) issueAuthorizationCodeForClientAndUser(ctx context.Context, clientID int64, userID int64, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
-	client, err := s.clientRepo.FindByID(clientID)
-	if err != nil || client == nil {
-		return "", apperror.NewOAuthInvalidRequest("unknown client context")
-	}
-	if client.Status != shared.StatusActive {
-		return "", apperror.NewOAuthInvalidRequest("client is inactive")
-	}
-	return s.issueAuthorizationCode(ctx, client, userID, req)
+	return result, nil
 }

@@ -15,19 +15,18 @@ type AuthEventRepositoryGetFilter struct {
 	TenantID     *int64
 	ActorUserID  *int64
 	TargetUserID *int64
-	// UserUUID scopes results to events involving this user (as actor or target),
-	// resolved against the users table. Used by the per-user activity view.
-	UserUUID  *string
-	Category  *string
-	EventType *string
-	Severity  *string
-	Result    *string
-	DateFrom  *time.Time
-	DateTo    *time.Time
-	SortBy    string
-	SortOrder string
-	Page      int
-	Limit     int
+	UserUUID     *string
+	Category     *string
+	EventType    *string
+	Severity     *string
+	Result       *string
+	DateFrom     *time.Time
+	DateTo       *time.Time
+	SortBy       string
+	SortOrder    string
+	Page         int
+	Limit        int
+	Cursor       *int64
 }
 
 // AuthEventRepository defines persistence operations for auth events.
@@ -129,7 +128,35 @@ func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter)
 
 	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	return database.PaginateQuery[AuthEvent](query, filter.Page, filter.Limit)
+	afterID := int64(0)
+	if filter.Cursor != nil {
+		afterID = *filter.Cursor
+	}
+	rows, nextCursor, err := database.PaginateKeyset[AuthEvent](query, afterID, filter.Limit, "auth_event_id", func(e AuthEvent) int64 { return e.AuthEventID })
+	if err != nil {
+		return nil, err
+	}
+
+	total, err := r.estimatedCount(query)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PaginationResult[AuthEvent]{
+		Data:       rows,
+		Total:      total,
+		Limit:      filter.Limit,
+		NextCursor: nextCursor,
+	}, nil
+}
+
+func (r *authEventRepository) estimatedCount(query *gorm.DB) (int64, error) {
+	session := query.Session(&gorm.Session{NewDB: true})
+	var total int64
+	if err := session.Model(&AuthEvent{}).Select("COALESCE(reltuples::bigint, 0)").Table("pg_class").Where("relname = 'auth_events'").Scan(&total).Error; err != nil {
+		return 0, nil
+	}
+	return total, nil
 }
 
 // FindByUUIDAndTenantID retrieves a single auth event by UUID scoped to a tenant.

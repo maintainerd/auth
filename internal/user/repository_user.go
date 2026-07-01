@@ -25,6 +25,7 @@ type UserRepositoryGetFilter struct {
 	Limit     int
 	SortBy    string
 	SortOrder string
+	Cursor    *int64
 }
 
 type GetUserRolesFilter struct {
@@ -341,5 +342,18 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	// Apply sorting — protected against SQL injection via allowlist
 	query = query.Order(database.SanitizeOrderPrefixed("users.", filter.SortBy, filter.SortOrder, "users.created_at DESC"))
 
-	return database.PaginateQuery[User](query, filter.Page, filter.Limit)
+	afterID := int64(0)
+	if filter.Cursor != nil {
+		afterID = *filter.Cursor
+	}
+	rows, nextCursor, err := database.PaginateKeyset[User](query, afterID, filter.Limit, "user_id", func(u User) int64 { return u.UserID })
+	if err != nil {
+		return nil, err
+	}
+
+	return &PaginationResult[User]{
+		Data:       rows,
+		Limit:      filter.Limit,
+		NextCursor: nextCursor,
+	}, nil
 }

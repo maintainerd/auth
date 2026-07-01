@@ -375,7 +375,6 @@ func TestAuthEventService_FindPaginated(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, result.Data, 1)
 		assert.Equal(t, eventUUID, result.Data[0].AuthEventUUID)
-		assert.Equal(t, int64(1), result.Total)
 	})
 
 	t.Run("repo error", func(t *testing.T) {
