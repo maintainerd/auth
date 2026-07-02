@@ -283,7 +283,6 @@ func (s *accountService) DeleteAccount(ctx context.Context, userID int64, curren
 		"is_account_completed":        false,
 		"is_totp_enabled":             false,
 		"is_webauthn_enabled":         false,
-		"mfa_enabled_at":              nil,
 		"status":                      "deleted",
 	}); err != nil {
 		return apperror.NewInternal("failed to delete account", err)

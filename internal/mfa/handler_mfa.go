@@ -385,7 +385,7 @@ func (h *MFAHandler) WebAuthnDeleteCredential(w http.ResponseWriter, r *http.Req
 	}
 
 	// Reconcile recovery state: if this was the user's last primary factor,
-	// purge backup codes and clear mfa_enabled_at so the account has no MFA.
+	// purge leftover backup codes so the account has no MFA.
 	if err := h.mfaSvc.SyncMFAState(r.Context(), user.UserID); err != nil {
 		resp.HandleServiceError(w, r, "Failed to reconcile MFA state", err)
 		return

@@ -2034,7 +2034,7 @@ func TestUserService_GetUserMFA(t *testing.T) {
 				IsTOTPEnabled:     true,
 				IsWebAuthnEnabled: true,
 				IsPhoneVerified:   true,
-				MFAEnabledAt:      &mfaAt,
+				FirstMFAEnrolledAt:      &mfaAt,
 				UserIdentities:    []UserIdentity{{TenantID: 1}},
 			}, nil
 		}
@@ -2056,7 +2056,7 @@ func TestUserService_GetUserMFA(t *testing.T) {
 		assert.True(t, res.IsWebAuthnEnabled)
 		assert.True(t, res.IsSMSEnabled)
 		assert.Equal(t, 5, res.BackupCodesCount)
-		assert.NotNil(t, res.MFAEnabledAt)
+		assert.NotNil(t, res.FirstMFAEnrolledAt)
 		assert.Len(t, res.WebAuthnKeys, 1)
 		assert.Equal(t, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", res.WebAuthnKeys[0].CredentialUUID)
 		assert.Equal(t, "Phone Key", res.WebAuthnKeys[0].Name)
@@ -2087,7 +2087,7 @@ func TestUserService_GetUserMFA(t *testing.T) {
 		assert.False(t, res.IsWebAuthnEnabled)
 		assert.False(t, res.IsSMSEnabled)
 		assert.Equal(t, 0, res.BackupCodesCount)
-		assert.Nil(t, res.MFAEnabledAt)
+		assert.Nil(t, res.FirstMFAEnrolledAt)
 		assert.Empty(t, res.WebAuthnKeys)
 	})
 }

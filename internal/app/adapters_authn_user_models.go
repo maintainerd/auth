@@ -28,7 +28,7 @@ func toAuthnUser(u *user.User) *authn.User {
 		TemporaryPasswordExpiresAt: u.TemporaryPasswordExpiresAt,
 		IsTOTPEnabled:              u.IsTOTPEnabled,
 		IsWebAuthnEnabled:          u.IsWebAuthnEnabled,
-		MFAEnabledAt:               u.MFAEnabledAt,
+		FirstMFAEnrolledAt:         u.FirstMFAEnrolledAt,
 		CreatedAt:                  u.CreatedAt,
 		UpdatedAt:                  u.UpdatedAt,
 	}
@@ -57,7 +57,7 @@ func toUserUser(u *authn.User) *user.User {
 		TemporaryPasswordExpiresAt: u.TemporaryPasswordExpiresAt,
 		IsTOTPEnabled:              u.IsTOTPEnabled,
 		IsWebAuthnEnabled:          u.IsWebAuthnEnabled,
-		MFAEnabledAt:               u.MFAEnabledAt,
+		FirstMFAEnrolledAt:         u.FirstMFAEnrolledAt,
 		CreatedAt:                  u.CreatedAt,
 		UpdatedAt:                  u.UpdatedAt,
 	}

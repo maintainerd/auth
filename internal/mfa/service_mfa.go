@@ -89,7 +89,7 @@ type MFAService interface {
 	// StepUpTTLSeconds returns the configured step-up freshness window in seconds.
 	StepUpTTLSeconds(ctx context.Context, userID int64) int64
 
-	// SyncMFAState clears recovery state (backup codes, mfa_enabled_at) when no
+	// SyncMFAState purges leftover recovery state (backup codes) when no
 	// primary MFA factor remains. Call after removing a factor that the service
 	// does not own (e.g. a WebAuthn credential deleted via WebAuthnService).
 	SyncMFAState(ctx context.Context, userID int64) error
@@ -319,10 +319,12 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 
 	// Mark the user as having TOTP enabled.
 	now := time.Now()
+	// The sync_totp_flag trigger also maintains these on the is_enabled UPDATE
+	// above; this explicit write is a belt-and-suspenders on the same values.
 	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{
-			"is_totp_enabled": true,
-			"mfa_enabled_at":  now,
+			"is_totp_enabled":       true,
+			"first_mfa_enrolled_at": now,
 		}).Error; err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to update user MFA status", err)
@@ -454,8 +456,8 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 		return apperror.NewInternal("failed to update user TOTP state", err)
 	}
 
-	// Clear mfa_enabled_at (and any residual recovery state) if this was the
-	// last primary factor.
+	// Purge any residual recovery state (backup codes) if this was the last
+	// primary factor. first_mfa_enrolled_at is left intact (set-once).
 	if err := s.SyncMFAState(ctx, userID); err != nil {
 		span.RecordError(err)
 		return err
@@ -587,9 +589,9 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 		BackupCodesCount:  backupCount,
 		WebAuthnKeys:      credSummaries,
 	}
-	if user.MFAEnabledAt != nil {
-		s := user.MFAEnabledAt.Format(time.RFC3339)
-		resp.MFAEnabledAt = &s
+	if user.FirstMFAEnrolledAt != nil {
+		s := user.FirstMFAEnrolledAt.Format(time.RFC3339)
+		resp.FirstMFAEnrolledAt = &s
 	}
 	return resp, nil
 }
@@ -749,11 +751,12 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 		return apperror.NewInternal("failed to delete target email OTP", err)
 	}
 
+	// first_mfa_enrolled_at is intentionally NOT cleared: it records the
+	// first-ever enrollment and is set once for the life of the account.
 	if err := s.db.Model(&User{}).Where("user_id = ?", targetUserID).
 		Updates(map[string]any{
 			"is_totp_enabled":     false,
 			"is_webauthn_enabled": false,
-			"mfa_enabled_at":      nil,
 		}).Error; err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to reset user MFA status", err)
@@ -848,8 +851,8 @@ func (s *mfaService) AdminResetMFAMethod(ctx context.Context, targetUserUUID, me
 		return apperror.NewValidation("unsupported MFA method")
 	}
 
-	// Reconcile recovery/flag state — clears leftover backup codes and
-	// mfa_enabled_at if this removal left the user with no primary factor.
+	// Reconcile recovery state — purges leftover backup codes if this removal
+	// left the user with no primary factor. first_mfa_enrolled_at is set-once.
 	if err := s.SyncMFAState(ctx, targetUserID); err != nil {
 		span.RecordError(err)
 		return err
@@ -900,11 +903,12 @@ func (s *mfaService) SelfResetMFA(ctx context.Context, userID int64) error {
 		return apperror.NewInternal("failed to delete email OTP", err)
 	}
 
+	// first_mfa_enrolled_at is intentionally NOT cleared: it records the
+	// first-ever enrollment and is set once for the life of the account.
 	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{
 			"is_totp_enabled":     false,
 			"is_webauthn_enabled": false,
-			"mfa_enabled_at":      nil,
 		}).Error; err != nil {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to reset MFA status", err)
@@ -1327,10 +1331,14 @@ func (s *mfaService) DisableEmailOTP(ctx context.Context, userID int64) error {
 	return s.SyncMFAState(ctx, userID)
 }
 
+// ensureMFAFlag stamps first_mfa_enrolled_at the first time any factor is
+// enabled. Covers SMS/email OTP factors, which have no DB trigger of their own
+// (the TOTP/WebAuthn triggers handle those two). Set-once: only writes when the
+// column is still NULL.
 func (s *mfaService) ensureMFAFlag(ctx context.Context, userID int64) {
 	now := time.Now()
-	s.db.Model(&User{}).Where("user_id = ? AND mfa_enabled_at IS NULL", userID).
-		Update("mfa_enabled_at", now)
+	s.db.Model(&User{}).Where("user_id = ? AND first_mfa_enrolled_at IS NULL", userID).
+		Update("first_mfa_enrolled_at", now)
 }
 
 // VerifyStepUp validates the step-up challenge token, verifies the provided
@@ -1785,11 +1793,14 @@ func preferMethodFirst(methods []string, preferred string) []string {
 	return out
 }
 
-// SyncMFAState reconciles a user's recovery/flag state with their remaining
-// primary factors. If no primary factor (TOTP, WebAuthn, or verified SMS phone)
-// is active, it purges any leftover backup codes and clears mfa_enabled_at so
-// the account is left in a clean "no MFA" state. Idempotent and a no-op while at
-// least one primary factor remains.
+// SyncMFAState reconciles a user's recovery state with their remaining primary
+// factors. If no primary factor (TOTP, WebAuthn, verified SMS phone, or email
+// OTP) is active, it purges any leftover backup codes so the account is left in
+// a clean "no MFA" state. Idempotent and a no-op while at least one primary
+// factor remains.
+//
+// first_mfa_enrolled_at is intentionally NOT cleared here: it records the
+// first-ever enrollment and is set once for the life of the account.
 func (s *mfaService) SyncMFAState(ctx context.Context, userID int64) error {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil || user == nil {
@@ -1800,10 +1811,6 @@ func (s *mfaService) SyncMFAState(ctx context.Context, userID int64) error {
 	}
 	if err := s.mfaBackupCodeRepo.DeleteAllByUserID(userID); err != nil {
 		return apperror.NewInternal("failed to delete backup codes", err)
-	}
-	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
-		Update("mfa_enabled_at", nil).Error; err != nil {
-		return apperror.NewInternal("failed to clear MFA state", err)
 	}
 	return nil
 }

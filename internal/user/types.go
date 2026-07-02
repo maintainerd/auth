@@ -187,7 +187,7 @@ type UserMFAResponseDTO struct {
 	IsSMSEnabled      bool                    `json:"is_sms_enabled"`
 	BackupCodesCount  int                     `json:"backup_codes_count"`
 	WebAuthnKeys      []UserMFAWebAuthnKeyDTO `json:"webauthn_keys,omitempty"`
-	MFAEnabledAt      *string                 `json:"mfa_enabled_at,omitempty"`
+	FirstMFAEnrolledAt *string                `json:"mfa_enabled_at,omitempty"`
 }
 
 type UserMFAWebAuthnKeyDTO struct {

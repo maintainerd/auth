@@ -52,7 +52,7 @@ type MFAStatusResponseDTO struct {
 	IsEmailOTPEnabled bool                           `json:"is_email_otp_available"`
 	BackupCodesCount  int                            `json:"backup_codes_count"`
 	WebAuthnKeys      []WebAuthnCredentialSummaryDTO `json:"webauthn_keys,omitempty"`
-	MFAEnabledAt      *string                        `json:"mfa_enabled_at,omitempty"`
+	FirstMFAEnrolledAt *string                       `json:"mfa_enabled_at,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

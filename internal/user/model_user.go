@@ -35,7 +35,7 @@ type User struct {
 	EmailChangeOTPExpiresAt    *time.Time     `gorm:"column:email_change_otp_expires_at"`
 	IsTOTPEnabled              bool           `gorm:"column:is_totp_enabled;default:false"`
 	IsWebAuthnEnabled          bool           `gorm:"column:is_webauthn_enabled;default:false"`
-	MFAEnabledAt               *time.Time     `gorm:"column:mfa_enabled_at"`
+	FirstMFAEnrolledAt         *time.Time     `gorm:"column:first_mfa_enrolled_at"`
 	CreatedAt                  time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt                  time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt                  gorm.DeletedAt `gorm:"column:deleted_at;index"`

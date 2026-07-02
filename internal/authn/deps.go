@@ -109,7 +109,7 @@ type User struct {
 	TemporaryPasswordExpiresAt *time.Time
 	IsTOTPEnabled              bool
 	IsWebAuthnEnabled          bool `gorm:"column:is_webauthn_enabled"`
-	MFAEnabledAt               *time.Time
+	FirstMFAEnrolledAt         *time.Time `gorm:"column:first_mfa_enrolled_at"`
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 }

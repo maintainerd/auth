@@ -146,7 +146,7 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 	}{
 		{
 			name:  "success maps factors and timestamps",
-			user:  &User{UserID: 42, IsTOTPEnabled: true, IsWebAuthnEnabled: true, MFAEnabledAt: &enabledAt},
+			user:  &User{UserID: 42, IsTOTPEnabled: true, IsWebAuthnEnabled: true, FirstMFAEnrolledAt: &enabledAt},
 			codes: []UserMFABackupCode{{BackupCodeID: 1}, {BackupCodeID: 2}},
 			creds: []UserMFAWebAuthnCredential{{
 				CredentialUUID: credUUID,
@@ -164,7 +164,7 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 				assert.Equal(t, credUUID.String(), got.WebAuthnKeys[0].CredentialUUID)
 				assert.Equal(t, "Laptop", got.WebAuthnKeys[0].Name)
 				require.NotNil(t, got.WebAuthnKeys[0].LastUsedAt)
-				require.NotNil(t, got.MFAEnabledAt)
+				require.NotNil(t, got.FirstMFAEnrolledAt)
 			},
 		},
 		{name: "missing user", user: nil, wantErr: "user not found"},
@@ -517,11 +517,10 @@ func TestMFAService_SyncMFAState(t *testing.T) {
 		assertExpectationsMet(t, mock)
 	})
 
-	t.Run("purges backup codes and clears mfa_enabled_at when no factor remains", func(t *testing.T) {
+	t.Run("purges backup codes when no factor remains; leaves first_mfa_enrolled_at intact", func(t *testing.T) {
+		// first_mfa_enrolled_at is set-once and never cleared, so SyncMFAState
+		// issues no UPDATE on users — it only purges backup codes via the repo.
 		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit()
 		svc := &mfaService{
 			db:                db,
 			userRepo:          &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
@@ -653,11 +652,9 @@ func TestMFAService_BeginWebAuthnLoginPolicyGate(t *testing.T) {
 func TestMFAService_DisableAndRegenerateBackupCodes(t *testing.T) {
 	t.Run("disable success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
-		// 1) is_totp_enabled = false
-		mock.ExpectBegin()
-		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit()
-		// 2) SyncMFAState clears mfa_enabled_at when no primary factor remains.
+		// DisableTOTP writes is_totp_enabled = false. SyncMFAState then only
+		// purges backup codes (via the repo) — it no longer clears
+		// first_mfa_enrolled_at, so there is a single users UPDATE.
 		mock.ExpectBegin()
 		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
@@ -819,11 +816,9 @@ func TestMFAService_AdminResetMFAMethod(t *testing.T) {
 	t.Run("success resets a single factor and syncs state", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		expectUserTenantIDLookup(mock, 1)
-		// 1) is_totp_enabled = false
-		mock.ExpectBegin()
-		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit()
-		// 2) SyncMFAState clears mfa_enabled_at when no primary factor remains.
+		// AdminResetMFAMethod writes is_totp_enabled = false. SyncMFAState then
+		// only purges backup codes (via the repo) — it no longer clears
+		// first_mfa_enrolled_at, so there is a single users UPDATE.
 		mock.ExpectBegin()
 		expectMFAUpdate(mock, "users").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
