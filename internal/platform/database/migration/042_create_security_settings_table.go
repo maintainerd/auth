@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS security_settings (
     version                 INTEGER NOT NULL DEFAULT 1,
     created_by              BIGINT,
     updated_by              BIGINT,
-    created_at              TIMESTAMPTZ DEFAULT now(),
-    updated_at              TIMESTAMPTZ DEFAULT now()
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

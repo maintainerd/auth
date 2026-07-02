@@ -267,7 +267,6 @@ type UserRepository interface {
 	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindByUsernameAndTenantID(username string, tenantID int64) (*User, error)
 	FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error)
-	FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindSuperAdmin() (*User, error)
 	FindRoles(userID int64) ([]Role, error)
 	FindBySubAndClientID(sub, clientID string) (*User, error)
@@ -275,8 +274,6 @@ type UserRepository interface {
 	SetEmailVerified(id uuid.UUID, verified bool) error
 	SetStatus(id uuid.UUID, status string) error
 	SetForcePasswordChange(id uuid.UUID, force bool) error
-	SetPendingEmail(id uuid.UUID, pendingEmail, token string, expiresAt time.Time) error
-	ClearEmailChange(id uuid.UUID) error
 	UpdateEmail(id uuid.UUID, email string) error
 	UpdateUsername(id uuid.UUID, username string) error
 }

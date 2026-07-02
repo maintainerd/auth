@@ -3,7 +3,6 @@ package setup
 import (
 	"context"
 	"testing"
-	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -265,11 +264,9 @@ type mockUserRepo struct {
 	setEmailVerifiedFn       func(uuid.UUID, bool) error
 	setStatusFn              func(uuid.UUID, string) error
 	setForcePasswordChangeFn func(uuid.UUID, bool) error
-	setPendingEmailFn        func(uuid.UUID, string, string, time.Time) error
 	clearEmailChangeFn       func(uuid.UUID) error
 	updateEmailFn            func(uuid.UUID, string) error
 	updateUsernameFn         func(uuid.UUID, string) error
-	findByPendingEmailFn     func(string) (*User, error)
 	createFn                 func(*User) (*User, error)
 	updateByUUIDFn           func(any, any) (*User, error)
 }
@@ -326,12 +323,6 @@ func (m *mockUserRepo) FindByPhoneAndTenantID(phone string, tenantID int64) (*Us
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error) {
-	if m.findByPendingEmailFn != nil {
-		return m.findByPendingEmailFn(email)
-	}
-	return nil, nil
-}
 func (m *mockUserRepo) FindByPhone(phone string) (*User, error) {
 	if m.findByPhoneFn != nil {
 		return m.findByPhoneFn(phone)
@@ -383,12 +374,6 @@ func (m *mockUserRepo) SetForcePasswordChange(userUUID uuid.UUID, force bool) er
 	}
 	return nil
 }
-func (m *mockUserRepo) SetPendingEmail(userUUID uuid.UUID, pendingEmail, otp string, expiresAt time.Time) error {
-	if m.setPendingEmailFn != nil {
-		return m.setPendingEmailFn(userUUID, pendingEmail, otp, expiresAt)
-	}
-	return nil
-}
 func (m *mockUserRepo) ClearEmailChange(userUUID uuid.UUID) error {
 	if m.clearEmailChangeFn != nil {
 		return m.clearEmailChangeFn(userUUID)
@@ -406,12 +391,6 @@ func (m *mockUserRepo) UpdateUsername(userUUID uuid.UUID, username string) error
 		return m.updateUsernameFn(userUUID, username)
 	}
 	return nil
-}
-func (m *mockUserRepo) FindByPendingEmail(email string) (*User, error) {
-	if m.findByPendingEmailFn != nil {
-		return m.findByPendingEmailFn(email)
-	}
-	return nil, nil
 }
 
 type mockProfileRepo struct {

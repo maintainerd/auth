@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -19,11 +20,21 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 const emailChangeOTPLength = 6
 const emailChangeOTPTTL = 1 * time.Hour
+
+// Email-change OTPs are routed through user_otps (not stored on the users row)
+// so they get the same single-use flag, failure accounting, and at-rest hashing
+// as every other OTP. The pending new address is carried in the OTP row's
+// metadata JSONB under "pending_email".
+const emailChangeChannel = "email_change"
+const emailChangeMaxFailed = 5
+const emailChangePendingEmailKey = "pending_email"
+
 const backupCodeCount = 10
 const backupCodeLength = 8
 
@@ -138,8 +149,24 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 	}
 	otpHash := crypto.HashAuthorizationCode(otp)
 
-	expiresAt := time.Now().Add(emailChangeOTPTTL)
-	if err := s.userRepo.SetPendingEmail(user.UserUUID, newEmail, otpHash, expiresAt); err != nil {
+	// Clear any prior pending email-change OTPs for this user, then store a fresh
+	// hashed OTP with the pending address in metadata. Routed through user_otps
+	// (channel='email_change') rather than columns on the users row.
+	s.db.Where("user_id = ? AND channel = ?", userID, emailChangeChannel).Delete(&notifier.UserOTP{})
+
+	metadata, err := json.Marshal(map[string]string{emailChangePendingEmailKey: newEmail})
+	if err != nil {
+		return apperror.NewInternal("failed to encode email change metadata", err)
+	}
+	record := &notifier.UserOTP{
+		UserID:    user.UserID,
+		Channel:   emailChangeChannel,
+		Recipient: newEmail,
+		OTPHash:   otpHash,
+		Metadata:  datatypes.JSON(metadata),
+		ExpiresAt: time.Now().Add(emailChangeOTPTTL),
+	}
+	if _, err := s.smsOtpRepo.Create(record); err != nil {
 		return apperror.NewInternal("failed to store pending email", err)
 	}
 
@@ -188,28 +215,38 @@ func (s *accountService) VerifyEmailChange(ctx context.Context, userID int64, ot
 		return apperror.NewNotFound("user not found")
 	}
 
-	if user.PendingEmail == nil || user.EmailChangeOTP == nil || user.EmailChangeOTPExpiresAt == nil {
+	// Find the most recent unused, unexpired email-change OTP for this user.
+	// (Expired/used rows are excluded by the query, so they read as "not found".)
+	otpRecord, lerr := s.smsOtpRepo.FindValidByUserAndChannel(user.UserID, emailChangeChannel)
+	if lerr != nil {
+		return apperror.NewInternal("failed to look up email change", lerr)
+	}
+	if otpRecord == nil {
 		return apperror.NewValidation("no pending email change found")
 	}
 
-	if time.Now().After(*user.EmailChangeOTPExpiresAt) {
-		return apperror.NewValidation("email change OTP has expired")
-	}
-
 	expectedHash := crypto.HashAuthorizationCode(otp)
-	if subtle.ConstantTimeCompare([]byte(*user.EmailChangeOTP), []byte(expectedHash)) != 1 {
+	if subtle.ConstantTimeCompare([]byte(otpRecord.OTPHash), []byte(expectedHash)) != 1 {
+		_ = s.smsOtpRepo.RecordFailure(otpRecord.UserOTPID, emailChangeMaxFailed)
 		return apperror.NewUnauthorized("invalid OTP")
 	}
 
-	newEmail := *user.PendingEmail
+	var meta map[string]string
+	if err := json.Unmarshal(otpRecord.Metadata, &meta); err != nil {
+		return apperror.NewInternal("failed to decode email change metadata", err)
+	}
+	newEmail := meta[emailChangePendingEmailKey]
+	if newEmail == "" {
+		return apperror.NewValidation("pending email address is missing")
+	}
+
+	// Single-use: mark the OTP consumed before applying the change.
+	if err := s.smsOtpRepo.MarkUsed(otpRecord.UserOTPID); err != nil {
+		return apperror.NewInternal("failed to mark OTP used", err)
+	}
 
 	if err := s.userRepo.UpdateEmail(user.UserUUID, newEmail); err != nil {
 		return apperror.NewInternal("failed to update email", err)
-	}
-
-	if err := s.userRepo.ClearEmailChange(user.UserUUID); err != nil {
-		// Non-fatal — email was already updated
-		slog.Warn("account: failed to clear email change fields", "error", err, "user_id", userID)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -274,9 +311,6 @@ func (s *accountService) DeleteAccount(ctx context.Context, userID int64, curren
 		"email":                       nil,
 		"phone":                       nil,
 		"password":                    nil,
-		"pending_email":               nil,
-		"email_change_otp":            nil,
-		"email_change_otp_expires_at": nil,
 		"is_email_verified":           false,
 		"is_phone_verified":           false,
 		"is_profile_completed":        false,

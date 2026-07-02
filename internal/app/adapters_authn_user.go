@@ -1,8 +1,6 @@
 package app
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/user"
@@ -92,11 +90,6 @@ func (a *authnUserRepoAdapter) FindByPhoneAndTenantID(phone string, tenantID int
 	return toAuthnUser(r), err
 }
 
-func (a *authnUserRepoAdapter) FindByPendingEmailAndTenantID(email string, tenantID int64) (*authn.User, error) {
-	r, err := a.repo.FindByPendingEmailAndTenantID(email, tenantID)
-	return toAuthnUser(r), err
-}
-
 func (a *authnUserRepoAdapter) FindSuperAdmin() (*authn.User, error) {
 	r, err := a.repo.FindSuperAdmin()
 	return toAuthnUser(r), err
@@ -145,14 +138,6 @@ func (a *authnUserRepoAdapter) SetStatus(id uuid.UUID, s string) error {
 
 func (a *authnUserRepoAdapter) SetForcePasswordChange(id uuid.UUID, f bool) error {
 	return a.repo.SetForcePasswordChange(id, f)
-}
-
-func (a *authnUserRepoAdapter) SetPendingEmail(id uuid.UUID, pendingEmail, token string, expiresAt time.Time) error {
-	return a.repo.SetPendingEmail(id, pendingEmail, token, expiresAt)
-}
-
-func (a *authnUserRepoAdapter) ClearEmailChange(id uuid.UUID) error {
-	return a.repo.ClearEmailChange(id)
 }
 
 func (a *authnUserRepoAdapter) UpdateEmail(id uuid.UUID, email string) error {

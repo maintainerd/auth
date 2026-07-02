@@ -3,7 +3,6 @@ package user
 import (
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
@@ -56,7 +55,6 @@ type UserRepository interface {
 	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindByUsernameAndTenantID(username string, tenantID int64) (*User, error)
 	FindByPhoneAndTenantID(phone string, tenantID int64) (*User, error)
-	FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error)
 	FindSuperAdmin() (*User, error)
 	FindRoles(userID int64) ([]Role, error)
 	FindRolesPaginated(filter GetUserRolesFilter) (*PaginationResult[Role], error)
@@ -66,9 +64,8 @@ type UserRepository interface {
 	SetStatus(userUUID uuid.UUID, status string) error
 	// Feature: Force password change
 	SetForcePasswordChange(userUUID uuid.UUID, force bool) error
-	// Feature: Email change with OTP re-verification
-	SetPendingEmail(userUUID uuid.UUID, pendingEmail, otp string, expiresAt time.Time) error
-	ClearEmailChange(userUUID uuid.UUID) error
+	// Feature: Email change with OTP re-verification. The OTP + pending address
+	// live in user_otps (channel='email_change'); only the final apply remains here.
 	UpdateEmail(userUUID uuid.UUID, email string) error
 	UpdateUsername(userUUID uuid.UUID, username string) error
 }
@@ -125,22 +122,6 @@ func (r *userRepository) FindByPhoneAndTenantID(phone string, tenantID int64) (*
 	var user User
 	err := r.DB().
 		Where("phone = ? AND tenant_id = ?", phone, tenantID).
-		First(&user).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &user, nil
-}
-
-func (r *userRepository) FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error) {
-	var user User
-	err := r.DB().
-		Where("pending_email = ? AND tenant_id = ?", email, tenantID).
 		First(&user).Error
 
 	if err != nil {
@@ -257,26 +238,6 @@ func (r *userRepository) SetForcePasswordChange(userUUID uuid.UUID, force bool) 
 	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("force_password_change", force).Error
-}
-
-func (r *userRepository) SetPendingEmail(userUUID uuid.UUID, pendingEmail, otp string, expiresAt time.Time) error {
-	return r.DB().Model(&User{}).
-		Where("user_uuid = ?", userUUID).
-		Updates(map[string]interface{}{
-			"pending_email":               pendingEmail,
-			"email_change_otp":            otp,
-			"email_change_otp_expires_at": expiresAt,
-		}).Error
-}
-
-func (r *userRepository) ClearEmailChange(userUUID uuid.UUID) error {
-	return r.DB().Model(&User{}).
-		Where("user_uuid = ?", userUUID).
-		Updates(map[string]interface{}{
-			"pending_email":               nil,
-			"email_change_otp":            nil,
-			"email_change_otp_expires_at": nil,
-		}).Error
 }
 
 func (r *userRepository) UpdateEmail(userUUID uuid.UUID, email string) error {

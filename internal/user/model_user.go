@@ -30,9 +30,6 @@ type User struct {
 	ForcePasswordChange        bool           `gorm:"column:force_password_change;default:false"`
 	PasswordChangedAt          *time.Time     `gorm:"column:password_changed_at"`
 	TemporaryPasswordExpiresAt *time.Time     `gorm:"column:temporary_password_expires_at"`
-	PendingEmail               *string        `gorm:"column:pending_email"`
-	EmailChangeOTP             *string        `gorm:"column:email_change_otp"`
-	EmailChangeOTPExpiresAt    *time.Time     `gorm:"column:email_change_otp_expires_at"`
 	IsTOTPEnabled              bool           `gorm:"column:is_totp_enabled;default:false"`
 	IsWebAuthnEnabled          bool           `gorm:"column:is_webauthn_enabled;default:false"`
 	FirstMFAEnrolledAt         *time.Time     `gorm:"column:first_mfa_enrolled_at"`

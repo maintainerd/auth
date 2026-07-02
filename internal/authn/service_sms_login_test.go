@@ -64,6 +64,9 @@ func (m *mockSMSOtpRepo) FindValid(channel, recipient string) (*notifier.UserOTP
 	}
 	return nil, nil
 }
+func (m *mockSMSOtpRepo) FindValidByUserAndChannel(int64, string) (*notifier.UserOTP, error) {
+	return nil, nil
+}
 func (m *mockSMSOtpRepo) RecordFailure(id int64, maxAttempts int) error {
 	if m.recordFailureFn != nil {
 		return m.recordFailureFn(id, maxAttempts)

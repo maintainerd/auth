@@ -126,10 +126,11 @@ func (m *mockBaseRepo[T]) Paginate(c map[string]any, page, limit int, p ...strin
 
 // mockUserOTPRepo mocks notifier.UserOTPRepository for account phone-verification tests.
 type mockUserOTPRepo struct {
-	createFn     func(*notifier.UserOTP) (*notifier.UserOTP, error)
-	findValidFn  func(channel, recipient string) (*notifier.UserOTP, error)
-	recordFailFn func(id int64, maxAttempts int) error
-	markUsedFn   func(id int64) error
+	createFn          func(*notifier.UserOTP) (*notifier.UserOTP, error)
+	findValidFn       func(channel, recipient string) (*notifier.UserOTP, error)
+	findValidByUserFn func(userID int64, channel string) (*notifier.UserOTP, error)
+	recordFailFn      func(id int64, maxAttempts int) error
+	markUsedFn        func(id int64) error
 }
 
 func (m *mockUserOTPRepo) WithTx(*gorm.DB) notifier.UserOTPRepository { return m }
@@ -145,6 +146,12 @@ func (m *mockUserOTPRepo) CreateOrUpdate(e *notifier.UserOTP) (*notifier.UserOTP
 func (m *mockUserOTPRepo) FindValid(channel, recipient string) (*notifier.UserOTP, error) {
 	if m.findValidFn != nil {
 		return m.findValidFn(channel, recipient)
+	}
+	return nil, nil
+}
+func (m *mockUserOTPRepo) FindValidByUserAndChannel(userID int64, channel string) (*notifier.UserOTP, error) {
+	if m.findValidByUserFn != nil {
+		return m.findValidByUserFn(userID, channel)
 	}
 	return nil, nil
 }
@@ -178,11 +185,8 @@ type mockUserRepo struct {
 	setEmailVerifiedFn       func(uuid.UUID, bool) error
 	setStatusFn              func(uuid.UUID, string) error
 	setForcePasswordChangeFn func(uuid.UUID, bool) error
-	setPendingEmailFn        func(uuid.UUID, string, string, time.Time) error
-	clearEmailChangeFn       func(uuid.UUID) error
 	updateEmailFn            func(uuid.UUID, string) error
 	updateUsernameFn         func(uuid.UUID, string) error
-	findByPendingEmailFn     func(string) (*User, error)
 	createFn                 func(*User) (*User, error)
 	updateByUUIDFn           func(any, any) (*User, error)
 	updateByIDFn             func(any, any) (*User, error)
@@ -259,12 +263,6 @@ func (m *mockUserRepo) FindByPhoneAndTenantID(phone string, tenantID int64) (*Us
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindByPendingEmailAndTenantID(email string, tenantID int64) (*User, error) {
-	if m.findByPendingEmailFn != nil {
-		return m.findByPendingEmailFn(email)
-	}
-	return nil, nil
-}
 func (m *mockUserRepo) FindByPhone(phone string) (*User, error) {
 	if m.findByPhoneFn != nil {
 		return m.findByPhoneFn(phone)
@@ -319,18 +317,6 @@ func (m *mockUserRepo) SetForcePasswordChange(id uuid.UUID, force bool) error {
 	}
 	return nil
 }
-func (m *mockUserRepo) SetPendingEmail(id uuid.UUID, pendingEmail, otp string, expiresAt time.Time) error {
-	if m.setPendingEmailFn != nil {
-		return m.setPendingEmailFn(id, pendingEmail, otp, expiresAt)
-	}
-	return nil
-}
-func (m *mockUserRepo) ClearEmailChange(id uuid.UUID) error {
-	if m.clearEmailChangeFn != nil {
-		return m.clearEmailChangeFn(id)
-	}
-	return nil
-}
 func (m *mockUserRepo) UpdateEmail(id uuid.UUID, email string) error {
 	if m.updateEmailFn != nil {
 		return m.updateEmailFn(id, email)
@@ -342,12 +328,6 @@ func (m *mockUserRepo) UpdateUsername(id uuid.UUID, username string) error {
 		return m.updateUsernameFn(id, username)
 	}
 	return nil
-}
-func (m *mockUserRepo) FindByPendingEmail(email string) (*User, error) {
-	if m.findByPendingEmailFn != nil {
-		return m.findByPendingEmailFn(email)
-	}
-	return nil, nil
 }
 
 type mockProfileRepo struct {

@@ -212,9 +212,6 @@ func (m *mockUserRepo) FindByPhoneAndTenantID(phone string, tID int64) (*User, e
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindByPendingEmailAndTenantID(_ string, _ int64) (*User, error) {
-	return nil, nil
-}
 func (m *mockUserRepo) Create(e *User) (*User, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
@@ -299,11 +296,9 @@ func (m *mockUserRepo) SetStatus(id uuid.UUID, s string) error {
 	return nil
 }
 func (m *mockUserRepo) SetForcePasswordChange(_ uuid.UUID, _ bool) error            { return nil }
-func (m *mockUserRepo) SetPendingEmail(_ uuid.UUID, _, _ string, _ time.Time) error { return nil }
-func (m *mockUserRepo) ClearEmailChange(_ uuid.UUID) error                          { return nil }
-func (m *mockUserRepo) UpdateEmail(_ uuid.UUID, _ string) error                     { return nil }
-func (m *mockUserRepo) UpdateUsername(_ uuid.UUID, _ string) error                  { return nil }
-func (m *mockUserRepo) FindByPendingEmail(_ string) (*User, error)                  { return nil, nil }
+func (m *mockUserRepo) ClearEmailChange(_ uuid.UUID) error { return nil }
+func (m *mockUserRepo) UpdateEmail(_ uuid.UUID, _ string) error { return nil }
+func (m *mockUserRepo) UpdateUsername(_ uuid.UUID, _ string) error { return nil }
 
 // ---------------------------------------------------------------------------
 // Mock: UserIdentityRepository
