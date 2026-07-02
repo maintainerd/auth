@@ -330,8 +330,8 @@ Backend `POST /identity_providers/test` (`internal/idp/routes.go:81`).
 
 Backend replay at `internal/webhook/handler_replay.go:86`; deliveries route added in C4; `config.ts:94` has the replay constant.
 
-- [ ] Add a "Deliveries" tab/list showing status/timestamp/response code, with a "Replay" action per row calling the replay endpoint and surfacing the result.
-- **Acceptance:** An admin sees past deliveries and can replay a failed one.
+- [x] Added "Deliveries" tab on webhook detail page showing status/timestamp/response code per delivery, with "Replay" action per row calling the replay endpoint and surfacing the result.
+- [x] **Acceptance:** An admin sees past deliveries and can replay a failed one.
 
 ### D8 — Audit-events export UI (console)
 
