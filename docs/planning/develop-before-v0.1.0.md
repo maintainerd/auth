@@ -323,8 +323,8 @@ No 429/lockout handling exists; `client.ts` has no 429 branch.
 
 Backend `POST /identity_providers/test` (`internal/idp/routes.go:81`).
 
-- [ ] Add a "Test connection" button to the IdP form that POSTs the current unsaved config and shows each per-check result (discovery, JWKS).
-- **Acceptance:** An admin sees pass/fail per check before saving.
+- [x] Added "Test Connection" button to the IdP form that POSTs the current unsaved config and shows each per-check result (discovery, JWKS) with pass/fail indicators.
+- [x] **Acceptance:** An admin sees pass/fail per check before saving.
 
 ### D7 — Webhook deliveries + replay UI (console)
 
