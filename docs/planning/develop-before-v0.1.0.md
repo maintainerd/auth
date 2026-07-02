@@ -316,8 +316,8 @@ Backend unauth `POST /recovery/backup-code` (`internal/user/routes.go:71`).
 
 No 429/lockout handling exists; `client.ts` has no 429 branch.
 
-- [ ] Detect backend lockout responses and HTTP 429 in `client.ts`/`LoginForm.tsx`; render dedicated "account temporarily locked" and "too many attempts" screens instead of a generic inline error.
-- **Acceptance:** Lockout and rate-limit states render as dedicated screens.
+- [x] Detected backend lockout (423) and HTTP 429 in `client.ts`; created dedicated `/account-locked` and `/too-many-requests` screens instead of generic inline errors.
+- [x] **Acceptance:** Lockout and rate-limit states render as dedicated screens.
 
 ### D6 — IdP test-connection UI (console)
 
