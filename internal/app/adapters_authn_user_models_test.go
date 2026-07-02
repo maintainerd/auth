@@ -19,7 +19,7 @@ func TestToAuthnUserCopiesMFAFlags(t *testing.T) {
 		UserID:                     7,
 		IsTOTPEnabled:              true,
 		IsWebAuthnEnabled:          true,
-		MFAEnabledAt:               &enabledAt,
+		FirstMFAEnrolledAt:               &enabledAt,
 		TemporaryPasswordExpiresAt: &tempExpiresAt,
 	}
 
@@ -30,8 +30,8 @@ func TestToAuthnUserCopiesMFAFlags(t *testing.T) {
 	if !got.IsWebAuthnEnabled {
 		t.Error("IsWebAuthnEnabled not carried to authn.User")
 	}
-	if got.MFAEnabledAt == nil || !got.MFAEnabledAt.Equal(enabledAt) {
-		t.Error("MFAEnabledAt not carried to authn.User")
+	if got.FirstMFAEnrolledAt == nil || !got.FirstMFAEnrolledAt.Equal(enabledAt) {
+		t.Error("FirstMFAEnrolledAt not carried to authn.User")
 	}
 	if got.TemporaryPasswordExpiresAt == nil || !got.TemporaryPasswordExpiresAt.Equal(tempExpiresAt) {
 		t.Error("TemporaryPasswordExpiresAt not carried to authn.User")
@@ -41,10 +41,10 @@ func TestToAuthnUserCopiesMFAFlags(t *testing.T) {
 	back := toUserUser(&authn.User{
 		IsTOTPEnabled:              true,
 		IsWebAuthnEnabled:          true,
-		MFAEnabledAt:               &enabledAt,
+		FirstMFAEnrolledAt:               &enabledAt,
 		TemporaryPasswordExpiresAt: &tempExpiresAt,
 	})
-	if !back.IsTOTPEnabled || !back.IsWebAuthnEnabled || back.MFAEnabledAt == nil {
+	if !back.IsTOTPEnabled || !back.IsWebAuthnEnabled || back.FirstMFAEnrolledAt == nil {
 		t.Error("toUserUser dropped MFA flags")
 	}
 	if back.TemporaryPasswordExpiresAt == nil || !back.TemporaryPasswordExpiresAt.Equal(tempExpiresAt) {

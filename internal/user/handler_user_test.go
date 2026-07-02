@@ -995,7 +995,7 @@ func TestUserHandler_GetUserMFA(t *testing.T) {
 					IsWebAuthnEnabled: false,
 					IsSMSEnabled:      true,
 					BackupCodesCount:  5,
-					MFAEnabledAt:      &mfaEnabledAt,
+					FirstMFAEnrolledAt:      &mfaEnabledAt,
 					WebAuthnKeys:      []UserMFAWebAuthnKeyDTO{},
 				}, nil
 			},

@@ -1461,9 +1461,9 @@ func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenant
 		BackupCodesCount:  int(backupCount),
 		WebAuthnKeys:      keys,
 	}
-	if user.MFAEnabledAt != nil {
-		s := user.MFAEnabledAt.Format(time.RFC3339)
-		resp.MFAEnabledAt = &s
+	if user.FirstMFAEnrolledAt != nil {
+		s := user.FirstMFAEnrolledAt.Format(time.RFC3339)
+		resp.FirstMFAEnrolledAt = &s
 	}
 
 	span.SetStatus(codes.Ok, "")

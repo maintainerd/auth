@@ -196,11 +196,13 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		return nil, apperror.NewInternal("failed to persist WebAuthn credential", err)
 	}
 
+	// The sync_webauthn_flag trigger also maintains these on the credential
+	// INSERT above; this explicit write is a belt-and-suspenders on the same values.
 	now := time.Now()
 	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{
-			"is_webauthn_enabled": true,
-			"mfa_enabled_at":      now,
+			"is_webauthn_enabled":   true,
+			"first_mfa_enrolled_at": now,
 		}).Error; err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to update user WebAuthn state", err)

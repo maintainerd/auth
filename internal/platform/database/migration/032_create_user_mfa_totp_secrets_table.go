@@ -23,5 +23,14 @@ CREATE TABLE IF NOT EXISTS user_mfa_totp_secrets (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_mfa_totp_secrets_user_id ON user_mfa_totp_secrets(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_mfa_totp_secrets_user_id ON user_mfa_totp_secrets(user_id);
+
+-- Keep users.is_totp_enabled / first_mfa_enrolled_at in sync. Fires on
+-- INSERT/UPDATE/DELETE because a pending secret is inserted (is_enabled=false)
+-- at enrollment-begin and enable/disable is an is_enabled UPDATE. See
+-- sync_totp_flag() in 024_create_users_table.go.
+DROP TRIGGER IF EXISTS trg_sync_totp_flag ON user_mfa_totp_secrets;
+CREATE TRIGGER trg_sync_totp_flag
+    AFTER INSERT OR UPDATE OR DELETE ON user_mfa_totp_secrets
+    FOR EACH ROW EXECUTE FUNCTION sync_totp_flag();
 `).Error
 }

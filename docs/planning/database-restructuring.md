@@ -86,11 +86,12 @@ These are not style issues. They will cause runtime panics, split-brain state, o
 
 **Rename:** `mfa_enabled_at` → `first_mfa_enrolled_at` to resolve the semantic ambiguity (a user can have TOTP + WebAuthn simultaneously; this timestamp records the first-ever enrollment, is set once, and never updated).
 
-- [ ] In `024_create_users_table.go`, rename the column in the `CREATE TABLE` statement:
+- [x] In `024_create_users_table.go`, rename the column in the `CREATE TABLE` statement:
   ```sql
   first_mfa_enrolled_at TIMESTAMPTZ,
   ```
-- [ ] In `024_create_users_table.go`, add the following trigger functions and triggers at the end of the SQL block, after all indexes:
+- [x] In `024_create_users_table.go`, add the following trigger functions and triggers at the end of the SQL block, after all indexes:
+  > **Deviation (approved):** `sync_totp_flag` fires `AFTER INSERT OR UPDATE OR DELETE` and computes `has_totp` from `EXISTS(... WHERE user_id = uid AND is_enabled = true)`. The TOTP secret row is INSERTed in a pending (`is_enabled=false`) state at enrollment-begin and enable/disable is an `is_enabled` UPDATE (not row insert/delete), so the plan's `AFTER INSERT OR DELETE` + bare `EXISTS` would set the flag on a pending enrollment and never clear it on disable. WebAuthn keeps the plan's INSERT/DELETE version (no pending state). `first_mfa_enrolled_at` is set-once/never-cleared per the plan.
   ```sql
   -- Trigger function: called after INSERT/DELETE on user_mfa_totp_secrets.
   -- Recomputes is_totp_enabled from the actual enrolled secret count.
@@ -134,24 +135,24 @@ These are not style issues. They will cause runtime panics, split-brain state, o
   END;
   $$ LANGUAGE plpgsql;
   ```
-- [ ] In `032_create_user_mfa_totp_secrets_table.go`, add the trigger attachment at the end of the SQL:
+- [x] In `032_create_user_mfa_totp_secrets_table.go`, add the trigger attachment at the end of the SQL (fires `AFTER INSERT OR UPDATE OR DELETE` per the approved deviation above):
   ```sql
   DROP TRIGGER IF EXISTS trg_sync_totp_flag ON user_mfa_totp_secrets;
   CREATE TRIGGER trg_sync_totp_flag
-      AFTER INSERT OR DELETE ON user_mfa_totp_secrets
+      AFTER INSERT OR UPDATE OR DELETE ON user_mfa_totp_secrets
       FOR EACH ROW EXECUTE FUNCTION sync_totp_flag();
   ```
-- [ ] In `033_create_user_mfa_webauthn_credentials_table.go`, add the trigger attachment at the end of the SQL:
+- [x] In `033_create_user_mfa_webauthn_credentials_table.go`, add the trigger attachment at the end of the SQL:
   ```sql
   DROP TRIGGER IF EXISTS trg_sync_webauthn_flag ON user_mfa_webauthn_credentials;
   CREATE TRIGGER trg_sync_webauthn_flag
       AFTER INSERT OR DELETE ON user_mfa_webauthn_credentials
       FOR EACH ROW EXECUTE FUNCTION sync_webauthn_flag();
   ```
-- [ ] Update all GORM models and code that references `mfa_enabled_at` to use `first_mfa_enrolled_at`. Search: `grep -r "mfa_enabled_at\|MFAEnabledAt" internal/` and update every match.
-- [ ] Search for any Go code that manually sets `user.IsTOTPEnabled = true` or `user.IsWebAuthnEnabled = true` and calls `db.Save` — these writes must be **removed** now that the trigger owns the flag: `grep -r "IsTOTPEnabled\|IsWebAuthnEnabled" internal/ --include="*.go"`. The trigger will maintain them; application code must not overwrite.
-- [ ] Run `go build ./...` — confirm no compilation errors
-- [ ] Run `go test ./internal/mfa/... ./internal/authn/... ./internal/user/...` — confirm tests pass
+- [x] Update all GORM models and code that references `mfa_enabled_at` to use `first_mfa_enrolled_at`. Renamed the Go field `MFAEnabledAt` → `FirstMFAEnrolledAt` and column tags in `user/model_user.go`, `mfa/deps.go`, `authn/deps.go`, adapters, DTOs, services, and tests. **JSON response key kept as `mfa_enabled_at`** to preserve the API/frontend contract (console/identity consume it).
+- [x] Search for any Go code that manually sets the flags and writes them — **kept as belt-and-suspenders (approved)** alongside the triggers; removed only the `first_mfa_enrolled_at` clearing writes (set-once) in `AdminResetMFA`, `SelfResetMFA`, `SyncMFAState`, and account-delete. Updated affected tests.
+- [x] Run `go build ./...` — no compilation errors
+- [x] Run `go test ./internal/mfa/... ./internal/authn/... ./internal/user/...` — pass (full `go test ./...` also green)
 
 ---
 

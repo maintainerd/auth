@@ -1111,7 +1111,7 @@ func TestLoginPublic_TenantMFAPolicyRequiresChallengeBeforeTokens(t *testing.T) 
 	user := buildActiveUser(t, correctPassword)
 	user.IsTOTPEnabled = true
 	now := time.Now()
-	user.MFAEnabledAt = &now
+	user.FirstMFAEnrolledAt = &now
 
 	userRepo := &mockUserRepo{
 		findByUsernameFn: func(_ string) (*User, error) {
@@ -1946,7 +1946,7 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 			securitySettingRepo: settingRepo,
 			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"totp", "backup_code"}, nil }},
 		}
-		user := &User{UserID: 1, IsTOTPEnabled: true, MFAEnabledAt: &now}
+		user := &User{UserID: 1, IsTOTPEnabled: true, FirstMFAEnrolledAt: &now}
 		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1, false)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -2167,7 +2167,7 @@ func TestLogin_MFAChallenge(t *testing.T) {
 	user := buildActiveUser(t, correctPassword)
 	user.IsTOTPEnabled = true
 	now := time.Now()
-	user.MFAEnabledAt = &now
+	user.FirstMFAEnrolledAt = &now
 
 	userRepo := &mockUserRepo{
 		findByUsernameFn: func(_ string) (*User, error) {

@@ -29,5 +29,14 @@ CREATE TABLE IF NOT EXISTS user_mfa_webauthn_credentials (
 );
 CREATE INDEX IF NOT EXISTS idx_user_mfa_webauthn_credentials_user_id ON user_mfa_webauthn_credentials(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_webauthn_credential_key_id  ON user_mfa_webauthn_credentials(credential_key_id);
+
+-- Keep users.is_webauthn_enabled / first_mfa_enrolled_at in sync. WebAuthn
+-- credentials have no pending state (row exists only once registered, deleted
+-- on removal), so INSERT/DELETE is sufficient. See sync_webauthn_flag() in
+-- 024_create_users_table.go.
+DROP TRIGGER IF EXISTS trg_sync_webauthn_flag ON user_mfa_webauthn_credentials;
+CREATE TRIGGER trg_sync_webauthn_flag
+    AFTER INSERT OR DELETE ON user_mfa_webauthn_credentials
+    FOR EACH ROW EXECUTE FUNCTION sync_webauthn_flag();
 `).Error
 }
