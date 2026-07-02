@@ -356,8 +356,8 @@ Full backend CRUD + `src/services/api/permissions/` service + `usePermissions` h
 
 ### D11 — IdP "Token Federation" list badge (console)
 
-- [ ] Add a Token Federation badge column in `IdentityProviderColumns.tsx` using the list DTO field from C8.
-- **Acceptance:** The IdP list shows which providers allow token federation.
+- [x] Added a Token Federation badge column in `IdentityProviderColumns.tsx` using the list DTO field from C8.
+- [x] **Acceptance:** The IdP list shows which providers allow token federation.
 
 ### D12 — Admin force-password-change + identity-unlink UI (console)
 
