@@ -268,8 +268,8 @@ Backend is `PUT /{tenant_uuid}/status` (`internal/tenant/routes.go:59`) but cons
 
 IdP details show the three Mode B fields; the list badge is missing.
 
-- [ ] Ensure the IdP list DTO exposes `allow_token_federation` (already in `internal/idp/service_provider.go`); confirm the console list column can render the badge (paired with D-section item).
-- **Acceptance:** The list response carries the field needed for the badge.
+- [x] Verified `allow_token_federation` already in IdP list DTO (`IdentityProviderResponseDTO` line 140) and create/update inputs. Console badge rendering paired with D-section item.
+- [x] **Acceptance:** The list response carries the field needed for the badge.
 
 ### C9 — Confirm no functional backend stubs remain (VERIFY)
 
