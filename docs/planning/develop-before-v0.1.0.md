@@ -302,8 +302,8 @@ Backend `internal/authn/routes.go:221-246`.
 
 Backend `internal/idp/routes.go:32` (`/account/identities`).
 
-- [ ] Add an authenticated account page listing linked identities, with link (provide/accept external token) and unlink actions.
-- **Acceptance:** A user can view, link, and unlink external identities.
+- [x] Added an authenticated account page at `/account/identities` listing linked identities, with link (provider + external token) and unlink actions.
+- [x] **Acceptance:** A user can view, link, and unlink external identities.
 
 ### D4 — Standalone backup-code recovery (identity)
 
