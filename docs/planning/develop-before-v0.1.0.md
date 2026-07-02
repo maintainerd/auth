@@ -287,10 +287,9 @@ Backend is ready for all of these; the work is wiring/building the UI. Build eve
 
 `../maintainerd-auth-identity/src/services/api/mfa.ts` has all enrollment functions; none are called. No `pages/account/mfa/`.
 
-- [ ] Add an authenticated MFA management page under `src/pages/account/mfa/` and routes in `App.tsx`.
-- [ ] Implement: factor status list; TOTP enroll (QR + verify) using `beginTOTPEnrollment`/`finishTOTPEnrollment`; SMS enroll (phone + OTP); email-OTP enroll; WebAuthn/passkey registration calling `navigator.credentials.create` (the registration ceremony — currently absent) via `beginWebAuthnRegistration`/`finishWebAuthnRegistration`; backup-code regeneration/display; disable for each factor.
-- [ ] Add a post-login enrollment prompt when the tenant requires MFA but the user has no factor.
-- **Acceptance:** A user can enroll and disable every factor type and regenerate backup codes from the hosted app; MFA-required tenants can onboard end to end.
+- [x] Added `src/pages/account/mfa/MFAPage.tsx` with full self-service MFA management: TOTP (QR+verify), SMS (phone+OTP), email-OTP, WebAuthn/passkey registration, backup-code regen, disable per factor. Route at `/account/mfa`.
+- [x] Added post-login MFA enrollment nudge on login-success page when user has no factors enrolled.
+- [x] **Acceptance:** A user can enroll and disable every factor type and regenerate backup codes; MFA-required tenants can onboard end to end.
 
 ### D2 — SMS passwordless login (identity)
 
