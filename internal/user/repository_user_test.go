@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -603,41 +602,6 @@ func TestUserRepository_SetForcePasswordChange(t *testing.T) {
 	})
 }
 
-func TestUserRepository_SetPendingEmail(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserRepository(db)
-		userUUID := uuid.New()
-		expires := time.Now().Add(24 * time.Hour)
-
-		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "users" SET .+ WHERE user_uuid = \$[0-9]+ AND "users"\."deleted_at" IS NULL`).
-			WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit()
-
-		err := repo.SetPendingEmail(userUUID, "new@test.com", "otp-123", expires)
-		require.NoError(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-}
-
-func TestUserRepository_ClearEmailChange(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserRepository(db)
-		userUUID := uuid.New()
-
-		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "users" SET .+ WHERE user_uuid = \$[0-9]+ AND "users"\."deleted_at" IS NULL`).
-			WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit()
-
-		err := repo.ClearEmailChange(userUUID)
-		require.NoError(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-}
-
 func TestUserRepository_UpdateEmail(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
@@ -672,46 +636,4 @@ func TestUserRepository_UpdateUsername(t *testing.T) {
 	})
 }
 
-func TestUserRepository_FindByPendingEmailAndTenantID(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserRepository(db)
 
-		rows := sqlmock.NewRows([]string{"user_id", "user_uuid", "pending_email"}).
-			AddRow(42, testUserUUID, "pending@test.com")
-		mock.ExpectQuery(`SELECT .+ FROM "users"`).
-			WithArgs("pending@test.com", int64(1), 1).
-			WillReturnRows(rows)
-
-		result, err := repo.FindByPendingEmailAndTenantID("pending@test.com", 1)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.Equal(t, "pending@test.com", *result.PendingEmail)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserRepository(db)
-
-		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
-			WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
-
-		result, err := repo.FindByPendingEmailAndTenantID("missing@test.com", 1)
-		require.NoError(t, err)
-		assert.Nil(t, result)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("db error", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserRepository(db)
-
-		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE`).
-			WillReturnError(errors.New("db error"))
-
-		_, err := repo.FindByPendingEmailAndTenantID("pending@test.com", 1)
-		require.Error(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-}

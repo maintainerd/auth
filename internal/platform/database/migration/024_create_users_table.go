@@ -25,9 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
     force_password_change       BOOLEAN NOT NULL DEFAULT FALSE,
     password_changed_at         TIMESTAMPTZ,
     temporary_password_expires_at TIMESTAMPTZ,
-    pending_email               VARCHAR(255),
-    email_change_otp            VARCHAR(10),
-    email_change_otp_expires_at TIMESTAMPTZ,
+    -- Email-change OTPs are routed through user_otps (channel='email_change',
+    -- metadata->>'pending_email'); they are intentionally NOT stored on users.
 
     -- MFA status flags. is_totp_enabled / is_webauthn_enabled are denormalized
     -- caches (read on every login) kept in sync by the sync_totp_flag /
@@ -37,8 +36,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_webauthn_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
     first_mfa_enrolled_at       TIMESTAMPTZ,
 
-    created_at                  TIMESTAMPTZ DEFAULT now(),
-    updated_at                  TIMESTAMPTZ DEFAULT now(),
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at                  TIMESTAMPTZ
 );
 
@@ -66,7 +65,7 @@ DECLARE
     tables TEXT[] := ARRAY[
         'tenants', 'branding', 'email_config', 'sms_config',
         'services', 'policies', 'apis', 'permissions',
-        'identity_providers', 'clients', 'api_keys', 'roles'
+        'identity_providers', 'clients', 'roles'
         -- webhook_endpoints is created AFTER users (migration 056, grouped with
         -- the event tables), so it attaches its own created_by/updated_by FKs there.
     ];

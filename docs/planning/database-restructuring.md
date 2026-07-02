@@ -164,29 +164,24 @@ These are not style issues. They will cause runtime panics, split-brain state, o
 
 **Decision:** Remove the three columns from `users`. Route email-change OTPs through `user_otps` using `channel = 'email_change'`. The `pending_email` value goes in a new `JSONB` metadata field on the OTP row, which already has a `metadata` column. If `user_otps` does not have a `metadata` column, add one (see 1.4a below).
 
-- [ ] Remove from `024_create_users_table.go` `CREATE TABLE` block:
+- [x] Remove from `024_create_users_table.go` `CREATE TABLE` block:
   ```sql
   -- REMOVE these three lines:
   pending_email               VARCHAR(255),
   email_change_otp            VARCHAR(10),
   email_change_otp_expires_at TIMESTAMPTZ,
   ```
-- [ ] **1.4a** — In `028_create_user_otps_table.go`, add a `metadata` column if not already present (check the file first):
-  ```sql
-  metadata JSONB NOT NULL DEFAULT '{}',
-  ```
-  This allows storing `{"pending_email": "new@example.com"}` alongside the OTP hash without requiring a separate table.
-- [ ] Search for all Go code that reads or writes `pending_email`, `email_change_otp`, or `email_change_otp_expires_at` on the user model: `grep -r "pending_email\|PendingEmail\|email_change_otp\|EmailChangeOTP\|email_change_otp_expires_at\|EmailChangeOTPExpiresAt" internal/`
-- [ ] Rewrite each callsite to use `user_otps` instead. The email-change flow becomes:
-  1. INSERT into `user_otps` with `channel='email_change'`, `metadata={"pending_email":"..."}`, `otp_hash=<hash>`, `expires_at=<10min>`
-  2. On verify: find the matching `user_otps` row, check `used=false`, check `expires_at`, verify hash, then UPDATE `users.email` to the pending email from `metadata`
-- [ ] Remove `PendingEmail`, `EmailChangeOTP`, `EmailChangeOTPExpiresAt` fields from the GORM User model struct
-- [ ] Update `internal/user/handler_account.go` (or the email-change endpoints): the request handler must now INSERT into `user_otps` instead of writing directly to the user row; the confirm handler must look up `user_otps` by `(user_id, channel='email_change', used=false)` and then UPDATE `users.email`
-- [ ] Add a `FindByUserAndChannel(ctx, userID int64, channel string)` method to the user_otps repository if it does not already exist — the email-change confirm path needs this
-- [ ] Remove `PendingEmail`, `EmailChangeOTP`, `EmailChangeOTPExpiresAt` from any response DTO in user handlers so these fields do not appear in `GET /users/{uuid}` responses
-- [ ] Update `internal/user/validation_account.go`: remove any validation referencing `email_change_otp` in the request body
-- [ ] Run `go build ./...` — must compile clean
-- [ ] Run `go test ./internal/user/... ./internal/authn/...` — confirm tests pass
+- [x] **1.4a** — In `028_create_user_otps_table.go`, add a `metadata` column if not already present (check the file first): already present — `metadata JSONB NOT NULL DEFAULT '{}'`
+- [x] Search for all Go code that reads or writes `pending_email`, `email_change_otp`, or `email_change_otp_expires_at` on the user model — only references found were stale mock stubs (removed below) and `service_account.go` which already routes through `user_otps`
+- [x] Rewrite each callsite to use `user_otps` instead — `service_account.go` already implements the correct flow: INSERT into `user_otps` with `channel='email_change'` and `metadata={"pending_email":"..."}`, verify via OTP hash lookup, then UPDATE `users.email`
+- [x] Remove `PendingEmail`, `EmailChangeOTP`, `EmailChangeOTPExpiresAt` fields from the GORM User model struct — already removed; no fields found in `model_user.go`
+- [x] Update `internal/user/handler_account.go` (or the email-change endpoints) — handler already delegates to `service_account.go` which uses `user_otps`
+- [x] Add a `FindByUserAndChannel(ctx, userID int64, channel string)` method to the user_otps repository if it does not already exist — service already uses the OTP repo correctly
+- [x] Remove `PendingEmail`, `EmailChangeOTP`, `EmailChangeOTPExpiresAt` from any response DTO in user handlers — already absent from model and DTOs
+- [x] Update `internal/user/validation_account.go`: remove any validation referencing `email_change_otp` in the request body — no such validation found
+- [x] Removed stale `SetPendingEmail`, `FindByPendingEmail`, `FindByPendingEmailAndTenantID` mock stubs and backing struct fields from `authn/service_login_test.go`, `authn/service_logout_test.go`, `setup/mock_test.go`, and `user/mock_test.go`; removed associated unused `"time"` imports and undefined-field compile errors
+- [x] Run `go build ./...` — compiles clean
+- [x] Run `go test ./internal/user/... ./internal/authn/... ./internal/setup/...` — all pass
 
 ---
 

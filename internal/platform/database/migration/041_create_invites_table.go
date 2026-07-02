@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS invites (
     used_at             TIMESTAMPTZ,
     created_by          BIGINT,
     updated_by          BIGINT,
-    created_at          TIMESTAMPTZ DEFAULT now(),
-    updated_at          TIMESTAMPTZ DEFAULT now(),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at          TIMESTAMPTZ
 );
 

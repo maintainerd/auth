@@ -5,10 +5,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"testing"
-	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -24,6 +24,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -142,19 +143,30 @@ func TestAccountService_InitiateEmailChange(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to check email availability")
 	})
 
-	t.Run("SetPendingEmail repo error", func(t *testing.T) {
+	t.Run("OTP create repo error", func(t *testing.T) {
+		orig := crypto.GenerateOTP
+		crypto.GenerateOTP = func(int) (string, error) { return "123456", nil }
+		defer func() { crypto.GenerateOTP = orig }()
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "user_otps"`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
 		svc := newAccountSvc(&mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
 				return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
 			},
 			findByEmailFn: func(_ string) (*User, error) { return nil, nil },
-			setPendingEmailFn: func(_ uuid.UUID, _, _ string, _ time.Time) error {
-				return errors.New("db error")
-			},
-		})
+		}, &mockUserOTPRepo{createFn: func(*notifier.UserOTP) (*notifier.UserOTP, error) {
+			return nil, errors.New("create failed")
+		}})
+		svc.db = db
+
 		err := svc.InitiateEmailChange(context.Background(), userID, "new@example.com", "correctpass")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to store pending email")
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("GenerateOTP error", func(t *testing.T) {
@@ -178,14 +190,22 @@ func TestAccountService_InitiateEmailChange(t *testing.T) {
 		crypto.GenerateOTP = func(int) (string, error) { return "123456", nil }
 		defer func() { crypto.GenerateOTP = orig }()
 
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "user_otps"`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
 		svc := newAccountSvc(&mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
 				return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
 			},
 			findByEmailFn: func(_ string) (*User, error) { return nil, nil },
-		})
+		}, &mockUserOTPRepo{})
+		svc.db = db
+
 		err := svc.InitiateEmailChange(context.Background(), userID, "new@example.com", "correctpass")
 		require.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
 
@@ -195,8 +215,15 @@ func TestAccountService_VerifyEmailChange(t *testing.T) {
 	pendingEmail := "new@example.com"
 	validOTP := "123456"
 	validHash := crypto.HashAuthorizationCode(validOTP)
-	future := time.Now().Add(time.Hour)
-	past := time.Now().Add(-time.Hour)
+
+	makeValidOTPRecord := func(hash string) *notifier.UserOTP {
+		meta, _ := json.Marshal(map[string]string{"pending_email": pendingEmail})
+		return &notifier.UserOTP{
+			UserOTPID: 1,
+			OTPHash:   hash,
+			Metadata:  datatypes.JSON(meta),
+		}
+	}
 
 	t.Run("user not found", func(t *testing.T) {
 		svc := newAccountSvc(&mockUserRepo{
@@ -207,161 +234,129 @@ func TestAccountService_VerifyEmailChange(t *testing.T) {
 		assert.Contains(t, err.Error(), "not found")
 	})
 
-	t.Run("no pending email change", func(t *testing.T) {
-		svc := newAccountSvc(&mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID}, nil
+	t.Run("no pending email change (OTP lookup returns nil)", func(t *testing.T) {
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID}, nil
+				},
 			},
-		})
+			&mockUserOTPRepo{findValidByUserFn: func(int64, string) (*notifier.UserOTP, error) {
+				return nil, nil
+			}},
+		)
 		err := svc.VerifyEmailChange(context.Background(), userID, validOTP)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no pending email change")
 	})
 
-	t.Run("OTP expired", func(t *testing.T) {
-		svc := newAccountSvc(&mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{
-					UserID:                  userID,
-					UserUUID:                userUUID,
-					PendingEmail:            &pendingEmail,
-					EmailChangeOTP:          &validHash,
-					EmailChangeOTPExpiresAt: &past,
-				}, nil
+	t.Run("invalid OTP (hash mismatch)", func(t *testing.T) {
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID}, nil
+				},
 			},
-		})
+			&mockUserOTPRepo{
+				findValidByUserFn: func(int64, string) (*notifier.UserOTP, error) {
+					return makeValidOTPRecord(validHash), nil
+				},
+			},
+		)
+		err := svc.VerifyEmailChange(context.Background(), userID, "000000")
+		require.Error(t, err)
+		var unauthorized *apperror.UnauthorizedError
+		assert.ErrorAs(t, err, &unauthorized)
+	})
+
+	t.Run("stored hash is not accepted as plaintext OTP", func(t *testing.T) {
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID}, nil
+				},
+			},
+			&mockUserOTPRepo{
+				findValidByUserFn: func(int64, string) (*notifier.UserOTP, error) {
+					return makeValidOTPRecord(validHash), nil
+				},
+			},
+		)
+		err := svc.VerifyEmailChange(context.Background(), userID, validHash)
+		require.Error(t, err)
+		var unauthorized *apperror.UnauthorizedError
+		assert.ErrorAs(t, err, &unauthorized)
+	})
+
+	t.Run("mark used error", func(t *testing.T) {
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID}, nil
+				},
+			},
+			&mockUserOTPRepo{
+				findValidByUserFn: func(int64, string) (*notifier.UserOTP, error) {
+					return makeValidOTPRecord(validHash), nil
+				},
+				markUsedFn: func(int64) error { return errors.New("mark used failed") },
+			},
+		)
 		err := svc.VerifyEmailChange(context.Background(), userID, validOTP)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expired")
+		assert.Contains(t, err.Error(), "failed to mark OTP used")
 	})
 
 	t.Run("UpdateEmail repo error", func(t *testing.T) {
-		svc := newAccountSvc(&mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{
-					UserID:                  userID,
-					UserUUID:                userUUID,
-					PendingEmail:            &pendingEmail,
-					EmailChangeOTP:          &validHash,
-					EmailChangeOTPExpiresAt: &future,
-				}, nil
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID}, nil
+				},
+				updateEmailFn: func(_ uuid.UUID, _ string) error { return errors.New("db error") },
 			},
-			updateEmailFn: func(_ uuid.UUID, _ string) error { return errors.New("db error") },
-		})
+			&mockUserOTPRepo{
+				findValidByUserFn: func(int64, string) (*notifier.UserOTP, error) {
+					return makeValidOTPRecord(validHash), nil
+				},
+			},
+		)
 		err := svc.VerifyEmailChange(context.Background(), userID, validOTP)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to update email")
 	})
 
-	t.Run("ClearEmailChange error is non-fatal", func(t *testing.T) {
-		svc := newAccountSvc(&mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{
-					UserID:                  userID,
-					UserUUID:                userUUID,
-					PendingEmail:            &pendingEmail,
-					EmailChangeOTP:          &validHash,
-					EmailChangeOTPExpiresAt: &future,
-				}, nil
-			},
-			updateEmailFn:      func(_ uuid.UUID, _ string) error { return nil },
-			clearEmailChangeFn: func(_ uuid.UUID) error { return errors.New("clear failed") },
-		})
-		err := svc.VerifyEmailChange(context.Background(), userID, validOTP)
-		require.NoError(t, err)
-	})
-
-	t.Run("success updates email and clears pending change", func(t *testing.T) {
+	t.Run("success marks OTP used and updates email", func(t *testing.T) {
 		var updatedEmail string
-		var cleared bool
-		svc := &accountService{
-			userRepo: &mockUserRepo{
-				findByIDFn: func(id any, _ ...string) (*User, error) {
-					assert.Equal(t, userID, id)
-					return &User{
-						UserID:                  userID,
-						UserUUID:                userUUID,
-						PendingEmail:            &pendingEmail,
-						EmailChangeOTP:          &validHash,
-						EmailChangeOTPExpiresAt: &future,
-					}, nil
+		var markedUsed bool
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID}, nil
 				},
 				updateEmailFn: func(id uuid.UUID, email string) error {
 					assert.Equal(t, userUUID, id)
 					updatedEmail = email
 					return nil
 				},
-				clearEmailChangeFn: func(id uuid.UUID) error {
-					assert.Equal(t, userUUID, id)
-					cleared = true
+			},
+			&mockUserOTPRepo{
+				findValidByUserFn: func(int64, string) (*notifier.UserOTP, error) {
+					return makeValidOTPRecord(validHash), nil
+				},
+				markUsedFn: func(id int64) error {
+					assert.Equal(t, int64(1), id)
+					markedUsed = true
 					return nil
 				},
 			},
-		}
+		)
 
 		err := svc.VerifyEmailChange(context.Background(), userID, validOTP)
 
 		require.NoError(t, err)
 		assert.Equal(t, pendingEmail, updatedEmail)
-		assert.True(t, cleared)
-	})
-
-	t.Run("invalid OTP does not update email", func(t *testing.T) {
-		var updated bool
-		svc := &accountService{
-			userRepo: &mockUserRepo{
-				findByIDFn: func(id any, _ ...string) (*User, error) {
-					assert.Equal(t, userID, id)
-					return &User{
-						UserID:                  userID,
-						UserUUID:                userUUID,
-						PendingEmail:            &pendingEmail,
-						EmailChangeOTP:          &validHash,
-						EmailChangeOTPExpiresAt: &future,
-					}, nil
-				},
-				updateEmailFn: func(uuid.UUID, string) error {
-					updated = true
-					return nil
-				},
-			},
-		}
-
-		err := svc.VerifyEmailChange(context.Background(), userID, "000000")
-
-		require.Error(t, err)
-		var unauthorized *apperror.UnauthorizedError
-		assert.ErrorAs(t, err, &unauthorized)
-		assert.False(t, updated)
-	})
-
-	t.Run("stored hash is not accepted as plaintext OTP", func(t *testing.T) {
-		var updated bool
-		svc := &accountService{
-			userRepo: &mockUserRepo{
-				findByIDFn: func(id any, _ ...string) (*User, error) {
-					assert.Equal(t, userID, id)
-					return &User{
-						UserID:                  userID,
-						UserUUID:                userUUID,
-						PendingEmail:            &pendingEmail,
-						EmailChangeOTP:          &validHash,
-						EmailChangeOTPExpiresAt: &future,
-					}, nil
-				},
-				updateEmailFn: func(uuid.UUID, string) error {
-					updated = true
-					return nil
-				},
-			},
-		}
-
-		err := svc.VerifyEmailChange(context.Background(), userID, validHash)
-
-		require.Error(t, err)
-		var unauthorized *apperror.UnauthorizedError
-		assert.ErrorAs(t, err, &unauthorized)
-		assert.False(t, updated)
+		assert.True(t, markedUsed)
 	})
 }
 

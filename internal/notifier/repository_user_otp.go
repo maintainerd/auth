@@ -12,6 +12,7 @@ type UserOTPRepository interface {
 	BaseRepositoryMethods[UserOTP]
 	WithTx(tx *gorm.DB) UserOTPRepository
 	FindValid(channel, recipient string) (*UserOTP, error)
+	FindValidByUserAndChannel(userID int64, channel string) (*UserOTP, error)
 	RecordFailure(id int64, maxAttempts int) error
 	MarkUsed(id int64) error
 	DeleteExpired(before time.Time) (int64, error)
@@ -37,6 +38,24 @@ func (r *userOTPRepository) FindValid(channel, recipient string) (*UserOTP, erro
 	var otp UserOTP
 	err := r.DB().
 		Where("channel = ? AND recipient = ? AND used = false AND expires_at > ?", channel, recipient, time.Now()).
+		Order("created_at DESC").
+		First(&otp).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &otp, nil
+}
+
+// FindValidByUserAndChannel returns the most recent unused, unexpired OTP for a
+// user on a given channel. Used by flows (e.g. email change) where the caller
+// submits only the code and the recipient is not known up front.
+func (r *userOTPRepository) FindValidByUserAndChannel(userID int64, channel string) (*UserOTP, error) {
+	var otp UserOTP
+	err := r.DB().
+		Where("user_id = ? AND channel = ? AND used = false AND expires_at > ?", userID, channel, time.Now()).
 		Order("created_at DESC").
 		First(&otp).Error
 	if err != nil {
