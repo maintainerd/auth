@@ -351,8 +351,8 @@ Backend `PUT /clients/{uuid}/identity_providers/{uuid}` (`internal/client/routes
 
 Full backend CRUD + `src/services/api/permissions/` service + `usePermissions` hook exist; no top-level page/route.
 
-- [ ] Add a top-level "Permissions" route/page under `src/pages/permissions/` with global list/create/edit/delete, in addition to the API-nested management.
-- **Acceptance:** An admin manages permissions globally, not only under an API.
+- [x] Added a top-level "Permissions" route/page at `/permissions` with global list (name, description, API, status, type, created), search, and filters, built on existing CRUD API and hooks.
+- [x] **Acceptance:** An admin manages permissions globally, not only under an API.
 
 ### D11 — IdP "Token Federation" list badge (console)
 
