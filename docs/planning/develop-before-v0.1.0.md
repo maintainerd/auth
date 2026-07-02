@@ -309,8 +309,8 @@ Backend `internal/idp/routes.go:32` (`/account/identities`).
 
 Backend unauth `POST /recovery/backup-code` (`internal/user/routes.go:71`).
 
-- [ ] Add a standalone "Use a backup code" recovery screen/route, distinct from the mid-login backup-code step.
-- **Acceptance:** A locked-out user recovers with a backup code from a dedicated page.
+- [x] Added standalone "Use a backup code" recovery screen at `/recovery` with backup code input and POST to `/recovery/backup-code`, distinct from the mid-login step.
+- [x] **Acceptance:** A locked-out user recovers with a backup code from a dedicated page.
 
 ### D5 — Account-locked & rate-limit screens (identity)
 
