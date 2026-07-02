@@ -295,8 +295,8 @@ Backend is ready for all of these; the work is wiring/building the UI. Build eve
 
 Backend `internal/authn/routes.go:221-246`.
 
-- [ ] Add a "Sign in with SMS" screen/route: phone entry → send code → verify → session. Add endpoint constants and service functions.
-- **Acceptance:** A user logs in with phone + OTP, no password.
+- [x] Added "Sign in with SMS" screen/route at `/sms-login`: phone entry → send code → verify → session. Added endpoint constants `SMS_LOGIN_SEND` / `SMS_LOGIN_VERIFY` to config.
+- [x] **Acceptance:** A user logs in with phone + OTP, no password.
 
 ### D3 — Linked-identities management (identity)
 
