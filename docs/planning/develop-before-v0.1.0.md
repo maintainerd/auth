@@ -337,8 +337,8 @@ Backend replay at `internal/webhook/handler_replay.go:86`; deliveries route adde
 
 Backend `GET /auth-events/export` (`internal/authevent/routes.go:27`).
 
-- [ ] Add an "Export" button (CSV + JSON) on `AuthEventListing.tsx` passing current filters; download the file.
-- **Acceptance:** An admin exports the filtered audit log.
+- [x] Added an "Export" button (CSV + JSON dropdown) on `AuthEventListing.tsx` passing current filters; downloads the file via `/auth-events/export`.
+- [x] **Acceptance:** An admin exports the filtered audit log.
 
 ### D9 — Client↔IdP connection edit UI (console)
 
