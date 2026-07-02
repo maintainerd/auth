@@ -39,9 +39,9 @@ Every instruction here is **final**. There are no options to choose and no quest
 
 ## Progress summary
 
-- [ ] A — Database scalability & schema for 1M+ users (0/14)
+- [x] A — Database scalability & schema for 1M+ users (14/14)
 - [x] B — Tenant isolation closure (6/6)
-- [ ] C — Backend feature completeness & bug fixes (0/9)
+- [x] C — Backend feature completeness & bug fixes (9/9)
 - [ ] D — Frontend feature completeness (0/12)
 - [ ] E — Dead-code cleanup, backend + frontend (0/7)
 - [ ] F — Docker production-grade & Docker Hub (0/12)
@@ -273,9 +273,9 @@ IdP details show the three Mode B fields; the list badge is missing.
 
 ### C9 — Confirm no functional backend stubs remain (VERIFY)
 
-- [ ] Confirm `internal/authevent/handler_event.go:73` `StatusNotImplemented` is an unreachable defensive fallback (real `Export` at `service_event.go:306`); leave as-is or remove the dead branch.
-- [ ] Remove the stale "future TODO" comment in `internal/authn/service_sms_login.go:84` (SMS sending is implemented at `:157-169`).
-- **Acceptance:** No reachable backend endpoint returns "not implemented"; stale comments removed.
+- [x] Confirmed handler_event.go:73 `StatusNotImplemented` is an unreachable defensive fallback (real Export at service_event.go:306). Left as-is.
+- [x] Removed stale "future TODO" comment in `internal/authn/service_sms_login.go:84` (SMS sending is implemented at `:157-169`).
+- [x] **Acceptance:** No reachable backend endpoint returns "not implemented"; stale comments removed.
 
 ---
 

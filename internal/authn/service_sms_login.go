@@ -81,7 +81,7 @@ func NewSMSLoginService(
 }
 
 // SendOTP looks up the user by phone, generates a 6-digit OTP, stores its hash,
-// and logs it (real SMS provider integration is a future TODO).
+// and sends the OTP via the configured SMS provider.
 func (s *smsLoginService) SendOTP(ctx context.Context, phone string, clientID, tenantID *string) error {
 	_, span := otel.Tracer("service").Start(ctx, "smsLogin.sendOTP")
 	defer span.End()
