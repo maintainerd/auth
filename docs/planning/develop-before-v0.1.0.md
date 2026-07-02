@@ -344,8 +344,8 @@ Backend `GET /auth-events/export` (`internal/authevent/routes.go:27`).
 
 Backend `PUT /clients/{uuid}/identity_providers/{uuid}` (`internal/client/routes.go:133`). `ClientIdentityProviders.tsx` only has View/Disconnect.
 
-- [ ] Add an edit control per connected-provider row to change `is_default`, `enabled`, `display_order` via the PUT endpoint; refresh the list.
-- **Acceptance:** An admin can toggle, reorder, and set a client's default connections.
+- [x] Added edit panel per connected-provider row with toggles for `is_default`, `enabled`, and `display_order` via PUT endpoint. Refreshes the list on update.
+- [x] **Acceptance:** An admin can toggle, reorder, and set a client's default connections.
 
 ### D10 — Standalone Permissions page (console)
 
