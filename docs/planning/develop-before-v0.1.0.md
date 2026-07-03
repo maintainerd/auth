@@ -42,7 +42,7 @@ Every instruction here is **final**. There are no options to choose and no quest
 - [x] A — Database scalability & schema for 1M+ users (14/14)
 - [x] B — Tenant isolation closure (6/6)
 - [x] C — Backend feature completeness & bug fixes (9/9)
-- [ ] D — Frontend feature completeness (0/12)
+- [x] D — Frontend feature completeness (12/12)
 - [ ] E — Dead-code cleanup, backend + frontend (0/7)
 - [ ] F — Docker production-grade & Docker Hub (0/12)
 - [ ] G — Open-source readiness (0/12)
