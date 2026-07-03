@@ -45,7 +45,7 @@ Every instruction here is **final**. There are no options to choose and no quest
 - [x] D — Frontend feature completeness (12/12)
 - [x] E — Dead-code cleanup, backend + frontend (7/7)
 - [x] F — Docker production-grade & Docker Hub (12/12)
-- [ ] G — Open-source readiness (0/12)
+- [x] G — Open-source readiness (12/12)
 - [ ] H — Application security hardening (0/12)
 - [ ] I — Observability & operations (0/9)
 - [ ] J — Testing & performance validation (0/6)
@@ -505,69 +505,69 @@ Public Docker Hub images need supply-chain hygiene.
 
 ### G1 — Add CONTRIBUTING.md (HIGH)
 
-- [ ] Add `maintainerd-auth/CONTRIBUTING.md` covering DCO/CLA stance, branch/commit conventions, `make test`/`make lint` gates, and how to run the stack; link it from the README.
+- [x] Add `maintainerd-auth/CONTRIBUTING.md` covering DCO/CLA stance, branch/commit conventions, `make test`/`make lint` gates, and how to run the stack; link it from the README.
 - **Acceptance:** GitHub surfaces a contribution guide.
 
 ### G2 — Add issue/PR templates (HIGH)
 
-- [ ] Add `.github/ISSUE_TEMPLATE/bug_report.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, and `.github/PULL_REQUEST_TEMPLATE.md` to `maintainerd-auth`.
+- [x] Add `.github/ISSUE_TEMPLATE/bug_report.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, and `.github/PULL_REQUEST_TEMPLATE.md` to `maintainerd-auth`.
 - **Acceptance:** New issues/PRs use templates.
 
 ### G3 — Cut the 0.1.0 version (HIGH)
 
 CHANGELOG is stuck at `[Unreleased]`; version is read only from `APP_VERSION` env.
 
-- [ ] Add a `## [0.1.0] - <release date>` section to `CHANGELOG.md`.
-- [ ] Wire the version into the build via `-ldflags "-X .../config.AppVersion=$(git describe --tags)"` (already in F5) so the binary self-reports without the env var.
+- [x] Add a `## [0.1.0] - <release date>` section to `CHANGELOG.md`.
+- [x] Wire the version into the build via `-ldflags "-X .../config.AppVersion=$(git describe --tags)"` (already in F5) so the binary self-reports without the env var.
 - **Acceptance:** The binary reports `0.1.0`; CHANGELOG has a 0.1.0 entry.
 
 ### G4 — Pin Node version for both frontends (MEDIUM)
 
-- [ ] Add `"engines": { "node": ">=22 <23" }` to both frontend `package.json` files and a `.nvmrc` containing `22` to each.
+- [x] Add `"engines": { "node": ">=22 <23" }` to both frontend `package.json` files and a `.nvmrc` containing `22` to each.
 - **Acceptance:** Contributors get a consistent Node version.
 
 ### G5 — Reconcile the canonical repo/module name (MEDIUM)
 
 README badges, `go.mod` module path (`github.com/maintainerd/auth`), `scorecard.yml`, and the README "Related Projects" links disagree.
 
-- [ ] Standardize on `github.com/maintainerd/auth` (the existing `go.mod` module path) and make README badges, `scorecard.yml`, and Related-Projects links all match it; fix the console/identity link paths.
+- [x] Standardize on `github.com/maintainerd/auth` (the existing `go.mod` module path) and make README badges, `scorecard.yml`, and Related-Projects links all match it; fix the console/identity link paths.
 - **Acceptance:** All references resolve to the real repos.
 
 ### G6 — Confirm OSS hygiene files & naming (VERIFY)
 
-- [ ] Confirm LICENSE (Apache-2.0), NOTICE, CODE_OF_CONDUCT.md, SECURITY.md are present and consistent; confirm the operator is referred to as "Lula" everywhere (no "LulaLife").
+- [x] Confirm LICENSE (Apache-2.0), NOTICE, CODE_OF_CONDUCT.md, SECURITY.md are present and consistent; confirm the operator is referred to as "Lula" everywhere (no "LulaLife").
 - **Acceptance:** All standard OSS files present and consistent.
 
 ### G7 — Verify CI gates on PRs (VERIFY)
 
 Existing `ci.yml` (proto-lint, race tests+coverage, golangci-lint/vet/staticcheck/gosec, build), `security.yml` (CodeQL, Semgrep, Snyk, Gitleaks), `scorecard.yml`.
 
-- [ ] Confirm all run on PRs to the default branch and are required checks; add the missing image-build pipeline (F4).
+- [x] Confirm all run on PRs to the default branch and are required checks; add the missing image-build pipeline (F4).
 - **Acceptance:** PRs are gated by lint/test/security; releases publish images.
 
 ### G8 — Self-host operator documentation
 
-- [ ] Add an operator guide covering: install via Docker/compose; a COMPLETE env-var/config reference (every variable, its default, and whether it is required); first-run bootstrap (how a fresh deploy creates the first tenant + admin through the setup flow); an upgrade guide; and an architecture overview. Link it from the README.
+- [x] Add an operator guide covering: install via Docker/compose; a COMPLETE env-var/config reference (every variable, its default, and whether it is required); first-run bootstrap (how a fresh deploy creates the first tenant + admin through the setup flow); an upgrade guide; and an architecture overview. Link it from the README.
 - **Acceptance:** A new operator can self-host from zero using only the docs.
 
 ### G9 — Publish API documentation
 
-- [ ] Generate and serve OpenAPI/Swagger for the REST API, and publish the gRPC contract reference; link both from the README/docs.
+- [x] Generate and serve OpenAPI/Swagger for the REST API, and publish the gRPC contract reference; link both from the README/docs.
 - **Acceptance:** An integrator can consume the API from published docs without reading source.
 
 ### G10 — Data privacy & account lifecycle
 
-- [ ] Implement/confirm user **data export** and **hard-delete (right to erasure)** endpoints + console actions; document data retention (audit 365d, ephemeral tokens swept) and PII handling.
+- [x] Implement/confirm user **data export** and **hard-delete (right to erasure)** endpoints + console actions; document data retention (audit 365d, ephemeral tokens swept) and PII handling.
 - **Acceptance:** A user's data can be exported and fully deleted; retention is documented.
 
 ### G11 — Production email/SMS provider configuration
 
-- [ ] Document and validate SMTP and SMS (e.g. Twilio) provider env config for production; include SPF/DKIM/DMARC guidance for deliverability; confirm templates render and send via real providers.
+- [x] Document and validate SMTP and SMS (e.g. Twilio) provider env config for production; include SPF/DKIM/DMARC guidance for deliverability; confirm templates render and send via real providers.
 - **Acceptance:** Verification/reset/OTP messages send through configured production providers.
 
 ### G12 — Dependency license compliance
 
-- [ ] Scan Go + npm dependencies for license compatibility (no GPL/AGPL contamination in this Apache-2.0 project); generate a third-party attributions file and reconcile it with NOTICE.
+- [x] Scan Go + npm dependencies for license compatibility (no GPL/AGPL contamination in this Apache-2.0 project); generate a third-party attributions file and reconcile it with NOTICE.
 - **Acceptance:** No incompatible licenses; attributions present.
 
 ---
