@@ -7,7 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-03
+
 ### Added
+- Initial public release of Maintainerd Auth
+- Full OAuth2 / OIDC provider (authorize, token, PKCE, refresh, revocation, introspection, device, CIBA, PAR, token-exchange)
+- Multi-tenant architecture with strict tenant isolation
+- IAM: services, APIs, roles, permissions, policies, service-to-service authorization
+- Multi-factor authentication: TOTP, SMS, email OTP, WebAuthn/passkeys, backup codes
+- Self-service MFA enrollment UI in hosted identity app
+- Identity federation with OIDC upstream providers + JIT provisioning
+- SMS passwordless login
+- Client ↔ Identity Provider connection management
+- Registration flows with customizable branding and callback URLs
+- Invite-based registration with signed tokens
+- Webhook endpoints with delivery history and replay
+- Audit event logging (OWASP-compliant) with CSV/JSON export
+- Branding: themes, logo upload, login layout customization
+- Admin console: users, clients, providers, roles, permissions, webhooks, auth events
+- Hosted identity UI: login, registration, MFA, OAuth consent, device/CIBA flows
+- Docker images: multi-arch (amd64/arm64), non-root, HEALTHCHECK
+- OpenTelemetry tracing and Prometheus metrics
+- gRPC API alongside REST
+- API key management with API-scoped permissions
+
+### Security
+- argon2id password hashing with per-user salt
+- JWT algorithm pinning + JWKS key rotation
+- CSRF protection on cookie-authenticated endpoints
+- Account enumeration resistance
+- Brute-force lockout and rate limiting
+- CORS + secure cookie flags + HSTS guidance
+- Signed webhook payloads with HMAC
+- Container vulnerability scanning + SBOM in release pipeline
 - DPoP-bound access/refresh tokens (RFC 9449)
 - private_key_jwt + client_secret_jwt client auth (RFC 7523)
 - Generic OAuth2 upstream connector for federation
