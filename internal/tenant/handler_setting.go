@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 	"gorm.io/datatypes"
 )
 

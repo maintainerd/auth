@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -798,6 +799,118 @@ func TestUserHandler_GetUserIdentities(t *testing.T) {
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/?page=1000&limit=10", nil), "user_uuid", testResourceUUID.String()))
 		NewUserHandler(userIdentitiesSvc(twoIdentities(false))).GetUserIdentities(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// UnlinkUserIdentity (DELETE /users/{user_uuid}/identities/{identity_uuid})
+// ---------------------------------------------------------------------------
+
+func unlinkIdentityReq(userUUID, identityUUID string) *http.Request {
+	r := httptest.NewRequest(http.MethodDelete, "/", nil)
+	r = withChiParam(r, "user_uuid", userUUID)
+	r = withChiParam(r, "identity_uuid", identityUUID)
+	return r
+}
+
+func TestUserHandler_UnlinkUserIdentity(t *testing.T) {
+	identityUUID := uuid.New()
+
+	// 1. Authentication — no user in context.
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := withTenant(unlinkIdentityReq(testResourceUUID.String(), identityUUID.String()))
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}, &mockIdentityUnlinker{}).UnlinkUserIdentity(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	// 1b. Tenant scope — internal surface requires a tenant.
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withUserNoTenant(unlinkIdentityReq(testResourceUUID.String(), identityUUID.String()))
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}, &mockIdentityUnlinker{}).UnlinkUserIdentity(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	// 3. URL parameter validation.
+	t.Run("invalid user UUID returns 400", func(t *testing.T) {
+		r := withTenantAndActor(unlinkIdentityReq("bad", identityUUID.String()), 42)
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}, &mockIdentityUnlinker{}).UnlinkUserIdentity(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("invalid identity UUID returns 400", func(t *testing.T) {
+		r := withTenantAndActor(unlinkIdentityReq(testResourceUUID.String(), "bad"), 42)
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}, &mockIdentityUnlinker{}).UnlinkUserIdentity(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	// 6. Dependency availability — unlinker not wired.
+	t.Run("nil unlinker returns 500", func(t *testing.T) {
+		r := withTenantAndActor(unlinkIdentityReq(testResourceUUID.String(), identityUUID.String()), 42)
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}).UnlinkUserIdentity(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	// 8. Service error mapping.
+	t.Run("service not-found returns 404", func(t *testing.T) {
+		unlinker := &mockIdentityUnlinker{
+			adminUnlinkIdentityFn: func(context.Context, int64, int64, uuid.UUID, string) error { return errNotFound },
+		}
+		r := withTenantAndActor(unlinkIdentityReq(testResourceUUID.String(), identityUUID.String()), 42)
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}, unlinker).UnlinkUserIdentity(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("built-in rejection returns 400", func(t *testing.T) {
+		unlinker := &mockIdentityUnlinker{
+			adminUnlinkIdentityFn: func(context.Context, int64, int64, uuid.UUID, string) error { return errValidation },
+		}
+		r := withTenantAndActor(unlinkIdentityReq(testResourceUUID.String(), identityUUID.String()), 42)
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}, unlinker).UnlinkUserIdentity(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		unlinker := &mockIdentityUnlinker{
+			adminUnlinkIdentityFn: func(context.Context, int64, int64, uuid.UUID, string) error {
+				return errors.New("db error")
+			},
+		}
+		r := withTenantAndActor(unlinkIdentityReq(testResourceUUID.String(), identityUUID.String()), 42)
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}, unlinker).UnlinkUserIdentity(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	// 9. Success — status + arguments passed through.
+	t.Run("success returns 200 with admin actor and tenant scope", func(t *testing.T) {
+		var gotTenantID, gotActorID int64
+		var gotUserUUID uuid.UUID
+		var gotIdentityUUID string
+		unlinker := &mockIdentityUnlinker{
+			adminUnlinkIdentityFn: func(_ context.Context, tenantID, actorUserID int64, userUUID uuid.UUID, identUUID string) error {
+				gotTenantID = tenantID
+				gotActorID = actorUserID
+				gotUserUUID = userUUID
+				gotIdentityUUID = identUUID
+				return nil
+			},
+		}
+		r := withTenantAndActor(unlinkIdentityReq(testResourceUUID.String(), identityUUID.String()), 42)
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}, unlinker).UnlinkUserIdentity(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, tenantID, gotTenantID)
+		assert.Equal(t, int64(42), gotActorID)
+		assert.Equal(t, testResourceUUID, gotUserUUID)
+		assert.Equal(t, identityUUID.String(), gotIdentityUUID)
 	})
 }
 

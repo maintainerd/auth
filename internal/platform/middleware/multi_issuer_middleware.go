@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/config"
-	jwtlib "github.com/maintainerd/auth/internal/platform/jwt"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	jwtlib "github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 type FederatedIDPRecord struct {

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 )
 
 func SetupRoute(r chi.Router, setupHandler *SetupHandler) {

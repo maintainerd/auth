@@ -7,14 +7,16 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/platform/email"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/secpolicy"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/notifier"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/email"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/sms"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -25,10 +27,20 @@ const emailChangeOTPTTL = 1 * time.Hour
 const backupCodeCount = 10
 const backupCodeLength = 8
 
+// Phone-verification SMS OTP settings. A distinct channel keeps these OTPs from
+// colliding with MFA's "sms" OTPs stored in the same user_otps table.
+const phoneVerifyOTPLength = 6
+const phoneVerifyOTPTTL = 10 * time.Minute
+const phoneVerifyMaxFailed = 3
+const phoneVerifyChannel = "phone_verify"
+
 var (
 	accountGenerateAccessTokenWithContext  = jwt.GenerateAccessTokenWithContext
 	accountGenerateIDTokenWithContext      = jwt.GenerateIDTokenWithContext
 	accountGenerateRefreshTokenWithContext = jwt.GenerateRefreshTokenWithContext
+	// accountNewSMSProvider is the SMS provider factory. It is a package-level
+	// indirection over sms.NewProviderFromDB so tests can swap it out.
+	accountNewSMSProvider = sms.NewProviderFromDB
 )
 
 // AccountService handles self-service account management operations.
@@ -40,6 +52,8 @@ type AccountService interface {
 	ExportAccountData(ctx context.Context, userID int64) (*AccountExportDTO, error)
 	GenerateBackupCodes(ctx context.Context, userID int64) (*GenerateBackupCodesResponseDTO, error)
 	VerifyBackupCode(ctx context.Context, req VerifyBackupCodeDTO) (*LoginResponseDTO, error)
+	SendPhoneVerification(ctx context.Context, userID int64, phone string) error
+	VerifyPhone(ctx context.Context, userID int64, phone, code string) error
 }
 
 type accountService struct {
@@ -55,6 +69,7 @@ type accountService struct {
 	identityProviderRepo IdentityProviderRepository
 	authEventService     authevent.AuthEventService
 	securitySettingRepo  secpolicy.SecuritySettingRepository
+	smsOtpRepo           notifier.UserOTPRepository
 }
 
 func NewAccountService(
@@ -70,6 +85,7 @@ func NewAccountService(
 	identityProviderRepo IdentityProviderRepository,
 	authEventService authevent.AuthEventService,
 	securitySettingRepo secpolicy.SecuritySettingRepository,
+	smsOtpRepo notifier.UserOTPRepository,
 ) AccountService {
 	return &accountService{
 		db:                   db,
@@ -84,6 +100,7 @@ func NewAccountService(
 		identityProviderRepo: identityProviderRepo,
 		authEventService:     authEventService,
 		securitySettingRepo:  securitySettingRepo,
+		smsOtpRepo:           smsOtpRepo,
 	}
 }
 
@@ -449,6 +466,98 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 
 	span.SetStatus(codes.Ok, "")
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
+}
+
+// SendPhoneVerification generates an SMS OTP and sends it to the given phone so
+// the authenticated user can prove ownership of the number. It mirrors the MFA
+// SMS enrollment flow: prior pending OTPs for this user+channel are cleared, a
+// fresh hashed OTP is stored, and delivery is best-effort — a missing/failing
+// SMS provider is logged (with the OTP, for dev) and never hard-fails the call.
+func (s *accountService) SendPhoneVerification(ctx context.Context, userID int64, phone string) error {
+	_, span := otel.Tracer("service").Start(ctx, "account.sendPhoneVerification")
+	defer span.End()
+
+	if phone == "" {
+		return apperror.NewValidation("phone is required")
+	}
+
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		return apperror.NewNotFound("user not found")
+	}
+
+	otpCode, err := crypto.GenerateOTP(phoneVerifyOTPLength)
+	if err != nil {
+		return apperror.NewInternal("failed to generate SMS OTP", err)
+	}
+	otpHash := crypto.HashAuthorizationCode(otpCode)
+
+	// Clear any prior pending phone-verification OTPs for this user.
+	s.db.Where("user_id = ? AND channel = ?", userID, phoneVerifyChannel).Delete(&notifier.UserOTP{})
+
+	record := &notifier.UserOTP{
+		UserID:    userID,
+		Channel:   phoneVerifyChannel,
+		Recipient: phone,
+		OTPHash:   otpHash,
+		ExpiresAt: time.Now().Add(phoneVerifyOTPTTL),
+	}
+	if _, err := s.smsOtpRepo.Create(record); err != nil {
+		return apperror.NewInternal("failed to store SMS OTP", err)
+	}
+
+	tenantID := user.TenantID
+	provider, smsErr := accountNewSMSProvider(ctx, s.db, tenantID)
+	if smsErr != nil {
+		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phone, "otp", otpCode)
+	} else if provider != nil {
+		data := struct{ OTP string }{OTP: otpCode}
+		msg, tplErr := sms.RenderTemplate(s.db, "sms:phone:verify", tenantID, data)
+		if tplErr != nil {
+			slog.Warn("SMS template render failed, using fallback", "err", tplErr)
+			msg = fmt.Sprintf("Your phone verification code is: %s", otpCode)
+		}
+		if sendErr := provider.Send(ctx, phone, msg); sendErr != nil {
+			slog.Error("SMS phone verification send failed — logging OTP for dev", "err", sendErr, "phone", phone, "otp", otpCode)
+		}
+	} else {
+		slog.Info("SMS OTP (no provider) — use for dev", "phone", phone, "otp", otpCode)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// VerifyPhone confirms an SMS OTP sent by SendPhoneVerification and, on success,
+// sets the authenticated user's phone and marks it verified. It mirrors the MFA
+// VerifySMS flow: single-use OTP lookup by channel+recipient, constant-time hash
+// comparison, failure accounting, and mark-used before applying the change.
+func (s *accountService) VerifyPhone(ctx context.Context, userID int64, phone, code string) error {
+	_, span := otel.Tracer("service").Start(ctx, "account.verifyPhone")
+	defer span.End()
+
+	otpRecord, lerr := s.smsOtpRepo.FindValid(phoneVerifyChannel, phone)
+	if lerr != nil || otpRecord == nil {
+		return apperror.NewUnauthorized("invalid or expired verification code")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(otpRecord.OTPHash), []byte(crypto.HashAuthorizationCode(code))) != 1 {
+		_ = s.smsOtpRepo.RecordFailure(otpRecord.UserOTPID, phoneVerifyMaxFailed)
+		return apperror.NewUnauthorized("invalid verification code")
+	}
+	if err := s.smsOtpRepo.MarkUsed(otpRecord.UserOTPID); err != nil {
+		return apperror.NewInternal("failed to mark verification code used", err)
+	}
+
+	if _, err := s.userRepo.UpdateByID(userID, map[string]any{
+		"phone":             phone,
+		"is_phone_verified": true,
+	}); err != nil {
+		return apperror.NewInternal("failed to update phone", err)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
 // generateTokenResponse issues access, ID, and refresh tokens for the given user and client.

@@ -3491,7 +3491,7 @@ const file_maintainerd_auth_v1_user_proto_rawDesc = "" +
 	"\x11CreateUserProfile\x12-.maintainerd.auth.v1.CreateUserProfileRequest\x1a..maintainerd.auth.v1.CreateUserProfileResponse\x12r\n" +
 	"\x11UpdateUserProfile\x12-.maintainerd.auth.v1.UpdateUserProfileRequest\x1a..maintainerd.auth.v1.UpdateUserProfileResponse\x12~\n" +
 	"\x15SetDefaultUserProfile\x121.maintainerd.auth.v1.SetDefaultUserProfileRequest\x1a2.maintainerd.auth.v1.SetDefaultUserProfileResponse\x12r\n" +
-	"\x11DeleteUserProfile\x12-.maintainerd.auth.v1.DeleteUserProfileRequest\x1a..maintainerd.auth.v1.DeleteUserProfileResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x11DeleteUserProfile\x12-.maintainerd.auth.v1.DeleteUserProfileRequest\x1a..maintainerd.auth.v1.DeleteUserProfileResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_user_proto_rawDescOnce sync.Once

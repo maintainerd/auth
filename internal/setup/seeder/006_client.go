@@ -8,10 +8,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
-	model "github.com/maintainerd/auth/internal/client"
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/shared"
+	model "github.com/maintainerd/maintainerd-auth/internal/client"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )

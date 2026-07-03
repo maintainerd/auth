@@ -798,7 +798,7 @@ const file_maintainerd_auth_v1_notifier_proto_rawDesc = "" +
 	"\x11UpdateEmailConfig\x12-.maintainerd.auth.v1.UpdateEmailConfigRequest\x1a..maintainerd.auth.v1.UpdateEmailConfigResponse2\xe5\x01\n" +
 	"\x10SMSConfigService\x12c\n" +
 	"\fGetSMSConfig\x12(.maintainerd.auth.v1.GetSMSConfigRequest\x1a).maintainerd.auth.v1.GetSMSConfigResponse\x12l\n" +
-	"\x0fUpdateSMSConfig\x12+.maintainerd.auth.v1.UpdateSMSConfigRequest\x1a,.maintainerd.auth.v1.UpdateSMSConfigResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x0fUpdateSMSConfig\x12+.maintainerd.auth.v1.UpdateSMSConfigRequest\x1a,.maintainerd.auth.v1.UpdateSMSConfigResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_notifier_proto_rawDescOnce sync.Once

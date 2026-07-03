@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	model "github.com/maintainerd/auth/internal/client"
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/shared"
+	model "github.com/maintainerd/maintainerd-auth/internal/client"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 )
 

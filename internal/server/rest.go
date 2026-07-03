@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/email"
-	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/platform/sms"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/email"
+	securityMiddleware "github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/sms"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

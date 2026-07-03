@@ -3,8 +3,8 @@ package client
 import (
 	"fmt"
 
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 type RedirectURIMatch struct {

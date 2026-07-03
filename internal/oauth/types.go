@@ -1,7 +1,7 @@
 package oauth
 
 import (
-	"github.com/maintainerd/auth/internal/branding"
+	"github.com/maintainerd/maintainerd-auth/internal/branding"
 )
 
 // Authorization Endpoint

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/docs"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/docs"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gopkg.in/yaml.v3"
 )
 

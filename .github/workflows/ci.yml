@@ -80,6 +80,21 @@ jobs:
         if: ${{ always() && hashFiles('coverage.out') != '' }}
         run: go tool cover -func=coverage.out | tail -1
 
+      - name: Enforce coverage floor
+        if: ${{ always() && hashFiles('coverage.out') != '' }}
+        env:
+          # Absolute floor that prevents regression. Ratchet toward 80% as
+          # coverage improves (baseline ~69%); Codecov also enforces the
+          # relative no-regression check.
+          COVERAGE_MIN: "68"
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print substr($3, 1, length($3)-1)}')
+          echo "Total coverage: ${total}% (floor: ${COVERAGE_MIN}%)"
+          awk "BEGIN{ exit !(${total} >= ${COVERAGE_MIN}) }" || {
+            echo "::error::coverage ${total}% is below the ${COVERAGE_MIN}% floor";
+            exit 1;
+          }
+
       - name: Upload coverage to Codecov
         if: ${{ always() && hashFiles('coverage.out') != '' }}
         uses: codecov/codecov-action@v5
@@ -153,3 +168,25 @@ jobs:
 
       - name: Build binary
         run: go build -v -o /dev/null ./cmd/server
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Vuln — known-vulnerability scan of Go dependencies + stdlib
+  # ─────────────────────────────────────────────────────────────────────────────
+  vuln:
+    name: Vulnerabilities
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...

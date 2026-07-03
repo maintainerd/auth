@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/stretchr/testify/assert"
 )
 

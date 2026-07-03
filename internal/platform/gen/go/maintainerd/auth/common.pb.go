@@ -164,7 +164,7 @@ const file_maintainerd_auth_v1_common_proto_rawDesc = "" +
 	"\rSTATUS_ACTIVE\x10\x01\x12\x13\n" +
 	"\x0fSTATUS_INACTIVE\x10\x02\x12\x13\n" +
 	"\x0fSTATUS_DISABLED\x10\x03\x12\x12\n" +
-	"\x0eSTATUS_PENDING\x10\x04BNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x0eSTATUS_PENDING\x10\x04BZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_common_proto_rawDescOnce sync.Once

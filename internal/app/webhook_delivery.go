@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/event"
-	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/webhook"
+	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/webhook"
 )
 
 const (

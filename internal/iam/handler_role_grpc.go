@@ -3,9 +3,9 @@ package iam
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 type RoleGRPCHandler struct {

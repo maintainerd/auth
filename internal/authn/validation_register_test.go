@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/signedurl"
 )
 
 func TestRegisterRequestDto_Validate(t *testing.T) {

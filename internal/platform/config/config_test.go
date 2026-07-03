@@ -118,14 +118,15 @@ func TestInit(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to initialize secret manager")
 	})
 
-	t.Run("missing APP_VERSION", func(t *testing.T) {
+	t.Run("missing APP_VERSION defaults instead of erroring", func(t *testing.T) {
 		saveGlobals(t)
 		setRequiredEnv(t)
 		t.Setenv("APP_VERSION", "")
+		AppVersion = "" // no build-injected value
 
 		err := Init()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "APP_VERSION")
+		require.NoError(t, err)
+		assert.Equal(t, "dev", AppVersion)
 	})
 
 	t.Run("missing APP_PUBLIC_HOSTNAME", func(t *testing.T) {

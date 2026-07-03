@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 )
 
 type middlewareUserContextProvider struct {

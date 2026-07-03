@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 )
 
 // StartSecretRefreshRunner periodically re-fetches secrets from the active

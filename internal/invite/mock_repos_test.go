@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/signedurl"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

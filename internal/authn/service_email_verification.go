@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maintainerd/auth/internal/branding"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/platform/email"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/secpolicy"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/branding"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/email"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -107,6 +107,9 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 			if authClient, txErr = txClientRepo.FindSystem(); txErr != nil {
 				return apperror.NewInternal("failed to find auth client", txErr)
 			}
+		}
+		if txErr != nil {
+			return apperror.NewInternal("failed to find auth client", txErr)
 		}
 
 		if authClient == nil {

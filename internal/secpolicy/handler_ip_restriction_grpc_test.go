@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
-	"github.com/maintainerd/auth/internal/platform/pagination"
+	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

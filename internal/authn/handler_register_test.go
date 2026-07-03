@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/signedurl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

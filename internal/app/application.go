@@ -1,6 +1,6 @@
 package app
 
-import "github.com/maintainerd/auth/internal/server"
+import "github.com/maintainerd/maintainerd-auth/internal/server"
 
 // ServerApplication adapts the legacy app bundle to the server package's
 // transport-focused dependency bundle.

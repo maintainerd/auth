@@ -7,9 +7,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-webauthn/webauthn/protocol"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // MFAHandler handles all MFA self-service endpoints (TOTP, backup codes, WebAuthn, step-up).

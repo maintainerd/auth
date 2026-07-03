@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/database"
-	"github.com/maintainerd/auth/internal/platform/pagination"
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 type BaseRepository[T any] = database.BaseRepository[T]

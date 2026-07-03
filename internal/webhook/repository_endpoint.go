@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/database"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

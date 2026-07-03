@@ -1094,7 +1094,7 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\vCreateAdmin\x12'.maintainerd.auth.v1.CreateAdminRequest\x1a(.maintainerd.auth.v1.CreateAdminResponse\x12f\n" +
 	"\rCreateProfile\x12).maintainerd.auth.v1.CreateProfileRequest\x1a*.maintainerd.auth.v1.CreateProfileResponse\x12\x81\x01\n" +
 	"\x16RegisterControlService\x122.maintainerd.auth.v1.RegisterControlServiceRequest\x1a3.maintainerd.auth.v1.RegisterControlServiceResponse\x12f\n" +
-	"\rCompleteSetup\x12).maintainerd.auth.v1.CompleteSetupRequest\x1a*.maintainerd.auth.v1.CompleteSetupResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\rCompleteSetup\x12).maintainerd.auth.v1.CompleteSetupRequest\x1a*.maintainerd.auth.v1.CompleteSetupResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_setup_proto_rawDescOnce sync.Once

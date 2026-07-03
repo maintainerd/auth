@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/platform/telemetry"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
 )
 
 // statusRecorder wraps http.ResponseWriter to capture the HTTP status code

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"

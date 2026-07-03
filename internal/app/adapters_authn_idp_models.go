@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/maintainerd/auth/internal/authn"
-	"github.com/maintainerd/auth/internal/idp"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/idp"
 )
 
 func toAuthnTenantFromIdp(t *idp.Tenant) *authn.Tenant {

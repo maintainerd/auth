@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/stretchr/testify/assert"
 )
 

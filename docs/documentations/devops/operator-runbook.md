@@ -180,3 +180,15 @@ Required backup targets:
 2. **Redis** — optional, only if using Redis for persistent state beyond cache
 
 Recommended RPO: 24 hours (daily backup). RTO: 1 hour (restore + verify).
+
+## Upgrading
+
+Maintainerd Auth follows semantic versioning; images are published to Docker Hub as `:<version>` and `:latest`.
+
+1. **Read the release notes** in [`CHANGELOG.md`](../../../CHANGELOG.md) for the target version and note any `BREAKING` entries.
+2. **Back up the database** (see Backups above) before any upgrade.
+3. **Pull the new image** by its immutable version tag (never rely on `:latest` in production), e.g. `docker pull <org>/maintainerd-auth:<version>`.
+4. **Migrations run automatically at startup** (ordered registry in `internal/platform/runner/migration.go`, guarded by a Postgres advisory lock and the `schema_migrations` table, so concurrent replicas are safe). Migrations are create-only and forward-compatible within a minor series. For a large deployment, run one instance first to apply migrations, then roll the rest.
+5. **Roll instances** one at a time behind the load balancer; readiness is gated by `/readyz`, and graceful shutdown drains in-flight requests, so rolling restarts drop no traffic.
+6. **Verify** `/livez`, `/readyz`, and the reported version (`APP_VERSION` or the build-injected value) after the roll.
+7. **Rollback:** redeploy the previous image tag. Because migrations are create-only and additive, the prior binary continues to run against the newer schema; restore from backup only if a release explicitly documents a non-additive migration.

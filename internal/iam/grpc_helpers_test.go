@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
-	"github.com/maintainerd/auth/internal/tenant"
+	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"

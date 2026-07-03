@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/dpop"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/dpop"
 )
 
 // OAuthTokenHandler handles the OAuth 2.0 token, revocation, and

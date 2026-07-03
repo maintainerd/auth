@@ -1,7 +1,7 @@
 package runner
 
 import (
-	"github.com/maintainerd/auth/internal/setup/seeder"
+	"github.com/maintainerd/maintainerd-auth/internal/setup/seeder"
 	"gorm.io/gorm"
 )
 

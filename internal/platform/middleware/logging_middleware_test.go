@@ -14,7 +14,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // withRequestID returns a request whose context already carries a request_id,

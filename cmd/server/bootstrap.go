@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/maintainerd/auth/internal/app"
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/runner"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/platform/telemetry"
-	appserver "github.com/maintainerd/auth/internal/server"
+	"github.com/maintainerd/maintainerd-auth/internal/app"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/runner"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
+	appserver "github.com/maintainerd/maintainerd-auth/internal/server"
 )
 
 // run executes the server bootstrap sequence in dependency order. Keep this as

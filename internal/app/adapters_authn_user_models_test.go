@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authn"
-	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 )
 
 // TestToAuthnUserCopiesMFAFlags guards the login MFA trigger: the authn login

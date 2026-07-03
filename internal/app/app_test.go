@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 )
 
 func TestNewAppWiresAllExportedServices(t *testing.T) {

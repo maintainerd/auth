@@ -3,7 +3,7 @@ package iam
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	"gorm.io/gorm"
 )
 

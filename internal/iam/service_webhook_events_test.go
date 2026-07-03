@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
 )

@@ -3,7 +3,7 @@ package user
 import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 func (r UserSettingRequestDTO) Validate() error {

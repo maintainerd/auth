@@ -3,7 +3,7 @@ package tenant
 import (
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/pagination"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/stretchr/testify/assert"
 )
 

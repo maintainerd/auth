@@ -8,7 +8,7 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

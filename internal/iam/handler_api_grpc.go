@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
-	"github.com/maintainerd/auth/internal/tenant"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 )
 
 type APIGRPCHandler struct {

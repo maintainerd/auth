@@ -3,7 +3,7 @@ package idp
 import (
 	"strings"
 
-	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 )
 
 // providerClientSecretRedacted is the sentinel the admin form echoes back when

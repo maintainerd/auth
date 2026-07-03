@@ -3,7 +3,7 @@ package seeder
 import (
 	"log/slog"
 
-	"github.com/maintainerd/auth/internal/tenant"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 	"gorm.io/gorm"
 )
 

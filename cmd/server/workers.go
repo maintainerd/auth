@@ -5,13 +5,13 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/app"
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/oauth"
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/runner"
-	appserver "github.com/maintainerd/auth/internal/server"
-	"github.com/maintainerd/auth/internal/tenant"
+	"github.com/maintainerd/maintainerd-auth/internal/app"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/oauth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/runner"
+	appserver "github.com/maintainerd/maintainerd-auth/internal/server"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 )
 
 var (

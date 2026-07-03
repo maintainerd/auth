@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/cookie"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cookie"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 type LoginHandler struct {

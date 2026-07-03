@@ -3,7 +3,7 @@ package oauth
 import (
 	"strings"
 
-	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 )
 
 func validateOAuthPKCE(codeChallenge, method string, required bool) *apperror.OAuthError {

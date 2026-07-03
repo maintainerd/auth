@@ -13,15 +13,15 @@ import (
 
 	oidclib "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/authn"
-	"github.com/maintainerd/auth/internal/event"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	jwtlib "github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/secpolicy"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	jwtlib "github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -88,6 +88,14 @@ type FederationService interface {
 	// UnlinkIdentity removes an external provider identity from a user.
 	// The built-in "default" identity cannot be removed.
 	UnlinkIdentity(ctx context.Context, userID int64, identityUUIDStr string) error
+
+	// AdminUnlinkIdentity removes an external provider identity from another
+	// user on behalf of a tenant admin. The target user is resolved by UUID and
+	// strictly scoped to the admin's tenant (a cross-tenant target is reported
+	// as NotFound to avoid leaking existence); the actor recorded in the audit
+	// trail is the admin (actorUserID), not the target user. The built-in
+	// "default" identity cannot be removed.
+	AdminUnlinkIdentity(ctx context.Context, tenantID int64, actorUserID int64, userUUID uuid.UUID, identityUUID string) error
 
 	// GetUserIdentities returns all identities (builtin + external) linked to a user.
 	GetUserIdentities(ctx context.Context, userID int64) ([]IdentityDTO, error)
@@ -639,6 +647,81 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("unlinked external identity: %s", target.Provider)),
+	})
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+func (s *federationService) AdminUnlinkIdentity(ctx context.Context, tenantID int64, actorUserID int64, userUUID uuid.UUID, identityUUID string) error {
+	_, span := otel.Tracer("service").Start(ctx, "federation.admin_unlink_identity")
+	defer span.End()
+	span.SetAttributes(
+		attribute.Int64("tenant.id", tenantID),
+		attribute.Int64("actor.user.id", actorUserID),
+		attribute.String("user.uuid", userUUID.String()),
+		attribute.String("identity.uuid", identityUUID),
+	)
+
+	// Resolve the target user, strictly scoped to the admin's tenant. A missing
+	// or cross-tenant target is reported as NotFound so we never leak whether a
+	// user exists in another tenant.
+	target, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil {
+		return apperror.NewInternal("user lookup failed", err)
+	}
+	if target == nil || target.TenantID != tenantID {
+		return apperror.NewNotFound("user not found")
+	}
+
+	identities, err := s.userIdentityRepo.FindByUserID(target.UserID)
+	if err != nil {
+		return apperror.NewInternal("identity lookup failed", err)
+	}
+
+	var targetIdentity *UserIdentity
+	for i := range identities {
+		if identities[i].UserIdentityUUID.String() == identityUUID {
+			targetIdentity = &identities[i]
+			break
+		}
+	}
+	if targetIdentity == nil {
+		return apperror.NewNotFound("identity not found")
+	}
+	// Defense-in-depth: the identity itself must belong to the admin's tenant.
+	if targetIdentity.TenantID != tenantID {
+		return apperror.NewNotFound("identity not found")
+	}
+	if targetIdentity.Provider == shared.ProviderMaintainerd {
+		return apperror.NewValidation("the built-in identity cannot be unlinked")
+	}
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if e := s.userIdentityRepo.WithTx(tx).DeleteByID(targetIdentity.UserIdentityID); e != nil {
+			return e
+		}
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeIdentityUnlinked, 1, targetIdentity.TenantID,
+			).SetActor(&actorUserID).SetSubject(&targetIdentity.UserIdentityUUID, "identity")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	}); err != nil {
+		return apperror.NewInternal("failed to unlink identity", err)
+	}
+
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		ActorUserID: &actorUserID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("admin unlinked external identity %s from user %s", targetIdentity.Provider, target.UserUUID)),
 	})
 
 	span.SetStatus(codes.Ok, "")
@@ -1339,7 +1422,7 @@ func (s *federationService) TestConnection(_ context.Context, req TestConnection
 		addCheck("OIDC discovery", wellKnownURL, false, fmt.Errorf("GET failed: %w", err))
 		return result, nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		addCheck("OIDC discovery", wellKnownURL, false,
@@ -1375,7 +1458,7 @@ func (s *federationService) TestConnection(_ context.Context, req TestConnection
 		addCheck("JWKS probe", metadata.JWKSURI, false, fmt.Errorf("GET failed: %w", err))
 		return result, nil
 	}
-	defer jwksResp.Body.Close()
+	defer func() { _ = jwksResp.Body.Close() }()
 
 	if jwksResp.StatusCode >= 400 {
 		addCheck("JWKS probe", metadata.JWKSURI, false,

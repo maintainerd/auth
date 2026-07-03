@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/event"
-	"github.com/maintainerd/auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 )

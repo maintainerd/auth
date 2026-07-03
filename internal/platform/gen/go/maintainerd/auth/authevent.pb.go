@@ -569,7 +569,7 @@ const file_maintainerd_auth_v1_authevent_proto_rawDesc = "" +
 	"\x10AuthEventService\x12i\n" +
 	"\x0eListAuthEvents\x12*.maintainerd.auth.v1.ListAuthEventsRequest\x1a+.maintainerd.auth.v1.ListAuthEventsResponse\x12c\n" +
 	"\fGetAuthEvent\x12(.maintainerd.auth.v1.GetAuthEventRequest\x1a).maintainerd.auth.v1.GetAuthEventResponse\x12~\n" +
-	"\x15CountAuthEventsByType\x121.maintainerd.auth.v1.CountAuthEventsByTypeRequest\x1a2.maintainerd.auth.v1.CountAuthEventsByTypeResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x15CountAuthEventsByType\x121.maintainerd.auth.v1.CountAuthEventsByTypeRequest\x1a2.maintainerd.auth.v1.CountAuthEventsByTypeResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_authevent_proto_rawDescOnce sync.Once

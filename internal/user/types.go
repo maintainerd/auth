@@ -46,6 +46,17 @@ type GenerateBackupCodesResponseDTO struct {
 	Codes []string `json:"codes"`
 }
 
+// SendPhoneVerificationDTO is the request to send an SMS OTP to verify a phone number.
+type SendPhoneVerificationDTO struct {
+	Phone string `json:"phone"`
+}
+
+// VerifyPhoneDTO is the request to verify a phone number with an SMS OTP.
+type VerifyPhoneDTO struct {
+	Phone string `json:"phone"`
+	Code  string `json:"code"`
+}
+
 // VerifyBackupCodeDTO is the request to recover an account via a backup code.
 type VerifyBackupCodeDTO struct {
 	Email      string `json:"email"`

@@ -1,9 +1,9 @@
 package app
 
 import (
-	"github.com/maintainerd/auth/internal/authn"
-	"github.com/maintainerd/auth/internal/iam"
-	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/iam"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 	"gorm.io/gorm"
 )
 

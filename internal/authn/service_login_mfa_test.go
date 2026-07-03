@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	platformjwt "github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/shared"
+	platformjwt "github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

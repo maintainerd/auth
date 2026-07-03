@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

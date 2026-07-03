@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package maintainerd.auth.v1;
 
-option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
 service EmailConfigService {
   rpc GetEmailConfig(GetEmailConfigRequest) returns (GetEmailConfigResponse);

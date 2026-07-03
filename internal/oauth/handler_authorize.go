@@ -6,9 +6,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // OAuthAuthorizeHandler handles the OAuth 2.0 authorization and consent

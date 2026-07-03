@@ -2477,7 +2477,7 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\x17CreateIPRestrictionRule\x123.maintainerd.auth.v1.CreateIPRestrictionRuleRequest\x1a4.maintainerd.auth.v1.CreateIPRestrictionRuleResponse\x12\x84\x01\n" +
 	"\x17UpdateIPRestrictionRule\x123.maintainerd.auth.v1.UpdateIPRestrictionRuleRequest\x1a4.maintainerd.auth.v1.UpdateIPRestrictionRuleResponse\x12\x8d\x01\n" +
 	"\x1aSetIPRestrictionRuleStatus\x126.maintainerd.auth.v1.SetIPRestrictionRuleStatusRequest\x1a7.maintainerd.auth.v1.SetIPRestrictionRuleStatusResponse\x12\x84\x01\n" +
-	"\x17DeleteIPRestrictionRule\x123.maintainerd.auth.v1.DeleteIPRestrictionRuleRequest\x1a4.maintainerd.auth.v1.DeleteIPRestrictionRuleResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x17DeleteIPRestrictionRule\x123.maintainerd.auth.v1.DeleteIPRestrictionRuleRequest\x1a4.maintainerd.auth.v1.DeleteIPRestrictionRuleResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_security_proto_rawDescOnce sync.Once

@@ -4,58 +4,89 @@ package integration_test
 
 import (
 	"testing"
+
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
+	"github.com/maintainerd/maintainerd-auth/internal/client"
+	"github.com/maintainerd/maintainerd-auth/internal/iam"
 )
 
 // Tenant isolation regression tests.
 //
-// Isolation is enforced at the service layer through tenant-scoped repository
-// methods and post-fetch guards. Each isolation point has a corresponding unit
-// test in its owning domain package. The integration-tagged tests below serve
-// as a cross-domain smoke check that confirms isolation holds end-to-end.
+// These exercise the REAL tenant-scoped repository code across multiple
+// domains. Each expectation regex requires `tenant_id` to appear in the emitted
+// SQL, so if a future change drops the tenant predicate from one of these
+// finders the query will no longer match the mock, the repository call will
+// error, and the test fails — a genuine cross-domain isolation guard rather
+// than a documentation stub.
+//
+// Per-guard behavior (B1–B5: cross-tenant existence oracle, service-id scoping,
+// role-permission SQL predicate, identity-client guard, invite flow-client
+// tenant check) additionally has dedicated unit tests in each owning package.
+//
 // Run with: go test -tags integration ./tests/integration/...
 
-func TestIsolation_PermissionListing_RejectsCrossTenantAPIUUID(t *testing.T) {
-	// B1: Verified by internal/iam/service_permission_test.go
-	//     FindByUUIDAndTenantID(apiUUID, tenantID) returns NotFound on mismatch.
-	//     Also: FindByUUIDAndTenantID(roleUUID, tenantID) added for role lookups.
+func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+	t.Helper()
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	require.NoError(t, err)
+	return db, mock
 }
 
-func TestIsolation_GetServiceIDByUUID_RejectsCrossTenant(t *testing.T) {
-	// B2: Verified by internal/iam/service_api_test.go
-	//     TestAPIService_GetServiceIDByUUID/cross-tenant_service_→_not_found
-	//     Post-fetch guard: service.TenantID == tenantID.
-}
+// TestIsolation_CrossTenantLookup_ReturnsNotFound verifies that the primary
+// UUID-addressed finders are tenant-scoped: a lookup for a resource that does
+// not belong to the caller's tenant resolves to "not found" (nil), and the
+// emitted SQL provably includes the tenant_id predicate.
+func TestIsolation_CrossTenantLookup_ReturnsNotFound(t *testing.T) {
+	const callerTenantID = int64(999) // a tenant that owns none of the rows below
 
-func TestIsolation_RolePermissionAssignment_EnforcedInSQL(t *testing.T) {
-	// B3: Verified by internal/iam/service_role_test.go
-	//     TestRoleService_RolePermissionTenantMismatch
-	//     Uses FindByUUIDsAndTenantID(uuids, tenantID) — predicate in SQL.
-}
+	t.Run("client.FindByUUIDAndTenantID", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		repo := client.NewClientRepository(db)
 
-func TestIsolation_UserIdentities_SkipsCrossTenantClients(t *testing.T) {
-	// B4: Verified by internal/user/service_user_test.go
-	//     TestUserService_GetUserIdentities
-	//     Post-fetch guard: client.TenantID == tenantID; skips on mismatch.
-}
+		// Regex REQUIRES tenant_id in the WHERE clause; zero rows returned.
+		mock.ExpectQuery(`SELECT \* FROM "clients" WHERE.*tenant_id.*LIMIT`).
+			WillReturnRows(sqlmock.NewRows([]string{"client_id"}))
 
-func TestIsolation_InviteCreation_RejectsCrossTenantFlowClient(t *testing.T) {
-	// B5: Verified by internal/invite/service_invite.go
-	//     After adopting flow client_id, validates client.tenant_id == invite.tenant_id.
-}
+		got, err := repo.FindByUUIDAndTenantID(uuid.New(), callerTenantID)
+		require.NoError(t, err)
+		assert.Nil(t, got, "a client owned by another tenant must resolve to not-found")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 
-func TestIsolation_AllDomains_CrossTenantLookupReturnsNotFound(t *testing.T) {
-	// Every domain enforces tenant isolation through its service layer:
-	//   - Users:       FindByUUIDAndTenantID / userHasTenantAccess
-	//   - Clients:     FindByUUIDAndTenantID / FindByIdentifier scopes by tenant
-	//   - APIs:        FindByUUIDAndTenantID
-	//   - Roles:       FindByUUIDAndTenantID
-	//   - Permissions: FindByUUIDsAndTenantID / FindByUUIDAndTenantID
-	//   - IdPs:        FindByUUIDAndTenantID
-	//   - RegFlows:    FindByUUIDAndTenantID
-	//   - Invites:     FindByUUIDAndTenantID
-	//   - Webhooks:    FindByUUIDAndTenantID
-	//   - Branding:    GetByUUIDAndTenantID
-	//   - AuthEvents:  FindByUUIDAndTenantID (tenant_id in WHERE)
-	//
-	// Verified by unit tests in each package's service and handler test files.
+	t.Run("api.FindByUUIDAndTenantID", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		repo := iam.NewAPIRepository(db)
+
+		mock.ExpectQuery(`SELECT \* FROM "apis" WHERE.*tenant_id.*LIMIT`).
+			WillReturnRows(sqlmock.NewRows([]string{"api_id"}))
+
+		got, err := repo.FindByUUIDAndTenantID(uuid.New(), callerTenantID)
+		require.NoError(t, err)
+		assert.Nil(t, got, "an API owned by another tenant must resolve to not-found")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("role.FindByUUIDAndTenantID", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		repo := iam.NewRoleRepository(db)
+
+		mock.ExpectQuery(`SELECT \* FROM "roles" WHERE.*tenant_id.*LIMIT`).
+			WillReturnRows(sqlmock.NewRows([]string{"role_id"}))
+
+		got, err := repo.FindByUUIDAndTenantID(uuid.New(), callerTenantID)
+		require.NoError(t, err)
+		assert.Nil(t, got, "a role owned by another tenant must resolve to not-found")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }

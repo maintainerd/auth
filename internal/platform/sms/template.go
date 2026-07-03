@@ -73,7 +73,7 @@ func fetchSMSTemplate(db *gorm.DB, name string, tenantID int64) (*smsTemplateRow
 	}
 
 	if RedisClient != nil {
-		ct := cachedSMSTemplate{Message: row.Message}
+		ct := cachedSMSTemplate(row)
 		if b, err := json.Marshal(ct); err == nil {
 			_ = RedisClient.Set(ctx, cacheKey, b, smsTemplateCacheTTL).Err()
 		}

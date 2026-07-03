@@ -18,6 +18,14 @@ type SessionService interface {
 	ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error
 }
 
+// IdentityUnlinker is the consumer-side view of the idp federation service that
+// the admin user handler depends on to unlink a target user's external
+// (federated) identity. It lives here so the user package does not import idp;
+// the wiring layer injects the idp federation service, which satisfies it.
+type IdentityUnlinker interface {
+	AdminUnlinkIdentity(ctx context.Context, tenantID int64, actorUserID int64, userUUID uuid.UUID, identityUUID string) error
+}
+
 type Tenant struct {
 	TenantID    int64
 	TenantUUID  uuid.UUID

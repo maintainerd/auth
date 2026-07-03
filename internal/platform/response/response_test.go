@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 )
 
 type responseBody struct {

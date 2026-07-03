@@ -1082,7 +1082,7 @@ const file_maintainerd_auth_v1_policy_proto_rawDesc = "" +
 	"\fCreatePolicy\x12(.maintainerd.auth.v1.CreatePolicyRequest\x1a).maintainerd.auth.v1.CreatePolicyResponse\x12c\n" +
 	"\fUpdatePolicy\x12(.maintainerd.auth.v1.UpdatePolicyRequest\x1a).maintainerd.auth.v1.UpdatePolicyResponse\x12l\n" +
 	"\x0fSetPolicyStatus\x12+.maintainerd.auth.v1.SetPolicyStatusRequest\x1a,.maintainerd.auth.v1.SetPolicyStatusResponse\x12c\n" +
-	"\fDeletePolicy\x12(.maintainerd.auth.v1.DeletePolicyRequest\x1a).maintainerd.auth.v1.DeletePolicyResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\fDeletePolicy\x12(.maintainerd.auth.v1.DeletePolicyRequest\x1a).maintainerd.auth.v1.DeletePolicyResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_policy_proto_rawDescOnce sync.Once

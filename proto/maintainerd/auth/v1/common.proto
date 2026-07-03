@@ -4,7 +4,7 @@ package maintainerd.auth.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
 enum Status {
   STATUS_UNSPECIFIED = 0;

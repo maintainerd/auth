@@ -3,7 +3,7 @@ package seeder
 import (
 	"log/slog"
 
-	model "github.com/maintainerd/auth/internal/tenant"
+	model "github.com/maintainerd/maintainerd-auth/internal/tenant"
 	"gorm.io/gorm"
 )
 

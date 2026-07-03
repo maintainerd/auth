@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 )
 
 func TestMain(m *testing.M) {

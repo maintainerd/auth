@@ -221,7 +221,7 @@ const file_maintainerd_auth_v1_oauth_proto_rawDesc = "" +
 	"\x03jti\x18\v \x01(\tR\x03jti2z\n" +
 	"\x19OAuthIntrospectionService\x12]\n" +
 	"\n" +
-	"Introspect\x12&.maintainerd.auth.v1.IntrospectRequest\x1a'.maintainerd.auth.v1.IntrospectResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"Introspect\x12&.maintainerd.auth.v1.IntrospectRequest\x1a'.maintainerd.auth.v1.IntrospectResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_oauth_proto_rawDescOnce sync.Once

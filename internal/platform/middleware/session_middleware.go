@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // SessionValidator is the minimal interface required by SessionValidationMiddleware.

@@ -1,4 +1,4 @@
-module github.com/maintainerd/auth
+module github.com/maintainerd/maintainerd-auth
 
 go 1.26.3
 

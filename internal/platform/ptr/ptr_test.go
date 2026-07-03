@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/stretchr/testify/assert"
 )
 

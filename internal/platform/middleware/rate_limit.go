@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authctx"
-	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 	"github.com/redis/go-redis/v9"
 )
 

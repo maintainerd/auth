@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/logging"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/logging"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -141,6 +142,10 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 		attribute.String("auth_event.event_type", input.EventType),
 		attribute.String("auth_event.result", input.Result),
 	)
+
+	// Meter every auth event (login/token/lockout/oauth/…) regardless of whether
+	// audit_config persists it, so operational dashboards see the true rates.
+	telemetry.RecordAuthEvent(ctx, input.Category, input.EventType, input.Result)
 
 	cfg := s.getAuditConfig(ctx, input.TenantID)
 	if !cfg.Enabled || !cfg.allowsEvent(input.EventType) || !cfg.allowsSeverity(input.Severity) {

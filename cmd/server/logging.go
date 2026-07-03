@@ -7,9 +7,9 @@ import (
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/logging"
-	"github.com/maintainerd/auth/internal/platform/telemetry"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/logging"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
 )
 
 // initBootstrapLogger installs a minimal structured logger before configuration

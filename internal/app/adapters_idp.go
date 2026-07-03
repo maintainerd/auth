@@ -2,8 +2,8 @@ package app
 
 import (
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/idp"
-	"github.com/maintainerd/auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/idp"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

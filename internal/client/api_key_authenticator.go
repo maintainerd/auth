@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 type APIKeyAuthenticator struct {

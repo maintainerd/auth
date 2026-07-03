@@ -3,7 +3,7 @@ package iam
 import (
 	"context"
 
-	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 )
 
 type AuthorizationGRPCHandler struct {

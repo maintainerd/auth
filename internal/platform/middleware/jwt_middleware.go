@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // jwtKey is the unexported context key type for JWTClaims, preventing key

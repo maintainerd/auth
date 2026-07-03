@@ -15,9 +15,9 @@ import (
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/dpop"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/dpop"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

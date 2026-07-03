@@ -5,7 +5,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 // Validate sanitises inputs and checks required OAuth parameters.

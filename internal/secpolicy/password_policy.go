@@ -3,7 +3,7 @@ package secpolicy
 import (
 	"encoding/json"
 
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 // PasswordHistoryRecorder is the minimal password-history writer needed by

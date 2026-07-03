@@ -1,6 +1,6 @@
 package secpolicy
 
-import "github.com/maintainerd/auth/internal/platform/security"
+import "github.com/maintainerd/maintainerd-auth/internal/platform/security"
 
 // LoadThreatPolicy returns the effective threat-detection policy for a tenant,
 // resolved from security_settings.threat_config with seeded defaults applied.

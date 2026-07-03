@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // OAuthDiscoveryHandler serves the OpenID Connect discovery document and

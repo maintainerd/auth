@@ -20,12 +20,12 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/authn"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -1821,6 +1821,229 @@ func TestFederationService_UnlinkIdentity(t *testing.T) {
 		}
 		err := svc.UnlinkIdentity(context.Background(), userID, identUUID.String())
 		require.NoError(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// AdminUnlinkIdentity
+// ---------------------------------------------------------------------------
+
+func TestFederationService_AdminUnlinkIdentity(t *testing.T) {
+	tenantID := int64(1)
+	actorUserID := int64(42)
+	targetUserID := int64(7)
+	targetUserUUID := uuid.New()
+	identUUID := uuid.New()
+
+	t.Run("user not found", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) { return nil, nil },
+		}
+		svc := &federationService{
+			userRepo:         userRepo,
+			userIdentityRepo: &mockFederationUserIdentityRepo{},
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("user lookup error", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) { return nil, errors.New("db error") },
+		}
+		svc := &federationService{
+			userRepo:         userRepo,
+			userIdentityRepo: &mockFederationUserIdentityRepo{},
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user lookup failed")
+	})
+
+	t.Run("cross-tenant target returns not found", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: targetUserID, UserUUID: targetUserUUID, TenantID: 999}, nil
+			},
+		}
+		svc := &federationService{
+			userRepo:         userRepo,
+			userIdentityRepo: &mockFederationUserIdentityRepo{},
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("FindByUserID error", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: targetUserID, UserUUID: targetUserUUID, TenantID: tenantID}, nil
+			},
+		}
+		identityRepo := &mockFederationUserIdentityRepo{
+			findByUserIDFn: func(int64) ([]UserIdentity, error) { return nil, errors.New("db error") },
+		}
+		svc := &federationService{
+			userRepo:         userRepo,
+			userIdentityRepo: identityRepo,
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "identity lookup failed")
+	})
+
+	t.Run("identity not found", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: targetUserID, UserUUID: targetUserUUID, TenantID: tenantID}, nil
+			},
+		}
+		identityRepo := &mockFederationUserIdentityRepo{
+			findByUserIDFn: func(int64) ([]UserIdentity, error) {
+				return []UserIdentity{{UserIdentityUUID: uuid.New(), TenantID: tenantID}}, nil
+			},
+		}
+		svc := &federationService{
+			userRepo:         userRepo,
+			userIdentityRepo: identityRepo,
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "identity not found")
+	})
+
+	t.Run("identity belongs to another tenant returns not found", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: targetUserID, UserUUID: targetUserUUID, TenantID: tenantID}, nil
+			},
+		}
+		identityRepo := &mockFederationUserIdentityRepo{
+			findByUserIDFn: func(int64) ([]UserIdentity, error) {
+				return []UserIdentity{{
+					UserIdentityID:   10,
+					UserIdentityUUID: identUUID,
+					Provider:         "google",
+					UserID:           targetUserID,
+					TenantID:         999,
+				}}, nil
+			},
+		}
+		svc := &federationService{
+			userRepo:         userRepo,
+			userIdentityRepo: identityRepo,
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "identity not found")
+	})
+
+	t.Run("built-in identity cannot be unlinked", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: targetUserID, UserUUID: targetUserUUID, TenantID: tenantID}, nil
+			},
+		}
+		identityRepo := &mockFederationUserIdentityRepo{
+			findByUserIDFn: func(int64) ([]UserIdentity, error) {
+				return []UserIdentity{{
+					UserIdentityID:   10,
+					UserIdentityUUID: identUUID,
+					Provider:         shared.ProviderMaintainerd,
+					UserID:           targetUserID,
+					TenantID:         tenantID,
+				}}, nil
+			},
+		}
+		svc := &federationService{
+			userRepo:         userRepo,
+			userIdentityRepo: identityRepo,
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "built-in identity")
+	})
+
+	t.Run("delete fails rolls back", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: targetUserID, UserUUID: targetUserUUID, TenantID: tenantID}, nil
+			},
+		}
+		identityRepo := &mockFederationUserIdentityRepo{
+			findByUserIDFn: func(int64) ([]UserIdentity, error) {
+				return []UserIdentity{{
+					UserIdentityID:   10,
+					UserIdentityUUID: identUUID,
+					Provider:         "google",
+					UserID:           targetUserID,
+					TenantID:         tenantID,
+				}}, nil
+			},
+			deleteByIDFn: func(any) error { return errors.New("del err") },
+		}
+		gdb, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := &federationService{
+			db:               gdb,
+			userRepo:         userRepo,
+			userIdentityRepo: identityRepo,
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to unlink")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success logs admin actor", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: targetUserID, UserUUID: targetUserUUID, TenantID: tenantID}, nil
+			},
+		}
+		var deletedID any
+		identityRepo := &mockFederationUserIdentityRepo{
+			findByUserIDFn: func(int64) ([]UserIdentity, error) {
+				return []UserIdentity{{
+					UserIdentityID:   10,
+					UserIdentityUUID: identUUID,
+					Provider:         "google",
+					UserID:           targetUserID,
+					TenantID:         tenantID,
+				}}, nil
+			},
+			deleteByIDFn: func(id any) error { deletedID = id; return nil },
+		}
+		var logged authevent.AuthEventInput
+		authSvc := &mockAuthEventService{logFn: func(_ context.Context, in authevent.AuthEventInput) { logged = in }}
+		gdb, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := &federationService{
+			db:               gdb,
+			userRepo:         userRepo,
+			userIdentityRepo: identityRepo,
+			authEventService: authSvc,
+		}
+		err := svc.AdminUnlinkIdentity(context.Background(), tenantID, actorUserID, targetUserUUID, identUUID.String())
+		require.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+		assert.Equal(t, int64(10), deletedID)
+		require.NotNil(t, logged.ActorUserID)
+		assert.Equal(t, actorUserID, *logged.ActorUserID)
+		require.NotNil(t, logged.Description)
+		assert.Contains(t, *logged.Description, targetUserUUID.String())
 	})
 }
 

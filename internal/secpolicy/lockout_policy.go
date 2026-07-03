@@ -3,7 +3,7 @@ package secpolicy
 import (
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 // LoadLockoutPolicy returns the effective lockout (rate-limit) policy for a

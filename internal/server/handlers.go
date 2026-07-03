@@ -1,23 +1,23 @@
 package server
 
 import (
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/authn"
-	"github.com/maintainerd/auth/internal/branding"
-	"github.com/maintainerd/auth/internal/client"
-	"github.com/maintainerd/auth/internal/dashboard"
-	"github.com/maintainerd/auth/internal/event"
-	"github.com/maintainerd/auth/internal/iam"
-	"github.com/maintainerd/auth/internal/idp"
-	"github.com/maintainerd/auth/internal/invite"
-	"github.com/maintainerd/auth/internal/mfa"
-	"github.com/maintainerd/auth/internal/notifier"
-	"github.com/maintainerd/auth/internal/oauth"
-	"github.com/maintainerd/auth/internal/secpolicy"
-	"github.com/maintainerd/auth/internal/setup"
-	"github.com/maintainerd/auth/internal/tenant"
-	"github.com/maintainerd/auth/internal/user"
-	"github.com/maintainerd/auth/internal/webhook"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/branding"
+	"github.com/maintainerd/maintainerd-auth/internal/client"
+	"github.com/maintainerd/maintainerd-auth/internal/dashboard"
+	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/iam"
+	"github.com/maintainerd/maintainerd-auth/internal/idp"
+	"github.com/maintainerd/maintainerd-auth/internal/invite"
+	"github.com/maintainerd/maintainerd-auth/internal/mfa"
+	"github.com/maintainerd/maintainerd-auth/internal/notifier"
+	"github.com/maintainerd/maintainerd-auth/internal/oauth"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/setup"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/webhook"
 )
 
 // handlers holds every REST handler instance. Created once per server start.
@@ -85,7 +85,7 @@ func initHandlers(application *Application) *handlers {
 		identityProvider:   idp.NewIdentityProviderHandler(application.IdentityProviderService),
 		client:             client.NewClientHandler(application.ClientService),
 		role:               iam.NewRoleHandler(application.RoleService),
-		user:               user.NewUserHandler(application.UserService),
+		user:               user.NewUserHandler(application.UserService, application.FederationService),
 		register:           authn.NewRegisterHandler(application.RegisterService),
 		login:              authn.NewLoginHandler(application.LoginService),
 		profile:            user.NewProfileHandler(application.ProfileService),

@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // cookieSecure returns whether cookies should set Secure=true.

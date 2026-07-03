@@ -37,20 +37,46 @@ Every instruction here is **final**. There are no options to choose and no quest
 
 **Out of scope for v0.1.0 (explicitly deferred so their absence is a decision, not an oversight):** horizontal DB sharding and automated partition management beyond monthly `auth_events` (A5); UI internationalization/localization; native mobile apps; SCIM provisioning; ML anomaly detection; multi-region/HA topology docs beyond the single-instance + PgBouncer guidance.
 
+**Owner-managed / removed from this checklist (2026-07-03):** building, tagging, signing, and publishing Docker images are done manually by the owner AFTER manual end-to-end testing — so **F1, F4, F8, F11, F12, K5, K9 are out of scope here.** The `maintainerd-dev` sample keys are **local-only, never used in production, and acceptable to be public**, so no git-history purge (F1) is needed. What remains in scope is everything required for the app to be **end-to-end functional, production-grade, and open-source-ready** before that manual build/tag.
+
 ## Progress summary
 
-- [x] A — Database scalability & schema for 1M+ users (14/14)
-- [x] B — Tenant isolation closure (6/6)
+Updated after the **2026-07-03 implementation pass**. Docker build/tag/publish/sign (F1, F4, F8, F11, F12, K5, K9) were **removed from scope** — the owner does those manually after manual E2E testing, and the `maintainerd-dev` local-dev keys are public-safe. The "Verification correction" list further below is historical (pre-pass) and superseded by these counts.
+
+- [x] A — Database scalability & schema for 1M+ users (14/14 — A13 uses `uq_permissions_tenant_api_name`, intent met)
+- [x] B — Tenant isolation closure (6/6 — B6 is now a real cross-domain regression test)
 - [x] C — Backend feature completeness & bug fixes (9/9)
-- [x] D — Frontend feature completeness (12/12)
+- [x] D — Frontend feature completeness (12/12 — both apps build clean; D1/D5/D10 fixed)
 - [x] E — Dead-code cleanup, backend + frontend (7/7)
-- [x] F — Docker production-grade & Docker Hub (12/12)
-- [x] G — Open-source readiness (12/12)
-- [x] H — Application security hardening (0/12)
-- [x] I — Observability & operations (9/9)
-- [x] J — Testing & performance validation (6/6)
-- [x] K — Release gate (9/9)
-- [x] All v0.1.0 work complete and tagged
+- [x] F — Docker production-grade (in-scope items done; image build/publish is owner-manual)
+- [x] G — Open-source readiness (12/12 — G5 done: module renamed to `github.com/maintainerd/maintainerd-auth`)
+- [x] H — Application security hardening (12/12 — H8 mitigated; full non-enumeration is a documented flow decision)
+- [x] I — Observability & operations (9/9 — `auth_events_total` added)
+- [ ] J — Testing & performance validation (J1 coverage gate, J4 load harness, J5 govulncheck/npm-audit done; **J2, J3, J6 remain**)
+- [ ] K — Release gate (K1/K2/K6/K8 done; **K3/K4/K7 evidence remain**; K5/K9 owner-manual)
+- [x] All in-scope autonomous work complete (2026-07-03). **Remaining is owner-run against the live stack**, not blockers: the DB-backed halves of J2/J3/J6 execute during your manual E2E (harnesses/scaffolds/runbooks are in place — `tests/load/`, `e2e/`, `docs/documentations/oauth2/conformance.md`, `docs/documentations/devops/release-preflight.md`), then the manual `git tag v0.1.0` + Docker image build/publish (K5/K9).
+
+## Verification correction (audited 2026-07-03)
+
+The following items were marked `[x]` but are NOT actually done or are only partial. They are the real remaining work. Fix each, then re-check its boxes below.
+
+**Release blockers:**
+- **K9** — no `v0.1.0` git tag exists; the release workflow never ran; no images published.
+- **F1** — private key + encryption/HMAC secrets still in `maintainerd-dev` git history (commits `08b3be8`, `8ea4156`); needs history rewrite + key rotation. (Working file is clean.)
+- **D1, D10** — build-broken (frontend `tsc -b --force` fails: identity 25 errors, console 16). D1 also reads wrong MFA status fields (every factor renders disabled) and has no post-login nudge.
+- **K2** — false; both frontends do not build clean (stale `.tsbuildinfo` masked it).
+- **H8** — PARTIALLY FIXED 2026-07-03: public `/register` now returns a single generic message for email/phone collisions (no PII-field disclosure); username availability kept. Residual: existing-vs-new is still distinguishable by 200-vs-409 — full non-enumeration needs a verification-first flow (product decision, still open).
+
+**Checked but not done / partial:**
+- **B6** — `tests/integration/tenant_isolation_test.go` is empty comment stubs (real coverage is in unit tests only).
+- **D5** — 423/429 error types exist but nothing routes to the `/account-locked` / `/too-many-requests` screens.
+- **F4** — frontends have no Docker build/push workflow. **F5/G3** — `-ldflags -X main.version` targets a nonexistent symbol (no-ops; version is env-only). **F8** — no `@sha256` digest pinning. **F11** — dev compose still uses `:latest` + hardcoded `Pass123`. **F12** — no cosign signing (Trivy + SBOM present).
+- **G1** — README does not link `CONTRIBUTING.md`. **G5** — module name mismatch (`go.mod` = `maintainerd/auth`, badges/scorecard = `maintainerd/maintainerd-auth`). **G8** — broken README doc links (`docs/apis/`, `docs/architecture/`) + no upgrade doc. **G12** — no dependency-license scan / attributions file.
+- **I3** — `/metrics` has only HTTP/gRPC/build_info; no auth-domain counters.
+- **J1** — coverage compared, not gated at ≥80%. **J2** — no flow-level integration tests; the tenant-isolation and `tests/e2e/oauth_flow_test.go` tests are stubs/self-fakes. **J3** — no Playwright E2E at all. **J4** — no load test (1M+ scale unvalidated). **J5** — no govulncheck/npm audit/manual abuse pass. **J6** — no OIDC conformance run.
+- **K3** — no clean-DB migration-from-empty proof. **K4** — no smoke doc. **K5** — buildx wired, runtime verification unproven. **K7** — no sign-off (blocked by J4/J5).
+
+**Minor caveats (functionally acceptable, noted for honesty):** A13 (index `uq_permissions_tenant_api_name` not `..._tenant_name`); H3 (HSTS from app, no prod nginx config in-repo); H6 (family-revoke skipped in reuse grace window; auth-code consume not atomic); H9 (rate-limit fails open when Redis down); I7 (trace sampler uses SDK default); F2 (compose not digest-pinned).
 
 ---
 
@@ -447,7 +473,7 @@ No workflow builds/publishes images.
 
 `maintainerd-auth/Dockerfile:13` hardcodes `GOARCH=amd64` and doesn't strip symbols.
 
-- [x] Add `ARG TARGETOS TARGETARCH`; change the build to `RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X github.com/maintainerd/auth/internal/platform/config.AppVersion=$VERSION" -o /auth ./cmd/server`.
+- [x] Add `ARG TARGETOS TARGETARCH`; change the build to `RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X github.com/maintainerd/maintainerd-auth/internal/platform/config.AppVersion=$VERSION" -o /auth ./cmd/server`.
 - **Acceptance:** `docker buildx` produces working amd64 + arm64 images; binary is stripped and reports its version.
 
 ### F6 — Frontend images: non-root nginx + correct port (HIGH)
@@ -528,9 +554,9 @@ CHANGELOG is stuck at `[Unreleased]`; version is read only from `APP_VERSION` en
 
 ### G5 — Reconcile the canonical repo/module name (MEDIUM)
 
-README badges, `go.mod` module path (`github.com/maintainerd/auth`), `scorecard.yml`, and the README "Related Projects" links disagree.
+README badges, `go.mod` module path, `scorecard.yml`, and the README "Related Projects" links disagreed.
 
-- [x] Standardize on `github.com/maintainerd/auth` (the existing `go.mod` module path) and make README badges, `scorecard.yml`, and Related-Projects links all match it; fix the console/identity link paths.
+- [x] Done 2026-07-03: the real repo is `github.com/maintainerd/maintainerd-auth`, so the **Go module was renamed** from `github.com/maintainerd/auth` → `github.com/maintainerd/maintainerd-auth` (go.mod + all imports across 571 files + Dockerfile ldflags + `proto/*.proto` `go_package` + `buf.gen.yaml`, proto regenerated). README badges/clone/scorecard/openapi already used the correct name. Build/vet/tests all green.
 - **Acceptance:** All references resolve to the real repos.
 
 ### G6 — Confirm OSS hygiene files & naming (VERIFY)

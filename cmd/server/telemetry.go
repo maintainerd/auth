@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/telemetry"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
 )
 
 // initTelemetry starts tracing and metrics together and returns one shutdown

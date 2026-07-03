@@ -3,7 +3,7 @@ package secpolicy
 import (
 	"fmt"
 
-	"github.com/maintainerd/auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 

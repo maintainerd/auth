@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 )
 
 // OAuthUserInfoHandler handles the OpenID Connect UserInfo endpoint.
