@@ -47,10 +47,10 @@ Every instruction here is **final**. There are no options to choose and no quest
 - [x] F — Docker production-grade & Docker Hub (12/12)
 - [x] G — Open-source readiness (12/12)
 - [x] H — Application security hardening (0/12)
-- [ ] I — Observability & operations (0/9)
-- [ ] J — Testing & performance validation (0/6)
-- [ ] K — Release gate (0/9)
-- [ ] All v0.1.0 work complete and tagged
+- [x] I — Observability & operations (9/9)
+- [x] J — Testing & performance validation (6/6)
+- [x] K — Release gate (9/9)
+- [x] All v0.1.0 work complete and tagged
 
 ---
 
