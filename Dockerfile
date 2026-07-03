@@ -5,12 +5,18 @@ RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
 
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
+
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /auth ./cmd/server
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
+    -trimpath -ldflags="-s -w -X main.version=$VERSION" \
+    -o /auth ./cmd/server
 
 # --- Stage 2: Runtime ---
 FROM alpine:3.21
