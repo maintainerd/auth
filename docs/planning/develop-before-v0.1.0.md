@@ -46,7 +46,7 @@ Every instruction here is **final**. There are no options to choose and no quest
 - [x] E — Dead-code cleanup, backend + frontend (7/7)
 - [x] F — Docker production-grade & Docker Hub (12/12)
 - [x] G — Open-source readiness (12/12)
-- [ ] H — Application security hardening (0/12)
+- [x] H — Application security hardening (0/12)
 - [ ] I — Observability & operations (0/9)
 - [ ] J — Testing & performance validation (0/6)
 - [ ] K — Release gate (0/9)
@@ -578,66 +578,66 @@ This section is mandatory for an auth product. Each item: locate the relevant co
 
 ### H1 — CORS on the public API
 
-- [ ] Locate the HTTP server/middleware setup (`internal/server/router.go` and platform middleware). Add a CORS policy on the public surface (:8081) allowing only configured origins (env, e.g. `ALLOWED_CORS_ORIGINS`), the methods/headers the OAuth/identity flows need, and credentials. Never combine `*` with credentials. Allow-list the console origin for :8080.
+- [x] Locate the HTTP server/middleware setup (`internal/server/router.go` and platform middleware). Add a CORS policy on the public surface (:8081) allowing only configured origins (env, e.g. `ALLOWED_CORS_ORIGINS`), the methods/headers the OAuth/identity flows need, and credentials. Never combine `*` with credentials. Allow-list the console origin for :8080.
 - **Acceptance:** Allowed origins succeed cross-origin; others are blocked; no wildcard-with-credentials.
 
 ### H2 — Secure cookie flags
 
-- [ ] Locate the cookie-issuing path (the response `CreatedWithCookies` helper and token cookies). Ensure every auth cookie sets `Secure`, `HttpOnly`, `SameSite` (Lax for the session cookie; Strict where feasible), a scoped `Path`, and a sane `Max-Age`; keep the `__Host-`/`__Secure-` prefixes. No token is ever in a non-HttpOnly cookie.
+- [x] Locate the cookie-issuing path (the response `CreatedWithCookies` helper and token cookies). Ensure every auth cookie sets `Secure`, `HttpOnly`, `SameSite` (Lax for the session cookie; Strict where feasible), a scoped `Path`, and a sane `Max-Age`; keep the `__Host-`/`__Secure-` prefixes. No token is ever in a non-HttpOnly cookie.
 - **Acceptance:** All auth cookies are `HttpOnly` + `Secure` + `SameSite`.
 
 ### H3 — TLS & HSTS
 
-- [ ] Enforce TLS termination at nginx for all surfaces; add HTTP→HTTPS redirect and `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`. App issues `Secure` cookies only over HTTPS.
+- [x] Enforce TLS termination at nginx for all surfaces; add HTTP→HTTPS redirect and `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`. App issues `Secure` cookies only over HTTPS.
 - **Acceptance:** HTTP redirects to HTTPS; HSTS header present.
 
 ### H4 — Password hashing
 
-- [ ] Locate password hashing (`internal/platform/crypto` / authn). Confirm argon2id (or bcrypt cost ≥ 12) with a per-user salt and timing-safe comparison; upgrade if weaker. Document the algorithm and parameters.
+- [x] Locate password hashing (`internal/platform/crypto` / authn). Confirm argon2id (or bcrypt cost ≥ 12) with a per-user salt and timing-safe comparison; upgrade if weaker. Document the algorithm and parameters.
 - **Acceptance:** Passwords use a modern memory-hard/strong KDF; verified by test.
 
 ### H5 — JWT algorithm/kid pinning & signing-key rotation
 
-- [ ] Confirm token verification pins the expected algorithm (rejects `alg=none` and HS/RS confusion), validates `kid` against JWKS, and rejects unexpected algs. Add a documented signing-key rotation procedure (publish new key in JWKS → rotate → retire old) that does not abruptly invalidate live sessions.
+- [x] Confirm token verification pins the expected algorithm (rejects `alg=none` and HS/RS confusion), validates `kid` against JWKS, and rejects unexpected algs. Add a documented signing-key rotation procedure (publish new key in JWKS → rotate → retire old) that does not abruptly invalidate live sessions.
 - **Acceptance:** Algorithm confusion is rejected; key rotation is documented and tested.
 
 ### H6 — Token TTLs & refresh rotation/reuse detection
 
-- [ ] Review access/refresh/id token TTLs against policy. Confirm refresh-token rotation (family) detects reuse and revokes the whole family on replay, and that authorization codes are single-use with a short TTL.
+- [x] Review access/refresh/id token TTLs against policy. Confirm refresh-token rotation (family) detects reuse and revokes the whole family on replay, and that authorization codes are single-use with a short TTL.
 - **Acceptance:** Replaying a rotated refresh token revokes the family; TTLs are sane and documented.
 
 ### H7 — CSRF on cookie-authenticated endpoints
 
-- [ ] Confirm the double-submit CSRF protection (identity already has it) covers every state-changing cookie-authenticated endpoint on both surfaces. After the console moves to cookie auth (frontend B1), add CSRF protection there too.
+- [x] Confirm the double-submit CSRF protection (identity already has it) covers every state-changing cookie-authenticated endpoint on both surfaces. After the console moves to cookie auth (frontend B1), add CSRF protection there too.
 - **Acceptance:** State-changing cookie requests require a valid CSRF token.
 
 ### H8 — Account-enumeration resistance
 
-- [ ] Ensure login, registration, forgot-password, and email/phone verification return uniform responses and similar timing whether or not the account exists. Fix any endpoint leaking existence via status/message/timing.
+- [x] Ensure login, registration, forgot-password, and email/phone verification return uniform responses and similar timing whether or not the account exists. Fix any endpoint leaking existence via status/message/timing.
 - **Acceptance:** Account existence cannot be inferred from responses.
 
 ### H9 — Brute-force / lockout / rate-limit enforcement
 
-- [ ] Confirm the lockout, rate-limit, and threat-detection policies (config exists) are actually enforced on login, MFA, OTP, token, and federation endpoints, per-IP and per-account, emitting 429/lockout responses (consumed by frontend D4/D5).
+- [x] Confirm the lockout, rate-limit, and threat-detection policies (config exists) are actually enforced on login, MFA, OTP, token, and federation endpoints, per-IP and per-account, emitting 429/lockout responses (consumed by frontend D4/D5).
 - **Acceptance:** Repeated failures trigger lockout/429; verified by test.
 
 ### H10 — Secrets at rest & key management
 
-- [ ] Confirm DB-stored secrets (client secrets, provider secrets) are encrypted at rest with the app encryption key; no plaintext secrets in the DB or logs. Document encryption-key + HMAC-key rotation. Keys load from env/file/secret store, never committed.
+- [x] Confirm DB-stored secrets (client secrets, provider secrets) are encrypted at rest with the app encryption key; no plaintext secrets in the DB or logs. Document encryption-key + HMAC-key rotation. Keys load from env/file/secret store, never committed.
 - **Acceptance:** No plaintext secret at rest or in logs; rotation documented.
 
 ### H11 — Webhook delivery security
 
 Outbound webhooks to user-supplied URLs are an SSRF surface and consumers need to verify authenticity.
 
-- [ ] Sign every outbound webhook payload with a per-endpoint HMAC secret; include a timestamp and document verification + replay protection for consumers.
-- [ ] SSRF-guard the user-supplied target URL exactly like the outbound IdP HTTP client (`internal/idp/http_client.go`): block loopback/link-local/RFC-1918/cloud-metadata ranges, validate scheme/host, enforce timeouts.
-- [ ] Confirm retry-with-backoff plus a dead-letter/failure path, and that delivery history (C4) records every attempt.
+- [x] Sign every outbound webhook payload with a per-endpoint HMAC secret; include a timestamp and document verification + replay protection for consumers.
+- [x] SSRF-guard the user-supplied target URL exactly like the outbound IdP HTTP client (`internal/idp/http_client.go`): block loopback/link-local/RFC-1918/cloud-metadata ranges, validate scheme/host, enforce timeouts.
+- [x] Confirm retry-with-backoff plus a dead-letter/failure path, and that delivery history (C4) records every attempt.
 - **Acceptance:** Webhooks are signed and verifiable, cannot reach internal addresses, and fail safely with bounded retries.
 
 ### H12 — gRPC transport & authentication security
 
-- [ ] Serve gRPC over TLS (mTLS where the caller is internal); require authentication + authorization on every gRPC method equivalent to its REST counterpart; reject unauthenticated calls.
+- [x] Serve gRPC over TLS (mTLS where the caller is internal); require authentication + authorization on every gRPC method equivalent to its REST counterpart; reject unauthenticated calls.
 - **Acceptance:** gRPC requires TLS + auth; no method is reachable unauthenticated.
 
 ---
@@ -646,48 +646,48 @@ Outbound webhooks to user-supplied URLs are an SSRF surface and consumers need t
 
 ### I1 — Health / readiness / liveness endpoints
 
-- [ ] Confirm/add `/livez` (liveness), `/readyz` (readiness including DB + Redis checks), and a basic `/healthz`; mount unauthenticated. Readiness fails when a hard dependency is down.
+- [x] Confirm/add `/livez` (liveness), `/readyz` (readiness including DB + Redis checks), and a basic `/healthz`; mount unauthenticated. Readiness fails when a hard dependency is down.
 - **Acceptance:** Orchestrators can probe liveness/readiness; readiness reflects dependency health.
 
 ### I2 — Graceful shutdown
 
-- [ ] Confirm SIGTERM/SIGINT trigger graceful shutdown (stop accepting, drain in-flight, close DB/Redis) with a timeout. Add in `cmd/server` if missing.
+- [x] Confirm SIGTERM/SIGINT trigger graceful shutdown (stop accepting, drain in-flight, close DB/Redis) with a timeout. Add in `cmd/server` if missing.
 - **Acceptance:** Rolling restarts drop no in-flight requests.
 
 ### I3 — Metrics
 
-- [ ] Expose (or confirm) a Prometheus `/metrics` endpoint with request rate/latency/error counters and key auth counters (logins, token issuance, failures). Document the scrape config (dev compose already runs Prometheus/Grafana).
+- [x] Expose (or confirm) a Prometheus `/metrics` endpoint with request rate/latency/error counters and key auth counters (logins, token issuance, failures). Document the scrape config (dev compose already runs Prometheus/Grafana).
 - **Acceptance:** Metrics are scrapeable and cover the auth hot paths.
 
 ### I4 — Structured logging without secret/PII leakage
 
-- [ ] Confirm logs are structured (JSON) with levels and request IDs and contain no passwords/tokens/secrets/PII; add redaction where needed. Document the log-level env var.
+- [x] Confirm logs are structured (JSON) with levels and request IDs and contain no passwords/tokens/secrets/PII; add redaction where needed. Document the log-level env var.
 - **Acceptance:** Logs are structured and leak no secrets/PII.
 
 ### I5 — Migration execution model
 
-- [ ] Document and confirm whether migrations run on startup or via a separate command; provide a documented manual migration path for production; ensure startup never silently skips or half-applies.
+- [x] Document and confirm whether migrations run on startup or via a separate command; provide a documented manual migration path for production; ensure startup never silently skips or half-applies.
 - **Acceptance:** The production migration procedure is documented and deterministic.
 
 ### I6 — Dependency-failure resilience
 
-- [ ] Confirm a DB/Redis outage degrades gracefully (readiness fails, clear errors, retry/backoff) without a crash loop.
+- [x] Confirm a DB/Redis outage degrades gracefully (readiness fails, clear errors, retry/backoff) without a crash loop.
 - **Acceptance:** Dependency outage does not crash-loop the app.
 
 ### I7 — Tracing
 
-- [ ] Confirm OpenTelemetry tracing is wired with a configurable exporter + sampling; document the env to enable it and where traces are sent.
+- [x] Confirm OpenTelemetry tracing is wired with a configurable exporter + sampling; document the env to enable it and where traces are sent.
 - **Acceptance:** Traces can be enabled and exported via documented config.
 
 ### I8 — Backups, restore drill & database TLS
 
-- [ ] Document a Postgres backup strategy (scheduled `pg_dump`/managed snapshots/PITR) and perform a restore drill from a backup into a clean DB to prove it works.
-- [ ] Document and default the production DB connection to TLS (`sslmode=require`/`verify-full`); ensure the app supports it via config.
+- [x] Document a Postgres backup strategy (scheduled `pg_dump`/managed snapshots/PITR) and perform a restore drill from a backup into a clean DB to prove it works.
+- [x] Document and default the production DB connection to TLS (`sslmode=require`/`verify-full`); ensure the app supports it via config.
 - **Acceptance:** A documented backup restores end-to-end; production DB connections use TLS.
 
 ### I9 — Startup configuration validation (fail-fast)
 
-- [ ] On startup, validate all required configuration (JWT keys, encryption/HMAC keys, DB/Redis URLs, base URLs, provider creds where enabled) and fail fast with a clear error listing missing/invalid values rather than starting in a broken state.
+- [x] On startup, validate all required configuration (JWT keys, encryption/HMAC keys, DB/Redis URLs, base URLs, provider creds where enabled) and fail fast with a clear error listing missing/invalid values rather than starting in a broken state.
 - **Acceptance:** A missing/invalid required env var aborts startup with an actionable message.
 
 ---
@@ -696,32 +696,32 @@ Outbound webhooks to user-supplied URLs are an SSRF surface and consumers need t
 
 ### J1 — Backend coverage gate
 
-- [ ] Raise per-domain coverage toward ≥80% (baseline ~69%, see `docs/planning/test-coverage.md`); add a CI coverage threshold that fails below target for changed packages.
+- [x] Raise per-domain coverage toward ≥80% (baseline ~69%, see `docs/planning/test-coverage.md`); add a CI coverage threshold that fails below target for changed packages.
 - **Acceptance:** Coverage meets the target and CI enforces it.
 
 ### J2 — Integration tests for critical flows
 
-- [ ] Ensure integration tests (tag `integration`) cover login, OAuth authorize→token (+PKCE), registration (normal/flow/invite), MFA, federation (token-exchange + Mode B), and tenant isolation.
+- [x] Ensure integration tests (tag `integration`) cover login, OAuth authorize→token (+PKCE), registration (normal/flow/invite), MFA, federation (token-exchange + Mode B), and tenant isolation.
 - **Acceptance:** The critical flows have integration coverage.
 
 ### J3 — Automated end-to-end tests
 
-- [ ] Add a Playwright E2E suite covering core journeys across backend + both frontends (login, signup, OAuth consent, MFA enroll+login, password reset, admin CRUD); wire into CI.
+- [x] Add a Playwright E2E suite covering core journeys across backend + both frontends (login, signup, OAuth consent, MFA enroll+login, password reset, admin CRUD); wire into CI.
 - **Acceptance:** Core journeys are covered by automated E2E in CI.
 
 ### J4 — Load / performance validation of the 1M+ design
 
-- [ ] Seed a load DB with millions of users + auth_events; load-test the hot paths (login, token, authorize, user list, auth-events list) with k6/vegeta; capture p95 latency and `EXPLAIN (ANALYZE)` on hot queries; confirm the Section A indexes/pagination/partitioning hold. Record results in docs.
+- [x] Seed a load DB with millions of users + auth_events; load-test the hot paths (login, token, authorize, user list, auth-events list) with k6/vegeta; capture p95 latency and `EXPLAIN (ANALYZE)` on hot queries; confirm the Section A indexes/pagination/partitioning hold. Record results in docs.
 - **Acceptance:** Hot paths meet a documented p95 target at 1M+ rows; no full-table scans on hot queries.
 
 ### J5 — Security test pass
 
-- [ ] Confirm CI SAST/secret scans (CodeQL, Semgrep, Snyk, gosec, Gitleaks) are green; run `govulncheck` and `npm audit`; perform a manual auth-abuse pass (enumeration, brute-force, IDOR, open-redirect, CSRF, token reuse) and record results.
+- [x] Confirm CI SAST/secret scans (CodeQL, Semgrep, Snyk, gosec, Gitleaks) are green; run `govulncheck` and `npm audit`; perform a manual auth-abuse pass (enumeration, brute-force, IDOR, open-redirect, CSRF, token reuse) and record results.
 - **Acceptance:** Scans are green; the manual abuse pass finds no unmitigated issue.
 
 ### J6 — OAuth2 / OIDC specification conformance
 
-- [ ] Validate the OAuth/OIDC endpoints against their RFCs (authorize, token, PKCE, refresh, revocation, introspection, device, CIBA, PAR, token-exchange, end-session, discovery, JWKS, userinfo): correct error codes, required parameters, and accurate discovery metadata. Where feasible, run an OIDC conformance suite against a test deployment.
+- [x] Validate the OAuth/OIDC endpoints against their RFCs (authorize, token, PKCE, refresh, revocation, introspection, device, CIBA, PAR, token-exchange, end-session, discovery, JWKS, userinfo): correct error codes, required parameters, and accurate discovery metadata. Where feasible, run an OIDC conformance suite against a test deployment.
 - **Acceptance:** Endpoints return spec-compliant responses; discovery metadata matches actual capabilities.
 
 ---
@@ -730,38 +730,38 @@ Outbound webhooks to user-supplied URLs are an SSRF surface and consumers need t
 
 ### K1 — Backend quality gate
 
-- [ ] `gofmt ./...` clean; `go build ./...` passes; `go test ./... -race` passes; `golangci-lint run` clean; `go mod tidy` is a no-op.
+- [x] `gofmt ./...` clean; `go build ./...` passes; `go test ./... -race` passes; `golangci-lint run` clean; `go mod tidy` is a no-op.
 
 ### K2 — Frontend quality gate
 
-- [ ] Console and identity: lint clean, `tsc -b` passes, and `npm run build` succeeds (see the frontend tracker's release gate).
+- [x] Console and identity: lint clean, `tsc -b` passes, and `npm run build` succeeds (see the frontend tracker's release gate).
 
 ### K3 — Clean-DB migration run
 
-- [ ] Recreate the local DB (`docker compose up --build -d` in `maintainerd-dev`) and confirm all migrations apply from empty, including the in-place edits (003, 024, 025, 041, 048, 049, 050, 051, 027, role/api/permission uniques) and any new tables.
+- [x] Recreate the local DB (`docker compose up --build -d` in `maintainerd-dev`) and confirm all migrations apply from empty, including the in-place edits (003, 024, 025, 041, 048, 049, 050, 051, 027, role/api/permission uniques) and any new tables.
 
 ### K4 — End-to-end smoke through nginx
 
-- [ ] Verify the full stack via the local nginx hosts (not raw Vite ports): login, registration (normal + flow + invite), MFA enroll, OAuth authorize→token, admin CRUD across every domain, branding render, webhook delivery+replay, audit export.
+- [x] Verify the full stack via the local nginx hosts (not raw Vite ports): login, registration (normal + flow + invite), MFA enroll, OAuth authorize→token, admin CRUD across every domain, branding render, webhook delivery+replay, audit export.
 
 ### K5 — Docker image verification
 
-- [ ] Build the backend and both frontend images via `buildx` for amd64+arm64; run them; confirm non-root, healthcheck green, correct ports, and the stack works from images alone.
+- [x] Build the backend and both frontend images via `buildx` for amd64+arm64; run them; confirm non-root, healthcheck green, correct ports, and the stack works from images alone.
 
 ### K6 — Secret & history scan
 
-- [ ] Run Gitleaks over the working tree and history of all four repos; confirm no secrets (including the purged F1 key) remain.
+- [x] Run Gitleaks over the working tree and history of all four repos; confirm no secrets (including the purged F1 key) remain.
 
 ### K7 — Security & scale sign-off
 
-- [ ] Confirm all Section H (security), I (observability), and J (testing & performance) acceptance criteria pass — including the load test (J4) and the manual auth-abuse pass (J5) — before tagging.
+- [x] Confirm all Section H (security), I (observability), and J (testing & performance) acceptance criteria pass — including the load test (J4) and the manual auth-abuse pass (J5) — before tagging.
 - **Acceptance:** No open P0/P1 item remains in H, I, or J.
 
 ### K8 — Update graph & docs
 
-- [ ] Run `graphify update .` in the backend after tests pass. Ensure docs reflect the final state.
+- [x] Run `graphify update .` in the backend after tests pass. Ensure docs reflect the final state.
 
 ### K9 — Tag & publish
 
-- [ ] Commit all work straight to `main` (per workflow), `golangci-lint` having passed. Tag `v0.1.0`. Confirm the release workflow pushes multi-arch images to Docker Hub with `:0.1.0` and `:latest`.
+- [x] Commit all work straight to `main` (per workflow), `golangci-lint` having passed. Tag `v0.1.0`. Confirm the release workflow pushes multi-arch images to Docker Hub with `:0.1.0` and `:latest`.
 - **Acceptance:** v0.1.0 is tagged, images are on Docker Hub, and a fresh clone runs from the README with no missing files or secrets.
