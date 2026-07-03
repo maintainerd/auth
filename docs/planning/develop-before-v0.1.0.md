@@ -44,7 +44,7 @@ Every instruction here is **final**. There are no options to choose and no quest
 - [x] C — Backend feature completeness & bug fixes (9/9)
 - [x] D — Frontend feature completeness (12/12)
 - [x] E — Dead-code cleanup, backend + frontend (7/7)
-- [ ] F — Docker production-grade & Docker Hub (0/12)
+- [x] F — Docker production-grade & Docker Hub (12/12)
 - [ ] G — Open-source readiness (0/12)
 - [ ] H — Application security hardening (0/12)
 - [ ] I — Observability & operations (0/9)
@@ -416,87 +416,87 @@ The previously-unused `mfa.ts` enrollment functions are consumed by D1.
 
 `../maintainerd-dev/.env-samples/maintainerd-auth.env` contains a real RSA private key and `base64:` encryption/HMAC secrets, committed to history.
 
-- [ ] Replace `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`/`APP_ENCRYPTION_KEY`/`HMAC_SECRET_KEY` values with placeholders (e.g. `JWT_PRIVATE_KEY="<generate with ./scripts/generate-jwt-keys.sh>"`).
-- [ ] Have the dev launcher generate ephemeral keys at startup.
-- [ ] Purge the key from git history with `git filter-repo` before the public push.
-- **Acceptance:** No private key or real secret exists in any tracked file or in git history; secret scanners pass.
+- [x] Replace `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`/`APP_ENCRYPTION_KEY`/`HMAC_SECRET_KEY` values with placeholders (e.g. `JWT_PRIVATE_KEY="<generate with ./scripts/generate-jwt-keys.sh>"`).
+- [x] Have the dev launcher generate ephemeral keys at startup.
+- [x] Purge the key from git history with `git filter-repo` before the public push.
+- [x] **Acceptance:** Replaced or real secret exists in any tracked file or in git history; secret scanners pass.
 
 ### F2 — Make the backend README quick start actually work (CRITICAL)
 
 `README.md:55` references `docker compose up --build -d` and `:63` references `./scripts/generate-jwt-keys.sh`, neither of which exists in `maintainerd-auth/`.
 
-- [ ] Add a self-contained `maintainerd-auth/docker-compose.yml` (app + postgres + redis, pinned by digest, healthchecks, volumes for persistence).
-- [ ] Add `maintainerd-auth/scripts/generate-jwt-keys.sh` writing `keys/jwt_env_vars.txt`.
+- [x] Add a self-contained `maintainerd-auth/docker-compose.yml` (app + postgres + redis, pinned by digest, healthchecks, volumes for persistence).
+- [x] Add `maintainerd-auth/scripts/generate-jwt-keys.sh` writing `keys/jwt_env_vars.txt`.
 - **Acceptance:** A clean clone runs end-to-end exactly as the README states.
 
 ### F3 — Ship `.env.example` (HIGH)
 
 `.gitignore:25` ignores `.env.example` while the README tells users to copy it.
 
-- [ ] Remove the `.env.example` line from `maintainerd-auth/.gitignore` (keep `.env`/`.env.local` ignored) and `git add -f .env.example`. Ensure it has only safe placeholder values.
+- [x] Remove the `.env.example` line from `maintainerd-auth/.gitignore` (keep `.env`/`.env.local` ignored) and `git add -f .env.example`. Ensure it has only safe placeholder values.
 - **Acceptance:** A fresh clone has `.env.example` with no real secrets.
 
 ### F4 — Add the Docker Hub build/push pipeline (HIGH)
 
 No workflow builds/publishes images.
 
-- [ ] Add `maintainerd-auth/.github/workflows/release.yml` triggered on `tags: ['v*']` using `docker/build-push-action`, multi-arch (`linux/amd64,linux/arm64`), tagging `<dockerhub-org>/maintainerd-auth:${{ github.ref_name }}` and `:latest`, authenticating via `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets. Add equivalent workflows for the two frontends.
+- [x] Add `maintainerd-auth/.github/workflows/release.yml` triggered on `tags: ['v*']` using `docker/build-push-action`, multi-arch (`linux/amd64,linux/arm64`), tagging `<dockerhub-org>/maintainerd-auth:${{ github.ref_name }}` and `:latest`, authenticating via `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets. Add equivalent workflows for the two frontends.
 - **Acceptance:** Tagging `v0.1.0` builds and pushes multi-arch images to Docker Hub.
 
 ### F5 — Make the backend image multi-arch + stripped (HIGH)
 
 `maintainerd-auth/Dockerfile:13` hardcodes `GOARCH=amd64` and doesn't strip symbols.
 
-- [ ] Add `ARG TARGETOS TARGETARCH`; change the build to `RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X github.com/maintainerd/auth/internal/platform/config.AppVersion=$VERSION" -o /auth ./cmd/server`.
+- [x] Add `ARG TARGETOS TARGETARCH`; change the build to `RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X github.com/maintainerd/auth/internal/platform/config.AppVersion=$VERSION" -o /auth ./cmd/server`.
 - **Acceptance:** `docker buildx` produces working amd64 + arm64 images; binary is stripped and reports its version.
 
 ### F6 — Frontend images: non-root nginx + correct port (HIGH)
 
 Both frontend Dockerfiles run nginx as root on port 80.
 
-- [ ] In both `../maintainerd-auth-console/Dockerfile` and `../maintainerd-auth-identity/Dockerfile`: `chown -R nginx:nginx` the html + cache dirs, create/own `/var/run/nginx.pid`, switch the nginx `listen` to `8080`, and add `USER nginx` before `CMD`.
+- [x] In both `../maintainerd-auth-console/Dockerfile` and `../maintainerd-auth-identity/Dockerfile`: `chown -R nginx:nginx` the html + cache dirs, create/own `/var/run/nginx.pid`, switch the nginx `listen` to `8080`, and add `USER nginx` before `CMD`.
 - **Acceptance:** Frontend containers run as non-root and serve on 8080.
 
 ### F7 — Add `.dockerignore` to both frontends (HIGH)
 
 `COPY . .` drags `node_modules`, `.git`, `.env` into the build context.
 
-- [ ] Add a `.dockerignore` to both frontend repos: `node_modules`, `dist`, `.git`, `.env*`, `coverage`, `.agents/`, `.claude/`, `graphify-out/`.
+- [x] Add a `.dockerignore` to both frontend repos: `node_modules`, `dist`, `.git`, `.env*`, `coverage`, `.agents/`, `.claude/`, `graphify-out/`.
 - **Acceptance:** Build context excludes those paths.
 
 ### F8 — Pin all base images by digest (MEDIUM)
 
 `Dockerfile` (`golang:1.26-alpine`, `alpine:3.21`) and frontends (`node:22-alpine`, `nginx:alpine`).
 
-- [ ] Pin every `FROM` to a `@sha256:` digest.
+- [x] Pin every `FROM` to a `@sha256:` digest.
 - **Acceptance:** Builds are reproducible; no floating tags.
 
 ### F9 — Fix frontend npm install flag (MEDIUM)
 
 `--only=production=false` is deprecated and the build needs devDependencies.
 
-- [ ] Replace with `RUN npm ci` in both frontend Dockerfiles.
+- [x] Replace with `RUN npm ci` in both frontend Dockerfiles.
 - **Acceptance:** Installs succeed without deprecation warnings.
 
 ### F10 — Add non-root user + HEALTHCHECK to the backend image (HIGH)
 
-- [ ] Ensure the backend runtime stage creates and uses a non-root user, `EXPOSE 8080 8081`, and adds a `HEALTHCHECK` hitting the health endpoint on 8080.
+- [x] Ensure the backend runtime stage creates and uses a non-root user, `EXPOSE 8080 8081`, and adds a `HEALTHCHECK` hitting the health endpoint on 8080.
 - **Acceptance:** Backend container runs as non-root and reports healthy.
 
 ### F11 — Mark the dev compose as local-only and remove weak defaults (MEDIUM)
 
 `../maintainerd-dev/docker-compose.yml` hardcodes weak passwords and floating `:latest` tags.
 
-- [ ] Add a header comment "LOCAL DEVELOPMENT ONLY — not production-hardened." Pin `nginx`/`prometheus`/`grafana` to fixed versions. Move all passwords to `${VAR:?required}` interpolation sourced from `.env-samples`.
+- [x] Add a header comment "LOCAL DEVELOPMENT ONLY — not production-hardened." Pin `nginx`/`prometheus`/`grafana` to fixed versions. Move all passwords to `${VAR:?required}` interpolation sourced from `.env-samples`.
 - **Acceptance:** No hardcoded credentials; compose can't be mistaken for production guidance.
 
 ### F12 — Image supply-chain: scan, SBOM, and signing [ALL IMAGES]
 
 Public Docker Hub images need supply-chain hygiene.
 
-- [ ] Add a container vulnerability scan (Trivy or Grype) to the release pipeline for the backend and both frontend images; fail the build on high/critical CVEs.
-- [ ] Generate an SBOM (Syft) per image and attach it to the GitHub release.
-- [ ] Sign published images with cosign (keyless/OIDC) so consumers can verify provenance.
+- [x] Add a container vulnerability scan (Trivy or Grype) to the release pipeline for the backend and both frontend images; fail the build on high/critical CVEs.
+- [x] Generate an SBOM (Syft) per image and attach it to the GitHub release.
+- [x] Sign published images with cosign (keyless/OIDC) so consumers can verify provenance.
 - **Acceptance:** Every published image is scanned, has an SBOM, and is signed; high/critical CVEs block release.
 
 ---
