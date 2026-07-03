@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/platform/security"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 type EmailVerificationHandler struct {

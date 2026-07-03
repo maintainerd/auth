@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/idp"
-	"github.com/maintainerd/auth/internal/oauth"
+	"github.com/maintainerd/maintainerd-auth/internal/idp"
+	"github.com/maintainerd/maintainerd-auth/internal/oauth"
 )
 
 // oauthBrokerProviderResolver bridges idp.FederationService.ResolveBrokerProvider

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/lib/pq"
-	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"

@@ -2512,7 +2512,7 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\x0eGetAuditConfig\x12*.maintainerd.auth.v1.GetAuditConfigRequest\x1a+.maintainerd.auth.v1.GetAuditConfigResponse\x12r\n" +
 	"\x11UpdateAuditConfig\x12-.maintainerd.auth.v1.UpdateAuditConfigRequest\x1a..maintainerd.auth.v1.UpdateAuditConfigResponse\x12{\n" +
 	"\x14GetMaintenanceConfig\x120.maintainerd.auth.v1.GetMaintenanceConfigRequest\x1a1.maintainerd.auth.v1.GetMaintenanceConfigResponse\x12\x84\x01\n" +
-	"\x17UpdateMaintenanceConfig\x123.maintainerd.auth.v1.UpdateMaintenanceConfigRequest\x1a4.maintainerd.auth.v1.UpdateMaintenanceConfigResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x17UpdateMaintenanceConfig\x123.maintainerd.auth.v1.UpdateMaintenanceConfigRequest\x1a4.maintainerd.auth.v1.UpdateMaintenanceConfigResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_tenant_proto_rawDescOnce sync.Once

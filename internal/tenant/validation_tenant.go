@@ -4,7 +4,7 @@ import (
 	"regexp"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 var tenantNamePattern = regexp.MustCompile(`^[a-z0-9-]+$`)

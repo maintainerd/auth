@@ -928,7 +928,7 @@ const file_maintainerd_auth_v1_webhook_proto_rawDesc = "" +
 	"\x15CreateWebhookEndpoint\x121.maintainerd.auth.v1.CreateWebhookEndpointRequest\x1a2.maintainerd.auth.v1.CreateWebhookEndpointResponse\x12~\n" +
 	"\x15UpdateWebhookEndpoint\x121.maintainerd.auth.v1.UpdateWebhookEndpointRequest\x1a2.maintainerd.auth.v1.UpdateWebhookEndpointResponse\x12\x87\x01\n" +
 	"\x18SetWebhookEndpointStatus\x124.maintainerd.auth.v1.SetWebhookEndpointStatusRequest\x1a5.maintainerd.auth.v1.SetWebhookEndpointStatusResponse\x12~\n" +
-	"\x15DeleteWebhookEndpoint\x121.maintainerd.auth.v1.DeleteWebhookEndpointRequest\x1a2.maintainerd.auth.v1.DeleteWebhookEndpointResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x15DeleteWebhookEndpoint\x121.maintainerd.auth.v1.DeleteWebhookEndpointRequest\x1a2.maintainerd.auth.v1.DeleteWebhookEndpointResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_webhook_proto_rawDescOnce sync.Once

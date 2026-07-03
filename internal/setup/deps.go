@@ -1,11 +1,11 @@
 package setup
 
 import (
-	"github.com/maintainerd/auth/internal/authn"
-	"github.com/maintainerd/auth/internal/client"
-	"github.com/maintainerd/auth/internal/iam"
-	"github.com/maintainerd/auth/internal/tenant"
-	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/client"
+	"github.com/maintainerd/maintainerd-auth/internal/iam"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 )
 
 type LoginResponseDTO = authn.LoginResponseDTO

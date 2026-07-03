@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 )
 
 // Dispatcher delivers auth events to subscribed webhook endpoints.

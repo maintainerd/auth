@@ -3,7 +3,7 @@ package event
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

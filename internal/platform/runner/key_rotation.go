@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 )
 
 // StartKeyRotationRunner rotates the active JWT signing key every period.

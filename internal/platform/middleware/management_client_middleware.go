@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // ManagementClientResolver reports whether a client identifier belongs to a

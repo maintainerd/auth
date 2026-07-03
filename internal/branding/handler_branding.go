@@ -9,8 +9,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // BrandingHandler handles tenant branding configuration endpoints.
@@ -133,7 +133,7 @@ func (h *BrandingHandler) ServeLogo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	w.Header().Set("ETag", `"`+brandingUUID.String()+`"`)
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // Update modifies a specific branding theme.

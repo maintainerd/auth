@@ -2540,7 +2540,7 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x16DeleteRegistrationFlow\x122.maintainerd.auth.v1.DeleteRegistrationFlowRequest\x1a3.maintainerd.auth.v1.DeleteRegistrationFlowResponse\x12\x90\x01\n" +
 	"\x1bAssignRegistrationFlowRoles\x127.maintainerd.auth.v1.AssignRegistrationFlowRolesRequest\x1a8.maintainerd.auth.v1.AssignRegistrationFlowRolesResponse\x12\x8a\x01\n" +
 	"\x19ListRegistrationFlowRoles\x125.maintainerd.auth.v1.ListRegistrationFlowRolesRequest\x1a6.maintainerd.auth.v1.ListRegistrationFlowRolesResponse\x12\x8d\x01\n" +
-	"\x1aRemoveRegistrationFlowRole\x126.maintainerd.auth.v1.RemoveRegistrationFlowRoleRequest\x1a7.maintainerd.auth.v1.RemoveRegistrationFlowRoleResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x1aRemoveRegistrationFlowRole\x126.maintainerd.auth.v1.RemoveRegistrationFlowRoleRequest\x1a7.maintainerd.auth.v1.RemoveRegistrationFlowRoleResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_identity_provider_proto_rawDescOnce sync.Once

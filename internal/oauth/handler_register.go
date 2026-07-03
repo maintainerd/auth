@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // OAuthRegisterHandler handles Dynamic Client Registration (RFC 7591).

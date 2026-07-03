@@ -3,8 +3,8 @@ plugins:
   - local: protoc-gen-go
     out: ..
     opt:
-      - module=github.com/maintainerd/auth
+      - module=github.com/maintainerd/maintainerd-auth
   - local: protoc-gen-go-grpc
     out: ..
     opt:
-      - module=github.com/maintainerd/auth
+      - module=github.com/maintainerd/maintainerd-auth

@@ -10,15 +10,18 @@ import (
 	"testing"
 	"time"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/config"
-	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/platform/email"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/notifier"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/email"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/sms"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -48,6 +51,8 @@ func newAccountSvc(repos ...interface{}) *accountService {
 			svc.userIdentityRepo = v
 		case IdentityProviderRepository:
 			svc.identityProviderRepo = v
+		case notifier.UserOTPRepository:
+			svc.smsOtpRepo = v
 		}
 	}
 	return svc
@@ -57,7 +62,7 @@ func TestNewAccountService(t *testing.T) {
 	db, _ := newMockGormDB(t)
 	svc := NewAccountService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockProfileRepo{},
 		&mockUserSettingRepo{}, &mockRoleRepo{}, &mockClientRepo{}, &mockUserMFABackupCodeRepo{},
-		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService(), nil)
+		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService(), nil, &mockUserOTPRepo{})
 	assert.NotNil(t, svc)
 }
 
@@ -1349,4 +1354,223 @@ func initJWTKeys(t *testing.T) {
 	config.JWTPrivateKey = privPEM
 	config.JWTPublicKey = pubPEM
 	require.NoError(t, jwt.InitJWTKeys())
+}
+
+func TestAccountService_SendPhoneVerification(t *testing.T) {
+	const testUserID int64 = 42
+	const testPhone = "+15550001111"
+
+	t.Run("phone missing returns validation error", func(t *testing.T) {
+		svc := newAccountSvc()
+		err := svc.SendPhoneVerification(context.Background(), testUserID, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "phone is required")
+	})
+
+	t.Run("user not found returns not found", func(t *testing.T) {
+		svc := newAccountSvc(&mockUserRepo{
+			findByIDFn: func(any, ...string) (*User, error) { return nil, nil },
+		})
+		err := svc.SendPhoneVerification(context.Background(), testUserID, testPhone)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("store error returns internal error", func(t *testing.T) {
+		orig := accountNewSMSProvider
+		t.Cleanup(func() { accountNewSMSProvider = orig })
+		accountNewSMSProvider = func(context.Context, *gorm.DB, int64) (sms.Provider, error) {
+			t.Fatal("provider must not be reached when store fails")
+			return nil, nil
+		}
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "user_otps"`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		svc := newAccountSvc(
+			&mockUserRepo{findByIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: testUserID, TenantID: tenantID}, nil
+			}},
+			&mockUserOTPRepo{createFn: func(*notifier.UserOTP) (*notifier.UserOTP, error) {
+				return nil, errors.New("db down")
+			}},
+		)
+		svc.db = db
+
+		err := svc.SendPhoneVerification(context.Background(), testUserID, testPhone)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to store SMS OTP")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("provider init failure still succeeds and logs", func(t *testing.T) {
+		orig := accountNewSMSProvider
+		t.Cleanup(func() { accountNewSMSProvider = orig })
+		accountNewSMSProvider = func(context.Context, *gorm.DB, int64) (sms.Provider, error) {
+			return nil, errors.New("no sms config")
+		}
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "user_otps"`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		var stored *notifier.UserOTP
+		svc := newAccountSvc(
+			&mockUserRepo{findByIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: testUserID, TenantID: tenantID}, nil
+			}},
+			&mockUserOTPRepo{createFn: func(o *notifier.UserOTP) (*notifier.UserOTP, error) {
+				stored = o
+				return o, nil
+			}},
+		)
+		svc.db = db
+
+		err := svc.SendPhoneVerification(context.Background(), testUserID, testPhone)
+		require.NoError(t, err)
+		require.NotNil(t, stored)
+		assert.Equal(t, phoneVerifyChannel, stored.Channel)
+		assert.Equal(t, testPhone, stored.Recipient)
+		assert.Equal(t, testUserID, stored.UserID)
+		assert.NotEmpty(t, stored.OTPHash)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success sends via provider using fallback message", func(t *testing.T) {
+		orig := accountNewSMSProvider
+		t.Cleanup(func() { accountNewSMSProvider = orig })
+		fake := &fakeSMSProvider{}
+		accountNewSMSProvider = func(context.Context, *gorm.DB, int64) (sms.Provider, error) {
+			return fake, nil
+		}
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "user_otps"`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		// RenderTemplate reads sms_templates; return an error to exercise the fallback message.
+		mock.ExpectQuery(`sms_templates`).WillReturnError(errors.New("no template"))
+
+		svc := newAccountSvc(
+			&mockUserRepo{findByIDFn: func(any, ...string) (*User, error) {
+				return &User{UserID: testUserID, TenantID: tenantID}, nil
+			}},
+			&mockUserOTPRepo{},
+		)
+		svc.db = db
+
+		err := svc.SendPhoneVerification(context.Background(), testUserID, testPhone)
+		require.NoError(t, err)
+		assert.Equal(t, testPhone, fake.sentTo)
+		assert.Contains(t, fake.sentBody, "Your phone verification code is:")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// fakeSMSProvider records the last message sent for assertions.
+type fakeSMSProvider struct {
+	sentTo   string
+	sentBody string
+	sendErr  error
+}
+
+func (f *fakeSMSProvider) Send(_ context.Context, to, body string) error {
+	f.sentTo = to
+	f.sentBody = body
+	return f.sendErr
+}
+
+func TestAccountService_VerifyPhone(t *testing.T) {
+	const testUserID int64 = 42
+	const testPhone = "+15550001111"
+	const testCode = "123456"
+
+	t.Run("no matching OTP returns unauthorized", func(t *testing.T) {
+		svc := newAccountSvc(&mockUserOTPRepo{
+			findValidFn: func(string, string) (*notifier.UserOTP, error) { return nil, nil },
+		})
+		err := svc.VerifyPhone(context.Background(), testUserID, testPhone, testCode)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid or expired verification code")
+	})
+
+	t.Run("wrong code records failure and returns unauthorized", func(t *testing.T) {
+		var recorded bool
+		svc := newAccountSvc(&mockUserOTPRepo{
+			findValidFn: func(string, string) (*notifier.UserOTP, error) {
+				return &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode("999999")}, nil
+			},
+			recordFailFn: func(id int64, maxAttempts int) error {
+				recorded = true
+				assert.Equal(t, int64(1), id)
+				assert.Equal(t, phoneVerifyMaxFailed, maxAttempts)
+				return nil
+			},
+		})
+		err := svc.VerifyPhone(context.Background(), testUserID, testPhone, testCode)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid verification code")
+		assert.True(t, recorded, "RecordFailure must be called on a wrong code")
+	})
+
+	t.Run("mark used error returns internal error", func(t *testing.T) {
+		svc := newAccountSvc(&mockUserOTPRepo{
+			findValidFn: func(string, string) (*notifier.UserOTP, error) {
+				return &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode(testCode)}, nil
+			},
+			markUsedFn: func(int64) error { return errors.New("db error") },
+		})
+		err := svc.VerifyPhone(context.Background(), testUserID, testPhone, testCode)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to mark verification code used")
+	})
+
+	t.Run("update error returns internal error", func(t *testing.T) {
+		svc := newAccountSvc(
+			&mockUserOTPRepo{
+				findValidFn: func(string, string) (*notifier.UserOTP, error) {
+					return &notifier.UserOTP{UserOTPID: 1, OTPHash: crypto.HashAuthorizationCode(testCode)}, nil
+				},
+			},
+			&mockUserRepo{updateByIDFn: func(any, any) (*User, error) {
+				return nil, errors.New("db error")
+			}},
+		)
+		err := svc.VerifyPhone(context.Background(), testUserID, testPhone, testCode)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update phone")
+	})
+
+	t.Run("success marks phone verified", func(t *testing.T) {
+		var markedUsed bool
+		var gotID any
+		var gotData any
+		svc := newAccountSvc(
+			&mockUserOTPRepo{
+				findValidFn: func(channel, recipient string) (*notifier.UserOTP, error) {
+					assert.Equal(t, phoneVerifyChannel, channel)
+					assert.Equal(t, testPhone, recipient)
+					return &notifier.UserOTP{UserOTPID: 7, OTPHash: crypto.HashAuthorizationCode(testCode)}, nil
+				},
+				markUsedFn: func(id int64) error {
+					markedUsed = true
+					assert.Equal(t, int64(7), id)
+					return nil
+				},
+			},
+			&mockUserRepo{updateByIDFn: func(id, data any) (*User, error) {
+				gotID = id
+				gotData = data
+				return &User{UserID: testUserID, IsPhoneVerified: true}, nil
+			}},
+		)
+		err := svc.VerifyPhone(context.Background(), testUserID, testPhone, testCode)
+		require.NoError(t, err)
+		assert.True(t, markedUsed, "MarkUsed must be called on success")
+		assert.Equal(t, testUserID, gotID)
+		updates, ok := gotData.(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, true, updates["is_phone_verified"])
+		assert.Equal(t, testPhone, updates["phone"])
+	})
 }

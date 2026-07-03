@@ -8,8 +8,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // PolicyBundle is the service-account policy bundle distributed to callers.

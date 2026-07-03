@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/platform/signedurl"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/signedurl"
 )
 
 type MagicLinkHandler struct {

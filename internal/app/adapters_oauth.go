@@ -1,11 +1,11 @@
 package app
 
 import (
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/oauth"
-	"github.com/maintainerd/auth/internal/platform/database"
-	"github.com/maintainerd/auth/internal/shared"
-	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/oauth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 	"gorm.io/gorm"
 )
 

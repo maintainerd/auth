@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

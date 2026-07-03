@@ -3,7 +3,7 @@ package setup
 import (
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -7,10 +7,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/platform/pagination"
-	"github.com/maintainerd/auth/internal/platform/ptr"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // UserHandler handles user management operations.
@@ -21,13 +21,24 @@ import (
 // context. The handler supports CRUD operations, role management, identity management,
 // and account verification workflows.
 type UserHandler struct {
-	userService UserService
+	userService      UserService
+	identityUnlinker IdentityUnlinker
 }
 
 // NewUserHandler creates a new user handler instance.
-func NewUserHandler(userService UserService) *UserHandler {
+//
+// identityUnlinker is optional and injected by the wiring layer (the idp
+// federation service). It is variadic so existing single-argument callers and
+// tests that do not exercise identity unlinking keep compiling; the admin
+// unlink endpoint guards against a nil unlinker.
+func NewUserHandler(userService UserService, identityUnlinker ...IdentityUnlinker) *UserHandler {
+	var unlinker IdentityUnlinker
+	if len(identityUnlinker) > 0 {
+		unlinker = identityUnlinker[0]
+	}
 	return &UserHandler{
-		userService: userService,
+		userService:      userService,
+		identityUnlinker: unlinker,
 	}
 }
 
@@ -853,4 +864,51 @@ func (h *UserHandler) RevokeUserSession(w http.ResponseWriter, r *http.Request) 
 	}
 
 	resp.Success(w, nil, "Session revoked successfully")
+}
+
+// UnlinkUserIdentity unlinks an external (federated) identity from a user.
+//
+// DELETE /users/{user_uuid}/identities/{identity_uuid}
+//
+// Internal-surface admin operation: it requires a tenant context, records the
+// authenticated admin as the actor, and delegates to the idp federation service
+// which enforces tenant scoping and rejects unlinking the built-in identity.
+func (h *UserHandler) UnlinkUserIdentity(w http.ResponseWriter, r *http.Request) {
+	// The acting admin must be authenticated (actor of the audit event).
+	actor := middleware.AuthFromRequest(r).User
+	if actor == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	// Internal surface requires a tenant context (validated by middleware).
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	userUUID, err := uuid.Parse(chi.URLParam(r, "user_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	identityUUID, err := uuid.Parse(chi.URLParam(r, "identity_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity UUID")
+		return
+	}
+
+	if h.identityUnlinker == nil {
+		resp.Error(w, http.StatusInternalServerError, "Identity unlink service unavailable")
+		return
+	}
+
+	if err := h.identityUnlinker.AdminUnlinkIdentity(r.Context(), tenant.TenantID, actor.UserID, userUUID, identityUUID.String()); err != nil {
+		resp.HandleServiceError(w, r, "Failed to unlink identity", err)
+		return
+	}
+
+	resp.Success(w, nil, "Identity unlinked successfully")
 }

@@ -25,7 +25,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 )
 
 const (
@@ -219,6 +219,15 @@ func InitMetrics(ctx context.Context) (shutdown func(context.Context) error, err
 	}, buildInfo)
 	if err != nil {
 		return mp.Shutdown, fmt.Errorf("telemetry: register build_info callback: %w", err)
+	}
+
+	// Register the auth-domain event counter (login/token/lockout/oauth, by
+	// event type and result). Incremented from the central auth-event Log path.
+	if authEventCounter, err = meter.Int64Counter(
+		"auth_events_total",
+		metric.WithDescription("Count of authentication/authorization events by category, type, and result"),
+	); err != nil {
+		return mp.Shutdown, fmt.Errorf("telemetry: register auth_events_total counter: %w", err)
 	}
 
 	slog.Info("OpenTelemetry metrics enabled (Prometheus exporter)",

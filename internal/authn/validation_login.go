@@ -4,8 +4,8 @@ import (
 	"net/url"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/signedurl"
 )
 
 func (r *LoginRequestDTO) Validate() error {

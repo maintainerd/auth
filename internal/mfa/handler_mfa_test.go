@@ -14,10 +14,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,10 +59,7 @@ type mockMFAService struct {
 	enrollEmailOTPFn                func(context.Context, int64, string) error
 	verifyEmailOTPFn                func(context.Context, int64, string, string) error
 	disableEmailOTPFn               func(context.Context, int64) error
-	sendSMSChallengeFn              func(context.Context, int64) error
 	sendEmailOTPChallengeFn         func(context.Context, int64) error
-	enrolledMFAMethodsFn            func(context.Context, int64) ([]string, error)
-	stepUpTTLSecondsFn              func(context.Context, int64) int64
 }
 
 func (m *mockMFAService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TOTPEnrollResponseDTO, error) {

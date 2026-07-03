@@ -6,11 +6,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/platform/pagination"
-	"github.com/maintainerd/auth/internal/platform/ptr"
-	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // RegistrationFlowHandler handles registration flow management operations.
@@ -516,19 +516,6 @@ func toRegistrationFlowResponseDTO(sf RegistrationFlowServiceDataResult) Registr
 	dto.VerificationRequired = sf.VerificationRequired
 	dto.RequiredFields = sf.RequiredFields
 	return dto
-}
-
-// parseOptionalUUID parses an optional UUID string pointer into a *uuid.UUID,
-// returning nil when absent, empty, or unparseable.
-func parseOptionalUUID(s *string) *uuid.UUID {
-	if s == nil || *s == "" {
-		return nil
-	}
-	parsed, err := uuid.Parse(*s)
-	if err != nil {
-		return nil
-	}
-	return &parsed
 }
 
 // parseUUIDList parses a slice of UUID strings, preserving the nil-vs-empty

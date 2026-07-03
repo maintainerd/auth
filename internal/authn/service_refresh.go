@@ -7,11 +7,11 @@ import (
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	platformjwt "github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	platformjwt "github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 )

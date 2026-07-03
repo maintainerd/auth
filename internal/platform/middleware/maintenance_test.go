@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

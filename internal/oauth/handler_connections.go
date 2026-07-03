@@ -3,7 +3,7 @@ package oauth
 import (
 	"net/http"
 
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // OAuthConnectionsHandler serves the public login-page connections endpoint.

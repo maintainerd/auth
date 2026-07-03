@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"gorm.io/gorm"
 )
 

@@ -2,7 +2,7 @@ package oauth
 
 import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 func (r *OAuthClientRegistrationRequestDTO) Validate() error {

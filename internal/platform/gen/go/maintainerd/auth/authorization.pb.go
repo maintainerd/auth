@@ -146,7 +146,7 @@ const file_maintainerd_auth_v1_authorization_proto_rawDesc = "" +
 	"\aallowed\x18\x01 \x01(\bR\aallowed\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason2r\n" +
 	"\x14AuthorizationService\x12Z\n" +
-	"\tAuthorize\x12%.maintainerd.auth.v1.AuthorizeRequest\x1a&.maintainerd.auth.v1.AuthorizeResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\tAuthorize\x12%.maintainerd.auth.v1.AuthorizeRequest\x1a&.maintainerd.auth.v1.AuthorizeResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_authorization_proto_rawDescOnce sync.Once

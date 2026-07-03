@@ -45,4 +45,4 @@ See [docs/contributing/database-migrations.md](docs/contributing/database-migrat
 
 ## Getting help
 
-Open an issue or start a discussion on the [GitHub repository](https://github.com/maintainerd/auth).
+Open an issue or start a discussion on the [GitHub repository](https://github.com/maintainerd/maintainerd-auth).

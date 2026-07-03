@@ -1353,7 +1353,7 @@ const file_maintainerd_auth_v1_service_proto_rawDesc = "" +
 	"\x10SetServiceStatus\x12,.maintainerd.auth.v1.SetServiceStatusRequest\x1a-.maintainerd.auth.v1.SetServiceStatusResponse\x12f\n" +
 	"\rDeleteService\x12).maintainerd.auth.v1.DeleteServiceRequest\x1a*.maintainerd.auth.v1.DeleteServiceResponse\x12x\n" +
 	"\x13AssignServicePolicy\x12/.maintainerd.auth.v1.AssignServicePolicyRequest\x1a0.maintainerd.auth.v1.AssignServicePolicyResponse\x12x\n" +
-	"\x13RemoveServicePolicy\x12/.maintainerd.auth.v1.RemoveServicePolicyRequest\x1a0.maintainerd.auth.v1.RemoveServicePolicyResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x13RemoveServicePolicy\x12/.maintainerd.auth.v1.RemoveServicePolicyRequest\x1a0.maintainerd.auth.v1.RemoveServicePolicyResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_service_proto_rawDescOnce sync.Once

@@ -13,9 +13,10 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/notifier"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
@@ -47,6 +48,19 @@ func withTenantAndUser(r *http.Request) *http.Request {
 	return middleware.WithAuthContext(r, &authctx.AuthContext{
 		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
 		User:   &authctx.AuthUser{UserUUID: testUserUUID},
+	})
+}
+
+func withUserNoTenant(r *http.Request) *http.Request {
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		User: &authctx.AuthUser{UserID: 42, UserUUID: testUserUUID},
+	})
+}
+
+func withTenantAndActor(r *http.Request, actorUserID int64) *http.Request {
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
+		User:   &authctx.AuthUser{UserID: actorUserID, UserUUID: testUserUUID},
 	})
 }
 
@@ -109,6 +123,44 @@ func (m *mockBaseRepo[T]) DeleteByID(id any) error                            { 
 func (m *mockBaseRepo[T]) Paginate(c map[string]any, page, limit int, p ...string) (*PaginationResult[T], error) {
 	return nil, nil
 }
+
+// mockUserOTPRepo mocks notifier.UserOTPRepository for account phone-verification tests.
+type mockUserOTPRepo struct {
+	createFn     func(*notifier.UserOTP) (*notifier.UserOTP, error)
+	findValidFn  func(channel, recipient string) (*notifier.UserOTP, error)
+	recordFailFn func(id int64, maxAttempts int) error
+	markUsedFn   func(id int64) error
+}
+
+func (m *mockUserOTPRepo) WithTx(*gorm.DB) notifier.UserOTPRepository { return m }
+func (m *mockUserOTPRepo) Create(e *notifier.UserOTP) (*notifier.UserOTP, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockUserOTPRepo) CreateOrUpdate(e *notifier.UserOTP) (*notifier.UserOTP, error) {
+	return e, nil
+}
+func (m *mockUserOTPRepo) FindValid(channel, recipient string) (*notifier.UserOTP, error) {
+	if m.findValidFn != nil {
+		return m.findValidFn(channel, recipient)
+	}
+	return nil, nil
+}
+func (m *mockUserOTPRepo) RecordFailure(id int64, maxAttempts int) error {
+	if m.recordFailFn != nil {
+		return m.recordFailFn(id, maxAttempts)
+	}
+	return nil
+}
+func (m *mockUserOTPRepo) MarkUsed(id int64) error {
+	if m.markUsedFn != nil {
+		return m.markUsedFn(id)
+	}
+	return nil
+}
+func (m *mockUserOTPRepo) DeleteExpired(time.Time) (int64, error) { return 0, nil }
 
 type mockUserRepo struct {
 	mockBaseRepo[User]
@@ -809,6 +861,17 @@ func (m *mockUserService) EnsureUserInTenant(_ context.Context, userUUID uuid.UU
 func (m *mockUserService) GrantRoleByName(_ context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error {
 	if m.grantRoleByNameFn != nil {
 		return m.grantRoleByNameFn(userUUID, tenantID, roleName)
+	}
+	return nil
+}
+
+type mockIdentityUnlinker struct {
+	adminUnlinkIdentityFn func(context.Context, int64, int64, uuid.UUID, string) error
+}
+
+func (m *mockIdentityUnlinker) AdminUnlinkIdentity(ctx context.Context, tenantID int64, actorUserID int64, userUUID uuid.UUID, identityUUID string) error {
+	if m.adminUnlinkIdentityFn != nil {
+		return m.adminUnlinkIdentityFn(ctx, tenantID, actorUserID, userUUID, identityUUID)
 	}
 	return nil
 }

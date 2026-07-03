@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/secpolicy"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -376,13 +376,20 @@ func (s *registerService) RegisterPublic(
 			return apperror.NewConflict("username already taken")
 		}
 
+		// Account-enumeration hardening (H8): on the public self-service surface,
+		// do not disclose which PII field (email or phone) already exists. Return a
+		// single generic conflict so an attacker cannot confirm a specific email or
+		// phone is registered. (Username availability is intentionally still explicit
+		// above, since usernames are user-chosen identifiers, not PII.)
+		// NOTE: full non-enumeration (identical response for new vs existing) requires
+		// a verification-first registration flow and is a separate product decision.
 		if email != nil && *email != "" {
 			existingEmailUser, txErr := txUserRepo.FindByEmailAndTenantID(*email, tenantId)
 			if txErr != nil {
 				return txErr
 			}
 			if existingEmailUser != nil {
-				return apperror.NewConflict("email already registered")
+				return apperror.NewConflict("registration could not be completed with the provided details")
 			}
 		}
 
@@ -392,7 +399,7 @@ func (s *registerService) RegisterPublic(
 				return txErr
 			}
 			if existingPhoneUser != nil {
-				return apperror.NewConflict("phone number already registered")
+				return apperror.NewConflict("registration could not be completed with the provided details")
 			}
 		}
 

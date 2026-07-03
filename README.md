@@ -72,15 +72,16 @@ cat keys/jwt_env_vars.txt >> .env
 |---|---|
 | [Getting Started](docs/contributing/getting-started.md) | Set up your local development environment |
 | [Environment Variables](docs/contributing/environment-variables.md) | All configuration variables |
-| [API Reference](docs/apis/) | Full REST API reference |
-| [Service-to-Service Authorization](docs/apis/iam/authorization.md) | IAM policy bundles, local authorization, and service integration |
-| [Architecture](docs/architecture/) | System design and data flow |
+| [API Reference](docs/openapi.yaml) | Full OpenAPI 3.1 spec (also served at `/openapi.json`) |
+| [Service-to-Service Authorization](docs/documentations/service-to-service-authorization/service-to-service-authorization.md) | IAM policy bundles, local authorization, and service integration |
+| [Architecture](docs/documentations/architecture/architecture.md) | System design and data flow |
+| [Operator Runbook](docs/documentations/devops/operator-runbook.md) | Install, configure, first-run bootstrap, backups, and upgrades |
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Please read the [getting started guide](docs/contributing/getting-started.md) before opening a pull request.
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and the [getting started guide](docs/contributing/getting-started.md) before opening a pull request.
 
 ```bash
 # Fork the repo, then:

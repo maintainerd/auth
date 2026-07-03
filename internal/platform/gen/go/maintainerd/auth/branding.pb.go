@@ -2257,7 +2257,7 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\x11CreateSMSTemplate\x12-.maintainerd.auth.v1.CreateSMSTemplateRequest\x1a..maintainerd.auth.v1.CreateSMSTemplateResponse\x12r\n" +
 	"\x11UpdateSMSTemplate\x12-.maintainerd.auth.v1.UpdateSMSTemplateRequest\x1a..maintainerd.auth.v1.UpdateSMSTemplateResponse\x12{\n" +
 	"\x14SetSMSTemplateStatus\x120.maintainerd.auth.v1.SetSMSTemplateStatusRequest\x1a1.maintainerd.auth.v1.SetSMSTemplateStatusResponse\x12r\n" +
-	"\x11DeleteSMSTemplate\x12-.maintainerd.auth.v1.DeleteSMSTemplateRequest\x1a..maintainerd.auth.v1.DeleteSMSTemplateResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x11DeleteSMSTemplate\x12-.maintainerd.auth.v1.DeleteSMSTemplateRequest\x1a..maintainerd.auth.v1.DeleteSMSTemplateResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_branding_proto_rawDescOnce sync.Once

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // EnforceJSONContentType rejects state-changing requests (POST/PUT/PATCH) whose

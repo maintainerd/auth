@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 )
 
 // CORSMiddleware enforces a per-environment origin allow-list.

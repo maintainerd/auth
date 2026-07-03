@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/jsonutil"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jsonutil"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 )
 
 func oauthEffectiveSessionPolicy(repo secpolicy.SecuritySettingRepository, client *Client) secpolicy.EffectiveSessionPolicy {

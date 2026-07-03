@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,6 +22,7 @@ type mockFederationService struct {
 	getUserIdentitiesFn          func(userID int64) ([]IdentityDTO, error)
 	linkIdentityFn               func(userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error)
 	unlinkIdentityFn             func(userID int64, identityUUID string) error
+	adminUnlinkIdentityFn        func(tenantID int64, actorUserID int64, userUUID uuid.UUID, identityUUID string) error
 }
 
 func (m *mockFederationService) ExchangeExternalToken(_ context.Context, req FederationTokenRequestDTO) (*LoginResponseDTO, error) {
@@ -74,6 +76,12 @@ func (m *mockFederationService) LinkIdentity(_ context.Context, userID int64, re
 func (m *mockFederationService) UnlinkIdentity(_ context.Context, userID int64, identityUUID string) error {
 	if m.unlinkIdentityFn != nil {
 		return m.unlinkIdentityFn(userID, identityUUID)
+	}
+	return nil
+}
+func (m *mockFederationService) AdminUnlinkIdentity(_ context.Context, tenantID int64, actorUserID int64, userUUID uuid.UUID, identityUUID string) error {
+	if m.adminUnlinkIdentityFn != nil {
+		return m.adminUnlinkIdentityFn(tenantID, actorUserID, userUUID, identityUUID)
 	}
 	return nil
 }

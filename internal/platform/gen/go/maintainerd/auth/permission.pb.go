@@ -908,7 +908,7 @@ const file_maintainerd_auth_v1_permission_proto_rawDesc = "" +
 	"\x10CreatePermission\x12,.maintainerd.auth.v1.CreatePermissionRequest\x1a-.maintainerd.auth.v1.CreatePermissionResponse\x12o\n" +
 	"\x10UpdatePermission\x12,.maintainerd.auth.v1.UpdatePermissionRequest\x1a-.maintainerd.auth.v1.UpdatePermissionResponse\x12x\n" +
 	"\x13SetPermissionStatus\x12/.maintainerd.auth.v1.SetPermissionStatusRequest\x1a0.maintainerd.auth.v1.SetPermissionStatusResponse\x12o\n" +
-	"\x10DeletePermission\x12,.maintainerd.auth.v1.DeletePermissionRequest\x1a-.maintainerd.auth.v1.DeletePermissionResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x10DeletePermission\x12,.maintainerd.auth.v1.DeletePermissionRequest\x1a-.maintainerd.auth.v1.DeletePermissionResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_permission_proto_rawDescOnce sync.Once

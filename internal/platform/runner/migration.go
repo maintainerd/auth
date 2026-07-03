@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/platform/database/migration"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database/migration"
 	"gorm.io/gorm"
 )
 

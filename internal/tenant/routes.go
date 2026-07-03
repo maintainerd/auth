@@ -2,8 +2,8 @@ package tenant
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 )
 
 // TenantPublicRoute registers the unauthenticated tenant discovery endpoints used

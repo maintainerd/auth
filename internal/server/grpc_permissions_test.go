@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"

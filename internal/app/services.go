@@ -5,26 +5,26 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/authn"
-	"github.com/maintainerd/auth/internal/branding"
-	"github.com/maintainerd/auth/internal/client"
-	"github.com/maintainerd/auth/internal/event"
-	"github.com/maintainerd/auth/internal/iam"
-	"github.com/maintainerd/auth/internal/idp"
-	"github.com/maintainerd/auth/internal/invite"
-	"github.com/maintainerd/auth/internal/mfa"
-	"github.com/maintainerd/auth/internal/notifier"
-	"github.com/maintainerd/auth/internal/oauth"
-	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/secpolicy"
-	"github.com/maintainerd/auth/internal/setup"
-	"github.com/maintainerd/auth/internal/tenant"
-	"github.com/maintainerd/auth/internal/user"
-	"github.com/maintainerd/auth/internal/webhook"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/branding"
+	"github.com/maintainerd/maintainerd-auth/internal/client"
+	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/iam"
+	"github.com/maintainerd/maintainerd-auth/internal/idp"
+	"github.com/maintainerd/maintainerd-auth/internal/invite"
+	"github.com/maintainerd/maintainerd-auth/internal/mfa"
+	"github.com/maintainerd/maintainerd-auth/internal/notifier"
+	"github.com/maintainerd/maintainerd-auth/internal/oauth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/setup"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/webhook"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -290,7 +290,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		oauthSessionService:          oauth.NewOAuthSessionService(db, oauthClientRepo, oauthUserRepo, r.oauthRefreshTokenRepo, authEventSvc),
 		oauthCIBAService:             oauth.NewOAuthCIBAService(db, oauthClientRepo, r.oauthCIBARequestRepo, oauthUserRepo, authEventSvc, r.securitySettingRepo),
 		oauthRegisterService:         oauth.NewOAuthRegisterService(db, oauthClientRepo, oauthClientURIRepo, oauthTenantRepo, authEventSvc),
-		accountService:               user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc, r.securitySettingRepo),
+		accountService:               user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc, r.securitySettingRepo, r.smsOtpRepo),
 		smsLoginService:              authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo),
 		mfaService:                   mfaSvc,
 		webAuthnService:              webAuthnSvc,

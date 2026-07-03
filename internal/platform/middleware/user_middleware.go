@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/cache"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // UserContextProvider is the minimal interface required by UserContextMiddleware

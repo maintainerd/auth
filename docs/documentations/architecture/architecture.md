@@ -1159,10 +1159,10 @@ To make this concrete, here is what the smallest domain (`invite/`) looks like e
 package invite
 
 import (
-    "github.com/maintainerd/auth/internal/branding"
-    "github.com/maintainerd/auth/internal/client"
-    "github.com/maintainerd/auth/internal/iam"
-    "github.com/maintainerd/auth/internal/platform/middleware"
+    "github.com/maintainerd/maintainerd-auth/internal/branding"
+    "github.com/maintainerd/maintainerd-auth/internal/client"
+    "github.com/maintainerd/maintainerd-auth/internal/iam"
+    "github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
     "gorm.io/gorm"
 )
 
@@ -1205,7 +1205,7 @@ package invite
 
 import (
     "github.com/go-chi/chi/v5"
-    "github.com/maintainerd/auth/internal/platform/middleware"
+    "github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 )
 
 func (r *Registry) RegisterRoutes(rt chi.Router, mw *middleware.Set) {
@@ -1243,7 +1243,7 @@ package invite
 import (
     "net/http"
 
-    "github.com/maintainerd/auth/internal/platform/response"
+    "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 type Handler struct {

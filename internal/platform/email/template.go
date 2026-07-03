@@ -105,7 +105,7 @@ func fetchTemplate(db *gorm.DB, name string, tenantID int64) (*emailTemplateRow,
 	}
 
 	if RedisClient != nil {
-		ct := cachedTemplate{Subject: row.Subject, BodyHTML: row.BodyHTML, BodyPlain: row.BodyPlain}
+		ct := cachedTemplate(row)
 		if b, err := json.Marshal(ct); err == nil {
 			_ = RedisClient.Set(ctx, cacheKey, b, emailTemplateCacheTTL).Err()
 		}

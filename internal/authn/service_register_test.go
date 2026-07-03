@@ -8,9 +8,9 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -462,7 +462,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "email already registered")
+		// H8: public path returns a generic message (no PII-field disclosure).
+		assert.Contains(t, err.Error(), "registration could not be completed")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -480,7 +481,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, &phone, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "phone number already registered")
+		// H8: public path returns a generic message (no PII-field disclosure).
+		assert.Contains(t, err.Error(), "registration could not be completed")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 

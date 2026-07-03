@@ -109,6 +109,56 @@ func TestAccountDeleteDTO_Validate(t *testing.T) {
 	}
 }
 
+func TestSendPhoneVerificationDTO_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		phone   string
+		wantErr string
+	}{
+		{"valid", "+15550001111", ""},
+		{"missing phone", "", "phone"},
+		{"invalid phone format", "abc", "phone"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dto := &SendPhoneVerificationDTO{Phone: tc.phone}
+			err := dto.Validate()
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, strings.ToLower(err.Error()), tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestVerifyPhoneDTO_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		phone   string
+		code    string
+		wantErr string
+	}{
+		{"valid", "+15550001111", "123456", ""},
+		{"missing phone", "", "123456", "phone"},
+		{"invalid phone format", "abc", "123456", "phone"},
+		{"missing code", "+15550001111", "", "code"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dto := &VerifyPhoneDTO{Phone: tc.phone, Code: tc.code}
+			err := dto.Validate()
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, strings.ToLower(err.Error()), tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestVerifyBackupCodeDTO_Validate(t *testing.T) {
 	tests := []struct {
 		name       string

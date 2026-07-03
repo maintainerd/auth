@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/signedurl"
 )
 
 // Package-level configuration variables are populated exactly once by Init()
@@ -93,8 +93,13 @@ func Init() error {
 	// App Config
 	AppEnv = GetEnvOrDefault("APP_ENV", "development")
 	var err error
-	if AppVersion, err = GetEnv("APP_VERSION"); err != nil {
-		return err
+	// AppVersion may be injected at build time via -ldflags -X ...config.AppVersion.
+	// Precedence: APP_VERSION env (operator override) > build-injected value > "dev".
+	// It is intentionally NOT a required env var.
+	if v, verr := GetEnv("APP_VERSION"); verr == nil && v != "" {
+		AppVersion = v
+	} else if AppVersion == "" {
+		AppVersion = "dev"
 	}
 	if AppPublicHostname, err = GetEnv("APP_PUBLIC_HOSTNAME"); err != nil {
 		return err

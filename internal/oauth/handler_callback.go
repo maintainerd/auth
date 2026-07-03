@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/platform/cookie"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cookie"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // HandleBrokerCallback handles GET /oauth/callback/{idp_identifier} — the

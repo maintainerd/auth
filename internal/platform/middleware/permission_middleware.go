@@ -3,8 +3,8 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/authctx"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // PermissionMiddleware ensures the user has at least one of the required permissions

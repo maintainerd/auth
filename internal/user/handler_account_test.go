@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,6 +23,8 @@ type mockAccountService struct {
 	exportAccountDataFn   func(userID int64) (*AccountExportDTO, error)
 	generateBackupCodesFn func(userID int64) (*GenerateBackupCodesResponseDTO, error)
 	verifyBackupCodeFn    func(req VerifyBackupCodeDTO) (*LoginResponseDTO, error)
+	sendPhoneVerifyFn     func(userID int64, phone string) error
+	verifyPhoneFn         func(userID int64, phone, code string) error
 }
 
 func (m *mockAccountService) InitiateEmailChange(_ context.Context, userID int64, newEmail, currentPassword string) error {
@@ -65,6 +68,18 @@ func (m *mockAccountService) VerifyBackupCode(_ context.Context, req VerifyBacku
 		return m.verifyBackupCodeFn(req)
 	}
 	return &LoginResponseDTO{AccessToken: "at"}, nil
+}
+func (m *mockAccountService) SendPhoneVerification(_ context.Context, userID int64, phone string) error {
+	if m.sendPhoneVerifyFn != nil {
+		return m.sendPhoneVerifyFn(userID, phone)
+	}
+	return nil
+}
+func (m *mockAccountService) VerifyPhone(_ context.Context, userID int64, phone, code string) error {
+	if m.verifyPhoneFn != nil {
+		return m.verifyPhoneFn(userID, phone, code)
+	}
+	return nil
 }
 
 type mockSessionService struct {
@@ -476,5 +491,120 @@ func TestAccountHandler_RevokeAllSessions(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).RevokeAllSessions(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestAccountHandler_SendPhoneVerification(t *testing.T) {
+	const validPhone = "+15550001111"
+
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/account/phone/send-verification", map[string]string{"phone": validPhone})
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).SendPhoneVerification(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("invalid JSON returns 400", func(t *testing.T) {
+		r := withAuthUser(badJSONReq(t, http.MethodPost, "/account/phone/send-verification"))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).SendPhoneVerification(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error returns 400 (missing phone)", func(t *testing.T) {
+		r := withAuthUser(jsonReq(t, http.MethodPost, "/account/phone/send-verification", map[string]string{"phone": ""}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).SendPhoneVerification(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error returns 400 (bad phone format)", func(t *testing.T) {
+		r := withAuthUser(jsonReq(t, http.MethodPost, "/account/phone/send-verification", map[string]string{"phone": "abc"}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).SendPhoneVerification(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockAccountService{
+			sendPhoneVerifyFn: func(int64, string) error { return errors.New("db error") },
+		}
+		r := withAuthUser(jsonReq(t, http.MethodPost, "/account/phone/send-verification", map[string]string{"phone": validPhone}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}, nil).SendPhoneVerification(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("success returns 200 and passes user + phone", func(t *testing.T) {
+		var gotUserID int64
+		var gotPhone string
+		svc := &mockAccountService{
+			sendPhoneVerifyFn: func(userID int64, phone string) error {
+				gotUserID = userID
+				gotPhone = phone
+				return nil
+			},
+		}
+		r := withAuthUser(jsonReq(t, http.MethodPost, "/account/phone/send-verification", map[string]string{"phone": validPhone}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}, nil).SendPhoneVerification(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, int64(42), gotUserID)
+		assert.Equal(t, validPhone, gotPhone)
+	})
+}
+
+func TestAccountHandler_VerifyPhone(t *testing.T) {
+	const validPhone = "+15550001111"
+
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/account/phone/verify", map[string]string{"phone": validPhone, "code": "123456"})
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).VerifyPhone(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("invalid JSON returns 400", func(t *testing.T) {
+		r := withAuthUser(badJSONReq(t, http.MethodPost, "/account/phone/verify"))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).VerifyPhone(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error returns 400 (missing code)", func(t *testing.T) {
+		r := withAuthUser(jsonReq(t, http.MethodPost, "/account/phone/verify", map[string]string{"phone": validPhone, "code": ""}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).VerifyPhone(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 401", func(t *testing.T) {
+		svc := &mockAccountService{
+			verifyPhoneFn: func(int64, string, string) error { return apperror.NewUnauthorized("invalid verification code") },
+		}
+		r := withAuthUser(jsonReq(t, http.MethodPost, "/account/phone/verify", map[string]string{"phone": validPhone, "code": "123456"}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}, nil).VerifyPhone(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("success returns 200 and passes user + phone + code", func(t *testing.T) {
+		var gotUserID int64
+		var gotPhone, gotCode string
+		svc := &mockAccountService{
+			verifyPhoneFn: func(userID int64, phone, code string) error {
+				gotUserID = userID
+				gotPhone = phone
+				gotCode = code
+				return nil
+			},
+		}
+		r := withAuthUser(jsonReq(t, http.MethodPost, "/account/phone/verify", map[string]string{"phone": validPhone, "code": "123456"}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}, nil).VerifyPhone(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, int64(42), gotUserID)
+		assert.Equal(t, validPhone, gotPhone)
+		assert.Equal(t, "123456", gotCode)
 	})
 }

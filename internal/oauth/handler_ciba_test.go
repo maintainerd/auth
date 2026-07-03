@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/stretchr/testify/assert"
 )
 

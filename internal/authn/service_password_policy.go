@@ -3,7 +3,7 @@ package authn
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 var errPasswordReused = errors.New("password was used recently and cannot be reused")

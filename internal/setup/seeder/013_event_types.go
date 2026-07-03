@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/maintainerd/auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"gorm.io/gorm"
 )
 

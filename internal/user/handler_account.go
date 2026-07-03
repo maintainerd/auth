@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/middleware"
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // AccountHandler handles self-service account management operations.
@@ -282,6 +282,63 @@ func (h *AccountHandler) VerifyBackupCode(w http.ResponseWriter, r *http.Request
 	}
 
 	resp.Success(w, tokens, "Account recovered successfully")
+}
+
+// SendPhoneVerification sends an SMS OTP to the given phone so the authenticated
+// user can verify ownership of the number.
+//
+// POST /account/phone/send-verification
+func (h *AccountHandler) SendPhoneVerification(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var req SendPhoneVerificationDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	if err := h.accountService.SendPhoneVerification(r.Context(), user.UserID, req.Phone); err != nil {
+		resp.HandleServiceError(w, r, "Failed to send phone verification code", err)
+		return
+	}
+
+	resp.Success(w, nil, "Verification code sent to phone number")
+}
+
+// VerifyPhone confirms an SMS OTP and marks the authenticated user's phone verified.
+//
+// POST /account/phone/verify
+func (h *AccountHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var req VerifyPhoneDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	if err := h.accountService.VerifyPhone(r.Context(), user.UserID, req.Phone, req.Code); err != nil {
+		resp.HandleServiceError(w, r, "Failed to verify phone number", err)
+		return
+	}
+
+	resp.Success(w, nil, "Phone number verified successfully")
 }
 
 // ListSessions returns all active sessions for the authenticated user.

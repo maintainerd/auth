@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/jsonutil"
-	platformjwt "github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jsonutil"
+	platformjwt "github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 )
 
 func resolveEffectiveSessionPolicy(repo secpolicy.SecuritySettingRepository, client *Client) secpolicy.EffectiveSessionPolicy {

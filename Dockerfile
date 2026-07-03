@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
-    -trimpath -ldflags="-s -w -X main.version=$VERSION" \
+    -trimpath -ldflags="-s -w -X github.com/maintainerd/maintainerd-auth/internal/platform/config.AppVersion=$VERSION" \
     -o /auth ./cmd/server
 
 # --- Stage 2: Runtime ---

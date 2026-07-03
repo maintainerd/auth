@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 )
 
 var testEncryptionKey = []byte{

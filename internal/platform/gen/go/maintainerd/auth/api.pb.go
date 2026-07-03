@@ -937,7 +937,7 @@ const file_maintainerd_auth_v1_api_proto_rawDesc = "" +
 	"\tCreateAPI\x12%.maintainerd.auth.v1.CreateAPIRequest\x1a&.maintainerd.auth.v1.CreateAPIResponse\x12Z\n" +
 	"\tUpdateAPI\x12%.maintainerd.auth.v1.UpdateAPIRequest\x1a&.maintainerd.auth.v1.UpdateAPIResponse\x12c\n" +
 	"\fSetAPIStatus\x12(.maintainerd.auth.v1.SetAPIStatusRequest\x1a).maintainerd.auth.v1.SetAPIStatusResponse\x12Z\n" +
-	"\tDeleteAPI\x12%.maintainerd.auth.v1.DeleteAPIRequest\x1a&.maintainerd.auth.v1.DeleteAPIResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\tDeleteAPI\x12%.maintainerd.auth.v1.DeleteAPIRequest\x1a&.maintainerd.auth.v1.DeleteAPIResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_api_proto_rawDescOnce sync.Once

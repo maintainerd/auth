@@ -7,9 +7,9 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/maintainerd/auth/internal/invite"
-	"github.com/maintainerd/auth/internal/notifier"
-	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/invite"
+	"github.com/maintainerd/maintainerd-auth/internal/notifier"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 )
 
 func StartCleanupRunner(ctx context.Context, db *gorm.DB, interval time.Duration) {

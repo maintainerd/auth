@@ -12,7 +12,7 @@ import (
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
-	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

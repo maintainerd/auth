@@ -1,6 +1,6 @@
 package server
 
-import authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+import authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 
 var grpcServicePermissions = map[string]string{
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "GetDefaultTenant"):       "",

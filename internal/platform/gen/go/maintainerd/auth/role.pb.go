@@ -1293,7 +1293,7 @@ const file_maintainerd_auth_v1_role_proto_rawDesc = "" +
 	"DeleteRole\x12&.maintainerd.auth.v1.DeleteRoleRequest\x1a'.maintainerd.auth.v1.DeleteRoleResponse\x12x\n" +
 	"\x13ListRolePermissions\x12/.maintainerd.auth.v1.ListRolePermissionsRequest\x1a0.maintainerd.auth.v1.ListRolePermissionsResponse\x12u\n" +
 	"\x12AddRolePermissions\x12..maintainerd.auth.v1.AddRolePermissionsRequest\x1a/.maintainerd.auth.v1.AddRolePermissionsResponse\x12{\n" +
-	"\x14RemoveRolePermission\x120.maintainerd.auth.v1.RemoveRolePermissionRequest\x1a1.maintainerd.auth.v1.RemoveRolePermissionResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x14RemoveRolePermission\x120.maintainerd.auth.v1.RemoveRolePermissionRequest\x1a1.maintainerd.auth.v1.RemoveRolePermissionResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_role_proto_rawDescOnce sync.Once

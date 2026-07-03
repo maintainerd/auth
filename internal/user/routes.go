@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 )
 
 // AccountRoute mounts authenticated self-service account management endpoints.
@@ -40,6 +40,13 @@ func AccountRoute(
 			Post("/email/change", accountHandler.InitiateEmailChange)
 		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), sensitiveActionStepUp).
 			Post("/email/verify", accountHandler.VerifyEmailChange)
+
+		// Phone verification flow — the user proves ownership of their own phone
+		// number (like MFA SMS enroll, no step-up required).
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+			Post("/phone/send-verification", accountHandler.SendPhoneVerification)
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+			Post("/phone/verify", accountHandler.VerifyPhone)
 
 		// Username change
 		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), middleware.RequireStepUp).
@@ -205,6 +212,10 @@ func UserRoute(
 		// Get user identities
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 			Get("/{user_uuid}/identities", userHandler.GetUserIdentities)
+
+		// Unlink an external (federated) identity from a user
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
+			Delete("/{user_uuid}/identities/{identity_uuid}", userHandler.UnlinkUserIdentity)
 
 		// Session management
 		// Get user active sessions

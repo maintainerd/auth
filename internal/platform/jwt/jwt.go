@@ -14,7 +14,7 @@ import (
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
-	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

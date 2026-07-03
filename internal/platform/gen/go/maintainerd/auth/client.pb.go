@@ -5024,7 +5024,7 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\x0fRemoveAPIKeyAPI\x12+.maintainerd.auth.v1.RemoveAPIKeyAPIRequest\x1a,.maintainerd.auth.v1.RemoveAPIKeyAPIResponse\x12\x87\x01\n" +
 	"\x18ListAPIKeyAPIPermissions\x124.maintainerd.auth.v1.ListAPIKeyAPIPermissionsRequest\x1a5.maintainerd.auth.v1.ListAPIKeyAPIPermissionsResponse\x12\x84\x01\n" +
 	"\x17AddAPIKeyAPIPermissions\x123.maintainerd.auth.v1.AddAPIKeyAPIPermissionsRequest\x1a4.maintainerd.auth.v1.AddAPIKeyAPIPermissionsResponse\x12\x8a\x01\n" +
-	"\x19RemoveAPIKeyAPIPermission\x125.maintainerd.auth.v1.RemoveAPIKeyAPIPermissionRequest\x1a6.maintainerd.auth.v1.RemoveAPIKeyAPIPermissionResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x19RemoveAPIKeyAPIPermission\x125.maintainerd.auth.v1.RemoveAPIKeyAPIPermissionRequest\x1a6.maintainerd.auth.v1.RemoveAPIKeyAPIPermissionResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_client_proto_rawDescOnce sync.Once

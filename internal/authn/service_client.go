@@ -3,7 +3,7 @@ package authn
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // resolveClient resolves the auth client for register/login/invite operations.

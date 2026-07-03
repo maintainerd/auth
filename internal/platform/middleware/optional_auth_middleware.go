@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/authctx"
-	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 )
 
 // bearerOrCookieToken extracts a bearer token from the Authorization header or,

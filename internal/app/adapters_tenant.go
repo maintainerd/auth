@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/tenant"
-	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

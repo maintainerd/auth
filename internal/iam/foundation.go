@@ -1,9 +1,9 @@
 package iam
 
 import (
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/platform/database"
-	"github.com/maintainerd/auth/internal/platform/pagination"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 )
 
 type BaseRepository[T any] = database.BaseRepository[T]

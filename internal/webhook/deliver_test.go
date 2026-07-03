@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

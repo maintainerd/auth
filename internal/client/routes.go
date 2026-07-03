@@ -2,8 +2,8 @@ package client
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 )
 
 func ClientPublicRoute(r chi.Router, handler *ClientHandler) {
@@ -149,10 +149,10 @@ func ClientRoute(
 		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:read"})).
 			Get("/{client_uuid}/apis/{api_uuid}/permissions", ClientHandler.GetAPIPermissions)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:create"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:create"}), middleware.RequireStepUp).
 			Post("/{client_uuid}/apis/{api_uuid}/permissions", ClientHandler.AddAPIPermissions)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:delete"}), middleware.RequireStepUp).
 			Delete("/{client_uuid}/apis/{api_uuid}/permissions/{permission_uuid}", ClientHandler.RemoveAPIPermission)
 	})
 }

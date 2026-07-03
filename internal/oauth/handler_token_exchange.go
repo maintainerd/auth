@@ -3,7 +3,7 @@ package oauth
 import (
 	"net/http"
 
-	resp "github.com/maintainerd/auth/internal/platform/response"
+	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
 // OAuthTokenExchangeHandler handles the Token Exchange grant (RFC 8693).
