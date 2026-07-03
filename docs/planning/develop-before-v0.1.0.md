@@ -363,9 +363,9 @@ Full backend CRUD + `src/services/api/permissions/` service + `usePermissions` h
 
 Backend `PUT /users/{uuid}/force-password-change` (`internal/user/routes.go:194`) has no UI; admin user-identity view is read-only.
 
-- [ ] Add a "Force password change" action on the user detail page wired to the endpoint.
-- [ ] Add an admin unlink action on the user identities view (`/users/{uuid}/identities`).
-- **Acceptance:** An admin can force a password change and unlink a user's external identity.
+- [x] Added "Force password change" action on the user detail page wired to PUT /users/{id}/force-password-change.
+- [x] Added an admin unlink action on the user identities view with DELETE endpoint and React Query mutations.
+- [x] **Acceptance:** An admin can force a password change and unlink a user's external identity.
 
 ---
 
