@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -233,18 +234,18 @@ func TestEnforceRequiredRegistrationFields(t *testing.T) {
 	phone := "+12125551234"
 	tests := []struct {
 		name     string
-		required string
+		required datatypes.JSON
 		fullname string
 		email    *string
 		phone    *string
 		wantErr  string
 	}{
-		{name: "all configured fields present", required: `["email","fullname","phone"]`, fullname: "User Name", email: &email, phone: &phone},
-		{name: "email missing", required: `["email"]`, wantErr: "email is required"},
-		{name: "fullname missing", required: `["fullname"]`, email: &email, wantErr: "fullname is required"},
-		{name: "phone missing", required: `["phone"]`, email: &email, wantErr: "phone is required"},
-		{name: "invalid json", required: `{}`, wantErr: "JSON string array"},
-		{name: "unsupported field", required: `["address"]`, wantErr: "unsupported"},
+		{name: "all configured fields present", required: datatypes.JSON([]byte(`["email","fullname","phone"]`)), fullname: "User Name", email: &email, phone: &phone},
+		{name: "email missing", required: datatypes.JSON([]byte(`["email"]`)), wantErr: "email is required"},
+		{name: "fullname missing", required: datatypes.JSON([]byte(`["fullname"]`)), email: &email, wantErr: "fullname is required"},
+		{name: "phone missing", required: datatypes.JSON([]byte(`["phone"]`)), email: &email, wantErr: "phone is required"},
+		{name: "invalid json", required: datatypes.JSON([]byte(`{}`)), wantErr: "JSON string array"},
+		{name: "unsupported field", required: datatypes.JSON([]byte(`["address"]`)), wantErr: "unsupported"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

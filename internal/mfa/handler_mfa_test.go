@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
@@ -707,7 +708,7 @@ func TestMFAHandler_WebAuthnFinishParserBackedBranches(t *testing.T) {
 			webAuthnSvc: &mockWebAuthnService{finishRegistrationFn: func(_ context.Context, userID int64, name string, _ *protocol.ParsedCredentialCreationData) (*UserMFAWebAuthnCredential, error) {
 				assert.Equal(t, mfaTestUserID, userID)
 				assert.Equal(t, "laptop", name)
-				return &UserMFAWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: name, Transport: "usb", CreatedAt: time.Unix(1_700_000_000, 0).UTC()}, nil
+				return &UserMFAWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: name, Transport: pq.StringArray{"usb"}, CreatedAt: time.Unix(1_700_000_000, 0).UTC()}, nil
 			}},
 			wantStatus:   http.StatusOK,
 			wantContains: "Passkey registered successfully",

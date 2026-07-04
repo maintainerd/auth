@@ -206,7 +206,7 @@ func TestOAuthAuthorizeService_HandleCallback(t *testing.T) {
 			"idp_nonce", "expires_at", "consumed_at", "created_at",
 		}).AddRow(
 			int64(1), uuid.New(), int64(1), int64(10),
-			int64(100), "google", "https://example.com/callback", "app-state", "openid profile", "app-nonce",
+			int64(100), "google", "https://example.com/callback", "app-state", pq.StringArray{"openid", "profile"}, "app-nonce",
 			strings.Repeat("A", 43), "S256", "state-1", "pkce-verifier",
 			"idp-nonce", time.Now().Add(time.Minute), nil, time.Now(),
 		)
@@ -263,7 +263,7 @@ func TestOAuthAuthorizeService_HandleCallback(t *testing.T) {
 		require.NotNil(t, createdCode)
 		assert.Equal(t, int64(10), createdCode.ClientID)
 		assert.Equal(t, int64(50), createdCode.UserID)
-		assert.Equal(t, "openid profile", createdCode.Scope)
+		assert.Equal(t, pq.StringArray{"openid", "profile"}, createdCode.Scope)
 		assert.Equal(t, "S256", createdCode.CodeChallengeMethod)
 		assert.NotEmpty(t, accessToken)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -436,7 +436,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
 				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
-					return &OAuthConsentGrant{Scopes: "openid profile email"}, nil
+					return &OAuthConsentGrant{Scopes: parseScopeFields("openid profile email")}, nil
 				},
 			},
 			&mockOAuthConsentChallRepo{},
@@ -462,7 +462,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
 				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
-					return &OAuthConsentGrant{Scopes: "openid"}, nil // missing "profile"
+					return &OAuthConsentGrant{Scopes: parseScopeFields("openid")}, nil // missing "profile"
 				},
 			},
 			&mockOAuthConsentChallRepo{},
@@ -900,7 +900,7 @@ func TestOAuthAuthorizeService_GetConsentChallenge(t *testing.T) {
 					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						UserID:                    1,
-						Scope:                     "openid profile",
+						Scope:                     parseScopeFields("openid profile"),
 						RedirectURI:               "https://example.com/callback",
 						ExpiresAt:                 time.Now().Add(5 * time.Minute),
 						Client: &Client{
@@ -931,7 +931,7 @@ func TestOAuthAuthorizeService_GetConsentChallenge(t *testing.T) {
 					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						UserID:                    1,
-						Scope:                     "openid",
+						Scope:                     parseScopeFields("openid"),
 						RedirectURI:               "https://example.com/callback",
 						ExpiresAt:                 time.Now().Add(5 * time.Minute),
 					}, nil
@@ -1056,7 +1056,7 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 						UserID:                    1,
 						TenantID:                  100,
 						RedirectURI:               "https://example.com/callback",
-						Scope:                     "openid profile",
+						Scope:                     parseScopeFields("openid profile"),
 						CodeChallenge:             strings.Repeat("A", 43),
 						CodeChallengeMethod:       "S256",
 						State:                     &state,
@@ -1621,7 +1621,7 @@ func TestOAuthAuthorizeService_HandleConsent_Additional(t *testing.T) {
 						UserID:                    1,
 						TenantID:                  100,
 						RedirectURI:               "https://example.com/callback",
-						Scope:                     "openid profile",
+						Scope:                     parseScopeFields("openid profile"),
 						CodeChallenge:             strings.Repeat("A", 43),
 						CodeChallengeMethod:       "S256",
 						ExpiresAt:                 time.Now().Add(5 * time.Minute),

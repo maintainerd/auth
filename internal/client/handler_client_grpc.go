@@ -160,7 +160,7 @@ func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.Create
 	if req.AllowRegistration != nil {
 		allowReg = *req.AllowRegistration
 	}
-	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, req.GetIdentityProviderUuid(), nil, allowReg, actorUUID)
+	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, req.GetIdentityProviderUuid(), nil, allowReg, nil, nil, nil, nil, actorUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -195,7 +195,7 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, nil, req.AllowRegistration, actorUUID)
+	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, nil, req.AllowRegistration, nil, nil, nil, nil, actorUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

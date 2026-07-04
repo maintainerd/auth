@@ -21,11 +21,11 @@ CREATE TABLE IF NOT EXISTS sms_config (
     test_mode               BOOLEAN NOT NULL DEFAULT false,
     daily_send_limit        INTEGER NOT NULL DEFAULT 1000,
     status                  VARCHAR(20) NOT NULL DEFAULT 'active',
-    metadata                JSONB DEFAULT '{}',
+    metadata                JSONB NOT NULL DEFAULT '{}',
     created_by              BIGINT,
     updated_by              BIGINT,
-    created_at              TIMESTAMPTZ DEFAULT now(),
-    updated_at              TIMESTAMPTZ DEFAULT now(),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at              TIMESTAMPTZ
 );
 

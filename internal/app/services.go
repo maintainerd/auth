@@ -294,7 +294,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		smsLoginService:              authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo),
 		mfaService:                   mfaSvc,
 		webAuthnService:              webAuthnSvc,
-		federationService:            idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpEmailDomainRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, eventSvc, r.securitySettingRepo, sessionSvc),
+		federationService:            idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpEmailDomainRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, eventSvc, r.securitySettingRepo, appCache, sessionSvc),
 		eventService:                 eventSvc,
 		eventTypeService:             eventTypeSvc,
 		tenantEventTypeConfigService: tenantEventTypeConfigSvc,
@@ -325,6 +325,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	iam.SetServiceEventService(s.serviceService, eventSvc)
 	// Inject the MFA factor verifier so login can run the MFA second step (acr=2).
 	s.loginService.SetMFAFactorAuthenticator(mfaSvc)
+	s.loginService.SetUserLockoutRepository(r.userLockoutRepo)
 	// Magic-link possession is the first factor; delegate MFA policy decisions
 	// and policy-aware session issuance to the normal login service.
 	s.magicLinkService.SetLoginCoordinator(s.loginService)

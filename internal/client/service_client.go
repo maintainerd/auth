@@ -60,6 +60,12 @@ type ClientServiceDataResult struct {
 	BrandingUUID      *uuid.UUID
 	AllowRegistration bool
 
+	// OIDC Session Management
+	BackchannelLogoutURI             *string
+	FrontchannelLogoutURI            *string
+	BackchannelLogoutSessionRequired bool
+	DPoPRequired                     bool
+
 	// Security posture / per-client overrides (nil = inherit tenant default)
 	RequirePKCE            *bool
 	RequiredACR            *string
@@ -111,8 +117,8 @@ type ClientService interface {
 	// Use RotateSecret to obtain a new secret.
 	GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
 	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
-	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
+	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	// RotateSecret generates a new secret, hashes and persists it, and keeps the old
 	// hash valid for the specified grace period (gracePeriodHours=0 revokes immediately).
 	// Returns the new plaintext secret once — it cannot be retrieved again.
@@ -391,7 +397,7 @@ func (s *clientService) resolveBrandingID(tx *gorm.DB, tenantID int64, brandingU
 	return &b.BrandingID, nil
 }
 
-func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error) {
+func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.create")
 	defer span.End()
 	span.SetAttributes(
@@ -464,6 +470,15 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			IsDefault:         isDefault,
 			IsSystem:          false,
 			AllowRegistration: allowRegistration,
+
+			BackchannelLogoutURI:  backchannelLogoutURI,
+			FrontchannelLogoutURI: frontchannelLogoutURI,
+		}
+		if backchannelLogoutSessionRequired != nil {
+			newClient.BackchannelLogoutSessionRequired = *backchannelLogoutSessionRequired
+		}
+		if dPoPRequired != nil {
+			newClient.DPoPRequired = *dPoPRequired
 		}
 
 		if brandingUUID != nil {
@@ -673,7 +688,7 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 	return plaintextSecret, nil
 }
 
-func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.update")
 	defer span.End()
 	span.SetAttributes(
@@ -732,6 +747,18 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		Client.IsDefault = isDefault
 		if allowRegistration != nil {
 			Client.AllowRegistration = *allowRegistration
+		}
+		if backchannelLogoutURI != nil {
+			Client.BackchannelLogoutURI = backchannelLogoutURI
+		}
+		if frontchannelLogoutURI != nil {
+			Client.FrontchannelLogoutURI = frontchannelLogoutURI
+		}
+		if backchannelLogoutSessionRequired != nil {
+			Client.BackchannelLogoutSessionRequired = *backchannelLogoutSessionRequired
+		}
+		if dPoPRequired != nil {
+			Client.DPoPRequired = *dPoPRequired
 		}
 
 		if brandingUUID == nil {
@@ -1511,8 +1538,12 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 		Status:                 Client.Status,
 		IsDefault:              Client.IsDefault,
 		IsSystem:               Client.IsSystem,
-		AllowRegistration:      Client.AllowRegistration,
-		RequirePKCE:            Client.RequirePKCE,
+		AllowRegistration:                Client.AllowRegistration,
+		BackchannelLogoutURI:             Client.BackchannelLogoutURI,
+		FrontchannelLogoutURI:            Client.FrontchannelLogoutURI,
+		BackchannelLogoutSessionRequired: Client.BackchannelLogoutSessionRequired,
+		DPoPRequired:                     Client.DPoPRequired,
+		RequirePKCE:                      Client.RequirePKCE,
 		RequiredACR:            Client.RequiredACR,
 		SessionIdleTimeout:     Client.SessionIdleTimeout,
 		SessionAbsoluteTimeout: Client.SessionAbsoluteTimeout,

@@ -2,6 +2,7 @@ package idp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -308,6 +309,15 @@ func (s *identityProviderService) Create(ctx context.Context, in IdentityProvide
 			IsSystem:                      false,
 		}
 
+		if in.ProviderType == shared.IDPTypeSAML {
+			var samlCfg SAMLProviderConfig
+			if jsonErr := json.Unmarshal(in.Config, &samlCfg); jsonErr == nil && samlCfg.Certificate != "" {
+				if expiry, certErr := ParsePEMCertExpiry(samlCfg.Certificate); certErr == nil {
+					newIdp.CertificateExpiresAt = expiry
+				}
+			}
+		}
+
 		if _, err := txIdpRepo.CreateOrUpdate(newIdp); err != nil {
 			return err
 		}
@@ -420,6 +430,15 @@ func (s *identityProviderService) Update(ctx context.Context, in IdentityProvide
 		idp.AllowTokenFederation = in.AllowTokenFederation
 		idp.Config = in.Config
 		idp.Status = in.Status
+
+		if in.ProviderType == shared.IDPTypeSAML {
+			var samlCfg SAMLProviderConfig
+			if jsonErr := json.Unmarshal(in.Config, &samlCfg); jsonErr == nil && samlCfg.Certificate != "" {
+				if expiry, certErr := ParsePEMCertExpiry(samlCfg.Certificate); certErr == nil {
+					idp.CertificateExpiresAt = expiry
+				}
+			}
+		}
 
 		if _, err := txIdpRepo.CreateOrUpdate(idp); err != nil {
 			return err

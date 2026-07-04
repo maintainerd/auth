@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS client_uris (
     client_uri_uuid UUID NOT NULL UNIQUE,
     tenant_id       BIGINT NOT NULL,
     client_id       BIGINT NOT NULL,
-    uri             TEXT NOT NULL,
+    uri             VARCHAR(2048) NOT NULL,
     type            VARCHAR(20) NOT NULL DEFAULT 'redirect-uri',
     created_at      TIMESTAMPTZ DEFAULT now(),
     updated_at      TIMESTAMPTZ DEFAULT now()

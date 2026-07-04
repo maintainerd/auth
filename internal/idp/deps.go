@@ -42,13 +42,15 @@ type UserIdentity struct {
 	UserIdentityUUID   uuid.UUID
 	TenantID           int64
 	UserID             int64
-	ClientID           int64
+	ClientID           *int64
 	IdentityProviderID *int64
 	Provider           string
 	Sub                string
 	Metadata           datatypes.JSON
+	JITProvisionedAt   *time.Time
+	ProvisioningSource *string
 	Tenant             *Tenant           `gorm:"foreignKey:TenantID;references:TenantID"`
-	Client             *Client           `gorm:"foreignKey:ClientID;references:ClientID"`
+	Client             *Client           `gorm:"foreignKey:ClientID;references:ClientID;constraint:OnDelete:SET NULL"`
 	IdentityProvider   *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
 	CreatedAt          time.Time
 	UpdatedAt          time.Time

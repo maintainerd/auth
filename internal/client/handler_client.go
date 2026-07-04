@@ -260,7 +260,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.ClientService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, parseOptionalUUID(req.BrandingUUID), boolValue(req.AllowRegistration, true), user.UserUUID)
+	result, err := h.ClientService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, parseOptionalUUID(req.BrandingUUID), boolValue(req.AllowRegistration, true), req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create auth client", err)
 		return
@@ -310,7 +310,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, user.UserUUID)
+	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update auth client", err)
 		return
@@ -897,8 +897,12 @@ func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 		IsDefault:              r.IsDefault,
 		IsSystem:               r.IsSystem,
 		BrandingUUID:           brandingUUIDToStringPtr(r.BrandingUUID),
-		AllowRegistration:      r.AllowRegistration,
-		RequirePKCE:            r.RequirePKCE,
+		AllowRegistration:                r.AllowRegistration,
+		BackchannelLogoutURI:             r.BackchannelLogoutURI,
+		FrontchannelLogoutURI:            r.FrontchannelLogoutURI,
+		BackchannelLogoutSessionRequired: r.BackchannelLogoutSessionRequired,
+		DPoPRequired:                     r.DPoPRequired,
+		RequirePKCE:                      r.RequirePKCE,
 		RequiredACR:            r.RequiredACR,
 		SessionIdleTimeout:     r.SessionIdleTimeout,
 		SessionAbsoluteTimeout: r.SessionAbsoluteTimeout,

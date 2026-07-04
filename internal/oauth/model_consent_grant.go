@@ -4,19 +4,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
 // OAuthConsentGrant represents a user's consent decision for a specific client.
-// Each user-client pair has at most one row. The scopes field is a
-// space-delimited list of the scopes the user has approved.
+// Each user-client pair has at most one row. The scopes field is a PostgreSQL
+// TEXT[] array of the scopes the user has approved.
 type OAuthConsentGrant struct {
 	OAuthConsentGrantID   int64     `gorm:"column:oauth_consent_grant_id;primaryKey;autoIncrement"`
 	OAuthConsentGrantUUID uuid.UUID `gorm:"column:oauth_consent_grant_uuid;type:uuid;uniqueIndex;not null"`
 	UserID                int64     `gorm:"column:user_id;not null"`
 	ClientID              int64     `gorm:"column:client_id;not null"`
 	TenantID              int64     `gorm:"column:tenant_id;not null"`
-	Scopes                string    `gorm:"column:scopes;not null;default:''"`
+	Scopes                pq.StringArray `gorm:"column:scopes;type:text[];not null;default:'{}'"`
 	CreatedAt             time.Time `gorm:"column:created_at;autoCreateTime;not null"`
 	UpdatedAt             time.Time `gorm:"column:updated_at;autoUpdateTime;not null"`
 

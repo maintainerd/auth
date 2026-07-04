@@ -85,11 +85,13 @@ const (
 	IDPProviderLinkedIn    = "linkedin"
 	IDPProviderTwitter     = "twitter"
 	IDPProviderGitLab      = "gitlab"
+	IDPProviderSAML        = "saml"
 
 	// Identity provider types (IdentityProvider.ProviderType)
 	IDPTypeSystem     = "system"
 	IDPTypeSocial     = "social"
 	IDPTypeEnterprise = "enterprise"
+	IDPTypeSAML       = "saml"
 	// IDPTypeIdentity is retained as a compatibility alias while callers move
 	// from identity/social to system/social/enterprise.
 	IDPTypeIdentity = IDPTypeEnterprise

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS identity_provider_email_domains (
     tenant_id            BIGINT NOT NULL,
     identity_provider_id BIGINT NOT NULL,
     domain               VARCHAR(255) NOT NULL,
-    created_at           TIMESTAMPTZ DEFAULT now(),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at           TIMESTAMPTZ
 );
 

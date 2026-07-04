@@ -3,6 +3,7 @@ package mfa
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -297,7 +298,7 @@ func (h *MFAHandler) WebAuthnFinishRegistration(w http.ResponseWriter, r *http.R
 	resp.Success(w, WebAuthnCredentialSummaryDTO{
 		CredentialUUID: cred.CredentialUUID.String(),
 		Name:           cred.Name,
-		Transport:      cred.Transport,
+		Transport:      strings.Join([]string(cred.Transport), ","),
 		CreatedAt:      cred.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}, "Passkey registered successfully")
 }

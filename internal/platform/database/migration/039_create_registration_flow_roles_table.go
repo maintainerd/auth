@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS registration_flow_roles (
     registration_flow_role_uuid  UUID NOT NULL UNIQUE,
     registration_flow_id         BIGINT NOT NULL,
     role_id              BIGINT NOT NULL,
-    created_at           TIMESTAMPTZ DEFAULT now()
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

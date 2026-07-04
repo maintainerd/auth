@@ -9,11 +9,11 @@ CREATE TABLE IF NOT EXISTS user_mfa_emails (
     mfa_email_uuid UUID NOT NULL UNIQUE,
     user_id        BIGINT NOT NULL,
     email          VARCHAR(255) NOT NULL,
-    is_verified    BOOLEAN DEFAULT FALSE,
+    is_verified    BOOLEAN NOT NULL DEFAULT FALSE,
     verified_at    TIMESTAMPTZ,
     last_used_at   TIMESTAMPTZ,
-    created_at     TIMESTAMPTZ DEFAULT now(),
-    updated_at     TIMESTAMPTZ DEFAULT now(),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT fk_user_mfa_emails_user_id FOREIGN KEY (user_id)
         REFERENCES users(user_id) ON DELETE CASCADE
 );

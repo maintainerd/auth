@@ -17,6 +17,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	jwtlib "github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -127,6 +128,24 @@ type FederationService interface {
 	// JWKS endpoint validation. Reuses the SSRF-safe idpHTTPClient so external
 	// probes cannot reach local network resources.
 	TestConnection(ctx context.Context, req TestConnectionRequestDTO) (*TestConnectionResultDTO, error)
+
+	// InitiateSAMLSSO generates a SAML AuthnRequest and returns the IdP redirect URL.
+	// The returned URL includes the SAMLRequest query parameter (deflate+base64) and
+	// a signed RelayState that carries the client context back to the ACS endpoint.
+	InitiateSAMLSSO(ctx context.Context, in SAMLInitiateInput) (*SAMLInitiateResult, error)
+
+	// HandleSAMLResponse validates the IdP-POST SAML Response, provisions or
+	// authenticates the user, and returns a short-lived exchange code that the
+	// frontend can use to obtain tokens without putting them in the URL.
+	HandleSAMLResponse(ctx context.Context, r *http.Request, relayState string) (*SAMLCallbackResult, error)
+
+	// ExchangeSAMLCode redeems a one-time SAML exchange code (issued by HandleSAMLResponse)
+	// and returns the full login response (access token, refresh token, id token).
+	ExchangeSAMLCode(ctx context.Context, code string) (*LoginResponseDTO, error)
+
+	// SAMLMetadata returns the SP metadata XML for the IdP identified by identifier.
+	// IdPs import this XML to configure the trust relationship.
+	SAMLMetadata(ctx context.Context, identifier string) ([]byte, error)
 }
 
 type federationService struct {
@@ -142,6 +161,7 @@ type federationService struct {
 	sessionService      authn.SessionService
 	eventService        event.EventService
 	securitySettingRepo secpolicy.SecuritySettingRepository
+	samlStore           cache.WebAuthnSessionStore
 
 	providerCache sync.Map
 }
@@ -158,6 +178,7 @@ func NewFederationService(
 	authEventService authevent.AuthEventService,
 	eventService event.EventService,
 	securitySettingRepo secpolicy.SecuritySettingRepository,
+	samlStore cache.WebAuthnSessionStore,
 	sessionService ...authn.SessionService,
 ) FederationService {
 	var sessions authn.SessionService
@@ -177,6 +198,7 @@ func NewFederationService(
 		sessionService:      sessions,
 		eventService:        eventService,
 		securitySettingRepo: securitySettingRepo,
+		samlStore:           samlStore,
 	}
 }
 
@@ -304,7 +326,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 				return clientErr
 			}
 			var provisionErr error
-			user, isNew, provisionErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, resolvedClient.ClientID)
+			user, isNew, provisionErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, &resolvedClient.ClientID)
 			if provisionErr != nil {
 				return provisionErr
 			}
@@ -478,7 +500,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 			_ = s.refreshMetadata(tx, existing, meta)
 		} else {
 			var isNew bool
-			user, isNew, txErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, client.ClientID)
+			user, isNew, txErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, &client.ClientID)
 			if txErr != nil {
 				return txErr
 			}
@@ -552,7 +574,7 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 	identity := &UserIdentity{
 		UserID:             userID,
 		TenantID:           idp.TenantID,
-		ClientID:           0, // no specific client context for linked identities
+		ClientID:           nil, // no specific client context for linked identities
 		IdentityProviderID: &idpID,
 		Provider:           idp.Provider,
 		Sub:                externalSub,
@@ -917,7 +939,7 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 				return apperror.NewInternal("user not found for existing identity", lookupErr)
 			}
 		} else {
-			u, _, txErr := s.provisionUser(ctx, tx, idp, externalSub, email, meta, clientID)
+			u, _, txErr := s.provisionUser(ctx, tx, idp, externalSub, email, meta, &clientID)
 			if txErr != nil {
 				return txErr
 			}
@@ -1005,7 +1027,7 @@ func (s *federationService) provisionUser(
 	externalSub string,
 	email string,
 	meta IdentityMetadata,
-	clientID int64,
+	clientID *int64,
 ) (*User, bool, error) {
 	txUserRepo := s.userRepo.WithTx(tx)
 	txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
@@ -1078,6 +1100,8 @@ func (s *federationService) provisionUser(
 	// Create the external identity.
 	idpID := idp.IdentityProviderID
 	metaJSON, _ := json.Marshal(meta)
+	jitNow := time.Now()
+	provisioningSource := "jit"
 	extIdentity := &UserIdentity{
 		UserIdentityUUID:   uuid.New(),
 		TenantID:           idp.TenantID,
@@ -1087,6 +1111,8 @@ func (s *federationService) provisionUser(
 		Provider:           idp.Provider,
 		Sub:                externalSub,
 		Metadata:           datatypes.JSON(metaJSON),
+		JITProvisionedAt:   &jitNow,
+		ProvisioningSource: &provisioningSource,
 	}
 	existing, created, err := txUserIdentityRepo.CreateByTenantProviderSubIfAbsent(extIdentity)
 	if err != nil {

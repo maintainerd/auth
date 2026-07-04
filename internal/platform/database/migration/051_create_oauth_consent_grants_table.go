@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS oauth_consent_grants (
     user_id                  BIGINT        NOT NULL,
     client_id                BIGINT        NOT NULL,
     tenant_id                BIGINT        NOT NULL,
-    scopes                   TEXT          NOT NULL DEFAULT '',
+    scopes                   TEXT[]        NOT NULL DEFAULT '{}',
     created_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
 
@@ -54,6 +54,7 @@ END$$;
 -- ADD INDEXES
 -- Consent lookups always carry (user_id, client_id), which the unique
 -- constraint uq_oauth_consent_user_client already covers.
+CREATE INDEX IF NOT EXISTS idx_oauth_consent_grants_scopes ON oauth_consent_grants USING GIN (scopes);
 `
 	return db.Exec(sql).Error
 }

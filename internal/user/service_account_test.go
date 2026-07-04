@@ -831,7 +831,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 		userIdentity := &UserIdentity{
 			UserIdentityUUID: uuid.New(),
 			UserID:           userID,
-			ClientID:         1,
+			ClientID:         int64Ptr(1),
 			Sub:              "test-sub",
 		}
 

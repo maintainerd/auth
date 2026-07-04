@@ -11,6 +11,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
+	"gorm.io/datatypes"
 )
 
 // RegistrationFlowHandler handles registration flow management operations.
@@ -175,7 +176,7 @@ func (h *RegistrationFlowHandler) Create(w http.ResponseWriter, r *http.Request)
 		req.Identifier,
 		parseUUIDList(req.RoleIDs),
 		boolValue(req.VerificationRequired, false),
-		strValue(req.RequiredFields, "[]"),
+		requiredFieldsJSON(req.RequiredFields),
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create registration flow", err)
@@ -230,7 +231,7 @@ func (h *RegistrationFlowHandler) Update(w http.ResponseWriter, r *http.Request)
 		status,
 		parseUUIDList(req.RoleIDs),
 		boolValue(req.VerificationRequired, false),
-		strValue(req.RequiredFields, "[]"),
+		requiredFieldsJSON(req.RequiredFields),
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update registration flow", err)
@@ -550,9 +551,10 @@ func boolValue(p *bool, def bool) bool {
 	return *p
 }
 
-func strValue(p *string, def string) string {
-	if p == nil {
-		return def
+func requiredFieldsJSON(arr *[]string) datatypes.JSON {
+	if arr == nil {
+		return datatypes.JSON([]byte("[]"))
 	}
-	return *p
+	b, _ := json.Marshal(*arr)
+	return datatypes.JSON(b)
 }

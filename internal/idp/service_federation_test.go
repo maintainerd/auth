@@ -428,7 +428,7 @@ func TestFederationServiceProvisionUser_UnverifiedEmailDoesNotMergeExistingAccou
 	}, "external-sub", "owner@example.com", IdentityMetadata{
 		Email:         "owner@example.com",
 		EmailVerified: false,
-	}, 10)
+	}, int64Ptr(10))
 
 	require.NoError(t, err)
 	require.NotNil(t, user)
@@ -484,7 +484,7 @@ func TestFederationServiceProvisionUser_VerifiedEmailMergesTenantAccount(t *test
 	}, "external-sub", "owner@example.com", IdentityMetadata{
 		Email:         "owner@example.com",
 		EmailVerified: true,
-	}, 10)
+	}, int64Ptr(10))
 
 	require.NoError(t, err)
 	require.Same(t, existingUser, user)
@@ -521,7 +521,7 @@ func TestFederationServiceProvisionUser_VerifiedEmailLookupErrorFailsClosed(t *t
 	}, "external-sub", "owner@example.com", IdentityMetadata{
 		Email:         "owner@example.com",
 		EmailVerified: true,
-	}, 10)
+	}, int64Ptr(10))
 
 	require.Error(t, err)
 	assert.Nil(t, user)
@@ -536,12 +536,12 @@ func TestFederationServiceProvisionUser_VerifiedEmailLookupErrorFailsClosed(t *t
 
 func TestNewFederationService(t *testing.T) {
 	t.Run("without session service", func(t *testing.T) {
-		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil)
+		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil, nil)
 		require.NotNil(t, svc)
 	})
 
 	t.Run("with session service", func(t *testing.T) {
-		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil, &mockSessionService{})
+		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, nil, nil, &mockSessionService{})
 		require.NotNil(t, svc)
 	})
 }
@@ -2251,7 +2251,7 @@ func TestFederationServiceProvisionUser_CreateUserFails(t *testing.T) {
 	}, "external-sub", "user@example.com", IdentityMetadata{
 		Email:         "user@example.com",
 		EmailVerified: false,
-	}, 10)
+	}, int64Ptr(10))
 
 	require.Error(t, err)
 	assert.Nil(t, user)
@@ -2278,7 +2278,7 @@ func TestFederationServiceProvisionUser_CreateUserReturnsNil(t *testing.T) {
 		IdentityProviderID: 10,
 		TenantID:           20,
 		Provider:           "google",
-	}, "external-sub", "user@example.com", IdentityMetadata{}, 10)
+	}, "external-sub", "user@example.com", IdentityMetadata{}, int64Ptr(10))
 
 	require.Error(t, err)
 	assert.Nil(t, user)
@@ -2317,7 +2317,7 @@ func TestFederationServiceProvisionUser_ExternalIdentityCreateFails(t *testing.T
 		IdentityProviderID: 10,
 		TenantID:           20,
 		Provider:           "google",
-	}, "external-sub", "user@example.com", IdentityMetadata{}, 10)
+	}, "external-sub", "user@example.com", IdentityMetadata{}, int64Ptr(10))
 
 	require.Error(t, err)
 	assert.Nil(t, user)
@@ -2368,7 +2368,7 @@ func TestFederationServiceProvisionUser_WithDefaultRole(t *testing.T) {
 		IdentityProviderID: 10,
 		TenantID:           20,
 		Provider:           "google",
-	}, "external-sub", "user@example.com", IdentityMetadata{}, 10)
+	}, "external-sub", "user@example.com", IdentityMetadata{}, int64Ptr(10))
 
 	require.NoError(t, err)
 	require.NotNil(t, user)

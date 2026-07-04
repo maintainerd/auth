@@ -40,6 +40,18 @@ func (r ClientCreateRequestDTO) Validate() error {
 				is.UUID.Error("branding_id must be a valid UUID"),
 			),
 		),
+		validation.Field(&r.BackchannelLogoutURI,
+			validation.When(r.BackchannelLogoutURI != nil && *r.BackchannelLogoutURI != "",
+				validation.Length(1, 2048).Error("backchannel_logout_uri must be at most 2048 characters"),
+				is.URL.Error("backchannel_logout_uri must be a valid URL"),
+			),
+		),
+		validation.Field(&r.FrontchannelLogoutURI,
+			validation.When(r.FrontchannelLogoutURI != nil && *r.FrontchannelLogoutURI != "",
+				validation.Length(1, 2048).Error("frontchannel_logout_uri must be at most 2048 characters"),
+				is.URL.Error("frontchannel_logout_uri must be a valid URL"),
+			),
+		),
 	)
 }
 
@@ -66,6 +78,18 @@ func (r ClientUpdateRequestDTO) Validate() error {
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
 			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be one of: active, inactive"),
+		),
+		validation.Field(&r.BackchannelLogoutURI,
+			validation.When(r.BackchannelLogoutURI != nil && *r.BackchannelLogoutURI != "",
+				validation.Length(1, 2048).Error("backchannel_logout_uri must be at most 2048 characters"),
+				is.URL.Error("backchannel_logout_uri must be a valid URL"),
+			),
+		),
+		validation.Field(&r.FrontchannelLogoutURI,
+			validation.When(r.FrontchannelLogoutURI != nil && *r.FrontchannelLogoutURI != "",
+				validation.Length(1, 2048).Error("frontchannel_logout_uri must be at most 2048 characters"),
+				is.URL.Error("frontchannel_logout_uri must be a valid URL"),
+			),
 		),
 	)
 }

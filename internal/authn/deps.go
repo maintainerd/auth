@@ -1,6 +1,7 @@
 package authn
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -345,6 +346,12 @@ type UserPasswordHistoryRepository interface {
 	PruneExcess(userID int64, keepCount int) error
 }
 
+type UserLockoutRepository interface {
+	UpsertOnFailure(ctx context.Context, tenantID int64, identifier string, ip string) (*UserLockout, error)
+	IsLocked(ctx context.Context, tenantID int64, identifier string, maxAttempts int, lockDuration time.Duration) (bool, error)
+	ClearLockout(ctx context.Context, tenantID int64, identifier string) error
+}
+
 type RegistrationFlowRoleRepository interface {
 	WithTx(tx *gorm.DB) RegistrationFlowRoleRepository
 	FindByID(registrationFlowID int64) (*RegistrationFlow, error)
@@ -360,5 +367,5 @@ type RegistrationFlow struct {
 	ClientID             int64
 	Status               string
 	VerificationRequired bool
-	RequiredFields       string
+	RequiredFields       datatypes.JSON
 }

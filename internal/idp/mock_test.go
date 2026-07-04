@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -527,10 +528,10 @@ func (m *mockRegistrationFlowService) GetByUUID(_ context.Context, id uuid.UUID,
 	}
 	return nil, nil
 }
-func (m *mockRegistrationFlowService) Create(_ context.Context, tenantID int64, name, desc, status string, clientUUID uuid.UUID, _ *string, _ []uuid.UUID, _ bool, _ string) (*RegistrationFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) Create(_ context.Context, tenantID int64, name, desc, status string, clientUUID uuid.UUID, _ *string, _ []uuid.UUID, _ bool, _ datatypes.JSON) (*RegistrationFlowServiceDataResult, error) {
 	return m.createFn(tenantID, name, desc, status, clientUUID)
 }
-func (m *mockRegistrationFlowService) Update(_ context.Context, id uuid.UUID, tenantID int64, name, desc, status string, _ []uuid.UUID, _ bool, _ string) (*RegistrationFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) Update(_ context.Context, id uuid.UUID, tenantID int64, name, desc, status string, _ []uuid.UUID, _ bool, _ datatypes.JSON) (*RegistrationFlowServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tenantID, name, desc, status)
 	}

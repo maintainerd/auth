@@ -109,6 +109,7 @@ var migrations = []migrationEntry{
 	{"065_create_identity_provider_email_domains_table", migration.CreateIdentityProviderEmailDomainsTable},
 	{"066_create_identity_provider_allowed_audiences_table", migration.CreateIdentityProviderAllowedAudiencesTable},
 	{"067_create_oauth_authorize_requests_table", migration.CreateOAuthAuthorizeRequestsTable},
+	{"068_create_user_lockouts_table", migration.CreateUserLockoutsTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

@@ -13,15 +13,15 @@ CREATE TABLE IF NOT EXISTS apis (
     tenant_id       BIGINT NOT NULL,
     service_id      BIGINT NOT NULL,
     name            VARCHAR(100) NOT NULL,
-    display_name    TEXT NOT NULL,
-    description     TEXT NOT NULL,
-    identifier      TEXT NOT NULL,
-    status          TEXT DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
-    is_system       BOOLEAN DEFAULT FALSE,
+    display_name    VARCHAR(255) NOT NULL,
+    description     TEXT,
+    identifier      VARCHAR(512) NOT NULL,
+    status          VARCHAR(20) NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
+    is_system       BOOLEAN NOT NULL DEFAULT FALSE,
     created_by      BIGINT,
     updated_by      BIGINT,
-    created_at      TIMESTAMPTZ DEFAULT now(),
-    updated_at      TIMESTAMPTZ DEFAULT now(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at      TIMESTAMPTZ
 );
 

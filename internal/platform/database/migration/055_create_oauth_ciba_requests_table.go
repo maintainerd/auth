@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS oauth_ciba_requests (
     client_id               BIGINT       NOT NULL,
     tenant_id               BIGINT       NOT NULL,
     user_id                 BIGINT,
-    scope                   TEXT         NOT NULL DEFAULT '',
+    scope                   TEXT[]       NOT NULL DEFAULT '{}',
     binding_message         TEXT,
     auth_acr                VARCHAR(32),
     auth_amr                JSONB        NOT NULL DEFAULT '[]'::jsonb,
@@ -64,6 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_client_id  ON oauth_ciba_requ
 CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_user_id    ON oauth_ciba_requests (user_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_expires_at ON oauth_ciba_requests (expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_status     ON oauth_ciba_requests (status);
+CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_scope      ON oauth_ciba_requests USING GIN (scope);
 `
 	return db.Exec(sql).Error
 }

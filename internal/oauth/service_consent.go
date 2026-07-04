@@ -2,7 +2,6 @@ package oauth
 
 import (
 	"context"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
@@ -55,7 +54,7 @@ func (s *oauthConsentService) ListGrants(ctx context.Context, userID int64) ([]O
 
 	result := make([]OAuthConsentGrantResponseDTO, len(grants))
 	for i, g := range grants {
-		scopes := strings.Fields(g.Scopes)
+		scopes := []string(g.Scopes)
 		clientName := ""
 		clientUUID := ""
 		if g.Client != nil {

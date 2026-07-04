@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -43,49 +44,49 @@ func expectOAuthCount(mock sqlmock.Sqlmock, table string) *sqlmock.ExpectedQuery
 
 func oauthAuthCodeRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), "hash", int64(10), int64(1), int64(1), "https://example.com/cb", "openid", nil, nil, "challenge", "S256", false, nil, time.Now().Add(time.Minute), time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), "hash", int64(10), int64(1), int64(1), "https://example.com/cb", pq.StringArray{"openid"}, nil, nil, "challenge", "S256", false, nil, time.Now().Add(time.Minute), time.Now()}
 	}
 	return sqlmock.NewRows([]string{"oauth_authorization_code_id", "oauth_authorization_code_uuid", "code_hash", "client_id", "user_id", "tenant_id", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "is_used", "used_at", "expires_at", "created_at"}).AddRow(values...)
 }
 
 func oauthCIBARows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), "hash", int64(10), int64(1), nil, "openid", nil, "", []byte(`[]`), CIBAStatusPending, 5, nil, nil, time.Now().Add(time.Minute), time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), "hash", int64(10), int64(1), nil, pq.StringArray{"openid"}, nil, "", []byte(`[]`), CIBAStatusPending, 5, nil, nil, time.Now().Add(time.Minute), time.Now()}
 	}
 	return sqlmock.NewRows([]string{"oauth_ciba_request_id", "oauth_ciba_request_uuid", "auth_req_id_hash", "client_id", "tenant_id", "user_id", "scope", "binding_message", "auth_acr", "auth_amr", "status", "interval", "last_poll_at", "notification_sent_at", "expires_at", "created_at"}).AddRow(values...)
 }
 
 func oauthConsentChallengeRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), int64(10), int64(1), int64(1), "https://example.com/cb", "openid", nil, nil, "challenge", "S256", "code", time.Now().Add(time.Minute), time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), int64(10), int64(1), int64(1), "https://example.com/cb", pq.StringArray{"openid"}, nil, nil, "challenge", "S256", "code", time.Now().Add(time.Minute), time.Now()}
 	}
 	return sqlmock.NewRows([]string{"oauth_consent_challenge_id", "oauth_consent_challenge_uuid", "client_id", "user_id", "tenant_id", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "response_type", "expires_at", "created_at"}).AddRow(values...)
 }
 
 func oauthConsentGrantRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), int64(1), int64(10), int64(1), "openid", time.Now(), time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), int64(1), int64(10), int64(1), pq.StringArray{"openid"}, time.Now(), time.Now()}
 	}
 	return sqlmock.NewRows([]string{"oauth_consent_grant_id", "oauth_consent_grant_uuid", "user_id", "client_id", "tenant_id", "scopes", "created_at", "updated_at"}).AddRow(values...)
 }
 
 func oauthDeviceRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), "device-hash", "ABCD-123", int64(10), int64(1), "openid", nil, "", []byte(`[]`), DeviceCodeStatusPending, 5, nil, time.Now().Add(time.Minute), time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), "device-hash", "ABCD-123", int64(10), int64(1), pq.StringArray{"openid"}, nil, "", []byte(`[]`), DeviceCodeStatusPending, 5, nil, time.Now().Add(time.Minute), time.Now()}
 	}
 	return sqlmock.NewRows([]string{"oauth_device_code_id", "oauth_device_code_uuid", "device_code_hash", "user_code", "client_id", "tenant_id", "scope", "user_id", "auth_acr", "auth_amr", "status", "interval", "last_poll_at", "expires_at", "created_at"}).AddRow(values...)
 }
 
 func oauthPARRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), "request-hash", int64(10), int64(1), "code", "https://example.com/cb", "openid", nil, nil, "challenge", "S256", false, time.Now().Add(time.Minute), time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), "request-hash", int64(10), int64(1), "code", "https://example.com/cb", pq.StringArray{"openid"}, nil, nil, "challenge", "S256", false, time.Now().Add(time.Minute), time.Now()}
 	}
 	return sqlmock.NewRows([]string{"oauth_par_request_id", "oauth_par_request_uuid", "request_uri_hash", "client_id", "tenant_id", "response_type", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "is_used", "expires_at", "created_at"}).AddRow(values...)
 }
 
 func oauthRefreshRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
-		values = []driver.Value{int64(1), testResourceUUID.String(), "token-hash", testResourceUUID.String(), int64(10), int64(1), int64(1), "openid", false, nil, time.Now().Add(time.Hour), nil, time.Now()}
+		values = []driver.Value{int64(1), testResourceUUID.String(), "token-hash", testResourceUUID.String(), int64(10), int64(1), int64(1), pq.StringArray{"openid"}, false, nil, time.Now().Add(time.Hour), nil, time.Now()}
 	}
 	return sqlmock.NewRows([]string{"oauth_refresh_token_id", "oauth_refresh_token_uuid", "token_hash", "family_id", "client_id", "user_id", "tenant_id", "scope", "is_revoked", "revoked_at", "expires_at", "last_used_at", "created_at"}).AddRow(values...)
 }
@@ -277,16 +278,16 @@ func TestOAuthConsentGrantRepository(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, got)
 
-	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 3, ClientID: 10, TenantID: 1, Scopes: "openid"})
+	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 3, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid"}})
 	require.Error(t, err)
 
-	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: "openid email"})
+	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid","email"}})
 	require.Error(t, err) // Save error
 
-	updated, err := repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: "openid email"})
+	updated, err := repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid","email"}})
 	require.NoError(t, err)
 	require.NotNil(t, updated)
-	created, err := repo.Upsert(&OAuthConsentGrant{UserID: 2, ClientID: 10, TenantID: 1, Scopes: "openid"})
+	created, err := repo.Upsert(&OAuthConsentGrant{UserID: 2, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid"}})
 	require.NoError(t, err)
 	require.NotNil(t, created)
 	require.NoError(t, repo.DeleteByUserAndClient(1, 10))

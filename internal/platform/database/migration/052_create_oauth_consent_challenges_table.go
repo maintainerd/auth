@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS oauth_consent_challenges (
     client_id                    BIGINT        NOT NULL,
     user_id                      BIGINT        NOT NULL,
     tenant_id                    BIGINT        NOT NULL,
-    redirect_uri                 TEXT          NOT NULL,
-    scope                        TEXT          NOT NULL DEFAULT '',
+    redirect_uri                 VARCHAR(2048) NOT NULL,
+    scope                        TEXT[]        NOT NULL DEFAULT '{}',
     state                        TEXT,
     nonce                        TEXT,
     code_challenge               TEXT          NOT NULL,
@@ -61,6 +61,7 @@ END$$;
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_oauth_consent_challenges_uuid ON oauth_consent_challenges (oauth_consent_challenge_uuid);
 CREATE INDEX IF NOT EXISTS idx_oauth_consent_challenges_expires ON oauth_consent_challenges (expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_consent_challenges_scope ON oauth_consent_challenges USING GIN (scope);
 `
 	return db.Exec(sql).Error
 }

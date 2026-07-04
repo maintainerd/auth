@@ -12,13 +12,20 @@ CREATE TABLE IF NOT EXISTS user_identities (
     user_identity_uuid    UUID NOT NULL UNIQUE,
     tenant_id             BIGINT NOT NULL,
     user_id               BIGINT NOT NULL,
-    client_id             BIGINT NOT NULL,
+    client_id             BIGINT,
     identity_provider_id  BIGINT,
     sub                   VARCHAR(255) NOT NULL,
     provider              VARCHAR(100) NOT NULL,
-    metadata              JSONB,
-    created_at            TIMESTAMPTZ DEFAULT now(),
-    updated_at            TIMESTAMPTZ DEFAULT now()
+    metadata              JSONB NOT NULL DEFAULT '{}',
+    jit_provisioned_at    TIMESTAMPTZ,
+    provisioning_source   VARCHAR(50)
+        CONSTRAINT chk_user_identities_provisioning_source CHECK (
+            provisioning_source IS NULL OR provisioning_source IN (
+                'jit', 'scim', 'manual', 'invite', 'import'
+            )
+        ),
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS
@@ -37,7 +44,7 @@ BEGIN
     ) THEN
         ALTER TABLE user_identities
             ADD CONSTRAINT fk_user_identities_client FOREIGN KEY (client_id)
-            REFERENCES clients(client_id) ON DELETE CASCADE;
+            REFERENCES clients(client_id) ON DELETE SET NULL;
     END IF;
 
     IF NOT EXISTS (
@@ -78,7 +85,7 @@ CREATE INDEX IF NOT EXISTS idx_user_identities_idp_id ON user_identities (identi
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_user_identities_uuid ON user_identities (user_identity_uuid);
 CREATE INDEX IF NOT EXISTS idx_user_identities_user_id ON user_identities (user_id);
-CREATE INDEX IF NOT EXISTS idx_user_identities_client_id ON user_identities (client_id);
+CREATE INDEX IF NOT EXISTS idx_user_identities_client_id ON user_identities (client_id) WHERE client_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_user_identities_tenant_id ON user_identities (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_user_identities_created_at ON user_identities (created_at);
 `

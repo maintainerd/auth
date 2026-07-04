@@ -524,7 +524,7 @@ func TestOAuthPARService_ConsumeRequestURI(t *testing.T) {
 						OAuthPARRequestID:   1,
 						ResponseType:        ResponseTypeCode,
 						RedirectURI:         "https://example.com/callback",
-						Scope:               "openid",
+						Scope:               parseScopeFields("openid"),
 						State:               &stateVal,
 						Nonce:               &nonceVal,
 						CodeChallenge:       "challenge",

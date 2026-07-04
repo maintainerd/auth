@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"github.com/maintainerd/maintainerd-auth/internal/client"
@@ -79,6 +80,7 @@ type repos struct {
 	totpSecretRepo            mfa.UserMFATOTPSecretRepository
 	mfaWebAuthnCredRepo       mfa.UserMFAWebAuthnCredentialRepository
 	userPasswordHistoryRepo   user.UserPasswordHistoryRepository
+	userLockoutRepo           authn.UserLockoutRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -141,5 +143,6 @@ func initRepos(db *gorm.DB) *repos {
 		totpSecretRepo:            mfa.NewUserMFATOTPSecretRepository(db),
 		mfaWebAuthnCredRepo:       mfa.NewUserMFAWebAuthnCredentialRepository(db),
 		userPasswordHistoryRepo:   user.NewUserPasswordHistoryRepository(db),
+		userLockoutRepo:           authn.NewUserLockoutRepository(db),
 	}
 }

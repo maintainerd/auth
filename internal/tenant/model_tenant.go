@@ -15,14 +15,14 @@ type Tenant struct {
 	DisplayName string         `gorm:"column:display_name"`
 	Description string         `gorm:"column:description"`
 	Identifier  string         `gorm:"column:identifier"`
-	Status      string         `gorm:"column:status;default:'active'"`
-	IsSystem    bool           `gorm:"column:is_system;default:false"`
+	Status      string         `gorm:"column:status;not null;default:'active'"`
+	IsSystem    bool           `gorm:"column:is_system;not null;default:false"`
 	IsCompleted bool           `gorm:"column:is_completed"`
-	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
+	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;not null;default:'{}'"`
 	CreatedBy   *int64         `gorm:"column:created_by"`
 	UpdatedBy   *int64         `gorm:"column:updated_by"`
-	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt   time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 

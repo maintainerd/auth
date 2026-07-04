@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
     client_id                BIGINT        NOT NULL,
     user_id                  BIGINT        NOT NULL,
     tenant_id                BIGINT        NOT NULL,
-    scope                    TEXT          NOT NULL DEFAULT '',
+    scope                    TEXT[]        NOT NULL DEFAULT '{}',
     is_revoked               BOOLEAN       NOT NULL DEFAULT FALSE,
     revoked_at               TIMESTAMPTZ,
     expires_at               TIMESTAMPTZ   NOT NULL,

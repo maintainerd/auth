@@ -14,17 +14,17 @@ CREATE TABLE IF NOT EXISTS tenants (
     display_name   VARCHAR(255),
     description    TEXT,
     identifier     VARCHAR(255) NOT NULL,
-    status         VARCHAR(20) DEFAULT 'active',
-    is_system      BOOLEAN DEFAULT FALSE,
+    status         VARCHAR(20) NOT NULL DEFAULT 'active',
+    is_system      BOOLEAN NOT NULL DEFAULT FALSE,
     -- is_completed marks a tenant as fully provisioned. Regular tenants default
     -- to TRUE (usable immediately on creation). The system tenant is created
     -- with FALSE during bootstrap and flipped TRUE once it has an admin + owner.
     is_completed   BOOLEAN NOT NULL DEFAULT TRUE,
-    metadata       JSONB DEFAULT '{}',
+    metadata       JSONB NOT NULL DEFAULT '{}',
     created_by     BIGINT,
     updated_by     BIGINT,
-    created_at     TIMESTAMPTZ DEFAULT now(),
-    updated_at     TIMESTAMPTZ DEFAULT now(),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at     TIMESTAMPTZ
 );
 

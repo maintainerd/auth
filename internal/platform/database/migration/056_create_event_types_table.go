@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS event_types (
     description             TEXT,
     version                 INTEGER NOT NULL DEFAULT 1,
     is_active               BOOLEAN NOT NULL DEFAULT true,
-    created_at              TIMESTAMPTZ DEFAULT now(),
-    updated_at              TIMESTAMPTZ DEFAULT now()
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- CREATE INDEXES

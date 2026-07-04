@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS identity_provider_allowed_audiences (
     tenant_id            BIGINT NOT NULL,
     identity_provider_id BIGINT NOT NULL,
     audience             VARCHAR(255) NOT NULL,
-    created_at           TIMESTAMPTZ DEFAULT now(),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at           TIMESTAMPTZ
 );
 

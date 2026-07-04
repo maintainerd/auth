@@ -167,6 +167,12 @@ type ClientResponseDTO struct {
 	BrandingUUID      *string                      `json:"branding_id,omitempty"`
 	AllowRegistration bool                         `json:"allow_registration"`
 
+	// OIDC Session Management
+	BackchannelLogoutURI             *string `json:"backchannel_logout_uri,omitempty"`
+	FrontchannelLogoutURI            *string `json:"frontchannel_logout_uri,omitempty"`
+	BackchannelLogoutSessionRequired bool    `json:"backchannel_logout_session_required"`
+	DPoPRequired                     bool    `json:"dpop_required"`
+
 	// Security posture / per-client overrides. The override fields are null when
 	// the client inherits the tenant security_settings default.
 	RequirePKCE            *bool   `json:"require_pkce,omitempty"`
@@ -229,6 +235,11 @@ type ClientCreateRequestDTO struct {
 	IdentityProviderUUID string         `json:"identity_provider_id"`
 	BrandingUUID         *string        `json:"branding_id,omitempty"`
 	AllowRegistration    *bool          `json:"allow_registration,omitempty"`
+
+	BackchannelLogoutURI             *string `json:"backchannel_logout_uri,omitempty"`
+	FrontchannelLogoutURI            *string `json:"frontchannel_logout_uri,omitempty"`
+	BackchannelLogoutSessionRequired *bool   `json:"backchannel_logout_session_required,omitempty"`
+	DPoPRequired                     *bool   `json:"dpop_required,omitempty"`
 }
 
 // Validation
@@ -243,6 +254,11 @@ type ClientUpdateRequestDTO struct {
 	Status            string         `json:"status"`
 	BrandingUUID      *string        `json:"branding_id,omitempty"`
 	AllowRegistration *bool          `json:"allow_registration,omitempty"`
+
+	BackchannelLogoutURI             *string `json:"backchannel_logout_uri,omitempty"`
+	FrontchannelLogoutURI            *string `json:"frontchannel_logout_uri,omitempty"`
+	BackchannelLogoutSessionRequired *bool   `json:"backchannel_logout_session_required,omitempty"`
+	DPoPRequired                     *bool   `json:"dpop_required,omitempty"`
 }
 
 // Validation

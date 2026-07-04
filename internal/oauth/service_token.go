@@ -190,7 +190,7 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 		return nil, apperror.NewOAuthInvalidGrant("the authorization code was not issued to this tenant")
 	}
 
-	if oerr := validateClientAllowedScopes(client, authCode.Scope); oerr != nil {
+	if oerr := validateClientAllowedScopes(client, strings.Join([]string(authCode.Scope), " ")); oerr != nil {
 		span.SetStatus(codes.Error, "scope not allowed")
 		return nil, oerr
 	}
@@ -231,7 +231,7 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 	}
 
 	// Generate tokens.
-	result, oerr := s.generateTokens(ctx, sub, user, client, authCode.Scope, authCode.Nonce, req.DPoPThumbprint)
+	result, oerr := s.generateTokens(ctx, sub, user, client, strings.Join([]string(authCode.Scope), " "), authCode.Nonce, req.DPoPThumbprint)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "token generation failed")
 		return nil, oerr
@@ -356,9 +356,9 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 		}
 
 		// Use the same scope unless a narrower scope was requested.
-		scope := storedToken.Scope
+		scope := strings.Join([]string(storedToken.Scope), " ")
 		if req.Scope != "" {
-			if oerr := validateRequestedScopesSubset(req.Scope, storedToken.Scope); oerr != nil {
+			if oerr := validateRequestedScopesSubset(req.Scope, strings.Join([]string(storedToken.Scope), " ")); oerr != nil {
 				return oerr
 			}
 			scope = req.Scope
@@ -382,15 +382,15 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 			rtHash := crypto.HashRefreshToken(rawRT)
 
 			rtTTL := s.refreshTokenTTL(client)
-			newToken := &OAuthRefreshToken{
-				TokenHash: rtHash,
-				FamilyID:  storedToken.FamilyID,
-				ClientID:  client.ClientID,
-				UserID:    storedToken.UserID,
-				TenantID:  client.TenantID,
-				Scope:     scope,
-				ExpiresAt: time.Now().Add(rtTTL),
-			}
+newToken := &OAuthRefreshToken{
+			TokenHash: rtHash,
+			FamilyID:  storedToken.FamilyID,
+			ClientID:  client.ClientID,
+			UserID:    storedToken.UserID,
+			TenantID:  client.TenantID,
+			Scope:     parseScopeFields(scope),
+			ExpiresAt: time.Now().Add(rtTTL),
+		}
 			if _, err := txRefreshRepo.Create(newToken); err != nil {
 				return err
 			}
@@ -676,7 +676,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 		resp := &OAuthIntrospectResponseDTO{
 			Active:    true,
 			TokenType: "refresh_token",
-			Scope:     storedRT.Scope,
+			Scope:     strings.Join([]string(storedRT.Scope), " "),
 			Exp:       storedRT.ExpiresAt.Unix(),
 			Iat:       storedRT.CreatedAt.Unix(),
 		}
@@ -757,7 +757,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 			ClientID:  client.ClientID,
 			UserID:    user.UserID,
 			TenantID:  client.TenantID,
-			Scope:     scope,
+			Scope:     parseScopeFields(scope),
 			ExpiresAt: time.Now().Add(rtTTL),
 		}
 		if _, err := s.refreshTokenRepo.Create(newRT); err != nil {

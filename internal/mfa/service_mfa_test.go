@@ -9,6 +9,7 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/lib/pq"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
@@ -151,7 +152,7 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 			creds: []UserMFAWebAuthnCredential{{
 				CredentialUUID: credUUID,
 				Name:           "Laptop",
-				Transport:      "usb",
+				Transport:      pq.StringArray{"usb"},
 				LastUsedAt:     &lastUsed,
 				CreatedAt:      enabledAt,
 			}},

@@ -31,17 +31,17 @@ CREATE TABLE IF NOT EXISTS profiles (
     city            VARCHAR(100),
     country         VARCHAR(2),     -- ISO 3166-1 alpha-2 code
     -- Media & Assets (auth-centric)
-    profile_url     TEXT,
+    profile_url     VARCHAR(2048),
     -- Profile Flags
-    is_default      BOOLEAN DEFAULT false,
+    is_default      BOOLEAN NOT NULL DEFAULT false,
     -- Extended data
     metadata        JSONB DEFAULT '{}',
     -- Audit
     created_by      BIGINT,
     updated_by      BIGINT,
     -- System Fields
-    created_at      TIMESTAMPTZ DEFAULT now(),
-    updated_at      TIMESTAMPTZ DEFAULT now(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at      TIMESTAMPTZ
 );
 

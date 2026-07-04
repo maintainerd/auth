@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS service_policies (
     service_policy_uuid UUID NOT NULL UNIQUE,
     service_id          BIGINT NOT NULL,
     policy_id           BIGINT NOT NULL,
-    created_at          TIMESTAMPTZ DEFAULT now()
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

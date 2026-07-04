@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS tenant_event_types (
     tenant_id                   BIGINT NOT NULL,
     event_type_id               BIGINT NOT NULL,
     enabled                     BOOLEAN NOT NULL DEFAULT true,
-    created_at                  TIMESTAMPTZ DEFAULT now(),
-    updated_at                  TIMESTAMPTZ DEFAULT now(),
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (tenant_id, event_type_id)
 );
 

@@ -37,6 +37,7 @@ type LoginService interface {
 	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error)
 	Logout(ctx context.Context, accessToken string) error
 	SetMFAFactorAuthenticator(a MFAFactorAuthenticator)
+	SetUserLockoutRepository(r UserLockoutRepository)
 	MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
 	IssueMagicLinkSession(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error)
 }
@@ -72,6 +73,7 @@ type loginService struct {
 	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → skip expiry check
 	mfaAuthenticator     MFAFactorAuthenticator              // nil → login MFA disabled
 	jtiDenylist          cache.JTIDenylister
+	lockoutRepo          UserLockoutRepository               // nil → lockout tracking disabled
 }
 
 func NewLoginService(
@@ -109,6 +111,10 @@ func NewLoginService(
 // signature and its many call sites stay unchanged); nil → login MFA disabled.
 func (s *loginService) SetMFAFactorAuthenticator(a MFAFactorAuthenticator) {
 	s.mfaAuthenticator = a
+}
+
+func (s *loginService) SetUserLockoutRepository(r UserLockoutRepository) {
+	s.lockoutRepo = r
 }
 
 // findLoginUser resolves the login subject within a single tenant. Lookups are
@@ -206,6 +212,11 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	}
 	forceStepUp := threatPolicy != nil && threatPolicy.RiskBasedStepUpEnabled && threatDecision.RequiresStepUp
 
+	// Lockout check — before password verification.
+	if err := s.checkLockout(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy); err != nil {
+		return nil, err
+	}
+
 	var user *User
 	var client *Client
 	var userLookupErr error
@@ -267,6 +278,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
 		s.recordFailedLogin(ctx, rateLimitIdentifier, clientIDStr, client, startTime, lockoutPolicy)
+		s.upsertLockout(ctx, tenantIDForRL, usernameOrEmail)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -309,6 +321,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 	// Reset failed attempts on successful authentication.
 	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
+	s.clearLockout(ctx, tenantIDForRL, usernameOrEmail)
 
 	// Check for compromised credentials at login (post-auth HIBP).
 	s.checkCompromisedPassword(ctx, user, password, clientTenantID(client))
@@ -467,11 +480,17 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	}
 	forceStepUp = threatPolicy != nil && threatPolicy.RiskBasedStepUpEnabled && threatDecision.RequiresStepUp
 
+	// Lockout check — before password verification.
+	if err := s.checkLockout(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy); err != nil {
+		return nil, err
+	}
+
 	passwordValid := verifyLoginPassword(user, password, userLookupErr == nil)
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
 		s.recordFailedLogin(ctx, rateLimitIdentifier, "internal", client, startTime, lockoutPolicy)
+		s.upsertLockout(ctx, tenantIDForRL, usernameOrEmail)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -514,6 +533,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 
 	// Reset failed attempts on successful authentication
 	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
+	s.clearLockout(ctx, tenantIDForRL, usernameOrEmail)
 
 	// Check for compromised credentials at login (post-auth HIBP).
 	s.checkCompromisedPassword(ctx, user, password, clientTenantID(client))
@@ -1349,4 +1369,39 @@ func (s *loginService) checkCompromisedPassword(ctx context.Context, user *User,
 			Description: ptr.Ptr("Login succeeded with compromised password — password change forced"),
 		})
 	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Lockout helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
+func (s *loginService) checkLockout(ctx context.Context, tenantID int64, identifier string, lockoutPolicy *security.RateLimitConfig) error {
+	if s.lockoutRepo == nil || lockoutPolicy == nil {
+		return nil
+	}
+	if !lockoutPolicy.Enabled {
+		return nil
+	}
+	locked, err := s.lockoutRepo.IsLocked(ctx, tenantID, identifier, lockoutPolicy.MaxFailedAttempts, lockoutPolicy.LockoutDuration)
+	if err != nil {
+		return nil
+	}
+	if locked {
+		return apperror.NewUnauthorized("account is temporarily locked due to too many failed login attempts")
+	}
+	return nil
+}
+
+func (s *loginService) upsertLockout(ctx context.Context, tenantID int64, identifier string) {
+	if s.lockoutRepo == nil {
+		return
+	}
+	_, _ = s.lockoutRepo.UpsertOnFailure(ctx, tenantID, identifier, middleware.ClientIPFromContext(ctx))
+}
+
+func (s *loginService) clearLockout(ctx context.Context, tenantID int64, identifier string) {
+	if s.lockoutRepo == nil {
+		return
+	}
+	_ = s.lockoutRepo.ClearLockout(ctx, tenantID, identifier)
 }

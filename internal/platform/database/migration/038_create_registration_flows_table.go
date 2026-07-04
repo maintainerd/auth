@@ -12,17 +12,17 @@ CREATE TABLE IF NOT EXISTS registration_flows (
     registration_flow_uuid         UUID NOT NULL UNIQUE,
     tenant_id              BIGINT NOT NULL,
     name                   VARCHAR(100) NOT NULL,
-    description            TEXT NOT NULL,
+    description            TEXT,
 	identifier             VARCHAR(255) NOT NULL,
     is_system             BOOLEAN NOT NULL DEFAULT FALSE,
     verification_required BOOLEAN NOT NULL DEFAULT FALSE,
-    required_fields       TEXT NOT NULL DEFAULT '[]',
-    status                 VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    required_fields       JSONB NOT NULL DEFAULT '[]',
+    status                 VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     client_id              BIGINT NOT NULL,
     created_by             BIGINT,
     updated_by             BIGINT,
-    created_at             TIMESTAMPTZ DEFAULT now(),
-    updated_at             TIMESTAMPTZ DEFAULT now(),
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at             TIMESTAMPTZ
 );
 

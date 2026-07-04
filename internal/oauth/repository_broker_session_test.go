@@ -6,6 +6,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -20,7 +21,7 @@ func brokerSessionRows() *sqlmock.Rows {
 		"idp_nonce", "expires_at", "consumed_at", "created_at",
 	}).AddRow(
 		int64(1), testResourceUUID.String(), int64(1), int64(10),
-		int64(100), "https://app.example.com/cb", "app-state", "openid", "app-nonce",
+		int64(100), "https://app.example.com/cb", "app-state", pq.StringArray{"openid"}, "app-nonce",
 		"app-challenge", "S256", "idp-state-123", "verifier-xyz",
 		"idp-nonce", now.Add(10*time.Minute), nil, now,
 	)

@@ -11,6 +11,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,14 +48,6 @@ func TestRPIDFromHostname(t *testing.T) {
 			assert.Equal(t, tt.want, rpIDFromHostname(tt.hostname))
 		})
 	}
-}
-
-func TestJoinTransports(t *testing.T) {
-	assert.Equal(t, "", joinTransports(nil))
-	assert.Equal(t, "usb,nfc", joinTransports([]protocol.AuthenticatorTransport{
-		protocol.USB,
-		protocol.NFC,
-	}))
 }
 
 func TestNewWebAuthnService(t *testing.T) {
@@ -281,7 +274,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		got, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", nil)
 		require.NoError(t, err)
 		assert.Equal(t, "Security Key", got.Name)
-		assert.Equal(t, "usb", got.Transport)
+		assert.Equal(t, pq.StringArray{"usb"}, got.Transport)
 		assert.Len(t, events.inputs, 1)
 		assertExpectationsMet(t, mock)
 
