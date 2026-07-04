@@ -347,7 +347,7 @@ type UserPasswordHistoryRepository interface {
 }
 
 type UserLockoutRepository interface {
-	UpsertOnFailure(ctx context.Context, tenantID int64, identifier string, ip string) (*UserLockout, error)
+	UpsertOnFailure(ctx context.Context, tenantID int64, identifier string, ip string, maxAttempts int, lockDuration time.Duration) (*UserLockout, error)
 	IsLocked(ctx context.Context, tenantID int64, identifier string, maxAttempts int, lockDuration time.Duration) (bool, error)
 	ClearLockout(ctx context.Context, tenantID int64, identifier string) error
 }
