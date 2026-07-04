@@ -695,7 +695,7 @@ The `scopes`/`scope` column must change in all these tables. Search the entire G
 **File: `053_create_oauth_par_requests_table.go`**
 - [x] `redirect_uri TEXT NOT NULL` → `redirect_uri VARCHAR(2048) NOT NULL`
 
-- [ ] After all files are edited, run `go build ./...` and `go test ./...` — confirm clean. GORM string fields map to `TEXT` in Go regardless; no Go model changes required for VARCHAR vs TEXT changes.
+- [x] After all files are edited, run `go build ./...` and `go test ./...` — confirm clean. GORM string fields map to `TEXT` in Go regardless; no Go model changes required for VARCHAR vs TEXT changes.
 
 ---
 

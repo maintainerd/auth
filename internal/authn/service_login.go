@@ -278,7 +278,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
 		s.recordFailedLogin(ctx, rateLimitIdentifier, clientIDStr, client, startTime, lockoutPolicy)
-		s.upsertLockout(ctx, tenantIDForRL, usernameOrEmail)
+		s.upsertLockout(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -490,7 +490,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
 		s.recordFailedLogin(ctx, rateLimitIdentifier, "internal", client, startTime, lockoutPolicy)
-		s.upsertLockout(ctx, tenantIDForRL, usernameOrEmail)
+		s.upsertLockout(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -1392,11 +1392,17 @@ func (s *loginService) checkLockout(ctx context.Context, tenantID int64, identif
 	return nil
 }
 
-func (s *loginService) upsertLockout(ctx context.Context, tenantID int64, identifier string) {
+func (s *loginService) upsertLockout(ctx context.Context, tenantID int64, identifier string, policy *security.RateLimitConfig) {
 	if s.lockoutRepo == nil {
 		return
 	}
-	_, _ = s.lockoutRepo.UpsertOnFailure(ctx, tenantID, identifier, middleware.ClientIPFromContext(ctx))
+	var maxAttempts int
+	var lockDuration time.Duration
+	if policy != nil {
+		maxAttempts = policy.MaxFailedAttempts
+		lockDuration = policy.LockoutDuration
+	}
+	_, _ = s.lockoutRepo.UpsertOnFailure(ctx, tenantID, identifier, middleware.ClientIPFromContext(ctx), maxAttempts, lockDuration)
 }
 
 func (s *loginService) clearLockout(ctx context.Context, tenantID int64, identifier string) {

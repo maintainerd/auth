@@ -39,7 +39,7 @@ func (r *userLockoutRepository) IsLocked(ctx context.Context, tenantID int64, id
 	return false, nil
 }
 
-func (r *userLockoutRepository) UpsertOnFailure(ctx context.Context, tenantID int64, identifier string, ip string) (*UserLockout, error) {
+func (r *userLockoutRepository) UpsertOnFailure(ctx context.Context, tenantID int64, identifier string, ip string, maxAttempts int, lockDuration time.Duration) (*UserLockout, error) {
 	var lockout UserLockout
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND identifier = ?", tenantID, identifier).
@@ -49,13 +49,22 @@ func (r *userLockoutRepository) UpsertOnFailure(ctx context.Context, tenantID in
 	}
 
 	now := time.Now()
+	applyLock := func(count int) *time.Time {
+		if maxAttempts > 0 && lockDuration > 0 && count >= maxAttempts {
+			t := now.Add(lockDuration)
+			return &t
+		}
+		return nil
+	}
+
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		lockout = UserLockout{
-			TenantID:      tenantID,
-			Identifier:    identifier,
-			FailedCount:   1,
-			LastFailedAt:  &now,
-			IPAddress:     &ip,
+			TenantID:     tenantID,
+			Identifier:   identifier,
+			FailedCount:  1,
+			LastFailedAt: &now,
+			IPAddress:    &ip,
+			LockedUntil:  applyLock(1),
 		}
 		if err := r.db.WithContext(ctx).Create(&lockout).Error; err != nil {
 			return nil, err
@@ -67,6 +76,9 @@ func (r *userLockoutRepository) UpsertOnFailure(ctx context.Context, tenantID in
 	lockout.LastFailedAt = &now
 	if ip != "" {
 		lockout.IPAddress = &ip
+	}
+	if lu := applyLock(lockout.FailedCount); lu != nil {
+		lockout.LockedUntil = lu
 	}
 	if err := r.db.WithContext(ctx).Save(&lockout).Error; err != nil {
 		return nil, err
