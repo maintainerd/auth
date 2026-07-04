@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
@@ -121,7 +122,7 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req OAuthDeviceAutho
 		UserCode:       userCode,
 		ClientID:       client.ClientID,
 		TenantID:       client.TenantID,
-		Scope:          req.Scope,
+		Scope:          parseScopeFields(req.Scope),
 		Status:         DeviceCodeStatusPending,
 		Interval:       devicePollInterval,
 		ExpiresAt:      time.Now().Add(deviceCodeTTL),
@@ -302,7 +303,7 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(
 		ctx,
 		user.UserUUID.String(),
-		record.Scope,
+		strings.Join([]string(record.Scope), " "),
 		issuer,
 		issuer,
 		clientIdentifier,
@@ -333,7 +334,7 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
 		ExpiresIn:   oauthAccessTokenExpiresIn(s.securitySettingRepo, record.Client),
-		Scope:       record.Scope,
+		Scope:       strings.Join([]string(record.Scope), " "),
 	}, nil
 }
 

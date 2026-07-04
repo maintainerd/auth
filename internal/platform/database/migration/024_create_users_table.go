@@ -16,12 +16,15 @@ CREATE TABLE IF NOT EXISTS users (
     email                       VARCHAR(255),
     phone                       VARCHAR(20),
     password                    TEXT,
-    is_email_verified           BOOLEAN DEFAULT FALSE,
-    is_phone_verified           BOOLEAN DEFAULT FALSE,
-    is_profile_completed        BOOLEAN DEFAULT FALSE,
-    is_account_completed        BOOLEAN DEFAULT FALSE,
-    status                      VARCHAR(20) DEFAULT 'active',
-    metadata                    JSONB DEFAULT '{}'::jsonb,
+    is_email_verified           BOOLEAN NOT NULL DEFAULT FALSE,
+    is_phone_verified           BOOLEAN NOT NULL DEFAULT FALSE,
+    is_profile_completed        BOOLEAN NOT NULL DEFAULT FALSE,
+    is_account_completed        BOOLEAN NOT NULL DEFAULT FALSE,
+    status                      VARCHAR(20) NOT NULL DEFAULT 'active'
+        CONSTRAINT chk_users_status CHECK (status IN (
+            'active', 'inactive', 'pending', 'suspended'
+        )),
+    metadata                    JSONB NOT NULL DEFAULT '{}'::jsonb,
     force_password_change       BOOLEAN NOT NULL DEFAULT FALSE,
     password_changed_at         TIMESTAMPTZ,
     temporary_password_expires_at TIMESTAMPTZ,

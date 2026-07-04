@@ -498,7 +498,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 						UserID:                   1,
 						TenantID:                 1,
 						RedirectURI:              "https://example.com/callback",
-						Scope:                    "openid profile offline_access",
+						Scope:                    parseScopeFields("openid profile offline_access"),
 						CodeChallenge:            challenge,
 						CodeChallengeMethod:      "S256",
 						ExpiresAt:                time.Now().Add(10 * time.Minute),
@@ -556,7 +556,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 						UserID:                   1,
 						TenantID:                 1,
 						RedirectURI:              "https://example.com/callback",
-						Scope:                    "openid profile",
+						Scope:                    parseScopeFields("openid profile"),
 						CodeChallenge:            challenge,
 						CodeChallengeMethod:      "S256",
 						ExpiresAt:                time.Now().Add(10 * time.Minute),
@@ -670,7 +670,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 						TenantID:            1,
 						UserID:              1,
 						RedirectURI:         "https://example.com/callback",
-						Scope:               "openid profile",
+						Scope:               parseScopeFields("openid profile"),
 						CodeChallenge:       challenge,
 						CodeChallengeMethod: "S256",
 						ExpiresAt:           time.Now().Add(10 * time.Minute),
@@ -871,7 +871,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						UserID:              1,
 						TenantID:            1,
 						FamilyID:            familyID,
-						Scope:               "openid profile offline_access",
+						Scope:               parseScopeFields("openid profile offline_access"),
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -920,7 +920,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						UserID:              1,
 						TenantID:            1,
 						FamilyID:            familyID,
-						Scope:               "openid profile email",
+						Scope:               parseScopeFields("openid profile email"),
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -1113,7 +1113,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						ClientID:            10,
 						TenantID:            1,
 						UserID:              1,
-						Scope:               "openid",
+						Scope:               parseScopeFields("openid"),
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -1168,7 +1168,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						ClientID:            10,
 						TenantID:            1,
 						UserID:              1,
-						Scope:               "openid profile",
+						Scope:               parseScopeFields("openid profile"),
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -1211,7 +1211,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						ClientID:            10,
 						TenantID:            1,
 						UserID:              1,
-						Scope:               "openid profile",
+						Scope:               parseScopeFields("openid profile"),
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -1261,7 +1261,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						ClientID:            10,
 						TenantID:            1,
 						UserID:              1,
-						Scope:               "openid profile",
+						Scope:               parseScopeFields("openid profile"),
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -1308,7 +1308,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						ClientID:            10,
 						TenantID:            1,
 						UserID:              1,
-						Scope:               "openid profile",
+						Scope:               parseScopeFields("openid profile"),
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -1924,7 +1924,7 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 					return &OAuthRefreshToken{
 						UserID:    1,
 						ClientID:  10,
-						Scope:     "openid",
+						Scope:     parseScopeFields("openid"),
 						ExpiresAt: now.Add(7 * 24 * time.Hour),
 						CreatedAt: now,
 					}, nil
@@ -1976,7 +1976,7 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 					return &OAuthRefreshToken{
 						UserID:    1,
 						ClientID:  10,
-						Scope:     "openid",
+						Scope:     parseScopeFields("openid"),
 						ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 						CreatedAt: time.Now(),
 					}, nil

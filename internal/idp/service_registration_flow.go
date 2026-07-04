@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +24,7 @@ type RegistrationFlowServiceDataResult struct {
 	Status               string
 	ClientUUID           uuid.UUID
 	VerificationRequired bool
-	RequiredFields       string
+	RequiredFields       datatypes.JSON
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
@@ -60,8 +61,8 @@ type RegistrationFlowRoleServiceListResult struct {
 type RegistrationFlowService interface {
 	GetAll(ctx context.Context, tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*RegistrationFlowServiceListResult, error)
 	GetByUUID(ctx context.Context, registrationFlowUUID uuid.UUID, tenantID int64) (*RegistrationFlowServiceDataResult, error)
-	Create(ctx context.Context, tenantID int64, name, description, status string, ClientUUID uuid.UUID, identifier *string, roleUUIDs []uuid.UUID, verificationRequired bool, requiredFields string) (*RegistrationFlowServiceDataResult, error)
-	Update(ctx context.Context, registrationFlowUUID uuid.UUID, tenantID int64, name, description, status string, roleUUIDs []uuid.UUID, verificationRequired bool, requiredFields string) (*RegistrationFlowServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name, description, status string, ClientUUID uuid.UUID, identifier *string, roleUUIDs []uuid.UUID, verificationRequired bool, requiredFields datatypes.JSON) (*RegistrationFlowServiceDataResult, error)
+	Update(ctx context.Context, registrationFlowUUID uuid.UUID, tenantID int64, name, description, status string, roleUUIDs []uuid.UUID, verificationRequired bool, requiredFields datatypes.JSON) (*RegistrationFlowServiceDataResult, error)
 	UpdateStatus(ctx context.Context, registrationFlowUUID uuid.UUID, tenantID int64, status string) (*RegistrationFlowServiceDataResult, error)
 	Delete(ctx context.Context, registrationFlowUUID uuid.UUID, tenantID int64) (*RegistrationFlowServiceDataResult, error)
 	AssignRoles(ctx context.Context, registrationFlowUUID uuid.UUID, tenantID int64, roleUUIDs []uuid.UUID) ([]RegistrationFlowRoleServiceDataResult, error)
@@ -200,7 +201,7 @@ func (s *registrationFlowService) GetByUUID(ctx context.Context, registrationFlo
 	return toRegistrationFlowServiceDataResult(registrationFlow), nil
 }
 
-func (s *registrationFlowService) Create(ctx context.Context, tenantID int64, name, description, status string, ClientUUID uuid.UUID, identifier *string, roleUUIDs []uuid.UUID, verificationRequired bool, requiredFields string) (*RegistrationFlowServiceDataResult, error) {
+func (s *registrationFlowService) Create(ctx context.Context, tenantID int64, name, description, status string, ClientUUID uuid.UUID, identifier *string, roleUUIDs []uuid.UUID, verificationRequired bool, requiredFields datatypes.JSON) (*RegistrationFlowServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "registrationFlow.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
@@ -297,7 +298,7 @@ func (s *registrationFlowService) Create(ctx context.Context, tenantID int64, na
 	return s.GetByUUID(ctx, createdRegistrationFlow.RegistrationFlowUUID, tenantID)
 }
 
-func (s *registrationFlowService) Update(ctx context.Context, registrationFlowUUID uuid.UUID, tenantID int64, name, description, status string, roleUUIDs []uuid.UUID, verificationRequired bool, requiredFields string) (*RegistrationFlowServiceDataResult, error) {
+func (s *registrationFlowService) Update(ctx context.Context, registrationFlowUUID uuid.UUID, tenantID int64, name, description, status string, roleUUIDs []uuid.UUID, verificationRequired bool, requiredFields datatypes.JSON) (*RegistrationFlowServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "registrationFlow.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("registrationFlow.uuid", registrationFlowUUID.String()), attribute.Int64("tenant.id", tenantID))

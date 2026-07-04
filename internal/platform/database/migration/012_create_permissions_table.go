@@ -13,13 +13,13 @@ CREATE TABLE IF NOT EXISTS permissions (
     tenant_id           BIGINT NOT NULL,
     api_id              BIGINT NOT NULL,
     name                VARCHAR(255) NOT NULL,
-    description         TEXT NOT NULL,
-    status              VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    is_system           BOOLEAN DEFAULT FALSE,
+    description         TEXT,
+    status              VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    is_system           BOOLEAN NOT NULL DEFAULT FALSE,
     created_by          BIGINT,
     updated_by          BIGINT,
-    created_at          TIMESTAMPTZ DEFAULT now(),
-    updated_at          TIMESTAMPTZ DEFAULT now(),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at          TIMESTAMPTZ
 );
 

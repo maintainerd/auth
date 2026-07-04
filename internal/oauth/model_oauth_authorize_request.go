@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -13,7 +14,7 @@ type OAuthAuthorizeRequest struct {
 	ClientID                  int64          `gorm:"column:client_id;not null"`
 	TenantID                  *int64         `gorm:"column:tenant_id"`
 	RedirectURI               string         `gorm:"column:redirect_uri;not null"`
-	Scope                     *string        `gorm:"column:scope"`
+	Scope                     pq.StringArray `gorm:"column:scope;type:text[]"`
 	State                     *string        `gorm:"column:state"`
 	Nonce                     *string        `gorm:"column:nonce"`
 	ResponseType              string         `gorm:"column:response_type;not null"`

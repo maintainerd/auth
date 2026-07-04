@@ -377,7 +377,7 @@ func (s *oauthAuthorizeService) GetConsentChallenge(ctx context.Context, challen
 		return nil, apperror.NewValidation("consent challenge has expired")
 	}
 
-	scopes := splitScopes(challenge.Scope)
+	scopes := []string(challenge.Scope)
 
 	clientName := ""
 	clientUUID := ""
@@ -595,7 +595,7 @@ func (s *oauthAuthorizeService) needsConsent(client *Client, userID int64, reque
 	}
 
 	// Check that all requested scopes are covered by the existing grant.
-	grantedScopes := splitScopes(grant.Scopes)
+	grantedScopes := []string(grant.Scopes)
 	grantedSet := make(map[string]struct{}, len(grantedScopes))
 	for _, s := range grantedScopes {
 		grantedSet[s] = struct{}{}
@@ -618,7 +618,7 @@ func (s *oauthAuthorizeService) createConsentChallenge(ctx context.Context, clie
 		UserID:              userID,
 		TenantID:            client.TenantID,
 		RedirectURI:         req.RedirectURI,
-		Scope:               req.Scope,
+		Scope:               parseScopeFields(req.Scope),
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,
 		ResponseType:        req.ResponseType,
@@ -655,7 +655,7 @@ func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, clie
 		UserID:              userID,
 		TenantID:            client.TenantID,
 		RedirectURI:         req.RedirectURI,
-		Scope:               req.Scope,
+		Scope:               parseScopeFields(req.Scope),
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(authorizationCodeTTL),
@@ -729,7 +729,7 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 		ClientID:            client.ClientID,
 		RedirectURI:         req.RedirectURI,
 		ResponseType:        req.ResponseType,
-		Scope:               ptr.PtrOrNil(req.Scope),
+		Scope:               parseScopeFields(req.Scope),
 		State:               ptr.PtrOrNil(req.State),
 		Nonce:               ptr.PtrOrNil(req.Nonce),
 		CodeChallenge:       ptr.PtrOrNil(req.CodeChallenge),
@@ -780,7 +780,7 @@ func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID
 		ResponseType:        savedReq.ResponseType,
 		ClientID:            ptrOrEmpty(client.Identifier),
 		RedirectURI:         savedReq.RedirectURI,
-		Scope:               ptrOrEmpty(savedReq.Scope),
+		Scope:               strings.Join([]string(savedReq.Scope), " "),
 		State:               ptrOrEmpty(savedReq.State),
 		Nonce:               ptrOrEmpty(savedReq.Nonce),
 		CodeChallenge:       ptrOrEmpty(savedReq.CodeChallenge),

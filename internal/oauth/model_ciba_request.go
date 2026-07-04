@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -27,7 +28,7 @@ type OAuthCIBARequest struct {
 	ClientID             int64          `gorm:"column:client_id;not null"`
 	TenantID             int64          `gorm:"column:tenant_id;not null"`
 	UserID               *int64         `gorm:"column:user_id"`
-	Scope                string         `gorm:"column:scope;not null;default:''"`
+	Scope                pq.StringArray `gorm:"column:scope;type:text[];not null;default:'{}'"`
 	BindingMessage       *string        `gorm:"column:binding_message"`
 	AuthACR              string         `gorm:"column:auth_acr"`
 	AuthAMR              datatypes.JSON `gorm:"column:auth_amr;type:jsonb;default:'[]'"`

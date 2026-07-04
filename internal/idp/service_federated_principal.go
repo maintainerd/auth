@@ -93,7 +93,7 @@ func (s *federationService) resolveFederatedPrincipal(
 				return apperror.NewUnauthorized("user not provisioned and JIT provisioning is disabled")
 			}
 			var provisionErr error
-			user, isNew, provisionErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, clientID)
+			user, isNew, provisionErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, &clientID)
 			if provisionErr != nil {
 				return provisionErr
 			}

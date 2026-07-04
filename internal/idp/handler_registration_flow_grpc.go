@@ -7,6 +7,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/datatypes"
 )
 
 type RegistrationFlowGRPCHandler struct {
@@ -72,7 +73,7 @@ func (h *RegistrationFlowGRPCHandler) CreateRegistrationFlow(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.registrationFlowService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), clientUUID, nil, nil, false, "[]")
+	result, err := h.registrationFlowService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -88,7 +89,7 @@ func (h *RegistrationFlowGRPCHandler) UpdateRegistrationFlow(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.registrationFlowService.Update(ctx, sfUUID, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), nil, false, "[]")
+	result, err := h.registrationFlowService.Update(ctx, sfUUID, tenant.TenantID, req.GetName(), req.GetDescription(), req.GetStatus(), nil, false, datatypes.JSON([]byte("[]")))
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

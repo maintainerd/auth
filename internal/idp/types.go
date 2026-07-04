@@ -95,6 +95,53 @@ type OIDCProviderConfig struct {
 	TokenEndpoint         string `json:"token_endpoint,omitempty"`
 }
 
+// SAMLProviderConfig is the runtime view of a SAML IdP's settings stored in the
+// IdentityProvider.Config JSONB column. All IdP-specific SAML fields live here;
+// common columns (name, display_name, allow_jit_provisioning, status, etc.) are
+// stored directly on the model row.
+type SAMLProviderConfig struct {
+	// EntityID is the SAML EntityID (Issuer) of the IdP — required.
+	EntityID string `json:"entity_id"`
+	// SSOURL is the IdP's HTTP-POST or HTTP-Redirect SSO endpoint — required.
+	SSOURL string `json:"sso_url"`
+	// SLOURL is the IdP's Single Logout endpoint — optional.
+	SLOURL string `json:"slo_url,omitempty"`
+	// Certificate is the IdP's signing certificate in PEM format — required when active.
+	// It is used to verify assertion signatures and to populate certificate_expires_at.
+	Certificate string `json:"certificate"`
+	// NameIDFormat controls the NameIDPolicy sent in AuthnRequests (e.g.
+	// "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"). Defaults to
+	// "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent" when blank.
+	NameIDFormat string `json:"name_id_format,omitempty"`
+	// AttributeMapping maps IdP SAML attribute names to our IdentityMetadata
+	// fields (e.g. "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" → "email").
+	AttributeMapping map[string]string `json:"attribute_mapping,omitempty"`
+}
+
+// SAMLInitiateInput is the service-layer input for beginning a SAML SSO flow.
+type SAMLInitiateInput struct {
+	ProviderIdentifier string // matches IdentityProvider.Identifier
+	ClientID           string // OAuth client_id (our client, not the SAML IdP's)
+	RedirectURI        string // where the frontend wants to land after ACS
+	TenantID           int64
+}
+
+// SAMLInitiateResult carries the IdP redirect URL the browser should navigate to.
+type SAMLInitiateResult struct {
+	RedirectURL string
+}
+
+// SAMLCallbackResult is returned by HandleSAMLResponse after a successful ACS POST.
+type SAMLCallbackResult struct {
+	// RedirectURI is the URL the ACS handler should redirect the browser to.
+	// It already contains the Code as a query parameter.
+	RedirectURI string
+	// Code is a short-lived, single-use exchange code (5 min TTL) stored in
+	// cache. The frontend POSTs it to /federation/saml/exchange to obtain tokens.
+	Code  string
+	IsNew bool
+}
+
 // BrokerProviderInfo holds the upstream OAuth2 authorize parameters resolved for
 // a brokered identity provider: its authorization endpoint, the upstream
 // client_id, and the requested scopes. Secrets are never included.
@@ -218,34 +265,34 @@ type RegistrationFlowResponseDTO struct {
 	Identifier           string    `json:"identifier"`
 	Status               string    `json:"status"`
 	ClientUUID           string    `json:"client_id,omitempty"`
-	VerificationRequired bool      `json:"verification_required"`
-	RequiredFields       string    `json:"required_fields"`
-	CreatedAt            time.Time `json:"created_at"`
+	VerificationRequired bool           `json:"verification_required"`
+	RequiredFields       datatypes.JSON `json:"required_fields"`
+	CreatedAt            time.Time      `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 // Create registration flow request dto
 type RegistrationFlowCreateRequestDTO struct {
-	Name                 string   `json:"name"`
-	Description          string   `json:"description"`
-	Identifier           *string  `json:"identifier,omitempty"`
-	Status               *string  `json:"status,omitempty"`
-	ClientUUID           string   `json:"client_id"`
-	RoleIDs              []string `json:"role_ids,omitempty"`
-	VerificationRequired *bool    `json:"verification_required,omitempty"`
-	RequiredFields       *string  `json:"required_fields,omitempty"`
+	Name                 string    `json:"name"`
+	Description          string    `json:"description"`
+	Identifier           *string   `json:"identifier,omitempty"`
+	Status               *string   `json:"status,omitempty"`
+	ClientUUID           string    `json:"client_id"`
+	RoleIDs              []string  `json:"role_ids,omitempty"`
+	VerificationRequired *bool     `json:"verification_required,omitempty"`
+	RequiredFields       *[]string `json:"required_fields"`
 }
 
 // Update registration flow request dto. RoleIDs / ClientURIIDs, when present, replace the
 // flow's role / callback-URI membership to exactly the provided set (an empty
 // array clears it; omitting the field leaves it untouched).
 type RegistrationFlowUpdateRequestDTO struct {
-	Name                 string   `json:"name"`
-	Description          string   `json:"description"`
-	Status               *string  `json:"status,omitempty"`
-	RoleIDs              []string `json:"role_ids,omitempty"`
-	VerificationRequired *bool    `json:"verification_required,omitempty"`
-	RequiredFields       *string  `json:"required_fields,omitempty"`
+	Name                 string    `json:"name"`
+	Description          string    `json:"description"`
+	Status               *string   `json:"status,omitempty"`
+	RoleIDs              []string  `json:"role_ids,omitempty"`
+	VerificationRequired *bool     `json:"verification_required,omitempty"`
+	RequiredFields       *[]string `json:"required_fields"`
 }
 
 // Update registration flow status request dto

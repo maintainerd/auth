@@ -197,12 +197,12 @@ func (s *registerService) validateInviteRegistrationFlow(tx *gorm.DB, invite *In
 	return flow, nil
 }
 
-func parseRequiredRegistrationFields(raw string) ([]string, error) {
-	if strings.TrimSpace(raw) == "" {
+func parseRequiredRegistrationFields(raw datatypes.JSON) ([]string, error) {
+	if len(raw) == 0 {
 		return nil, nil
 	}
 	var fields []string
-	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
+	if err := json.Unmarshal(raw, &fields); err != nil {
 		return nil, apperror.NewValidation("registration flow required_fields must be a JSON string array")
 	}
 	return fields, nil

@@ -86,6 +86,19 @@ func (m *mockFederationService) AdminUnlinkIdentity(_ context.Context, tenantID 
 	return nil
 }
 
+func (m *mockFederationService) InitiateSAMLSSO(_ context.Context, _ SAMLInitiateInput) (*SAMLInitiateResult, error) {
+	return &SAMLInitiateResult{RedirectURL: "https://idp.example.com/saml/sso"}, nil
+}
+func (m *mockFederationService) HandleSAMLResponse(_ context.Context, _ *http.Request, _ string) (*SAMLCallbackResult, error) {
+	return &SAMLCallbackResult{RedirectURI: "https://app.example.com/callback?code=abc", Code: "abc"}, nil
+}
+func (m *mockFederationService) ExchangeSAMLCode(_ context.Context, _ string) (*LoginResponseDTO, error) {
+	return &LoginResponseDTO{AccessToken: "at"}, nil
+}
+func (m *mockFederationService) SAMLMetadata(_ context.Context, _ string) ([]byte, error) {
+	return []byte(`<?xml version="1.0"?><EntityDescriptor/>`), nil
+}
+
 func (m *mockFederationService) TestConnection(_ context.Context, _ TestConnectionRequestDTO) (*TestConnectionResultDTO, error) {
 	return &TestConnectionResultDTO{Success: true}, nil
 }

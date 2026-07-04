@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -27,7 +28,7 @@ type OAuthDeviceCode struct {
 	UserCode            string    `gorm:"column:user_code;uniqueIndex;not null"`
 	ClientID            int64     `gorm:"column:client_id;not null"`
 	TenantID            int64     `gorm:"column:tenant_id;not null"`
-	Scope               string    `gorm:"column:scope;not null;default:''"`
+	Scope               pq.StringArray `gorm:"column:scope;type:text[];not null;default:'{}'"`
 	// UserID is set once the user approves the request at the verification URI.
 	UserID   *int64         `gorm:"column:user_id"`
 	AuthACR  string         `gorm:"column:auth_acr"`

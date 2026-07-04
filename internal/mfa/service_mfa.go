@@ -571,7 +571,7 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 		summary := WebAuthnCredentialSummaryDTO{
 			CredentialUUID: c.CredentialUUID.String(),
 			Name:           c.Name,
-			Transport:      c.Transport,
+			Transport:      strings.Join([]string(c.Transport), ","),
 			CreatedAt:      c.CreatedAt.Format(time.RFC3339),
 		}
 		if c.LastUsedAt != nil {

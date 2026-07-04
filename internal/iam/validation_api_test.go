@@ -42,10 +42,10 @@ func TestAPICreateRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("description too short", func(t *testing.T) {
+	t.Run("description too short is now valid", func(t *testing.T) {
 		d := validAPICreate()
 		d.Description = "short"
-		require.Error(t, d.Validate())
+		require.NoError(t, d.Validate())
 	})
 
 	t.Run("invalid status", func(t *testing.T) {

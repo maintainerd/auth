@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -24,7 +25,7 @@ type OAuthBrokerSession struct {
 	// Original OAuth #1 (app → maintainerd) request, resumed after OAuth #2.
 	AppRedirectURI         string  `gorm:"column:app_redirect_uri;not null"`
 	AppState               *string `gorm:"column:app_state"`
-	AppScope               *string `gorm:"column:app_scope"`
+	AppScope               pq.StringArray `gorm:"column:app_scope;type:text[]"`
 	AppNonce               *string `gorm:"column:app_nonce"`
 	AppCodeChallenge       *string `gorm:"column:app_code_challenge"`
 	AppCodeChallengeMethod *string `gorm:"column:app_code_challenge_method"`

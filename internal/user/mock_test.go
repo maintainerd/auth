@@ -91,7 +91,8 @@ func jsonReq(t *testing.T, method, url string, body any) *http.Request {
 	return r
 }
 
-func strPtr(v string) *string { return &v }
+func strPtr(v string) *string   { return &v }
+func int64Ptr(v int64) *int64   { return &v }
 
 func validPagination() PaginationRequestDTO {
 	return PaginationRequestDTO{Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc}

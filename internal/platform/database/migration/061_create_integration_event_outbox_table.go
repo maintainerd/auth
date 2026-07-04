@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS integration_event_outbox (
     is_published        BOOLEAN NOT NULL DEFAULT false,
     published_at        TIMESTAMPTZ,
     claimed_at          TIMESTAMPTZ,
-    created_at          TIMESTAMPTZ DEFAULT now()
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

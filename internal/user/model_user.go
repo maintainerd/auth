@@ -21,20 +21,20 @@ type User struct {
 	Email                      string         `gorm:"column:email"`
 	Phone                      string         `gorm:"column:phone"`
 	Password                   *string        `gorm:"column:password" json:"-"`
-	IsEmailVerified            bool           `gorm:"column:is_email_verified;default:false"`
-	IsPhoneVerified            bool           `gorm:"column:is_phone_verified;default:false"`
-	IsProfileCompleted         bool           `gorm:"column:is_profile_completed;default:false"`
-	IsAccountCompleted         bool           `gorm:"column:is_account_completed;default:false"`
-	Status                     string         `gorm:"column:status;default:'active'"`
-	Metadata                   datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
+	IsEmailVerified            bool           `gorm:"column:is_email_verified;not null;default:false"`
+	IsPhoneVerified            bool           `gorm:"column:is_phone_verified;not null;default:false"`
+	IsProfileCompleted         bool           `gorm:"column:is_profile_completed;not null;default:false"`
+	IsAccountCompleted         bool           `gorm:"column:is_account_completed;not null;default:false"`
+	Status                     string         `gorm:"column:status;not null;default:'active'"`
+	Metadata                   datatypes.JSON `gorm:"column:metadata;type:jsonb;not null;default:'{}'"`
 	ForcePasswordChange        bool           `gorm:"column:force_password_change;default:false"`
 	PasswordChangedAt          *time.Time     `gorm:"column:password_changed_at"`
 	TemporaryPasswordExpiresAt *time.Time     `gorm:"column:temporary_password_expires_at"`
 	IsTOTPEnabled              bool           `gorm:"column:is_totp_enabled;default:false"`
 	IsWebAuthnEnabled          bool           `gorm:"column:is_webauthn_enabled;default:false"`
 	FirstMFAEnrolledAt         *time.Time     `gorm:"column:first_mfa_enrolled_at"`
-	CreatedAt                  time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt                  time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt                  time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt                  time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
 	DeletedAt                  gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`

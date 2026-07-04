@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS user_settings (
     emergency_contact_phone    VARCHAR(20),
     emergency_contact_email    VARCHAR(255),
     emergency_contact_relation VARCHAR(50),
-    created_at                 TIMESTAMPTZ DEFAULT now(),
-    updated_at                 TIMESTAMPTZ DEFAULT now()
+    created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

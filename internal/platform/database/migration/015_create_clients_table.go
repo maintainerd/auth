@@ -30,10 +30,10 @@ CREATE TABLE IF NOT EXISTS clients (
 
     -- Descriptive
     name                         VARCHAR(100) NOT NULL,
-    display_name                 TEXT NOT NULL,
+    display_name                 VARCHAR(255) NOT NULL,
     client_type                  VARCHAR(20) NOT NULL,
-    domain                       TEXT,
-    identifier                   TEXT,
+    domain                       VARCHAR(253),
+    identifier                   VARCHAR(512),
 
     -- Secret storage: bcrypt hash for password-style auth plus encrypted copy
     -- for client_secret_jwt HMAC verification. Plaintext is returned once only.
@@ -45,12 +45,20 @@ CREATE TABLE IF NOT EXISTS clients (
     previous_secret_expires_at   TIMESTAMPTZ,
 
     -- Free-form config blob + lifecycle
-    config                       JSONB,
-    status                       VARCHAR(20) DEFAULT 'inactive',
-    is_default                   BOOLEAN DEFAULT FALSE,
-    is_system                    BOOLEAN DEFAULT FALSE,
+    config                       JSONB NOT NULL DEFAULT '{}',
+    status                       VARCHAR(20) NOT NULL DEFAULT 'inactive',
+    is_default                   BOOLEAN NOT NULL DEFAULT FALSE,
+    is_system                    BOOLEAN NOT NULL DEFAULT FALSE,
     branding_id                  BIGINT,
     allow_registration           BOOLEAN NOT NULL DEFAULT TRUE,
+
+    -- OIDC Session Management (RP-Initiated / Back-Channel Logout)
+    backchannel_logout_uri              VARCHAR(2048),
+    frontchannel_logout_uri             VARCHAR(2048),
+    backchannel_logout_session_required BOOLEAN NOT NULL DEFAULT FALSE,
+
+    -- DPoP (RFC 9449): require tokens bound to client key pair
+    dpop_required                       BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- OAuth 2.0 core
     token_endpoint_auth_method   VARCHAR(30) NOT NULL DEFAULT 'client_secret_basic',
@@ -77,10 +85,10 @@ CREATE TABLE IF NOT EXISTS clients (
 
     -- JWT client auth (RFC 7523): embedded JWKS or URI for private_key_jwt / client_secret_jwt.
     jwks                         JSONB,
-    jwks_uri                     TEXT,
+    jwks_uri                     VARCHAR(2048),
 
     -- mTLS client auth (RFC 8705): expected certificate SHA-256 thumbprint.
-    mtls_bound_cert_thumbprint   TEXT,
+    mtls_bound_cert_thumbprint   VARCHAR(128),
 
     -- Scope-to-claim mapping: maps scope names to OIDC claim names to include in tokens.
     -- Format: {"email": ["email", "email_verified"], "profile": ["given_name", "family_name"]}
@@ -94,8 +102,8 @@ CREATE TABLE IF NOT EXISTS clients (
     -- Audit
     created_by                   BIGINT,
     updated_by                   BIGINT,
-    created_at                   TIMESTAMPTZ DEFAULT now(),
-    updated_at                   TIMESTAMPTZ DEFAULT now(),
+    created_at                   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                   TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at                   TIMESTAMPTZ,
 
     CONSTRAINT chk_clients_token_auth_method CHECK (
@@ -151,6 +159,20 @@ BEGIN
             REFERENCES branding(branding_id) ON DELETE SET NULL;
     END IF;
 
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_clients_grant_types') THEN
+        ALTER TABLE clients ADD CONSTRAINT chk_clients_grant_types
+            CHECK (grant_types <@ ARRAY[
+                'authorization_code', 'client_credentials', 'refresh_token',
+                'urn:ietf:params:oauth:grant-type:device_code',
+                'urn:openid:params:grant-type:ciba',
+                'urn:ietf:params:oauth:grant-type:token-exchange'
+            ]::TEXT[]);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_clients_response_types') THEN
+        ALTER TABLE clients ADD CONSTRAINT chk_clients_response_types
+            CHECK (response_types <@ ARRAY['code', 'token', 'id_token']::TEXT[]);
+    END IF;
 END$$;
 
 -- ADD INDEXES

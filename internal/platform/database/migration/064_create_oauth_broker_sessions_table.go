@@ -17,14 +17,16 @@ CREATE TABLE IF NOT EXISTS oauth_broker_sessions (
     tenant_id                 BIGINT       NOT NULL,
     client_id                 BIGINT       NOT NULL,
     identity_provider_id      BIGINT       NOT NULL,
-    identity_provider_identifier TEXT      NOT NULL,
+    identity_provider_identifier VARCHAR(512)      NOT NULL,
 
-    app_redirect_uri          TEXT         NOT NULL,
+    app_redirect_uri          VARCHAR(2048)         NOT NULL,
     app_state                 TEXT,
-    app_scope                 TEXT,
+    app_scope                 TEXT[],
     app_nonce                 TEXT,
     app_code_challenge        TEXT,
     app_code_challenge_method VARCHAR(10),
+    CONSTRAINT chk_oauth_broker_sessions_challenge_method
+        CHECK (app_code_challenge_method IS NULL OR app_code_challenge_method IN ('S256')),
 
     idp_state                 TEXT         NOT NULL UNIQUE,
     idp_pkce_verifier         TEXT         NOT NULL,
@@ -68,6 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_oauth_broker_sessions_uuid          ON oauth_brok
 CREATE UNIQUE INDEX IF NOT EXISTS uq_oauth_broker_sessions_idp_state ON oauth_broker_sessions (idp_state);
 CREATE INDEX IF NOT EXISTS idx_oauth_broker_sessions_expires_at    ON oauth_broker_sessions (expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_broker_sessions_client_id     ON oauth_broker_sessions (client_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_broker_sessions_app_scope ON oauth_broker_sessions USING GIN (app_scope) WHERE app_scope IS NOT NULL;
 `
 	return db.Exec(sql).Error
 }

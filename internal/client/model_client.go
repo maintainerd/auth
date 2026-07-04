@@ -79,12 +79,20 @@ type Client struct {
 	PreviousSecretExpiresAt *time.Time `gorm:"column:previous_secret_expires_at"`
 
 	// Free-form config blob + lifecycle
-	Config            datatypes.JSON `gorm:"column:config"`
-	Status            string         `gorm:"column:status;default:'inactive'"`
-	IsDefault         bool           `gorm:"column:is_default;default:false"`
-	IsSystem          bool           `gorm:"column:is_system;default:false"`
+	Config            datatypes.JSON `gorm:"column:config;type:jsonb;not null;default:'{}'"`
+	Status            string         `gorm:"column:status;not null;default:'inactive'"`
+	IsDefault         bool           `gorm:"column:is_default;not null;default:false"`
+	IsSystem          bool           `gorm:"column:is_system;not null;default:false"`
 	BrandingID        *int64         `gorm:"column:branding_id" json:"branding_id,omitempty"`
 	AllowRegistration bool           `gorm:"column:allow_registration;not null;default:true" json:"allow_registration"`
+
+	// OIDC Session Management (RP-Initiated / Back-Channel Logout)
+	BackchannelLogoutURI             *string `gorm:"column:backchannel_logout_uri"`
+	FrontchannelLogoutURI            *string `gorm:"column:frontchannel_logout_uri"`
+	BackchannelLogoutSessionRequired bool    `gorm:"column:backchannel_logout_session_required;not null;default:false"`
+
+	// DPoP (RFC 9449): require tokens bound to client key pair
+	DPoPRequired bool `gorm:"column:dpop_required;not null;default:false"`
 
 	// OAuth 2.0 core
 	TokenEndpointAuthMethod string         `gorm:"column:token_endpoint_auth_method;default:'client_secret_basic'"`
@@ -124,8 +132,8 @@ type Client struct {
 	// Audit
 	CreatedBy *int64         `gorm:"column:created_by"`
 	UpdatedBy *int64         `gorm:"column:updated_by"`
-	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships

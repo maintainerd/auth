@@ -3,9 +3,11 @@ package user
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
@@ -426,7 +428,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		userIdentity := &UserIdentity{
 			TenantID:           targetTenant.TenantID,
 			UserID:             newUser.UserID,
-			ClientID:           defaultClient.ClientID,
+			ClientID:           &defaultClient.ClientID,
 			IdentityProviderID: &defaultClient.IdentityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                newUser.UserUUID.String(),
@@ -1306,8 +1308,8 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID,
 
 	clientIDs := make([]int64, 0, len(result.Data))
 	for _, identity := range result.Data {
-		if identity.ClientID > 0 {
-			clientIDs = append(clientIDs, identity.ClientID)
+		if identity.ClientID != nil && *identity.ClientID > 0 {
+			clientIDs = append(clientIDs, *identity.ClientID)
 		}
 	}
 	clientMap := make(map[int64]*ClientServiceDataResult)
@@ -1325,12 +1327,16 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID,
 	}
 
 	for i, identity := range result.Data {
+		var clientResult *ClientServiceDataResult
+		if identity.ClientID != nil {
+			clientResult = clientMap[*identity.ClientID]
+		}
 		identities[i] = UserIdentityServiceDataResult{
 			UserIdentityUUID: identity.UserIdentityUUID,
 			Provider:         identity.Provider,
 			Sub:              identity.Sub,
 			Metadata:         identity.Metadata,
-			Client:           clientMap[identity.ClientID],
+			Client:           clientResult,
 			CreatedAt:        identity.CreatedAt,
 			UpdatedAt:        identity.UpdatedAt,
 		}
@@ -1425,7 +1431,7 @@ func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenant
 	type webAuthnRow struct {
 		CredentialUUID string
 		Name           string
-		Transport      string
+		Transport      pq.StringArray
 		LastUsedAt     *time.Time
 		CreatedAt      time.Time
 	}
@@ -1444,7 +1450,7 @@ func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenant
 		key := UserMFAWebAuthnKeyDTO{
 			CredentialUUID: r.CredentialUUID,
 			Name:           r.Name,
-			Transport:      r.Transport,
+			Transport:      strings.Join([]string(r.Transport), ","),
 			CreatedAt:      r.CreatedAt.Format(time.RFC3339),
 		}
 		if r.LastUsedAt != nil {
@@ -1644,7 +1650,7 @@ func (s *userService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID
 		identity := &UserIdentity{
 			TenantID:           targetTenantID,
 			UserID:             created.UserID,
-			ClientID:           defaultClient.ClientID,
+			ClientID:           &defaultClient.ClientID,
 			IdentityProviderID: &idp.IdentityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),

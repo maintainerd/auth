@@ -19,7 +19,7 @@ type Profile struct {
 	Suffix      *string        `gorm:"column:suffix"`
 	DisplayName *string        `gorm:"column:display_name"`
 	Bio         *string        `gorm:"column:bio"`
-	IsDefault   bool           `gorm:"column:is_default;default:false"`
+	IsDefault   bool           `gorm:"column:is_default;not null;default:false"`
 	Birthdate   *time.Time     `gorm:"column:birthdate"`
 	Gender      *string        `gorm:"column:gender"`
 	Phone       *string        `gorm:"column:phone"`
@@ -33,8 +33,8 @@ type Profile struct {
 	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
 	CreatedBy   *int64         `gorm:"column:created_by"`
 	UpdatedBy   *int64         `gorm:"column:updated_by"`
-	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt   time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	User *User `gorm:"foreignKey:UserID;references:UserID"`

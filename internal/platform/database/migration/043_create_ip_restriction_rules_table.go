@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS ip_restriction_rules (
     status                   VARCHAR(20) NOT NULL DEFAULT 'active',
     created_by               BIGINT,
     updated_by               BIGINT,
-    created_at               TIMESTAMPTZ DEFAULT now(),
-    updated_at               TIMESTAMPTZ DEFAULT now(),
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at               TIMESTAMPTZ
 );
 

@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS oauth_par_requests (
     client_id              BIGINT       NOT NULL,
     tenant_id              BIGINT       NOT NULL,
     response_type          VARCHAR(20)  NOT NULL DEFAULT 'code',
-    redirect_uri           TEXT         NOT NULL,
-    scope                  TEXT         NOT NULL DEFAULT '',
+    redirect_uri                 VARCHAR(2048) NOT NULL,
+    scope                  TEXT[]       NOT NULL DEFAULT '{}',
     state                  TEXT,
     nonce                  TEXT,
     code_challenge         TEXT         NOT NULL,
@@ -52,6 +52,7 @@ END$$;
 CREATE INDEX IF NOT EXISTS idx_oauth_par_requests_uuid       ON oauth_par_requests (oauth_par_request_uuid);
 CREATE INDEX IF NOT EXISTS idx_oauth_par_requests_client_id  ON oauth_par_requests (client_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_par_requests_expires_at ON oauth_par_requests (expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_par_requests_scope ON oauth_par_requests USING GIN (scope);
 `
 	return db.Exec(sql).Error
 }

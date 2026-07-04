@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
     webhook_endpoint_id     BIGSERIAL PRIMARY KEY,
     webhook_endpoint_uuid   UUID NOT NULL UNIQUE,
     tenant_id               BIGINT NOT NULL,
-    url                     TEXT NOT NULL,
+    url                     VARCHAR(2048) NOT NULL,
     secret_encrypted        TEXT,
     subscribe_all           BOOLEAN NOT NULL DEFAULT false,
     max_retries             INTEGER NOT NULL DEFAULT 3,
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
     last_triggered_at       TIMESTAMPTZ,
     created_by              BIGINT,
     updated_by              BIGINT,
-    created_at              TIMESTAMPTZ DEFAULT now(),
-    updated_at              TIMESTAMPTZ DEFAULT now(),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at              TIMESTAMPTZ
 );
 

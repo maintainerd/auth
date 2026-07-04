@@ -12,14 +12,14 @@ CREATE TABLE IF NOT EXISTS roles (
     role_uuid   UUID UNIQUE NOT NULL,
     tenant_id   BIGINT NOT NULL,
     name        VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
+    description TEXT,
     status      VARCHAR(16) NOT NULL DEFAULT 'inactive',
-    is_default  BOOLEAN DEFAULT FALSE,
-    is_system   BOOLEAN DEFAULT FALSE,
+    is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+    is_system   BOOLEAN NOT NULL DEFAULT FALSE,
     created_by  BIGINT,
     updated_by  BIGINT,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now(),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ
 );
 

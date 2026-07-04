@@ -35,7 +35,7 @@ func TestRegistrationFlowCreateRequestDto_Validate(t *testing.T) {
 	t.Run("missing description", func(t *testing.T) {
 		d := valid
 		d.Description = ""
-		require.Error(t, d.Validate())
+		require.NoError(t, d.Validate())
 	})
 
 	t.Run("invalid status", func(t *testing.T) {
@@ -65,21 +65,14 @@ func TestRegistrationFlowCreateRequestDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid required fields", func(t *testing.T) {
-		fields := `["email","fullname","phone"]`
+		fields := []string{"email", "fullname", "phone"}
 		d := valid
 		d.RequiredFields = &fields
 		assert.NoError(t, d.Validate())
 	})
 
-	t.Run("required fields must be a string array", func(t *testing.T) {
-		fields := `{"email":true}`
-		d := valid
-		d.RequiredFields = &fields
-		require.Error(t, d.Validate())
-	})
-
 	t.Run("unknown required field is rejected", func(t *testing.T) {
-		fields := `["address"]`
+		fields := []string{"address"}
 		d := valid
 		d.RequiredFields = &fields
 		require.Error(t, d.Validate())

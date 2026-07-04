@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func int64Ptr(v int64) *int64 { return &v }
+
 func TestDepsTableNames(t *testing.T) {
 	assert.Equal(t, "tenants", Tenant{}.TableName())
 	assert.Equal(t, "user_identities", UserIdentity{}.TableName())

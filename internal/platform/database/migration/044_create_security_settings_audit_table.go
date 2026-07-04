@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS security_settings_audit (
     ip_address                   INET,
     user_agent                   TEXT,
     created_by                   BIGINT,
-    created_at                   TIMESTAMPTZ DEFAULT now()
+    created_at                   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

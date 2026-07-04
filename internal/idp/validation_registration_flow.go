@@ -1,7 +1,6 @@
 package idp
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -13,17 +12,13 @@ import (
 
 var ValidationIdentifierRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9-_]*$`)
 
-func validateRequiredFieldsJSON(raw *string) error {
-	if raw == nil {
+func validateRequiredFieldsJSON(raw *[]string) error {
+	if raw == nil || len(*raw) == 0 {
 		return nil
 	}
-	var fields []string
-	if err := json.Unmarshal([]byte(*raw), &fields); err != nil {
-		return fmt.Errorf("required_fields must be a JSON string array")
-	}
 	allowed := map[string]bool{"fullname": true, "email": true, "phone": true}
-	seen := make(map[string]bool, len(fields))
-	for _, field := range fields {
+	seen := make(map[string]bool, len(*raw))
+	for _, field := range *raw {
 		field = strings.ToLower(strings.TrimSpace(field))
 		if !allowed[field] {
 			return fmt.Errorf("unsupported required field: %s", field)
@@ -41,9 +36,6 @@ func (r RegistrationFlowCreateRequestDTO) Validate() error {
 		validation.Field(&r.Name,
 			validation.Required.Error("Registration flow name is required"),
 			validation.Length(1, 100).Error("Registration flow name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Description,
-			validation.Required.Error("Description is required"),
 		),
 		validation.Field(&r.Status,
 			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
@@ -69,9 +61,6 @@ func (r RegistrationFlowUpdateRequestDTO) Validate() error {
 		validation.Field(&r.Name,
 			validation.Required.Error("Registration flow name is required"),
 			validation.Length(1, 100).Error("Registration flow name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Description,
-			validation.Required.Error("Description is required"),
 		),
 		validation.Field(&r.Status,
 			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),

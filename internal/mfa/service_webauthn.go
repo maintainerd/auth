@@ -10,6 +10,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
@@ -179,16 +180,16 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		name = "Security Key"
 	}
 
-	transport := joinTransports(cred.Transport)
 	storedCred := &UserMFAWebAuthnCredential{
-		UserID:           userID,
-		CredentialKeyID:  base64.RawURLEncoding.EncodeToString(cred.ID),
-		PublicKey:        cred.PublicKey,
-		SignCount:        int64(cred.Authenticator.SignCount),
-		Transport:        transport,
-		IsBackupEligible: cred.Flags.BackupEligible,
-		IsBackupState:    cred.Flags.BackupState,
-		Name:             name,
+		UserID:                   userID,
+		CredentialKeyID:          base64.RawURLEncoding.EncodeToString(cred.ID),
+		PublicKey:                cred.PublicKey,
+		SignCount:                int64(cred.Authenticator.SignCount),
+		Transport:                transportArray(cred.Transport),
+		IsBackupEligible:         cred.Flags.BackupEligible,
+		IsBackupState:            cred.Flags.BackupState,
+		IsDiscoverableCredential: cred.Flags.BackupEligible,
+		Name:                     name,
 	}
 
 	if err := s.mfaWebAuthnCredRepo.CreateCredential(storedCred); err != nil {
@@ -451,7 +452,7 @@ func (s *webAuthnService) DownloadCredential(ctx context.Context, credentialUUID
 		Name:             cred.Name,
 		CredentialKeyID:  cred.CredentialKeyID,
 		PublicKeyBase64:  base64.RawStdEncoding.EncodeToString(cred.PublicKey),
-		Transport:        cred.Transport,
+		Transport:        strings.Join([]string(cred.Transport), ","),
 		IsBackupEligible: cred.IsBackupEligible,
 		IsBackupState:    cred.IsBackupState,
 		CreatedAt:        cred.CreatedAt.Format(time.RFC3339),
@@ -475,10 +476,10 @@ func rpIDFromHostname(hostname string) string {
 	return host
 }
 
-func joinTransports(ts []protocol.AuthenticatorTransport) string {
-	parts := make([]string, len(ts))
+func transportArray(ts []protocol.AuthenticatorTransport) pq.StringArray {
+	arr := make(pq.StringArray, len(ts))
 	for i, t := range ts {
-		parts[i] = string(t)
+		arr[i] = string(t)
 	}
-	return strings.Join(parts, ",")
+	return arr
 }

@@ -3,6 +3,7 @@ package oauth
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
@@ -122,7 +123,7 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req OAuthCIBARequestDTO
 		ClientID:      client.ClientID,
 		TenantID:      client.TenantID,
 		UserID:        &user.UserID,
-		Scope:         req.Scope,
+		Scope:         parseScopeFields(req.Scope),
 		Status:        CIBAStatusPending,
 		Interval:      cibaInterval,
 		ExpiresAt:     time.Now().Add(cibaRequestTTL),
@@ -315,7 +316,7 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(
 		ctx,
 		user.UserUUID.String(),
-		record.Scope,
+		strings.Join([]string(record.Scope), " "),
 		issuer,
 		issuer,
 		clientIdentifier,
@@ -344,7 +345,7 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
 		ExpiresIn:   oauthAccessTokenExpiresIn(s.securitySettingRepo, record.Client),
-		Scope:       record.Scope,
+		Scope:       strings.Join([]string(record.Scope), " "),
 	}, nil
 }
 

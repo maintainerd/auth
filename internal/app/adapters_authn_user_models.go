@@ -75,9 +75,13 @@ func toAuthnUserIdentity(u *user.UserIdentity) *authn.UserIdentity {
 	if u == nil {
 		return nil
 	}
+	var clientID int64
+	if u.ClientID != nil {
+		clientID = *u.ClientID
+	}
 	return &authn.UserIdentity{
 		UserIdentityID: u.UserIdentityID, UserIdentityUUID: u.UserIdentityUUID,
-		TenantID: u.TenantID, UserID: u.UserID, ClientID: u.ClientID,
+		TenantID: u.TenantID, UserID: u.UserID, ClientID: clientID,
 		Provider: u.Provider, Sub: u.Sub, Metadata: u.Metadata,
 		CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,
 	}
@@ -87,9 +91,10 @@ func toUserUserIdentity(u *authn.UserIdentity) *user.UserIdentity {
 	if u == nil {
 		return nil
 	}
+	clientID := u.ClientID
 	return &user.UserIdentity{
 		UserIdentityID: u.UserIdentityID, UserIdentityUUID: u.UserIdentityUUID,
-		TenantID: u.TenantID, UserID: u.UserID, ClientID: u.ClientID,
+		TenantID: u.TenantID, UserID: u.UserID, ClientID: &clientID,
 		IdentityProviderID: u.IdentityProviderID,
 		Provider:           u.Provider, Sub: u.Sub, Metadata: u.Metadata,
 		CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt,

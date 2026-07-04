@@ -31,7 +31,7 @@ func TestOAuthConsentService_ListGrants(t *testing.T) {
 						UserID:                1,
 						ClientID:              10,
 						TenantID:              100,
-						Scopes:                "openid profile email",
+						Scopes:                parseScopeFields("openid profile email"),
 						CreatedAt:             now,
 						UpdatedAt:             now,
 						Client: &Client{
@@ -73,7 +73,7 @@ func TestOAuthConsentService_ListGrants(t *testing.T) {
 				return []OAuthConsentGrant{
 					{
 						OAuthConsentGrantUUID: grantUUID,
-						Scopes:                "openid",
+						Scopes:                parseScopeFields("openid"),
 						CreatedAt:             now,
 						UpdatedAt:             now,
 					},

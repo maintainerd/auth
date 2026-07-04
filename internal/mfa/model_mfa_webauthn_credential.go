@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -17,10 +18,11 @@ type UserMFAWebAuthnCredential struct {
 	PublicKey        []byte     `gorm:"column:public_key;not null"`
 	AAGUID           *uuid.UUID `gorm:"column:aaguid;type:uuid"`
 	SignCount        int64      `gorm:"column:sign_count;default:0"`
-	Transport        string     `gorm:"column:transport"`
-	IsBackupEligible bool       `gorm:"column:is_backup_eligible;default:false"`
-	IsBackupState    bool       `gorm:"column:is_backup_state;default:false"`
-	Name             string     `gorm:"column:name;default:'Security Key'"`
+	Transport        pq.StringArray `gorm:"column:transport;type:text[];default:'{}'"`
+	IsBackupEligible         bool   `gorm:"column:is_backup_eligible;default:false"`
+	IsBackupState            bool   `gorm:"column:is_backup_state;default:false"`
+	IsDiscoverableCredential bool   `gorm:"column:is_discoverable_credential;not null;default:false"`
+	Name                     string `gorm:"column:name;default:'Security Key'"`
 	LastUsedAt       *time.Time `gorm:"column:last_used_at"`
 	CreatedAt        time.Time  `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt        time.Time  `gorm:"column:updated_at;autoUpdateTime"`

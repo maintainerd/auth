@@ -21,8 +21,8 @@ type ClientIdentityProvider struct {
 	DisplayOrder               int       `gorm:"column:display_order;default:0"`
 	CreatedBy                  *int64    `gorm:"column:created_by"`
 	UpdatedBy                  *int64    `gorm:"column:updated_by"`
-	CreatedAt                  time.Time `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt                  time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt                  time.Time `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt                  time.Time `gorm:"column:updated_at;not null;autoUpdateTime"`
 	DeletedAt                  gorm.DeletedAt
 
 	Client           *Client           `gorm:"foreignKey:ClientID;references:ClientID"`

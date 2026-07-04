@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS webhook_delivery_history (
     next_retry_time         TIMESTAMPTZ,
     final_status            VARCHAR(20) NOT NULL DEFAULT 'pending',
     is_replay               BOOLEAN NOT NULL DEFAULT false,
-    created_at              TIMESTAMPTZ DEFAULT now(),
-    updated_at              TIMESTAMPTZ DEFAULT now()
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

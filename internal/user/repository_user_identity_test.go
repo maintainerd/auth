@@ -138,7 +138,8 @@ func TestUserIdentityRepository_FindByUserIDAndClientID(t *testing.T) {
 		result, err := repo.FindByUserIDAndClientID(42, 5)
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		assert.Equal(t, int64(5), result.ClientID)
+		require.NotNil(t, result.ClientID)
+		assert.Equal(t, int64(5), *result.ClientID)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 

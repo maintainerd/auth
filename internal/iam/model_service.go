@@ -15,12 +15,12 @@ type Service struct {
 	DisplayName string         `gorm:"column:display_name"`
 	Description string         `gorm:"column:description"`
 	Version     string         `gorm:"column:version"`
-	Status      string         `gorm:"column:status;default:'inactive'"`
-	IsSystem    bool           `gorm:"column:is_system;default:false"`
+	Status      string         `gorm:"column:status;not null;default:'inactive'"`
+	IsSystem    bool           `gorm:"column:is_system;not null;default:false"`
 	CreatedBy   *int64         `gorm:"column:created_by"`
 	UpdatedBy   *int64         `gorm:"column:updated_by"`
-	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt   time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 

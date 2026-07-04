@@ -16,6 +16,18 @@ func FederationPublicRoute(r chi.Router, h *FederationHandler) {
 		r.Post("/oauth2/callback", h.ExchangeOAuth2Code)
 		// GET /federation/hrd — home-realm discovery by email domain.
 		r.Get("/hrd", h.HomeRealmDiscovery)
+
+		// SAML 2.0 SP-initiated SSO
+		// GET  /federation/saml/initiate      — start SAML flow (→ IdP redirect)
+		// POST /federation/saml/acs/{id}      — ACS: receive IdP SAMLResponse
+		// POST /federation/saml/exchange      — exchange short-lived code for tokens
+		// GET  /federation/saml/metadata/{id} — SP metadata XML
+		r.Route("/saml", func(r chi.Router) {
+			r.Get("/initiate", h.InitiateSAML)
+			r.Post("/acs/{provider_identifier}", h.SAMLCallback)
+			r.Post("/exchange", h.ExchangeSAMLCode)
+			r.Get("/metadata/{provider_identifier}", h.SAMLMetadata)
+		})
 	})
 }
 

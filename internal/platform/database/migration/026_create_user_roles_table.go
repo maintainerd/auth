@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
     user_role_uuid    UUID NOT NULL UNIQUE,
     user_id           BIGINT NOT NULL,
     role_id           BIGINT NOT NULL,
-    created_at        TIMESTAMPTZ DEFAULT now()
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS (safe)

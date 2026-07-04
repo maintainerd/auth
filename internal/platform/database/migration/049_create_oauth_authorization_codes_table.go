@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
     client_id                     BIGINT        NOT NULL,
     user_id                       BIGINT        NOT NULL,
     tenant_id                     BIGINT        NOT NULL,
-    redirect_uri                  TEXT          NOT NULL,
-    scope                         TEXT          NOT NULL DEFAULT '',
+    redirect_uri                 VARCHAR(2048) NOT NULL,
+    scope                         TEXT[]        NOT NULL DEFAULT '{}',
     state                         TEXT,
     nonce                         TEXT,
     code_challenge                TEXT          NOT NULL,
@@ -64,6 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_code_hash ON oauth_authorization
 CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_expires ON oauth_authorization_codes (expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_user_id ON oauth_authorization_codes (user_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_client_user ON oauth_authorization_codes (client_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_authorization_codes_scope ON oauth_authorization_codes USING GIN (scope);
 `
 	return db.Exec(sql).Error
 }

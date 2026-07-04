@@ -1660,7 +1660,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
-				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 5, Provider: "default"}},
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: int64Ptr(5), Provider: "default"}},
 				Total: 1,
 			}, nil
 		}
@@ -1679,7 +1679,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
-				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 0}},
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: nil}},
 				Total: 1,
 			}, nil
 		}
@@ -1695,7 +1695,7 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
-				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 5}},
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: int64Ptr(5)}},
 				Total: 1,
 			}, nil
 		}

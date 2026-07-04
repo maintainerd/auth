@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +20,7 @@ type OAuthRefreshToken struct {
 	ClientID              int64      `gorm:"column:client_id;index:idx_oauth_refresh_user_client;not null"`
 	UserID                int64      `gorm:"column:user_id;index:idx_oauth_refresh_user_client;not null"`
 	TenantID              int64      `gorm:"column:tenant_id;not null"`
-	Scope                 string     `gorm:"column:scope;not null;default:''"`
+	Scope                 pq.StringArray `gorm:"column:scope;type:text[];not null;default:'{}'"`
 	IsRevoked             bool       `gorm:"column:is_revoked;not null;default:false"`
 	RevokedAt             *time.Time `gorm:"column:revoked_at"`
 	ExpiresAt             time.Time  `gorm:"column:expires_at;index:idx_oauth_refresh_expires;not null"`

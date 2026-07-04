@@ -16,13 +16,13 @@ type EmailTemplate struct {
 	BodyHTML          string         `gorm:"column:body_html"`
 	BodyPlain         *string        `gorm:"column:body_plain"`
 	ParametersDoc     *string        `gorm:"column:parameters_doc"`
-	Status            string         `gorm:"column:status;default:'active'"`
-	IsDefault         bool           `gorm:"column:is_default;default:false"`
-	IsSystem          bool           `gorm:"column:is_system;default:false"`
+	Status            string         `gorm:"column:status;not null;default:'active'"`
+	IsDefault         bool           `gorm:"column:is_default;not null;default:false"`
+	IsSystem          bool           `gorm:"column:is_system;not null;default:false"`
 	CreatedBy         *int64         `gorm:"column:created_by"`
 	UpdatedBy         *int64         `gorm:"column:updated_by"`
-	CreatedAt         time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt         time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt         time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt         time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
 	DeletedAt         gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 

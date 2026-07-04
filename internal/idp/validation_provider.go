@@ -1,6 +1,7 @@
 package idp
 
 import (
+	"encoding/json"
 	"strings"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -14,10 +15,39 @@ func isExternalProviderType(providerType string) bool {
 	return providerType == shared.IDPTypeSocial || providerType == shared.IDPTypeEnterprise
 }
 
+// isSAMLProviderType reports whether the provider type is SAML.
+func isSAMLProviderType(providerType string) bool {
+	return providerType == shared.IDPTypeSAML
+}
+
+// validateSAMLConfig checks that the Config JSON blob contains the required
+// fields for an active SAML provider: entity_id, sso_url, certificate.
+func validateSAMLConfig(value interface{}) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return validation.NewError("validation_saml_config", "config must be valid JSON")
+	}
+	var cfg SAMLProviderConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return validation.NewError("validation_saml_config", "config must be valid JSON")
+	}
+	if cfg.EntityID == "" {
+		return validation.NewError("validation_saml_config", "config.entity_id is required for active SAML providers")
+	}
+	if cfg.SSOURL == "" {
+		return validation.NewError("validation_saml_config", "config.sso_url is required for active SAML providers")
+	}
+	if cfg.Certificate == "" {
+		return validation.NewError("validation_saml_config", "config.certificate is required for active SAML providers")
+	}
+	return nil
+}
+
 // Validation for create request
 func (r IdentityProviderCreateRequestDTO) Validate() error {
 	requireExternalCreds := isExternalProviderType(r.ProviderType) && r.Status == shared.StatusActive
 	requireTokenFederation := r.AllowTokenFederation && r.Status == shared.StatusActive
+	requireSAMLConfig := isSAMLProviderType(r.ProviderType) && r.Status == shared.StatusActive
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -29,11 +59,14 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Provider,
 			validation.Required.Error("Provider is required"),
-			validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Provider must be one of: maintainerd, cognito, auth0, google, facebook, github, gitlab, microsoft, apple, linkedin, twitter"),
+			validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter, shared.IDPProviderSAML).Error("Provider must be one of: maintainerd, cognito, auth0, google, facebook, github, gitlab, microsoft, apple, linkedin, twitter, saml"),
 		),
 		validation.Field(&r.ProviderType,
 			validation.Required.Error("Provider type is required"),
-			validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise).Error("Provider type must be one of: system, social, enterprise"),
+			validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise, shared.IDPTypeSAML).Error("Provider type must be one of: system, social, enterprise, saml"),
+		),
+		validation.Field(&r.Config,
+			validation.When(requireSAMLConfig, validation.By(validateSAMLConfig)),
 		),
 		validation.Field(&r.Issuer,
 			validation.When(requireExternalCreds || requireTokenFederation, validation.Required.Error("Issuer is required for active social/enterprise or token-federation providers")),
@@ -69,6 +102,7 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 func (r IdentityProviderUpdateRequestDTO) Validate() error {
 	requireExternalCreds := isExternalProviderType(r.ProviderType) && r.Status == shared.StatusActive
 	requireTokenFederation := r.AllowTokenFederation && r.Status == shared.StatusActive
+	requireSAMLConfig := isSAMLProviderType(r.ProviderType) && r.Status == shared.StatusActive
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -80,11 +114,14 @@ func (r IdentityProviderUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Provider,
 			validation.Required.Error("Provider is required"),
-			validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Provider must be one of: maintainerd, cognito, auth0, google, facebook, github, gitlab, microsoft, apple, linkedin, twitter"),
+			validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter, shared.IDPProviderSAML).Error("Provider must be one of: maintainerd, cognito, auth0, google, facebook, github, gitlab, microsoft, apple, linkedin, twitter, saml"),
 		),
 		validation.Field(&r.ProviderType,
 			validation.Required.Error("Provider type is required"),
-			validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise).Error("Provider type must be one of: system, social, enterprise"),
+			validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise, shared.IDPTypeSAML).Error("Provider type must be one of: system, social, enterprise, saml"),
+		),
+		validation.Field(&r.Config,
+			validation.When(requireSAMLConfig, validation.By(validateSAMLConfig)),
 		),
 		validation.Field(&r.Issuer,
 			validation.When(requireExternalCreds || requireTokenFederation, validation.Required.Error("Issuer is required for active social/enterprise or token-federation providers")),
@@ -130,12 +167,12 @@ func (f IdentityProviderFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Provider,
 			validation.When(len(f.Provider) > 0,
-				validation.Each(validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Invalid identity provider")),
+				validation.Each(validation.In(shared.IDPProviderMaintainerd, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderGitLab, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter, shared.IDPProviderSAML).Error("Invalid identity provider")),
 			),
 		),
 		validation.Field(&f.ProviderType,
 			validation.When(f.ProviderType != nil,
-				validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise).Error("Provider type must be one of: system, social, enterprise"),
+				validation.In(shared.IDPTypeSystem, shared.IDPTypeSocial, shared.IDPTypeEnterprise, shared.IDPTypeSAML).Error("Provider type must be one of: system, social, enterprise, saml"),
 			),
 		),
 		validation.Field(&f.Status,

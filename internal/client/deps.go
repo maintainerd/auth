@@ -103,9 +103,9 @@ type UserIdentity struct {
 	UserIdentityID int64   `gorm:"primaryKey"`
 	TenantID       int64   `gorm:"column:tenant_id"`
 	UserID         int64   `gorm:"column:user_id"`
-	ClientID       int64   `gorm:"column:client_id"`
+	ClientID       *int64  `gorm:"column:client_id"`
 	Tenant         *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
-	Client         *Client `gorm:"foreignKey:ClientID;references:ClientID"`
+	Client         *Client `gorm:"foreignKey:ClientID;references:ClientID;constraint:OnDelete:SET NULL"`
 }
 
 func (UserIdentity) TableName() string { return "user_identities" }

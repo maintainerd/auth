@@ -352,7 +352,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 		userIdentity := &UserIdentity{
 			TenantID:           defaultTenant.TenantID,
 			UserID:             createdUser.UserID,
-			ClientID:           defaultClient.ClientID,
+			ClientID:           &defaultClient.ClientID,
 			IdentityProviderID: identityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),

@@ -11,6 +11,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 )
 
 // ---------------------------------------------------------------------------
@@ -168,7 +169,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 		cr := defaultCR()
 		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return nil, nil }
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "auth client not found")
 	})
@@ -184,7 +185,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*RegistrationFlow, error) { return nil, errors.New("name err") },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
 	})
@@ -200,7 +201,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*RegistrationFlow, error) { return &RegistrationFlow{Name: "test-flow"}, nil },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name already exists")
 	})
@@ -218,7 +219,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 			return &Client{ClientID: 1, TenantID: 1, Status: shared.StatusActive}, nil
 		}
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
 	})
@@ -237,7 +238,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 				return nil, errors.New("ident err")
 			},
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ident err")
 	})
@@ -253,7 +254,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*RegistrationFlow, error) { return nil, nil },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 	})
 
@@ -269,7 +270,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*RegistrationFlow, error) { return nil, nil },
 			createFn:                func(_ *RegistrationFlow) (*RegistrationFlow, error) { return nil, errors.New("create err") },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
 	})
@@ -289,7 +290,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 				return sf, nil
 			},
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -309,7 +310,7 @@ func TestRegistrationFlowService_Create(t *testing.T) {
 				return sf, nil
 			},
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, "[]")
+		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", shared.StatusActive, clientUUID, nil, nil, false, datatypes.JSON([]byte("[]")))
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -329,7 +330,7 @@ func TestRegistrationFlowService_Update(t *testing.T) {
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*RegistrationFlow, error) { return nil, nil },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, "new", "desc", shared.StatusActive, nil, false, "[]")
+		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, "new", "desc", shared.StatusActive, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "registration flow not found")
 	})
@@ -342,7 +343,7 @@ func TestRegistrationFlowService_Update(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*RegistrationFlow, error) { return sf, nil },
 			findByNameAndTenantIDFn: func(_ string, _ int64) (*RegistrationFlow, error) { return nil, errors.New("name err") },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, false, "[]")
+		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
 	})
@@ -357,7 +358,7 @@ func TestRegistrationFlowService_Update(t *testing.T) {
 				return &RegistrationFlow{RegistrationFlowID: 999, Name: "different-name"}, nil
 			},
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, false, "[]")
+		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name already exists")
 	})
@@ -372,7 +373,7 @@ func TestRegistrationFlowService_Update(t *testing.T) {
 				return &RegistrationFlow{RegistrationFlowID: sf.RegistrationFlowID}, nil // same ID → no conflict
 			},
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, false, "[]")
+		res, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, "different-name", "desc", shared.StatusActive, nil, false, datatypes.JSON([]byte("[]")))
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -384,7 +385,7 @@ func TestRegistrationFlowService_Update(t *testing.T) {
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*RegistrationFlow, error) { return sf, nil },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, false, "[]")
+		res, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, false, datatypes.JSON([]byte("[]")))
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -396,7 +397,7 @@ func TestRegistrationFlowService_Update(t *testing.T) {
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*RegistrationFlow, error) { return sf, nil },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, false, "[]")
+		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 	})
 
@@ -410,7 +411,7 @@ func TestRegistrationFlowService_Update(t *testing.T) {
 				return nil, errors.New("update err")
 			},
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, false, "[]")
+		_, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, false, datatypes.JSON([]byte("[]")))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})
@@ -422,7 +423,7 @@ func TestRegistrationFlowService_Update(t *testing.T) {
 		svc := NewRegistrationFlowService(db, &mockRegistrationFlowRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*RegistrationFlow, error) { return sf, nil },
 		}, &mockRegistrationFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, false, "[]")
+		res, err := svc.Update(context.Background(), sf.RegistrationFlowUUID, 1, sf.Name, "desc", shared.StatusActive, nil, false, datatypes.JSON([]byte("[]")))
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +21,7 @@ type OAuthPARRequest struct {
 	TenantID            int64     `gorm:"column:tenant_id;not null"`
 	ResponseType        string    `gorm:"column:response_type;not null;default:'code'"`
 	RedirectURI         string    `gorm:"column:redirect_uri;not null"`
-	Scope               string    `gorm:"column:scope;not null;default:''"`
+	Scope               pq.StringArray `gorm:"column:scope;type:text[];not null;default:'{}'"`
 	State               *string   `gorm:"column:state"`
 	Nonce               *string   `gorm:"column:nonce"`
 	CodeChallenge       string    `gorm:"column:code_challenge;not null"`
