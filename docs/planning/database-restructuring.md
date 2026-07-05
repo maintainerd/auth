@@ -808,17 +808,17 @@ CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_i
     WHERE external_id IS NOT NULL;
 ```
 
-- [ ] Add the five columns listed above in the correct position (after `status`, before `metadata`)
-- [ ] Add `created_by BIGINT` and `updated_by BIGINT` before `created_at`
-- [ ] Add the self-referential FK attachment `DO $$` block
-- [ ] Add `idx_users_last_login_at` and `idx_users_external_id` indexes
-- [ ] Update the GORM User model to include `LastLoginAt *time.Time`, `LoginCount int`, `EmailVerifiedAt *time.Time`, `PhoneVerifiedAt *time.Time`, `ExternalID *string`, `CreatedBy *int64`, `UpdatedBy *int64`
-- [ ] Update the login success path to set `last_login_at = now()` and increment `login_count` on every successful authentication
-- [ ] Update the email verification confirmation path to set `email_verified_at = now()`
-- [ ] Update the phone verification confirmation path to set `phone_verified_at = now()`
-- [ ] Update the `GetUser` / `ListUsers` response DTO in `internal/user/handler_user.go` and `internal/user/types.go` to include `LastLoginAt`, `LoginCount`, `EmailVerifiedAt`, `PhoneVerifiedAt`, `ExternalID`
-- [ ] `login_count` increment must be atomic — use `db.Model(&User{}).Where("user_id = ?", id).UpdateColumn("login_count", gorm.Expr("login_count + 1"))` to avoid a read-modify-write race under concurrent logins
-- [ ] Run `go build ./...` and `go test ./internal/user/... ./internal/authn/...`
+- [x] Add the five columns listed above in the correct position (after `status`, before `metadata`)
+- [x] Add `created_by BIGINT` and `updated_by BIGINT` before `created_at`
+- [x] Add the self-referential FK attachment `DO $$` block
+- [x] Add `idx_users_last_login_at` and `idx_users_external_id` indexes
+- [x] Update the GORM User model to include `LastLoginAt *time.Time`, `LoginCount int`, `EmailVerifiedAt *time.Time`, `PhoneVerifiedAt *time.Time`, `ExternalID *string`, `CreatedBy *int64`, `UpdatedBy *int64`
+- [x] Update the login success path to set `last_login_at = now()` and increment `login_count` on every successful authentication
+- [x] Update the email verification confirmation path to set `email_verified_at = now()`
+- [x] Update the phone verification confirmation path to set `phone_verified_at = now()`
+- [x] Update the `GetUser` / `ListUsers` response DTO in `internal/user/handler_user.go` and `internal/user/types.go` to include `LastLoginAt`, `LoginCount`, `EmailVerifiedAt`, `PhoneVerifiedAt`, `ExternalID`
+- [x] `login_count` increment must be atomic — use `db.Model(&User{}).Where("user_id = ?", id).UpdateColumn("login_count", gorm.Expr("login_count + 1"))` to avoid a read-modify-write race under concurrent logins
+- [x] Run `go build ./...` and `go test ./internal/user/... ./internal/authn/...`
 
 ---
 
@@ -828,12 +828,12 @@ CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_i
 
 **Decision:** `users.phone` is the canonical, auth-verified phone number used for SMS OTP and MFA. `profiles.phone` is a second phone field for the same user with no verification mechanism, no ownership boundary, and no FK to `user_mfa_phones`. This creates divergence between the displayed phone and the verified phone. Remove it.
 
-- [ ] Remove `phone VARCHAR(20),` from the `profiles` `CREATE TABLE` block
-- [ ] Search for all Go code that reads or writes `profiles.phone`: `grep -r "profiles\.phone\|Profile\.Phone\|ProfilePhone" internal/ --include="*.go"`
-- [ ] For each callsite, decide: if it's reading a display phone, switch to `users.phone`; if it's a profile update form, remove the phone field from the profile update payload
-- [ ] Update the GORM Profile model to remove the `Phone` field
-- [ ] Update any API handlers that accept a phone in the profile update request body to reject or ignore that field
-- [ ] Run `go build ./...` and `go test ./internal/profile/...`
+- [x] Remove `phone VARCHAR(20),` from the `profiles` `CREATE TABLE` block
+- [x] Search for all Go code that reads or writes `profiles.phone`: `grep -r "profiles\.phone\|Profile\.Phone\|ProfilePhone" internal/ --include="*.go"`
+- [x] For each callsite, decide: if it's reading a display phone, switch to `users.phone`; if it's a profile update form, remove the phone field from the profile update payload
+- [x] Update the GORM Profile model to remove the `Phone` field
+- [x] Update any API handlers that accept a phone in the profile update request body to reject or ignore that field
+- [x] Run `go build ./...` and `go test ./internal/profile/...`
 
 ---
 
@@ -846,7 +846,7 @@ CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_i
 
 **Decision:** API keys are structurally identical to M2M OAuth (client credentials). Both give a non-human caller scoped access to APIs and permissions within a tenant — both have a credential hash, both have junction tables to `apis` and `permissions`. The authorization model is the same. OAuth M2M is strictly better: short-lived tokens (DB hit only on issuance, not every request), standard revocation, JWT carries claims without a DB lookup, and every SDK handles client credentials natively. Keeping API keys alongside M2M OAuth adds maintenance cost with no capability gain. Any caller that needs programmatic access uses a system client with client credentials instead.
 
-- [ ] Replace `019_create_api_keys_table.go` body with a no-op and explanation comment:
+- [x] Replace `019_create_api_keys_table.go` body with a no-op and explanation comment:
   ```go
   func CreateApiKeyTable(db *gorm.DB) error {
       // api_keys was determined to be redundant with M2M OAuth (client credentials flow).
@@ -855,17 +855,17 @@ CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_i
       return nil
   }
   ```
-- [ ] Replace `020_create_api_key_apis_table.go` body with a no-op and explanation comment
-- [ ] Replace `021_create_api_key_permissions_table.go` body with a no-op and explanation comment
-- [ ] Search for all Go code referencing api_keys: `grep -r "api_key\|ApiKey\|APIKey" internal/ --include="*.go"` — remove all models, repositories, services, and handlers
-- [ ] Remove the `api_keys` entries from Phase 1.5 NOT NULL and Phase 2.4 VARCHAR changes (those changes no longer apply since the table is being removed)
-- [ ] Remove `idx_api_keys_status_expires_at` from Phase 5.2 (no longer needed)
-- [ ] Remove all api_key Go files: `grep -r "api_key\|ApiKey\|APIKey" internal/ --include="*.go" -l` — delete every model, repository, service, handler, validation, and test file in that list
-- [ ] Remove `api_key_authenticator.go` and `api_key_authenticator_test.go` from `internal/platform/middleware/` (or wherever it lives) — this is middleware that authenticates requests via API key and must be fully decommissioned
-- [ ] Remove `apiKeyRepo`, `apiKeyAPIRepo`, `apiKeyPermissionRepo` from the `repos` struct in `internal/app/repositories.go` and `initRepos`
-- [ ] Remove `APIKeyService` from `internal/app/services.go`, `internal/app/application.go`, and `internal/server/application.go` (or wherever `server.Application` is defined)
-- [ ] Remove API key routes from `internal/client/routes.go` (or whichever route file registers API key endpoints)
-- [ ] Remove `'api_keys'` from the deferred FK attachment array in `024_create_users_table.go`. The array that loops over earlier tables to add `created_by`/`updated_by` FK constraints currently includes `'api_keys'`. Since that table no longer exists, attempting to `ALTER TABLE api_keys ADD CONSTRAINT ...` on a clean database will fail with "relation api_keys does not exist" and abort the entire migration run:
+- [x] Replace `020_create_api_key_apis_table.go` body with a no-op and explanation comment
+- [x] Replace `021_create_api_key_permissions_table.go` body with a no-op and explanation comment
+- [x] Search for all Go code referencing api_keys: `grep -r "api_key\|ApiKey\|APIKey" internal/ --include="*.go"` — remove all models, repositories, services, and handlers
+- [x] Remove the `api_keys` entries from Phase 1.5 NOT NULL and Phase 2.4 VARCHAR changes (those changes no longer apply since the table is being removed)
+- [x] Remove `idx_api_keys_status_expires_at` from Phase 5.2 (no longer needed — was never listed there)
+- [x] Remove all api_key Go files: `grep -r "api_key\|ApiKey\|APIKey" internal/ --include="*.go" -l` — delete every model, repository, service, handler, validation, and test file in that list
+- [x] Remove `api_key_authenticator.go` and `api_key_authenticator_test.go` from `internal/platform/middleware/` (or wherever it lives) — this is middleware that authenticates requests via API key and must be fully decommissioned
+- [x] Remove `apiKeyRepo`, `apiKeyAPIRepo`, `apiKeyPermissionRepo` from the `repos` struct in `internal/app/repositories.go` and `initRepos`
+- [x] Remove `APIKeyService` from `internal/app/services.go`, `internal/app/application.go`, and `internal/server/application.go` (or wherever `server.Application` is defined)
+- [x] Remove API key routes from `internal/client/routes.go` (or whichever route file registers API key endpoints)
+- [x] Remove `'api_keys'` from the deferred FK attachment array in `024_create_users_table.go`. The array that loops over earlier tables to add `created_by`/`updated_by` FK constraints currently includes `'api_keys'`. Since that table no longer exists, attempting to `ALTER TABLE api_keys ADD CONSTRAINT ...` on a clean database will fail with "relation api_keys does not exist" and abort the entire migration run:
   ```sql
   -- BEFORE (in 024_create_users_table.go):
   tables TEXT[] := ARRAY[
@@ -880,7 +880,7 @@ CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_i
       'identity_providers', 'clients', 'roles'
   ];
   ```
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Run `go build ./...` and `go test ./...`
 
 ---
 
@@ -890,7 +890,7 @@ CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_i
 
 **Decision:** `permissions.api_id BIGINT NOT NULL` already creates a direct FK relationship: every permission belongs to exactly one API. `api_permissions` is a separate M:N junction between the same two tables with no additional semantics. It creates a data model contradiction: a permission could appear in `api_permissions` linked to a different API than its own `permissions.api_id`. The authoritative relationship is the FK on `permissions`. Drop `api_permissions`.
 
-- [ ] Replace the entire content of `013_create_api_permissions_table.go` with a no-op (empty table creation that immediately returns, or a DROP TABLE followed by a comment explaining the removal). Since migrations are create-only by convention, change the function body to return `nil` and add a comment explaining the table was determined to be redundant:
+- [x] Replace the entire content of `013_create_api_permissions_table.go` with a no-op (empty table creation that immediately returns, or a DROP TABLE followed by a comment explaining the removal). Since migrations are create-only by convention, change the function body to return `nil` and add a comment explaining the table was determined to be redundant:
   ```go
   func CreateApiPermissionTable(db *gorm.DB) error {
       // api_permissions was determined to be redundant with permissions.api_id (the FK
@@ -900,11 +900,11 @@ CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_i
       return nil
   }
   ```
-- [ ] Search for all Go code that references `api_permissions`: `grep -r "api_permissions\|ApiPermission\|APIPermission" internal/ --include="*.go"`
-- [ ] Remove any GORM models, repositories, or service calls that use `api_permissions`
-- [ ] In `internal/iam/policy_evaluator.go` or the authorization service: any query that joined through `api_permissions` to resolve what permissions an API has must be replaced with `SELECT * FROM permissions WHERE api_id = ?`
-- [ ] Remove `apiPermissionRepo` from `internal/app/repositories.go` if it exists
-- [ ] Run `go build ./...` and `go test ./internal/iam/...`
+- [x] Search for all Go code that references `api_permissions`: `grep -r "api_permissions\|ApiPermission\|APIPermission" internal/ --include="*.go"`
+- [x] Remove any GORM models, repositories, or service calls that use `api_permissions`
+- [x] In `internal/iam/policy_evaluator.go` or the authorization service: any query that joined through `api_permissions` to resolve what permissions an API has must be replaced with `SELECT * FROM permissions WHERE api_id = ?`
+- [x] Remove `apiPermissionRepo` from `internal/app/repositories.go` if it exists
+- [x] Run `go build ./...` and `go test ./internal/iam/...`
 
 ---
 
@@ -916,9 +916,9 @@ CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_i
 
 **Application-layer work still required:**
 
-- [ ] Verify the GORM `Client` model includes `ServiceID *int64 \`gorm:"column:service_id"\``
-- [ ] Verify the service registration flow sets `service_id` on the auto-created system client
-- [ ] Run `go build ./...` and `go test ./internal/client/... ./internal/service/...`
+- [x] Verify the GORM `Client` model includes `ServiceID *int64 \`gorm:"column:service_id"\``
+- [x] Verify the service registration flow sets `service_id` on the auto-created system client
+- [x] Run `go build ./...` and `go test ./internal/client/... ./internal/service/...`
 
 ---
 
@@ -968,15 +968,15 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/074_create_client_roles_table.go`
-- [ ] Register `migration.CreateClientRolesTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/client/model_client_role.go` and repository in `internal/client/repository_client_role.go`
-- [ ] Add `clientRoleRepo` to `internal/app/repositories.go` and `initRepos`
-- [ ] Update the token issuance path in `internal/oauth/service_token.go`: when generating a token for a system client, resolve permissions from BOTH `client_permissions` (direct) AND `client_roles → role_permissions` (role-inherited), merge and deduplicate
-- [ ] Create repository methods: `AssignRole(ctx, clientID, roleID)`, `RemoveRole(ctx, clientID, roleID)`, `ListRoles(ctx, clientID)`, `ResolvePermissions(ctx, clientID)` (returns merged direct + inherited permissions)
-- [ ] Register endpoints in `internal/client/routes.go` on internal port 8080: `POST /clients/{uuid}/roles`, `DELETE /clients/{uuid}/roles/{role_uuid}`, `GET /clients/{uuid}/roles`
-- [ ] Create handler `internal/client/handler_client_role.go` and test following the 9-step checklist
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create the file above at `internal/platform/database/migration/074_create_client_roles_table.go`
+- [x] Register `migration.CreateClientRolesTable` in `internal/platform/runner/migration.go`
+- [x] Create GORM model in `internal/client/model_client_role.go` and repository in `internal/client/repository_client_role.go`
+- [x] Add `clientRoleRepo` to `internal/app/repositories.go` and `initRepos`
+- [x] **Update the token issuance path** in `internal/oauth/service_token.go`: when generating a token for a system client, resolve permissions from BOTH `client_permissions` (direct) AND `client_roles → role_permissions` (role-inherited), merge and deduplicate — implemented via `ClientPermissionResolver` interface + `clientPermissionResolver` adapter that queries both tables, injected into `exchangeClientCredentials`
+- [x] Create repository methods: `AssignRole(ctx, clientID, roleID)`, `RemoveRole(ctx, clientID, roleID)`, `ListRoles(ctx, clientID)`, `ResolvePermissions(ctx, clientID)` (returns merged direct + inherited permissions)
+- [x] Register endpoints in `internal/client/routes.go` on internal port 8080: `POST /clients/{uuid}/roles`, `DELETE /clients/{uuid}/roles/{role_uuid}`, `GET /clients/{uuid}/roles`
+- [x] Create handler `internal/client/handler_client_role.go` and test following the 9-step checklist
+- [x] Run `go build ./...` and `go test ./...`
 
 ---
 
@@ -986,14 +986,14 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
 
 **Decision:** Redirect URIs and CORS origins are a common OAuth attack vector. Unauthorized additions or removals must be traceable. Add `deleted_at`, `created_by`, and `updated_by` to match the audit standard of every other tenant-owned entity.
 
-- [ ] Add to the `client_uris` `CREATE TABLE` block:
+- [x] Add to the `client_uris` `CREATE TABLE` block:
   ```sql
   created_by  BIGINT,
   updated_by  BIGINT,
   deleted_at  TIMESTAMPTZ
   ```
   Place `created_by` and `updated_by` before timestamps; `deleted_at` last.
-- [ ] Add FK constraints in the `DO $$ BEGIN ... END$$` block:
+- [x] Add FK constraints in the `DO $$ BEGIN ... END$$` block:
   ```sql
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_client_uris_created_by') THEN
       ALTER TABLE client_uris ADD CONSTRAINT fk_client_uris_created_by
@@ -1004,15 +1004,15 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
           FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL;
   END IF;
   ```
-- [ ] Add index:
+- [x] Add index:
   ```sql
   CREATE INDEX IF NOT EXISTS idx_client_uris_deleted_at ON client_uris (deleted_at) WHERE deleted_at IS NULL;
   ```
-- [ ] Update the GORM ClientURI model to include `CreatedBy *int64`, `UpdatedBy *int64`, `DeletedAt gorm.DeletedAt`
-- [ ] Update `internal/client/repository_client_uri.go`: all `List`/`Find` queries must add `WHERE deleted_at IS NULL` (or GORM's soft-delete scope)
-- [ ] Update `internal/client/handler_client.go` (or the URI sub-handler): change the delete endpoint from calling a hard-delete repo method to a soft-delete (set `deleted_at`). Update the handler test's delete sub-test to assert soft-delete behavior.
-- [ ] Update `internal/client/types.go`: confirm URI response DTOs do not expose `deleted_at` to callers
-- [ ] Run `go build ./...` and `go test ./internal/client/...`
+- [x] Update the GORM ClientURI model to include `CreatedBy *int64`, `UpdatedBy *int64`, `DeletedAt gorm.DeletedAt`
+- [x] Update `internal/client/repository_client_uri.go`: all `List`/`Find` queries must add `WHERE deleted_at IS NULL` (or GORM's soft-delete scope)
+- [x] Update `internal/client/handler_client.go` (or the URI sub-handler): change the delete endpoint from calling a hard-delete repo method to a soft-delete (set `deleted_at`). Update the handler test's delete sub-test to assert soft-delete behavior.
+- [x] Update `internal/client/types.go`: confirm URI response DTOs do not expose `deleted_at` to callers
+- [x] Run `go build ./...` and `go test ./internal/client/...`
 
 ---
 
@@ -1022,109 +1022,48 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
 
 **Decision:** Every other CHECK constraint in the entire schema uses underscores. `'redirect-uri'`, `'origin-uri'`, `'logout-uri'`, `'login-uri'`, `'cors-origin-uri'` use hyphens inconsistently and conflict with the schema's own naming style.
 
-- [ ] Change the default value: `VARCHAR(20) NOT NULL DEFAULT 'redirect-uri'` → `VARCHAR(20) NOT NULL DEFAULT 'redirect_uri'`
-- [ ] Change the CHECK constraint:
+- [x] Change the default value: `VARCHAR(20) NOT NULL DEFAULT 'redirect-uri'` → `VARCHAR(20) NOT NULL DEFAULT 'redirect_uri'`
+- [x] Change the CHECK constraint:
   ```sql
   -- OLD:
   CHECK (type IN ('redirect-uri', 'origin-uri', 'logout-uri', 'login-uri', 'cors-origin-uri'))
   -- NEW:
   CHECK (type IN ('redirect_uri', 'origin_uri', 'logout_uri', 'login_uri', 'cors_origin_uri'))
   ```
-- [ ] Search all Go code for hardcoded URI type strings: `grep -r "redirect-uri\|origin-uri\|logout-uri\|login-uri\|cors-origin-uri" internal/ --include="*.go"` — replace all occurrences with underscore versions
-- [ ] Search all API handler validation code that accepts a `type` field in the request and update the allowed values
-- [ ] Update the OAuth authorize handler and redirect URI validation in `internal/oauth/` — the `redirect_uri` type lookup in `client_uris` must use `redirect_uri` (underscore) not `redirect-uri`
-- [ ] Run `go build ./...` and `go test ./internal/client/...`
+- [x] Search all Go code for hardcoded URI type strings: `grep -r "redirect-uri\|origin-uri\|logout-uri\|login-uri\|cors-origin-uri" internal/ --include="*.go"` — replace all occurrences with underscore versions
+- [x] Search all API handler validation code that accepts a `type` field in the request and update the allowed values
+- [x] Update the OAuth authorize handler and redirect URI validation in `internal/oauth/` — the `redirect_uri` type lookup in `client_uris` must use `redirect_uri` (underscore) not `redirect-uri`
+- [x] Run `go build ./...` and `go test ./internal/client/...`
 
 ---
 
-### 3.9 — `user_settings`: Move `social_links` → `profiles`
+### 3.9 — `user_settings` / `profiles`: Remove `social_links` entirely
 
-**File:** `internal/platform/database/migration/029_create_user_settings_table.go`
-**File:** `internal/platform/database/migration/030_create_profiles_table.go`
+**Files:** `internal/platform/database/migration/029_create_user_settings_table.go`, `internal/platform/database/migration/030_create_profiles_table.go`
 
-**Decision:** Social media links are profile data, not behavioral preferences. Settings tables hold locale, timezone, notification consent. Social links belong on the profile.
+**Decision revised (section 3.27 adversarial audit):** `social_links` has no OIDC Core §5.1 basis, no SCIM standard equivalent, and increases PII breach surface with zero auth benefit. The original decision to relocate it to `profiles` was wrong — moving application data between auth tables does not fix the scope violation. Remove from both tables entirely. Tenants that need social links store them in their own product database or in `users.metadata`.
 
-- [ ] Remove `social_links JSONB DEFAULT '{}'` from `user_settings` `CREATE TABLE`
-- [ ] Remove `COMMENT ON COLUMN user_settings.social_links ...` from the migration
-- [ ] Add to `profiles` `CREATE TABLE`:
-  ```sql
-  social_links JSONB NOT NULL DEFAULT '{}',
-  ```
-  Place it after `metadata`.
-- [ ] Add GIN index in `030_create_profiles_table.go`:
-  ```sql
-  CREATE INDEX IF NOT EXISTS idx_profiles_social_links ON profiles USING GIN (social_links);
-  ```
-- [ ] Search for all Go code reading `user_settings.social_links` or `UserSettings.SocialLinks`: `grep -r "social_links\|SocialLinks" internal/ --include="*.go"` — redirect reads/writes to `profiles.social_links`
-- [ ] Update GORM UserSettings model: remove `SocialLinks` field
-- [ ] Update GORM Profile model: add `SocialLinks datatypes.JSON` field
-- [ ] Update `internal/user/handler_setting.go`: remove `social_links` from the settings GET response and PATCH request body DTO; remove it from `internal/user/validation_setting.go`
-- [ ] Update `internal/user/handler_profile.go`: add `social_links` to the profile PATCH request body and GET response DTO; add validation in `internal/user/validation_profile.go` (must be valid JSON object)
-- [ ] Update `internal/user/types.go`: remove `SocialLinks` from `UserSettingResponse`, add to `ProfileResponse`
-- [ ] Run `go build ./...` and `go test ./internal/profile/... ./internal/user/...`
+- [x] Remove `social_links JSONB DEFAULT '{}'` from `user_settings` `CREATE TABLE`
+- [x] Remove `COMMENT ON COLUMN user_settings.social_links ...` from the migration
+- [x] Update GORM UserSettings model: remove `SocialLinks` field
+- [x] Remove `social_links JSONB NOT NULL DEFAULT '{}'` from `030_create_profiles_table.go` `CREATE TABLE` block (reversal of prior step)
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_profiles_social_links ON profiles USING GIN (social_links);` from `030_create_profiles_table.go` (reversal of prior step)
+- [x] Remove `SocialLinks datatypes.JSON` from GORM Profile model
+- [x] Run `go build ./...` and `go test ./internal/profile/... ./internal/user/...`
 
 ---
 
-### 3.10 — `user_settings`: Extract emergency contacts → `user_emergency_contacts` table
+### 3.10 — `user_settings`: Remove `emergency_contact_*` columns — no replacement in auth schema
 
 **File:** `internal/platform/database/migration/029_create_user_settings_table.go`
-**New file:** `internal/platform/database/migration/069_create_user_emergency_contacts_table.go`
 
-**Decision:** Emergency contact data is personal contact information, not a user preference. It does not belong in a settings table. A separate normalized table allows multiple contacts per user (primary + secondary), each with a soft delete, and proper ownership.
+**Decision revised (section 3.27 adversarial audit):** Emergency contact data is third-party PII belonging to a distinct data subject (the contact person) who never consented to storage in an identity platform. The auth layer has no authority to store next-of-kin data for any authentication purpose. Zero auth services (Auth0, Okta, Cognito, Keycloak, Zitadel) store emergency contacts. The original plan to extract these into a dedicated `user_emergency_contacts` table was reviewed and **rejected** — extracting third-party PII into a dedicated table formalises the scope violation rather than correcting it. Migration 069 is **cancelled**. GDPR Article 5(1)(b) purpose-limitation requires data be collected only for specified, explicit, and legitimate purposes; authentication is not one of them.
 
-- [ ] Remove from `user_settings` `CREATE TABLE`:
-  ```sql
-  emergency_contact_name     VARCHAR(200),
-  emergency_contact_phone    VARCHAR(20),
-  emergency_contact_email    VARCHAR(255),
-  emergency_contact_relation VARCHAR(50),
-  ```
-- [ ] Create `internal/platform/database/migration/069_create_user_emergency_contacts_table.go`:
-  ```go
-  package migration
-
-  import "gorm.io/gorm"
-
-  func CreateUserEmergencyContactsTable(db *gorm.DB) error {
-      return db.Exec(`
-  CREATE TABLE IF NOT EXISTS user_emergency_contacts (
-      user_emergency_contact_id   BIGSERIAL    PRIMARY KEY,
-      user_emergency_contact_uuid UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-      tenant_id                   BIGINT       NOT NULL,
-      user_id                     BIGINT       NOT NULL,
-      name                        VARCHAR(200) NOT NULL,
-      phone                       VARCHAR(20),
-      email                       VARCHAR(255),
-      relation                    VARCHAR(50),
-      is_primary                  BOOLEAN      NOT NULL DEFAULT FALSE,
-      created_at                  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-      updated_at                  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-      deleted_at                  TIMESTAMPTZ,
-      CONSTRAINT fk_user_emergency_contacts_tenant FOREIGN KEY (tenant_id)
-          REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-      CONSTRAINT fk_user_emergency_contacts_user FOREIGN KEY (user_id)
-          REFERENCES users(user_id) ON DELETE CASCADE
-  );
-  CREATE INDEX IF NOT EXISTS idx_user_emergency_contacts_tenant_user
-      ON user_emergency_contacts (tenant_id, user_id) WHERE deleted_at IS NULL;
-  CREATE INDEX IF NOT EXISTS idx_user_emergency_contacts_user_id
-      ON user_emergency_contacts (user_id);
-  CREATE UNIQUE INDEX IF NOT EXISTS uq_user_emergency_contacts_primary
-      ON user_emergency_contacts (user_id)
-      WHERE is_primary = TRUE AND deleted_at IS NULL;
-  CREATE INDEX IF NOT EXISTS idx_user_emergency_contacts_deleted_at
-      ON user_emergency_contacts (deleted_at) WHERE deleted_at IS NULL;
-  `).Error
-  }
-  ```
-- [ ] Register `migration.CreateUserEmergencyContactsTable` in `internal/platform/runner/migration.go`
-- [ ] Create `internal/user/model_user_emergency_contact.go` and `internal/user/repository_user_emergency_contact.go`
-- [ ] Add the repository to `internal/app/repositories.go` and `initRepos`
-- [ ] Create service, handler, validation, and test files following the package pattern
-- [ ] Register endpoints in `internal/user/routes.go` (internal port 8080): `GET /users/{uuid}/emergency-contacts`, `POST /users/{uuid}/emergency-contacts`, `PUT /users/{uuid}/emergency-contacts/{id}`, `DELETE /users/{uuid}/emergency-contacts/{id}`
-- [ ] Search and redirect all Go code that reads emergency contact fields from `user_settings`
-- [ ] Remove emergency contact fields from GORM UserSettings model
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Remove from `user_settings` `CREATE TABLE`: `emergency_contact_name VARCHAR(200)`, `emergency_contact_phone VARCHAR(20)`, `emergency_contact_email VARCHAR(255)`, `emergency_contact_relation VARCHAR(50)`
+- [x] Remove GORM UserSettings model fields: `EmergencyContactName`, `EmergencyContactPhone`, `EmergencyContactEmail`, `EmergencyContactRelation`
+- [x] Remove all Go code that reads or writes these fields (handler_setting.go, service_setting.go, types.go, validation_setting.go)
+- [x] Do NOT create `069_create_user_emergency_contacts_table.go` — migration 069 is cancelled
+- [x] Run `go build ./...` and `go test ./internal/user/...`
 
 ---
 
@@ -1163,8 +1102,9 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
           REFERENCES users(user_id) ON DELETE CASCADE,
       CONSTRAINT fk_user_consents_tenant FOREIGN KEY (tenant_id)
           REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+      -- marketing consent is a CRM concern owned by the tenant email platform; not an auth-layer gate.
       CONSTRAINT chk_user_consents_type CHECK (consent_type IN (
-          'terms_of_service', 'privacy_policy', 'marketing', 'data_processing'
+          'terms_of_service', 'privacy_policy', 'data_processing'
       ))
   );
   CREATE INDEX IF NOT EXISTS idx_user_consents_user_id ON user_consents (user_id);
@@ -1177,14 +1117,15 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
   `).Error
   }
   ```
+**Design note:** This table is the auth-layer consent-gate ledger only — it records consent to auth-prerequisite policies (ToS, privacy policy, GDPR data processing) that the auth server enforces as login gates. It is **not** a general GDPR consent management system. Marketing consent belongs in the tenant's CRM (Mailchimp, HubSpot, SendGrid). The distinction between OAuth scope consent (`oauth_consent_grants`) and legal-gate consent (`user_consents`) must be documented in handler comments.
+
 - [ ] Register `migration.CreateUserConsentsTable` in `internal/platform/runner/migration.go`
 - [ ] Create `internal/user/model_user_consent.go` and `internal/user/repository_user_consent.go`; add to `internal/app/repositories.go` and `initRepos`
 - [ ] Create service, handler, validation, and test files
 - [ ] Register endpoints: `GET /users/{uuid}/consents` (admin, internal port 8080), `POST /me/consent` (public port 8081 — user records their own consent)
 - [ ] In the registration handler (`internal/authn/service_register.go`): record consent when a user accepts terms during registration — insert a row into `user_consents` with `consent_type='terms_of_service'`
-- [ ] Search and redirect all Go code that reads `terms_accepted_at` or `privacy_policy_accepted_at` from `user_settings`
+- [ ] Search and redirect all Go code that reads `terms_accepted_at` or `privacy_policy_accepted_at` from `user_settings` (these columns are removed in section 3.27)
 - [ ] "Current consent status" queries should read the most recent row per `(user_id, consent_type)` ordered by `created_at DESC`
-- [ ] Remove consent fields from GORM UserSettings model; update `internal/user/types.go` to remove from settings response DTO
 - [ ] Run `go build ./...` and `go test ./...`
 
 ---
@@ -2105,6 +2046,91 @@ CREATE INDEX IF NOT EXISTS idx_scim_configurations_identity_provider
 
 ---
 
+### 3.27 — Schema scope-reduction: remove product-layer fields from auth tables
+
+**Decision:** A dual-auditor adversarial review (OIDC/OAuth lens + Security/Compliance lens, with senior adversarial reviewer) identified fields that belong in tenant product databases, not the auth layer. Industry reference: Auth0 stores only OIDC Core §5.1 standard claims plus auth-specific fields (last_login, logins_count, blocked, identities). Everything else goes in `app_metadata` or `user_metadata`. Auth0, Okta, Cognito, Keycloak, and Zitadel do not expose any of the fields removed below.
+
+#### A — `user_settings`: Remove product-preference columns
+
+**File:** `internal/platform/database/migration/029_create_user_settings_table.go`
+
+- [ ] Remove `marketing_email_consent BOOLEAN DEFAULT FALSE` — CRM concern owned by the tenant email platform (Mailchimp, HubSpot); not a login gate
+- [ ] Remove `sms_notifications_consent BOOLEAN DEFAULT FALSE` — product notification preference; auth relevance fully captured by enrolled `user_mfa_phones` records
+- [ ] Remove `push_notifications_consent BOOLEAN DEFAULT FALSE` — the auth service has no push infrastructure; CIBA push consent is an OAuth flow parameter, not a stored preference
+- [ ] Remove `profile_visibility VARCHAR(20) DEFAULT 'private'` — product access-control decision enforced by the tenant's layer; `'friends'` value confirms social-network feature with no OIDC equivalent; also remove `chk_user_settings_visibility` CHECK constraint and `idx_user_settings_profile_visibility` index
+- [ ] Remove `preferred_contact_method VARCHAR(20)` — product communication preference; MFA channel is derivable from enrolled `user_mfa_*` factor records; also remove `chk_user_settings_preferred_contact_method` CHECK constraint and its COMMENT
+- [ ] Remove `data_processing_consent BOOLEAN DEFAULT FALSE` — a bare boolean cannot satisfy GDPR Article 7 demonstrability requirements (no version reference, no IP, no audit trail); replaced by `user_consents` table (section 3.11)
+- [ ] Remove `terms_accepted_at TIMESTAMPTZ` — bare timestamp with no version reference cannot prove which ToS version was accepted; replaced by `user_consents` table (section 3.11)
+- [ ] Remove `privacy_policy_accepted_at TIMESTAMPTZ` — same issue as `terms_accepted_at`; replaced by `user_consents` table
+- [ ] Update GORM `UserSetting` model: remove all corresponding fields
+- [ ] Update `internal/user/service_setting.go`: remove removed fields from `UserSettingServiceDataResult` struct, `CreateOrUpdateUserSetting` interface and implementation, `toUserSettingServiceDataResult` helper
+- [ ] Update `internal/user/handler_setting.go`: remove removed fields from `CreateOrUpdate` call site and `toUserSettingResponseDTO`
+- [ ] Update `internal/user/types.go`: remove removed fields from `UserSettingRequestDTO` and `UserSettingResponseDTO`
+- [ ] Update `internal/user/validation_setting.go`: remove validation rules for removed fields
+- [ ] Remove `VisibilityPublic`, `VisibilityPrivate`, `VisibilityFriends` from `internal/shared/constants.go` if only used by the removed setting validation
+- [ ] Remove `ContactMethodEmail`, `ContactMethodPhone`, `ContactMethodSMS` from `internal/shared/constants.go` if only used by the removed setting validation
+- [ ] Run `go build ./...` and `go test ./internal/user/...`
+
+#### B — `profiles`: Remove product-social columns
+
+**File:** `internal/platform/database/migration/030_create_profiles_table.go`
+
+- [ ] Remove `bio TEXT` — social/product profile feature; not in OIDC Core §5.1; increases PII breach surface
+- [ ] Remove `social_links JSONB NOT NULL DEFAULT '{}'` (also covered in section 3.9) + GIN index `idx_profiles_social_links`
+- [ ] Remove `is_default BOOLEAN NOT NULL DEFAULT false` — no multi-profile auth feature exists; replace with `CREATE UNIQUE INDEX IF NOT EXISTS uq_profiles_user_id ON profiles (user_id) WHERE deleted_at IS NULL;` to enforce single canonical profile at DB level
+- [ ] Remove `SocialLinks datatypes.JSON`, `Bio *string`, `IsDefault bool` from GORM `Profile` model
+- [ ] Confirm `handler_profile.go`, `types.go`, and `validation_profile.go` do not expose `bio`, `social_links`, or `is_default` in any request/response DTO (they were never added)
+- [ ] Run `go build ./...` and `go test ./internal/profile/... ./internal/user/...`
+
+#### C — `profiles`: Address cluster → `profiles.metadata`
+
+**File:** `internal/platform/database/migration/030_create_profiles_table.go`
+
+OIDC Core §5.1.1 defines `address` as a structured JSON object with sub-fields (`street_address`, `locality`, `region`, `postal_code`, `country`, `formatted`). Flat VARCHAR columns are non-compliant and turn location data into product fields.
+
+- [ ] Remove `address VARCHAR(500)` — non-compliant flat storage; tenants that need OIDC address claims write the full structured object to `profiles.metadata['address']`
+- [ ] Remove `city VARCHAR(100)` — OIDC `address.locality` sub-field; fold into `profiles.metadata['address']['locality']`
+- [ ] Remove `suffix VARCHAR(50)` — not an OIDC Core §5.1 standard claim; tenants write to `profiles.metadata['name_suffix']`
+- [ ] Remove `country VARCHAR(2)` — OIDC `address.country` sub-field; fold into `profiles.metadata['address']['country']`
+- [ ] Remove corresponding GORM `Profile` model fields: `Suffix *string`, `Address *string`, `City *string`, `Country *string`
+- [ ] Run `go build ./...` and `go test ./internal/profile/... ./internal/user/...`
+
+#### D — `users`: Remove product onboarding flags
+
+**File:** `internal/platform/database/migration/024_create_users_table.go`
+
+- [ ] Remove `is_profile_completed BOOLEAN NOT NULL DEFAULT FALSE` — what "profile completion" means is defined by the tenant's product (which fields are required), not the auth layer; tenants write an equivalent flag to `users.metadata` via the Management API and surface it as a custom claim
+- [ ] Remove `is_account_completed BOOLEAN NOT NULL DEFAULT FALSE` — product onboarding vocabulary (billing setup, plan selection, wizard completion) that the auth layer has no basis to define uniformly across tenants
+- [ ] Remove `IsProfileCompleted bool` and `IsAccountCompleted bool` from GORM `User` model
+- [ ] Remove from `internal/authn/deps.go` `AuthUser` struct
+- [ ] Remove from `internal/authn/service_register.go` user creation structs (two sites)
+- [ ] Remove from `internal/user/service_user.go` `UserResult` struct and all map/struct assignments
+- [ ] Remove from `internal/user/service_profile.go` the blocks that set `is_profile_completed` and `is_account_completed` on profile create/update
+- [ ] Remove from `internal/user/service_account.go` the map keys `"is_profile_completed"` and `"is_account_completed"`
+- [ ] Remove from `internal/user/handler_user.go` response mapping
+- [ ] Remove from `internal/user/handler_user_grpc.go` gRPC response mapping
+- [ ] Remove from `internal/user/types.go` `UserResponse` struct
+- [ ] Remove from `internal/tenant/handler_member.go` response mapping
+- [ ] Remove from `internal/tenant/handler_tenant_grpc.go` gRPC response mapping
+- [ ] Remove from `internal/tenant/types.go` member user type
+- [ ] Remove from `internal/tenant/deps.go` struct
+- [ ] Remove from `internal/idp/deps.go` struct
+- [ ] Remove from `internal/app/adapters_tenant.go` and `internal/app/adapters_authn_user_models.go`
+- [ ] Run `go build ./...` and `go test ./internal/user/... ./internal/tenant/... ./internal/authn/... ./internal/app/...`
+
+#### E — `tenants`: Remove product onboarding flag
+
+**File:** `internal/platform/database/migration/001_create_tenants_table.go`
+
+- [ ] Remove `is_completed BOOLEAN NOT NULL DEFAULT TRUE` — product onboarding flag following the same anti-pattern as `users.is_profile_completed`; `DEFAULT TRUE` is semantically inconsistent (new tenants born "completed"); replace bootstrap state with `tenants.status='pending'` (already a valid CHECK value)
+- [ ] Remove `IsCompleted bool` from GORM `Tenant` model
+- [ ] `internal/tenant/service_member.go`: replace `if !tenantRecord.IsCompleted { tenantRecord.IsCompleted = true }` → `if tenantRecord.Status == "pending" { tenantRecord.Status = "active" }`
+- [ ] `internal/tenant/service_tenant.go`: remove `IsCompleted: false` from tenant creation struct
+- [ ] `internal/setup/service_setup.go`: replace all `IsCompleted` reads/writes with `Status` equivalents — create system tenant with `Status: "pending"`, flip to `Status: "active"` on bootstrap completion, check `Status != "pending"` where `IsCompleted` was read
+- [ ] Run `go build ./...` and `go test ./internal/tenant/... ./internal/setup/...`
+
+---
+
 ## Phase 4 — P3: Naming & Convention Standardization
 
 ---
@@ -2634,9 +2660,23 @@ Checklist for this file:
 | `users.external_id` | **Add** | Required for SCIM 2.0 compliance |
 | `users.created_by / updated_by` | **Add** | Admin audit — who provisioned this user |
 | `profiles.phone` | **Remove** | `users.phone` is canonical; no dual ownership |
-| `user_settings.social_links` | **Move → profiles** | Profile data, not a preference |
-| `user_settings.terms_accepted_at` | **Move → user_consents** | Needs version tracking, append-only history |
-| `user_settings.emergency_contact_*` | **Move → user_emergency_contacts** | Supports multiple contacts; not a setting |
+| `user_settings.social_links` | **Remove entirely** | No OIDC basis; scope violation — belongs in tenant product DB or `users.metadata` |
+| `user_settings.marketing_email_consent` | **Remove entirely** | CRM concern; belongs in tenant email platform (Mailchimp, HubSpot) |
+| `user_settings.sms_notifications_consent` | **Remove entirely** | Product notification preference; no auth function |
+| `user_settings.push_notifications_consent` | **Remove entirely** | Auth service has no push infrastructure |
+| `user_settings.profile_visibility` | **Remove entirely** | Social-network feature; no OIDC equivalent |
+| `user_settings.preferred_contact_method` | **Remove entirely** | Product communication preference; MFA channel derivable from enrolled factors |
+| `user_settings.data_processing_consent` | **Remove — replaced by `user_consents`** | Bare boolean violates GDPR Art.7 demonstrability; needs version + IP + audit trail |
+| `user_settings.terms_accepted_at` | **Remove — replaced by `user_consents`** | Bare timestamp cannot prove which ToS version; needs version tracking |
+| `user_settings.privacy_policy_accepted_at` | **Remove — replaced by `user_consents`** | Same issue as `terms_accepted_at` |
+| `user_settings.emergency_contact_*` | **Remove entirely — no replacement** | Third-party PII (distinct data subject); GDPR Art.5(1)(b) violation; not an auth concern |
+| `profiles.bio` | **Remove entirely** | Not in OIDC Core §5.1; social feature |
+| `profiles.social_links` | **Remove entirely** | No OIDC basis; belongs in tenant product DB |
+| `profiles.is_default` | **Remove — replaced by `UNIQUE(user_id)` partial index** | No multi-profile auth feature; enforce single profile at DB level |
+| `profiles.address / city / country / suffix` | **Remove — move to `profiles.metadata`** | OIDC §5.1.1 requires structured address object; flat columns are non-compliant |
+| `users.is_profile_completed` | **Remove entirely** | Product onboarding state; definition is tenant-specific; use `users.metadata` |
+| `users.is_account_completed` | **Remove entirely** | Product onboarding vocabulary; belongs in tenant product DB |
+| `tenants.is_completed` | **Remove — replaced by `tenants.status='pending'`** | Product onboarding flag; bootstrap state modelled via `status` lifecycle |
 | `api_keys` / `api_key_apis` / `api_key_permissions` | **Remove entirely** | Duplicate of M2M OAuth (client credentials); identical authorization model, OAuth is strictly better |
 | `api_permissions` table | **Remove entirely** | Redundant with `permissions.api_id`; creates contradiction risk |
 | `tenant_services` table | **Remove entirely** | Redundant with `services.tenant_id`; services are fully tenant-encapsulated, no cross-tenant sharing |
@@ -2649,7 +2689,7 @@ Checklist for this file:
 | `is_used` (OAuth tables) | **Rename → `used`** | Consistent with `user_otps` and `user_mfa_backup_codes` |
 | `tenant_members.role` CHECK | **Add `admin`** | Enterprise delegated admin tier |
 | `user_lockouts` | **New table (068)** | Brute-force state as fast lookup, not a COUNT on auth_events |
-| `user_emergency_contacts` | **New table (069)** | Normalized from user_settings; supports multiple contacts |
+| `user_emergency_contacts` | **Cancelled — do not create** | Third-party PII with no auth purpose; extraction formalises the scope violation |
 | `user_consents` | **New table (070)** | GDPR-compliant versioned consent history |
 | `user_trusted_devices` | **New table (071)** | Device-aware MFA step-down and security console |
 | `user_sessions` | **New table (072)** | Active session tracking — admin force-logout, concurrent session limits, "active sessions" UI |
