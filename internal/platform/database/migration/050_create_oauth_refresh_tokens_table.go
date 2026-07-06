@@ -10,23 +10,29 @@ func CreateOAuthRefreshTokensTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
-    oauth_refresh_token_id   BIGSERIAL     PRIMARY KEY,
-    oauth_refresh_token_uuid UUID          NOT NULL DEFAULT gen_random_uuid() UNIQUE,
-    token_hash               TEXT          NOT NULL UNIQUE,
-    family_id                UUID          NOT NULL,
-    client_id                BIGINT        NOT NULL,
-    user_id                  BIGINT        NOT NULL,
-    tenant_id                BIGINT        NOT NULL,
-    scope                    TEXT[]        NOT NULL DEFAULT '{}',
-    is_revoked               BOOLEAN       NOT NULL DEFAULT FALSE,
+    oauth_refresh_token_id   BIGSERIAL    PRIMARY KEY,
+    oauth_refresh_token_uuid UUID         NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+    token_hash               TEXT         NOT NULL UNIQUE,
+    family_id                UUID         NOT NULL,
+    client_id                BIGINT       NOT NULL,
+    user_id                  BIGINT       NOT NULL,
+    tenant_id                BIGINT       NOT NULL,
+    scope                    TEXT[]       NOT NULL DEFAULT '{}',
+    is_revoked               BOOLEAN      NOT NULL DEFAULT FALSE,
     revoked_at               TIMESTAMPTZ,
-    expires_at               TIMESTAMPTZ   NOT NULL,
+    expires_at               TIMESTAMPTZ  NOT NULL,
     last_used_at             TIMESTAMPTZ,
-    created_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    -- Caller context recorded at issuance for the admin session console.
+    ip_address               INET,
+    user_agent               TEXT,
+    -- Auth strength carried forward so introspection avoids a join.
+    acr                      VARCHAR(10)  NOT NULL DEFAULT '1',
+    amr                      TEXT[]       NOT NULL DEFAULT '{}',
+    created_at               TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 
     CONSTRAINT chk_oauth_refresh_revoked CHECK (
         (is_revoked = FALSE AND revoked_at IS NULL) OR
-        (is_revoked = TRUE AND revoked_at IS NOT NULL)
+        (is_revoked = TRUE  AND revoked_at IS NOT NULL)
     )
 );
 
@@ -59,12 +65,14 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_oauth_refresh_token_hash ON oauth_refresh_tokens (token_hash);
-CREATE INDEX IF NOT EXISTS idx_oauth_refresh_family ON oauth_refresh_tokens (family_id);
-CREATE INDEX IF NOT EXISTS idx_oauth_refresh_user_client ON oauth_refresh_tokens (user_id, client_id);
-CREATE INDEX IF NOT EXISTS idx_oauth_refresh_expires ON oauth_refresh_tokens (expires_at);
-CREATE INDEX IF NOT EXISTS idx_oauth_refresh_revoked ON oauth_refresh_tokens (is_revoked) WHERE is_revoked = FALSE;
-CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_scope ON oauth_refresh_tokens USING GIN (scope);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_token_hash    ON oauth_refresh_tokens (token_hash);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_family        ON oauth_refresh_tokens (family_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_user_client   ON oauth_refresh_tokens (user_id, client_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_expires       ON oauth_refresh_tokens (expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_revoked       ON oauth_refresh_tokens (is_revoked) WHERE is_revoked = FALSE;
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_scope  ON oauth_refresh_tokens USING GIN (scope);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_active ON oauth_refresh_tokens (user_id, client_id) WHERE is_revoked = false;
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_amr           ON oauth_refresh_tokens USING GIN (amr);
 `
 	return db.Exec(sql).Error
 }

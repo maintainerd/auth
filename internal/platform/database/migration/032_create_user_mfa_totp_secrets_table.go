@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS user_mfa_totp_secrets (
     enrolled_at      TIMESTAMPTZ,
     last_used_at     TIMESTAMPTZ,
     last_used_step   BIGINT,
-    digits           INTEGER    NOT NULL DEFAULT 6,
-    period           INTEGER    NOT NULL DEFAULT 30,
+    digits           INTEGER     NOT NULL DEFAULT 6,
+    period           INTEGER     NOT NULL DEFAULT 30,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );

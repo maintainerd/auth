@@ -30,8 +30,8 @@ func TestUserPasswordHistoryRepository_AddEntry(t *testing.T) {
 		repo := NewUserPasswordHistoryRepository(db)
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`INSERT INTO "user_password_history" \("user_id","password_hash","created_at"\) VALUES \(\$1,\$2,\$3\) RETURNING "history_id"`).
-			WithArgs(int64(42), "hashed-password", sqlmock.AnyArg()).
+		mock.ExpectQuery(`INSERT INTO "user_password_history" \("history_uuid","user_id","password_hash","created_at"\) VALUES \(\$1,\$2,\$3,\$4\) RETURNING "history_id"`).
+			WithArgs(sqlmock.AnyArg(), int64(42), "hashed-password", sqlmock.AnyArg()).
 			WillReturnRows(sqlmock.NewRows([]string{"history_id"}).AddRow(1))
 		mock.ExpectCommit()
 

@@ -2459,8 +2459,8 @@ The session-specific columns (`last_used_at`, `idle_timeout_seconds`, `absolute_
 **Checklist — this file needs three phases of changes (do in order):**
 
 **Phase A — Do immediately (safe now, no dependency on other sections):**
-- [ ] Correct the stale DDL comment to reflect the actual five types in use
-- [ ] Add a `token_type` CHECK constraint with all five current valid values — this is a safety net against future accidental type proliferation:
+- [x] Correct the stale DDL comment to reflect the actual five types in use
+- [x] Add a `token_type` CHECK constraint with all five current valid values — this is a safety net against future accidental type proliferation:
   ```sql
   DO $$
   BEGIN
@@ -2478,9 +2478,9 @@ The session-specific columns (`last_used_at`, `idle_timeout_seconds`, `absolute_
       END IF;
   END$$;
   ```
-- [ ] Confirm `user_token_uuid UUID NOT NULL UNIQUE` exists; add if absent
-- [ ] Confirm `created_at TIMESTAMPTZ NOT NULL DEFAULT now()` has NOT NULL; fix if absent
-- [ ] Add composite partial index for the active-token lookup hot path:
+- [x] Confirm `user_token_uuid UUID NOT NULL UNIQUE` exists; add if absent
+- [x] Confirm `created_at TIMESTAMPTZ NOT NULL DEFAULT now()` has NOT NULL; fix if absent
+- [x] Add composite partial index for the active-token lookup hot path:
   ```sql
   CREATE INDEX IF NOT EXISTS idx_user_tokens_active
       ON user_tokens (user_id, token_type)
@@ -2495,30 +2495,30 @@ The session-specific columns (`last_used_at`, `idle_timeout_seconds`, `absolute_
 - [ ] Drop the now-unused session-specific columns: `last_used_at`, `idle_timeout_seconds`, `absolute_expires_at` — verify they are NULL on all remaining rows before dropping
 
 **`032_create_user_mfa_totp_secrets_table.go`** — Stores TOTP shared secrets (encrypted). Check for:
-- `secret_encrypted TEXT` — fine as TEXT (encrypted blobs vary in length)
-- `is_active BOOLEAN` — must have NOT NULL
-- Missing NOT NULL on timestamps
-- The trigger attachment added in Phase 1.3 goes in this file — confirm the file ends with the `trg_sync_totp_flag` trigger CREATE statement
+- [x] `secret_encrypted TEXT` — fine as TEXT (encrypted blobs vary in length); column is `secret TEXT NOT NULL`
+- [x] `is_enabled BOOLEAN NOT NULL DEFAULT FALSE` — NOT NULL confirmed (planning doc used `is_active` as generic term; actual column is `is_enabled`)
+- [x] NOT NULL on `created_at` and `updated_at` — both confirmed NOT NULL
+- [x] `trg_sync_totp_flag` trigger — confirmed at end of file
 
 **`036_create_user_password_history_table.go`** — Stores hashed previous passwords for reuse prevention. Check for:
-- `password_hash TEXT` — fine as TEXT (hash length varies by algorithm)
-- Missing NOT NULL on timestamps
-- Missing UUID column
-- Ensure there is a partial index on `(user_id, created_at DESC)` to efficiently query the N most recent passwords
-- Confirm the table is append-only (no UPDATE allowed) — consider adding a trigger that raises an exception on UPDATE, same pattern as `auth_events`
+- [x] `password_hash TEXT NOT NULL` — correct; hash length varies by algorithm
+- [x] NOT NULL on `created_at` — confirmed
+- [x] UUID column — added `history_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()`; model updated with `HistoryUUID` field and `BeforeCreate` hook
+- [x] Index on `(user_id, created_at DESC)` — `idx_uph_user_id_created` confirmed
+- [x] Append-only trigger — added `deny_password_history_update()` function and `trg_deny_uph_update` trigger
 
 **`050_create_oauth_refresh_tokens_table.go`** — Audited. Stores OAuth 2.0 protocol refresh tokens issued via `POST /oauth/token`. Completely separate from the internal authn refresh mechanism (which is stateless JWT + Redis JTI denylist — no DB table). The two refresh systems coexist by design and serve different callers: `oauth_refresh_tokens` is for third-party OAuth clients; the JWT refresh is for the hosted login UI.
 
 Confirmed present: `token_hash` (UNIQUE), `family_id` (UUID, indexed — foundation of `RevokeByFamily` token theft detection), `client_id` FK, `user_id` FK, `tenant_id` FK, `is_revoked`, `revoked_at`, `last_used_at`, `expires_at`. The consistency CHECK `(is_revoked=FALSE AND revoked_at IS NULL) OR (is_revoked=TRUE AND revoked_at IS NOT NULL)` exists.
 
 Checklist for this file:
-- [ ] `scope TEXT NOT NULL DEFAULT ''` → `scope TEXT[] NOT NULL DEFAULT '{}'` (Phase 2.1 change)
-- [ ] Confirm `expires_at`, `created_at`, `last_used_at` all have `NOT NULL`; add where missing
-- [ ] Ensure partial index exists for active token lookup: `CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_active ON oauth_refresh_tokens (user_id, client_id) WHERE is_revoked = false;`
-- [ ] `family_id` — confirmed present; no action needed
-- [ ] **`session_id` FK — do NOT add yet.** The internal authn refresh flow (JWT + Redis) has no DB session concept; only the OAuth protocol flow (`oauth_refresh_tokens`) would need this. Adding `session_id FK → user_sessions` requires that every OAuth authorization code exchange also creates a `user_sessions` row, which is currently not done. This is a future enhancement, not part of the current refactor. Scope it as a separate feature when the OAuth flow is extended to write to `user_sessions`.
-- [ ] `ip_address INET` and `user_agent TEXT` — add these two columns if absent. They are used to show third-party OAuth app sessions in the admin console alongside first-party sessions, without requiring a separate sessions table for the OAuth flow.
-- [ ] `acr VARCHAR(10) NOT NULL DEFAULT '1'` and `amr TEXT[] NOT NULL DEFAULT '{}'` — add if absent. Allows token introspection to return auth strength without a join.
+- [x] `scope TEXT[] NOT NULL DEFAULT '{}'` — confirmed; using `pq.StringArray` in model
+- [x] `expires_at TIMESTAMPTZ NOT NULL` and `created_at TIMESTAMPTZ NOT NULL` — confirmed; `last_used_at` intentionally nullable (NULL until first use)
+- [x] Partial index `idx_oauth_refresh_tokens_active ON oauth_refresh_tokens (user_id, client_id) WHERE is_revoked = false` — added
+- [x] `family_id` — confirmed present; no action needed
+- [x] **`session_id` FK — do NOT add yet.** The internal authn refresh flow (JWT + Redis) has no DB session concept; only the OAuth protocol flow (`oauth_refresh_tokens`) would need this. Adding `session_id FK → user_sessions` requires that every OAuth authorization code exchange also creates a `user_sessions` row, which is currently not done. This is a future enhancement, not part of the current refactor. Scope it as a separate feature when the OAuth flow is extended to write to `user_sessions`.
+- [x] `ip_address INET` and `user_agent TEXT` — added; model fields `IPAddress *string` and `UserAgent *string`
+- [x] `acr VARCHAR(10) NOT NULL DEFAULT '1'` and `amr TEXT[] NOT NULL DEFAULT '{}'` — added; `BeforeCreate` sets Go-side defaults (`ACR="1"`, `AMR=pq.StringArray{}`); GIN index on `amr` added
 
 ---
 

@@ -25,31 +25,40 @@ type OAuthRefreshToken struct {
 	RevokedAt             *time.Time     `gorm:"column:revoked_at"`
 	ExpiresAt             time.Time      `gorm:"column:expires_at;index:idx_oauth_refresh_expires;not null"`
 	LastUsedAt            *time.Time     `gorm:"column:last_used_at"`
+	IPAddress             *string        `gorm:"column:ip_address;type:inet"`
+	UserAgent             *string        `gorm:"column:user_agent"`
+	ACR                   string         `gorm:"column:acr;type:varchar(10);not null;default:1"`
+	AMR                   pq.StringArray `gorm:"column:amr;type:text[];not null;default:'{}'"`
 	CreatedAt             time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
 
 	// Relationships
 	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
 }
 
-// TableName returns the database table name for GORM.
 func (OAuthRefreshToken) TableName() string {
 	return "oauth_refresh_tokens"
 }
 
-// BeforeCreate generates a UUID if one is not already set.
 func (o *OAuthRefreshToken) BeforeCreate(_ *gorm.DB) error {
 	if o.OAuthRefreshTokenUUID == uuid.Nil {
 		o.OAuthRefreshTokenUUID = uuid.New()
 	}
+	if o.ACR == "" {
+		o.ACR = "1"
+	}
+	if o.AMR == nil {
+		o.AMR = pq.StringArray{}
+	}
+	if o.Scope == nil {
+		o.Scope = pq.StringArray{}
+	}
 	return nil
 }
 
-// IsExpired returns true if the refresh token has passed its expiry time.
 func (o *OAuthRefreshToken) IsExpired() bool {
 	return time.Now().After(o.ExpiresAt)
 }
 
-// IsActive returns true if the token is neither revoked nor expired.
 func (o *OAuthRefreshToken) IsActive() bool {
 	return !o.IsRevoked && !o.IsExpired()
 }
