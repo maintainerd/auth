@@ -16,17 +16,11 @@ type Profile struct {
 	FirstName   string         `gorm:"column:first_name;not null"`
 	MiddleName  *string        `gorm:"column:middle_name"`
 	LastName    *string        `gorm:"column:last_name"`
-	Suffix      *string        `gorm:"column:suffix"`
 	DisplayName *string        `gorm:"column:display_name"`
-	Bio         *string        `gorm:"column:bio"`
-	IsDefault   bool           `gorm:"column:is_default;not null;default:false"`
 	Birthdate   *time.Time     `gorm:"column:birthdate"`
 	Gender      *string        `gorm:"column:gender"`
-	Phone       *string        `gorm:"column:phone"`
-	Address     *string        `gorm:"column:address"`
+	IsDefault   bool           `gorm:"column:is_default;not null;default:false"`
 	Email       *string        `gorm:"-"`
-	City        *string        `gorm:"column:city"`
-	Country     *string        `gorm:"column:country"`
 	Timezone    *string        `gorm:"-"`
 	Language    *string        `gorm:"-"`
 	ProfileURL  *string        `gorm:"column:profile_url"`

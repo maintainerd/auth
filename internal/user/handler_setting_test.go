@@ -4,11 +4,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/datatypes"
 )
 
 func TestUserSettingHandler_CreateOrUpdate_BadJSON(t *testing.T) {
@@ -22,17 +20,7 @@ func TestUserSettingHandler_CreateOrUpdate_BadJSON(t *testing.T) {
 
 func TestUserSettingHandler_CreateOrUpdate_Success(t *testing.T) {
 	svc := &mockUserSettingService{
-		createOrUpdateFn: func(
-			userUUID uuid.UUID,
-			timezone, preferredLanguage, locale *string,
-			socialLinks map[string]any,
-			preferredContactMethod *string,
-			marketingEmailConsent, smsConsent, pushConsent *bool,
-			profileVisibility *string,
-			dataProcessingConsent *bool,
-			termsAcceptedAt, privacyPolicyAcceptedAt *time.Time,
-			emergencyName, emergencyPhone, emergencyEmail, emergencyRelation *string,
-		) (*UserSettingServiceDataResult, error) {
+		createOrUpdateFn: func(userUUID uuid.UUID, timezone, preferredLanguage, locale *string) (*UserSettingServiceDataResult, error) {
 			return &UserSettingServiceDataResult{}, nil
 		},
 	}
@@ -82,17 +70,14 @@ func TestUserSettingHandler_CreateOrUpdate_ValidationError(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestUserSettingHandler_CreateOrUpdate_WithSocialLinks(t *testing.T) {
-	// covers the SocialLinks map conversion loop (lines 36-41)
+func TestUserSettingHandler_CreateOrUpdate_WithEmptyBody(t *testing.T) {
 	svc := &mockUserSettingService{
-		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string, sl map[string]any, pcm *string, mec, sms, push *bool, pv *string, dpc *bool, ta, ppa *time.Time, ecn, ecp, ece, ecr *string) (*UserSettingServiceDataResult, error) {
+		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string) (*UserSettingServiceDataResult, error) {
 			return &UserSettingServiceDataResult{}, nil
 		},
 	}
 	h := NewUserSettingHandler(svc)
-	r := withTenantAndUser(jsonReq(t, http.MethodPost, "/user-settings", map[string]any{
-		"social_links": map[string]string{"twitter": "https://twitter.com/user"},
-	}))
+	r := withTenantAndUser(jsonReq(t, http.MethodPost, "/user-settings", map[string]any{}))
 	w := httptest.NewRecorder()
 	h.CreateOrUpdate(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -100,7 +85,7 @@ func TestUserSettingHandler_CreateOrUpdate_WithSocialLinks(t *testing.T) {
 
 func TestUserSettingHandler_CreateOrUpdate_ServiceError(t *testing.T) {
 	svc := &mockUserSettingService{
-		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string, sl map[string]any, pcm *string, mec, sms, push *bool, pv *string, dpc *bool, ta, ppa *time.Time, ecn, ecp, ece, ecr *string) (*UserSettingServiceDataResult, error) {
+		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string) (*UserSettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -153,13 +138,10 @@ func TestUserSettingHandler_Delete_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestUserSettingHandler_toUserSettingResponseDto_InvalidSocialLinksJSON(t *testing.T) {
-	// SocialLinks with invalid JSON bytes covers the unmarshal-error else branch (line 103)
+func TestUserSettingHandler_Get_EmptySetting(t *testing.T) {
 	svc := &mockUserSettingService{
 		getByUserUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
-			return &UserSettingServiceDataResult{
-				SocialLinks: datatypes.JSON([]byte("not-valid-json")),
-			}, nil
+			return &UserSettingServiceDataResult{}, nil
 		},
 	}
 	h := NewUserSettingHandler(svc)

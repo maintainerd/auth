@@ -20,7 +20,6 @@ type SummaryResponse struct {
 	Clients           ResourceCount `json:"clients"`
 	IdentityProviders ResourceCount `json:"identity_providers"`
 	Roles             ResourceCount `json:"roles"`
-	APIKeys           ResourceCount `json:"api_keys"`
 	RecentLogins24h   int64         `json:"recent_logins_24h"`
 	FailedLogins24h   int64         `json:"failed_logins_24h"`
 }

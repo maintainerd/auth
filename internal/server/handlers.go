@@ -41,7 +41,6 @@ type handlers struct {
 	emailVerification  *authn.EmailVerificationHandler
 	magicLink          *authn.MagicLinkHandler
 	setup              *setup.SetupHandler
-	apiKey             *client.APIKeyHandler
 	registrationFlow   *idp.RegistrationFlowHandler
 	securitySetting    *secpolicy.SecuritySettingHandler
 	ipRestrictionRule  *secpolicy.IPRestrictionRuleHandler
@@ -67,6 +66,8 @@ type handlers struct {
 	oauthCIBA          *oauth.OAuthCIBAHandler
 	oauthRegister      *oauth.OAuthRegisterHandler
 	account            *user.AccountHandler
+	userConsent        *user.UserConsentHandler
+	userTrustedDevice  *user.UserTrustedDeviceHandler
 	smsLogin           *authn.SMSLoginHandler
 	mfa                *mfa.MFAHandler
 	federation         *idp.FederationHandler
@@ -96,7 +97,6 @@ func initHandlers(application *Application) *handlers {
 		emailVerification:  authn.NewEmailVerificationHandler(application.EmailVerificationService),
 		magicLink:          authn.NewMagicLinkHandler(application.MagicLinkService),
 		setup:              setup.NewSetupHandler(application.SetupService),
-		apiKey:             client.NewAPIKeyHandler(application.APIKeyService),
 		registrationFlow:   idp.NewRegistrationFlowHandler(application.RegistrationFlowService),
 		securitySetting:    secpolicy.NewSecuritySettingHandler(application.SecuritySettingService),
 		ipRestrictionRule:  secpolicy.NewIPRestrictionRuleHandler(application.IPRestrictionRuleService),
@@ -122,6 +122,8 @@ func initHandlers(application *Application) *handlers {
 		oauthCIBA:          oauth.NewOAuthCIBAHandler(application.OAuthCIBAService),
 		oauthRegister:      oauth.NewOAuthRegisterHandler(application.OAuthRegisterService),
 		account:            user.NewAccountHandler(application.AccountService, newUserSessionServiceAdapter(application.SessionService), application.ProfileRepo),
+		userConsent:        user.NewUserConsentHandler(application.UserConsentService, application.UserService, application.UserRepo),
+		userTrustedDevice:  user.NewUserTrustedDeviceHandler(application.UserTrustedDeviceService, application.UserService, application.UserRepo),
 		smsLogin:           authn.NewSMSLoginHandler(application.SMSLoginService),
 		mfa:                mfa.NewMFAHandler(application.MFAService, application.WebAuthnService),
 		federation:         idp.NewFederationHandler(application.FederationService),

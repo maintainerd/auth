@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
@@ -223,9 +224,13 @@ func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*Use
 }
 
 func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) error {
+	updates := map[string]any{"is_email_verified": verified}
+	if verified {
+		updates["email_verified_at"] = time.Now()
+	}
 	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
-		Update("is_email_verified", verified).Error
+		Updates(updates).Error
 }
 
 func (r *userRepository) SetStatus(userUUID uuid.UUID, status string) error {

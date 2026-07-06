@@ -251,6 +251,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 		if !user.IsEmailVerified {
 			if _, txErr := txUserRepo.UpdateByID(user.UserID, map[string]any{
 				"is_email_verified": true,
+				"email_verified_at": time.Now(),
 			}); txErr != nil {
 				return apperror.NewInternal("failed to update user verification status", txErr)
 			}

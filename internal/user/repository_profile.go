@@ -2,7 +2,6 @@ package user
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
@@ -14,8 +13,6 @@ type ProfileRepositoryGetFilter struct {
 	LastName  *string
 	Email     *string
 	Phone     *string
-	City      *string
-	Country   *string
 	IsDefault *bool
 	Page      int
 	Limit     int
@@ -69,7 +66,7 @@ func (r *profileRepository) FindDefaultByUserID(userID int64) (*Profile, error) 
 	err := r.DB().Where("user_id = ? AND is_default = ?", userID, true).First(&profile).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // Return nil profile when not found
+			return nil, nil
 		}
 		return nil, err
 	}
@@ -92,15 +89,6 @@ func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (
 		query = query.Joins("JOIN users ON users.user_id = profiles.user_id")
 		query = database.ApplyILike(query, "users.email", filter.Email)
 	}
-	if filter.Phone != nil && *filter.Phone != "" {
-		query = database.ApplyILike(query, "phone", filter.Phone)
-	}
-	if filter.City != nil && *filter.City != "" {
-		query = database.ApplyILike(query, "city", filter.City)
-	}
-	if filter.Country != nil && *filter.Country != "" {
-		query = query.Where("LOWER(country) = ?", strings.ToLower(*filter.Country))
-	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
@@ -120,6 +108,7 @@ func (r *profileRepository) UpdateByUserID(userID int64, updatedProfile *Profile
 func (r *profileRepository) DeleteByUserID(userID int64) error {
 	return r.DB().Where("user_id = ?", userID).Delete(&Profile{}).Error
 }
+
 func (r *profileRepository) UnsetDefaultProfiles(userID int64) error {
 	return r.DB().Model(&Profile{}).
 		Where("user_id = ? AND is_default = ?", userID, true).

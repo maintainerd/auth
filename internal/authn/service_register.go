@@ -810,15 +810,13 @@ func (s *registerService) RegisterInvitePublic(
 		now := time.Now()
 		// Create user
 		newUser := &User{
-			TenantID:           tenantId,
-			Username:           username,
-			Email:              invite.InvitedEmail, // Always use the invited email
-			Password:           ptr.Ptr(string(hashed)),
-			Status:             shared.StatusActive,
-			IsEmailVerified:    true,  // Auto-verify email for invited users
-			IsProfileCompleted: false, // Require profile completion
-			IsAccountCompleted: false, // Require account completion
-			PasswordChangedAt:  &now,
+			TenantID:          tenantId,
+			Username:          username,
+			Email:             invite.InvitedEmail, // Always use the invited email
+			Password:          ptr.Ptr(string(hashed)),
+			Status:            shared.StatusActive,
+			IsEmailVerified:   true, // Auto-verify email for invited users
+			PasswordChangedAt: &now,
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)
@@ -990,15 +988,13 @@ func (s *registerService) RegisterInvite(
 
 		now := time.Now()
 		newUser := &User{
-			TenantID:           tenantId,
-			Username:           username,
-			Email:              invite.InvitedEmail,
-			Password:           ptr.Ptr(string(hashed)),
-			Status:             shared.StatusActive,
-			IsEmailVerified:    true,
-			IsProfileCompleted: false,
-			IsAccountCompleted: false,
-			PasswordChangedAt:  &now,
+			TenantID:          tenantId,
+			Username:          username,
+			Email:             invite.InvitedEmail,
+			Password:          ptr.Ptr(string(hashed)),
+			Status:            shared.StatusActive,
+			IsEmailVerified:   true,
+			PasswordChangedAt: &now,
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)

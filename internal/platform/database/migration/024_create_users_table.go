@@ -18,12 +18,15 @@ CREATE TABLE IF NOT EXISTS users (
     password                    TEXT,
     is_email_verified           BOOLEAN NOT NULL DEFAULT FALSE,
     is_phone_verified           BOOLEAN NOT NULL DEFAULT FALSE,
-    is_profile_completed        BOOLEAN NOT NULL DEFAULT FALSE,
-    is_account_completed        BOOLEAN NOT NULL DEFAULT FALSE,
     status                      VARCHAR(20) NOT NULL DEFAULT 'active'
         CONSTRAINT chk_users_status CHECK (status IN (
             'active', 'inactive', 'pending', 'suspended'
         )),
+    last_login_at               TIMESTAMPTZ,
+    login_count                 INTEGER NOT NULL DEFAULT 0,
+    email_verified_at           TIMESTAMPTZ,
+    phone_verified_at           TIMESTAMPTZ,
+    external_id                 VARCHAR(255),
     metadata                    JSONB NOT NULL DEFAULT '{}'::jsonb,
     force_password_change       BOOLEAN NOT NULL DEFAULT FALSE,
     password_changed_at         TIMESTAMPTZ,
@@ -39,6 +42,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_webauthn_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
     first_mfa_enrolled_at       TIMESTAMPTZ,
 
+    created_by                  BIGINT,
+    updated_by                  BIGINT,
     created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at                  TIMESTAMPTZ
@@ -58,6 +63,10 @@ CREATE INDEX IF NOT EXISTS idx_users_password_changed_at ON users(password_chang
     WHERE password_changed_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_temporary_password_expires_at ON users(temporary_password_expires_at)
     WHERE temporary_password_expires_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_last_login_at ON users (tenant_id, last_login_at DESC)
+    WHERE last_login_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_id)
+    WHERE external_id IS NOT NULL;
 
 -- Now that users exists, attach the audit FK constraints to all earlier
 -- tables that declared created_by/updated_by columns. These can't be added
@@ -91,6 +100,23 @@ BEGIN
             );
         END IF;
     END LOOP;
+END$$;
+
+-- Self-referential audit FKs on users (users references itself).
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_created_by'
+    ) THEN
+        ALTER TABLE users ADD CONSTRAINT fk_users_created_by
+            FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_updated_by'
+    ) THEN
+        ALTER TABLE users ADD CONSTRAINT fk_users_updated_by
+            FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL;
+    END IF;
 END$$;
 
 -- ──────────────────────────────────────────────────────────────────────────

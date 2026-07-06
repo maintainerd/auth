@@ -40,7 +40,7 @@
 //	  user.deleted, user.role_assigned, user.role_removed)
 //	Group 2 — Authorization model (role.*, permission.*, policy.*, iam.*)
 //	Group 3 — Tenant / organization (tenant.*, tenant_member.*)
-//	Group 4 — OAuth clients & credentials (client.*, api_key.*)
+//	Group 4 — OAuth clients & credentials (client.*)
 //	Group 5 — Sessions, identities & service principals (session.*, token.*,
 //	  identity.*, api.*, service.*)
 //

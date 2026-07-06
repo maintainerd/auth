@@ -144,6 +144,11 @@ type ClientService interface {
 	GetClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
 	AddClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
 	RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
+
+	// Client role assignment
+	AssignClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64, createdBy *int64) (*ClientRole, error)
+	RemoveClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) error
+	ListClientRoles(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) ([]ClientRole, error)
 }
 
 type ClientPublicServiceDataResult struct {
@@ -227,7 +232,9 @@ type clientService struct {
 	permissionRepo             PermissionRepository
 	clientPermissionRepo       ClientPermissionRepository
 	clientAPIRepo              ClientAPIRepository
+	clientRoleRepo             ClientRoleRepository
 	apiRepo                    APIRepository
+	roleRepo                   RoleRepository
 	userRepo                   UserRepository
 	tenantRepo                 TenantRepository
 	authEventService           authevent.AuthEventService
@@ -240,9 +247,11 @@ func NewClientService(
 	clientURIRepo ClientURIRepository,
 	idpRepo IdentityProviderRepository,
 	permissionRepo PermissionRepository,
-	clientPermissionRepo ClientPermissionRepository,
-	clientAPIRepo ClientAPIRepository,
-	apiRepo APIRepository,
+clientPermissionRepo ClientPermissionRepository,
+	clientAPIRepo        ClientAPIRepository,
+	clientRoleRepo       ClientRoleRepository,
+	roleRepo             RoleRepository,
+	apiRepo              APIRepository,
 	userRepo UserRepository,
 	tenantRepo TenantRepository,
 	authEventService authevent.AuthEventService,
@@ -261,6 +270,8 @@ func NewClientService(
 		permissionRepo:             permissionRepo,
 		clientPermissionRepo:       clientPermissionRepo,
 		clientAPIRepo:              clientAPIRepo,
+		clientRoleRepo:             clientRoleRepo,
+		roleRepo:                   roleRepo,
 		apiRepo:                    apiRepo,
 		userRepo:                   userRepo,
 		tenantRepo:                 tenantRepo,
@@ -2008,4 +2019,57 @@ func ValidateTenantAccess(actor *User, target *Tenant) error {
 		}
 	}
 	return apperror.NewForbidden("tenant access denied")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Client role assignment
+// ──────────────────────────────────────────────────────────────────────────────
+
+func (s *clientService) AssignClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64, createdBy *int64) (*ClientRole, error) {
+	client, err := s.clientRepo.FindByUUID(ClientUUID)
+	if err != nil || client == nil {
+		return nil, apperror.NewNotFound("client not found")
+	}
+	if client.TenantID != tenantID {
+		return nil, apperror.NewForbidden("client does not belong to your tenant")
+	}
+
+	role, err := s.roleRepo.FindByUUID(roleUUID)
+	if err != nil || role == nil {
+		return nil, apperror.NewNotFound("role not found")
+	}
+	if role.TenantID != tenantID {
+		return nil, apperror.NewForbidden("role does not belong to your tenant")
+	}
+
+	return s.clientRoleRepo.AssignRole(client.ClientID, role.RoleID, createdBy)
+}
+
+func (s *clientService) RemoveClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) error {
+	client, err := s.clientRepo.FindByUUID(ClientUUID)
+	if err != nil || client == nil {
+		return apperror.NewNotFound("client not found")
+	}
+	if client.TenantID != tenantID {
+		return apperror.NewForbidden("client does not belong to your tenant")
+	}
+
+	role, err := s.roleRepo.FindByUUID(roleUUID)
+	if err != nil || role == nil {
+		return apperror.NewNotFound("role not found")
+	}
+
+	return s.clientRoleRepo.RemoveRole(client.ClientID, role.RoleID)
+}
+
+func (s *clientService) ListClientRoles(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) ([]ClientRole, error) {
+	client, err := s.clientRepo.FindByUUID(ClientUUID)
+	if err != nil || client == nil {
+		return nil, apperror.NewNotFound("client not found")
+	}
+	if client.TenantID != tenantID {
+		return nil, apperror.NewForbidden("client does not belong to your tenant")
+	}
+
+	return s.clientRoleRepo.ListRoles(client.ClientID)
 }

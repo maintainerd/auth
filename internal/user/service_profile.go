@@ -20,21 +20,14 @@ type ProfileServiceDataResult struct {
 	FirstName   string
 	MiddleName  *string
 	LastName    *string
-	Suffix      *string
 	DisplayName *string
-	Bio         *string
-	// Profile Flags
-	IsDefault bool
 	// Personal Information
 	Birthdate *time.Time
 	Gender    *string
-	// Contact Information
-	Phone   *string
-	Email   *string
-	Address *string
-	// Location Information
-	City    *string
-	Country *string
+	// Profile flags
+	IsDefault bool
+	// Contact Information (transient)
+	Email *string
 	// Preference
 	Timezone *string
 	Language *string
@@ -60,11 +53,10 @@ type ProfileService interface {
 		ctx context.Context,
 		userUUID uuid.UUID,
 		firstName string,
-		middleName, lastName, suffix, displayName, bio *string,
+		middleName, lastName, displayName *string,
 		birthdate *time.Time,
 		gender *string,
-		phone, email, address *string,
-		city, country *string,
+		email *string,
 		timezone, language *string,
 		profileURL *string,
 		metadata map[string]any,
@@ -74,18 +66,17 @@ type ProfileService interface {
 		profileUUID uuid.UUID,
 		userUUID uuid.UUID,
 		firstName string,
-		middleName, lastName, suffix, displayName, bio *string,
+		middleName, lastName, displayName *string,
 		birthdate *time.Time,
 		gender *string,
-		phone, email, address *string,
-		city, country *string,
+		email *string,
 		timezone, language *string,
 		profileURL *string,
 		metadata map[string]any,
 	) (*ProfileServiceDataResult, error)
 	GetByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
-	GetAll(ctx context.Context, userUUID uuid.UUID, firstName, lastName, email, phone, city, country *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error)
+	GetAll(ctx context.Context, userUUID uuid.UUID, firstName, lastName, email *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error)
 	SetDefaultProfile(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 }
@@ -112,11 +103,10 @@ func (s *profileService) CreateOrUpdateProfile(
 	ctx context.Context,
 	userUUID uuid.UUID,
 	firstName string,
-	middleName, lastName, suffix, displayName, bio *string,
+	middleName, lastName, displayName *string,
 	birthdate *time.Time,
 	gender *string,
-	phone, email, address *string,
-	city, country *string,
+	email *string,
 	timezone, language *string,
 	profileURL *string,
 	metadata map[string]any,
@@ -137,18 +127,18 @@ func (s *profileService) CreateOrUpdateProfile(
 			return apperror.NewNotFound("user not found")
 		}
 
-		// Step 3: Try to find existing default profile
+		// Step 3: Try to find existing default profile for this user
 		existingProfile, err := txProfileRepo.FindDefaultByUserID(user.UserID)
 		var profile Profile
 
 		if err != nil {
 			return err
 		} else if existingProfile == nil {
-			// Create new profile if not found
+			// No default profile yet — this new one becomes the default.
 			profile = Profile{
 				ProfileUUID: uuid.New(),
 				UserID:      user.UserID,
-				IsDefault:   true, // First profile is always default
+				IsDefault:   true,
 			}
 		} else {
 			// Use existing profile
@@ -160,22 +150,11 @@ func (s *profileService) CreateOrUpdateProfile(
 		profile.FirstName = firstName
 		profile.MiddleName = middleName
 		profile.LastName = lastName
-		profile.Suffix = suffix
 		profile.DisplayName = displayName
-		profile.Bio = bio
 
 		// Personal Information
 		profile.Birthdate = birthdate
 		profile.Gender = gender
-
-		// Contact Information
-		profile.Phone = phone
-		profile.Email = email
-		profile.Address = address
-
-		// Location Information
-		profile.City = city
-		profile.Country = country
 
 		// Preference
 		profile.Timezone = timezone
@@ -212,15 +191,6 @@ func (s *profileService) CreateOrUpdateProfile(
 			updatedProfile = &profile
 		}
 
-		// Step 5: Update user's is_profile_completed flag
-		_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]any{
-			"is_profile_completed": true,
-			"is_account_completed": true,
-		})
-		if err != nil {
-			return err
-		}
-
 		return nil
 	})
 
@@ -239,11 +209,10 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 	profileUUID uuid.UUID,
 	userUUID uuid.UUID,
 	firstName string,
-	middleName, lastName, suffix, displayName, bio *string,
+	middleName, lastName, displayName *string,
 	birthdate *time.Time,
 	gender *string,
-	phone, email, address *string,
-	city, country *string,
+	email *string,
 	timezone, language *string,
 	profileURL *string,
 	metadata map[string]any,
@@ -271,17 +240,15 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 		if err != nil {
 			return err
 		} else if existingProfile == nil {
-			// Check if this is the first profile for the user
-			existingUserProfile, err := txProfileRepo.FindByUserID(user.UserID)
+			// Check if user already has any profile — if not, this is the first and becomes default.
+			anyProfile, err := txProfileRepo.FindByUserID(user.UserID)
 			if err != nil {
 				return err
 			}
-
-			// Create new profile with provided UUID
 			profile = Profile{
 				ProfileUUID: profileUUID,
 				UserID:      user.UserID,
-				IsDefault:   existingUserProfile == nil, // First profile is default
+				IsDefault:   anyProfile == nil,
 			}
 		} else {
 			// Verify profile belongs to user
@@ -297,22 +264,14 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 		profile.FirstName = firstName
 		profile.MiddleName = middleName
 		profile.LastName = lastName
-		profile.Suffix = suffix
 		profile.DisplayName = displayName
-		profile.Bio = bio
 
 		// Personal Information
 		profile.Birthdate = birthdate
 		profile.Gender = gender
 
-		// Contact Information
-		profile.Phone = phone
+		// Contact Information (transient — not persisted on profile)
 		profile.Email = email
-		profile.Address = address
-
-		// Location Information
-		profile.City = city
-		profile.Country = country
 
 		// Preference
 		profile.Timezone = timezone
@@ -340,15 +299,6 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 				return err
 			}
 			updatedProfile = createdProfile
-
-			// Update user's is_profile_completed flag on first profile creation
-			_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]any{
-				"is_profile_completed": true,
-				"is_account_completed": true,
-			})
-			if err != nil {
-				return err
-			}
 		} else {
 			// Update existing profile using CreateOrUpdate
 			updated, err := txProfileRepo.CreateOrUpdate(&profile)
@@ -432,7 +382,7 @@ func (s *profileService) GetByUserUUID(ctx context.Context, userUUID uuid.UUID) 
 func (s *profileService) GetAll(
 	ctx context.Context,
 	userUUID uuid.UUID,
-	firstName, lastName, email, phone, city, country *string,
+	firstName, lastName, email *string,
 	isDefault *bool,
 	page, limit int,
 	sortBy, sortOrder string,
@@ -454,9 +404,6 @@ func (s *profileService) GetAll(
 		FirstName: firstName,
 		LastName:  lastName,
 		Email:     email,
-		Phone:     phone,
-		City:      city,
-		Country:   country,
 		IsDefault: isDefault,
 		Page:      page,
 		Limit:     limit,
@@ -499,17 +446,14 @@ func (s *profileService) SetDefaultProfile(ctx context.Context, profileUUID uuid
 	var updatedProfile *Profile
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		// Step 1: Create transaction-aware repositories
 		txProfileRepo := s.profileRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Step 2: Find user by UUID to get userID
 		user, err := txUserRepo.FindByUUID(userUUID)
 		if err != nil || user == nil {
 			return apperror.NewNotFound("user not found")
 		}
 
-		// Step 3: Get the profile to verify ownership
 		profile, err := txProfileRepo.FindByUUID(profileUUID)
 		if err != nil {
 			return err
@@ -517,24 +461,19 @@ func (s *profileService) SetDefaultProfile(ctx context.Context, profileUUID uuid
 		if profile == nil {
 			return apperror.NewNotFound("profile not found")
 		}
-
-		// Verify profile belongs to user
 		if profile.UserID != user.UserID {
 			return apperror.NewForbidden("profile does not belong to user")
 		}
 
-		// Step 4: Unset all other default profiles for this user
+		// Unset all current defaults, then set this one
 		if err := txProfileRepo.UnsetDefaultProfiles(user.UserID); err != nil {
 			return err
 		}
-
-		// Step 5: Set this profile as default
 		profile.IsDefault = true
 		updated, err := txProfileRepo.CreateOrUpdate(profile)
 		if err != nil {
 			return err
 		}
-
 		updatedProfile = updated
 		return nil
 	})
@@ -574,7 +513,7 @@ func (s *profileService) DeleteByUUID(ctx context.Context, profileUUID uuid.UUID
 		return nil, apperror.NewForbidden("profile does not belong to user")
 	}
 
-	// Prevent deletion of default profile
+	// Cannot delete the default profile — caller must reassign default first.
 	if profile.IsDefault {
 		span.SetStatus(codes.Error, "delete profile failed")
 		return nil, apperror.NewValidation("cannot delete default profile")
@@ -612,21 +551,14 @@ func toProfileServiceDataResult(profile *Profile) *ProfileServiceDataResult {
 		FirstName:   profile.FirstName,
 		MiddleName:  profile.MiddleName,
 		LastName:    profile.LastName,
-		Suffix:      profile.Suffix,
 		DisplayName: profile.DisplayName,
-		Bio:         profile.Bio,
-		// Profile Flags
-		IsDefault: profile.IsDefault,
 		// Personal Information
 		Birthdate: profile.Birthdate,
 		Gender:    profile.Gender,
-		// Contact Information
-		Phone:   profile.Phone,
-		Email:   profile.Email,
-		Address: profile.Address,
-		// Location Information
-		City:    profile.City,
-		Country: profile.Country,
+		// Profile flags
+		IsDefault: profile.IsDefault,
+		// Contact Information (transient)
+		Email: profile.Email,
 		// Preference
 		Timezone: profile.Timezone,
 		Language: profile.Language,

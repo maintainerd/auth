@@ -3,9 +3,7 @@ package user
 import (
 	"context"
 	"errors"
-	"math"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -129,7 +127,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		svc := NewUserSettingService(db, &mockUserSettingRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
-		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -150,7 +148,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, sid, res.UserSettingUUID)
 	})
@@ -168,26 +166,9 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
-	})
-
-	t.Run("social links marshal error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		badLinks := map[string]any{"bad": math.Inf(1)}
-		svc := NewUserSettingService(db, &mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*UserSetting, error) { return nil, nil },
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: 1}, nil
-			},
-		})
-		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, badLinks, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid social links")
 	})
 
 	t.Run("new setting → Create error → rollback", func(t *testing.T) {
@@ -204,7 +185,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create failed")
 	})
@@ -224,7 +205,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, sid, res.UserSettingUUID)
 		assert.Equal(t, &tz, res.Timezone)
@@ -246,7 +227,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
 	})
@@ -264,31 +245,19 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, &lang, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, &lang, nil)
 		require.NoError(t, err)
 		assert.Equal(t, &lang, res.Locale)
 		assert.Equal(t, &lang, res.PreferredLanguage)
 	})
 
-	t.Run("create with all optional fields", func(t *testing.T) {
+	t.Run("create with timezone, language and locale", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		tz := "UTC"
 		lang := "en"
 		locale := "en-US"
-		contact := "email"
-		vis := "public"
-		mktg := true
-		sms := true
-		push := false
-		consent := true
-		now := time.Now()
-		ecName := "Jane"
-		ecPhone := "555-1234"
-		ecEmail := "jane@x.com"
-		ecRel := "spouse"
-		links := map[string]any{"twitter": "@user"}
 		svc := NewUserSettingService(db, &mockUserSettingRepo{
 			findByUserIDFn: func(_ int64) (*UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{
@@ -296,20 +265,11 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, &lang, &locale, links, &contact, &mktg, &sms, &push, &vis, &consent, &now, &now, &ecName, &ecPhone, &ecEmail, &ecRel)
+		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, &lang, &locale)
 		require.NoError(t, err)
 		assert.Equal(t, &tz, res.Timezone)
-		// preferred_language column was removed; Locale is the source of truth
-		// and PreferredLanguage is now a transient mirror of Locale.
 		assert.Equal(t, locale, *res.PreferredLanguage)
 		assert.Equal(t, &locale, res.Locale)
-		assert.Equal(t, &contact, res.PreferredContactMethod)
-		assert.True(t, res.MarketingEmailConsent)
-		assert.True(t, res.SMSNotificationsConsent)
-		assert.False(t, res.PushNotificationsConsent)
-		assert.Equal(t, &vis, res.ProfileVisibility)
-		assert.True(t, res.DataProcessingConsent)
-		assert.Equal(t, &ecName, res.EmergencyContactName)
 	})
 }
 

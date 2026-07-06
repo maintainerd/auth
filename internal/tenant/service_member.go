@@ -152,8 +152,8 @@ func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID
 			if tenantRecord == nil {
 				return apperror.NewNotFound("tenant not found")
 			}
-			if !tenantRecord.IsCompleted {
-				tenantRecord.IsCompleted = true
+			if tenantRecord.Status == "pending" {
+				tenantRecord.Status = "active"
 				if _, err = tx.TenantRepository().CreateOrUpdate(tenantRecord); err != nil {
 					return err
 				}

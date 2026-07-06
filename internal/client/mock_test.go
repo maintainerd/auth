@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
@@ -83,101 +82,6 @@ func jsonReq(t *testing.T, method, url string, body any) *http.Request {
 	r := httptest.NewRequest(method, url, &buf)
 	r.Header.Set("Content-Type", "application/json")
 	return r
-}
-
-type mockAPIKeyService struct {
-	getFn                 func(APIKeyServiceGetFilter, uuid.UUID) (*APIKeyServiceGetResult, error)
-	getByUUIDFn           func(uuid.UUID, int64, uuid.UUID) (*APIKeyServiceDataResult, error)
-	getConfigByUUIDFn     func(uuid.UUID, int64) (datatypes.JSON, error)
-	createFn              func(int64, string, string, datatypes.JSON, *time.Time, string) (*APIKeyServiceDataResult, string, error)
-	updateFn              func(uuid.UUID, int64, *string, *string, datatypes.JSON, *time.Time, *string, uuid.UUID) (*APIKeyServiceDataResult, error)
-	setStatusByUUIDFn     func(uuid.UUID, int64, string) (*APIKeyServiceDataResult, error)
-	deleteFn              func(uuid.UUID, int64, uuid.UUID) (*APIKeyServiceDataResult, error)
-	getAPIKeyAPIsFn       func(int64, uuid.UUID, int, int, string, string) (*APIKeyAPIServicePaginatedResult, error)
-	addAPIKeyAPIsFn       func(int64, uuid.UUID, []uuid.UUID) error
-	removeAPIKeyAPIFn     func(int64, uuid.UUID, uuid.UUID) error
-	getAPIKeyAPIPermsFn   func(int64, uuid.UUID, uuid.UUID) ([]PermissionServiceDataResult, error)
-	addAPIKeyAPIPermsFn   func(int64, uuid.UUID, uuid.UUID, []uuid.UUID) error
-	removeAPIKeyAPIPermFn func(int64, uuid.UUID, uuid.UUID, uuid.UUID) error
-}
-
-func (m *mockAPIKeyService) Get(_ context.Context, f APIKeyServiceGetFilter, u uuid.UUID) (*APIKeyServiceGetResult, error) {
-	if m.getFn != nil {
-		return m.getFn(f, u)
-	}
-	return &APIKeyServiceGetResult{}, nil
-}
-func (m *mockAPIKeyService) GetByUUID(_ context.Context, id uuid.UUID, tid int64, u uuid.UUID) (*APIKeyServiceDataResult, error) {
-	if m.getByUUIDFn != nil {
-		return m.getByUUIDFn(id, tid, u)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyService) GetConfigByUUID(_ context.Context, id uuid.UUID, tid int64) (datatypes.JSON, error) {
-	if m.getConfigByUUIDFn != nil {
-		return m.getConfigByUUIDFn(id, tid)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyService) Create(_ context.Context, tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, s string) (*APIKeyServiceDataResult, string, error) {
-	if m.createFn != nil {
-		return m.createFn(tid, n, desc, cfg, exp, s)
-	}
-	return nil, "", nil
-}
-func (m *mockAPIKeyService) Update(_ context.Context, id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
-	if m.updateFn != nil {
-		return m.updateFn(id, tid, n, desc, cfg, exp, s, u)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyService) SetStatusByUUID(_ context.Context, id uuid.UUID, tid int64, s string) (*APIKeyServiceDataResult, error) {
-	if m.setStatusByUUIDFn != nil {
-		return m.setStatusByUUIDFn(id, tid, s)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyService) Delete(_ context.Context, id uuid.UUID, tid int64, u uuid.UUID) (*APIKeyServiceDataResult, error) {
-	if m.deleteFn != nil {
-		return m.deleteFn(id, tid, u)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyService) GetAPIKeyAPIs(_ context.Context, tid int64, id uuid.UUID, pg, lim int, sb, so string) (*APIKeyAPIServicePaginatedResult, error) {
-	if m.getAPIKeyAPIsFn != nil {
-		return m.getAPIKeyAPIsFn(tid, id, pg, lim, sb, so)
-	}
-	return &APIKeyAPIServicePaginatedResult{}, nil
-}
-func (m *mockAPIKeyService) AddAPIKeyAPIs(_ context.Context, tid int64, id uuid.UUID, apis []uuid.UUID) error {
-	if m.addAPIKeyAPIsFn != nil {
-		return m.addAPIKeyAPIsFn(tid, id, apis)
-	}
-	return nil
-}
-func (m *mockAPIKeyService) RemoveAPIKeyAPI(_ context.Context, tid int64, id, api uuid.UUID) error {
-	if m.removeAPIKeyAPIFn != nil {
-		return m.removeAPIKeyAPIFn(tid, id, api)
-	}
-	return nil
-}
-func (m *mockAPIKeyService) GetAPIKeyAPIPermissions(_ context.Context, tid int64, id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
-	if m.getAPIKeyAPIPermsFn != nil {
-		return m.getAPIKeyAPIPermsFn(tid, id, api)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyService) AddAPIKeyAPIPermissions(_ context.Context, tid int64, id, api uuid.UUID, perms []uuid.UUID) error {
-	if m.addAPIKeyAPIPermsFn != nil {
-		return m.addAPIKeyAPIPermsFn(tid, id, api, perms)
-	}
-	return nil
-}
-func (m *mockAPIKeyService) RemoveAPIKeyAPIPermission(_ context.Context, tid int64, id, api, perm uuid.UUID) error {
-	if m.removeAPIKeyAPIPermFn != nil {
-		return m.removeAPIKeyAPIPermFn(tid, id, api, perm)
-	}
-	return nil
 }
 
 type mockClientService struct {
@@ -344,6 +248,16 @@ func (m *mockClientService) RemoveClientAPIPermission(_ context.Context, tid int
 		return m.removeClientAPIPermFn(tid, id, api, perm)
 	}
 	return nil
+}
+
+func (m *mockClientService) AssignClientRole(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ int64, _ *int64) (*ClientRole, error) {
+	return nil, nil
+}
+func (m *mockClientService) RemoveClientRole(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ int64) error {
+	return nil
+}
+func (m *mockClientService) ListClientRoles(_ context.Context, _ uuid.UUID, _ int64) ([]ClientRole, error) {
+	return nil, nil
 }
 
 func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
@@ -772,169 +686,43 @@ func (m *mockClientPermissionRepo) FindByClientAPIID(clientAPIID int64) ([]Clien
 	return nil, nil
 }
 
-type mockAPIKeyRepo struct {
-	mockBaseRepo[APIKey]
-	findByUUIDFn              func(any, ...string) (*APIKey, error)
-	findByUUIDAndTenantIDFn   func(string, int64) (*APIKey, error)
-	findByKeyHashFn           func(string) (*APIKey, error)
-	findByKeyPrefixFn         func(string) (*APIKey, error)
-	deleteByUUIDAndTenantIDFn func(string, int64) error
-	findPaginatedFn           func(APIKeyRepositoryGetFilter) (*PaginationResult[APIKey], error)
-	createFn                  func(*APIKey) (*APIKey, error)
-	updateByUUIDFn            func(any, any) (*APIKey, error)
-	deleteByUUIDFn            func(any) error
+type mockClientRoleRepo struct {
+	mockBaseRepo[ClientRole]
+	assignRoleFn       func(clientID, roleID int64, createdBy *int64) (*ClientRole, error)
+	removeRoleFn       func(clientID, roleID int64) error
+	listRolesFn        func(clientID int64) ([]ClientRole, error)
+	resolvePermsFn     func(clientID int64) ([]int64, error)
 }
 
-func (m *mockAPIKeyRepo) WithTx(_ *gorm.DB) APIKeyRepository { return m }
-func (m *mockAPIKeyRepo) Create(e *APIKey) (*APIKey, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
+func (m *mockClientRoleRepo) WithTx(tx *gorm.DB) ClientRoleRepository { return m }
+func (m *mockClientRoleRepo) AssignRole(clientID, roleID int64, createdBy *int64) (*ClientRole, error) {
+	if m.assignRoleFn != nil { return m.assignRoleFn(clientID, roleID, createdBy) }
+	return &ClientRole{}, nil
 }
-func (m *mockAPIKeyRepo) FindByUUID(id any, p ...string) (*APIKey, error) {
-	if m.findByUUIDFn != nil {
-		return m.findByUUIDFn(id, p...)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyRepo) UpdateByUUID(id, data any) (*APIKey, error) {
-	if m.updateByUUIDFn != nil {
-		return m.updateByUUIDFn(id, data)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyRepo) DeleteByUUID(id any) error {
-	if m.deleteByUUIDFn != nil {
-		return m.deleteByUUIDFn(id)
-	}
+func (m *mockClientRoleRepo) RemoveRole(clientID, roleID int64) error {
+	if m.removeRoleFn != nil { return m.removeRoleFn(clientID, roleID) }
 	return nil
 }
-func (m *mockAPIKeyRepo) FindByUUIDAndTenantID(id string, tenantID int64) (*APIKey, error) {
-	if m.findByUUIDAndTenantIDFn != nil {
-		return m.findByUUIDAndTenantIDFn(id, tenantID)
-	}
+func (m *mockClientRoleRepo) ListRoles(clientID int64) ([]ClientRole, error) {
+	if m.listRolesFn != nil { return m.listRolesFn(clientID) }
 	return nil, nil
 }
-func (m *mockAPIKeyRepo) FindByKeyHash(keyHash string) (*APIKey, error) {
-	if m.findByKeyHashFn != nil {
-		return m.findByKeyHashFn(keyHash)
-	}
+func (m *mockClientRoleRepo) ResolvePermissions(clientID int64) ([]int64, error) {
+	if m.resolvePermsFn != nil { return m.resolvePermsFn(clientID) }
 	return nil, nil
-}
-func (m *mockAPIKeyRepo) FindByKeyPrefix(keyPrefix string) (*APIKey, error) {
-	if m.findByKeyPrefixFn != nil {
-		return m.findByKeyPrefixFn(keyPrefix)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyRepo) DeleteByUUIDAndTenantID(id string, tenantID int64) error {
-	if m.deleteByUUIDAndTenantIDFn != nil {
-		return m.deleteByUUIDAndTenantIDFn(id, tenantID)
-	}
-	return nil
-}
-func (m *mockAPIKeyRepo) FindPaginated(f APIKeyRepositoryGetFilter) (*PaginationResult[APIKey], error) {
-	if m.findPaginatedFn != nil {
-		return m.findPaginatedFn(f)
-	}
-	return &PaginationResult[APIKey]{}, nil
 }
 
-type mockAPIKeyAPIRepo struct {
-	mockBaseRepo[APIKeyAPI]
-	findByAPIKeyAndAPIFn           func(int64, int64) (*APIKeyAPI, error)
-	findByAPIKeyUUIDFn             func(uuid.UUID) ([]APIKeyAPI, error)
-	findByAPIKeyUUIDPaginatedFn    func(uuid.UUID, int, int, string, string) (*PaginationResult[APIKeyAPI], error)
-	findByAPIKeyUUIDAndAPIUUIDFn   func(uuid.UUID, uuid.UUID) (*APIKeyAPI, error)
-	removeByAPIKeyAndAPIFn         func(int64, int64) error
-	removeByAPIKeyUUIDAndAPIUUIDFn func(uuid.UUID, uuid.UUID) error
-	createFn                       func(*APIKeyAPI) (*APIKeyAPI, error)
+type mockRoleRepo struct {
+	mockBaseRepo[Role]
 }
 
-func (m *mockAPIKeyAPIRepo) WithTx(_ *gorm.DB) APIKeyAPIRepository { return m }
-func (m *mockAPIKeyAPIRepo) Create(e *APIKeyAPI) (*APIKeyAPI, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
-}
-func (m *mockAPIKeyAPIRepo) FindByAPIKeyAndAPI(apiKeyID, apiID int64) (*APIKeyAPI, error) {
-	if m.findByAPIKeyAndAPIFn != nil {
-		return m.findByAPIKeyAndAPIFn(apiKeyID, apiID)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyAPIRepo) FindByAPIKeyUUID(apiKeyUUID uuid.UUID) ([]APIKeyAPI, error) {
-	if m.findByAPIKeyUUIDFn != nil {
-		return m.findByAPIKeyUUIDFn(apiKeyUUID)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyAPIRepo) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*PaginationResult[APIKeyAPI], error) {
-	if m.findByAPIKeyUUIDPaginatedFn != nil {
-		return m.findByAPIKeyUUIDPaginatedFn(apiKeyUUID, page, limit, sortBy, sortOrder)
-	}
-	return &PaginationResult[APIKeyAPI]{}, nil
-}
-func (m *mockAPIKeyAPIRepo) FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID, apiUUID uuid.UUID) (*APIKeyAPI, error) {
-	if m.findByAPIKeyUUIDAndAPIUUIDFn != nil {
-		return m.findByAPIKeyUUIDAndAPIUUIDFn(apiKeyUUID, apiUUID)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyAPIRepo) RemoveByAPIKeyAndAPI(apiKeyID, apiID int64) error {
-	if m.removeByAPIKeyAndAPIFn != nil {
-		return m.removeByAPIKeyAndAPIFn(apiKeyID, apiID)
-	}
-	return nil
-}
-func (m *mockAPIKeyAPIRepo) RemoveByAPIKeyUUIDAndAPIUUID(apiKeyUUID, apiUUID uuid.UUID) error {
-	if m.removeByAPIKeyUUIDAndAPIUUIDFn != nil {
-		return m.removeByAPIKeyUUIDAndAPIUUIDFn(apiKeyUUID, apiUUID)
-	}
-	return nil
-}
-
-type mockAPIKeyPermissionRepo struct {
-	mockBaseRepo[APIKeyPermission]
-	findByAPIKeyAPIAndPermissionFn   func(int64, int64) (*APIKeyPermission, error)
-	removeByAPIKeyAPIAndPermissionFn func(int64, int64) error
-	findByAPIKeyAPIIDFn              func(int64) ([]APIKeyPermission, error)
-	createFn                         func(*APIKeyPermission) (*APIKeyPermission, error)
-}
-
-func (m *mockAPIKeyPermissionRepo) WithTx(_ *gorm.DB) APIKeyPermissionRepository { return m }
-func (m *mockAPIKeyPermissionRepo) Create(e *APIKeyPermission) (*APIKeyPermission, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
-}
-func (m *mockAPIKeyPermissionRepo) FindByAPIKeyAPIAndPermission(apiKeyAPIID, permissionID int64) (*APIKeyPermission, error) {
-	if m.findByAPIKeyAPIAndPermissionFn != nil {
-		return m.findByAPIKeyAPIAndPermissionFn(apiKeyAPIID, permissionID)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyPermissionRepo) RemoveByAPIKeyAPIAndPermission(apiKeyAPIID, permissionID int64) error {
-	if m.removeByAPIKeyAPIAndPermissionFn != nil {
-		return m.removeByAPIKeyAPIAndPermissionFn(apiKeyAPIID, permissionID)
-	}
-	return nil
-}
-func (m *mockAPIKeyPermissionRepo) FindByAPIKeyAPIID(apiKeyAPIID int64) ([]APIKeyPermission, error) {
-	if m.findByAPIKeyAPIIDFn != nil {
-		return m.findByAPIKeyAPIIDFn(apiKeyAPIID)
-	}
-	return nil, nil
-}
+func (m *mockRoleRepo) WithTx(tx *gorm.DB) RoleRepository { return m }
 
 // buildConnSvc builds a ClientService for the identity-provider-connection tests.
 // The connection repo is constructed internally over gormDB, so connection
 // operations are driven through the supplied sqlmock.
 func buildConnSvc(gormDB *gorm.DB, clientRepo *mockClientRepo, idpRepo *mockIdentityProviderRepo, userRepo *mockUserRepo) ClientService {
 	return NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
-		&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+		&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 		&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 }

@@ -44,6 +44,9 @@ type App struct {
 	ProfileService               user.ProfileService
 	ProfileRepo                  user.ProfileRepository
 	UserSettingService           user.UserSettingService
+	UserConsentService           user.UserConsentService
+	UserTrustedDeviceService     user.UserTrustedDeviceService
+	UserRepo                     user.UserRepository
 	InviteService                invite.InviteService
 	ForgotPasswordService        authn.ForgotPasswordService
 	ResetPasswordService         authn.ResetPasswordService
@@ -51,7 +54,6 @@ type App struct {
 	MagicLinkService             authn.MagicLinkService
 	SetupService                 setup.SetupService
 	RegistrationFlowService      idp.RegistrationFlowService
-	APIKeyService                client.APIKeyService
 	SecuritySettingService       secpolicy.SecuritySettingService
 	IPRestrictionRuleService     secpolicy.IPRestrictionRuleService
 	EmailTemplateService         branding.EmailTemplateService
@@ -125,6 +127,9 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		ProfileService:               s.profileService,
 		ProfileRepo:                  s.profileRepo,
 		UserSettingService:           s.userSettingService,
+		UserConsentService:           s.userConsentService,
+		UserTrustedDeviceService:     s.userTrustedDeviceService,
+		UserRepo:                     r.userRepo,
 		InviteService:                s.inviteService,
 		ForgotPasswordService:        s.forgotPasswordService,
 		ResetPasswordService:         s.resetPasswordService,
@@ -132,7 +137,6 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		MagicLinkService:             s.magicLinkService,
 		SetupService:                 s.setupService,
 		RegistrationFlowService:      s.registrationFlowService,
-		APIKeyService:                s.apiKeyService,
 		SecuritySettingService:       s.securitySettingService,
 		IPRestrictionRuleService:     s.ipRestrictionRuleService,
 		EmailTemplateService:         s.emailTemplateService,

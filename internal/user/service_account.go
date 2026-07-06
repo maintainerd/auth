@@ -307,17 +307,15 @@ func (s *accountService) DeleteAccount(ctx context.Context, userID int64, curren
 
 	anonymized := fmt.Sprintf("deleted-%d-%s", user.UserID, user.UserUUID.String()[:8])
 	if _, err := s.userRepo.UpdateByID(user.UserID, map[string]any{
-		"username":                    anonymized,
-		"email":                       nil,
-		"phone":                       nil,
-		"password":                    nil,
-		"is_email_verified":           false,
-		"is_phone_verified":           false,
-		"is_profile_completed":        false,
-		"is_account_completed":        false,
-		"is_totp_enabled":             false,
-		"is_webauthn_enabled":         false,
-		"status":                      "deleted",
+		"username":            anonymized,
+		"email":               nil,
+		"phone":               nil,
+		"password":            nil,
+		"is_email_verified":   false,
+		"is_phone_verified":   false,
+		"is_totp_enabled":     false,
+		"is_webauthn_enabled": false,
+		"status":              "deleted",
 	}); err != nil {
 		return apperror.NewInternal("failed to delete account", err)
 	}
@@ -585,6 +583,7 @@ func (s *accountService) VerifyPhone(ctx context.Context, userID int64, phone, c
 	if _, err := s.userRepo.UpdateByID(userID, map[string]any{
 		"phone":             phone,
 		"is_phone_verified": true,
+		"phone_verified_at": time.Now(),
 	}); err != nil {
 		return apperror.NewInternal("failed to update phone", err)
 	}

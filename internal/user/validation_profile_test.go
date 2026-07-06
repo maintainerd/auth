@@ -23,7 +23,6 @@ func TestProfileRequestDto_Validate(t *testing.T) {
 			Birthdate:  strPtr("1990-01-25"),
 			Gender:     strPtr(shared.GenderMale),
 			Email:      strPtr("john@example.com"),
-			Country:    strPtr("US"),
 			ProfileURL: strPtr("https://cdn.example.com/avatar.png"),
 		}
 		assert.NoError(t, d.Validate())
@@ -46,11 +45,6 @@ func TestProfileRequestDto_Validate(t *testing.T) {
 
 	t.Run("invalid email", func(t *testing.T) {
 		d := ProfileRequestDTO{FirstName: "John", Email: strPtr("not-an-email")}
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("country not 2 chars", func(t *testing.T) {
-		d := ProfileRequestDTO{FirstName: "John", Country: strPtr("USA")}
 		require.Error(t, d.Validate())
 	})
 

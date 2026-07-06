@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -13,21 +12,11 @@ import (
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-type mockAPIKeyAuthenticator struct {
-	auth *authctx.AuthContext
-	err  error
-}
-
-func (m mockAPIKeyAuthenticator) AuthenticateAPIKey(context.Context, string) (*authctx.AuthContext, error) {
-	return m.auth, m.err
-}
 
 // initTestJWTKeys generates a fresh RSA-2048 key pair and wires it into the
 // package-level config variables that GenerateAccessToken / ValidateToken read from.
@@ -169,53 +158,6 @@ func TestJWTAuthMiddleware_ServiceClaims(t *testing.T) {
 	assert.Equal(t, "serviceA", capturedClaims.Sub)
 	assert.Equal(t, "serviceA", capturedClaims.Service)
 	assert.Equal(t, "service", capturedClaims.SubjectType)
-}
-
-func TestJWTAuthMiddleware_APIKey(t *testing.T) {
-	t.Cleanup(func() { SetAPIKeyAuthenticator(nil) })
-
-	t.Run("api key without authenticator returns 401", func(t *testing.T) {
-		SetAPIKeyAuthenticator(nil)
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("Authorization", "Bearer ak_test")
-		rr := httptest.NewRecorder()
-		JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	})
-
-	t.Run("api key auth error returns 401", func(t *testing.T) {
-		SetAPIKeyAuthenticator(mockAPIKeyAuthenticator{err: assert.AnError})
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("X-API-Key", "ak_test")
-		rr := httptest.NewRecorder()
-		JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	})
-
-	t.Run("api key forbidden returns 403", func(t *testing.T) {
-		SetAPIKeyAuthenticator(mockAPIKeyAuthenticator{err: errAPIKeyForbidden})
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("X-API-Key", "ak_test")
-		rr := httptest.NewRecorder()
-		JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusForbidden, rr.Code)
-	})
-
-	t.Run("api key success stores auth context", func(t *testing.T) {
-		auth := &authctx.AuthContext{User: &authctx.AuthUser{UserUUID: uuid.New()}}
-		SetAPIKeyAuthenticator(mockAPIKeyAuthenticator{auth: auth})
-		var got *authctx.AuthContext
-		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			got = AuthFromRequest(r)
-			w.WriteHeader(http.StatusOK)
-		})
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("X-API-Key", "ak_test")
-		rr := httptest.NewRecorder()
-		JWTAuthMiddleware(next).ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, auth.User.UserUUID, got.User.UserUUID)
-	})
 }
 
 func TestGetClientIDFromContext(t *testing.T) {

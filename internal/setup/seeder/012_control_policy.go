@@ -67,7 +67,6 @@ func controlPolicyDocument() model.PolicyDocument {
 					"role:*",
 					"idp:*",
 					"client:*",
-					"api_key:*",
 					"user:*",
 					"auth_event:*",
 					"account:*:self",

@@ -292,12 +292,12 @@ func TestTenantMemberService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		tenantRecord := &Tenant{TenantID: 1, IsCompleted: false}
+		tenantRecord := &Tenant{TenantID: 1, Status: "pending"}
 		completed := false
 		tenantRepo := &mockTenantRepo{
 			findByIDFn: func(any, ...string) (*Tenant, error) { return tenantRecord, nil },
 			createOrUpdateFn: func(record *Tenant) (*Tenant, error) {
-				completed = record.IsCompleted
+				completed = record.Status == "active"
 				return record, nil
 			},
 		}

@@ -24,15 +24,22 @@ type mockClientRepo struct {
 }
 
 func (m *mockClientRepo) WithTx(_ *gorm.DB) ClientRepository { return m }
+func (m *mockClientRepo) Create(e *Client) (*Client, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockClientRepo) CreateOrUpdate(e *Client) (*Client, error) { return e, nil }
 func (m *mockClientRepo) FindSystem() (*Client, error) {
 	if m.findSystemFn != nil {
 		return m.findSystemFn()
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, providerID string) (*Client, error) {
-	if m.findByClientIDAndIdentityProviderFn != nil {
-		return m.findByClientIDAndIdentityProviderFn(clientID, providerID)
+func (m *mockClientRepo) FindByID(id any, p ...string) (*Client, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, p...)
 	}
 	return nil, nil
 }
@@ -42,40 +49,20 @@ func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) {
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
-	return nil, nil
-}
 func (m *mockClientRepo) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error) {
 	if m.findSystemByTenantIdentifierAndNameFn != nil {
 		return m.findSystemByTenantIdentifierAndNameFn(tenantIdentifier, name)
 	}
-	return m.FindSystemByTenantIdentifier(tenantIdentifier)
-}
-func (m *mockClientRepo) Create(e *Client) (*Client, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
-}
-func (m *mockClientRepo) CreateOrUpdate(e *Client) (*Client, error)       { return e, nil }
-func (m *mockClientRepo) FindAll(p ...string) ([]Client, error)           { return nil, nil }
-func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) { return nil, nil }
-func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]Client, error) {
 	return nil, nil
 }
-func (m *mockClientRepo) FindByID(id any, p ...string) (*Client, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(id, p...)
+func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, providerID string) (*Client, error) {
+	if m.findByClientIDAndIdentityProviderFn != nil {
+		return m.findByClientIDAndIdentityProviderFn(clientID, providerID)
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) UpdateByUUID(id, data any) (*Client, error) { return nil, nil }
-func (m *mockClientRepo) UpdateByID(id, data any) (*Client, error)   { return nil, nil }
-func (m *mockClientRepo) DeleteByUUID(id any) error                  { return nil }
-func (m *mockClientRepo) DeleteByID(id any) error                    { return nil }
-func (m *mockClientRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[Client], error) {
-	return nil, nil
-}
+
+func (m *mockOAuthTokenService) SetClientPermissionResolver(ClientPermissionResolver) {}
 
 // ---------------------------------------------------------------------------
 // Mock: ClientURIRepository

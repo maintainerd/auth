@@ -1074,12 +1074,12 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
 
 **Decision:** GDPR requires knowing **which version** of terms/privacy policy was accepted, **when**, and **from which IP**. Storing only a timestamp in settings provides no version tracking and no audit. A dedicated `user_consents` table with append-only rows gives full compliance history.
 
-- [ ] Remove from `user_settings` `CREATE TABLE`:
+- [x] Remove from `user_settings` `CREATE TABLE`:
   ```sql
   terms_accepted_at          TIMESTAMPTZ,
   privacy_policy_accepted_at TIMESTAMPTZ,
   ```
-- [ ] Create `internal/platform/database/migration/070_create_user_consents_table.go`:
+- [x] Create `internal/platform/database/migration/070_create_user_consents_table.go`:
   ```go
   package migration
 
@@ -1119,14 +1119,14 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
   ```
 **Design note:** This table is the auth-layer consent-gate ledger only — it records consent to auth-prerequisite policies (ToS, privacy policy, GDPR data processing) that the auth server enforces as login gates. It is **not** a general GDPR consent management system. Marketing consent belongs in the tenant's CRM (Mailchimp, HubSpot, SendGrid). The distinction between OAuth scope consent (`oauth_consent_grants`) and legal-gate consent (`user_consents`) must be documented in handler comments.
 
-- [ ] Register `migration.CreateUserConsentsTable` in `internal/platform/runner/migration.go`
-- [ ] Create `internal/user/model_user_consent.go` and `internal/user/repository_user_consent.go`; add to `internal/app/repositories.go` and `initRepos`
-- [ ] Create service, handler, validation, and test files
-- [ ] Register endpoints: `GET /users/{uuid}/consents` (admin, internal port 8080), `POST /me/consent` (public port 8081 — user records their own consent)
+- [x] Register `migration.CreateUserConsentsTable` in `internal/platform/runner/migration.go`
+- [x] Create `internal/user/model_user_consent.go` and `internal/user/repository_user_consent.go`; add to `internal/app/repositories.go` and `initRepos`
+- [x] Create service, handler, validation, and test files
+- [x] Register endpoints: `GET /users/{uuid}/consents` (admin, internal port 8080), `POST /me/consent` (public port 8081 — user records their own consent)
 - [ ] In the registration handler (`internal/authn/service_register.go`): record consent when a user accepts terms during registration — insert a row into `user_consents` with `consent_type='terms_of_service'`
-- [ ] Search and redirect all Go code that reads `terms_accepted_at` or `privacy_policy_accepted_at` from `user_settings` (these columns are removed in section 3.27)
-- [ ] "Current consent status" queries should read the most recent row per `(user_id, consent_type)` ordered by `created_at DESC`
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Search and redirect all Go code that reads `terms_accepted_at` or `privacy_policy_accepted_at` from `user_settings` (these columns are removed in section 3.27)
+- [x] "Current consent status" queries should read the most recent row per `(user_id, consent_type)` ordered by `created_at DESC`
+- [x] Run `go build ./...` and `go test ./...`
 
 ---
 

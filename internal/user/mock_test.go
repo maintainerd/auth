@@ -858,25 +858,25 @@ func (m *mockIdentityUnlinker) AdminUnlinkIdentity(ctx context.Context, tenantID
 }
 
 type mockProfileService struct {
-	createOrUpdateFn         func(uuid.UUID, string, *string, *string, *string, *string, *string, *time.Time, *string, *string, *string, *string, *string, *string, *string, *string, *string, map[string]any) (*ProfileServiceDataResult, error)
-	createOrUpdateSpecificFn func(uuid.UUID, uuid.UUID, string, *string, *string, *string, *string, *string, *time.Time, *string, *string, *string, *string, *string, *string, *string, *string, *string, map[string]any) (*ProfileServiceDataResult, error)
+	createOrUpdateFn         func(uuid.UUID, string, *string, *string, *string, *time.Time, *string, *string, *string, *string, *string, map[string]any) (*ProfileServiceDataResult, error)
+	createOrUpdateSpecificFn func(uuid.UUID, uuid.UUID, string, *string, *string, *string, *time.Time, *string, *string, *string, *string, *string, map[string]any) (*ProfileServiceDataResult, error)
 	getByUUIDFn              func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	getByUserUUIDFn          func(uuid.UUID) (*ProfileServiceDataResult, error)
-	getAllFn                 func(uuid.UUID, *string, *string, *string, *string, *string, *string, *bool, int, int, string, string) (*ProfileServiceListResult, error)
+	getAllFn                  func(uuid.UUID, *string, *string, *string, *bool, int, int, string, string) (*ProfileServiceListResult, error)
 	setDefaultProfileFn      func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	setDefaultFn             func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	deleteByUUIDFn           func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 }
 
-func (m *mockProfileService) CreateOrUpdateProfile(_ context.Context, userUUID uuid.UUID, firstName string, middleName, lastName, suffix, displayName, bio *string, birthdate *time.Time, gender *string, phone, email, address *string, city, country *string, timezone, language *string, profileURL *string, metadata map[string]any) (*ProfileServiceDataResult, error) {
+func (m *mockProfileService) CreateOrUpdateProfile(_ context.Context, userUUID uuid.UUID, firstName string, middleName, lastName, displayName *string, birthdate *time.Time, gender *string, email *string, timezone, language *string, profileURL *string, metadata map[string]any) (*ProfileServiceDataResult, error) {
 	if m.createOrUpdateFn != nil {
-		return m.createOrUpdateFn(userUUID, firstName, middleName, lastName, suffix, displayName, bio, birthdate, gender, phone, email, address, city, country, timezone, language, profileURL, metadata)
+		return m.createOrUpdateFn(userUUID, firstName, middleName, lastName, displayName, birthdate, gender, email, timezone, language, profileURL, metadata)
 	}
 	return &ProfileServiceDataResult{}, nil
 }
-func (m *mockProfileService) CreateOrUpdateSpecificProfile(_ context.Context, profileUUID uuid.UUID, userUUID uuid.UUID, firstName string, middleName, lastName, suffix, displayName, bio *string, birthdate *time.Time, gender *string, phone, email, address *string, city, country *string, timezone, language *string, profileURL *string, metadata map[string]any) (*ProfileServiceDataResult, error) {
+func (m *mockProfileService) CreateOrUpdateSpecificProfile(_ context.Context, profileUUID uuid.UUID, userUUID uuid.UUID, firstName string, middleName, lastName, displayName *string, birthdate *time.Time, gender *string, email *string, timezone, language *string, profileURL *string, metadata map[string]any) (*ProfileServiceDataResult, error) {
 	if m.createOrUpdateSpecificFn != nil {
-		return m.createOrUpdateSpecificFn(profileUUID, userUUID, firstName, middleName, lastName, suffix, displayName, bio, birthdate, gender, phone, email, address, city, country, timezone, language, profileURL, metadata)
+		return m.createOrUpdateSpecificFn(profileUUID, userUUID, firstName, middleName, lastName, displayName, birthdate, gender, email, timezone, language, profileURL, metadata)
 	}
 	return &ProfileServiceDataResult{}, nil
 }
@@ -892,9 +892,9 @@ func (m *mockProfileService) GetByUserUUID(_ context.Context, userUUID uuid.UUID
 	}
 	return nil, nil
 }
-func (m *mockProfileService) GetAll(_ context.Context, userUUID uuid.UUID, firstName, lastName, email, phone, city, country *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
+func (m *mockProfileService) GetAll(_ context.Context, userUUID uuid.UUID, firstName, lastName, email *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
 	if m.getAllFn != nil {
-		return m.getAllFn(userUUID, firstName, lastName, email, phone, city, country, isDefault, page, limit, sortBy, sortOrder)
+		return m.getAllFn(userUUID, firstName, lastName, email, isDefault, page, limit, sortBy, sortOrder)
 	}
 	return &ProfileServiceListResult{}, nil
 }
@@ -915,19 +915,19 @@ func (m *mockProfileService) DeleteByUUID(_ context.Context, profileUUID uuid.UU
 }
 
 type mockUserSettingService struct {
-	createOrUpdateFn            func(uuid.UUID, *string, *string, *string, map[string]any, *string, *bool, *bool, *bool, *string, *bool, *time.Time, *time.Time, *string, *string, *string, *string) (*UserSettingServiceDataResult, error)
-	createOrUpdateUserSettingFn func(uuid.UUID, *string, *string, *string, map[string]any, *string, *bool, *bool, *bool, *string, *bool, *time.Time, *time.Time, *string, *string, *string, *string) (*UserSettingServiceDataResult, error)
+	createOrUpdateFn            func(uuid.UUID, *string, *string, *string) (*UserSettingServiceDataResult, error)
+	createOrUpdateUserSettingFn func(uuid.UUID, *string, *string, *string) (*UserSettingServiceDataResult, error)
 	getByUUIDFn                 func(uuid.UUID, int64) (*UserSettingServiceDataResult, error)
 	getByUserUUIDFn             func(uuid.UUID) (*UserSettingServiceDataResult, error)
 	deleteByUUIDFn              func(uuid.UUID, int64) (*UserSettingServiceDataResult, error)
 }
 
-func (m *mockUserSettingService) CreateOrUpdateUserSetting(_ context.Context, userUUID uuid.UUID, timezone, preferredLanguage, locale *string, socialLinks map[string]any, preferredContactMethod *string, marketingEmailConsent, smsNotificationsConsent, pushNotificationsConsent *bool, profileVisibility *string, dataProcessingConsent *bool, termsAcceptedAt, privacyPolicyAcceptedAt *time.Time, emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation *string) (*UserSettingServiceDataResult, error) {
+func (m *mockUserSettingService) CreateOrUpdateUserSetting(_ context.Context, userUUID uuid.UUID, timezone, preferredLanguage, locale *string) (*UserSettingServiceDataResult, error) {
 	if m.createOrUpdateUserSettingFn != nil {
-		return m.createOrUpdateUserSettingFn(userUUID, timezone, preferredLanguage, locale, socialLinks, preferredContactMethod, marketingEmailConsent, smsNotificationsConsent, pushNotificationsConsent, profileVisibility, dataProcessingConsent, termsAcceptedAt, privacyPolicyAcceptedAt, emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation)
+		return m.createOrUpdateUserSettingFn(userUUID, timezone, preferredLanguage, locale)
 	}
 	if m.createOrUpdateFn != nil {
-		return m.createOrUpdateFn(userUUID, timezone, preferredLanguage, locale, socialLinks, preferredContactMethod, marketingEmailConsent, smsNotificationsConsent, pushNotificationsConsent, profileVisibility, dataProcessingConsent, termsAcceptedAt, privacyPolicyAcceptedAt, emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation)
+		return m.createOrUpdateFn(userUUID, timezone, preferredLanguage, locale)
 	}
 	return &UserSettingServiceDataResult{}, nil
 }

@@ -102,7 +102,7 @@ func (r ClientURICreateOrUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Type,
 			validation.Required.Error("Type is required"),
-			validation.In(shared.ClientURITypeRedirect, shared.ClientURITypeOrigin, shared.ClientURITypeLogout, shared.ClientURITypeLogin, shared.ClientURITypeCORSOrigin).Error("Type must be one of: redirect-uri, origin-uri, logout-uri, login-uri, cors-origin-uri"),
+			validation.In(shared.ClientURITypeRedirect, shared.ClientURITypeOrigin, shared.ClientURITypeLogout, shared.ClientURITypeLogin, shared.ClientURITypeCORSOrigin).Error("Type must be one of: redirect_uri, origin_uri, logout_uri, login_uri, cors_origin_uri"),
 		),
 	)
 }

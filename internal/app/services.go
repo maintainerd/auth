@@ -45,6 +45,8 @@ type svcs struct {
 	profileService               user.ProfileService
 	profileRepo                  user.ProfileRepository
 	userSettingService           user.UserSettingService
+	userConsentService           user.UserConsentService
+	userTrustedDeviceService     user.UserTrustedDeviceService
 	inviteService                invite.InviteService
 	forgotPasswordService        authn.ForgotPasswordService
 	resetPasswordService         authn.ResetPasswordService
@@ -53,7 +55,6 @@ type svcs struct {
 	setupService                 setup.SetupService
 	registrationFlowService      idp.RegistrationFlowService
 	policyService                iam.PolicyService
-	apiKeyService                client.APIKeyService
 	securitySettingService       secpolicy.SecuritySettingService
 	ipRestrictionRuleService     secpolicy.IPRestrictionRuleService
 	emailTemplateService         branding.EmailTemplateService
@@ -201,6 +202,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	clientIDPRepo := newClientIDPRepo(db)
 	clientTenantRepo := newClientTenantRepo(db)
 	clientUserRepo := newClientUserRepo(db)
+	clientRoleRepoAdapter := newClientRoleRepo(db)
 	userTenantRepo := newUserTenantRepo(db)
 	userRoleRepo := newUserRoleRepo(db)
 	userClientRepo := newUserClientRepo(db)
@@ -220,7 +222,6 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	oauthUserIdentityRepo := newOAuthUserIdentityRepo(db)
 	authzInvalidator := iam.NewDBAuthorizationTokenInvalidator(db, appCache)
 	tenantUOW := tenant.NewGormUnitOfWork(db, r.tenantRepo, r.tenantMemberRepo, tenantCascadeModels())
-	middleware.SetAPIKeyAuthenticator(client.NewAPIKeyAuthenticator(r.apiKeyRepo, r.apiKeyAPIRepo))
 	middleware.SetSessionValidator(sessionSvc)
 
 	webAuthnSvc, err := mfa.NewWebAuthnService(db, mfaUserRepo, r.mfaWebAuthnCredRepo, appCache, authEventSvc)
@@ -245,7 +246,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		tenantService:            tenant.NewTenantService(r.tenantRepo, tenantUOW, eventSvc, tenantSeederAdapter{}),
 		tenantMemberService:      tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW, eventSvc, newTenantUserProvisioner(userSvc)),
 		idpService:               idp.NewIdentityProviderService(db, r.idpRepo, idpEmailDomainRepo, r.idpAllowedAudienceRepo, idpTenantRepo, idpUserRepo),
-		clientService:            client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
+		clientService:            client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, r.clientRoleRepo, clientRoleRepoAdapter, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
 		roleService:              iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
 		userService:              userSvc,
 		registerService:          authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnRegistrationFlowRoleRepoAdapter(r.registrationFlowRoleRepo, r.registrationFlowRepo), emailVerificationSvc),
@@ -254,6 +255,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo),
 		profileRepo:              r.profileRepo,
 		userSettingService:       user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
+		userConsentService:       user.NewUserConsentService(r.userConsentRepo),
+		userTrustedDeviceService: user.NewUserTrustedDeviceService(r.userTrustedDeviceRepo),
 		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), r.emailTemplateRepo, newInviteRegistrationFlowRepo(db)),
 		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
 		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
@@ -268,7 +271,6 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		),
 		registrationFlowService:      idp.NewRegistrationFlowService(db, r.registrationFlowRepo, r.registrationFlowRoleRepo, idpRoleRepo, idpClientRepo),
 		policyService:                iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo, eventSvc, authEventSvc),
-		apiKeyService:                client.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyAPIRepo, r.apiKeyPermissionRepo, clientAPIRepo, clientUserRepo, clientPermissionRepo, eventSvc),
 		securitySettingService:       secpolicy.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
 		ipRestrictionRuleService:     secpolicy.NewIPRestrictionRuleService(db, r.ipRestrictionRuleRepo),
 		emailTemplateService:         branding.NewEmailTemplateService(r.emailTemplateRepo),
@@ -326,6 +328,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	// Inject the MFA factor verifier so login can run the MFA second step (acr=2).
 	s.loginService.SetMFAFactorAuthenticator(mfaSvc)
 	s.loginService.SetUserLockoutRepository(r.userLockoutRepo)
+	// Wire client permission resolver for M2M token issuance.
+	s.oauthTokenService.SetClientPermissionResolver(newClientPermissionResolver(db))
 	// Magic-link possession is the first factor; delegate MFA policy decisions
 	// and policy-aware session issuance to the normal login service.
 	s.magicLinkService.SetLoginCoordinator(s.loginService)
@@ -368,7 +372,6 @@ func tenantCascadeModels() []any {
 		&idp.IdentityProvider{},
 
 		&client.ClientURI{},
-		&client.APIKey{},
 		&client.Client{},
 
 		&iam.Permission{},

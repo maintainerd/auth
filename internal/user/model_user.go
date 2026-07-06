@@ -23,8 +23,6 @@ type User struct {
 	Password                   *string        `gorm:"column:password" json:"-"`
 	IsEmailVerified            bool           `gorm:"column:is_email_verified;not null;default:false"`
 	IsPhoneVerified            bool           `gorm:"column:is_phone_verified;not null;default:false"`
-	IsProfileCompleted         bool           `gorm:"column:is_profile_completed;not null;default:false"`
-	IsAccountCompleted         bool           `gorm:"column:is_account_completed;not null;default:false"`
 	Status                     string         `gorm:"column:status;not null;default:'active'"`
 	Metadata                   datatypes.JSON `gorm:"column:metadata;type:jsonb;not null;default:'{}'"`
 	ForcePasswordChange        bool           `gorm:"column:force_password_change;default:false"`
@@ -33,6 +31,13 @@ type User struct {
 	IsTOTPEnabled              bool           `gorm:"column:is_totp_enabled;default:false"`
 	IsWebAuthnEnabled          bool           `gorm:"column:is_webauthn_enabled;default:false"`
 	FirstMFAEnrolledAt         *time.Time     `gorm:"column:first_mfa_enrolled_at"`
+	LastLoginAt                *time.Time     `gorm:"column:last_login_at"`
+	LoginCount                 int            `gorm:"column:login_count;not null;default:0"`
+	EmailVerifiedAt            *time.Time     `gorm:"column:email_verified_at"`
+	PhoneVerifiedAt            *time.Time     `gorm:"column:phone_verified_at"`
+	ExternalID                 *string        `gorm:"column:external_id"`
+	CreatedBy                  *int64         `gorm:"column:created_by"`
+	UpdatedBy                  *int64         `gorm:"column:updated_by"`
 	CreatedAt                  time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
 	UpdatedAt                  time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
 	DeletedAt                  gorm.DeletedAt `gorm:"column:deleted_at;index"`

@@ -19,7 +19,7 @@ func TestClientURIRepository_FindByUUIDAndTenantID(t *testing.T) {
 		mock.ExpectQuery(`SELECT \* FROM "client_uris" WHERE.*client_uri_uuid = \$1.*tenant_id = \$2`).
 			WithArgs(id.String(), int64(1), 1).
 			WillReturnRows(sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
-				AddRow(1, id, 1, 1, "https://example.com/callback", "redirect-uri", now, now))
+				AddRow(1, id, 1, 1, "https://example.com/callback", "redirect_uri", now, now))
 		result, err := NewClientURIRepository(gdb).FindByUUIDAndTenantID(id.String(), 1)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -70,10 +70,10 @@ func TestClientURIRepository_FindByURIAndType(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectQuery(`SELECT \* FROM "client_uris" WHERE.*uri = \$1.*type = \$2.*client_id = \$3.*tenant_id = \$4`).
-			WithArgs("https://example.com/callback", "redirect-uri", int64(1), int64(1), 1).
+			WithArgs("https://example.com/callback", "redirect_uri", int64(1), int64(1), 1).
 			WillReturnRows(sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
-				AddRow(1, id, 1, 1, "https://example.com/callback", "redirect-uri", now, now))
-		result, err := NewClientURIRepository(gdb).FindByURIAndType("https://example.com/callback", "redirect-uri", 1, 1)
+				AddRow(1, id, 1, 1, "https://example.com/callback", "redirect_uri", now, now))
+		result, err := NewClientURIRepository(gdb).FindByURIAndType("https://example.com/callback", "redirect_uri", 1, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "https://example.com/callback", result.URI)
@@ -83,9 +83,9 @@ func TestClientURIRepository_FindByURIAndType(t *testing.T) {
 	t.Run("not found returns nil", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectQuery(`SELECT \* FROM "client_uris" WHERE.*uri = \$1.*type = \$2.*client_id = \$3.*tenant_id = \$4`).
-			WithArgs("https://nonexistent.com", "redirect-uri", int64(1), int64(1), 1).
+			WithArgs("https://nonexistent.com", "redirect_uri", int64(1), int64(1), 1).
 			WillReturnRows(sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id"}))
-		result, err := NewClientURIRepository(gdb).FindByURIAndType("https://nonexistent.com", "redirect-uri", 1, 1)
+		result, err := NewClientURIRepository(gdb).FindByURIAndType("https://nonexistent.com", "redirect_uri", 1, 1)
 		require.NoError(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -94,9 +94,9 @@ func TestClientURIRepository_FindByURIAndType(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectQuery(`SELECT \* FROM "client_uris" WHERE.*uri = \$1.*type = \$2.*client_id = \$3.*tenant_id = \$4`).
-			WithArgs("https://example.com/callback", "redirect-uri", int64(1), int64(1), 1).
+			WithArgs("https://example.com/callback", "redirect_uri", int64(1), int64(1), 1).
 			WillReturnError(assert.AnError)
-		result, err := NewClientURIRepository(gdb).FindByURIAndType("https://example.com/callback", "redirect-uri", 1, 1)
+		result, err := NewClientURIRepository(gdb).FindByURIAndType("https://example.com/callback", "redirect_uri", 1, 1)
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -110,10 +110,10 @@ func TestClientURIRepository_FindByClientIDAndType(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectQuery(`SELECT \* FROM "client_uris" WHERE.*client_id = \$1.*type = \$2.*tenant_id = \$3`).
-			WithArgs(int64(1), "redirect-uri", int64(1)).
+			WithArgs(int64(1), "redirect_uri", int64(1)).
 			WillReturnRows(sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
-				AddRow(1, id, 1, 1, "https://example.com/callback", "redirect-uri", now, now))
-		result, err := NewClientURIRepository(gdb).FindByClientIDAndType(1, "redirect-uri", 1)
+				AddRow(1, id, 1, 1, "https://example.com/callback", "redirect_uri", now, now))
+		result, err := NewClientURIRepository(gdb).FindByClientIDAndType(1, "redirect_uri", 1)
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -122,9 +122,9 @@ func TestClientURIRepository_FindByClientIDAndType(t *testing.T) {
 	t.Run("empty returns empty", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectQuery(`SELECT \* FROM "client_uris" WHERE.*client_id = \$1.*type = \$2.*tenant_id = \$3`).
-			WithArgs(int64(1), "redirect-uri", int64(1)).
+			WithArgs(int64(1), "redirect_uri", int64(1)).
 			WillReturnRows(sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id"}))
-		result, err := NewClientURIRepository(gdb).FindByClientIDAndType(1, "redirect-uri", 1)
+		result, err := NewClientURIRepository(gdb).FindByClientIDAndType(1, "redirect_uri", 1)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Empty(t, result)
@@ -134,9 +134,9 @@ func TestClientURIRepository_FindByClientIDAndType(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectQuery(`SELECT \* FROM "client_uris" WHERE.*client_id = \$1.*type = \$2.*tenant_id = \$3`).
-			WithArgs(int64(1), "redirect-uri", int64(1)).
+			WithArgs(int64(1), "redirect_uri", int64(1)).
 			WillReturnError(assert.AnError)
-		result, err := NewClientURIRepository(gdb).FindByClientIDAndType(1, "redirect-uri", 1)
+		result, err := NewClientURIRepository(gdb).FindByClientIDAndType(1, "redirect_uri", 1)
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -149,8 +149,8 @@ func TestClientURIRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "client_uris" WHERE.*client_uri_uuid = \$1.*tenant_id = \$2`).
-			WithArgs(id.String(), int64(1)).
+		mock.ExpectExec(`UPDATE "client_uris" SET.*"deleted_at"=.*WHERE.*client_uri_uuid = .*tenant_id = .*"client_uris"\."deleted_at" IS NULL`).
+			WithArgs(sqlmock.AnyArg(), id.String(), int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		err := NewClientURIRepository(gdb).DeleteByUUIDAndTenantID(id.String(), 1)
@@ -161,8 +161,8 @@ func TestClientURIRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "client_uris" WHERE.*client_uri_uuid = \$1.*tenant_id = \$2`).
-			WithArgs(id.String(), int64(1)).
+		mock.ExpectExec(`UPDATE "client_uris" SET.*"deleted_at"=.*WHERE.*client_uri_uuid = .*tenant_id = .*"client_uris"\."deleted_at" IS NULL`).
+			WithArgs(sqlmock.AnyArg(), id.String(), int64(1)).
 			WillReturnError(assert.AnError)
 		mock.ExpectRollback()
 		err := NewClientURIRepository(gdb).DeleteByUUIDAndTenantID(id.String(), 1)
@@ -173,8 +173,8 @@ func TestClientURIRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 	t.Run("not found when rows affected zero", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		mock.ExpectBegin()
-		mock.ExpectExec(`DELETE FROM "client_uris" WHERE.*client_uri_uuid = \$1.*tenant_id = \$2`).
-			WithArgs(id.String(), int64(1)).
+		mock.ExpectExec(`UPDATE "client_uris" SET.*"deleted_at"=.*WHERE.*client_uri_uuid = .*tenant_id = .*"client_uris"\."deleted_at" IS NULL`).
+			WithArgs(sqlmock.AnyArg(), id.String(), int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectCommit()
 		err := NewClientURIRepository(gdb).DeleteByUUIDAndTenantID(id.String(), 1)

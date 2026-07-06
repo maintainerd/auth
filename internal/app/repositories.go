@@ -34,6 +34,7 @@ type repos struct {
 	clientRepo                client.ClientRepository
 	clientPermissionRepo      client.ClientPermissionRepository
 	clientAPIRepo             client.ClientAPIRepository
+	clientRoleRepo            client.ClientRoleRepository
 	clientURIRepo             client.ClientURIRepository
 	userRepo                  user.UserRepository
 	userIdentityRepo          user.UserIdentityRepository
@@ -46,9 +47,6 @@ type repos struct {
 	smsTemplateRepo           branding.SMSTemplateRepository
 	policyRepo                iam.PolicyRepository
 	servicePolicyRepo         iam.ServicePolicyRepository
-	apiKeyRepo                client.APIKeyRepository
-	apiKeyAPIRepo             client.APIKeyAPIRepository
-	apiKeyPermissionRepo      client.APIKeyPermissionRepository
 	registrationFlowRepo      idp.RegistrationFlowRepository
 	registrationFlowRoleRepo  idp.RegistrationFlowRoleRepository
 	securitySettingRepo       secpolicy.SecuritySettingRepository
@@ -81,6 +79,8 @@ type repos struct {
 	mfaWebAuthnCredRepo       mfa.UserMFAWebAuthnCredentialRepository
 	userPasswordHistoryRepo   user.UserPasswordHistoryRepository
 	userLockoutRepo           authn.UserLockoutRepository
+	userConsentRepo           user.UserConsentRepository
+	userTrustedDeviceRepo     user.UserTrustedDeviceRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -97,6 +97,7 @@ func initRepos(db *gorm.DB) *repos {
 		clientRepo:                client.NewClientRepository(db),
 		clientPermissionRepo:      client.NewClientPermissionRepository(db),
 		clientAPIRepo:             client.NewClientAPIRepository(db),
+		clientRoleRepo:            client.NewClientRoleRepository(db),
 		clientURIRepo:             client.NewClientURIRepository(db),
 		userRepo:                  user.NewUserRepository(db),
 		userIdentityRepo:          user.NewUserIdentityRepository(db),
@@ -109,9 +110,6 @@ func initRepos(db *gorm.DB) *repos {
 		smsTemplateRepo:           branding.NewSMSTemplateRepository(db),
 		policyRepo:                iam.NewPolicyRepository(db),
 		servicePolicyRepo:         iam.NewServicePolicyRepository(db),
-		apiKeyRepo:                client.NewAPIKeyRepository(db),
-		apiKeyAPIRepo:             client.NewAPIKeyAPIRepository(db),
-		apiKeyPermissionRepo:      client.NewAPIKeyPermissionRepository(db),
 		registrationFlowRepo:      idp.NewRegistrationFlowRepository(db),
 		registrationFlowRoleRepo:  idp.NewRegistrationFlowRoleRepository(db),
 		securitySettingRepo:       secpolicy.NewSecuritySettingRepository(db),
@@ -144,5 +142,7 @@ func initRepos(db *gorm.DB) *repos {
 		mfaWebAuthnCredRepo:       mfa.NewUserMFAWebAuthnCredentialRepository(db),
 		userPasswordHistoryRepo:   user.NewUserPasswordHistoryRepository(db),
 		userLockoutRepo:           authn.NewUserLockoutRepository(db),
+		userConsentRepo:           user.NewUserConsentRepository(db),
+		userTrustedDeviceRepo:     user.NewUserTrustedDeviceRepository(db),
 	}
 }

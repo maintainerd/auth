@@ -70,22 +70,14 @@ type ProfileRequestDTO struct {
 	FirstName   string  `json:"first_name"`
 	MiddleName  *string `json:"middle_name,omitempty"`
 	LastName    *string `json:"last_name,omitempty"`
-	Suffix      *string `json:"suffix,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
 
 	// Personal Information
 	Birthdate *string `json:"birthdate,omitempty"` // YYYY-MM-DD format
 	Gender    *string `json:"gender,omitempty"`
-	Bio       *string `json:"bio,omitempty"`
 
-	// Contact Information
-	Phone   *string `json:"phone,omitempty"`
-	Email   *string `json:"email,omitempty"`
-	Address *string `json:"address,omitempty"`
-
-	// Location Information
-	City    *string `json:"city,omitempty"`
-	Country *string `json:"country,omitempty"`
+	// Contact Information (transient — not stored on profile)
+	Email *string `json:"email,omitempty"`
 
 	// Preference
 	Timezone *string `json:"timezone,omitempty"`
@@ -94,7 +86,7 @@ type ProfileRequestDTO struct {
 	// Media & Assets
 	ProfileURL *string `json:"profile_url,omitempty"`
 
-	// Extended data (custom fields)
+	// Extended data (custom fields — use metadata.address for OIDC address claim)
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
@@ -106,34 +98,26 @@ type ProfileResponseDTO struct {
 	FirstName   string  `json:"first_name"`
 	MiddleName  *string `json:"middle_name,omitempty"`
 	LastName    *string `json:"last_name,omitempty"`
-	Suffix      *string `json:"suffix,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
-	Bio         *string `json:"bio,omitempty"`
 
 	// Personal Information
 	Birthdate *time.Time `json:"birthdate,omitempty"`
 	Gender    *string    `json:"gender,omitempty"`
 
-	// Contact Information
-	Phone   *string `json:"phone,omitempty"`
-	Email   *string `json:"email,omitempty"`
-	Address *string `json:"address,omitempty"`
-
-	// Location Information
-	City    *string `json:"city,omitempty"`    // Current city
-	Country *string `json:"country,omitempty"` // ISO 3166-1 alpha-2 code
-
-	// Preference
-	Timezone *string `json:"timezone,omitempty"` // User timezone
-	Language *string `json:"language,omitempty"` // ISO 639-1 language code
-
-	// Media & Assets (auth-centric)
-	ProfileURL *string `json:"profile_url,omitempty"` // User profile picture
-
 	// Profile Flags
 	IsDefault bool `json:"is_default"`
 
-	// Extended data
+	// Contact Information (transient)
+	Email *string `json:"email,omitempty"`
+
+	// Preference
+	Timezone *string `json:"timezone,omitempty"`
+	Language *string `json:"language,omitempty"`
+
+	// Media & Assets (auth-centric)
+	ProfileURL *string `json:"profile_url,omitempty"`
+
+	// Extended data (includes OIDC address claim as metadata.address)
 	Metadata map[string]any `json:"metadata"`
 
 	// System Fields
@@ -146,9 +130,6 @@ type ProfileFilterDTO struct {
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`
 	Email     *string `json:"email,omitempty"`
-	Phone     *string `json:"phone,omitempty"`
-	City      *string `json:"city,omitempty"`
-	Country   *string `json:"country,omitempty"`
 	IsDefault *bool   `json:"is_default,omitempty"`
 	PaginationRequestDTO
 }
@@ -160,12 +141,15 @@ type UserResponseDTO struct {
 	Fullname           string             `json:"fullname"`
 	Email              string             `json:"email"`
 	Phone              string             `json:"phone"`
-	IsEmailVerified    bool               `json:"is_email_verified"`
-	IsPhoneVerified    bool               `json:"is_phone_verified"`
-	IsProfileCompleted bool               `json:"is_profile_completed"`
-	IsAccountCompleted bool               `json:"is_account_completed"`
-	Status             string             `json:"status"`
+	IsEmailVerified bool               `json:"is_email_verified"`
+	IsPhoneVerified bool               `json:"is_phone_verified"`
+	PhoneVerifiedAt *time.Time         `json:"phone_verified_at,omitempty"`
+	Status          string             `json:"status"`
 	Metadata           datatypes.JSON     `json:"metadata"`
+	LastLoginAt        *time.Time         `json:"last_login_at,omitempty"`
+	LoginCount         int                `json:"login_count,omitempty"`
+	EmailVerifiedAt    *time.Time         `json:"email_verified_at,omitempty"`
+	ExternalID         *string            `json:"external_id,omitempty"`
 	Tenant             *TenantResponseDTO `json:"tenant,omitempty"`
 	CreatedAt          time.Time          `json:"created_at"`
 	UpdatedAt          time.Time          `json:"updated_at"`
@@ -260,63 +244,18 @@ type UserIdentityFilterDTO struct {
 }
 
 type UserSettingRequestDTO struct {
-	// Internationalization
 	Timezone          *string `json:"timezone,omitempty"`
 	PreferredLanguage *string `json:"preferred_language,omitempty"`
 	Locale            *string `json:"locale,omitempty"`
-
-	// Social Media & External Links
-	SocialLinks map[string]string `json:"social_links,omitempty"`
-
-	// Communication Preferences
-	PreferredContactMethod   *string `json:"preferred_contact_method,omitempty"`
-	MarketingEmailConsent    *bool   `json:"marketing_email_consent,omitempty"`
-	SMSNotificationsConsent  *bool   `json:"sms_notifications_consent,omitempty"`
-	PushNotificationsConsent *bool   `json:"push_notifications_consent,omitempty"`
-
-	// Privacy & Compliance
-	ProfileVisibility     *string `json:"profile_visibility,omitempty"`
-	DataProcessingConsent *bool   `json:"data_processing_consent,omitempty"`
-
-	// Emergency Contact
-	EmergencyContactName     *string `json:"emergency_contact_name,omitempty"`
-	EmergencyContactPhone    *string `json:"emergency_contact_phone,omitempty"`
-	EmergencyContactEmail    *string `json:"emergency_contact_email,omitempty"`
-	EmergencyContactRelation *string `json:"emergency_contact_relation,omitempty"`
 }
 
 type UserSettingResponseDTO struct {
-	UserSettingUUID string `json:"user_setting_id"`
-
-	// Internationalization
-	Timezone          *string `json:"timezone,omitempty"`
-	PreferredLanguage *string `json:"preferred_language,omitempty"`
-	Locale            *string `json:"locale,omitempty"`
-
-	// Social Media & External Links
-	SocialLinks map[string]any `json:"social_links,omitempty"`
-
-	// Communication Preferences
-	PreferredContactMethod   *string `json:"preferred_contact_method,omitempty"`
-	MarketingEmailConsent    bool    `json:"marketing_email_consent"`
-	SMSNotificationsConsent  bool    `json:"sms_notifications_consent"`
-	PushNotificationsConsent bool    `json:"push_notifications_consent"`
-
-	// Privacy & Compliance
-	ProfileVisibility       *string    `json:"profile_visibility,omitempty"`
-	DataProcessingConsent   bool       `json:"data_processing_consent"`
-	TermsAcceptedAt         *time.Time `json:"terms_accepted_at,omitempty"`
-	PrivacyPolicyAcceptedAt *time.Time `json:"privacy_policy_accepted_at,omitempty"`
-
-	// Emergency Contact
-	EmergencyContactName     *string `json:"emergency_contact_name,omitempty"`
-	EmergencyContactPhone    *string `json:"emergency_contact_phone,omitempty"`
-	EmergencyContactEmail    *string `json:"emergency_contact_email,omitempty"`
-	EmergencyContactRelation *string `json:"emergency_contact_relation,omitempty"`
-
-	// System Fields
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	UserSettingUUID   string    `json:"user_setting_id"`
+	Timezone          *string   `json:"timezone,omitempty"`
+	PreferredLanguage *string   `json:"preferred_language,omitempty"`
+	Locale            *string   `json:"locale,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type LoginResponseDTO struct {

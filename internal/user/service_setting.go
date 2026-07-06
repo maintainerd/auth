@@ -2,7 +2,6 @@ package user
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,30 +9,16 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type UserSettingServiceDataResult struct {
-	UserSettingUUID          uuid.UUID
-	Timezone                 *string
-	PreferredLanguage        *string
-	Locale                   *string
-	SocialLinks              datatypes.JSON
-	PreferredContactMethod   *string
-	MarketingEmailConsent    bool
-	SMSNotificationsConsent  bool
-	PushNotificationsConsent bool
-	ProfileVisibility        *string
-	DataProcessingConsent    bool
-	TermsAcceptedAt          *time.Time
-	PrivacyPolicyAcceptedAt  *time.Time
-	EmergencyContactName     *string
-	EmergencyContactPhone    *string
-	EmergencyContactEmail    *string
-	EmergencyContactRelation *string
-	CreatedAt                time.Time
-	UpdatedAt                time.Time
+	UserSettingUUID   uuid.UUID
+	Timezone          *string
+	PreferredLanguage *string
+	Locale            *string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type UserSettingService interface {
@@ -41,13 +26,6 @@ type UserSettingService interface {
 		ctx context.Context,
 		userUUID uuid.UUID,
 		timezone, preferredLanguage, locale *string,
-		socialLinks map[string]any,
-		preferredContactMethod *string,
-		marketingEmailConsent, smsNotificationsConsent, pushNotificationsConsent *bool,
-		profileVisibility *string,
-		dataProcessingConsent *bool,
-		termsAcceptedAt, privacyPolicyAcceptedAt *time.Time,
-		emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation *string,
 	) (*UserSettingServiceDataResult, error)
 	GetByUUID(ctx context.Context, userSettingUUID uuid.UUID, userID int64) (*UserSettingServiceDataResult, error)
 	GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*UserSettingServiceDataResult, error)
@@ -76,13 +54,6 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 	ctx context.Context,
 	userUUID uuid.UUID,
 	timezone, preferredLanguage, locale *string,
-	socialLinks map[string]any,
-	preferredContactMethod *string,
-	marketingEmailConsent, smsNotificationsConsent, pushNotificationsConsent *bool,
-	profileVisibility *string,
-	dataProcessingConsent *bool,
-	termsAcceptedAt, privacyPolicyAcceptedAt *time.Time,
-	emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation *string,
 ) (*UserSettingServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user_setting.create_or_update")
 	defer span.End()
@@ -118,17 +89,7 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 			userSetting = *existingUserSetting
 		}
 
-		// Step 2: Parse social links JSON
-		var socialLinksJSON datatypes.JSON
-		if len(socialLinks) > 0 {
-			socialLinksBytes, err := json.Marshal(socialLinks)
-			if err != nil {
-				return apperror.NewValidation("invalid social links format")
-			}
-			socialLinksJSON = socialLinksBytes
-		}
-
-		// Step 3: Set all fields
+		// Step 2: Set all fields
 		// Internationalization. preferred_language was removed from the schema;
 		// Locale (BCP-47) is the persisted source of truth. Fall back to the
 		// caller-supplied preferredLanguage when locale is missing for
@@ -139,37 +100,6 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 		} else if preferredLanguage != nil {
 			userSetting.Locale = preferredLanguage
 		}
-
-		// Social Media & External Links
-		if socialLinksJSON != nil {
-			userSetting.SocialLinks = socialLinksJSON
-		}
-
-		// Communication Preferences
-		userSetting.PreferredContactMethod = preferredContactMethod
-		if marketingEmailConsent != nil {
-			userSetting.MarketingEmailConsent = *marketingEmailConsent
-		}
-		if smsNotificationsConsent != nil {
-			userSetting.SMSNotificationsConsent = *smsNotificationsConsent
-		}
-		if pushNotificationsConsent != nil {
-			userSetting.PushNotificationsConsent = *pushNotificationsConsent
-		}
-
-		// Privacy & Compliance
-		userSetting.ProfileVisibility = profileVisibility
-		if dataProcessingConsent != nil {
-			userSetting.DataProcessingConsent = *dataProcessingConsent
-		}
-		userSetting.TermsAcceptedAt = termsAcceptedAt
-		userSetting.PrivacyPolicyAcceptedAt = privacyPolicyAcceptedAt
-
-		// Emergency Contact
-		userSetting.EmergencyContactName = emergencyContactName
-		userSetting.EmergencyContactPhone = emergencyContactPhone
-		userSetting.EmergencyContactEmail = emergencyContactEmail
-		userSetting.EmergencyContactRelation = emergencyContactRelation
 
 		// Step 4: Create or update using transaction-aware repository
 		if userSetting.UserSettingID == 0 {
@@ -283,25 +213,12 @@ func toUserSettingServiceDataResult(userSetting *UserSetting) *UserSettingServic
 	hydrateUserSettingTransients(userSetting)
 
 	result := &UserSettingServiceDataResult{
-		UserSettingUUID:          userSetting.UserSettingUUID,
-		Timezone:                 userSetting.Timezone,
-		PreferredLanguage:        userSetting.PreferredLanguage,
-		Locale:                   userSetting.Locale,
-		SocialLinks:              userSetting.SocialLinks,
-		PreferredContactMethod:   userSetting.PreferredContactMethod,
-		MarketingEmailConsent:    userSetting.MarketingEmailConsent,
-		SMSNotificationsConsent:  userSetting.SMSNotificationsConsent,
-		PushNotificationsConsent: userSetting.PushNotificationsConsent,
-		ProfileVisibility:        userSetting.ProfileVisibility,
-		DataProcessingConsent:    userSetting.DataProcessingConsent,
-		TermsAcceptedAt:          userSetting.TermsAcceptedAt,
-		PrivacyPolicyAcceptedAt:  userSetting.PrivacyPolicyAcceptedAt,
-		EmergencyContactName:     userSetting.EmergencyContactName,
-		EmergencyContactPhone:    userSetting.EmergencyContactPhone,
-		EmergencyContactEmail:    userSetting.EmergencyContactEmail,
-		EmergencyContactRelation: userSetting.EmergencyContactRelation,
-		CreatedAt:                userSetting.CreatedAt,
-		UpdatedAt:                userSetting.UpdatedAt,
+		UserSettingUUID:   userSetting.UserSettingUUID,
+		Timezone:          userSetting.Timezone,
+		PreferredLanguage: userSetting.PreferredLanguage,
+		Locale:            userSetting.Locale,
+		CreatedAt:         userSetting.CreatedAt,
+		UpdatedAt:         userSetting.UpdatedAt,
 	}
 
 	return result

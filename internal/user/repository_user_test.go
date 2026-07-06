@@ -535,7 +535,7 @@ func TestUserRepository_SetEmailVerified(t *testing.T) {
 		userUUID := uuid.New()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "users" SET "is_email_verified"=\$1,"updated_at"=\$2 WHERE user_uuid = \$3 AND "users"\."deleted_at" IS NULL`).
+		mock.ExpectExec(`UPDATE "users" SET "email_verified_at"=\$1,"is_email_verified"=\$2,"updated_at"=\$3 WHERE user_uuid = \$4 AND "users"\."deleted_at" IS NULL`).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 

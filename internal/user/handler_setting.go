@@ -28,27 +28,11 @@ func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Convert SocialLinks from map[string]string to map[string]any
-	var socialLinks map[string]any
-	if req.SocialLinks != nil {
-		socialLinks = make(map[string]any)
-		for k, v := range req.SocialLinks {
-			socialLinks[k] = v
-		}
-	}
-
 	user := middleware.AuthFromRequest(r).User
 	userSetting, err := h.userSettingService.CreateOrUpdateUserSetting(
 		r.Context(),
 		user.UserUUID,
 		req.Timezone, req.PreferredLanguage, req.Locale,
-		socialLinks,
-		req.PreferredContactMethod,
-		req.MarketingEmailConsent, req.SMSNotificationsConsent, req.PushNotificationsConsent,
-		req.ProfileVisibility,
-		req.DataProcessingConsent,
-		nil, nil, // termsAcceptedAt, privacyPolicyAcceptedAt - not in DTO
-		req.EmergencyContactName, req.EmergencyContactPhone, req.EmergencyContactEmail, req.EmergencyContactRelation,
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Save user setting failed", err)
@@ -91,76 +75,24 @@ func (h *UserSettingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Convert service result to DTO
 func toUserSettingResponseDTO(us UserSettingServiceDataResult) UserSettingResponseDTO {
-	// Convert GORM JSON to map for social links
-	var socialLinks map[string]any
-	if len(us.SocialLinks) > 0 {
-		if err := json.Unmarshal(us.SocialLinks, &socialLinks); err != nil {
-			socialLinks = nil
-		}
-	}
-
 	return UserSettingResponseDTO{
-		UserSettingUUID: us.UserSettingUUID.String(),
-
-		// Internationalization
+		UserSettingUUID:   us.UserSettingUUID.String(),
 		Timezone:          us.Timezone,
 		PreferredLanguage: us.PreferredLanguage,
 		Locale:            us.Locale,
-
-		// Social Media & External Links
-		SocialLinks: socialLinks,
-
-		// Communication Preferences
-		PreferredContactMethod:   us.PreferredContactMethod,
-		MarketingEmailConsent:    us.MarketingEmailConsent,
-		SMSNotificationsConsent:  us.SMSNotificationsConsent,
-		PushNotificationsConsent: us.PushNotificationsConsent,
-
-		// Privacy & Compliance
-		ProfileVisibility:       us.ProfileVisibility,
-		DataProcessingConsent:   us.DataProcessingConsent,
-		TermsAcceptedAt:         us.TermsAcceptedAt,
-		PrivacyPolicyAcceptedAt: us.PrivacyPolicyAcceptedAt,
-
-		// Emergency Contact
-		EmergencyContactName:     us.EmergencyContactName,
-		EmergencyContactPhone:    us.EmergencyContactPhone,
-		EmergencyContactEmail:    us.EmergencyContactEmail,
-		EmergencyContactRelation: us.EmergencyContactRelation,
-
-		// System Fields
-		CreatedAt: us.CreatedAt,
-		UpdatedAt: us.UpdatedAt,
+		CreatedAt:         us.CreatedAt,
+		UpdatedAt:         us.UpdatedAt,
 	}
 }
 
 func NewUserSettingResponseDTO(us *UserSetting) *UserSettingResponseDTO {
-	var socialLinks map[string]any
-	if len(us.SocialLinks) > 0 {
-		if err := json.Unmarshal(us.SocialLinks, &socialLinks); err != nil {
-			socialLinks = nil
-		}
-	}
-
+	hydrateUserSettingTransients(us)
 	return &UserSettingResponseDTO{
-		UserSettingUUID:          us.UserSettingUUID.String(),
-		Timezone:                 us.Timezone,
-		PreferredLanguage:        us.PreferredLanguage,
-		Locale:                   us.Locale,
-		SocialLinks:              socialLinks,
-		PreferredContactMethod:   us.PreferredContactMethod,
-		MarketingEmailConsent:    us.MarketingEmailConsent,
-		SMSNotificationsConsent:  us.SMSNotificationsConsent,
-		PushNotificationsConsent: us.PushNotificationsConsent,
-		ProfileVisibility:        us.ProfileVisibility,
-		DataProcessingConsent:    us.DataProcessingConsent,
-		TermsAcceptedAt:          us.TermsAcceptedAt,
-		PrivacyPolicyAcceptedAt:  us.PrivacyPolicyAcceptedAt,
-		EmergencyContactName:     us.EmergencyContactName,
-		EmergencyContactPhone:    us.EmergencyContactPhone,
-		EmergencyContactEmail:    us.EmergencyContactEmail,
-		EmergencyContactRelation: us.EmergencyContactRelation,
-		CreatedAt:                us.CreatedAt,
-		UpdatedAt:                us.UpdatedAt,
+		UserSettingUUID:   us.UserSettingUUID.String(),
+		Timezone:          us.Timezone,
+		PreferredLanguage: us.PreferredLanguage,
+		Locale:            us.Locale,
+		CreatedAt:         us.CreatedAt,
+		UpdatedAt:         us.UpdatedAt,
 	}
 }

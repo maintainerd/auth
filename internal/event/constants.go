@@ -51,9 +51,6 @@ const (
 	EventTypeClientDeleted       = "client.deleted"
 	EventTypeClientStatusChanged = "client.status_changed"
 	EventTypeClientSecretRotated = "client.secret_rotated"
-	EventTypeAPIKeyCreated       = "api_key.created"
-	EventTypeAPIKeyStatusChanged = "api_key.status_changed"
-	EventTypeAPIKeyRevoked       = "api_key.revoked"
 
 	// Group 5 — Sessions, identities & service principals
 	EventTypeSessionRevoked       = "session.revoked"
@@ -109,9 +106,6 @@ func AllEventTypes() []EventTypeSpec {
 		{Key: EventTypeClientDeleted, Category: CategoryClient, Description: "Client deleted", Version: 1},
 		{Key: EventTypeClientStatusChanged, Category: CategoryClient, Description: "Client enabled/disabled", Version: 1},
 		{Key: EventTypeClientSecretRotated, Category: CategoryClient, Description: "Client secret rotated", Version: 1},
-		{Key: EventTypeAPIKeyCreated, Category: CategoryClient, Description: "API key created", Version: 1},
-		{Key: EventTypeAPIKeyStatusChanged, Category: CategoryClient, Description: "API key enabled/disabled", Version: 1},
-		{Key: EventTypeAPIKeyRevoked, Category: CategoryClient, Description: "API key revoked", Version: 1},
 
 		// Group 5 — Sessions, identities & service principals
 		{Key: EventTypeSessionRevoked, Category: CategorySession, Description: "Session revoked", Version: 1},

@@ -11,66 +11,6 @@ func ClientPublicRoute(r chi.Router, handler *ClientHandler) {
 	r.Get("/client/console", handler.GetPublicConsole)
 }
 
-func APIKeyRoute(
-	r chi.Router,
-	apiKeyHandler *APIKeyHandler,
-	userService middleware.UserContextProvider,
-	appCache *cache.Cache,
-	rateLimitMiddleware ...middleware.Middleware,
-) {
-	r.Route("/api_keys", func(r chi.Router) {
-		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, appCache))
-		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
-
-		// API Key CRUD operations
-		r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
-			Get("/", apiKeyHandler.Get)
-
-		r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
-			Get("/{api_key_uuid}", apiKeyHandler.GetByUUID)
-
-		r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
-			Get("/{api_key_uuid}/config", apiKeyHandler.GetConfigByUUID)
-
-		r.With(middleware.PermissionMiddleware([]string{"api_key:create"}), middleware.RequireStepUp).
-			Post("/", apiKeyHandler.Create)
-
-		r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
-			Put("/{api_key_uuid}", apiKeyHandler.Update)
-
-		r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
-			Put("/{api_key_uuid}/status", apiKeyHandler.SetStatus)
-
-		r.With(middleware.PermissionMiddleware([]string{"api_key:delete"}), middleware.RequireStepUp).
-			Delete("/{api_key_uuid}", apiKeyHandler.Delete)
-
-		// API Key API operations
-		r.Route("/{api_key_uuid}/apis", func(r chi.Router) {
-			r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
-				Get("/", apiKeyHandler.GetAPIs)
-
-			r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
-				Post("/", apiKeyHandler.AddAPIs)
-
-			r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
-				Delete("/{api_uuid}", apiKeyHandler.RemoveAPI)
-
-			// API Key API Permission operations
-			r.Route("/{api_uuid}/permissions", func(r chi.Router) {
-				r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
-					Get("/", apiKeyHandler.GetAPIPermissions)
-
-				r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
-					Post("/", apiKeyHandler.AddAPIPermissions)
-
-				r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
-					Delete("/{permission_uuid}", apiKeyHandler.RemoveAPIPermission)
-			})
-		})
-	})
-}
-
 func ClientRoute(
 	r chi.Router,
 	ClientHandler *ClientHandler,
@@ -154,5 +94,15 @@ func ClientRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:delete"}), middleware.RequireStepUp).
 			Delete("/{client_uuid}/apis/{api_uuid}/permissions/{permission_uuid}", ClientHandler.RemoveAPIPermission)
+
+		// Auth Client Role Assignment
+		r.With(middleware.PermissionMiddleware([]string{"client:role:read"})).
+			Get("/{client_uuid}/roles", ClientHandler.ListRoles)
+
+		r.With(middleware.PermissionMiddleware([]string{"client:role:create"}), middleware.RequireStepUp).
+			Post("/{client_uuid}/roles", ClientHandler.AssignRole)
+
+		r.With(middleware.PermissionMiddleware([]string{"client:role:delete"}), middleware.RequireStepUp).
+			Delete("/{client_uuid}/roles/{role_uuid}", ClientHandler.RemoveRole)
 	})
 }
