@@ -225,7 +225,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	tenantUOW := tenant.NewGormUnitOfWork(db, r.tenantRepo, r.tenantMemberRepo, tenantCascadeModels())
 	middleware.SetSessionValidator(sessionSvc)
 
-	webAuthnSvc, err := mfa.NewWebAuthnService(db, mfaUserRepo, r.mfaWebAuthnCredRepo, appCache, authEventSvc)
+	webAuthnSvc, err := mfa.NewWebAuthnService(db, mfaUserRepo, r.mfaWebAuthnCredRepo, appCache, authEventSvc, r.webauthnChallengeRepo)
 	if err != nil {
 		return nil, err
 	}

@@ -1372,14 +1372,14 @@ CREATE INDEX IF NOT EXISTS idx_webauthn_challenges_user_id
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/075_create_webauthn_challenges_table.go`
-- [ ] Register `migration.CreateWebAuthnChallengesTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/authn/` (or wherever WebAuthn credential handlers live)
-- [ ] Challenge generation: on `/webauthn/register/begin` and `/webauthn/authenticate/begin`, generate a cryptographically random 32-byte challenge, base64url-encode it, persist to this table with `operation`, `rp_id`, `user_id` (if known), TTL = now() + 5 minutes
-- [ ] Challenge consumption: on `/webauthn/register/complete` and `/webauthn/authenticate/complete`, look up the challenge by value, assert `used_at IS NULL` and `expires_at > now()`, set `used_at = now()` atomically — reject if already used or expired
-- [ ] Create `internal/mfa/model_webauthn_challenge.go` and `internal/mfa/repository_webauthn_challenge.go`; add `webauthnChallengeRepo` to `internal/app/repositories.go` and `initRepos`
-- [ ] Wire the ephemeral cleanup worker (Phase 6) to `DELETE FROM webauthn_challenges WHERE expires_at < now() - INTERVAL '1 hour'`
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create the file above at `internal/platform/database/migration/075_create_webauthn_challenges_table.go`
+- [x] Register `migration.CreateWebAuthnChallengesTable` in `internal/platform/runner/migration.go`
+- [x] Create GORM model in `internal/mfa/` (where WebAuthn credential handlers live)
+- [x] Challenge generation: on `/webauthn/register/begin` and `/webauthn/authenticate/begin`, persist challenge to `webauthn_challenges` table
+- [x] Challenge consumption: on `/webauthn/register/complete` and `/webauthn/authenticate/complete`, look up challenge, assert `used_at IS NULL` and `expires_at > now()`, set `used_at = now()` atomically
+- [x] Create `internal/mfa/model_webauthn_challenge.go` and `internal/mfa/repository_webauthn_challenge.go`; add `webauthnChallengeRepo` to `internal/app/repositories.go` and `initRepos`
+- [ ] Wire the ephemeral cleanup worker (Phase 6) to `DELETE FROM webauthn_challenges WHERE expires_at < now() - INTERVAL '1 hour'` — deferred to Phase 6
+- [x] Run `go build ./...` and `go test ./...` — all pass
 
 ---
 
