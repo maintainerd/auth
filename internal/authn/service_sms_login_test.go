@@ -448,7 +448,7 @@ func TestVerifyOTP(t *testing.T) {
 
 type mockSMSSessionService struct {
 	enforceFn func(context.Context, uuid.UUID, int64) error
-	createFn  func(context.Context, int64, string, string) (*UserToken, error)
+	createFn  func(context.Context, int64, string, string) (*UserSession, error)
 }
 
 func (m *mockSMSSessionService) ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error) {
@@ -460,11 +460,11 @@ func (m *mockSMSSessionService) RevokeSession(ctx context.Context, userID int64,
 func (m *mockSMSSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
 	return nil
 }
-func (m *mockSMSSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
+func (m *mockSMSSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserSession, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, userID, ipAddress, userAgent)
 	}
-	return &UserToken{UserTokenUUID: uuid.New(), TokenType: "session"}, nil
+	return &UserSession{UserSessionUUID: uuid.New()}, nil
 }
 func (m *mockSMSSessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
 	if m.enforceFn != nil {
@@ -790,8 +790,8 @@ func TestVerifyOTP_WithSession(t *testing.T) {
 		},
 	}
 	sessionSvc := &mockSMSSessionService{
-		createFn: func(_ context.Context, _ int64, _, _ string) (*UserToken, error) {
-			return &UserToken{UserTokenUUID: sessionUUID, TokenType: "session"}, nil
+		createFn: func(_ context.Context, _ int64, _, _ string) (*UserSession, error) {
+			return &UserSession{UserSessionUUID: sessionUUID}, nil
 		},
 	}
 
@@ -902,7 +902,7 @@ func TestVerifyOTP_CreateSessionError(t *testing.T) {
 		},
 	}
 	sessionSvc := &mockSMSSessionService{
-		createFn: func(_ context.Context, _ int64, _, _ string) (*UserToken, error) {
+		createFn: func(_ context.Context, _ int64, _, _ string) (*UserSession, error) {
 			return nil, errors.New("create session failed")
 		},
 	}
