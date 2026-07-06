@@ -273,7 +273,7 @@ func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub stri
 		if err != nil {
 			return nil, err
 		}
-		sessionID = sess.UserTokenUUID.String()
+		sessionID = sess.UserSessionUUID.String()
 	}
 	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRSMS}, jwt.ACRLevel1, sessionID, policy, tokenPolicy))
 	if err != nil {

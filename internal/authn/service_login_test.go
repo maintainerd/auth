@@ -1607,7 +1607,7 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 
 type mockSessionService struct {
 	enforceConcurrentLimitFn func(ctx context.Context, userUUID uuid.UUID, userID int64) error
-	createSessionFn          func(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error)
+	createSessionFn          func(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserSession, error)
 	validateAndTouchFn       func(ctx context.Context, sessionUUID uuid.UUID, userID int64) error
 }
 
@@ -1620,11 +1620,11 @@ func (m *mockSessionService) RevokeSession(ctx context.Context, userID int64, se
 func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
 	return nil
 }
-func (m *mockSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
+func (m *mockSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserSession, error) {
 	if m.createSessionFn != nil {
 		return m.createSessionFn(ctx, userID, ipAddress, userAgent)
 	}
-	return &UserToken{UserTokenUUID: uuid.New(), TokenType: "session"}, nil
+	return &UserSession{UserSessionUUID: uuid.New()}, nil
 }
 func (m *mockSessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
 	if m.enforceConcurrentLimitFn != nil {
@@ -1713,7 +1713,7 @@ func TestLoginPublic_WithSession(t *testing.T) {
 			},
 		}
 		sessionSvc := &mockSessionService{
-			createSessionFn: func(_ context.Context, _ int64, _, _ string) (*UserToken, error) {
+			createSessionFn: func(_ context.Context, _ int64, _, _ string) (*UserSession, error) {
 				return nil, errors.New("create session failed")
 			},
 		}

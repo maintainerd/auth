@@ -79,6 +79,7 @@ type repos struct {
 	mfaWebAuthnCredRepo       mfa.UserMFAWebAuthnCredentialRepository
 	userPasswordHistoryRepo   user.UserPasswordHistoryRepository
 	userLockoutRepo           authn.UserLockoutRepository
+	userSessionRepo           authn.UserSessionRepository
 	userConsentRepo           user.UserConsentRepository
 	userTrustedDeviceRepo     user.UserTrustedDeviceRepository
 }
@@ -142,6 +143,7 @@ func initRepos(db *gorm.DB) *repos {
 		mfaWebAuthnCredRepo:       mfa.NewUserMFAWebAuthnCredentialRepository(db),
 		userPasswordHistoryRepo:   user.NewUserPasswordHistoryRepository(db),
 		userLockoutRepo:           authn.NewUserLockoutRepository(db),
+		userSessionRepo:           authn.NewUserSessionRepository(db),
 		userConsentRepo:           user.NewUserConsentRepository(db),
 		userTrustedDeviceRepo:     user.NewUserTrustedDeviceRepository(db),
 	}

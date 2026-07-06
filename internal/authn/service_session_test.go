@@ -12,15 +12,79 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type mockUserSessionRepo struct {
+	findActiveByUserIDFn  func(int64) ([]UserSession, error)
+	findActiveByUUIDFn    func(int64, uuid.UUID) (*UserSession, error)
+	countActiveFn         func(int64) (int64, error)
+	createFn              func(*UserSession) error
+	touchFn               func(int64, time.Time) error
+	revokeByUUIDFn        func(int64, uuid.UUID) error
+	revokeAllByUserIDFn   func(int64) error
+}
+
+func (m *mockUserSessionRepo) FindActiveByUserID(id int64) ([]UserSession, error) {
+	if m.findActiveByUserIDFn != nil {
+		return m.findActiveByUserIDFn(id)
+	}
+	return nil, nil
+}
+func (m *mockUserSessionRepo) FindActiveByUUID(id int64, uid uuid.UUID) (*UserSession, error) {
+	if m.findActiveByUUIDFn != nil {
+		return m.findActiveByUUIDFn(id, uid)
+	}
+	return nil, nil
+}
+func (m *mockUserSessionRepo) CountActive(id int64) (int64, error) {
+	if m.countActiveFn != nil {
+		return m.countActiveFn(id)
+	}
+	return 0, nil
+}
+func (m *mockUserSessionRepo) Create(s *UserSession) error {
+	if m.createFn != nil {
+		return m.createFn(s)
+	}
+	return nil
+}
+func (m *mockUserSessionRepo) Touch(id int64, now time.Time) error {
+	if m.touchFn != nil {
+		return m.touchFn(id, now)
+	}
+	return nil
+}
+func (m *mockUserSessionRepo) RevokeByUUID(id int64, uid uuid.UUID) error {
+	if m.revokeByUUIDFn != nil {
+		return m.revokeByUUIDFn(id, uid)
+	}
+	return nil
+}
+func (m *mockUserSessionRepo) RevokeAllByUserID(id int64) error {
+	if m.revokeAllByUserIDFn != nil {
+		return m.revokeAllByUserIDFn(id)
+	}
+	return nil
+}
+func (m *mockUserSessionRepo) RevokeByUserID(id int64) error {
+	return m.RevokeAllByUserID(id)
+}
+func (m *mockUserSessionRepo) DeleteExpired() (int64, error) {
+	return 0, nil
+}
+
+func TestNewSessionService(t *testing.T) {
+	svc := NewSessionService(&mockUserSessionRepo{})
+	assert.NotNil(t, svc)
+}
+
 func TestSessionService_ListSessions(t *testing.T) {
 	sessionUUID := uuid.New()
 	now := time.Now()
 
 	t.Run("success with sessions", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
-				return []UserToken{
-					{UserTokenUUID: sessionUUID, TokenType: "session", CreatedAt: now},
+		repo := &mockUserSessionRepo{
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
+				return []UserSession{
+					{UserSessionUUID: sessionUUID, CreatedAt: now},
 				}, nil
 			},
 		}
@@ -32,9 +96,9 @@ func TestSessionService_ListSessions(t *testing.T) {
 	})
 
 	t.Run("empty list", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
-				return []UserToken{}, nil
+		repo := &mockUserSessionRepo{
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
+				return []UserSession{}, nil
 			},
 		}
 		svc := NewSessionService(repo)
@@ -44,8 +108,8 @@ func TestSessionService_ListSessions(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+		repo := &mockUserSessionRepo{
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -60,9 +124,9 @@ func TestSessionService_RevokeSession(t *testing.T) {
 	sessionUUID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
-				return &UserToken{UserTokenUUID: sessionUUID}, nil
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
+				return &UserSession{UserSessionUUID: sessionUUID}, nil
 			},
 		}
 		svc := NewSessionService(repo)
@@ -71,8 +135,8 @@ func TestSessionService_RevokeSession(t *testing.T) {
 	})
 
 	t.Run("session not found", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
 				return nil, nil
 			},
 		}
@@ -83,8 +147,8 @@ func TestSessionService_RevokeSession(t *testing.T) {
 	})
 
 	t.Run("lookup error", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -94,11 +158,11 @@ func TestSessionService_RevokeSession(t *testing.T) {
 	})
 
 	t.Run("revoke error", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
-				return &UserToken{}, nil
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
+				return &UserSession{}, nil
 			},
-			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+			revokeByUUIDFn: func(int64, uuid.UUID) error {
 				return errors.New("revoke error")
 			},
 		}
@@ -110,15 +174,15 @@ func TestSessionService_RevokeSession(t *testing.T) {
 
 func TestSessionService_RevokeAllSessions(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		repo := &mockUserTokenRepo{}
+		repo := &mockUserSessionRepo{}
 		svc := NewSessionService(repo)
 		err := svc.RevokeAllSessions(context.Background(), 1)
 		require.NoError(t, err)
 	})
 
 	t.Run("error", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			revokeAllSessionsByUserIDFn: func(int64) error {
+		repo := &mockUserSessionRepo{
+			revokeAllByUserIDFn: func(int64) error {
 				return errors.New("revoke error")
 			},
 		}
@@ -130,10 +194,10 @@ func TestSessionService_RevokeAllSessions(t *testing.T) {
 
 func TestSessionService_CreateSession(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			createFn: func(t *UserToken) (*UserToken, error) {
-				t.UserTokenUUID = uuid.New()
-				return t, nil
+		repo := &mockUserSessionRepo{
+			createFn: func(s *UserSession) error {
+				s.UserSessionUUID = uuid.New()
+				return nil
 			},
 		}
 		svc := NewSessionService(repo)
@@ -141,14 +205,12 @@ func TestSessionService_CreateSession(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, int64(1), result.UserID)
-		assert.Equal(t, "user:session", result.TokenType)
-		assert.False(t, result.IsRevoked)
 	})
 
 	t.Run("create error", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			createFn: func(*UserToken) (*UserToken, error) {
-				return nil, errors.New("db error")
+		repo := &mockUserSessionRepo{
+			createFn: func(*UserSession) error {
+				return errors.New("db error")
 			},
 		}
 		svc := NewSessionService(repo)
@@ -157,29 +219,13 @@ func TestSessionService_CreateSession(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
-	t.Run("random token generation error", func(t *testing.T) {
-		originalRandRead := randRead
-		randRead = func([]byte) (int, error) {
-			return 0, errors.New("entropy unavailable")
-		}
-		t.Cleanup(func() { randRead = originalRandRead })
-
-		repo := &mockUserTokenRepo{}
-		svc := NewSessionService(repo)
-		result, err := svc.CreateSession(context.Background(), 1, "", "")
-		require.Error(t, err)
-		assert.Nil(t, result)
-	})
-
 	t.Run("uses policy idle and absolute timeouts", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			createFn: func(token *UserToken) (*UserToken, error) {
-				token.UserTokenUUID = uuid.New()
-				require.NotNil(t, token.IdleTimeoutSeconds)
-				assert.Equal(t, 600, *token.IdleTimeoutSeconds)
-				require.NotNil(t, token.AbsoluteExpiresAt)
-				assert.WithinDuration(t, time.Now().Add(2*time.Hour), *token.AbsoluteExpiresAt, 5*time.Second)
-				return token, nil
+		repo := &mockUserSessionRepo{
+			createFn: func(s *UserSession) error {
+				s.UserSessionUUID = uuid.New()
+				require.Equal(t, 600, s.IdleTimeoutSeconds)
+				assert.WithinDuration(t, time.Now().Add(2*time.Hour), s.ExpiresAt, 5*time.Second)
+				return nil
 			},
 		}
 		svc := NewSessionService(repo).(*sessionService)
@@ -215,8 +261,8 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 	sessionUUID := uuid.New()
 
 	t.Run("under limit", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			countActiveSessionsFn: func(int64) (int64, error) {
+		repo := &mockUserSessionRepo{
+			countActiveFn: func(int64) (int64, error) {
 				return 2, nil
 			},
 		}
@@ -226,11 +272,11 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 	})
 
 	t.Run("policy limit of zero is unlimited", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			countActiveSessionsFn: func(int64) (int64, error) {
+		repo := &mockUserSessionRepo{
+			countActiveFn: func(int64) (int64, error) {
 				return 99, nil
 			},
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
 				t.Fatal("must not evict when policy allows unlimited sessions")
 				return nil, nil
 			},
@@ -242,14 +288,14 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 
 	t.Run("policy evicts at custom limit", func(t *testing.T) {
 		var revoked bool
-		repo := &mockUserTokenRepo{
-			countActiveSessionsFn: func(int64) (int64, error) {
+		repo := &mockUserSessionRepo{
+			countActiveFn: func(int64) (int64, error) {
 				return 1, nil
 			},
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
-				return []UserToken{{UserTokenUUID: sessionUUID}}, nil
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
+				return []UserSession{{UserSessionUUID: sessionUUID}}, nil
 			},
-			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+			revokeByUUIDFn: func(int64, uuid.UUID) error {
 				revoked = true
 				return nil
 			},
@@ -261,8 +307,8 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 	})
 
 	t.Run("count error", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			countActiveSessionsFn: func(int64) (int64, error) {
+		repo := &mockUserSessionRepo{
+			countActiveFn: func(int64) (int64, error) {
 				return 0, errors.New("db error")
 			},
 		}
@@ -272,13 +318,13 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 	})
 
 	t.Run("evicts oldest when at limit", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			countActiveSessionsFn: func(int64) (int64, error) {
+		repo := &mockUserSessionRepo{
+			countActiveFn: func(int64) (int64, error) {
 				return 5, nil
 			},
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
-				return []UserToken{
-					{UserTokenUUID: sessionUUID},
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
+				return []UserSession{
+					{UserSessionUUID: sessionUUID},
 				}, nil
 			},
 		}
@@ -288,11 +334,11 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 	})
 
 	t.Run("find sessions for eviction error", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			countActiveSessionsFn: func(int64) (int64, error) {
+		repo := &mockUserSessionRepo{
+			countActiveFn: func(int64) (int64, error) {
 				return 5, nil
 			},
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -302,16 +348,16 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 	})
 
 	t.Run("eviction error during revoke", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			countActiveSessionsFn: func(int64) (int64, error) {
+		repo := &mockUserSessionRepo{
+			countActiveFn: func(int64) (int64, error) {
 				return 5, nil
 			},
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
-				return []UserToken{
-					{UserTokenUUID: sessionUUID},
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
+				return []UserSession{
+					{UserSessionUUID: sessionUUID},
 				}, nil
 			},
-			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+			revokeByUUIDFn: func(int64, uuid.UUID) error {
 				return errors.New("revoke error")
 			},
 		}
@@ -321,12 +367,12 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 	})
 
 	t.Run("no sessions to evict", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			countActiveSessionsFn: func(int64) (int64, error) {
+		repo := &mockUserSessionRepo{
+			countActiveFn: func(int64) (int64, error) {
 				return 5, nil
 			},
-			findActiveSessionsFn: func(int64) ([]UserToken, error) {
-				return []UserToken{}, nil
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) {
+				return []UserSession{}, nil
 			},
 		}
 		svc := NewSessionService(repo)
@@ -339,9 +385,16 @@ func TestSessionService_ValidateAndTouch(t *testing.T) {
 	sessionUUID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
-				return &UserToken{UserTokenUUID: sessionUUID}, nil
+		now := time.Now()
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
+				return &UserSession{
+					UserSessionUUID:    sessionUUID,
+					UserSessionID:      1,
+					ExpiresAt:          now.Add(time.Hour),
+					LastActiveAt:       now,
+					IdleTimeoutSeconds: 3600,
+				}, nil
 			},
 		}
 		svc := NewSessionService(repo)
@@ -350,8 +403,8 @@ func TestSessionService_ValidateAndTouch(t *testing.T) {
 	})
 
 	t.Run("session not found", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
 				return nil, nil
 			},
 		}
@@ -362,8 +415,8 @@ func TestSessionService_ValidateAndTouch(t *testing.T) {
 	})
 
 	t.Run("lookup error", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -375,11 +428,11 @@ func TestSessionService_ValidateAndTouch(t *testing.T) {
 	t.Run("absolute expiry revokes and returns unauthorized", func(t *testing.T) {
 		expiredAt := time.Now().Add(-time.Minute)
 		revoked := false
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
-				return &UserToken{UserTokenUUID: sessionUUID, AbsoluteExpiresAt: &expiredAt}, nil
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
+				return &UserSession{UserSessionUUID: sessionUUID, ExpiresAt: expiredAt}, nil
 			},
-			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+			revokeByUUIDFn: func(int64, uuid.UUID) error {
 				revoked = true
 				return nil
 			},
@@ -392,18 +445,18 @@ func TestSessionService_ValidateAndTouch(t *testing.T) {
 	})
 
 	t.Run("idle expiry revokes and returns unauthorized", func(t *testing.T) {
-		lastUsed := time.Now().Add(-time.Hour)
+		lastActive := time.Now().Add(-time.Hour)
 		idleTimeout := 60
 		revoked := false
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
-				return &UserToken{
-					UserTokenUUID:      sessionUUID,
-					LastUsedAt:         &lastUsed,
-					IdleTimeoutSeconds: &idleTimeout,
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
+				return &UserSession{
+					UserSessionUUID:    sessionUUID,
+					LastActiveAt:       lastActive,
+					IdleTimeoutSeconds: idleTimeout,
 				}, nil
 			},
-			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+			revokeByUUIDFn: func(int64, uuid.UUID) error {
 				revoked = true
 				return nil
 			},
@@ -416,16 +469,26 @@ func TestSessionService_ValidateAndTouch(t *testing.T) {
 	})
 
 	t.Run("touch error is non fatal", func(t *testing.T) {
-		repo := &mockUserTokenRepo{
-			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
-				return &UserToken{UserTokenUUID: sessionUUID}, nil
+		var touched int64
+		now := time.Now()
+		repo := &mockUserSessionRepo{
+			findActiveByUUIDFn: func(int64, uuid.UUID) (*UserSession, error) {
+				return &UserSession{
+					UserSessionUUID:    sessionUUID,
+					UserSessionID:      42,
+					ExpiresAt:          now.Add(time.Hour),
+					LastActiveAt:       now,
+					IdleTimeoutSeconds: 3600,
+				}, nil
 			},
-			touchSessionFn: func(int64, uuid.UUID, time.Time) error {
+			touchFn: func(id int64, _ time.Time) error {
+				touched = id
 				return errors.New("touch error")
 			},
 		}
 		svc := NewSessionService(repo)
 		err := svc.ValidateAndTouch(context.Background(), sessionUUID, 1)
 		require.NoError(t, err)
+		assert.Equal(t, int64(42), touched)
 	})
 }

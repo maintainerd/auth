@@ -1071,7 +1071,7 @@ func (s *loginService) generateTokenResponseWithAuth(ctx context.Context, sub st
 		if err != nil {
 			return nil, err
 		}
-		sessionID = sess.UserTokenUUID.String()
+		sessionID = sess.UserSessionUUID.String()
 	}
 
 	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, Client, tokenAuthContextWithPolicy(amr, acr, sessionID, policy, tokenPolicy))
