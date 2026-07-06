@@ -206,7 +206,6 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 			Description: description,
 			Identifier:  identifier,
 			Status:      status,
-			IsCompleted: false,
 		}
 
 		_, err = txTenantRepo.CreateOrUpdate(newTenant)

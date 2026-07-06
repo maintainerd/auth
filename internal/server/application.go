@@ -45,6 +45,9 @@ type Application struct {
 	ProfileService               user.ProfileService
 	ProfileRepo                  user.ProfileRepository
 	UserSettingService           user.UserSettingService
+	UserConsentService           user.UserConsentService
+	UserTrustedDeviceService     user.UserTrustedDeviceService
+	UserRepo                     user.UserRepository
 	InviteService                invite.InviteService
 	ForgotPasswordService        authn.ForgotPasswordService
 	ResetPasswordService         authn.ResetPasswordService
@@ -52,7 +55,6 @@ type Application struct {
 	MagicLinkService             authn.MagicLinkService
 	SetupService                 setup.SetupService
 	RegistrationFlowService      idp.RegistrationFlowService
-	APIKeyService                client.APIKeyService
 	SecuritySettingService       secpolicy.SecuritySettingService
 	IPRestrictionRuleService     secpolicy.IPRestrictionRuleService
 	EmailTemplateService         branding.EmailTemplateService

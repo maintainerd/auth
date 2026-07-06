@@ -1,53 +1,8 @@
 package migration
 
-import (
-	"gorm.io/gorm"
-)
+import "gorm.io/gorm"
 
 func CreateAPIKeyPermissionsTable(db *gorm.DB) error {
-	sql := `
--- CREATE TABLE
-CREATE TABLE IF NOT EXISTS api_key_permissions (
-    api_key_permission_id   BIGSERIAL PRIMARY KEY,
-    api_key_permission_uuid UUID NOT NULL UNIQUE,
-    api_key_api_id          BIGINT NOT NULL,
-    permission_id           BIGINT NOT NULL,
-    created_at              TIMESTAMPTZ DEFAULT now()
-);
-
--- ADD CONSTRAINTS
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_key_permissions_api_key_api_id'
-    ) THEN
-        ALTER TABLE api_key_permissions
-            ADD CONSTRAINT fk_api_key_permissions_api_key_api_id FOREIGN KEY (api_key_api_id)
-            REFERENCES api_key_apis(api_key_api_id) ON DELETE CASCADE;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_key_permissions_permission_id'
-    ) THEN
-        ALTER TABLE api_key_permissions
-            ADD CONSTRAINT fk_api_key_permissions_permission_id FOREIGN KEY (permission_id)
-            REFERENCES permissions(permission_id) ON DELETE CASCADE;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'uq_api_key_permissions_api_key_api_permission'
-    ) THEN
-        ALTER TABLE api_key_permissions
-            ADD CONSTRAINT uq_api_key_permissions_api_key_api_permission UNIQUE (api_key_api_id, permission_id);
-    END IF;
-END$$;
-
--- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_api_key_permissions_uuid ON api_key_permissions (api_key_permission_uuid);
-CREATE INDEX IF NOT EXISTS idx_api_key_permissions_api_key_api_id ON api_key_permissions (api_key_api_id);
-CREATE INDEX IF NOT EXISTS idx_api_key_permissions_permission_id ON api_key_permissions (permission_id);
-CREATE INDEX IF NOT EXISTS idx_api_key_permissions_created_at ON api_key_permissions (created_at);
-`
-
-	return db.Exec(sql).Error
+	// api_key_permissions removed — api_keys is a no-op; this child table is not created.
+	return nil
 }

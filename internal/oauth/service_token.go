@@ -51,6 +51,10 @@ type OAuthTokenService interface {
 	// required per RFC 7662 §2.1. Returns active=false for invalid, expired,
 	// or revoked tokens without revealing the reason.
 	Introspect(ctx context.Context, req OAuthIntrospectRequestDTO, creds OAuthClientCredentials) (*OAuthIntrospectResponseDTO, *apperror.OAuthError)
+
+	// SetClientPermissionResolver injects the permission resolver for M2M
+	// client_credentials tokens.
+	SetClientPermissionResolver(r ClientPermissionResolver)
 }
 
 type oauthTokenService struct {
@@ -63,6 +67,7 @@ type oauthTokenService struct {
 	authEventService    authevent.AuthEventService
 	jtiDenylist         cache.JTIDenylister
 	securitySettingRepo secpolicy.SecuritySettingRepository
+	permResolver        ClientPermissionResolver // nil → M2M permission resolution disabled
 }
 
 // NewOAuthTokenService creates a new OAuthTokenService.
@@ -471,6 +476,18 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 	opts.Service = serviceName
 	opts.SubjectType = subjectType
 
+	// Resolve inherited permissions (client_roles → role_permissions) +
+	// direct client_permissions for M2M tokens.
+	if s.permResolver != nil && client.ClientID > 0 {
+		perms, err := s.permResolver.ResolvePermissions(ctx, client.ClientID)
+		if err == nil && len(perms) > 0 {
+			if opts.ExtraClaims == nil {
+				opts.ExtraClaims = map[string]any{}
+			}
+			opts.ExtraClaims["permissions"] = perms
+		}
+	}
+
 	accessToken, err := oauthTokenGenerateAccessTokenWithOptionsContext(
 		ctx,
 		subject,
@@ -694,6 +711,10 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 	// Token is invalid, expired, revoked, or unknown — return active=false.
 	span.SetStatus(codes.Ok, "token inactive")
 	return &OAuthIntrospectResponseDTO{Active: false}, nil
+}
+
+func (s *oauthTokenService) SetClientPermissionResolver(r ClientPermissionResolver) {
+	s.permResolver = r
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

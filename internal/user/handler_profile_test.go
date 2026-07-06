@@ -19,7 +19,7 @@ func validProfileBody() map[string]any {
 func TestProfileHandler_CreateOrUpdate(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockProfileService{
-			createOrUpdateFn: func(u uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bd *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+			createOrUpdateFn: func(u uuid.UUID, fn string, mn, ln, dn *string, bd *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 				return nil, errValidation
 			},
 		}
@@ -32,7 +32,7 @@ func TestProfileHandler_CreateOrUpdate(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockProfileService{
-			createOrUpdateFn: func(u uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bd *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+			createOrUpdateFn: func(u uuid.UUID, fn string, mn, ln, dn *string, bd *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 				return &ProfileServiceDataResult{FirstName: fn}, nil
 			},
 		}
@@ -47,7 +47,7 @@ func TestProfileHandler_CreateOrUpdate(t *testing.T) {
 func TestProfileHandler_CreateProfile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := &mockProfileService{
-			createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bd *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+			createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bd *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 				return &ProfileServiceDataResult{FirstName: fn}, nil
 			},
 		}
@@ -73,7 +73,7 @@ func TestProfileHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockProfileService{
-			createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bd *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+			createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bd *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 				return &ProfileServiceDataResult{FirstName: fn}, nil
 			},
 		}
@@ -120,7 +120,7 @@ func TestProfileHandler_GetAll(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockProfileService{
-			getAllFn: func(u uuid.UUID, fn, ln, em, ph, city, co *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
+			getAllFn: func(u uuid.UUID, fn, ln, em *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -290,7 +290,7 @@ func TestProfileHandler_AdminCreateProfile(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockProfileService{
-			createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bd *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+			createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bd *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 				return &ProfileServiceDataResult{FirstName: fn}, nil
 			},
 		}
@@ -308,7 +308,7 @@ func TestProfileHandler_AdminUpdateProfile(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockProfileService{
-			createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bd *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+			createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bd *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 				return &ProfileServiceDataResult{FirstName: fn}, nil
 			},
 		}
@@ -380,7 +380,7 @@ func TestProfileHandler_CreateOrUpdate_ValidationError(t *testing.T) {
 func TestProfileHandler_CreateOrUpdate_WithBirthdate(t *testing.T) {
 	bd := "2000-01-15"
 	svc := &mockProfileService{
-		createOrUpdateFn: func(u uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateFn: func(u uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return &ProfileServiceDataResult{FirstName: fn}, nil
 		},
 	}
@@ -413,7 +413,7 @@ func TestProfileHandler_CreateProfile_ValidationError(t *testing.T) {
 func TestProfileHandler_CreateProfile_WithBirthdate(t *testing.T) {
 	bd := "1990-06-15"
 	svc := &mockProfileService{
-		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return &ProfileServiceDataResult{FirstName: fn}, nil
 		},
 	}
@@ -427,7 +427,7 @@ func TestProfileHandler_CreateProfile_WithBirthdate(t *testing.T) {
 
 func TestProfileHandler_CreateProfile_ServiceError(t *testing.T) {
 	svc := &mockProfileService{
-		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -463,7 +463,7 @@ func TestProfileHandler_UpdateProfile_ValidationError(t *testing.T) {
 func TestProfileHandler_UpdateProfile_WithBirthdate(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
-		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return &ProfileServiceDataResult{FirstName: fn}, nil
 		},
 	}
@@ -479,7 +479,7 @@ func TestProfileHandler_UpdateProfile_WithBirthdate(t *testing.T) {
 func TestProfileHandler_UpdateProfile_ServiceError(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
-		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -503,7 +503,7 @@ func TestProfileHandler_GetAll_ValidationError(t *testing.T) {
 
 func TestProfileHandler_GetAll_IsDefaultTrue(t *testing.T) {
 	svc := &mockProfileService{
-		getAllFn: func(u uuid.UUID, fn, ln, em, ph, city, co *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
+		getAllFn: func(u uuid.UUID, fn, ln, em *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
 			return &ProfileServiceListResult{
 				Data: []ProfileServiceDataResult{{FirstName: "Alice"}},
 			}, nil
@@ -632,7 +632,7 @@ func TestProfileHandler_AdminGetAllProfiles_ValidationError(t *testing.T) {
 func TestProfileHandler_AdminGetAllProfiles_ServiceError(t *testing.T) {
 	userUUID := uuid.New()
 	svc := &mockProfileService{
-		getAllFn: func(u uuid.UUID, fn, ln, em, ph, city, co *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
+		getAllFn: func(u uuid.UUID, fn, ln, em *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -646,7 +646,7 @@ func TestProfileHandler_AdminGetAllProfiles_ServiceError(t *testing.T) {
 func TestProfileHandler_AdminGetAllProfiles_IsDefaultTrue(t *testing.T) {
 	userUUID := uuid.New()
 	svc := &mockProfileService{
-		getAllFn: func(u uuid.UUID, fn, ln, em, ph, city, co *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
+		getAllFn: func(u uuid.UUID, fn, ln, em *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
 			return &ProfileServiceListResult{
 				Data: []ProfileServiceDataResult{{FirstName: "Alice"}},
 			}, nil
@@ -735,7 +735,7 @@ func TestProfileHandler_AdminCreateProfile_ValidationError(t *testing.T) {
 func TestProfileHandler_AdminCreateProfile_WithBirthdate(t *testing.T) {
 	userUUID := uuid.New()
 	svc := &mockProfileService{
-		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return &ProfileServiceDataResult{FirstName: fn}, nil
 		},
 	}
@@ -750,7 +750,7 @@ func TestProfileHandler_AdminCreateProfile_WithBirthdate(t *testing.T) {
 func TestProfileHandler_AdminCreateProfile_ServiceError(t *testing.T) {
 	userUUID := uuid.New()
 	svc := &mockProfileService{
-		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -807,7 +807,7 @@ func TestProfileHandler_AdminUpdateProfile_WithBirthdate(t *testing.T) {
 	userUUID := uuid.New()
 	profUUID := uuid.New()
 	svc := &mockProfileService{
-		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return &ProfileServiceDataResult{FirstName: fn}, nil
 		},
 	}
@@ -824,7 +824,7 @@ func TestProfileHandler_AdminUpdateProfile_ServiceError(t *testing.T) {
 	userUUID := uuid.New()
 	profUUID := uuid.New()
 	svc := &mockProfileService{
-		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
+		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, dn *string, bdate *time.Time, gen, em, tz, lang, purl *string, meta map[string]any) (*ProfileServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}

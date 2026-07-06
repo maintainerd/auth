@@ -37,9 +37,6 @@ func (s *service) GetSummary(ctx context.Context, tenantID int64) (*SummaryRespo
 	if err := s.countResource("roles", tenantID, &summary.Roles); err != nil {
 		return nil, err
 	}
-	if err := s.countResource("api_keys", tenantID, &summary.APIKeys); err != nil {
-		return nil, err
-	}
 	if err := s.countAuthEvents(tenantID, &summary); err != nil {
 		return nil, err
 	}

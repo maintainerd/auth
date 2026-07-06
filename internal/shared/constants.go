@@ -18,11 +18,6 @@ const (
 	StatusAccepted = "accepted"
 	StatusRevoked  = "revoked"
 
-	// User profile visibility (UserSetting.ProfileVisibility)
-	VisibilityPublic  = "public"
-	VisibilityPrivate = "private"
-	VisibilityFriends = "friends"
-
 	// Token types (UserToken.TokenType)
 	TokenTypeEmailVerification = "user:email:verification"
 	TokenTypePasswordReset     = "user:password:reset"
@@ -53,22 +48,17 @@ const (
 	SystemClientNameAuthIdentity = "auth-identity"
 
 	// Client URI types (ClientURI.Type)
-	ClientURITypeRedirect   = "redirect-uri"
-	ClientURITypeOrigin     = "origin-uri"
-	ClientURITypeLogout     = "logout-uri"
-	ClientURITypeLogin      = "login-uri"
-	ClientURITypeCORSOrigin = "cors-origin-uri"
+	ClientURITypeRedirect   = "redirect_uri"
+	ClientURITypeOrigin     = "origin_uri"
+	ClientURITypeLogout     = "logout_uri"
+	ClientURITypeLogin      = "login_uri"
+	ClientURITypeCORSOrigin = "cors_origin_uri"
 
 	// Gender values (Profile.Gender)
 	GenderMale           = "male"
 	GenderFemale         = "female"
 	GenderOther          = "other"
 	GenderPreferNotToSay = "prefer_not_to_say"
-
-	// Preferred contact methods (UserSetting.PreferredContactMethod)
-	ContactMethodEmail = "email"
-	ContactMethodPhone = "phone"
-	ContactMethodSMS   = "sms"
 
 	// Identity provider names (UserIdentity.Provider)
 	ProviderMaintainerd = "maintainerd"

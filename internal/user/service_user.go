@@ -32,12 +32,17 @@ type UserServiceDataResult struct {
 	Fullname           string
 	Email              string
 	Phone              string
-	IsEmailVerified    bool
-	IsPhoneVerified    bool
-	IsProfileCompleted bool
-	IsAccountCompleted bool
-	Status             string
+	IsEmailVerified bool
+	IsPhoneVerified bool
+	Status          string
 	Metadata           datatypes.JSON
+	LastLoginAt        *time.Time
+	LoginCount         int
+	EmailVerifiedAt    *time.Time
+	PhoneVerifiedAt    *time.Time
+	ExternalID         *string
+	CreatedBy          *int64
+	UpdatedBy          *int64
 	Tenant             *TenantServiceDataResult
 	UserIdentities     *[]UserIdentityServiceDataResult
 	Roles              *[]RoleServiceDataResult
@@ -734,10 +739,10 @@ func (s *userService) VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenan
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
-	// Update is_email_verified and is_account_completed
+	// Update is_email_verified
 	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]any{
-		"is_email_verified":    true,
-		"is_account_completed": true,
+		"is_email_verified": true,
+		"email_verified_at": time.Now(),
 	})
 	if err != nil {
 		return nil, err
@@ -774,6 +779,7 @@ func (s *userService) VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenan
 	// Update is_phone_verified
 	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]any{
 		"is_phone_verified": true,
+		"phone_verified_at": time.Now(),
 	})
 	if err != nil {
 		return nil, err
@@ -807,10 +813,7 @@ func (s *userService) CompleteAccount(ctx context.Context, userUUID uuid.UUID, t
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
-	// Update is_account_completed
-	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]any{
-		"is_account_completed": true,
-	})
+	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]any{})
 	if err != nil {
 		return nil, err
 	}
@@ -1125,12 +1128,17 @@ func toUserServiceDataResult(user *User) *UserServiceDataResult {
 		Fullname:           derivedFullname,
 		Email:              user.Email,
 		Phone:              user.Phone,
-		IsEmailVerified:    user.IsEmailVerified,
-		IsPhoneVerified:    user.IsPhoneVerified,
-		IsProfileCompleted: user.IsProfileCompleted,
-		IsAccountCompleted: user.IsAccountCompleted,
-		Status:             user.Status,
+		IsEmailVerified: user.IsEmailVerified,
+		IsPhoneVerified: user.IsPhoneVerified,
+		Status:          user.Status,
 		Metadata:           user.Metadata,
+		LastLoginAt:        user.LastLoginAt,
+		LoginCount:         user.LoginCount,
+		EmailVerifiedAt:    user.EmailVerifiedAt,
+		PhoneVerifiedAt:    user.PhoneVerifiedAt,
+		ExternalID:         user.ExternalID,
+		CreatedBy:          user.CreatedBy,
+		UpdatedBy:          user.UpdatedBy,
 		CreatedAt:          user.CreatedAt,
 		UpdatedAt:          user.UpdatedAt,
 	}
@@ -1628,17 +1636,15 @@ func (s *userService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID
 		}
 
 		copied := &User{
-			TenantID:           targetTenantID,
-			Username:           source.Username,
-			Email:              source.Email,
-			Phone:              source.Phone,
-			Password:           source.Password,
-			IsEmailVerified:    source.IsEmailVerified,
-			IsPhoneVerified:    source.IsPhoneVerified,
-			IsProfileCompleted: source.IsProfileCompleted,
-			IsAccountCompleted: source.IsAccountCompleted,
-			Status:             shared.StatusActive,
-			PasswordChangedAt:  source.PasswordChangedAt,
+			TenantID:          targetTenantID,
+			Username:          source.Username,
+			Email:             source.Email,
+			Phone:             source.Phone,
+			Password:          source.Password,
+			IsEmailVerified:   source.IsEmailVerified,
+			IsPhoneVerified:   source.IsPhoneVerified,
+			Status:            shared.StatusActive,
+			PasswordChangedAt: source.PasswordChangedAt,
 		}
 
 		created, txErr := txUserRepo.Create(copied)
@@ -1683,16 +1689,9 @@ func (s *userService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID
 				FirstName:   sourceProfile.FirstName,
 				MiddleName:  sourceProfile.MiddleName,
 				LastName:    sourceProfile.LastName,
-				Suffix:      sourceProfile.Suffix,
 				DisplayName: sourceProfile.DisplayName,
-				Bio:         sourceProfile.Bio,
-				IsDefault:   true,
 				Birthdate:   sourceProfile.Birthdate,
 				Gender:      sourceProfile.Gender,
-				Phone:       sourceProfile.Phone,
-				Address:     sourceProfile.Address,
-				City:        sourceProfile.City,
-				Country:     sourceProfile.Country,
 				ProfileURL:  sourceProfile.ProfileURL,
 				Metadata:    sourceProfile.Metadata,
 			}

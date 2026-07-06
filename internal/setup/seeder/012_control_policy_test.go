@@ -85,7 +85,6 @@ func TestControlPolicyDocumentShape(t *testing.T) {
 		"service:policy:assign",
 		"permission:read",
 		"client:secret:rotate",
-		"api_key:update",
 		"user:invite",
 		"auth_event:read",
 		"registration-flow:update",

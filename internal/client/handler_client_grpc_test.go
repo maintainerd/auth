@@ -1152,3 +1152,13 @@ func TestClientProtoConverters(t *testing.T) {
 	assert.Equal("test", proto.Name)
 	assert.Equal(id.String(), proto.ClientUuid)
 }
+
+func (m *testClientService) AssignClientRole(context.Context, uuid.UUID, uuid.UUID, int64, *int64) (*ClientRole, error) {
+	return nil, nil
+}
+func (m *testClientService) RemoveClientRole(context.Context, uuid.UUID, uuid.UUID, int64) error {
+	return nil
+}
+func (m *testClientService) ListClientRoles(context.Context, uuid.UUID, int64) ([]ClientRole, error) {
+	return nil, nil
+}

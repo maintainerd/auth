@@ -239,44 +239,6 @@ func TestProfileRepository_FindAllByUserID(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("with city filter", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewProfileRepository(db)
-		c := "Manila"
-
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "profiles" WHERE .+`).
-			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "profiles" WHERE .+`).
-			WillReturnRows(sqlmock.NewRows([]string{"profile_id", "profile_uuid", "user_id"}).
-				AddRow(1, testResourceUUID, 42))
-
-		result, err := repo.FindAllByUserID(ProfileRepositoryGetFilter{
-			UserID: 42, City: &c, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), result.Total)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("with country filter", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewProfileRepository(db)
-		co := "Philippines"
-
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "profiles" WHERE .+LOWER\(country\) = \$[0-9]+`).
-			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "profiles" WHERE .+LOWER\(country\) = \$[0-9]+`).
-			WillReturnRows(sqlmock.NewRows([]string{"profile_id", "profile_uuid", "user_id"}).
-				AddRow(1, testResourceUUID, 42))
-
-		result, err := repo.FindAllByUserID(ProfileRepositoryGetFilter{
-			UserID: 42, Country: &co, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), result.Total)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
 	t.Run("with is default filter", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewProfileRepository(db)

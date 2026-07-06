@@ -74,7 +74,7 @@ func TestClientHandler_Get_WithFilters(t *testing.T) {
 func TestClientHandler_GetByUUID_WithRelations(t *testing.T) {
 	// Covers the IdentityProvider, ClientURIs, and Permissions branches in toClientResponseDTO
 	uriUUID := uuid.New()
-	uris := []ClientURIServiceDataResult{{ClientURIUUID: uriUUID, URI: "https://example.com", Type: "redirect-uri"}}
+	uris := []ClientURIServiceDataResult{{ClientURIUUID: uriUUID, URI: "https://example.com", Type: "redirect_uri"}}
 	perms := []PermissionServiceDataResult{{Name: "read"}}
 	svc := &mockClientService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
@@ -365,7 +365,7 @@ func TestClientHandler_GetURIs(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 	t.Run("success with uris", func(t *testing.T) {
-		uris := []ClientURIServiceDataResult{{ClientURIUUID: uuid.New(), URI: "https://example.com", Type: "redirect-uri"}}
+		uris := []ClientURIServiceDataResult{{ClientURIUUID: uuid.New(), URI: "https://example.com", Type: "redirect_uri"}}
 		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
 			return &ClientServiceDataResult{ClientURIs: &uris}, nil
 		}}
@@ -386,11 +386,11 @@ func TestClientHandler_GetURIs(t *testing.T) {
 }
 
 func validURIBody() map[string]any {
-	return map[string]any{"uri": "https://example.com/cb", "type": "redirect-uri"}
+	return map[string]any{"uri": "https://example.com/cb", "type": "redirect_uri"}
 }
 
 func TestClientHandler_CreateURI(t *testing.T) {
-	clientURI := ClientURIServiceDataResult{ClientURIUUID: uuid.New(), URI: "https://example.com/cb", Type: "redirect-uri"}
+	clientURI := ClientURIServiceDataResult{ClientURIUUID: uuid.New(), URI: "https://example.com/cb", Type: "redirect_uri"}
 	uris := []ClientURIServiceDataResult{clientURI}
 
 	t.Run("no tenant returns 401", func(t *testing.T) {
@@ -465,7 +465,7 @@ func TestClientHandler_Delete_Success(t *testing.T) {
 
 func TestClientHandler_UpdateURI(t *testing.T) {
 	uriUUID := uuid.New()
-	matchingURI := ClientURIServiceDataResult{ClientURIUUID: uriUUID, URI: "https://example.com/cb", Type: "redirect-uri"}
+	matchingURI := ClientURIServiceDataResult{ClientURIUUID: uriUUID, URI: "https://example.com/cb", Type: "redirect_uri"}
 	uris := []ClientURIServiceDataResult{matchingURI}
 
 	t.Run("no tenant returns 401", func(t *testing.T) {

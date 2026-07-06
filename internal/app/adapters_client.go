@@ -65,3 +65,15 @@ func newClientUserRepo(db *gorm.DB) client.UserRepository {
 func (r *clientUserRepo) WithTx(tx *gorm.DB) client.UserRepository {
 	return &clientUserRepo{r.BaseRepository.WithTx(tx)}
 }
+
+type clientRoleRepo struct {
+	*database.BaseRepository[client.Role]
+}
+
+func newClientRoleRepo(db *gorm.DB) client.RoleRepository {
+	return &clientRoleRepo{database.NewBaseRepository[client.Role](db, "role_uuid", "role_id")}
+}
+
+func (r *clientRoleRepo) WithTx(tx *gorm.DB) client.RoleRepository {
+	return &clientRoleRepo{r.BaseRepository.WithTx(tx)}
+}

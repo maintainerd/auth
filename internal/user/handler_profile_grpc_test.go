@@ -31,7 +31,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 	t.Run("list success preserves false is_default filter", func(t *testing.T) {
 		isDefault := false
 		svc := &mockProfileService{
-			getAllFn: func(gotUserUUID uuid.UUID, firstName, lastName, email, phone, city, country *string, gotIsDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
+			getAllFn: func(gotUserUUID uuid.UUID, firstName, lastName, email *string, gotIsDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
 				if gotUserUUID != userUUID {
 					t.Fatalf("expected user UUID %s, got %s", userUUID, gotUserUUID)
 				}
@@ -85,7 +85,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 	t.Run("create success validates and maps body", func(t *testing.T) {
 		metadata, _ := structpb.NewStruct(map[string]any{"team": "core"})
 		svc := &mockProfileService{
-			createOrUpdateSpecificFn: func(gotProfileUUID, gotUserUUID uuid.UUID, firstName string, middleName, lastName, suffix, displayName, bio *string, birthdate *time.Time, gender *string, phone, email, address *string, city, country *string, timezone, language *string, profileURL *string, gotMetadata map[string]any) (*ProfileServiceDataResult, error) {
+			createOrUpdateSpecificFn: func(gotProfileUUID, gotUserUUID uuid.UUID, firstName string, middleName, lastName, displayName *string, birthdate *time.Time, gender *string, email, timezone, language *string, profileURL *string, gotMetadata map[string]any) (*ProfileServiceDataResult, error) {
 				if gotProfileUUID == uuid.Nil {
 					t.Fatal("expected generated profile UUID")
 				}
@@ -122,7 +122,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &mockProfileService{
-			createOrUpdateSpecificFn: func(gotProfileUUID, gotUserUUID uuid.UUID, firstName string, middleName, lastName, suffix, displayName, bio *string, birthdate *time.Time, gender *string, phone, email, address *string, city, country *string, timezone, language *string, profileURL *string, metadata map[string]any) (*ProfileServiceDataResult, error) {
+			createOrUpdateSpecificFn: func(gotProfileUUID, gotUserUUID uuid.UUID, firstName string, middleName, lastName, displayName *string, birthdate *time.Time, gender *string, email, timezone, language *string, profileURL *string, metadata map[string]any) (*ProfileServiceDataResult, error) {
 				if gotProfileUUID != profileUUID || gotUserUUID != userUUID || firstName != "Jane" {
 					t.Fatalf("unexpected update args: profile=%s user=%s first_name=%q", gotProfileUUID, gotUserUUID, firstName)
 				}
@@ -201,7 +201,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("service error returns internal", func(t *testing.T) {
 		svc := &mockProfileService{
-			getAllFn: func(userUUID uuid.UUID, firstName, lastName, email, phone, city, country *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
+			getAllFn: func(userUUID uuid.UUID, firstName, lastName, email *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
 				return nil, errors.New("db")
 			},
 		}

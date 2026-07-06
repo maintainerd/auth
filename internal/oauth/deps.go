@@ -231,3 +231,10 @@ type UserIdentityRepository interface {
 	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error)
 }
+
+// ClientPermissionResolver resolves the set of permissions for a system client
+// by merging both direct client_permissions and role-inherited client_roles →
+// role_permissions. Returns deduplicated permission names.
+type ClientPermissionResolver interface {
+	ResolvePermissions(ctx context.Context, clientID int64) ([]string, error)
+}

@@ -17,7 +17,6 @@ type Tenant struct {
 	Identifier  string         `gorm:"column:identifier"`
 	Status      string         `gorm:"column:status;not null;default:'active'"`
 	IsSystem    bool           `gorm:"column:is_system;not null;default:false"`
-	IsCompleted bool           `gorm:"column:is_completed"`
 	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;not null;default:'{}'"`
 	CreatedBy   *int64         `gorm:"column:created_by"`
 	UpdatedBy   *int64         `gorm:"column:updated_by"`

@@ -48,11 +48,10 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 		r.Context(),
 		user.UserUUID,
 		req.FirstName,
-		req.MiddleName, req.LastName, req.Suffix, req.DisplayName, req.Bio,
+		req.MiddleName, req.LastName, req.DisplayName,
 		birthdate,
 		req.Gender,
-		req.Phone, req.Email, req.Address,
-		req.City, req.Country,
+		req.Email,
 		req.Timezone, req.Language,
 		req.ProfileURL,
 		req.Metadata,
@@ -94,11 +93,10 @@ func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		profileUUID,
 		user.UserUUID,
 		req.FirstName,
-		req.MiddleName, req.LastName, req.Suffix, req.DisplayName, req.Bio,
+		req.MiddleName, req.LastName, req.DisplayName,
 		birthdate,
 		req.Gender,
-		req.Phone, req.Email, req.Address,
-		req.City, req.Country,
+		req.Email,
 		req.Timezone, req.Language,
 		req.ProfileURL,
 		req.Metadata,
@@ -144,11 +142,10 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		profileUUID,
 		user.UserUUID,
 		req.FirstName,
-		req.MiddleName, req.LastName, req.Suffix, req.DisplayName, req.Bio,
+		req.MiddleName, req.LastName, req.DisplayName,
 		birthdate,
 		req.Gender,
-		req.Phone, req.Email, req.Address,
-		req.City, req.Country,
+		req.Email,
 		req.Timezone, req.Language,
 		req.ProfileURL,
 		req.Metadata,
@@ -190,9 +187,6 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		FirstName:            ptr.PtrOrNil(q.Get("first_name")),
 		LastName:             ptr.PtrOrNil(q.Get("last_name")),
 		Email:                ptr.PtrOrNil(q.Get("email")),
-		Phone:                ptr.PtrOrNil(q.Get("phone")),
-		City:                 ptr.PtrOrNil(q.Get("city")),
-		Country:              ptr.PtrOrNil(q.Get("country")),
 		IsDefault:            isDefault,
 		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
@@ -209,9 +203,6 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		reqParams.FirstName,
 		reqParams.LastName,
 		reqParams.Email,
-		reqParams.Phone,
-		reqParams.City,
-		reqParams.Country,
 		reqParams.IsDefault,
 		reqParams.Page,
 		reqParams.Limit,
@@ -318,21 +309,10 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 	// Parse pagination
 
 	// Build filter DTO
-	var isDefault *bool
-	if v := q.Get("is_default"); v != "" {
-		if val, err := strconv.ParseBool(v); err == nil {
-			isDefault = &val
-		}
-	}
-
 	reqParams := ProfileFilterDTO{
 		FirstName:            ptr.PtrOrNil(q.Get("first_name")),
 		LastName:             ptr.PtrOrNil(q.Get("last_name")),
 		Email:                ptr.PtrOrNil(q.Get("email")),
-		Phone:                ptr.PtrOrNil(q.Get("phone")),
-		City:                 ptr.PtrOrNil(q.Get("city")),
-		Country:              ptr.PtrOrNil(q.Get("country")),
-		IsDefault:            isDefault,
 		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
@@ -348,9 +328,6 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 		reqParams.FirstName,
 		reqParams.LastName,
 		reqParams.Email,
-		reqParams.Phone,
-		reqParams.City,
-		reqParams.Country,
 		reqParams.IsDefault,
 		reqParams.Page,
 		reqParams.Limit,
@@ -442,11 +419,10 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 		profileUUID,
 		userUUID,
 		req.FirstName,
-		req.MiddleName, req.LastName, req.Suffix, req.DisplayName, req.Bio,
+		req.MiddleName, req.LastName, req.DisplayName,
 		birthdate,
 		req.Gender,
-		req.Phone, req.Email, req.Address,
-		req.City, req.Country,
+		req.Email,
 		req.Timezone, req.Language,
 		req.ProfileURL,
 		req.Metadata,
@@ -499,11 +475,10 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 		profileUUID,
 		userUUID,
 		req.FirstName,
-		req.MiddleName, req.LastName, req.Suffix, req.DisplayName, req.Bio,
+		req.MiddleName, req.LastName, req.DisplayName,
 		birthdate,
 		req.Gender,
-		req.Phone, req.Email, req.Address,
-		req.City, req.Country,
+		req.Email,
 		req.Timezone, req.Language,
 		req.ProfileURL,
 		req.Metadata,
@@ -595,44 +570,20 @@ func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.R
 func toProfileResponseDTO(p ProfileServiceDataResult) ProfileResponseDTO {
 	return ProfileResponseDTO{
 		ProfileUUID: p.ProfileUUID.String(),
-
-		// Basic Identity Information
 		FirstName:   p.FirstName,
 		MiddleName:  p.MiddleName,
 		LastName:    p.LastName,
-		Suffix:      p.Suffix,
 		DisplayName: p.DisplayName,
-		Bio:         p.Bio,
-
-		// Personal Information
-		Birthdate: p.Birthdate,
-		Gender:    p.Gender,
-
-		// Contact Information
-		Phone:   p.Phone,
-		Email:   p.Email,
-		Address: p.Address,
-
-		// Location Information
-		City:    p.City,
-		Country: p.Country,
-
-		// Preference
-		Timezone: p.Timezone,
-		Language: p.Language,
-
-		// Media & Assets (auth-centric)
-		ProfileURL: p.ProfileURL,
-
-		// Profile Flags
-		IsDefault: p.IsDefault,
-
-		// Extended data
-		Metadata: p.Metadata,
-
-		// System Fields
-		CreatedAt: p.CreatedAt,
-		UpdatedAt: p.UpdatedAt,
+		Birthdate:   p.Birthdate,
+		Gender:      p.Gender,
+		IsDefault:   p.IsDefault,
+		Email:       p.Email,
+		Timezone:    p.Timezone,
+		Language:    p.Language,
+		ProfileURL:  p.ProfileURL,
+		Metadata:    p.Metadata,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
 	}
 }
 
@@ -642,20 +593,14 @@ func NewProfileResponseDTO(p *Profile) *ProfileResponseDTO {
 		FirstName:   p.FirstName,
 		MiddleName:  p.MiddleName,
 		LastName:    p.LastName,
-		Suffix:      p.Suffix,
 		DisplayName: p.DisplayName,
-		Bio:         p.Bio,
 		Birthdate:   p.Birthdate,
 		Gender:      p.Gender,
-		Phone:       p.Phone,
+		IsDefault:   p.IsDefault,
 		Email:       p.Email,
-		Address:     p.Address,
-		City:        p.City,
-		Country:     p.Country,
 		Timezone:    p.Timezone,
 		Language:    p.Language,
 		ProfileURL:  p.ProfileURL,
-		IsDefault:   p.IsDefault,
 		Metadata:    jsonutil.JSONToMap(p.Metadata),
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,

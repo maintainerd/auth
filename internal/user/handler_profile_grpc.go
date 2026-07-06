@@ -34,9 +34,6 @@ func (h *UserProfileGRPCHandler) ListUserProfiles(ctx context.Context, req *auth
 		FirstName:            optionalStr(req.GetFirstName()),
 		LastName:             optionalStr(req.GetLastName()),
 		Email:                optionalStr(req.GetEmail()),
-		Phone:                optionalStr(req.GetPhone()),
-		City:                 optionalStr(req.GetCity()),
-		Country:              optionalStr(req.GetCountry()),
 		PaginationRequestDTO: dto,
 	}
 	if req.IsDefault != nil {
@@ -45,7 +42,7 @@ func (h *UserProfileGRPCHandler) ListUserProfiles(ctx context.Context, req *auth
 	if err := filter.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	result, err := h.profileService.GetAll(ctx, userUUID, filter.FirstName, filter.LastName, filter.Email, filter.Phone, filter.City, filter.Country, filter.IsDefault, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.profileService.GetAll(ctx, userUUID, filter.FirstName, filter.LastName, filter.Email, filter.IsDefault, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -81,7 +78,7 @@ func (h *UserProfileGRPCHandler) CreateUserProfile(ctx context.Context, req *aut
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.profileService.CreateOrUpdateSpecificProfile(ctx, uuid.New(), userUUID, dto.FirstName, dto.MiddleName, dto.LastName, dto.Suffix, dto.DisplayName, dto.Bio, birthdate, dto.Gender, dto.Phone, dto.Email, dto.Address, dto.City, dto.Country, dto.Timezone, dto.Language, dto.ProfileURL, dto.Metadata)
+	result, err := h.profileService.CreateOrUpdateSpecificProfile(ctx, uuid.New(), userUUID, dto.FirstName, dto.MiddleName, dto.LastName, dto.DisplayName, birthdate, dto.Gender, dto.Email, dto.Timezone, dto.Language, dto.ProfileURL, dto.Metadata)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -98,7 +95,7 @@ func (h *UserProfileGRPCHandler) UpdateUserProfile(ctx context.Context, req *aut
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.profileService.CreateOrUpdateSpecificProfile(ctx, profileUUID, userUUID, dto.FirstName, dto.MiddleName, dto.LastName, dto.Suffix, dto.DisplayName, dto.Bio, birthdate, dto.Gender, dto.Phone, dto.Email, dto.Address, dto.City, dto.Country, dto.Timezone, dto.Language, dto.ProfileURL, dto.Metadata)
+	result, err := h.profileService.CreateOrUpdateSpecificProfile(ctx, profileUUID, userUUID, dto.FirstName, dto.MiddleName, dto.LastName, dto.DisplayName, birthdate, dto.Gender, dto.Email, dto.Timezone, dto.Language, dto.ProfileURL, dto.Metadata)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -161,16 +158,10 @@ func profileRequestDTOFromCreate(req *authv1.CreateUserProfileRequest) ProfileRe
 		FirstName:   req.GetFirstName(),
 		MiddleName:  optionalStr(req.GetMiddleName()),
 		LastName:    optionalStr(req.GetLastName()),
-		Suffix:      optionalStr(req.GetSuffix()),
 		DisplayName: optionalStr(req.GetDisplayName()),
-		Bio:         optionalStr(req.GetBio()),
 		Birthdate:   optionalStr(req.GetBirthdate()),
 		Gender:      optionalStr(req.GetGender()),
-		Phone:       optionalStr(req.GetPhone()),
 		Email:       optionalStr(req.GetEmail()),
-		Address:     optionalStr(req.GetAddress()),
-		City:        optionalStr(req.GetCity()),
-		Country:     optionalStr(req.GetCountry()),
 		Timezone:    optionalStr(req.GetTimezone()),
 		Language:    optionalStr(req.GetLanguage()),
 		ProfileURL:  optionalStr(req.GetProfileUrl()),
@@ -183,16 +174,10 @@ func profileRequestDTOFromUpdate(req *authv1.UpdateUserProfileRequest) ProfileRe
 		FirstName:   req.GetFirstName(),
 		MiddleName:  optionalStr(req.GetMiddleName()),
 		LastName:    optionalStr(req.GetLastName()),
-		Suffix:      optionalStr(req.GetSuffix()),
 		DisplayName: optionalStr(req.GetDisplayName()),
-		Bio:         optionalStr(req.GetBio()),
 		Birthdate:   optionalStr(req.GetBirthdate()),
 		Gender:      optionalStr(req.GetGender()),
-		Phone:       optionalStr(req.GetPhone()),
 		Email:       optionalStr(req.GetEmail()),
-		Address:     optionalStr(req.GetAddress()),
-		City:        optionalStr(req.GetCity()),
-		Country:     optionalStr(req.GetCountry()),
 		Timezone:    optionalStr(req.GetTimezone()),
 		Language:    optionalStr(req.GetLanguage()),
 		ProfileURL:  optionalStr(req.GetProfileUrl()),
@@ -235,15 +220,9 @@ func toUserProfileProto(result *ProfileServiceDataResult) *authv1.UserProfile {
 		FirstName:   result.FirstName,
 		MiddleName:  stringValue(result.MiddleName),
 		LastName:    stringValue(result.LastName),
-		Suffix:      stringValue(result.Suffix),
 		DisplayName: stringValue(result.DisplayName),
-		Bio:         stringValue(result.Bio),
 		Gender:      stringValue(result.Gender),
-		Phone:       stringValue(result.Phone),
 		Email:       stringValue(result.Email),
-		Address:     stringValue(result.Address),
-		City:        stringValue(result.City),
-		Country:     stringValue(result.Country),
 		Timezone:    stringValue(result.Timezone),
 		Language:    stringValue(result.Language),
 		ProfileUrl:  stringValue(result.ProfileURL),

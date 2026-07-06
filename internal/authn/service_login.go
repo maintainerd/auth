@@ -1053,6 +1053,9 @@ func connectedMaintainerdIdentityProviderID(client *Client) *int64 {
 // amr/acr. Password login uses acr=1; the login MFA second step uses acr=2 so
 // the whole session satisfies step-up routes without per-action re-prompts.
 func (s *loginService) generateTokenResponseWithAuth(ctx context.Context, sub string, user *User, Client *Client, amr []string, acr string) (*LoginResponseDTO, error) {
+	// Update last_login_at and atomically increment login_count.
+	s.updateLoginTimestamps(ctx, user)
+
 	var sessionID string
 	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, Client)
 	tokenPolicy := resolveEffectiveTokenPolicy(s.securitySettingRepo, Client)
@@ -1410,4 +1413,17 @@ func (s *loginService) clearLockout(ctx context.Context, tenantID int64, identif
 		return
 	}
 	_ = s.lockoutRepo.ClearLockout(ctx, tenantID, identifier)
+}
+
+func (s *loginService) updateLoginTimestamps(ctx context.Context, user *User) {
+	if user == nil || user.UserID == 0 || s.userRepo == nil {
+		return
+	}
+	now := time.Now()
+	if _, err := s.userRepo.UpdateByID(user.UserID, map[string]any{
+		"last_login_at": now,
+		"login_count":   gorm.Expr("login_count + 1"),
+	}); err != nil {
+		slog.Warn("failed to update login timestamps", "user_id", user.UserID, "err", err)
+	}
 }

@@ -22,6 +22,8 @@ func (m *testOAuthTokenService) Introspect(ctx context.Context, req OAuthIntrosp
 	return m.introspectFn(ctx, req, creds)
 }
 
+func (m *testOAuthTokenService) SetClientPermissionResolver(ClientPermissionResolver) {}
+
 func TestOAuthIntrospectionGRPCHandler_RPCS(t *testing.T) {
 	ctx := context.Background()
 

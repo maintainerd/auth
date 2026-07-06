@@ -8,7 +8,7 @@ import (
 
 func TestAllEventTypes(t *testing.T) {
 	specs := AllEventTypes()
-	assert.Len(t, specs, 44, "should have 44 event types in the v1.0.0 catalog")
+	assert.Len(t, specs, 41, "should have 41 event types in the v1.0.0 catalog")
 
 	seen := make(map[string]bool)
 	for _, s := range specs {
@@ -105,8 +105,6 @@ func TestEventTypeConstants_Group4Coverage(t *testing.T) {
 	}
 	assert.True(t, find(EventTypeClientCreated))
 	assert.True(t, find(EventTypeClientSecretRotated))
-	assert.True(t, find(EventTypeAPIKeyCreated))
-	assert.True(t, find(EventTypeAPIKeyRevoked))
 }
 
 func TestEventTypeConstants_Group5Coverage(t *testing.T) {

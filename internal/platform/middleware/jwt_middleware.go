@@ -2,13 +2,11 @@ package middleware
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -16,16 +14,6 @@ import (
 // jwtKey is the unexported context key type for JWTClaims, preventing key
 // collisions with other packages.
 type jwtKey struct{}
-
-type APIKeyAuthenticator interface {
-	AuthenticateAPIKey(ctx context.Context, rawKey string) (*authctx.AuthContext, error)
-}
-
-var apiKeyAuthenticator APIKeyAuthenticator
-
-func SetAPIKeyAuthenticator(authenticator APIKeyAuthenticator) {
-	apiKeyAuthenticator = authenticator
-}
 
 // JWTClaims holds the parsed claims extracted from a validated JWT.
 // It is stored once by JWTAuthMiddleware and retrieved by downstream
@@ -76,7 +64,6 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		// Get authorization header first
 		authHeader := r.Header.Get("Authorization")
 		var token string
-		var apiKey string
 
 		if authHeader != "" {
 			// Use Bearer token if present
@@ -85,38 +72,13 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 				token = parts[1]
 			}
 		}
-		if strings.HasPrefix(token, "ak_") {
-			apiKey = token
-			token = ""
-		}
-		if apiKey == "" {
-			apiKey = strings.TrimSpace(r.Header.Get("X-API-Key"))
-		}
-		if apiKey == "" && token == "" {
+		if token == "" {
 			for _, name := range []string{"access_token", "__Host-access_token"} {
 				if cookie, err := r.Cookie(name); err == nil {
 					token = cookie.Value
 					break
 				}
 			}
-		}
-
-		if apiKey != "" {
-			if apiKeyAuthenticator == nil {
-				resp.Error(w, http.StatusUnauthorized, "API key authentication is not configured")
-				return
-			}
-			auth, err := apiKeyAuthenticator.AuthenticateAPIKey(r.Context(), apiKey)
-			if err != nil {
-				status := http.StatusUnauthorized
-				if errors.Is(err, errAPIKeyForbidden) {
-					status = http.StatusForbidden
-				}
-				resp.Error(w, status, err.Error())
-				return
-			}
-			next.ServeHTTP(w, WithAuthContext(r, auth))
-			return
 		}
 
 		if token == "" {
@@ -177,8 +139,6 @@ func buildJWTClaims(rawClaims map[string]any) *JWTClaims {
 		Iat:         iat,
 	}
 }
-
-var errAPIKeyForbidden = errors.New("API key is not allowed")
 
 func stringSliceClaim(raw any) []string {
 	values, ok := raw.([]any)

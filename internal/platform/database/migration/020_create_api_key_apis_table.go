@@ -1,52 +1,8 @@
 package migration
 
-import (
-	"gorm.io/gorm"
-)
+import "gorm.io/gorm"
 
 func CreateAPIKeyAPITable(db *gorm.DB) error {
-	sql := `
--- CREATE TABLE
-CREATE TABLE IF NOT EXISTS api_key_apis (
-    api_key_api_id   BIGSERIAL PRIMARY KEY,
-    api_key_api_uuid UUID NOT NULL UNIQUE,
-    api_key_id       BIGINT NOT NULL,
-    api_id           BIGINT NOT NULL,
-    created_at       TIMESTAMPTZ DEFAULT now()
-);
-
--- ADD CONSTRAINTS
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_key_apis_api_key_id'
-    ) THEN
-        ALTER TABLE api_key_apis
-            ADD CONSTRAINT fk_api_key_apis_api_key_id FOREIGN KEY (api_key_id)
-            REFERENCES api_keys(api_key_id) ON DELETE CASCADE;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_key_apis_api_id'
-    ) THEN
-        ALTER TABLE api_key_apis
-            ADD CONSTRAINT fk_api_key_apis_api_id FOREIGN KEY (api_id)
-            REFERENCES apis(api_id) ON DELETE CASCADE;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'uq_api_key_apis_key_api'
-    ) THEN
-        ALTER TABLE api_key_apis
-            ADD CONSTRAINT uq_api_key_apis_key_api UNIQUE (api_key_id, api_id);
-    END IF;
-END$$;
-
--- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_api_key_apis_uuid ON api_key_apis (api_key_api_uuid);
-CREATE INDEX IF NOT EXISTS idx_api_key_apis_api_key_id ON api_key_apis (api_key_id);
-CREATE INDEX IF NOT EXISTS idx_api_key_apis_api_id ON api_key_apis (api_id);
-`
-
-	return db.Exec(sql).Error
+	// api_key_apis removed — api_keys is a no-op; this child table is not created.
+	return nil
 }

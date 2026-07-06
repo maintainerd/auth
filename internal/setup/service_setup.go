@@ -100,8 +100,8 @@ func (s *setupService) GetSetupStatus(ctx context.Context) (*SetupStatusResponse
 	// Check if admin user exists (super-admin role in default tenant)
 	isAdminSetup := false
 	isProfileSetup := false
-	// Setup completion is now tracked on the system tenant itself: the bootstrap
-	// is "complete" once the system tenant is marked is_completed (which happens
+	// Setup completion is tracked via the system tenant's status: the bootstrap
+	// is "complete" once the system tenant has status != "pending" (which happens
 	// once it has an admin + owner). No separate setup_states table.
 	isSetupComplete := false
 
@@ -109,7 +109,7 @@ func (s *setupService) GetSetupStatus(ctx context.Context) (*SetupStatusResponse
 		// Find default tenant
 		defaultTenant, err := s.tenantRepo.FindSystem()
 		if err == nil && defaultTenant != nil {
-			isSetupComplete = defaultTenant.IsCompleted
+			isSetupComplete = defaultTenant.Status == "active"
 
 			// Check if super-admin user exists
 			superAdmin, err := s.userRepo.FindSuperAdmin()
@@ -182,11 +182,8 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 			Description: description,
 			Identifier:  identifier,
 			Metadata:    metadataJSON,
-			Status:      shared.StatusActive,
-			IsSystem:    true, // This is a system tenant that cannot be deleted
-			// Not yet complete: bootstrap finishes (admin + owner created) before
-			// CompleteSetup flips this to true.
-			IsCompleted: false,
+			Status:      "pending", // Not yet complete: bootstrap finishes (admin + owner created) before it becomes active.
+			IsSystem:    true,      // This is a system tenant that cannot be deleted
 		}
 
 		createdTenant, err = txTenantRepo.Create(newTenant)
@@ -411,8 +408,8 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 			return err
 		}
 
-		// Mark the system tenant as completed — admin + owner now exist.
-		defaultTenant.IsCompleted = true
+		// Mark the system tenant as active — admin + owner now exist.
+		defaultTenant.Status = "active"
 		if _, err := txTenantRepo.CreateOrUpdate(defaultTenant); err != nil {
 			return err
 		}
@@ -573,7 +570,7 @@ func (s *setupService) CompleteSetup(ctx context.Context) (*CompleteSetupRespons
 		return nil, apperror.NewValidation("tenant, admin, and profile setup must be completed before locking setup")
 	}
 
-	// Mark the system tenant as completed — this is what records that bootstrap
+	// Mark the system tenant as active — this is what records that bootstrap
 	// finished (the system tenant now has an admin + owner).
 	systemTenant, err := s.tenantRepo.FindSystem()
 	if err != nil {
@@ -584,7 +581,7 @@ func (s *setupService) CompleteSetup(ctx context.Context) (*CompleteSetupRespons
 	if systemTenant == nil {
 		return nil, apperror.NewValidation("system tenant not found")
 	}
-	systemTenant.IsCompleted = true
+	systemTenant.Status = "active"
 	if _, err := s.tenantRepo.CreateOrUpdate(systemTenant); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "complete setup failed")
@@ -602,7 +599,7 @@ func (s *setupService) ensureSetupOpen() error {
 		// No system tenant yet → setup is still open.
 		return nil
 	}
-	if systemTenant != nil && systemTenant.IsCompleted {
+	if systemTenant != nil && systemTenant.Status == "active" {
 		return apperror.NewConflict("setup is complete and locked")
 	}
 	return nil

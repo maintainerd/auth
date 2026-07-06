@@ -1,45 +1,11 @@
 package migration
 
-import (
-	"gorm.io/gorm"
-)
+import "gorm.io/gorm"
 
 func CreateApiPermissionTable(db *gorm.DB) error {
-	sql := `
--- CREATE TABLE
-CREATE TABLE IF NOT EXISTS api_permissions (
-    api_permission_id   BIGSERIAL PRIMARY KEY,
-    api_permission_uuid UUID NOT NULL UNIQUE,
-    api_id              BIGINT NOT NULL,
-    permission_id       BIGINT NOT NULL,
-    created_at          TIMESTAMPTZ DEFAULT now()
-);
-
--- ADD CONSTRAINTS
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_permissions_api_id'
-    ) THEN
-        ALTER TABLE api_permissions
-            ADD CONSTRAINT fk_api_permissions_api_id FOREIGN KEY (api_id)
-            REFERENCES apis(api_id) ON DELETE CASCADE;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_permissions_permission_id'
-    ) THEN
-        ALTER TABLE api_permissions
-            ADD CONSTRAINT fk_api_permissions_permission_id FOREIGN KEY (permission_id)
-            REFERENCES permissions(permission_id) ON DELETE CASCADE;
-    END IF;
-END$$;
-
--- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_api_permissions_uuid ON api_permissions (api_permission_uuid);
-CREATE INDEX IF NOT EXISTS idx_api_permissions_api_id ON api_permissions (api_id);
-CREATE INDEX IF NOT EXISTS idx_api_permissions_permission_id ON api_permissions (permission_id);
-`
-
-	return db.Exec(sql).Error
+	// api_permissions was determined to be redundant with permissions.api_id (the FK
+	// on permissions already establishes the 1:M relationship between apis and permissions).
+	// The M:N junction creates a potential data model contradiction and is not used.
+	// This migration intentionally creates nothing; the table is not part of the schema.
+	return nil
 }

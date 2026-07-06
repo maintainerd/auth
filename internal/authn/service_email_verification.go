@@ -296,6 +296,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 		if _, txErr := txUserRepo.UpdateByID(user.UserID, map[string]any{
 			"is_email_verified": true,
 			"status":            shared.StatusActive,
+			"email_verified_at": time.Now(),
 		}); txErr != nil {
 			return apperror.NewInternal("failed to update user verification status", txErr)
 		}

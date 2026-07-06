@@ -30,7 +30,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
-		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -48,7 +48,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -67,28 +67,9 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create failed")
-	})
-
-	t.Run("create new profile → UpdateByUUID user error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return nil, nil },
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID}, nil
-			},
-			updateByUUIDFn: func(_, _ any) (*User, error) {
-				return nil, errors.New("user update failed")
-			},
-		})
-		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "user update failed")
 	})
 
 	t.Run("create new profile success → commit", func(t *testing.T) {
@@ -102,7 +83,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.FirstName)
 		assert.True(t, res.IsDefault)
@@ -120,7 +101,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, meta)
+		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, meta)
 		require.NoError(t, err)
 		assert.Equal(t, "value", res.Metadata["key"])
 	})
@@ -137,7 +118,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, badMeta)
+		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, badMeta)
 		require.Error(t, err)
 	})
 
@@ -156,7 +137,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
 	})
@@ -173,7 +154,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "Jane", res.FirstName)
 	})
@@ -195,7 +176,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -213,7 +194,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -231,7 +212,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "find user prof err")
 	})
@@ -249,26 +230,9 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create failed")
-	})
-
-	t.Run("new profile first → UpdateByUUID user error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID}, nil
-			},
-			updateByUUIDFn: func(_, _ any) (*User, error) {
-				return nil, errors.New("user update failed")
-			},
-		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "user update failed")
 	})
 
 	t.Run("new profile first → success → commit", func(t *testing.T) {
@@ -280,7 +244,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.FirstName)
 		assert.True(t, res.IsDefault)
@@ -299,7 +263,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.False(t, res.IsDefault)
 	})
@@ -314,7 +278,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, meta)
+		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, meta)
 		require.NoError(t, err)
 		assert.Equal(t, "admin", res.Metadata["role"])
 	})
@@ -329,7 +293,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, badMeta)
+		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, badMeta)
 		require.Error(t, err)
 	})
 
@@ -346,7 +310,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not belong")
 	})
@@ -366,7 +330,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
 	})
@@ -383,7 +347,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "Jane", res.FirstName)
 	})
@@ -496,7 +460,7 @@ func TestProfileService_GetAll(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, errors.New("db") },
 		})
-		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.Error(t, err)
 	})
 
@@ -510,7 +474,7 @@ func TestProfileService_GetAll(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "repo error")
 	})
@@ -528,7 +492,7 @@ func TestProfileService_GetAll(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		res, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), res.Total)
 	})

@@ -110,6 +110,9 @@ var migrations = []migrationEntry{
 	{"066_create_identity_provider_allowed_audiences_table", migration.CreateIdentityProviderAllowedAudiencesTable},
 	{"067_create_oauth_authorize_requests_table", migration.CreateOAuthAuthorizeRequestsTable},
 	{"068_create_user_lockouts_table", migration.CreateUserLockoutsTable},
+	{"070_create_user_consents_table", migration.CreateUserConsentsTable},
+	{"071_create_user_trusted_devices_table", migration.CreateUserTrustedDevicesTable},
+	{"074_create_client_roles_table", migration.CreateClientRolesTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

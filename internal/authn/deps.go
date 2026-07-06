@@ -111,6 +111,13 @@ type User struct {
 	IsTOTPEnabled              bool
 	IsWebAuthnEnabled          bool `gorm:"column:is_webauthn_enabled"`
 	FirstMFAEnrolledAt         *time.Time `gorm:"column:first_mfa_enrolled_at"`
+	LastLoginAt                *time.Time
+	LoginCount                 int
+	EmailVerifiedAt            *time.Time
+	PhoneVerifiedAt            *time.Time
+	ExternalID                 *string
+	CreatedBy                  *int64
+	UpdatedBy                  *int64
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 }

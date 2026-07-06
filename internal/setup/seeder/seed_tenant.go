@@ -45,10 +45,6 @@ func SeedTenant(db *gorm.DB, tenantID int64) error {
 		return fmt.Errorf("seed permissions: %w", err)
 	}
 
-	if err := SeedAPIPermissions(db, tenantID); err != nil {
-		return fmt.Errorf("seed api permissions: %w", err)
-	}
-
 	if err := SeedControlPolicy(db, tenantID); err != nil {
 		return fmt.Errorf("seed control policy: %w", err)
 	}

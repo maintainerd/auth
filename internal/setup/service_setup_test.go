@@ -48,7 +48,7 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 	t.Run("setup locked", func(t *testing.T) {
 		// Locked = system tenant is marked completed.
 		lockedTenantRepo := &mockTenantRepo{findSystemFn: func() (*Tenant, error) {
-			return &Tenant{TenantID: tenant.TenantID, IsCompleted: true}, nil
+			return &Tenant{TenantID: tenant.TenantID, Status: "active"}, nil
 		}}
 		svc := newService(nil, nil, nil, nil, lockedTenantRepo)
 
@@ -432,7 +432,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockUserRepo{},
 			&mockTenantRepo{
 				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
-				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, IsCompleted: true}, nil },
+				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, Status: "active"}, nil },
 			},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
@@ -478,14 +478,14 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, res.IsSetupComplete)
 		require.NotNil(t, saved)
-		assert.True(t, saved.IsCompleted)
+		assert.Equal(t, "active", saved.Status)
 	})
 
 	t.Run("already complete is idempotent", func(t *testing.T) {
 		svc := NewSetupService(nil,
 			&mockUserRepo{}, &mockTenantRepo{
 				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
-				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, IsCompleted: true}, nil },
+				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, Status: "active"}, nil },
 			},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
@@ -527,7 +527,7 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 	t.Run("locked setup rejects tenant creation", func(t *testing.T) {
 		svc := NewSetupService(nil,
 			&mockUserRepo{}, &mockTenantRepo{
-				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, IsCompleted: true}, nil },
+				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, Status: "active"}, nil },
 			},
 			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},

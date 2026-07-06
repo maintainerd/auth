@@ -8,8 +8,26 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 )
 
-// AccountRoute mounts authenticated self-service account management endpoints.
-//
+func UserTrustedDeviceRoute(
+	r chi.Router,
+	deviceHandler *UserTrustedDeviceHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Route("/me", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		r.With(middleware.PermissionMiddleware([]string{"account:user:read:self"})).
+			Get("/devices", deviceHandler.ListMyDevices)
+
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+			Delete("/devices/{device_uuid}", deviceHandler.DeleteMyDevice)
+	})
+}
+
 // sensitiveActionStepUp is a policy-aware step-up middleware (provided by the
 // mfa package). It gates sensitive identity changes (email change) on a fresh
 // step-up only when the tenant policy require_mfa_for_sensitive_actions is
@@ -19,6 +37,7 @@ import (
 func AccountRoute(
 	r chi.Router,
 	accountHandler *AccountHandler,
+	consentHandler *UserConsentHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	sensitiveActionStepUp func(http.Handler) http.Handler,
@@ -71,6 +90,12 @@ func AccountRoute(
 			Delete("/sessions", accountHandler.RevokeAllSessions)
 		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"}), sensitiveActionStepUp).
 			Delete("/sessions/{session_uuid}", accountHandler.RevokeSession)
+
+		// Consent recording (self-service)
+		if consentHandler != nil {
+			r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
+				Post("/consent", consentHandler.RecordConsent)
+		}
 	})
 }
 
@@ -147,10 +172,28 @@ func ProfileRoute(
 	})
 }
 
+func UserConsentRoute(
+	r chi.Router,
+	consentHandler *UserConsentHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Route("/users", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
+			Get("/{user_uuid}/consents", consentHandler.GetUserConsents)
+	})
+}
+
 func UserRoute(
 	r chi.Router,
 	userHandler *UserHandler,
 	profileHandler *ProfileHandler,
+	deviceHandler *UserTrustedDeviceHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	rateLimitMiddleware ...middleware.Middleware,
@@ -216,6 +259,12 @@ func UserRoute(
 		// Unlink an external (federated) identity from a user
 		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
 			Delete("/{user_uuid}/identities/{identity_uuid}", userHandler.UnlinkUserIdentity)
+
+		// Trusted devices
+		if deviceHandler != nil {
+			r.With(middleware.PermissionMiddleware([]string{"user:read"})).
+				Get("/{user_uuid}/devices", deviceHandler.GetUserDevices)
+		}
 
 		// Session management
 		// Get user active sessions

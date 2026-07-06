@@ -124,6 +124,25 @@ type PermissionRepository interface {
 	FindByUUIDs(uuids []string, preloads ...string) ([]Permission, error)
 }
 
+type Role struct {
+	RoleID      int64     `gorm:"column:role_id"`
+	RoleUUID    uuid.UUID `gorm:"column:role_uuid"`
+	TenantID    int64
+	Name        string
+	Description string
+	Status      string
+	IsDefault   bool
+	IsSystem    bool
+}
+
+func (Role) TableName() string { return "roles" }
+
+type RoleRepository interface {
+	BaseRepositoryMethods[Role]
+	WithTx(tx *gorm.DB) RoleRepository
+	FindByUUID(uuid any, preloads ...string) (*Role, error)
+}
+
 type IdentityProviderRepository interface {
 	BaseRepositoryMethods[IdentityProvider]
 	WithTx(tx *gorm.DB) IdentityProviderRepository
