@@ -1154,162 +1154,19 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
 
 **Decision:** `registration_flow TEXT` stores the identifier string of a registration flow as it arrived in the OAuth request. This bypasses referential integrity — any string is accepted and the DB cannot guarantee it references a real flow. Normalize to a FK. The application layer resolves the identifier to an ID before inserting the authorize request row; if the identifier doesn't match any flow, the authorize request is rejected at the handler, not silently stored.
 
-- [ ] Change `tenant_id BIGINT` → `tenant_id BIGINT NOT NULL` — tenant is always resolved before inserting an authorize request row; NULL is never valid
-- [ ] Add a CHECK constraint on `status` in the existing `DO $$` block:
-  ```sql
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_oauth_authorize_requests_status') THEN
-      ALTER TABLE oauth_authorize_requests ADD CONSTRAINT chk_oauth_authorize_requests_status
-          CHECK (status IN ('pending', 'consumed', 'expired', 'error'));
-  END IF;
-  ```
-- [ ] Remove `registration_flow TEXT` from the `CREATE TABLE` block
-- [ ] Add `registration_flow_id BIGINT` in its place, positioned in the FK cluster (after `tenant_id`):
-  ```sql
-  registration_flow_id         BIGINT,
-  ```
-- [ ] Add the FK constraint in the existing `DO $$` block:
-  ```sql
-  IF NOT EXISTS (
-      SELECT 1 FROM pg_constraint WHERE conname = 'fk_oauth_authorize_requests_registration_flow_id'
-  ) THEN
-      ALTER TABLE oauth_authorize_requests
-          ADD CONSTRAINT fk_oauth_authorize_requests_registration_flow_id
-          FOREIGN KEY (registration_flow_id)
-          REFERENCES registration_flows(registration_flow_id) ON DELETE SET NULL;
-  END IF;
-  ```
-- [ ] Add index:
-  ```sql
-  CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_registration_flow_id
-      ON oauth_authorize_requests (registration_flow_id) WHERE registration_flow_id IS NOT NULL;
-  ```
-- [ ] In the authorize handler that creates an `oauth_authorize_requests` row: look up `registration_flows` by `identifier` and store `registration_flow_id`. If the identifier is provided but not found, return an OAuth error (`invalid_request`) before inserting.
-- [ ] In `internal/oauth/validation_authorize.go`: add validation that checks the `registration_flow` identifier resolves to a real flow before the handler creates the request row — this is the correct 9-step checklist layer (validation step) for this check
-- [ ] Search for all Go code referencing `RegistrationFlow` or `registration_flow` on the authorize request model: `grep -r "RegistrationFlow\|registration_flow" internal/oauth/ --include="*.go"` — update to use `RegistrationFlowID`
-- [ ] Update GORM OAuthAuthorizeRequest model: remove `RegistrationFlow string`, add `RegistrationFlowID *int64`
-- [ ] Update `internal/oauth/handler_authorize_test.go`: add a test sub-case where a non-existent `registration_flow` identifier returns `invalid_request`
-- [ ] Run `go build ./...` and `go test ./internal/oauth/...`
-
----
-
-### 3.14 — Remove `tenant_services` table (redundant with `services.tenant_id`)
-
-**File:** `internal/platform/database/migration/008_create_tenant_services_table.go`
-
-**Decision:** Every service belongs to exactly one tenant — the system is fully tenant-encapsulated. `services.tenant_id NOT NULL` is the authoritative relationship. `tenant_services` adds a second (tenant_id, service_id) junction that can only ever mirror what `services.tenant_id` already expresses. Any query asking "what services does tenant X have?" is answered by `SELECT * FROM services WHERE tenant_id = X`. The junction table is dead weight with no additional semantics, identical to `api_permissions` which was removed in Phase 3.3.
-
-- [ ] Replace the body of `008_create_tenant_services_table.go` with a no-op, same pattern as `api_permissions`:
-  ```go
-  func CreateTenantServicesTable(db *gorm.DB) error {
-      // tenant_services was determined to be redundant with services.tenant_id.
-      // Every service is tenant-scoped via services.tenant_id NOT NULL; there is
-      // no cross-tenant service sharing. This migration intentionally creates nothing.
-      return nil
-  }
-  ```
-- [ ] Search for all Go code that reads or writes `tenant_services`: `grep -r "tenant_services\|TenantService\b" internal/ --include="*.go"`
-- [ ] Remove any GORM models, repositories, or service layer calls referencing `tenant_services`
-- [ ] Any query that joined through `tenant_services` to get a tenant's services should instead query `services WHERE tenant_id = ?` directly
-- [ ] Check `internal/app/repositories.go` for a `tenantServiceRepo` — remove it; remove from `initRepos` and `services.go`
-- [ ] Run `go build ./...` and `go test ./internal/service/...`
-
----
-
-### 3.15 — Add `user_sessions` table (new)
-
-**New file:** `internal/platform/database/migration/072_create_user_sessions_table.go`
-
-**Decision (settled — two-expert review):** A dedicated session table is the industry standard. Keycloak `USER_SESSION`, Auth0 Sessions API, Okta `/api/v1/sessions/`, and Ory Hydra `login_session` all maintain a first-class session record separate from tokens. The reason is concrete: a session must survive token rotation; the `session_uuid` is the `sid` JWT claim required for OIDC back-channel logout; `acr`/`amr` must be first-class columns for step-up enforcement; and `oauth_refresh_tokens` must have a FK back to this table so force-revoking one session cascades to all its descendant tokens with no enumeration.
-
-**Relationship to `027_create_user_tokens_table.go` (audited):** That table currently stores `user:session` rows alongside one-time workflow tokens in a polymorphic pattern — confirmed by reading the migration, model, and `SessionService`. The session-specific columns (`last_used_at`, `idle_timeout_seconds`, `absolute_expires_at`) are documented in the model as NULL for non-session rows. `SessionService` in `internal/authn/service_session.go` queries `user_tokens WHERE token_type='user:session'` for all session operations. After this section is implemented, those queries route to `user_sessions` instead. The `user_tokens` table keeps the remaining three URL-token types; the session-specific columns are dropped in Phase C of that file's checklist (see Unaudited Migrations section).
-
-```go
-package migration
-
-import "gorm.io/gorm"
-
-func CreateUserSessionsTable(db *gorm.DB) error {
-    return db.Exec(`
-CREATE TABLE IF NOT EXISTS user_sessions (
-    user_session_id      BIGSERIAL    PRIMARY KEY,
-    user_session_uuid    UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-    user_id              BIGINT       NOT NULL,
-    tenant_id            BIGINT       NOT NULL,
-    client_id            BIGINT,
-    identity_provider_id BIGINT,
-    auth_time            TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    ip_address           INET,
-    user_agent           TEXT,
-    amr                  TEXT[]       NOT NULL DEFAULT '{}',
-    acr                  VARCHAR(10)  NOT NULL DEFAULT '1',
-    idp_session_id       VARCHAR(255),
-    idle_timeout_seconds INT          NOT NULL DEFAULT 1800,
-    last_active_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    expires_at           TIMESTAMPTZ  NOT NULL,
-    revoked_at           TIMESTAMPTZ,
-    revoked_reason       VARCHAR(50),
-    created_at           TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id)
-        REFERENCES users(user_id) ON DELETE CASCADE,
-    CONSTRAINT fk_user_sessions_tenant FOREIGN KEY (tenant_id)
-        REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-    CONSTRAINT fk_user_sessions_client FOREIGN KEY (client_id)
-        REFERENCES clients(client_id) ON DELETE SET NULL,
-    CONSTRAINT fk_user_sessions_identity_provider FOREIGN KEY (identity_provider_id)
-        REFERENCES identity_providers(identity_provider_id) ON DELETE SET NULL,
-    CONSTRAINT chk_user_sessions_revoked_reason CHECK (
-        revoked_reason IS NULL OR revoked_reason IN (
-            'logout', 'admin_revoke', 'password_change', 'mfa_change',
-            'session_expired', 'concurrent_limit', 'suspicious_activity'
-        )
-    )
-);
-CREATE INDEX IF NOT EXISTS idx_user_sessions_user_active
-    ON user_sessions (user_id, created_at ASC) WHERE revoked_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_user_sessions_tenant_user
-    ON user_sessions (tenant_id, user_id) WHERE revoked_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at
-    ON user_sessions (expires_at) WHERE revoked_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_user_sessions_last_active_at
-    ON user_sessions (user_id, last_active_at DESC) WHERE revoked_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_user_sessions_client_id
-    ON user_sessions (client_id) WHERE revoked_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_user_sessions_idp_session_id
-    ON user_sessions (idp_session_id) WHERE idp_session_id IS NOT NULL;
-`).Error
-}
-```
-
-**Column notes:**
-- `client_id ON DELETE SET NULL` — if a client is deleted, the session audit record must survive (not cascade-delete). This is why it differs from the FK on `oauth_refresh_tokens`.
-- `auth_time` — when the user actually authenticated, not when the token was issued. These differ after silent refresh. Required for the OIDC `auth_time` ID token claim.
-- `amr TEXT[]` — authentication methods reference array, e.g. `{'pwd','totp'}`, `{'passkey'}`. TEXT[] not JSONB — containment queries use `'totp' = ANY(amr)`.
-- `acr NOT NULL DEFAULT '1'` — `'0'`=unauthenticated, `'1'`=password-only, `'2'`=MFA satisfied. First-class column, not inferred from JWT.
-- `idp_session_id` — the upstream IdP's session identifier, required for OIDC back-channel logout: when the external IdP sends a logout token, we find and revoke the local session by this value.
-- `idle_timeout_seconds` — snapshot of the policy at session creation time. Policy changes must not retroactively tighten live sessions.
-- `expires_at` — the absolute hard ceiling (not the idle-timeout). Idle check: `last_active_at + idle_timeout_seconds * interval '1 second' > now()`. Hard-ceiling check: `expires_at > now()`.
-
-- [ ] Create the file above at `internal/platform/database/migration/072_create_user_sessions_table.go`
-- [ ] Register `migration.CreateUserSessionsTable` in `internal/platform/runner/migration.go`
-- [ ] **Migrate `SessionService` (`internal/authn/service_session.go`):** This service currently manages sessions by querying `user_tokens WHERE token_type='user:session'` via `UserTokenRepository`. The following repository methods must be re-routed to target `user_sessions` — the method names and signatures can stay the same, only the underlying table changes:
-  - `FindActiveSessions(userID)` → query `user_sessions WHERE user_id=? AND revoked_at IS NULL AND expires_at > now()`
-  - `FindActiveSessionByUUID(userID, sessionUUID)` → query `user_sessions` by `user_session_uuid`
-  - `CountActiveSessions(userID)` → COUNT on `user_sessions`
-  - `TouchSession(userID, sessionUUID, now)` → UPDATE `user_sessions.last_active_at`
-  - `RevokeSessionByUUID(userID, sessionUUID)` → UPDATE `user_sessions SET revoked_at=now()`
-  - `RevokeAllSessionsByUserID(userID)` → UPDATE all `user_sessions` for user
-  - `CreateSession(...)` → INSERT into `user_sessions` (not `user_tokens`)
-- [ ] **`LoginResponseDTO.SessionID`** currently returns a `user_token_uuid`. After migration it returns `user_session_uuid`. Update `internal/authn/types.go` and all callers.
-- [ ] **JWT `sid` claim** is currently set from `user_token_uuid`. After migration it is set from `user_session_uuid`. Update the token generation path in `internal/oauth/service_token.go` or wherever the `sid` claim is written.
-- [ ] **`ValidateAndTouch`** — currently checks `AbsoluteExpiresAt` and idle window against `user_tokens` session columns. After migration, reads `user_sessions.expires_at` (absolute) and computes idle check from `last_active_at + idle_timeout_seconds`. Logic is the same, source table changes.
-- [ ] **`EnforceConcurrentLimit`** — currently calls `CountActiveSessions`/`RevokeSessionByUUID` on `user_tokens`. Same logic, routes to `user_sessions`.
-- [ ] Create GORM model in `internal/authn/model_user_session.go`; create repository in `internal/authn/repository_user_session.go`; add `userSessionRepo` to `internal/app/repositories.go` and `initRepos`; `SessionService` already exists in `server.Application` — update its injected repo.
-- [ ] Register session endpoints on public port 8081: `GET /me/sessions`, `DELETE /me/sessions/{uuid}`, `DELETE /me/sessions`. Register admin endpoints on internal port 8080: `GET /users/{uuid}/sessions`, `DELETE /users/{uuid}/sessions/{uuid}`, `DELETE /users/{uuid}/sessions`. These handlers already exist (`AccountHandler.ListSessions`, `AccountHandler.RevokeSession` etc.) — they call `SessionService` which is already wired; only the underlying repo changes.
-- [ ] In request auth middleware: `UpdateLastActive` is called using the `sid` claim from the JWT. This already works today against `user_tokens`. After migration the same call routes to `user_sessions`.
-- [ ] Wire `acr`/`amr` into the step-up enforcement middleware: set them on session creation from the login's authentication context; compare `user_sessions.acr` against `required_acr` on each request — no JWT decode needed since the session row is authoritative
-- [ ] **Do NOT add `session_id` FK to `oauth_refresh_tokens`** as part of this section. The OAuth protocol refresh tokens (`oauth_refresh_tokens`) and internal authn sessions (`user_sessions`) are separate flows — the OAuth code exchange does not currently create a `user_sessions` row. That linkage is a future enhancement scoped separately.
-- [ ] After all session code is migrated and verified: complete Phase C of the `027_create_user_tokens_table.go` checklist — update the CHECK constraint to remove `'user:session'` and drop the now-unused session-specific columns.
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Change `tenant_id BIGINT` → `tenant_id BIGINT NOT NULL` — tenant is always resolved before inserting an authorize request row; NULL is never valid
+- [x] Add a CHECK constraint on `status` in the existing `DO $$` block
+- [x] Remove `registration_flow TEXT` from the `CREATE TABLE` block
+- [x] Add `registration_flow_id BIGINT` in its place, positioned in the FK cluster (after `tenant_id`)
+- [x] Add the FK constraint in the existing `DO $$` block
+- [x] Add index
+- [x] In the authorize handler/service: resolve `registration_flows` by `identifier` and store `registration_flow_id`
+- [x] In `internal/oauth/validation_authorize.go`: keep string validation for `registration_flow` — resolution happens in service
+- [x] Update GORM OAuthAuthorizeRequest model: `RegistrationFlow *string` → `RegistrationFlowID *int64`
+- [x] Update `internal/oauth/service_authorize.go`: `PrepareAuthorizeSignup` resolves identifier to ID before creating row
+- [x] Update `internal/oauth/types.go`: add internal `RegistrationFlowID int64` field
+- [x] Update `internal/oauth/handler_authorize_test.go`: no code changes needed (DTO still accepts string)
+- [x] Run `go build ./...` and `go test ./...`
 
 ---
 

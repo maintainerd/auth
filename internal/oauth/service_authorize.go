@@ -296,7 +296,7 @@ func (s *oauthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthA
 	}
 
 	if req.ScreenHint == "signup" && req.RegistrationFlow != "" {
-		if oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, req.RegistrationFlow); oerr != nil {
+		if _, oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, req.RegistrationFlow); oerr != nil {
 			return oerr
 		}
 	}
@@ -305,21 +305,22 @@ func (s *oauthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthA
 	return nil
 }
 
-func (s *oauthAuthorizeService) validateRegistrationFlowForAuthorize(clientID int64, identifier string) *apperror.OAuthError {
+func (s *oauthAuthorizeService) validateRegistrationFlowForAuthorize(clientID int64, identifier string) (int64, *apperror.OAuthError) {
 	var flow struct {
-		Status string
+		RegistrationFlowID int64
+		Status             string
 	}
 	err := s.db.Table("registration_flows").
 		Where("client_id = ? AND identifier = ? AND deleted_at IS NULL", clientID, identifier).
-		Select("status").
+		Select("registration_flow_id, status").
 		First(&flow).Error
 	if err != nil {
-		return apperror.NewOAuthInvalidRequest("unknown registration flow")
+		return 0, apperror.NewOAuthInvalidRequest("unknown registration flow")
 	}
 	if flow.Status != shared.StatusActive {
-		return apperror.NewOAuthInvalidRequest("registration flow is inactive")
+		return 0, apperror.NewOAuthInvalidRequest("registration flow is inactive")
 	}
-	return nil
+	return flow.RegistrationFlowID, nil
 }
 
 func (s *oauthAuthorizeService) resolveAuthorizeClient(req OAuthAuthorizeRequestDTO) (*Client, error) {
@@ -725,6 +726,20 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 		return "", oerr
 	}
 
+	var flowID int64
+	if req.ScreenHint == "signup" && req.RegistrationFlow != "" {
+		id, oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, req.RegistrationFlow)
+		if oerr != nil {
+			return "", oerr
+		}
+		flowID = id
+	}
+
+	var regFlowID *int64
+	if flowID != 0 {
+		regFlowID = &flowID
+	}
+
 	authReq := &OAuthAuthorizeRequest{
 		ClientID:            client.ClientID,
 		RedirectURI:         req.RedirectURI,
@@ -735,7 +750,7 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 		CodeChallenge:       ptr.PtrOrNil(req.CodeChallenge),
 		CodeChallengeMethod: ptr.PtrOrNil(req.CodeChallengeMethod),
 		ScreenHint:          ptr.Ptr(req.ScreenHint),
-		RegistrationFlow:    ptr.PtrOrNil(req.RegistrationFlow),
+		RegistrationFlowID:  regFlowID,
 		Status:              "pending",
 		ExpiresAt:           time.Now().Add(authorizeRequestTTL),
 	}
@@ -785,7 +800,6 @@ func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID
 		Nonce:               ptrOrEmpty(savedReq.Nonce),
 		CodeChallenge:       ptrOrEmpty(savedReq.CodeChallenge),
 		CodeChallengeMethod: ptrOrEmpty(savedReq.CodeChallengeMethod),
-		RegistrationFlow:    ptrOrEmpty(savedReq.RegistrationFlow),
 	}
 
 	var result *OAuthAuthorizeResult

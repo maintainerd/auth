@@ -18,6 +18,7 @@ type OAuthAuthorizeRequestDTO struct {
 	IdpHint             string `json:"idp_hint"`
 	ScreenHint          string `json:"screen_hint"`
 	RegistrationFlow    string `json:"registration_flow"`
+	RegistrationFlowID  int64  `json:"-"`
 	Prompt              string `json:"prompt"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
