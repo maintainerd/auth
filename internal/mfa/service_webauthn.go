@@ -61,9 +61,11 @@ type WebAuthnService interface {
 type webAuthnService struct {
 	db                  *gorm.DB
 	wa                  *webauthn.WebAuthn
+	rpID                string
 	userRepo            UserRepository
 	mfaWebAuthnCredRepo UserMFAWebAuthnCredentialRepository
 	sessionStore        cache.WebAuthnSessionStore
+	challengeRepo       WebAuthnChallengeRepository
 	authEventService    authevent.AuthEventService
 }
 
@@ -74,6 +76,7 @@ func NewWebAuthnService(
 	mfaWebAuthnCredRepo UserMFAWebAuthnCredentialRepository,
 	sessionStore cache.WebAuthnSessionStore,
 	authEventService authevent.AuthEventService,
+	challengeRepo WebAuthnChallengeRepository,
 ) (WebAuthnService, error) {
 	rpID := rpIDFromHostname(config.AppPublicHostname)
 	rpOrigins := []string{config.AppPublicHostname}
@@ -100,9 +103,11 @@ func NewWebAuthnService(
 	return &webAuthnService{
 		db:                  db,
 		wa:                  wa,
+		rpID:                rpID,
 		userRepo:            userRepo,
 		mfaWebAuthnCredRepo: mfaWebAuthnCredRepo,
 		sessionStore:        sessionStore,
+		challengeRepo:       challengeRepo,
 		authEventService:    authEventService,
 	}, nil
 }
@@ -149,6 +154,23 @@ func (s *webAuthnService) BeginRegistration(ctx context.Context, userID int64) (
 		return nil, err
 	}
 
+	if s.challengeRepo != nil {
+		u, _ := s.userRepo.FindByID(userID)
+		tenantID := int64(0)
+		if u != nil {
+			tenantID = u.TenantID
+		}
+		uidCopy := userID
+		_ = s.challengeRepo.Store(&WebAuthnChallenge{
+			TenantID:  tenantID,
+			UserID:    &uidCopy,
+			Challenge: session.Challenge,
+			Operation: "registration",
+			RPID:      s.rpID,
+			ExpiresAt: time.Now().Add(webAuthnSessionTTL),
+		})
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return creation, nil
 }
@@ -166,6 +188,12 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 	session, err := s.loadSession(ctx, userID, "reg")
 	if err != nil {
 		return nil, err
+	}
+
+	if s.challengeRepo != nil {
+		if err := s.challengeRepo.Consume(session.Challenge, "registration"); err != nil {
+			return nil, apperror.NewValidation("WebAuthn challenge invalid, expired, or already used")
+		}
 	}
 
 	cred, err := createWebAuthnCredential(s.wa, wu, *session, response)
@@ -259,6 +287,23 @@ func (s *webAuthnService) BeginAuthentication(ctx context.Context, userID int64)
 		return nil, err
 	}
 
+	if s.challengeRepo != nil {
+		u, _ := s.userRepo.FindByID(userID)
+		tenantID := int64(0)
+		if u != nil {
+			tenantID = u.TenantID
+		}
+		uidCopy := userID
+		_ = s.challengeRepo.Store(&WebAuthnChallenge{
+			TenantID:  tenantID,
+			UserID:    &uidCopy,
+			Challenge: session.Challenge,
+			Operation: "authentication",
+			RPID:      s.rpID,
+			ExpiresAt: time.Now().Add(webAuthnSessionTTL),
+		})
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return assertion, nil
 }
@@ -276,6 +321,12 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 	session, err := s.loadSession(ctx, userID, "auth")
 	if err != nil {
 		return nil, err
+	}
+
+	if s.challengeRepo != nil {
+		if err := s.challengeRepo.Consume(session.Challenge, "authentication"); err != nil {
+			return nil, apperror.NewUnauthorized("WebAuthn challenge invalid, expired, or already used")
+		}
 	}
 
 	cred, err := validateWebAuthnLogin(s.wa, wu, *session, response)

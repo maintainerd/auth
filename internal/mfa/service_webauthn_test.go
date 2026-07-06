@@ -56,13 +56,13 @@ func TestNewWebAuthnService(t *testing.T) {
 	db, _ := newMockGormDB(t)
 
 	config.AppPublicHostname = "https://auth.example.com"
-	got, err := NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{})
+	got, err := NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{}, nil)
 
 	require.NoError(t, err)
 	assert.IsType(t, &webAuthnService{}, got)
 
 	config.AppPublicHostname = "not a url with spaces"
-	got, err = NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{})
+	got, err = NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{}, nil)
 	require.Error(t, err)
 	assert.Nil(t, got)
 }
