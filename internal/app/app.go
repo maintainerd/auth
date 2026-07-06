@@ -95,6 +95,7 @@ type App struct {
 	IPRestrictionRuleRepo      secpolicy.IPRestrictionRuleRepository
 	AuditLogger                auditlog.ManagementAuditLogger
 	AuditLogRepo               auditlog.ManagementAuditLogRepository
+	KeyRotationService         oauth.KeyRotationService
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -179,5 +180,6 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		IPRestrictionRuleRepo:        s.ipRestrictionRuleRepo,
 		AuditLogger:                  s.auditLogger,
 		AuditLogRepo:                 r.auditLogRepo,
+		KeyRotationService:           s.keyRotationService,
 	}, nil
 }

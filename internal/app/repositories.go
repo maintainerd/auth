@@ -85,6 +85,7 @@ type repos struct {
 	userTrustedDeviceRepo     user.UserTrustedDeviceRepository
 	auditLogRepo              auditlog.ManagementAuditLogRepository
 	webauthnChallengeRepo     mfa.WebAuthnChallengeRepository
+	signingKeyRepo            oauth.SigningKeyRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -151,5 +152,6 @@ func initRepos(db *gorm.DB) *repos {
 		userTrustedDeviceRepo:     user.NewUserTrustedDeviceRepository(db),
 		auditLogRepo:              auditlog.NewManagementAuditLogRepository(db),
 		webauthnChallengeRepo:     mfa.NewWebAuthnChallengeRepository(db),
+		signingKeyRepo:            oauth.NewSigningKeyRepository(db),
 	}
 }

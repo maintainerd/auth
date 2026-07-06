@@ -96,4 +96,5 @@ type Application struct {
 	IPRestrictionRuleRepo      secpolicy.IPRestrictionRuleRepository
 	AuditLogger                auditlog.ManagementAuditLogger
 	AuditLogRepo               auditlog.ManagementAuditLogRepository
+	KeyRotationService         oauth.KeyRotationService
 }

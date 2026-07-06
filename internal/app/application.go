@@ -76,5 +76,6 @@ func (a *App) ServerApplication() *server.Application {
 		IPRestrictionRuleRepo:        a.IPRestrictionRuleRepo,
 		AuditLogger:                  a.AuditLogger,
 		AuditLogRepo:                 a.AuditLogRepo,
+		KeyRotationService:           a.KeyRotationService,
 	}
 }
