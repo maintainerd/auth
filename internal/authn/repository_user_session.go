@@ -1,6 +1,7 @@
 package authn
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,9 +15,8 @@ type UserSessionRepository interface {
 	CountActive(userID int64) (int64, error)
 	Create(session *UserSession) error
 	Touch(sessionID int64, now time.Time) error
-	RevokeByUUID(userID int64, sessionUUID uuid.UUID) error
+	RevokeByUUID(userID int64, sessionUUID uuid.UUID, reason string) error
 	RevokeAllByUserID(userID int64) error
-	RevokeByUserID(userID int64) error
 	DeleteExpired() (int64, error)
 }
 
@@ -45,6 +45,9 @@ func (r *userSessionRepository) FindActiveByUUID(userID int64, sessionUUID uuid.
 		Where("user_session_uuid = ? AND user_id = ? AND revoked_at IS NULL", sessionUUID, userID).
 		First(&session).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &session, nil
@@ -68,9 +71,8 @@ func (r *userSessionRepository) Touch(sessionID int64, now time.Time) error {
 		Update("last_active_at", now).Error
 }
 
-func (r *userSessionRepository) RevokeByUUID(userID int64, sessionUUID uuid.UUID) error {
+func (r *userSessionRepository) RevokeByUUID(userID int64, sessionUUID uuid.UUID, reason string) error {
 	now := time.Now()
-	reason := "logout"
 	return r.DB().Model(&UserSession{}).
 		Where("user_session_uuid = ? AND user_id = ?", sessionUUID, userID).
 		Updates(map[string]interface{}{
@@ -88,10 +90,6 @@ func (r *userSessionRepository) RevokeAllByUserID(userID int64) error {
 			"revoked_at":     &now,
 			"revoked_reason": &reason,
 		}).Error
-}
-
-func (r *userSessionRepository) RevokeByUserID(userID int64) error {
-	return r.RevokeAllByUserID(userID)
 }
 
 func (r *userSessionRepository) DeleteExpired() (int64, error) {

@@ -2,15 +2,20 @@ package auditlog
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 
-	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
-	"gorm.io/gorm"
+	"go.opentelemetry.io/otel/trace"
+	"gorm.io/datatypes"
 )
 
+// LogEntry holds the data needed to record a single management audit event.
 type LogEntry struct {
 	TenantID      int64
 	ActorUserID   *int64
@@ -18,11 +23,13 @@ type LogEntry struct {
 	Action        string
 	ResourceType  string
 	ResourceID    string
+	ResourceUUID  *uuid.UUID
 	Changes       string
 	Outcome       string
 	ErrorMessage  *string
 }
 
+// ManagementAuditLogger is the service interface for writing audit log entries.
 type ManagementAuditLogger interface {
 	Log(ctx context.Context, entry LogEntry) error
 }
@@ -31,6 +38,7 @@ type managementAuditLogger struct {
 	repo ManagementAuditLogRepository
 }
 
+// NewManagementAuditLogger creates a ManagementAuditLogger backed by repo.
 func NewManagementAuditLogger(repo ManagementAuditLogRepository) ManagementAuditLogger {
 	return &managementAuditLogger{repo: repo}
 }
@@ -50,14 +58,32 @@ func (l *managementAuditLogger) Log(ctx context.Context, entry LogEntry) error {
 		Action:        entry.Action,
 		ResourceType:  entry.ResourceType,
 		ResourceID:    entry.ResourceID,
+		ResourceUUID:  entry.ResourceUUID,
 		Outcome:       entry.Outcome,
 		ErrorMessage:  entry.ErrorMessage,
-		IPAddress:     strPtr(middleware.ClientIPFromContext(ctx)),
-		UserAgent:     strPtr(middleware.UserAgentFromContext(ctx)),
+		IPAddress:     ptr.PtrOrNil(middleware.ClientIPFromContext(ctx)),
+		UserAgent:     ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 	}
 
-	if entry.Changes != "" {
-		record.Changes = []byte(entry.Changes)
+	// Populate TraceID from OTel span context.
+	sc := trace.SpanFromContext(ctx).SpanContext()
+	if sc.IsValid() {
+		tid := sc.TraceID().String()
+		record.TraceID = &tid
+	}
+
+	// Populate RequestID from security middleware context.
+	rid, _ := ctx.Value(middleware.RequestIDKey).(string)
+	record.RequestID = ptr.PtrOrNil(rid)
+
+	// Validate and set Changes; default to empty object when omitted.
+	if entry.Changes == "" {
+		record.Changes = datatypes.JSON("{}")
+	} else {
+		if !json.Valid([]byte(entry.Changes)) {
+			return fmt.Errorf("auditlog: Changes is not valid JSON")
+		}
+		record.Changes = datatypes.JSON(entry.Changes)
 	}
 
 	if err := l.repo.Create(record); err != nil {
@@ -73,72 +99,4 @@ func (l *managementAuditLogger) Log(ctx context.Context, entry LogEntry) error {
 
 	span.SetStatus(codes.Ok, "")
 	return nil
-}
-
-// ManagementAuditLogRepository is the persistence layer for management audit log entries.
-type ManagementAuditLogRepository interface {
-	Create(record *ManagementAuditLog) error
-	FindPaginated(tenantID int64, filter ManagementAuditLogFilter) ([]ManagementAuditLog, int64, error)
-}
-
-type managementAuditLogRepository struct {
-	*BaseRepository[ManagementAuditLog]
-}
-
-func NewManagementAuditLogRepository(db *gorm.DB) ManagementAuditLogRepository {
-	return &managementAuditLogRepository{
-		BaseRepository: database.NewBaseRepository[ManagementAuditLog](db, "management_audit_log_uuid", "management_audit_log_id"),
-	}
-}
-
-func (r *managementAuditLogRepository) Create(record *ManagementAuditLog) error {
-	return r.DB().Create(record).Error
-}
-
-func (r *managementAuditLogRepository) FindPaginated(tenantID int64, filter ManagementAuditLogFilter) ([]ManagementAuditLog, int64, error) {
-	query := r.DB().Where("tenant_id = ?", tenantID)
-	if filter.ResourceType != "" {
-		query = query.Where("resource_type = ?", filter.ResourceType)
-	}
-	if filter.Action != "" {
-		query = query.Where("action = ?", filter.Action)
-	}
-	if filter.ActorUserID != nil {
-		query = query.Where("actor_user_id = ?", *filter.ActorUserID)
-	}
-
-	var total int64
-	if err := query.Model(&ManagementAuditLog{}).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var logs []ManagementAuditLog
-	limit := filter.Limit
-	if limit <= 0 {
-		limit = 20
-	}
-	page := filter.Page
-	if page <= 0 {
-		page = 1
-	}
-	if err := query.Order("created_at DESC").Limit(limit).Offset((page - 1) * limit).Find(&logs).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return logs, total, nil
-}
-
-type ManagementAuditLogFilter struct {
-	ResourceType string
-	Action       string
-	ActorUserID  *int64
-	Page         int
-	Limit        int
-}
-
-func strPtr(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
 }

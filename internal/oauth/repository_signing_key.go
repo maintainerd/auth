@@ -1,17 +1,11 @@
 package oauth
 
 import (
+	"time"
+
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 )
-
-type SigningKeyRepository interface {
-	FindActiveByTenantID(tenantID int64) ([]SigningKey, error)
-	FindByKID(kid string) (*SigningKey, error)
-	Create(key *SigningKey) error
-	RetireByKID(kid string) error
-	MarkCompromised(kid string) error
-}
 
 type signingKeyRepository struct {
 	*BaseRepository[SigningKey]
@@ -26,7 +20,8 @@ func NewSigningKeyRepository(db *gorm.DB) SigningKeyRepository {
 func (r *signingKeyRepository) FindActiveByTenantID(tenantID int64) ([]SigningKey, error) {
 	var keys []SigningKey
 	err := r.DB().
-		Where("tenant_id = ? AND status = ?", tenantID, "active").
+		Where("(tenant_id = ? OR tenant_id IS NULL) AND status = ?", tenantID, "active").
+		Order("tenant_id DESC NULLS LAST, created_at DESC").
 		Find(&keys).Error
 	return keys, err
 }
@@ -45,7 +40,10 @@ func (r *signingKeyRepository) Create(key *SigningKey) error {
 }
 
 func (r *signingKeyRepository) RetireByKID(kid string) error {
-	return r.DB().Model(&SigningKey{}).Where("kid = ?", kid).Update("status", "retired").Error
+	return r.DB().Model(&SigningKey{}).Where("kid = ?", kid).Updates(map[string]any{
+		"status":     "retired",
+		"rotated_at": time.Now(),
+	}).Error
 }
 
 func (r *signingKeyRepository) MarkCompromised(kid string) error {

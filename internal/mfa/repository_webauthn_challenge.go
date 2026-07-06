@@ -7,12 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type WebAuthnChallengeRepository interface {
-	Store(challenge *WebAuthnChallenge) error
-	Consume(challenge string, operation string) error
-	DeleteExpired() (int64, error)
-}
-
 type webAuthnChallengeRepository struct {
 	*BaseRepository[WebAuthnChallenge]
 }
@@ -32,10 +26,13 @@ func (r *webAuthnChallengeRepository) Consume(challenge string, operation string
 	result := r.DB().Model(&WebAuthnChallenge{}).
 		Where("challenge = ? AND operation = ? AND used_at IS NULL AND expires_at > ?", challenge, operation, now).
 		Update("used_at", now)
+	if result.Error != nil {
+		return result.Error
+	}
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
 	}
-	return result.Error
+	return nil
 }
 
 func (r *webAuthnChallengeRepository) DeleteExpired() (int64, error) {

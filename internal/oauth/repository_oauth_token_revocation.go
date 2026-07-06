@@ -7,12 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type OAuthTokenRevocationRepository interface {
-	Revoke(revocation *OAuthTokenRevocation) error
-	IsRevoked(tenantID int64, jti string) (bool, error)
-	DeleteExpired() (int64, error)
-}
-
 type oauthTokenRevocationRepository struct {
 	*BaseRepository[OAuthTokenRevocation]
 }

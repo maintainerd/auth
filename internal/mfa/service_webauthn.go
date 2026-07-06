@@ -91,6 +91,10 @@ func NewWebAuthnService(
 		rpID = overrideID
 	}
 
+	if challengeRepo == nil {
+		return nil, fmt.Errorf("webauthn service requires a non-nil challenge repository")
+	}
+
 	wa, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: "maintainerd",
 		RPID:          rpID,
@@ -154,21 +158,17 @@ func (s *webAuthnService) BeginRegistration(ctx context.Context, userID int64) (
 		return nil, err
 	}
 
-	if s.challengeRepo != nil {
-		u, _ := s.userRepo.FindByID(userID)
-		tenantID := int64(0)
-		if u != nil {
-			tenantID = u.TenantID
-		}
-		uidCopy := userID
-		_ = s.challengeRepo.Store(&WebAuthnChallenge{
-			TenantID:  tenantID,
-			UserID:    &uidCopy,
-			Challenge: session.Challenge,
-			Operation: "registration",
-			RPID:      s.rpID,
-			ExpiresAt: time.Now().Add(webAuthnSessionTTL),
-		})
+	uidCopy := userID
+	if err := s.challengeRepo.Store(&WebAuthnChallenge{
+		TenantID:  wu.user.TenantID,
+		UserID:    &uidCopy,
+		Challenge: session.Challenge,
+		Operation: "registration",
+		RPID:      s.rpID,
+		ExpiresAt: time.Now().Add(webAuthnSessionTTL),
+	}); err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to store challenge", err)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -190,10 +190,8 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		return nil, err
 	}
 
-	if s.challengeRepo != nil {
-		if err := s.challengeRepo.Consume(session.Challenge, "registration"); err != nil {
-			return nil, apperror.NewValidation("WebAuthn challenge invalid, expired, or already used")
-		}
+	if err := s.challengeRepo.Consume(session.Challenge, "registration"); err != nil {
+		return nil, apperror.NewValidation("WebAuthn challenge invalid, expired, or already used")
 	}
 
 	cred, err := createWebAuthnCredential(s.wa, wu, *session, response)
@@ -252,7 +250,7 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 		Category:    authevent.AuthEventCategoryAuthn,
-		EventType:   authevent.AuthEventTypeTokenCreated,
+		EventType:   authevent.AuthEventTypeMFAEnrolled,
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("WebAuthn credential registered"),
@@ -287,21 +285,17 @@ func (s *webAuthnService) BeginAuthentication(ctx context.Context, userID int64)
 		return nil, err
 	}
 
-	if s.challengeRepo != nil {
-		u, _ := s.userRepo.FindByID(userID)
-		tenantID := int64(0)
-		if u != nil {
-			tenantID = u.TenantID
-		}
-		uidCopy := userID
-		_ = s.challengeRepo.Store(&WebAuthnChallenge{
-			TenantID:  tenantID,
-			UserID:    &uidCopy,
-			Challenge: session.Challenge,
-			Operation: "authentication",
-			RPID:      s.rpID,
-			ExpiresAt: time.Now().Add(webAuthnSessionTTL),
-		})
+	uidCopy := userID
+	if err := s.challengeRepo.Store(&WebAuthnChallenge{
+		TenantID:  wu.user.TenantID,
+		UserID:    &uidCopy,
+		Challenge: session.Challenge,
+		Operation: "authentication",
+		RPID:      s.rpID,
+		ExpiresAt: time.Now().Add(webAuthnSessionTTL),
+	}); err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to store challenge", err)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -323,10 +317,8 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 		return nil, err
 	}
 
-	if s.challengeRepo != nil {
-		if err := s.challengeRepo.Consume(session.Challenge, "authentication"); err != nil {
-			return nil, apperror.NewUnauthorized("WebAuthn challenge invalid, expired, or already used")
-		}
+	if err := s.challengeRepo.Consume(session.Challenge, "authentication"); err != nil {
+		return nil, apperror.NewUnauthorized("WebAuthn challenge invalid, expired, or already used")
 	}
 
 	cred, err := validateWebAuthnLogin(s.wa, wu, *session, response)
@@ -371,7 +363,7 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 		Category:    authevent.AuthEventCategoryAuthn,
-		EventType:   authevent.AuthEventTypeTokenCreated,
+		EventType:   authevent.AuthEventTypeLoginSuccess,
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("WebAuthn authentication succeeded"),

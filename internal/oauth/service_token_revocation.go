@@ -9,7 +9,7 @@ import (
 )
 
 type TokenRevocationService interface {
-	Revoke(ctx context.Context, tenantID int64, jti, tokenType, reason string, expiresAt time.Time) error
+	Revoke(ctx context.Context, tenantID int64, jti, tokenType, reason string, expiresAt time.Time, revokedByUserID *int64, revokedByClientID *int64) error
 	IsRevoked(ctx context.Context, tenantID int64, jti string) (bool, error)
 }
 
@@ -21,16 +21,18 @@ func NewTokenRevocationService(repo OAuthTokenRevocationRepository) TokenRevocat
 	return &tokenRevocationService{repo: repo}
 }
 
-func (s *tokenRevocationService) Revoke(ctx context.Context, tenantID int64, jti, tokenType, reason string, expiresAt time.Time) error {
+func (s *tokenRevocationService) Revoke(ctx context.Context, tenantID int64, jti, tokenType, reason string, expiresAt time.Time, revokedByUserID *int64, revokedByClientID *int64) error {
 	_, span := otel.Tracer("service").Start(ctx, "token_revocation.revoke")
 	defer span.End()
 
 	rec := &OAuthTokenRevocation{
-		TenantID:  tenantID,
-		JTI:       jti,
-		TokenType: tokenType,
-		Reason:    reason,
-		ExpiresAt: expiresAt,
+		TenantID:          tenantID,
+		JTI:               jti,
+		TokenType:         tokenType,
+		Reason:            reason,
+		ExpiresAt:         expiresAt,
+		RevokedByUserID:   revokedByUserID,
+		RevokedByClientID: revokedByClientID,
 	}
 
 	if err := s.repo.Revoke(rec); err != nil {

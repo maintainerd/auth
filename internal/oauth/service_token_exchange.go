@@ -39,6 +39,7 @@ type oauthTokenExchangeService struct {
 	clientRepo          ClientRepository
 	userRepo            UserRepository
 	authEventService    authevent.AuthEventService
+	exchangeRepo        OAuthTokenExchangeRepository
 	securitySettingRepo secpolicy.SecuritySettingRepository
 }
 
@@ -48,6 +49,7 @@ func NewOAuthTokenExchangeService(
 	clientRepo ClientRepository,
 	userRepo UserRepository,
 	authEventService authevent.AuthEventService,
+	exchangeRepo OAuthTokenExchangeRepository,
 	securitySettingRepo ...secpolicy.SecuritySettingRepository,
 ) OAuthTokenExchangeService {
 	var settings secpolicy.SecuritySettingRepository
@@ -59,6 +61,7 @@ func NewOAuthTokenExchangeService(
 		clientRepo:          clientRepo,
 		userRepo:            userRepo,
 		authEventService:    authEventService,
+		exchangeRepo:        exchangeRepo,
 		securitySettingRepo: settings,
 	}
 }
@@ -167,6 +170,22 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("Token exchange completed"),
 	})
+
+	// B2: Record the exchange for audit. Best-effort — do not fail the exchange if this fails.
+	if s.exchangeRepo != nil {
+		exchangeType := "impersonation"
+		if req.ActorToken != "" {
+			exchangeType = "delegation"
+		}
+		if err := s.exchangeRepo.Record(&OAuthTokenExchange{
+			TenantID:      client.TenantID,
+			ActorClientID: client.ClientID,
+			ExchangeType:  exchangeType,
+		}); err != nil {
+			span.RecordError(err)
+			// Intentionally not returning — audit failure must not block the exchange.
+		}
+	}
 
 	span.SetStatus(codes.Ok, "")
 	return &OAuthTokenExchangeResponseDTO{

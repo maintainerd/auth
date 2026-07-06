@@ -16,7 +16,7 @@ type SigningKey struct {
 	Use                 string     `gorm:"column:use;not null"`
 	Status              string     `gorm:"column:status;not null;default:'active'"`
 	PublicKeyPEM        string     `gorm:"column:public_key_pem;not null"`
-	PrivateKeyEncrypted []byte     `gorm:"column:private_key_encrypted;not null"`
+	PrivateKeyEncrypted []byte     `gorm:"column:private_key_encrypted"`
 	KeyEncryptionKeyID  string     `gorm:"column:key_encryption_key_id;not null"`
 	RotatedAt           *time.Time `gorm:"column:rotated_at"`
 	ExpiresAt           *time.Time `gorm:"column:expires_at"`

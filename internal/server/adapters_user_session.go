@@ -24,12 +24,13 @@ func (a *userSessionServiceAdapter) ListSessions(ctx context.Context, userID int
 	result := make([]*user.SessionDataResult, len(sessions))
 	for i, session := range sessions {
 		result[i] = &user.SessionDataResult{
-			SessionID:    session.SessionID,
-			IPAddress:    session.IPAddress,
-			UserAgent:    session.UserAgent,
-			LastUsedAt:   session.LastActiveAt,
-			ExpiresAt:    session.ExpiresAt,
-			CreatedAt:    session.CreatedAt,
+			SessionID:         session.SessionID,
+			IPAddress:         session.IPAddress,
+			UserAgent:         session.UserAgent,
+			LastUsedAt:        session.LastActiveAt,
+			ExpiresAt:         session.ExpiresAt,
+			AbsoluteExpiresAt: session.ExpiresAt,
+			CreatedAt:         session.CreatedAt,
 		}
 	}
 	return result, nil

@@ -104,3 +104,30 @@ func assertExpectationsMet(t *testing.T, mock sqlmock.Sqlmock) {
 	t.Helper()
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+type mockWebAuthnChallengeRepo struct {
+	storeFn         func(challenge *WebAuthnChallenge) error
+	consumeFn       func(challenge string, operation string) error
+	deleteExpiredFn func() (int64, error)
+}
+
+func (m *mockWebAuthnChallengeRepo) Store(c *WebAuthnChallenge) error {
+	if m.storeFn != nil {
+		return m.storeFn(c)
+	}
+	return nil
+}
+
+func (m *mockWebAuthnChallengeRepo) Consume(ch string, operation string) error {
+	if m.consumeFn != nil {
+		return m.consumeFn(ch, operation)
+	}
+	return nil
+}
+
+func (m *mockWebAuthnChallengeRepo) DeleteExpired() (int64, error) {
+	if m.deleteExpiredFn != nil {
+		return m.deleteExpiredFn()
+	}
+	return 0, nil
+}
