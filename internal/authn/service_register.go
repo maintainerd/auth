@@ -47,6 +47,7 @@ type registerService struct {
 	passwordHistoryRepo      UserPasswordHistoryRepository       // nil → skip history
 	registrationFlowRoleRepo RegistrationFlowRoleRepository
 	emailVerificationSvc     EmailVerificationService
+	consentRecorder          UserConsentRecorder
 }
 
 func NewRegistrationService(
@@ -62,14 +63,9 @@ func NewRegistrationService(
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
 	registrationFlowRoleRepo RegistrationFlowRoleRepository,
-	emailVerificationSvc ...EmailVerificationService,
+	opts ...RegisterServiceOption,
 ) RegisterService {
-	var emailSvc EmailVerificationService
-	if len(emailVerificationSvc) > 0 {
-		emailSvc = emailVerificationSvc[0]
-	}
-
-	return &registerService{
+	s := &registerService{
 		db:                       db,
 		clientRepo:               clientRepo,
 		userRepo:                 userRepo,
@@ -82,8 +78,21 @@ func NewRegistrationService(
 		securitySettingRepo:      securitySettingRepo,
 		passwordHistoryRepo:      passwordHistoryRepo,
 		registrationFlowRoleRepo: registrationFlowRoleRepo,
-		emailVerificationSvc:     emailSvc,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+type RegisterServiceOption func(*registerService)
+
+func WithEmailVerificationService(svc EmailVerificationService) RegisterServiceOption {
+	return func(s *registerService) { s.emailVerificationSvc = svc }
+}
+
+func WithConsentRecorder(r UserConsentRecorder) RegisterServiceOption {
+	return func(s *registerService) { s.consentRecorder = r }
 }
 
 // Helper function to find the system default registration role for a tenant.
@@ -472,6 +481,9 @@ func (s *registerService) RegisterPublic(
 		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, registrationFlow); txErr != nil {
 			return txErr
 		}
+		if s.consentRecorder != nil {
+			_ = s.consentRecorder.Record(ctx, tx, createdUser.UserID, tenantId, "terms_of_service", "1.0", middleware.ClientIPFromContext(ctx), "")
+		}
 
 		return nil
 	})
@@ -686,6 +698,9 @@ func (s *registerService) Register(
 		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, registrationFlow); txErr != nil {
 			return txErr
 		}
+		if s.consentRecorder != nil {
+			_ = s.consentRecorder.Record(ctx, tx, createdUser.UserID, tenantId, "terms_of_service", "1.0", middleware.ClientIPFromContext(ctx), "")
+		}
 
 		return nil // commit transaction
 	})
@@ -870,6 +885,9 @@ func (s *registerService) RegisterInvitePublic(
 		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, inviteFlow); txErr != nil {
 			return txErr
 		}
+		if s.consentRecorder != nil {
+			_ = s.consentRecorder.Record(ctx, tx, createdUser.UserID, tenantId, "terms_of_service", "1.0", middleware.ClientIPFromContext(ctx), "")
+		}
 
 		// Mark invite as used
 		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)
@@ -1036,6 +1054,9 @@ func (s *registerService) RegisterInvite(
 
 		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, inviteFlow); txErr != nil {
 			return txErr
+		}
+		if s.consentRecorder != nil {
+			_ = s.consentRecorder.Record(ctx, tx, createdUser.UserID, tenantId, "terms_of_service", "1.0", middleware.ClientIPFromContext(ctx), "")
 		}
 
 		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)

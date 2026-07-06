@@ -1123,7 +1123,7 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
 - [x] Create `internal/user/model_user_consent.go` and `internal/user/repository_user_consent.go`; add to `internal/app/repositories.go` and `initRepos`
 - [x] Create service, handler, validation, and test files
 - [x] Register endpoints: `GET /users/{uuid}/consents` (admin, internal port 8080), `POST /me/consent` (public port 8081 — user records their own consent)
-- [ ] In the registration handler (`internal/authn/service_register.go`): record consent when a user accepts terms during registration — insert a row into `user_consents` with `consent_type='terms_of_service'`
+- [x] In the registration handler (`internal/authn/service_register.go`): record consent when a user accepts terms during registration — insert a row into `user_consents` with `consent_type='terms_of_service'`
 - [x] Search and redirect all Go code that reads `terms_accepted_at` or `privacy_policy_accepted_at` from `user_settings` (these columns are removed in section 3.27)
 - [x] "Current consent status" queries should read the most recent row per `(user_id, consent_type)` ordered by `created_at DESC`
 - [x] Run `go build ./...` and `go test ./...`

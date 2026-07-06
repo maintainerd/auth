@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -92,6 +93,11 @@ func (h *UserConsentHandler) GetUserConsents(w http.ResponseWriter, r *http.Requ
 	userUUID := chi.URLParam(r, "user_uuid")
 	if userUUID == "" {
 		resp.Error(w, http.StatusBadRequest, "Missing user_uuid")
+		return
+	}
+
+	if _, err := uuid.Parse(userUUID); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user_uuid format")
 		return
 	}
 
