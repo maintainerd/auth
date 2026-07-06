@@ -32,10 +32,6 @@ func SeedTenant(db *gorm.DB, tenantID int64) error {
 		return fmt.Errorf("seed service: %w", err)
 	}
 
-	if _, err := SeedTenantService(db, tenantID, service.ServiceID); err != nil {
-		return fmt.Errorf("seed tenant_service: %w", err)
-	}
-
 	api, err := SeedAPI(db, tenantID, service.ServiceID)
 	if err != nil {
 		return fmt.Errorf("seed api: %w", err)

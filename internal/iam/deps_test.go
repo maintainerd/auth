@@ -16,7 +16,6 @@ func TestDepsTableNames(t *testing.T) {
 		{name: "user identity", got: UserIdentity{}.TableName(), want: "user_identities"},
 		{name: "user", got: User{}.TableName(), want: "users"},
 		{name: "client", got: Client{}.TableName(), want: "clients"},
-		{name: "tenant service", got: TenantService{}.TableName(), want: "tenant_services"},
 		{name: "user role", got: UserRole{}.TableName(), want: "user_roles"},
 		{name: "user token", got: UserToken{}.TableName(), want: "user_tokens"},
 	}

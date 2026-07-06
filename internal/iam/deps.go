@@ -54,6 +54,9 @@ type Client struct {
 
 func (Client) TableName() string { return "clients" }
 
+// TenantService is DEPRECATED — the tenant_services table has been removed.
+// services.tenant_id is the authoritative tenant-scope relationship.
+// This type is kept only for test compatibility.
 type TenantService struct {
 	TenantServiceID int64
 	TenantID        int64
@@ -63,6 +66,24 @@ type TenantService struct {
 }
 
 func (TenantService) TableName() string { return "tenant_services" }
+
+type TenantServiceRepositoryGetFilter struct {
+	TenantID  *int64
+	ServiceID *int64
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
+}
+
+// TenantServiceRepository is DEPRECATED.
+type TenantServiceRepository interface {
+	BaseRepositoryMethods[TenantService]
+	WithTx(tx *gorm.DB) TenantServiceRepository
+	FindPaginated(filter TenantServiceRepositoryGetFilter) (*PaginationResult[TenantService], error)
+	FindByTenantAndService(tenantID int64, serviceID int64) (*TenantService, error)
+	DeleteByTenantAndService(tenantID int64, serviceID int64) error
+}
 
 type UserRole struct {
 	UserRoleID uuid.UUID
@@ -96,21 +117,4 @@ type ClientRepository interface {
 	BaseRepositoryMethods[Client]
 	WithTx(tx *gorm.DB) ClientRepository
 	FindByUUID(uuid any, preloads ...string) (*Client, error)
-}
-
-type TenantServiceRepositoryGetFilter struct {
-	TenantID  *int64
-	ServiceID *int64
-	Page      int
-	Limit     int
-	SortBy    string
-	SortOrder string
-}
-
-type TenantServiceRepository interface {
-	BaseRepositoryMethods[TenantService]
-	WithTx(tx *gorm.DB) TenantServiceRepository
-	FindPaginated(filter TenantServiceRepositoryGetFilter) (*PaginationResult[TenantService], error)
-	FindByTenantAndService(tenantID int64, serviceID int64) (*TenantService, error)
-	DeleteByTenantAndService(tenantID int64, serviceID int64) error
 }

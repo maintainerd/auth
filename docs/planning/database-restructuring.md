@@ -1170,6 +1170,91 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
 
 ---
 
+### 3.14 — Remove `tenant_services` table (redundant with `services.tenant_id`)
+
+**File:** `internal/platform/database/migration/008_create_tenant_services_table.go`
+
+**Decision:** Every service belongs to exactly one tenant — the system is fully tenant-encapsulated. `services.tenant_id NOT NULL` is the authoritative relationship. `tenant_services` adds a second (tenant_id, service_id) junction that can only ever mirror what `services.tenant_id` already expresses. Any query asking "what services does tenant X have?" is answered by `SELECT * FROM services WHERE tenant_id = X`. The junction table is dead weight with no additional semantics, identical to `api_permissions` which was removed in Phase 3.4.
+
+- [x] Replace the body of `008_create_tenant_services_table.go` with a no-op
+- [x] Go types (`TenantService`, `TenantServiceRepository`, `TenantServiceLink`) kept as deprecated stubs for test compatibility — full removal deferred until tests are migrated
+- [x] `SeedTenantService` made a no-op stub; `tenant_services` write removed from `service_setup.go`
+- [x] Go types remain with deprecation comments
+- [x] Run `go build ./...` and `go test ./...` — all pass
+
+---
+
+### 3.15 — Add `user_sessions` table (new)
+
+**New file:** `internal/platform/database/migration/072_create_user_sessions_table.go`
+
+**Decision (settled — two-expert review):** A dedicated session table is the industry standard. Keycloak `USER_SESSION`, Auth0 Sessions API, Okta `/api/v1/sessions/`, and Ory Hydra `login_session` all maintain a first-class session record separate from tokens. The reason is concrete: a session must survive token rotation; the `session_uuid` is the `sid` JWT claim required for OIDC back-channel logout; `acr`/`amr` must be first-class columns for step-up enforcement; and `oauth_refresh_tokens` must have a FK back to this table so force-revoking one session cascades to all its descendant tokens with no enumeration.
+
+**Relationship to `027_create_user_tokens_table.go`:** That table currently stores `user:session` rows alongside one-time workflow tokens in a polymorphic pattern. `SessionService` in `internal/authn/service_session.go` queries `user_tokens WHERE token_type='user:session'` for all session operations. After this section is implemented, those queries route to `user_sessions` instead. The `user_tokens` table keeps the remaining URL-token types; session-specific columns are dropped in a follow-up pass.
+
+```go
+package migration
+
+import "gorm.io/gorm"
+
+func CreateUserSessionsTable(db *gorm.DB) error {
+    return db.Exec(`
+CREATE TABLE IF NOT EXISTS user_sessions (
+    user_session_id      BIGSERIAL    PRIMARY KEY,
+    user_session_uuid    UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    user_id              BIGINT       NOT NULL,
+    tenant_id            BIGINT       NOT NULL,
+    client_id            BIGINT,
+    identity_provider_id BIGINT,
+    auth_time            TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    ip_address           INET,
+    user_agent           TEXT,
+    amr                  TEXT[]       NOT NULL DEFAULT '{}',
+    acr                  VARCHAR(10)  NOT NULL DEFAULT '1',
+    idp_session_id       VARCHAR(255),
+    idle_timeout_seconds INT          NOT NULL DEFAULT 1800,
+    last_active_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    expires_at           TIMESTAMPTZ  NOT NULL,
+    revoked_at           TIMESTAMPTZ,
+    revoked_reason       VARCHAR(50),
+    created_at           TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id)
+        REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_sessions_tenant FOREIGN KEY (tenant_id)
+        REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_sessions_client FOREIGN KEY (client_id)
+        REFERENCES clients(client_id) ON DELETE SET NULL,
+    CONSTRAINT fk_user_sessions_identity_provider FOREIGN KEY (identity_provider_id)
+        REFERENCES identity_providers(identity_provider_id) ON DELETE SET NULL,
+    CONSTRAINT chk_user_sessions_revoked_reason CHECK (
+        revoked_reason IS NULL OR revoked_reason IN (
+            'logout', 'admin_revoke', 'password_change', 'mfa_change',
+            'session_expired', 'concurrent_limit', 'suspicious_activity'
+        )
+    )
+);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_active
+    ON user_sessions (user_id, created_at ASC) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at
+    ON user_sessions (expires_at) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_user_sessions_tenant_user
+    ON user_sessions (tenant_id, user_id) WHERE revoked_at IS NULL;
+`).Error
+}
+```
+
+- [ ] Create the file above at `internal/platform/database/migration/072_create_user_sessions_table.go`
+- [ ] Register `migration.CreateUserSessionsTable` in `internal/platform/runner/migration.go`
+- [ ] Create GORM model `internal/authn/model_user_session.go`
+- [ ] Create repository `internal/authn/repository_user_session.go` with methods: `Create`, `FindByUUID`, `FindActiveByUserID`, `Revoke(uuid, reason)`, `RevokeAllByUserID(userID)`, `DeleteExpired`
+- [ ] Add `userSessionRepo` to `internal/app/repositories.go` and `initRepos`
+- [ ] Migrate `SessionService` in `internal/authn/service_session.go` to write/read `user_sessions` instead of `user_tokens WHERE token_type='user:session'`
+- [ ] Add `session_id` FK column to `oauth_refresh_tokens` pointing to `user_sessions(user_session_id) ON DELETE CASCADE` — so revoking a session cascades to all its tokens
+- [ ] Register endpoints on internal port 8080: `GET /users/{uuid}/sessions`, `DELETE /users/{uuid}/sessions/{session_uuid}` (admin revoke); on public port 8081: `GET /me/sessions`, `DELETE /me/sessions/{session_uuid}` (self-revoke)
+- [ ] Run `go build ./...` and `go test ./...`
+
+---
+
 ### 3.16 — Add `management_audit_log` table (new)
 
 **New file:** `internal/platform/database/migration/073_create_management_audit_log_table.go`
