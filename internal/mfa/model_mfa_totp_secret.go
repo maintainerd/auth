@@ -11,17 +11,17 @@ import (
 // Only one active secret per user is allowed (uq_user_mfa_totp_secrets_user_id).
 type UserMFATOTPSecret struct {
 	TOTPSecretID   int64      `gorm:"column:totp_secret_id;primaryKey"`
-	TOTPSecretUUID uuid.UUID  `gorm:"column:totp_secret_uuid"`
+	TOTPSecretUUID uuid.UUID  `gorm:"column:totp_secret_uuid;not null;uniqueIndex"`
 	UserID         int64      `gorm:"column:user_id;not null"`
 	Secret         string     `gorm:"column:secret;not null"`
-	IsEnabled      bool       `gorm:"column:is_enabled;default:false"`
+	IsEnabled      bool       `gorm:"column:is_enabled;not null;default:false"`
 	EnrolledAt     *time.Time `gorm:"column:enrolled_at"`
 	LastUsedAt     *time.Time `gorm:"column:last_used_at"`
 	LastUsedStep   *int64     `gorm:"column:last_used_step"`
-	Digits         int        `gorm:"column:digits;default:6"`
-	Period         int        `gorm:"column:period;default:30"`
-	CreatedAt      time.Time  `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt      time.Time  `gorm:"column:updated_at;autoUpdateTime"`
+	Digits         int        `gorm:"column:digits;not null;default:6"`
+	Period         int        `gorm:"column:period;not null;default:30"`
+	CreatedAt      time.Time  `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt      time.Time  `gorm:"column:updated_at;not null;autoUpdateTime"`
 }
 
 func (UserMFATOTPSecret) TableName() string { return "user_mfa_totp_secrets" }
