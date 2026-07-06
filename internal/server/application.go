@@ -97,4 +97,5 @@ type Application struct {
 	AuditLogger                auditlog.ManagementAuditLogger
 	AuditLogRepo               auditlog.ManagementAuditLogRepository
 	KeyRotationService         oauth.KeyRotationService
+	TokenRevocationService     oauth.TokenRevocationService
 }

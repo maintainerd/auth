@@ -97,6 +97,7 @@ type svcs struct {
 	ipRestrictionRuleRepo        secpolicy.IPRestrictionRuleRepository
 	auditLogger                  auditlog.ManagementAuditLogger
 	keyRotationService           oauth.KeyRotationService
+	tokenRevocationService       oauth.TokenRevocationService
 }
 
 // listenerChecker adapts webhook and event-route repos for the write gate.
@@ -316,6 +317,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		ipRestrictionRuleRepo:        r.ipRestrictionRuleRepo,
 		auditLogger:                  auditlog.NewManagementAuditLogger(r.auditLogRepo),
 		keyRotationService:           oauth.NewKeyRotationService(r.signingKeyRepo),
+		tokenRevocationService:       oauth.NewTokenRevocationService(r.tokenRevocationRepo),
 	}
 	// Wire the broker provider resolver so the oauth broker flow (idp_hint →
 	// upstream provider) can resolve provider authorize endpoints + client_ids

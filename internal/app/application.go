@@ -77,5 +77,6 @@ func (a *App) ServerApplication() *server.Application {
 		AuditLogger:                  a.AuditLogger,
 		AuditLogRepo:                 a.AuditLogRepo,
 		KeyRotationService:           a.KeyRotationService,
+		TokenRevocationService:       a.TokenRevocationService,
 	}
 }

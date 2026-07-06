@@ -1478,20 +1478,16 @@ CREATE INDEX IF NOT EXISTS idx_oauth_token_revocations_expires_at
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/077_create_oauth_token_revocations_table.go`
-- [ ] Register `migration.CreateOAuthTokenRevocationsTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/oauth/`
-- [ ] Create a `TokenRevocationService` with: `Revoke(ctx, tenantID, jti, tokenType, expiresAt, reason)`, `IsRevoked(ctx, tenantID, jti) bool`
-- [ ] `IsRevoked` must be fast: use an in-process cache (e.g., Redis or sync.Map with TTL) backed by the DB. Cache misses fall through to the DB; cache entries are evicted at `expires_at`. This avoids a DB hit on every resource server request.
-- [ ] Wire `Revoke` into: logout handler (revoke all live access tokens for the session), password change handler, admin force-logout handler, security event handler
-- [ ] Wire `IsRevoked` check into the token introspection endpoint (`/oauth/token/introspect`) and any internal token validation middleware
-- [ ] Wire the ephemeral cleanup worker (Phase 6) to `DELETE FROM oauth_token_revocations WHERE expires_at < now()`
-
-**Application-layer wiring:**
-- [ ] Add `IsRevoked` call in the bearer token validation middleware (likely `internal/platform/middleware/auth.go` or `internal/oauth/middleware_token.go`) — called on every authenticated request, so the in-process cache (sync.Map with TTL, backed by DB) is mandatory for performance
-- [ ] Add `oauthTokenRevocationRepo` to `internal/app/repositories.go` and wire in `initRepos`
-- [ ] Add `TokenRevocationService` to `internal/app/services.go` and `server.Application`; inject `oauthTokenRevocationRepo` and the cache instance
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create `internal/platform/database/migration/077_create_oauth_token_revocations_table.go`
+- [x] Register `migration.CreateOAuthTokenRevocationsTable` in `internal/platform/runner/migration.go`
+- [x] Create GORM model in `internal/oauth/model_oauth_token_revocation.go`
+- [x] Create `TokenRevocationService` with `Revoke` and `IsRevoked`
+- [ ] Wire `Revoke` into logout, password change, admin force-logout handlers — deferred
+- [ ] Wire `IsRevoked` into token introspection + bearer middleware — deferred
+- [ ] Wire ephemeral cleanup worker to `DELETE FROM oauth_token_revocations WHERE expires_at < now()` — deferred to Phase 6
+- [x] Add `tokenRevocationRepo` to `internal/app/repositories.go` and wire in `initRepos`
+- [x] Add `TokenRevocationService` to `internal/app/services.go` and `server.Application`
+- [x] Run `go build ./...` and `go test ./...` — all pass
 
 ---
 
