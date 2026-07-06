@@ -3,7 +3,7 @@ package oauth
 import (
 	"net/http"
 
-	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 )
 
 // OAuthTokenExchangeHandler handles the Token Exchange grant (RFC 8693).
@@ -18,30 +18,27 @@ func NewOAuthTokenExchangeHandler(tokenExchangeService OAuthTokenExchangeService
 
 // Exchange handles POST /oauth/token with grant_type=urn:ietf:params:oauth:grant-type:token-exchange.
 func (h *OAuthTokenExchangeHandler) Exchange(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		resp.Error(w, http.StatusBadRequest, "invalid form data")
-		return
-	}
+	// Q6: r.PostFormValue calls ParseForm internally — no explicit call needed.
+	// B3: Resolve credentials first so Basic-auth clients populate ClientID before validation.
+	creds := extractOAuthClientCredentials(r, r.PostFormValue("client_id"), r.PostFormValue("client_secret"))
 
 	req := OAuthTokenExchangeRequestDTO{
-		SubjectToken:       r.FormValue("subject_token"),
-		SubjectTokenType:   r.FormValue("subject_token_type"),
-		RequestedTokenType: r.FormValue("requested_token_type"),
-		Scope:              r.FormValue("scope"),
-		Audience:           r.FormValue("audience"),
-		Resource:           r.FormValue("resource"),
-		ActorToken:         r.FormValue("actor_token"),
-		ActorTokenType:     r.FormValue("actor_token_type"),
-		ClientID:           r.FormValue("client_id"),
-		ClientSecret:       r.FormValue("client_secret"),
+		SubjectToken:       r.PostFormValue("subject_token"),        // B5
+		SubjectTokenType:   r.PostFormValue("subject_token_type"),   // B5
+		RequestedTokenType: r.PostFormValue("requested_token_type"), // B5
+		Scope:              r.PostFormValue("scope"),                // B5
+		Audience:           r.PostFormValue("audience"),             // B5
+		Resource:           r.PostFormValue("resource"),             // B5
+		ActorToken:         r.PostFormValue("actor_token"),          // B5
+		ActorTokenType:     r.PostFormValue("actor_token_type"),     // B5
+		ClientID:           creds.ClientID,                          // B3: from resolved creds
+		ClientSecret:       creds.ClientSecret,
 	}
 
 	if err := req.Validate(); err != nil {
-		resp.ValidationError(w, err)
+		apperror.NewOAuthInvalidRequest(err.Error()).WriteJSON(w) // B4
 		return
 	}
-
-	creds := extractOAuthClientCredentials(r, r.FormValue("client_id"), r.FormValue("client_secret"))
 
 	result, oerr := h.tokenExchangeService.Exchange(r.Context(), req, creds)
 	if oerr != nil {

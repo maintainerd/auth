@@ -16,7 +16,7 @@ func TestNewWebAuthnService_ConfiguresSharedLocalRP(t *testing.T) {
 	config.AppPublicHostname = "https://public-api.auth.maintainerd.local"
 	db, _ := newMockGormDB(t)
 
-	got, err := NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{}, nil)
+	got, err := NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{}, &mockWebAuthnChallengeRepo{})
 
 	require.NoError(t, err)
 	configured := got.(*webAuthnService).wa.Config

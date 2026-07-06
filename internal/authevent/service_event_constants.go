@@ -24,6 +24,7 @@ const (
 
 // OWASP Logging Vocabulary event type constants for the AUTHN category.
 const (
+	AuthEventTypeMFAEnrolled           = "authn_mfa_enrolled"
 	AuthEventTypeLoginSuccess          = "authn_login_success"
 	AuthEventTypeLoginFail             = "authn_login_fail"
 	AuthEventTypeLoginFailMax          = "authn_login_fail_max"

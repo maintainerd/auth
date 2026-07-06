@@ -56,13 +56,13 @@ func TestNewWebAuthnService(t *testing.T) {
 	db, _ := newMockGormDB(t)
 
 	config.AppPublicHostname = "https://auth.example.com"
-	got, err := NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{}, nil)
+	got, err := NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{}, &mockWebAuthnChallengeRepo{})
 
 	require.NoError(t, err)
 	assert.IsType(t, &webAuthnService{}, got)
 
 	config.AppPublicHostname = "not a url with spaces"
-	got, err = NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{}, nil)
+	got, err = NewWebAuthnService(db, &mockUserRepo{}, &mockMFAWebAuthnCredentialRepo{}, &mockWebAuthnSessionStore{}, &mockAuthEventService{}, &mockWebAuthnChallengeRepo{})
 	require.Error(t, err)
 	assert.Nil(t, got)
 }
@@ -192,6 +192,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore:        &mockWebAuthnSessionStore{},
+			challengeRepo:       &mockWebAuthnChallengeRepo{},
 		}
 		got, err := svc.BeginRegistration(t.Context(), mfaTestUserID)
 		require.NoError(t, err)
@@ -221,6 +222,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore:        &mockWebAuthnSessionStore{},
+			challengeRepo:       &mockWebAuthnChallengeRepo{},
 		}
 		got, err := svc.BeginAuthentication(t.Context(), mfaTestUserID)
 		require.NoError(t, err)
@@ -270,6 +272,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 				"webauthn:session:42:reg": {Challenge: "challenge"},
 			}},
 			authEventService: events,
+			challengeRepo:    &mockWebAuthnChallengeRepo{},
 		}
 		got, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", nil)
 		require.NoError(t, err)
@@ -334,6 +337,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 				"webauthn:session:42:auth": {Challenge: "challenge"},
 			}},
 			authEventService: events,
+			challengeRepo:    &mockWebAuthnChallengeRepo{},
 		}
 		got, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
 		require.NoError(t, err)

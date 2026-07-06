@@ -23,6 +23,7 @@ func StartCleanupRunner(ctx context.Context, db *gorm.DB, interval time.Duration
 	userTokenRepo := user.NewUserTokenRepository(db)
 	userOTPRepo := notifier.NewUserOTPRepository(db)
 	inviteRepo := invite.NewInviteRepository(db)
+	revocationRepo := NewOAuthTokenRevocationRepository(db)
 
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -65,6 +66,9 @@ func StartCleanupRunner(ctx context.Context, db *gorm.DB, interval time.Duration
 
 				n, err = inviteRepo.DeleteExpired(inviteCutoff)
 				logCleanup("invites", n, err)
+
+				n, err = revocationRepo.DeleteExpired()
+				logCleanup("oauth_token_revocations", n, err)
 			}
 		}
 	}()

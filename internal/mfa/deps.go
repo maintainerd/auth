@@ -30,3 +30,9 @@ type UserRepository interface {
 	FindByUUID(uuid any, preloads ...string) (*User, error)
 	WithTx(tx *gorm.DB) UserRepository
 }
+
+type WebAuthnChallengeRepository interface {
+	Store(challenge *WebAuthnChallenge) error
+	Consume(challenge string, operation string) error
+	DeleteExpired() (int64, error)
+}

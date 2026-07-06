@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS signing_keys (
     use                     VARCHAR(10)  NOT NULL,
     status                  VARCHAR(20)  NOT NULL DEFAULT 'active',
     public_key_pem          TEXT         NOT NULL,
-    private_key_encrypted   BYTEA        NOT NULL,
+    private_key_encrypted   BYTEA,
     key_encryption_key_id   VARCHAR(255) NOT NULL,
     rotated_at              TIMESTAMPTZ,
     expires_at              TIMESTAMPTZ,

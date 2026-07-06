@@ -238,3 +238,33 @@ type UserIdentityRepository interface {
 type ClientPermissionResolver interface {
 	ResolvePermissions(ctx context.Context, clientID int64) ([]string, error)
 }
+
+// ---------------------------------------------------------------------------
+// OAuth-package-owned repository interfaces
+//
+// These were previously declared next to their implementations. They live here
+// so that other files in the oauth package can reference them without importing
+// the concrete repository files, following the same consumer-interface pattern
+// used for cross-domain repos above.
+// ---------------------------------------------------------------------------
+
+// SigningKeyRepository manages asymmetric key pairs used for token signing.
+type SigningKeyRepository interface {
+	FindActiveByTenantID(tenantID int64) ([]SigningKey, error)
+	FindByKID(kid string) (*SigningKey, error)
+	Create(key *SigningKey) error
+	RetireByKID(kid string) error
+	MarkCompromised(kid string) error
+}
+
+// OAuthTokenRevocationRepository stores revoked token JTIs for introspection checks.
+type OAuthTokenRevocationRepository interface {
+	Revoke(revocation *OAuthTokenRevocation) error
+	IsRevoked(tenantID int64, jti string) (bool, error)
+	DeleteExpired() (int64, error)
+}
+
+// OAuthTokenExchangeRepository records RFC 8693 token exchange events for audit.
+type OAuthTokenExchangeRepository interface {
+	Record(exchange *OAuthTokenExchange) error
+}

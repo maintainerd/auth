@@ -2,8 +2,6 @@ package authn
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"time"
 
 	"github.com/google/uuid"
@@ -78,7 +76,7 @@ func (s *sessionService) RevokeSession(ctx context.Context, userID int64, sessio
 		return apperror.NewNotFound("session not found")
 	}
 
-	if err := s.sessionRepo.RevokeByUUID(userID, sessionUUID); err != nil {
+	if err := s.sessionRepo.RevokeByUUID(userID, sessionUUID, "logout"); err != nil {
 		span.RecordError(err)
 		return err
 	}
@@ -176,7 +174,7 @@ func (s *sessionService) EnforceConcurrentLimitWithPolicy(ctx context.Context, u
 	}
 
 	oldest := sessions[0]
-	if err := s.sessionRepo.RevokeByUUID(userID, oldest.UserSessionUUID); err != nil {
+	if err := s.sessionRepo.RevokeByUUID(userID, oldest.UserSessionUUID, "concurrent_limit"); err != nil {
 		span.RecordError(err)
 		return err
 	}
@@ -201,13 +199,13 @@ func (s *sessionService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.
 	now := time.Now()
 
 	if !sess.ExpiresAt.IsZero() && now.After(sess.ExpiresAt) {
-		_ = s.sessionRepo.RevokeByUUID(userID, sessionUUID)
+		_ = s.sessionRepo.RevokeByUUID(userID, sessionUUID, "session_expired")
 		return apperror.NewUnauthorized("session has expired")
 	}
 
 	idleSince := now.Sub(sess.LastActiveAt)
 	if idleSince > time.Duration(sess.IdleTimeoutSeconds)*time.Second {
-		_ = s.sessionRepo.RevokeByUUID(userID, sessionUUID)
+		_ = s.sessionRepo.RevokeByUUID(userID, sessionUUID, "session_expired")
 		return apperror.NewUnauthorized("session has expired due to inactivity")
 	}
 
@@ -240,13 +238,4 @@ func toSessionDataResult(s *UserSession) *SessionDataResult {
 		ExpiresAt:    &s.ExpiresAt,
 		CreatedAt:    s.CreatedAt,
 	}
-}
-
-var randRead = rand.Read
-func generateRandomToken(byteLen int) (string, error) {
-	b := make([]byte, byteLen)
-	if _, err := randRead(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
 }

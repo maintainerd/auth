@@ -14,5 +14,5 @@ func TestOAuthServiceConstructors(t *testing.T) {
 	assert.IsType(t, &oauthPARService{}, NewOAuthPARService(db, &mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthPARRepo{}, &mockAuthEventService{}))
 	assert.IsType(t, &oauthRegisterService{}, NewOAuthRegisterService(db, &mockClientRepo{}, &mockClientURIRepo{}, &mockTenantRepo{}, &mockAuthEventService{}))
 	assert.IsType(t, &oauthSessionService{}, NewOAuthSessionService(db, &mockClientRepo{}, &mockUserRepo{}, &mockOAuthRefreshTokenRepo{}, &mockAuthEventService{}))
-	assert.IsType(t, &oauthTokenExchangeService{}, NewOAuthTokenExchangeService(db, &mockClientRepo{}, &mockUserRepo{}, &mockAuthEventService{}))
+	assert.IsType(t, &oauthTokenExchangeService{}, NewOAuthTokenExchangeService(db, &mockClientRepo{}, &mockUserRepo{}, &mockAuthEventService{}, nil))
 }

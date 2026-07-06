@@ -36,5 +36,8 @@ func (m *ManagementAuditLog) BeforeCreate(_ *gorm.DB) error {
 	if m.ManagementAuditLogUUID == uuid.Nil {
 		m.ManagementAuditLogUUID = uuid.New()
 	}
+	if len(m.Changes) == 0 {
+		m.Changes = datatypes.JSON("{}")
+	}
 	return nil
 }

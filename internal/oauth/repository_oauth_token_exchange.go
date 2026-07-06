@@ -5,10 +5,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type OAuthTokenExchangeRepository interface {
-	Record(exchange *OAuthTokenExchange) error
-}
-
 type oauthTokenExchangeRepository struct {
 	*BaseRepository[OAuthTokenExchange]
 }
