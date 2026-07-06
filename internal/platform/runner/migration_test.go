@@ -15,7 +15,7 @@ import (
 func TestMigrations_RegisterLatestMigration(t *testing.T) {
 	require.NotEmpty(t, migrations)
 	last := migrations[len(migrations)-1]
-	assert.Equal(t, "078_create_oauth_token_exchanges_table", last.Version)
+	assert.Equal(t, "083_create_oauth_dpop_nonces_table", last.Version)
 	assert.NotNil(t, last.Fn)
 }
 

@@ -280,6 +280,12 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("webhook-endpoint:update", "Update webhook endpoint", tenantID, apiID),
 		newPermission("webhook-endpoint:delete", "Delete webhook endpoint", tenantID, apiID),
 
+		// Workload Identity Federations (keyless external workload auth: K8s, GitHub Actions, GitLab CI)
+		newPermission("workload-identity-federation:read", "Read workload identity federations", tenantID, apiID),
+		newPermission("workload-identity-federation:create", "Create workload identity federation", tenantID, apiID),
+		newPermission("workload-identity-federation:update", "Update workload identity federation", tenantID, apiID),
+		newPermission("workload-identity-federation:delete", "Delete workload identity federation", tenantID, apiID),
+
 		// OTHER PERMISSIONS
 		// Email
 		newPermission("email:read-config", "View email delivery config", tenantID, apiID),

@@ -281,10 +281,10 @@ func TestOAuthConsentGrantRepository(t *testing.T) {
 	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 3, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid"}})
 	require.Error(t, err)
 
-	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid","email"}})
+	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid", "email"}})
 	require.Error(t, err) // Save error
 
-	updated, err := repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid","email"}})
+	updated, err := repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid", "email"}})
 	require.NoError(t, err)
 	require.NotNil(t, updated)
 	created, err := repo.Upsert(&OAuthConsentGrant{UserID: 2, ClientID: 10, TenantID: 1, Scopes: pq.StringArray{"openid"}})

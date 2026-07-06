@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/invite"
 	"github.com/maintainerd/maintainerd-auth/internal/mfa"
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
@@ -26,6 +27,8 @@ func StartCleanupRunner(ctx context.Context, db *gorm.DB, interval time.Duration
 	inviteRepo := invite.NewInviteRepository(db)
 	revocationRepo := NewOAuthTokenRevocationRepository(db)
 	webAuthnChallengeRepo := mfa.NewWebAuthnChallengeRepository(db)
+	accountLinkRepo := authn.NewAccountLinkRequestRepository(db)
+	dpopNonceRepo := NewOAuthDPoPNonceRepository(db)
 
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -74,6 +77,12 @@ func StartCleanupRunner(ctx context.Context, db *gorm.DB, interval time.Duration
 
 				n, err = webAuthnChallengeRepo.DeleteExpired()
 				logCleanup("webauthn_challenges", n, err)
+
+				n, err = accountLinkRepo.ExpireStale(now)
+				logCleanup("account_link_requests", n, err)
+
+				n, err = dpopNonceRepo.DeleteExpired()
+				logCleanup("oauth_dpop_nonces", n, err)
 			}
 		}
 	}()

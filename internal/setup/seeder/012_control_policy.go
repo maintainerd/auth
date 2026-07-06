@@ -81,6 +81,7 @@ func controlPolicyDocument() model.PolicyDocument {
 					"email-config:*",
 					"sms-config:*",
 					"webhook-endpoint:*",
+					"workload-identity-federation:*",
 					"security:*",
 					"settings:*",
 					"notification:*",

@@ -70,12 +70,12 @@ func (m *mockLogoutUserRepo) FindPaginated(filter UserRepositoryGetFilter) (*Pag
 func (m *mockLogoutUserRepo) SetEmailVerified(id uuid.UUID, verified bool) error    { return nil }
 func (m *mockLogoutUserRepo) SetStatus(id uuid.UUID, status string) error           { return nil }
 func (m *mockLogoutUserRepo) SetForcePasswordChange(id uuid.UUID, force bool) error { return nil }
-func (m *mockLogoutUserRepo) ClearEmailChange(id uuid.UUID) error { return nil }
-func (m *mockLogoutUserRepo) UpdateEmail(id uuid.UUID, email string) error       { return nil }
-func (m *mockLogoutUserRepo) UpdateUsername(id uuid.UUID, username string) error { return nil }
-func (m *mockLogoutUserRepo) Create(e *User) (*User, error) { return e, nil }
-func (m *mockLogoutUserRepo) CreateOrUpdate(e *User) (*User, error)              { return e, nil }
-func (m *mockLogoutUserRepo) FindAll(p ...string) ([]User, error)                { return nil, nil }
+func (m *mockLogoutUserRepo) ClearEmailChange(id uuid.UUID) error                   { return nil }
+func (m *mockLogoutUserRepo) UpdateEmail(id uuid.UUID, email string) error          { return nil }
+func (m *mockLogoutUserRepo) UpdateUsername(id uuid.UUID, username string) error    { return nil }
+func (m *mockLogoutUserRepo) Create(e *User) (*User, error)                         { return e, nil }
+func (m *mockLogoutUserRepo) CreateOrUpdate(e *User) (*User, error)                 { return e, nil }
+func (m *mockLogoutUserRepo) FindAll(p ...string) ([]User, error)                   { return nil, nil }
 func (m *mockLogoutUserRepo) FindByUUIDs(ids []string, p ...string) ([]User, error) {
 	return nil, nil
 }

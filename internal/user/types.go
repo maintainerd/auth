@@ -136,23 +136,23 @@ type ProfileFilterDTO struct {
 
 // User output structure
 type UserResponseDTO struct {
-	UserUUID           uuid.UUID          `json:"user_id"`
-	Username           string             `json:"username"`
-	Fullname           string             `json:"fullname"`
-	Email              string             `json:"email"`
-	Phone              string             `json:"phone"`
+	UserUUID        uuid.UUID          `json:"user_id"`
+	Username        string             `json:"username"`
+	Fullname        string             `json:"fullname"`
+	Email           string             `json:"email"`
+	Phone           string             `json:"phone"`
 	IsEmailVerified bool               `json:"is_email_verified"`
 	IsPhoneVerified bool               `json:"is_phone_verified"`
 	PhoneVerifiedAt *time.Time         `json:"phone_verified_at,omitempty"`
 	Status          string             `json:"status"`
-	Metadata           datatypes.JSON     `json:"metadata"`
-	LastLoginAt        *time.Time         `json:"last_login_at,omitempty"`
-	LoginCount         int                `json:"login_count,omitempty"`
-	EmailVerifiedAt    *time.Time         `json:"email_verified_at,omitempty"`
-	ExternalID         *string            `json:"external_id,omitempty"`
-	Tenant             *TenantResponseDTO `json:"tenant,omitempty"`
-	CreatedAt          time.Time          `json:"created_at"`
-	UpdatedAt          time.Time          `json:"updated_at"`
+	Metadata        datatypes.JSON     `json:"metadata"`
+	LastLoginAt     *time.Time         `json:"last_login_at,omitempty"`
+	LoginCount      int                `json:"login_count,omitempty"`
+	EmailVerifiedAt *time.Time         `json:"email_verified_at,omitempty"`
+	ExternalID      *string            `json:"external_id,omitempty"`
+	Tenant          *TenantResponseDTO `json:"tenant,omitempty"`
+	CreatedAt       time.Time          `json:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at"`
 }
 
 type UserIdentityResponseDTO struct {
@@ -166,12 +166,12 @@ type UserIdentityResponseDTO struct {
 }
 
 type UserMFAResponseDTO struct {
-	IsTOTPEnabled     bool                    `json:"is_totp_enabled"`
-	IsWebAuthnEnabled bool                    `json:"is_webauthn_enabled"`
-	IsSMSEnabled      bool                    `json:"is_sms_enabled"`
-	BackupCodesCount  int                     `json:"backup_codes_count"`
-	WebAuthnKeys      []UserMFAWebAuthnKeyDTO `json:"webauthn_keys,omitempty"`
-	FirstMFAEnrolledAt *string                `json:"mfa_enabled_at,omitempty"`
+	IsTOTPEnabled      bool                    `json:"is_totp_enabled"`
+	IsWebAuthnEnabled  bool                    `json:"is_webauthn_enabled"`
+	IsSMSEnabled       bool                    `json:"is_sms_enabled"`
+	BackupCodesCount   int                     `json:"backup_codes_count"`
+	WebAuthnKeys       []UserMFAWebAuthnKeyDTO `json:"webauthn_keys,omitempty"`
+	FirstMFAEnrolledAt *string                 `json:"mfa_enabled_at,omitempty"`
 }
 
 type UserMFAWebAuthnKeyDTO struct {

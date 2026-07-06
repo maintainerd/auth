@@ -402,16 +402,16 @@ func toUserProto(result *UserServiceDataResult) *authv1.User {
 		return nil
 	}
 	return &authv1.User{
-		UserUuid:           result.UserUUID.String(),
-		Username:           result.Username,
-		Fullname:           result.Fullname,
-		Email:              result.Email,
-		Phone:              result.Phone,
+		UserUuid:        result.UserUUID.String(),
+		Username:        result.Username,
+		Fullname:        result.Fullname,
+		Email:           result.Email,
+		Phone:           result.Phone,
 		IsEmailVerified: result.IsEmailVerified,
 		IsPhoneVerified: result.IsPhoneVerified,
 		Status:          result.Status,
-		CreatedAt:          timestamppb.New(result.CreatedAt),
-		UpdatedAt:          timestamppb.New(result.UpdatedAt),
+		CreatedAt:       timestamppb.New(result.CreatedAt),
+		UpdatedAt:       timestamppb.New(result.UpdatedAt),
 	}
 }
 

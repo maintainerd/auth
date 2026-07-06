@@ -12,6 +12,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/runner"
 	appserver "github.com/maintainerd/maintainerd-auth/internal/server"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 )
 
 var (
@@ -20,6 +21,7 @@ var (
 	startKeyRotationRunner     = runner.StartKeyRotationRunner
 	startSecretRefreshRunner   = runner.StartSecretRefreshRunner
 	startCleanupRunner         = oauth.StartCleanupRunner
+	startDataErasureWorker     = user.StartDataErasureWorker
 	startGRPCServer            = appserver.StartGRPCServer
 )
 
@@ -33,6 +35,11 @@ func startBackgroundWorkers(ctx context.Context, application *app.App, serverApp
 	// Ephemeral-row cleanup runs at 5-minute intervals to prevent unbounded
 	// growth of short-lived tables (OAuth codes, tokens, challenges, OTPs, etc.).
 	go startCleanupRunner(ctx, application.DB, 5*time.Minute)
+
+	// GDPR Article 17 erasure worker: anonymizes users whose erasure request is
+	// due and not under legal hold. Distinct from the DELETE-expired cleanup jobs
+	// because erasure is a multi-table anonymization.
+	go startDataErasureWorker(ctx, application.DataErasureService, 15*time.Minute)
 
 	// Partition manager pre-creates next month's auth_events partition daily.
 	authevent.StartPartitionManager(ctx, application.DB, 24*time.Hour)

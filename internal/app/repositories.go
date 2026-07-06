@@ -2,11 +2,12 @@ package app
 
 import (
 	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
-	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/federation"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
 	"github.com/maintainerd/maintainerd-auth/internal/invite"
@@ -88,6 +89,11 @@ type repos struct {
 	signingKeyRepo            oauth.SigningKeyRepository
 	tokenRevocationRepo       oauth.OAuthTokenRevocationRepository
 	tokenExchangeRepo         oauth.OAuthTokenExchangeRepository
+	wifRepo                   federation.WorkloadIdentityFederationRepository
+	dataErasureRequestRepo    user.DataErasureRequestRepository
+	accountLinkRequestRepo    authn.AccountLinkRequestRepository
+	policyVersionHistoryRepo  iam.PolicyVersionHistoryRepository
+	oauthDPoPNonceRepo        oauth.OAuthDPoPNonceRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -157,5 +163,10 @@ func initRepos(db *gorm.DB) *repos {
 		signingKeyRepo:            oauth.NewSigningKeyRepository(db),
 		tokenRevocationRepo:       oauth.NewOAuthTokenRevocationRepository(db),
 		tokenExchangeRepo:         oauth.NewOAuthTokenExchangeRepository(db),
+		wifRepo:                   federation.NewWorkloadIdentityFederationRepository(db),
+		dataErasureRequestRepo:    user.NewDataErasureRequestRepository(db),
+		accountLinkRequestRepo:    authn.NewAccountLinkRequestRepository(db),
+		policyVersionHistoryRepo:  iam.NewPolicyVersionHistoryRepository(db),
+		oauthDPoPNonceRepo:        oauth.NewOAuthDPoPNonceRepository(db),
 	}
 }

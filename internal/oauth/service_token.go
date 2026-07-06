@@ -387,15 +387,15 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 			rtHash := crypto.HashRefreshToken(rawRT)
 
 			rtTTL := s.refreshTokenTTL(client)
-newToken := &OAuthRefreshToken{
-			TokenHash: rtHash,
-			FamilyID:  storedToken.FamilyID,
-			ClientID:  client.ClientID,
-			UserID:    storedToken.UserID,
-			TenantID:  client.TenantID,
-			Scope:     parseScopeFields(scope),
-			ExpiresAt: time.Now().Add(rtTTL),
-		}
+			newToken := &OAuthRefreshToken{
+				TokenHash: rtHash,
+				FamilyID:  storedToken.FamilyID,
+				ClientID:  client.ClientID,
+				UserID:    storedToken.UserID,
+				TenantID:  client.TenantID,
+				Scope:     parseScopeFields(scope),
+				ExpiresAt: time.Now().Add(rtTTL),
+			}
 			if _, err := txRefreshRepo.Create(newToken); err != nil {
 				return err
 			}

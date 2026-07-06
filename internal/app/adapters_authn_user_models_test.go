@@ -19,7 +19,7 @@ func TestToAuthnUserCopiesMFAFlags(t *testing.T) {
 		UserID:                     7,
 		IsTOTPEnabled:              true,
 		IsWebAuthnEnabled:          true,
-		FirstMFAEnrolledAt:               &enabledAt,
+		FirstMFAEnrolledAt:         &enabledAt,
 		TemporaryPasswordExpiresAt: &tempExpiresAt,
 	}
 
@@ -41,7 +41,7 @@ func TestToAuthnUserCopiesMFAFlags(t *testing.T) {
 	back := toUserUser(&authn.User{
 		IsTOTPEnabled:              true,
 		IsWebAuthnEnabled:          true,
-		FirstMFAEnrolledAt:               &enabledAt,
+		FirstMFAEnrolledAt:         &enabledAt,
 		TemporaryPasswordExpiresAt: &tempExpiresAt,
 	})
 	if !back.IsTOTPEnabled || !back.IsWebAuthnEnabled || back.FirstMFAEnrolledAt == nil {

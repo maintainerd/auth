@@ -14,6 +14,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/dashboard"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/federation"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
 	"github.com/maintainerd/maintainerd-auth/internal/invite"
@@ -72,12 +73,14 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		iam.ServiceRoute(api, h.service, h.authorization, userProvider, application.Cache, tenantRateLimit)
 		iam.APIRoute(api, h.api, userProvider, application.Cache, tenantRateLimit)
 		iam.PermissionRoute(api, h.permission, userProvider, application.Cache, tenantRateLimit)
-		iam.PolicyRoute(api, h.policy, userProvider, application.Cache, tenantRateLimit)
+		iam.PolicyRoute(api, h.policy, h.policyHistory, userProvider, application.Cache, tenantRateLimit)
 		idp.IdentityProviderRoute(api, h.identityProvider, h.federation, userProvider, application.Cache, tenantRateLimit)
 		client.ClientRoute(api, h.client, userProvider, application.Cache, tenantRateLimit)
 		iam.RoleRoute(api, h.role, userProvider, application.Cache, tenantRateLimit)
 		user.UserRoute(api, h.user, h.profile, h.userTrustedDevice, h.userConsent, userProvider, application.Cache, tenantRateLimit)
 		user.UserTrustedDeviceRoute(api, h.userTrustedDevice, userProvider, application.Cache, tenantRateLimit)
+		user.DataErasureAdminRoute(api, h.dataErasure, userProvider, application.Cache, tenantRateLimit)
+		user.DataErasureSelfRoute(api, h.dataErasure, userProvider, application.Cache, tenantRateLimit)
 		invite.InviteRoute(api, h.invite, userProvider, application.Cache, tenantRateLimit)
 		idp.RegistrationFlowRoute(api, h.registrationFlow, userProvider, application.Cache, tenantRateLimit)
 		secpolicy.SecuritySettingRoute(api, h.securitySetting, userProvider, application.Cache, tenantRateLimit)
@@ -98,6 +101,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache, tenantRateLimit)
 		iam.AuthorizationRoute(api, h.authorization)
 		auditlog.ManagementAuditLogRoute(api, h.auditLog, userProvider, application.Cache, tenantRateLimit)
+		federation.WorkloadIdentityFederationRoute(api, h.wif, userProvider, application.Cache, tenantRateLimit)
 		dashboard.DashboardRoute(api, h.dashboard, userProvider, application.Cache, tenantRateLimit)
 
 		// Account self-service routes (authenticated)
@@ -200,6 +204,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 			user.UserSettingRoute(cookieAuth, h.userSetting, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			user.AccountRoute(cookieAuth, h.account, h.userConsent, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRuntimeMiddleware...)
 			user.UserTrustedDeviceRoute(cookieAuth, h.userTrustedDevice, userProvider, application.Cache, tenantRuntimeMiddleware...)
+			user.DataErasureSelfRoute(cookieAuth, h.dataErasure, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			mfa.MFAPublicRoute(cookieAuth, h.mfa, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			idp.FederationIdentityRoute(cookieAuth, h.federation, userProvider, application.Cache, tenantRuntimeMiddleware...)
 		})
@@ -210,6 +215,8 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		idp.FederationPublicRoute(api, h.federation)
 		// SMS login (unauthenticated, client-scoped)
 		authn.SMSLoginPublicRoute(api, h.smsLogin)
+		// Account-link confirmation (authenticated: user re-auths as the existing account)
+		authn.AccountLinkConfirmRoute(api, h.accountLink, userProvider, application.Cache, tenantRuntimeMiddleware...)
 		// Account recovery via backup code (unauthenticated)
 		user.RecoveryRoute(api, h.account)
 		// Public branding (colors + logo, non-sensitive, no auth)

@@ -17,11 +17,23 @@ type OAuthTokenHandler struct {
 	tokenService OAuthTokenService
 	nonceManager *dpop.NonceManager
 	dpopStore    dpop.JTIStore
+	// nonceIssuer + dpopResolver enable the RFC 9449 §8 DPoP server-nonce gate
+	// for clients with dpop_required=TRUE. Both nil → gate disabled (default).
+	nonceIssuer  *dpop.StoreNonceManager
+	dpopResolver DPoPRequirementResolver
 }
 
 // NewOAuthTokenHandler creates a new OAuthTokenHandler.
 func NewOAuthTokenHandler(tokenService OAuthTokenService, nonceManager *dpop.NonceManager, dpopStore dpop.JTIStore) *OAuthTokenHandler {
 	return &OAuthTokenHandler{tokenService: tokenService, nonceManager: nonceManager, dpopStore: dpopStore}
+}
+
+// SetDPoPNonceGate installs the store-backed DPoP nonce manager and the client
+// DPoP-requirement resolver used by the token endpoint's RFC 9449 §8 nonce gate.
+// When either is nil the gate is disabled. Call once at startup.
+func (h *OAuthTokenHandler) SetDPoPNonceGate(nonceIssuer *dpop.StoreNonceManager, resolver DPoPRequirementResolver) {
+	h.nonceIssuer = nonceIssuer
+	h.dpopResolver = resolver
 }
 
 // Token handles POST /oauth/token (RFC 6749 §4.1.3, §6, §4.4). The
@@ -69,6 +81,14 @@ func (h *OAuthTokenHandler) Token(w http.ResponseWriter, r *http.Request) {
 
 	creds := extractClientCredentials(r, req)
 
+	// DPoP server-nonce gate (RFC 9449 §8) — only for clients with
+	// dpop_required=TRUE. When the client requires DPoP and the proof carries no
+	// valid server nonce, issue one and reply 400 use_dpop_nonce so the client
+	// retries with the nonce in its proof.
+	if h.enforceDPoPNonce(w, r, creds) {
+		return
+	}
+
 	result, oerr := h.tokenService.Exchange(r.Context(), req, creds)
 	if oerr != nil {
 		oerr.WriteJSON(w)
@@ -80,6 +100,34 @@ func (h *OAuthTokenHandler) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeTokenResponse(w, result)
+}
+
+// enforceDPoPNonce runs the RFC 9449 §8 server-nonce gate. It returns true when
+// it has written a response (the caller must stop). It is a no-op (returns
+// false) when the gate is not configured, the client cannot be resolved, or the
+// client does not require DPoP.
+func (h *OAuthTokenHandler) enforceDPoPNonce(w http.ResponseWriter, r *http.Request, creds OAuthClientCredentials) bool {
+	if h.nonceIssuer == nil || h.dpopResolver == nil {
+		return false
+	}
+	requirement, ok := h.dpopResolver.ResolveDPoPRequirement(r.Context(), creds.ClientID)
+	if !ok || !requirement.Required {
+		return false
+	}
+
+	nonce := dpop.ExtractProofNonce(r.Header.Get("DPoP"))
+	if nonce != "" && h.nonceIssuer.ConsumeNonce(r.Context(), nonce) == nil {
+		return false // valid single-use nonce consumed → proceed
+	}
+
+	newNonce, err := h.nonceIssuer.IssueNonce(r.Context(), requirement.TenantID, requirement.InternalClientID)
+	if err != nil {
+		apperror.NewOAuthServerError("failed to issue DPoP nonce").WriteJSON(w)
+		return true
+	}
+	w.Header().Set("DPoP-Nonce", newNonce)
+	apperror.NewOAuthUseDPoPNonce("a valid DPoP nonce is required; retry with the provided nonce").WriteJSON(w)
+	return true
 }
 
 // Revoke handles POST /oauth/revoke (RFC 7009). The request body is

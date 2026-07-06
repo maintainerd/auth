@@ -91,8 +91,8 @@ func (r *userLockoutRepository) ClearLockout(ctx context.Context, tenantID int64
 		Model(&UserLockout{}).
 		Where("tenant_id = ? AND identifier = ?", tenantID, identifier).
 		Updates(map[string]any{
-			"failed_count":  0,
-			"locked_until":  nil,
+			"failed_count":   0,
+			"locked_until":   nil,
 			"last_failed_at": nil,
 		}).Error
 }

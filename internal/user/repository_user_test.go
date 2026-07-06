@@ -635,5 +635,3 @@ func TestUserRepository_UpdateUsername(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
-
-

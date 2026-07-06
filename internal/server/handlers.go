@@ -8,12 +8,14 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/dashboard"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/federation"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
 	"github.com/maintainerd/maintainerd-auth/internal/invite"
 	"github.com/maintainerd/maintainerd-auth/internal/mfa"
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/dpop"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/setup"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
@@ -27,6 +29,7 @@ type handlers struct {
 	api                *iam.APIHandler
 	permission         *iam.PermissionHandler
 	policy             *iam.PolicyHandler
+	policyHistory      *iam.PolicyHistoryHandler
 	tenant             *tenant.TenantHandler
 	identityProvider   *idp.IdentityProviderHandler
 	client             *client.ClientHandler
@@ -76,6 +79,9 @@ type handlers struct {
 	eventManagement    *event.ManagementHandler
 	dashboard          *dashboard.Handler
 	auditLog           *auditlog.ManagementAuditLogHandler
+	wif                *federation.WorkloadIdentityFederationHandler
+	dataErasure        *user.DataErasureHandler
+	accountLink        *authn.AccountLinkHandler
 }
 
 func initHandlers(application *Application) *handlers {
@@ -84,6 +90,7 @@ func initHandlers(application *Application) *handlers {
 		api:                iam.NewAPIHandler(application.APIService),
 		permission:         iam.NewPermissionHandler(application.PermissionService),
 		policy:             iam.NewPolicyHandler(application.PolicyService),
+		policyHistory:      iam.NewPolicyHistoryHandler(application.PolicyService),
 		tenant:             tenant.NewTenantHandler(application.TenantService, application.TenantMemberService, application.BrandingService, application.SecuritySettingService),
 		identityProvider:   idp.NewIdentityProviderHandler(application.IdentityProviderService),
 		client:             client.NewClientHandler(application.ClientService),
@@ -133,6 +140,9 @@ func initHandlers(application *Application) *handlers {
 		eventManagement:    event.NewManagementHandler(application.EventRouteService),
 		dashboard:          dashboard.NewHandler(dashboard.NewService(application.DB)),
 		auditLog:           auditlog.NewManagementAuditLogHandler(application.AuditLogRepo),
+		wif:                federation.NewWorkloadIdentityFederationHandler(application.WorkloadIdentityFederationService),
+		dataErasure:        user.NewDataErasureHandler(application.DataErasureService, application.UserRepo),
+		accountLink:        authn.NewAccountLinkHandler(application.AccountLinkService),
 	}
 
 	// Inject the management audit logger into every write-path internal handler.
@@ -155,6 +165,16 @@ func initHandlers(application *Application) *handlers {
 	h.userTrustedDevice.SetAuditLogger(al)
 	h.account.SetAuditLogger(al)
 	h.invite.SetAuditLogger(al)
+	h.dataErasure.SetAuditLogger(al)
+
+	// Wire the DPoP server-nonce gate (RFC 9449 §8) onto the token endpoint.
+	// Only clients with dpop_required=TRUE are affected (default FALSE).
+	if application.OAuthDPoPNonceRepo != nil && application.DPoPRequirementResolver != nil {
+		h.oauthToken.SetDPoPNonceGate(
+			dpop.NewStoreNonceManager(application.OAuthDPoPNonceRepo),
+			application.DPoPRequirementResolver,
+		)
+	}
 
 	return h
 }

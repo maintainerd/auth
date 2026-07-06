@@ -68,17 +68,17 @@ func (r *tenantUserReader) FindByID(id int64) (*tenant.MemberUser, error) {
 
 func toTenantMemberUser(u *user.User) *tenant.MemberUser {
 	return &tenant.MemberUser{
-		UserID:             u.UserID,
-		UserUUID:           u.UserUUID,
-		Username:           u.Username,
-		Fullname:           u.Fullname,
-		Email:              u.Email,
-		Phone:              u.Phone,
+		UserID:          u.UserID,
+		UserUUID:        u.UserUUID,
+		Username:        u.Username,
+		Fullname:        u.Fullname,
+		Email:           u.Email,
+		Phone:           u.Phone,
 		IsEmailVerified: u.IsEmailVerified,
 		IsPhoneVerified: u.IsPhoneVerified,
 		Status:          u.Status,
-		Metadata:           u.Metadata,
-		CreatedAt:          u.CreatedAt,
-		UpdatedAt:          u.UpdatedAt,
+		Metadata:        u.Metadata,
+		CreatedAt:       u.CreatedAt,
+		UpdatedAt:       u.UpdatedAt,
 	}
 }

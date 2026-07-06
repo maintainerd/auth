@@ -54,7 +54,7 @@ func TestIAMRoutesRegister(t *testing.T) {
 		{
 			name: "policies",
 			register: func(r chi.Router) {
-				PolicyRoute(r, NewPolicyHandler(&mockPolicyService{}), nil, nil)
+				PolicyRoute(r, NewPolicyHandler(&mockPolicyService{}), NewPolicyHistoryHandler(&mockPolicyService{}), nil, nil)
 			},
 			routes: []struct {
 				method string

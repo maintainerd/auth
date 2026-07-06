@@ -22,12 +22,12 @@ const (
 // token endpoint. The user_code is displayed to the user who then visits the
 // verification URI to approve or deny access.
 type OAuthDeviceCode struct {
-	OAuthDeviceCodeID   int64     `gorm:"column:oauth_device_code_id;primaryKey;autoIncrement"`
-	OAuthDeviceCodeUUID uuid.UUID `gorm:"column:oauth_device_code_uuid;type:uuid;uniqueIndex;not null"`
-	DeviceCodeHash      string    `gorm:"column:device_code_hash;uniqueIndex;not null"`
-	UserCode            string    `gorm:"column:user_code;uniqueIndex;not null"`
-	ClientID            int64     `gorm:"column:client_id;not null"`
-	TenantID            int64     `gorm:"column:tenant_id;not null"`
+	OAuthDeviceCodeID   int64          `gorm:"column:oauth_device_code_id;primaryKey;autoIncrement"`
+	OAuthDeviceCodeUUID uuid.UUID      `gorm:"column:oauth_device_code_uuid;type:uuid;uniqueIndex;not null"`
+	DeviceCodeHash      string         `gorm:"column:device_code_hash;uniqueIndex;not null"`
+	UserCode            string         `gorm:"column:user_code;uniqueIndex;not null"`
+	ClientID            int64          `gorm:"column:client_id;not null"`
+	TenantID            int64          `gorm:"column:tenant_id;not null"`
 	Scope               pq.StringArray `gorm:"column:scope;type:text[];not null;default:'{}'"`
 	// UserID is set once the user approves the request at the verification URI.
 	UserID   *int64         `gorm:"column:user_id"`

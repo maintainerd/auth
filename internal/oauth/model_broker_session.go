@@ -23,12 +23,12 @@ type OAuthBrokerSession struct {
 	IdentityProviderIdentifier string    `gorm:"column:identity_provider_identifier;not null"`
 
 	// Original OAuth #1 (app → maintainerd) request, resumed after OAuth #2.
-	AppRedirectURI         string  `gorm:"column:app_redirect_uri;not null"`
-	AppState               *string `gorm:"column:app_state"`
+	AppRedirectURI         string         `gorm:"column:app_redirect_uri;not null"`
+	AppState               *string        `gorm:"column:app_state"`
 	AppScope               pq.StringArray `gorm:"column:app_scope;type:text[]"`
-	AppNonce               *string `gorm:"column:app_nonce"`
-	AppCodeChallenge       *string `gorm:"column:app_code_challenge"`
-	AppCodeChallengeMethod *string `gorm:"column:app_code_challenge_method"`
+	AppNonce               *string        `gorm:"column:app_nonce"`
+	AppCodeChallenge       *string        `gorm:"column:app_code_challenge"`
+	AppCodeChallengeMethod *string        `gorm:"column:app_code_challenge_method"`
 
 	// OAuth #2 (maintainerd → provider) correlation.
 	IdpState        string  `gorm:"column:idp_state;uniqueIndex;not null"`

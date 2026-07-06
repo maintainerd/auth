@@ -300,6 +300,46 @@ func UserRoute(
 	})
 }
 
+// DataErasureAdminRoute mounts the admin GDPR erasure endpoint on the internal
+// port (8080). It coexists with the /users subrouter registered by UserRoute.
+func DataErasureAdminRoute(
+	r chi.Router,
+	handler *DataErasureHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		// Admin requests erasure of a target user's data (GDPR Art.17).
+		r.With(middleware.PermissionMiddleware([]string{"user:delete"})).
+			Post("/users/{user_uuid}/erasure-requests", handler.RequestAdmin)
+	})
+}
+
+// DataErasureSelfRoute mounts the self-service GDPR erasure endpoint under /me.
+// It coexists with the /me subrouter registered by UserTrustedDeviceRoute.
+func DataErasureSelfRoute(
+	r chi.Router,
+	handler *DataErasureHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		// Authenticated user requests erasure of their own account (GDPR Art.17).
+		r.With(middleware.PermissionMiddleware([]string{"account:user:delete:self"})).
+			Post("/me/erasure-request", handler.RequestSelf)
+	})
+}
+
 func UserSettingRoute(
 	r chi.Router,
 	userSettingHandler *UserSettingHandler,

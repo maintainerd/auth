@@ -35,6 +35,9 @@ type UserIdentityRepository interface {
 	FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error)
 	// FindByIdentityProviderID lists all identities linked to a configured IDP.
 	FindByIdentityProviderID(idpID int64) ([]UserIdentity, error)
+	// FindByTenantProviderAndSub resolves an external identity by its
+	// (tenant, provider, sub) triple. Returns nil when unlinked.
+	FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error)
 	DeleteByUserID(userID int64) error
 }
 

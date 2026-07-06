@@ -2030,12 +2030,12 @@ func TestUserService_GetUserMFA(t *testing.T) {
 		mfaAt := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{
-				UserID:            userID,
-				IsTOTPEnabled:     true,
-				IsWebAuthnEnabled: true,
-				IsPhoneVerified:   true,
-				FirstMFAEnrolledAt:      &mfaAt,
-				UserIdentities:    []UserIdentity{{TenantID: 1}},
+				UserID:             userID,
+				IsTOTPEnabled:      true,
+				IsWebAuthnEnabled:  true,
+				IsPhoneVerified:    true,
+				FirstMFAEnrolledAt: &mfaAt,
+				UserIdentities:     []UserIdentity{{TenantID: 1}},
 			}, nil
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)

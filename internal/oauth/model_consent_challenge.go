@@ -13,20 +13,20 @@ import (
 // The frontend retrieves the challenge details, displays them, and submits
 // the user's decision. Challenges are short-lived (10 minutes).
 type OAuthConsentChallenge struct {
-	OAuthConsentChallengeID   int64     `gorm:"column:oauth_consent_challenge_id;primaryKey;autoIncrement"`
-	OAuthConsentChallengeUUID uuid.UUID `gorm:"column:oauth_consent_challenge_uuid;type:uuid;uniqueIndex;not null"`
-	ClientID                  int64     `gorm:"column:client_id;not null"`
-	UserID                    int64     `gorm:"column:user_id;not null"`
-	TenantID                  int64     `gorm:"column:tenant_id;not null"`
-	RedirectURI               string    `gorm:"column:redirect_uri;not null"`
+	OAuthConsentChallengeID   int64          `gorm:"column:oauth_consent_challenge_id;primaryKey;autoIncrement"`
+	OAuthConsentChallengeUUID uuid.UUID      `gorm:"column:oauth_consent_challenge_uuid;type:uuid;uniqueIndex;not null"`
+	ClientID                  int64          `gorm:"column:client_id;not null"`
+	UserID                    int64          `gorm:"column:user_id;not null"`
+	TenantID                  int64          `gorm:"column:tenant_id;not null"`
+	RedirectURI               string         `gorm:"column:redirect_uri;not null"`
 	Scope                     pq.StringArray `gorm:"column:scope;type:text[];not null;default:'{}'"`
-	State                     *string   `gorm:"column:state"`
-	Nonce                     *string   `gorm:"column:nonce"`
-	CodeChallenge             string    `gorm:"column:code_challenge;not null"`
-	CodeChallengeMethod       string    `gorm:"column:code_challenge_method;not null;default:'S256'"`
-	ResponseType              string    `gorm:"column:response_type;not null;default:'code'"`
-	ExpiresAt                 time.Time `gorm:"column:expires_at;not null"`
-	CreatedAt                 time.Time `gorm:"column:created_at;autoCreateTime;not null"`
+	State                     *string        `gorm:"column:state"`
+	Nonce                     *string        `gorm:"column:nonce"`
+	CodeChallenge             string         `gorm:"column:code_challenge;not null"`
+	CodeChallengeMethod       string         `gorm:"column:code_challenge_method;not null;default:'S256'"`
+	ResponseType              string         `gorm:"column:response_type;not null;default:'code'"`
+	ExpiresAt                 time.Time      `gorm:"column:expires_at;not null"`
+	CreatedAt                 time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
 
 	// Relationships
 	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`

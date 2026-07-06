@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/federation"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
 	"github.com/maintainerd/maintainerd-auth/internal/invite"
@@ -89,15 +90,20 @@ type App struct {
 	TenantEventTypeConfigService event.TenantEventTypeConfigService
 	EventRouteService            event.EventRouteService
 	// Webhook management wiring used by the REST router.
-	WebhookEndpointRepo        webhook.WebhookEndpointRepository
-	WebhookSubscriptionHandler *webhook.SubscriptionHandler
-	WebhookReplayHandler       *webhook.ReplayHandler
-	IPRestrictionRuleRepo      secpolicy.IPRestrictionRuleRepository
-	AuditLogger                auditlog.ManagementAuditLogger
-	AuditLogRepo               auditlog.ManagementAuditLogRepository
-	KeyRotationService         oauth.KeyRotationService
-	TokenRevocationService     oauth.TokenRevocationService
-	TokenRevocationRepo        oauth.OAuthTokenRevocationRepository
+	WebhookEndpointRepo               webhook.WebhookEndpointRepository
+	WebhookSubscriptionHandler        *webhook.SubscriptionHandler
+	WebhookReplayHandler              *webhook.ReplayHandler
+	IPRestrictionRuleRepo             secpolicy.IPRestrictionRuleRepository
+	AuditLogger                       auditlog.ManagementAuditLogger
+	AuditLogRepo                      auditlog.ManagementAuditLogRepository
+	KeyRotationService                oauth.KeyRotationService
+	TokenRevocationService            oauth.TokenRevocationService
+	TokenRevocationRepo               oauth.OAuthTokenRevocationRepository
+	WorkloadIdentityFederationService federation.WorkloadIdentityFederationService
+	DataErasureService                user.DataErasureService
+	AccountLinkService                authn.AccountLinkRequestService
+	OAuthDPoPNonceRepo                oauth.OAuthDPoPNonceRepository
+	DPoPRequirementResolver           oauth.DPoPRequirementResolver
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -118,72 +124,77 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		RedisClient: redisClient,
 		Cache:       appCache,
 		// Services
-		ServiceService:               s.serviceService,
-		APIService:                   s.apiService,
-		PermissionService:            s.permissionService,
-		PolicyService:                s.policyService,
-		TenantService:                s.tenantService,
-		TenantMemberService:          s.tenantMemberService,
-		IdentityProviderService:      s.idpService,
-		ClientService:                s.clientService,
-		RoleService:                  s.roleService,
-		UserService:                  s.userService,
-		RegisterService:              s.registerService,
-		LoginService:                 s.loginService,
-		ProfileService:               s.profileService,
-		ProfileRepo:                  s.profileRepo,
-		UserSettingService:           s.userSettingService,
-		UserConsentService:           s.userConsentService,
-		UserTrustedDeviceService:     s.userTrustedDeviceService,
-		UserRepo:                     r.userRepo,
-		InviteService:                s.inviteService,
-		ForgotPasswordService:        s.forgotPasswordService,
-		ResetPasswordService:         s.resetPasswordService,
-		EmailVerificationService:     s.emailVerificationService,
-		MagicLinkService:             s.magicLinkService,
-		SetupService:                 s.setupService,
-		RegistrationFlowService:      s.registrationFlowService,
-		SecuritySettingService:       s.securitySettingService,
-		IPRestrictionRuleService:     s.ipRestrictionRuleService,
-		EmailTemplateService:         s.emailTemplateService,
-		SMSTemplateService:           s.smsTemplateService,
-		BrandingService:              s.brandingService,
-		TenantSettingService:         s.tenantSettingService,
-		EmailConfigService:           s.emailConfigService,
-		SMSConfigService:             s.smsConfigService,
-		WebhookEndpointService:       s.webhookEndpointService,
-		AuthEventService:             s.authEventService,
-		AuthorizationService:         s.authorizationService,
-		OAuthAuthorizeService:        s.oauthAuthorizeService,
-		OAuthConnectionsService:      s.oauthConnectionsService,
-		OAuthTokenService:            s.oauthTokenService,
-		OAuthConsentService:          s.oauthConsentService,
-		OAuthPARService:              s.oauthPARService,
-		OAuthDeviceService:           s.oauthDeviceService,
-		OAuthTokenExchangeService:    s.oauthTokenExchangeService,
-		OAuthSessionService:          s.oauthSessionService,
-		OAuthCIBAService:             s.oauthCIBAService,
-		OAuthRegisterService:         s.oauthRegisterService,
-		AccountService:               s.accountService,
-		SessionService:               s.sessionService,
-		SMSLoginService:              s.smsLoginService,
-		MFAService:                   s.mfaService,
-		WebAuthnService:              s.webAuthnService,
-		FederationService:            s.federationService,
-		IDPRepo:                      r.idpRepo,
-		IDPAllowedAudienceRepo:       r.idpAllowedAudienceRepo,
-		EventService:                 s.eventService,
-		EventTypeService:             s.eventTypeService,
-		TenantEventTypeConfigService: s.tenantEventTypeConfigService,
-		EventRouteService:            s.eventRouteService,
-		WebhookEndpointRepo:          s.webhookEndpointRepo,
-		WebhookSubscriptionHandler:   s.webhookSubscriptionHandler,
-		WebhookReplayHandler:         s.webhookReplayHandler,
-		IPRestrictionRuleRepo:        s.ipRestrictionRuleRepo,
-		AuditLogger:                  s.auditLogger,
-		AuditLogRepo:                 r.auditLogRepo,
-		KeyRotationService:           s.keyRotationService,
-		TokenRevocationService:       s.tokenRevocationService,
-		TokenRevocationRepo:          s.tokenRevocationRepo,
+		ServiceService:                    s.serviceService,
+		APIService:                        s.apiService,
+		PermissionService:                 s.permissionService,
+		PolicyService:                     s.policyService,
+		TenantService:                     s.tenantService,
+		TenantMemberService:               s.tenantMemberService,
+		IdentityProviderService:           s.idpService,
+		ClientService:                     s.clientService,
+		RoleService:                       s.roleService,
+		UserService:                       s.userService,
+		RegisterService:                   s.registerService,
+		LoginService:                      s.loginService,
+		ProfileService:                    s.profileService,
+		ProfileRepo:                       s.profileRepo,
+		UserSettingService:                s.userSettingService,
+		UserConsentService:                s.userConsentService,
+		UserTrustedDeviceService:          s.userTrustedDeviceService,
+		UserRepo:                          r.userRepo,
+		InviteService:                     s.inviteService,
+		ForgotPasswordService:             s.forgotPasswordService,
+		ResetPasswordService:              s.resetPasswordService,
+		EmailVerificationService:          s.emailVerificationService,
+		MagicLinkService:                  s.magicLinkService,
+		SetupService:                      s.setupService,
+		RegistrationFlowService:           s.registrationFlowService,
+		SecuritySettingService:            s.securitySettingService,
+		IPRestrictionRuleService:          s.ipRestrictionRuleService,
+		EmailTemplateService:              s.emailTemplateService,
+		SMSTemplateService:                s.smsTemplateService,
+		BrandingService:                   s.brandingService,
+		TenantSettingService:              s.tenantSettingService,
+		EmailConfigService:                s.emailConfigService,
+		SMSConfigService:                  s.smsConfigService,
+		WebhookEndpointService:            s.webhookEndpointService,
+		AuthEventService:                  s.authEventService,
+		AuthorizationService:              s.authorizationService,
+		OAuthAuthorizeService:             s.oauthAuthorizeService,
+		OAuthConnectionsService:           s.oauthConnectionsService,
+		OAuthTokenService:                 s.oauthTokenService,
+		OAuthConsentService:               s.oauthConsentService,
+		OAuthPARService:                   s.oauthPARService,
+		OAuthDeviceService:                s.oauthDeviceService,
+		OAuthTokenExchangeService:         s.oauthTokenExchangeService,
+		OAuthSessionService:               s.oauthSessionService,
+		OAuthCIBAService:                  s.oauthCIBAService,
+		OAuthRegisterService:              s.oauthRegisterService,
+		AccountService:                    s.accountService,
+		SessionService:                    s.sessionService,
+		SMSLoginService:                   s.smsLoginService,
+		MFAService:                        s.mfaService,
+		WebAuthnService:                   s.webAuthnService,
+		FederationService:                 s.federationService,
+		IDPRepo:                           r.idpRepo,
+		IDPAllowedAudienceRepo:            r.idpAllowedAudienceRepo,
+		EventService:                      s.eventService,
+		EventTypeService:                  s.eventTypeService,
+		TenantEventTypeConfigService:      s.tenantEventTypeConfigService,
+		EventRouteService:                 s.eventRouteService,
+		WebhookEndpointRepo:               s.webhookEndpointRepo,
+		WebhookSubscriptionHandler:        s.webhookSubscriptionHandler,
+		WebhookReplayHandler:              s.webhookReplayHandler,
+		IPRestrictionRuleRepo:             s.ipRestrictionRuleRepo,
+		AuditLogger:                       s.auditLogger,
+		AuditLogRepo:                      r.auditLogRepo,
+		KeyRotationService:                s.keyRotationService,
+		TokenRevocationService:            s.tokenRevocationService,
+		TokenRevocationRepo:               s.tokenRevocationRepo,
+		WorkloadIdentityFederationService: s.wifService,
+		DataErasureService:                s.dataErasureService,
+		AccountLinkService:                s.accountLinkService,
+		OAuthDPoPNonceRepo:                r.oauthDPoPNonceRepo,
+		DPoPRequirementResolver:           newOAuthDPoPRequirementResolver(db),
 	}, nil
 }
