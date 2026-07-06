@@ -44,7 +44,7 @@ func TestServiceService_AssignAndRemovePolicy_EmitWebhookEvents(t *testing.T) {
 		findByUUIDFn: func(any, ...string) (*Service, error) {
 			return &Service{ServiceID: 1, ServiceUUID: svcUUID, TenantID: tenantID}, nil
 		},
-	}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
+	}, &mockAPIRepo{}, &mockServicePolicyRepo{
 		findByServiceAndPolicyFn: func(int64, int64) (*ServicePolicy, error) { return nil, nil },
 		createFn:                 func(sp *ServicePolicy) (*ServicePolicy, error) { return sp, nil },
 	}, &mockPolicyRepo{
@@ -63,7 +63,7 @@ func TestServiceService_AssignAndRemovePolicy_EmitWebhookEvents(t *testing.T) {
 		findByUUIDFn: func(any, ...string) (*Service, error) {
 			return &Service{ServiceID: 1, ServiceUUID: svcUUID, TenantID: tenantID}, nil
 		},
-	}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
+	}, &mockAPIRepo{}, &mockServicePolicyRepo{
 		findByServiceAndPolicyFn: func(int64, int64) (*ServicePolicy, error) {
 			return &ServicePolicy{ServicePolicyID: 3}, nil
 		},

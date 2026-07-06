@@ -201,7 +201,7 @@ func TestSessionService_CreateSession(t *testing.T) {
 			},
 		}
 		svc := NewSessionService(repo)
-		result, err := svc.CreateSession(context.Background(), 1, "192.168.1.1", "UA/1.0")
+		result, err := svc.CreateSession(context.Background(), 1, 1, "192.168.1.1", "UA/1.0")
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, int64(1), result.UserID)
@@ -214,7 +214,7 @@ func TestSessionService_CreateSession(t *testing.T) {
 			},
 		}
 		svc := NewSessionService(repo)
-		result, err := svc.CreateSession(context.Background(), 1, "", "")
+		result, err := svc.CreateSession(context.Background(), 1, 1, "", "")
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
@@ -229,7 +229,7 @@ func TestSessionService_CreateSession(t *testing.T) {
 			},
 		}
 		svc := NewSessionService(repo).(*sessionService)
-		result, err := svc.CreateSessionWithPolicy(context.Background(), 1, "", "", secpolicy.EffectiveSessionPolicy{
+		result, err := svc.CreateSessionWithPolicy(context.Background(), 1, 1, "", "", secpolicy.EffectiveSessionPolicy{
 			IdleTimeoutSeconds:     600,
 			AbsoluteTimeoutSeconds: 7200,
 		})

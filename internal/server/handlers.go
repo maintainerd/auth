@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
@@ -74,6 +75,7 @@ type handlers struct {
 	eventConfig        *event.ConfigHandler
 	eventManagement    *event.ManagementHandler
 	dashboard          *dashboard.Handler
+	auditLog           *auditlog.ManagementAuditLogHandler
 }
 
 func initHandlers(application *Application) *handlers {
@@ -130,5 +132,6 @@ func initHandlers(application *Application) *handlers {
 		eventConfig:        event.NewConfigHandler(application.EventTypeService, application.TenantEventTypeConfigService),
 		eventManagement:    event.NewManagementHandler(application.EventRouteService),
 		dashboard:          dashboard.NewHandler(dashboard.NewService(application.DB)),
+		auditLog:           auditlog.NewManagementAuditLogHandler(application.AuditLogRepo),
 	}
 }

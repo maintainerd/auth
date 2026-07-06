@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -118,9 +117,6 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 	t.Run("creates service and attaches policy", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
-		mock.ExpectExec(`INSERT INTO "tenant_services"`).
-			WithArgs(int64(0), int64(1), int64(77), sqlmock.AnyArg(), sqlmock.AnyArg()).
-			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 		desc := "Maintainerd Core"
 		req := validReq
@@ -180,28 +176,6 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		mock.ExpectRollback()
 		svc := newService(db, &mockServiceRepo{
 			createOrUpdateFn: func(*Service) (*Service, error) { return nil, assert.AnError },
-		}, &mockPolicyRepo{
-			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
-		}, &mockServicePolicyRepo{}, nil)
-
-		_, err := svc.RegisterControlService(context.Background(), validReq)
-
-		require.ErrorIs(t, err, assert.AnError)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("tenant service link create error", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectExec(`INSERT INTO "tenant_services"`).
-			WithArgs(int64(0), int64(1), int64(77), sqlmock.AnyArg(), sqlmock.AnyArg()).
-			WillReturnError(assert.AnError)
-		mock.ExpectRollback()
-		svc := newService(db, &mockServiceRepo{
-			createOrUpdateFn: func(service *Service) (*Service, error) {
-				service.ServiceID = 77
-				return service, nil
-			},
 		}, &mockPolicyRepo{
 			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
 		}, &mockServicePolicyRepo{}, nil)

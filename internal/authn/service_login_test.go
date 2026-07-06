@@ -1620,7 +1620,7 @@ func (m *mockSessionService) RevokeSession(ctx context.Context, userID int64, se
 func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
 	return nil
 }
-func (m *mockSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserSession, error) {
+func (m *mockSessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserSession, error) {
 	if m.createSessionFn != nil {
 		return m.createSessionFn(ctx, userID, ipAddress, userAgent)
 	}

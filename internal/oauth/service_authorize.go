@@ -742,6 +742,7 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 
 	authReq := &OAuthAuthorizeRequest{
 		ClientID:            client.ClientID,
+		TenantID:            client.TenantID,
 		RedirectURI:         req.RedirectURI,
 		ResponseType:        req.ResponseType,
 		Scope:               parseScopeFields(req.Scope),

@@ -1067,7 +1067,7 @@ func (s *loginService) generateTokenResponseWithAuth(ctx context.Context, sub st
 		}
 		ipAddress := middleware.ClientIPFromContext(ctx)
 		userAgent := middleware.UserAgentFromContext(ctx)
-		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, ipAddress, userAgent, policy)
+		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, clientTenantID(Client), ipAddress, userAgent, policy)
 		if err != nil {
 			return nil, err
 		}

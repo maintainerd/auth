@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
@@ -93,4 +94,6 @@ type Application struct {
 	WebhookSubscriptionHandler *webhook.SubscriptionHandler
 	WebhookReplayHandler       *webhook.ReplayHandler
 	IPRestrictionRuleRepo      secpolicy.IPRestrictionRuleRepository
+	AuditLogger                auditlog.ManagementAuditLogger
+	AuditLogRepo               auditlog.ManagementAuditLogRepository
 }

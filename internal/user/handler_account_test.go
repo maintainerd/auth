@@ -109,7 +109,7 @@ func (m *mockSessionService) RevokeAllSessions(_ context.Context, userID int64) 
 	}
 	return nil
 }
-func (m *mockSessionService) CreateSession(_ context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
+func (m *mockSessionService) CreateSession(_ context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserToken, error) {
 	if m.createSessionFn != nil {
 		return m.createSessionFn(userID, ipAddress, userAgent)
 	}

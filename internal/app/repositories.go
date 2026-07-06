@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
@@ -82,6 +83,7 @@ type repos struct {
 	userSessionRepo           authn.UserSessionRepository
 	userConsentRepo           user.UserConsentRepository
 	userTrustedDeviceRepo     user.UserTrustedDeviceRepository
+	auditLogRepo              auditlog.ManagementAuditLogRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -146,5 +148,6 @@ func initRepos(db *gorm.DB) *repos {
 		userSessionRepo:           authn.NewUserSessionRepository(db),
 		userConsentRepo:           user.NewUserConsentRepository(db),
 		userTrustedDeviceRepo:     user.NewUserTrustedDeviceRepository(db),
+		auditLogRepo:              auditlog.NewManagementAuditLogRepository(db),
 	}
 }

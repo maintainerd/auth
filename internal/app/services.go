@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
@@ -94,6 +95,7 @@ type svcs struct {
 	webhookSubscriptionHandler   *webhook.SubscriptionHandler
 	webhookReplayHandler         *webhook.ReplayHandler
 	ipRestrictionRuleRepo        secpolicy.IPRestrictionRuleRepository
+	auditLogger                  auditlog.ManagementAuditLogger
 }
 
 // listenerChecker adapts webhook and event-route repos for the write gate.
@@ -193,7 +195,6 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	authEventSvc := authevent.NewAuthEventService(r.authEventRepo, webhook.NewDispatcher(r.webhookEndpointRepo), tenantSettingSvc)
 
 	sessionSvc := authn.NewSessionService(r.userSessionRepo)
-	iamTenantServiceRepo := newIAMTenantServiceRepo(db)
 	iamClientRepo := newIAMClientRepo(db)
 	iamTenantRepo := newIAMTenantRepo(db)
 	iamUserRepo := newIAMUserRepo(db)
@@ -240,8 +241,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	idpEmailDomainRepo := idp.NewIdentityProviderEmailDomainRepository(db)
 
 	s := &svcs{
-		serviceService:           iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
-		apiService:               iam.NewAPIService(db, r.apiRepo, r.serviceRepo, iamTenantServiceRepo, eventSvc),
+		serviceService:           iam.NewServiceService(db, r.serviceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
+		apiService:               iam.NewAPIService(db, r.apiRepo, r.serviceRepo, eventSvc),
 		permissionService:        iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache, eventSvc, authzInvalidator),
 		tenantService:            tenant.NewTenantService(r.tenantRepo, tenantUOW, eventSvc, tenantSeederAdapter{}),
 		tenantMemberService:      tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW, eventSvc, newTenantUserProvisioner(userSvc)),
@@ -312,6 +313,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		webhookSubscriptionHandler:   webhookSubscriptionHandler,
 		webhookReplayHandler:         webhookReplayHandler,
 		ipRestrictionRuleRepo:        r.ipRestrictionRuleRepo,
+		auditLogger:                  auditlog.NewManagementAuditLogger(r.auditLogRepo),
 	}
 	// Wire the broker provider resolver so the oauth broker flow (idp_hint →
 	// upstream provider) can resolve provider authorize endpoints + client_ids
@@ -382,11 +384,9 @@ func tenantCascadeModels() []any {
 		&iam.Policy{},
 		&iam.Role{},
 		&iam.Service{},
-		&iam.TenantService{},
 
 		&user.UserIdentity{},
 
-		&tenant.TenantServiceLink{},
 		&tenant.TenantSetting{},
 		&tenant.TenantMember{},
 	}

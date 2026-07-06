@@ -25,7 +25,6 @@ type Role = iam.Role
 type Service = iam.Service
 type Policy = iam.Policy
 type ServicePolicy = iam.ServicePolicy
-type TenantServiceLink = iam.TenantService
 type RoleRepositoryGetFilter = iam.RoleRepositoryGetFilter
 type ServiceRepositoryGetFilter = iam.ServiceRepositoryGetFilter
 type PolicyRepositoryGetFilter = iam.PolicyRepositoryGetFilter

@@ -6,42 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type iamTenantServiceRepo struct {
-	*database.BaseRepository[iam.TenantService]
-}
-
-func newIAMTenantServiceRepo(db *gorm.DB) iam.TenantServiceRepository {
-	return &iamTenantServiceRepo{database.NewBaseRepository[iam.TenantService](db, "", "tenant_service_id")}
-}
-
-func (r *iamTenantServiceRepo) WithTx(tx *gorm.DB) iam.TenantServiceRepository {
-	return &iamTenantServiceRepo{r.BaseRepository.WithTx(tx)}
-}
-
-func (r *iamTenantServiceRepo) FindPaginated(filter iam.TenantServiceRepositoryGetFilter) (*iam.PaginationResult[iam.TenantService], error) {
-	conditions := map[string]any{}
-	if filter.TenantID != nil {
-		conditions["tenant_id"] = *filter.TenantID
-	}
-	if filter.ServiceID != nil {
-		conditions["service_id"] = *filter.ServiceID
-	}
-	return r.Paginate(conditions, filter.Page, filter.Limit)
-}
-
-func (r *iamTenantServiceRepo) FindByTenantAndService(tenantID int64, serviceID int64) (*iam.TenantService, error) {
-	var ts iam.TenantService
-	err := r.DB().Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).First(&ts).Error
-	if err != nil {
-		return nil, firstOrNil(err)
-	}
-	return &ts, nil
-}
-
-func (r *iamTenantServiceRepo) DeleteByTenantAndService(tenantID int64, serviceID int64) error {
-	return r.DB().Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).Delete(&iam.TenantService{}).Error
-}
-
 type iamClientRepo struct {
 	*database.BaseRepository[iam.Client]
 }
