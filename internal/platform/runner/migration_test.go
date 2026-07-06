@@ -15,7 +15,7 @@ import (
 func TestMigrations_RegisterLatestMigration(t *testing.T) {
 	require.NotEmpty(t, migrations)
 	last := migrations[len(migrations)-1]
-	assert.Equal(t, "075_create_webauthn_challenges_table", last.Version)
+	assert.Equal(t, "076_create_signing_keys_table", last.Version)
 	assert.NotNil(t, last.Fn)
 }
 

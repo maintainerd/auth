@@ -116,6 +116,7 @@ var migrations = []migrationEntry{
 	{"073_create_management_audit_log_table", migration.CreateManagementAuditLogTable},
 	{"074_create_client_roles_table", migration.CreateClientRolesTable},
 	{"075_create_webauthn_challenges_table", migration.CreateWebAuthnChallengesTable},
+	{"076_create_signing_keys_table", migration.CreateSigningKeysTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

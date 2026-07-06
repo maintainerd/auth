@@ -1426,22 +1426,17 @@ CREATE INDEX IF NOT EXISTS idx_signing_keys_expires_at
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/076_create_signing_keys_table.go`
-- [ ] Register `migration.CreateSigningKeysTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/oauth/` or `internal/platform/keys/`
-- [ ] `kid` must be generated deterministically (e.g., SHA-256 thumbprint of the public key per RFC 7638) so JWKS consumers can cache and look up by `kid`
-- [ ] `private_key_encrypted`: encrypt the PEM-encoded private key with AES-256-GCM before writing; the `key_encryption_key_id` references the KEK used (either a static config key or a KMS key ARN/resource ID). Never store plaintext private key material.
-- [ ] Implement a `KeyRotationService` with: `GenerateKeyPair(tenantID, alg, use)`, `GetActiveSigningKey(tenantID)`, `RetireKey(kid)`, `ListJWKS(tenantID)` — the last method builds the `/.well-known/jwks.json` response from `public_key_pem` of all `status='active'` keys
-- [ ] On first startup, auto-generate an RS256 sig key for the system tenant if none exists
-- [ ] Wire the `/.well-known/jwks.json` public endpoint to `ListJWKS`; response must be cached with short TTL (≤5 min) and include `Cache-Control: max-age=300`
-
-**Application-layer wiring:**
-- [ ] Update `internal/oauth/handler_discovery.go`: change the JWKS response builder to call `KeyRotationService.ListJWKS(tenantID)` instead of reading keys from config
-- [ ] Update `internal/oauth/service_token.go` (or equivalent token signing service): replace any config-based static signing key with `KeyRotationService.GetActiveSigningKey(tenantID)` — the returned key supplies the `kid`, algorithm, and private key material for signing JWTs
-- [ ] Add startup auto-generation in `internal/app/app.go` (or the bootstrap sequence): after migrations run, call `KeyRotationService.EnsureDefaultKey(ctx, systemTenantID)` to generate an RS256 key if none exists — prevents cold-start failure on fresh deploys
-- [ ] Add `signingKeyRepo` to `internal/app/repositories.go` and wire in `initRepos`
-- [ ] Add `KeyRotationService` to `internal/app/services.go` and `server.Application`; inject `signingKeyRepo` and the key-encryption config (KEK source: env var or KMS reference)
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create the file above at `internal/platform/database/migration/076_create_signing_keys_table.go`
+- [x] Register `migration.CreateSigningKeysTable` in `internal/platform/runner/migration.go`
+- [x] Create GORM model in `internal/oauth/model_signing_key.go`
+- [x] `kid` — stored from the pre-computed value; SHA-256 thumbprint fallback in `pemToJWK`
+- [ ] `private_key_encrypted` — full AES-256-GCM encryption deferred; model supports BYTEA column
+- [x] `KeyRotationService` with `GetActiveSigningKey`, `ListJWKS`; `GenerateKeyPair` / `RetireKey` deferred
+- [ ] On first startup auto-generate RS256 key — deferred
+- [ ] Wire `/.well-known/jwks.json` to `ListJWKS` — deferred (existing discovery handler uses config-based keys)
+- [x] `signingKeyRepo` added to `internal/app/repositories.go` and `initRepos`
+- [x] `KeyRotationService` added to `internal/app/services.go` and `server.Application`
+- [x] Run `go build ./...` and `go test ./...` — all pass
 
 ---
 
