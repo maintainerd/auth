@@ -1543,16 +1543,13 @@ CREATE TRIGGER trg_oauth_token_exchanges_immutable
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/078_create_oauth_token_exchanges_table.go`
-- [ ] Register `migration.CreateOAuthTokenExchangesTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/oauth/`
-- [ ] This table is append-only (audit log); no UPDATE or DELETE operations — apply the same immutability trigger pattern used in `management_audit_log` and `auth_events`
-- [ ] Wire an insert into this table from the RFC 8693 token exchange handler at `POST /oauth/token` when `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`
-- [ ] Store the `jti` of the issued token in `issued_jti` so a revocation can later be cross-referenced
-
-**Application-layer wiring:**
-- [ ] Add `oauthTokenExchangeRepo` to `internal/app/repositories.go` and wire in `initRepos`; no service needed — the repo is injected directly into the token exchange handler (audit-only inserts, no business logic)
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create the file above at `internal/platform/database/migration/078_create_oauth_token_exchanges_table.go`
+- [x] Register `migration.CreateOAuthTokenExchangesTable` in `internal/platform/runner/migration.go`
+- [x] Create GORM model in `internal/oauth/model_oauth_token_exchange.go`
+- [x] Append-only audit log with immutability trigger
+- [ ] Wire insert into RFC 8693 token exchange handler — deferred
+- [x] Add `oauthTokenExchangeRepo` to `internal/app/repositories.go` and wire in `initRepos`; no service needed (audit-only inserts)
+- [x] Run `go build ./...` and `go test ./...` — all pass
 
 ---
 
