@@ -91,8 +91,8 @@ func jsonReq(t *testing.T, method, url string, body any) *http.Request {
 	return r
 }
 
-func strPtr(v string) *string   { return &v }
-func int64Ptr(v int64) *int64   { return &v }
+func strPtr(v string) *string { return &v }
+func int64Ptr(v int64) *int64 { return &v }
 
 func validPagination() PaginationRequestDTO {
 	return PaginationRequestDTO{Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc}
@@ -601,6 +601,7 @@ type mockUserIdentityRepo struct {
 	findByUserIDAndClientIDFn     func(int64, int64) (*UserIdentity, error)
 	findByUserIDAndProviderFn     func(int64, string) (*UserIdentity, error)
 	findByIdentityProviderIDFn    func(int64) ([]UserIdentity, error)
+	findByTenantProviderAndSubFn  func(int64, string, string) (*UserIdentity, error)
 	deleteByUserIDFn              func(int64) error
 	createFn                      func(*UserIdentity) (*UserIdentity, error)
 }
@@ -639,6 +640,12 @@ func (m *mockUserIdentityRepo) FindByUserIDAndProvider(userID int64, provider st
 func (m *mockUserIdentityRepo) FindByIdentityProviderID(idpID int64) ([]UserIdentity, error) {
 	if m.findByIdentityProviderIDFn != nil {
 		return m.findByIdentityProviderIDFn(idpID)
+	}
+	return nil, nil
+}
+func (m *mockUserIdentityRepo) FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error) {
+	if m.findByTenantProviderAndSubFn != nil {
+		return m.findByTenantProviderAndSubFn(tenantID, provider, sub)
 	}
 	return nil, nil
 }
@@ -718,6 +725,7 @@ type mockUserService struct {
 	getUserMFAFn           func(uuid.UUID, int64) (*UserMFAResponseDTO, error)
 	ensureUserInTenantFn   func(uuid.UUID, int64) (int64, error)
 	grantRoleByNameFn      func(uuid.UUID, int64, string) error
+	anonymizeUserFn        func(int64) error
 }
 
 func (m *mockUserService) Get(_ context.Context, f UserServiceGetFilter) (*UserServiceGetResult, error) {
@@ -773,6 +781,12 @@ func (m *mockUserService) DeleteByUUID(_ context.Context, userUUID uuid.UUID, te
 		return m.deleteByUUIDFn(userUUID, tenantID, deleterUserUUID)
 	}
 	return &UserServiceDataResult{}, nil
+}
+func (m *mockUserService) AnonymizeUser(_ context.Context, userID int64) error {
+	if m.anonymizeUserFn != nil {
+		return m.anonymizeUserFn(userID)
+	}
+	return nil
 }
 func (m *mockUserService) AssignUserRoles(_ context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	if m.assignUserRolesFn != nil {
@@ -862,7 +876,7 @@ type mockProfileService struct {
 	createOrUpdateSpecificFn func(uuid.UUID, uuid.UUID, string, *string, *string, *string, *time.Time, *string, *string, *string, *string, *string, map[string]any) (*ProfileServiceDataResult, error)
 	getByUUIDFn              func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	getByUserUUIDFn          func(uuid.UUID) (*ProfileServiceDataResult, error)
-	getAllFn                  func(uuid.UUID, *string, *string, *string, *bool, int, int, string, string) (*ProfileServiceListResult, error)
+	getAllFn                 func(uuid.UUID, *string, *string, *string, *bool, int, int, string, string) (*ProfileServiceListResult, error)
 	setDefaultProfileFn      func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	setDefaultFn             func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	deleteByUUIDFn           func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)

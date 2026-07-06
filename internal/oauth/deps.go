@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -270,4 +271,63 @@ type OAuthTokenRevocationRepository interface {
 // OAuthTokenExchangeRepository records RFC 8693 token exchange events for audit.
 type OAuthTokenExchangeRepository interface {
 	Record(exchange *OAuthTokenExchange) error
+}
+
+// OAuthDPoPNonceRepository persists server-issued DPoP nonces (RFC 9449 §8).
+type OAuthDPoPNonceRepository interface {
+	// SaveNonce persists a freshly issued nonce for a client with a TTL.
+	SaveNonce(tenantID, clientID int64, nonce string, expiresAt time.Time) error
+	// ConsumeNonce atomically validates and marks a nonce used. Returns ok=false
+	// when the nonce is unknown, already used, or expired.
+	ConsumeNonce(nonce string) (ok bool, err error)
+	// DeleteExpired removes expired nonces (cleanup worker). Returns rows deleted.
+	DeleteExpired() (int64, error)
+}
+
+// DPoPRequirement is the resolved DPoP configuration for a token-endpoint client.
+type DPoPRequirement struct {
+	Required         bool
+	TenantID         int64
+	InternalClientID int64
+}
+
+// DPoPRequirementResolver resolves whether a client (by presented client_id /
+// identifier) requires DPoP, for the token endpoint's nonce gate (RFC 9449 §8).
+// It is satisfied by an app adapter over the clients table so the oauth handler
+// does not resolve the client inline. ok=false means the client could not be
+// resolved — the normal token flow then reports the auth error.
+type DPoPRequirementResolver interface {
+	ResolveDPoPRequirement(ctx context.Context, clientID string) (requirement DPoPRequirement, ok bool)
+}
+
+// WorkloadTokenExchangeInput carries the parameters for a workload identity
+// federation token exchange, parsed from the /oauth/token form body.
+type WorkloadTokenExchangeInput struct {
+	SubjectToken string
+	Scope        string
+	Audience     string
+	Resource     string
+	IPAddress    string
+}
+
+// WorkloadTokenExchangeResult is the issued token for a successful workload
+// identity federation exchange.
+type WorkloadTokenExchangeResult struct {
+	AccessToken     string
+	IssuedTokenType string
+	TokenType       string
+	ExpiresIn       int
+	Scope           string
+}
+
+// WorkloadIdentityExchanger exchanges an external OIDC/JWT subject token for a
+// platform access token via a configured workload identity federation (section
+// 3.21). It is satisfied by a federation-package adapter wired at startup, so
+// the oauth package never imports the federation domain.
+//
+// ExchangeWorkloadToken returns (nil, nil) when no federation trusts the
+// token's issuer, signalling the token endpoint to fall back to the standard
+// RFC 8693 token-exchange path.
+type WorkloadIdentityExchanger interface {
+	ExchangeWorkloadToken(ctx context.Context, in WorkloadTokenExchangeInput) (*WorkloadTokenExchangeResult, *apperror.OAuthError)
 }

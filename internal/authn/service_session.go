@@ -18,12 +18,12 @@ const (
 )
 
 type SessionDataResult struct {
-	SessionID   string     `json:"session_id"`
-	IPAddress   *string    `json:"ip_address,omitempty"`
-	UserAgent   *string    `json:"user_agent,omitempty"`
+	SessionID    string     `json:"session_id"`
+	IPAddress    *string    `json:"ip_address,omitempty"`
+	UserAgent    *string    `json:"user_agent,omitempty"`
 	LastActiveAt *time.Time `json:"last_active_at,omitempty"`
-	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 type SessionService interface {

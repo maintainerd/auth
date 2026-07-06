@@ -174,3 +174,14 @@ func NewOAuthInteractionRequired(description string) *OAuthError {
 		StatusCode:  http.StatusForbidden,
 	}
 }
+
+// NewOAuthUseDPoPNonce creates the RFC 9449 §8 error instructing a DPoP client
+// to retry the request including the server-provided nonce (sent in the
+// DPoP-Nonce response header) in its DPoP proof.
+func NewOAuthUseDPoPNonce(description string) *OAuthError {
+	return &OAuthError{
+		Code:        "use_dpop_nonce",
+		Description: description,
+		StatusCode:  http.StatusBadRequest,
+	}
+}

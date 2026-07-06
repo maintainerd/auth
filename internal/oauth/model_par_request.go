@@ -14,21 +14,21 @@ import (
 // of the individual parameters, reducing URI length and enabling confidential
 // transmission of request details.
 type OAuthPARRequest struct {
-	OAuthPARRequestID   int64     `gorm:"column:oauth_par_request_id;primaryKey;autoIncrement"`
-	OAuthPARRequestUUID uuid.UUID `gorm:"column:oauth_par_request_uuid;type:uuid;uniqueIndex;not null"`
-	RequestURIHash      string    `gorm:"column:request_uri_hash;uniqueIndex;not null"`
-	ClientID            int64     `gorm:"column:client_id;not null"`
-	TenantID            int64     `gorm:"column:tenant_id;not null"`
-	ResponseType        string    `gorm:"column:response_type;not null;default:'code'"`
-	RedirectURI         string    `gorm:"column:redirect_uri;not null"`
+	OAuthPARRequestID   int64          `gorm:"column:oauth_par_request_id;primaryKey;autoIncrement"`
+	OAuthPARRequestUUID uuid.UUID      `gorm:"column:oauth_par_request_uuid;type:uuid;uniqueIndex;not null"`
+	RequestURIHash      string         `gorm:"column:request_uri_hash;uniqueIndex;not null"`
+	ClientID            int64          `gorm:"column:client_id;not null"`
+	TenantID            int64          `gorm:"column:tenant_id;not null"`
+	ResponseType        string         `gorm:"column:response_type;not null;default:'code'"`
+	RedirectURI         string         `gorm:"column:redirect_uri;not null"`
 	Scope               pq.StringArray `gorm:"column:scope;type:text[];not null;default:'{}'"`
-	State               *string   `gorm:"column:state"`
-	Nonce               *string   `gorm:"column:nonce"`
-	CodeChallenge       string    `gorm:"column:code_challenge;not null"`
-	CodeChallengeMethod string    `gorm:"column:code_challenge_method;not null;default:'S256'"`
-	IsUsed              bool      `gorm:"column:is_used;not null;default:false"`
-	ExpiresAt           time.Time `gorm:"column:expires_at;not null"`
-	CreatedAt           time.Time `gorm:"column:created_at;autoCreateTime;not null"`
+	State               *string        `gorm:"column:state"`
+	Nonce               *string        `gorm:"column:nonce"`
+	CodeChallenge       string         `gorm:"column:code_challenge;not null"`
+	CodeChallengeMethod string         `gorm:"column:code_challenge_method;not null;default:'S256'"`
+	IsUsed              bool           `gorm:"column:is_used;not null;default:false"`
+	ExpiresAt           time.Time      `gorm:"column:expires_at;not null"`
+	CreatedAt           time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
 
 	// Relationships
 	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`

@@ -11,6 +11,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/federation"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
 	"github.com/maintainerd/maintainerd-auth/internal/invite"
@@ -99,6 +100,9 @@ type svcs struct {
 	keyRotationService           oauth.KeyRotationService
 	tokenRevocationService       oauth.TokenRevocationService
 	tokenRevocationRepo          oauth.OAuthTokenRevocationRepository
+	wifService                   federation.WorkloadIdentityFederationService
+	dataErasureService           user.DataErasureService
+	accountLinkService           authn.AccountLinkRequestService
 }
 
 // listenerChecker adapts webhook and event-route repos for the write gate.
@@ -244,16 +248,16 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	idpEmailDomainRepo := idp.NewIdentityProviderEmailDomainRepository(db)
 
 	s := &svcs{
-		serviceService:           iam.NewServiceService(db, r.serviceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
-		apiService:               iam.NewAPIService(db, r.apiRepo, r.serviceRepo, eventSvc),
-		permissionService:        iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache, eventSvc, authzInvalidator),
-		tenantService:            tenant.NewTenantService(r.tenantRepo, tenantUOW, eventSvc, tenantSeederAdapter{}),
-		tenantMemberService:      tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW, eventSvc, newTenantUserProvisioner(userSvc)),
-		idpService:               idp.NewIdentityProviderService(db, r.idpRepo, idpEmailDomainRepo, r.idpAllowedAudienceRepo, idpTenantRepo, idpUserRepo),
-		clientService:            client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, r.clientRoleRepo, clientRoleRepoAdapter, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
-		roleService:              iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
-		userService:              userSvc,
-		registerService:          authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnRegistrationFlowRoleRepoAdapter(r.registrationFlowRoleRepo, r.registrationFlowRepo),
+		serviceService:      iam.NewServiceService(db, r.serviceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
+		apiService:          iam.NewAPIService(db, r.apiRepo, r.serviceRepo, eventSvc),
+		permissionService:   iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache, eventSvc, authzInvalidator),
+		tenantService:       tenant.NewTenantService(r.tenantRepo, tenantUOW, eventSvc, tenantSeederAdapter{}),
+		tenantMemberService: tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW, eventSvc, newTenantUserProvisioner(userSvc)),
+		idpService:          idp.NewIdentityProviderService(db, r.idpRepo, idpEmailDomainRepo, r.idpAllowedAudienceRepo, idpTenantRepo, idpUserRepo),
+		clientService:       client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, r.clientRoleRepo, clientRoleRepoAdapter, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
+		roleService:         iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
+		userService:         userSvc,
+		registerService: authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnRegistrationFlowRoleRepoAdapter(r.registrationFlowRoleRepo, r.registrationFlowRepo),
 			authn.WithEmailVerificationService(emailVerificationSvc),
 			authn.WithConsentRecorder(user.NewUserConsentService(r.userConsentRepo)),
 		),
@@ -320,6 +324,9 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		keyRotationService:           oauth.NewKeyRotationService(r.signingKeyRepo),
 		tokenRevocationService:       oauth.NewTokenRevocationService(r.tokenRevocationRepo),
 		tokenRevocationRepo:          r.tokenRevocationRepo,
+		wifService:                   federation.NewWorkloadIdentityFederationService(db, r.wifRepo, newFederationExchangeAuditor(r.tokenExchangeRepo)),
+		dataErasureService:           user.NewDataErasureService(r.dataErasureRequestRepo, userSvc),
+		accountLinkService:           authn.NewAccountLinkRequestService(r.accountLinkRequestRepo, newAuthnUserRepoAdapter(r.userRepo), newAccountLinkIdentityLinker(r.userIdentityRepo)),
 	}
 	// Wire the broker provider resolver so the oauth broker flow (idp_hint →
 	// upstream provider) can resolve provider authorize endpoints + client_ids
@@ -336,12 +343,18 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 
 	// Inject event service into ServiceService (uses setter to avoid breaking test constructors)
 	iam.SetServiceEventService(s.serviceService, eventSvc)
+	// Inject the policy version history repo (snapshots before-state on every
+	// Update + powers the read endpoints in PolicyHistoryHandler).
+	iam.SetPolicyVersionHistory(s.policyService, r.policyVersionHistoryRepo)
 	// Inject the MFA factor verifier so login can run the MFA second step (acr=2).
 	s.loginService.SetMFAFactorAuthenticator(mfaSvc)
 	s.loginService.SetUserLockoutRepository(r.userLockoutRepo)
 	s.loginService.SetTokenRevoker(s.tokenRevocationService)
 	// Wire client permission resolver for M2M token issuance.
 	s.oauthTokenService.SetClientPermissionResolver(newClientPermissionResolver(db))
+	// Wire the workload identity federation exchanger so the /oauth/token
+	// endpoint can exchange external OIDC workload tokens (section 3.21).
+	oauth.SetWorkloadIdentityExchanger(newOAuthWorkloadIdentityExchanger(s.wifService))
 	// Magic-link possession is the first factor; delegate MFA policy decisions
 	// and policy-aware session issuance to the normal login service.
 	s.magicLinkService.SetLoginCoordinator(s.loginService)

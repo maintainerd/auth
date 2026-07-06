@@ -1602,23 +1602,23 @@ CREATE INDEX IF NOT EXISTS idx_workload_identity_federations_issuer
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/079_create_workload_identity_federations_table.go`
-- [ ] Register `migration.CreateWorkloadIdentityFederationsTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/oauth/` or `internal/authn/`
-- [ ] `issuer_url`: on save, fetch the OIDC discovery document at `{issuer_url}/.well-known/openid-configuration` to validate the issuer is reachable and extract the JWKS URI for verifying external tokens. Cache the JWKS with a TTL.
-- [ ] `subject_pattern`: a glob or regex pattern matched against the `sub` claim of the external token. E.g., `system:serviceaccount:prod:deploy-bot` for Kubernetes or `repo:org/repo:ref:refs/heads/main` for GitHub Actions.
-- [ ] `attribute_mapping` JSONB: maps external claims to internal platform claims, e.g., `{"github.repository": "service_name", "github.environment": "deployment_env"}`.
-- [ ] Exchange flow: client presents external OIDC token to `POST /oauth/token` with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` and `subject_token_type=urn:ietf:params:oauth:token-type:jwt`. Platform looks up matching `workload_identity_federations` row, validates the external token's signature against the issuer's JWKS, checks `audience` and `subject_pattern`, then issues a platform access token scoped to `allowed_scopes`.
-- [ ] Log every exchange to `oauth_token_exchanges` (section 3.20).
+- [x] Create the file above at `internal/platform/database/migration/079_create_workload_identity_federations_table.go`
+- [x] Register `migration.CreateWorkloadIdentityFederationsTable` in `internal/platform/runner/migration.go` — appended after 078; `migration_test.go` latest-migration assertion updated to 079
+- [x] Create GORM model in `internal/oauth/` or `internal/authn/` — **placed in the dedicated `internal/federation/` package** (`model_workload_identity_federation.go`) per the application-layer wiring below, which supersedes the "oauth/authn" sketch
+- [x] `issuer_url`: on save, fetch the OIDC discovery document at `{issuer_url}/.well-known/openid-configuration` to validate the issuer is reachable and extract the JWKS URI for verifying external tokens. Cache the JWKS with a TTL. — `probeIssuer()` runs OIDC discovery on Create and (when the issuer changes) Update; a mutex-guarded provider cache holds the discovered provider (and its JWKS key set) with a 5-minute TTL
+- [x] `subject_pattern`: a glob or regex pattern matched against the `sub` claim — `matchSubjectPattern()` compiles the glob (`*`/`?`) to an anchored regexp so `*` spans `/` and `:` (e.g. `repo:org/repo:*` matches `repo:org/repo:ref:refs/heads/main`); matched against the configurable `subject_claim` (default `sub`)
+- [x] `attribute_mapping` JSONB: maps external claims to internal platform claims — `buildExtraClaims()` copies each mapped external claim (dotted-path aware) into the issued token's `ExtraClaims`; external subject recorded under `act.sub` (RFC 8693 §4.1)
+- [x] Exchange flow: external OIDC token → `POST /oauth/token` with `grant_type=token-exchange` + `subject_token_type=jwt`. Platform looks up matching `workload_identity_federations` row, validates signature against the issuer's JWKS, checks `audience` and `subject_pattern`, then issues a platform access token scoped to `allowed_scopes`. — implemented in `federation.ExchangeWorkloadToken`; unverified `iss` routes to a federation, signature verified via go-oidc (`SkipClientIDCheck`, audience checked manually), scopes intersected with `allowed_scopes`, token minted for the mapped client identity (`SubjectType=service`, `amr=[wif]`)
+- [x] Log every exchange to `oauth_token_exchanges` (section 3.20). — best-effort via `ExchangeAuditor` consumer interface, wired in `internal/app/adapters_federation.go` to `oauth.OAuthTokenExchangeRepository.Record`
 
 **Application-layer wiring:**
-- [ ] Create `internal/federation/` package (or `internal/wif/`) with the following files: `model_workload_identity_federation.go`, `repository_workload_identity_federation.go`, `service_workload_identity_federation.go`, `handler_workload_identity_federation.go`, `validation_workload_identity_federation.go`, `routes.go`, `handler_workload_identity_federation_test.go`
-- [ ] Register CRUD endpoints on internal port 8080: `GET /workload-identity-federations`, `POST /workload-identity-federations`, `GET /workload-identity-federations/{uuid}`, `PUT /workload-identity-federations/{uuid}`, `DELETE /workload-identity-federations/{uuid}` — all require `tenant_id` and appropriate IAM policy
-- [ ] Wire the token exchange flow in `internal/oauth/handler_token.go`: when `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` and `subject_token_type` is an external OIDC type, delegate to `WorkloadIdentityFederationService.Exchange(ctx, req)`
-- [ ] Use `internal/platform/cache/` (or equivalent) to cache the external issuer's JWKS (keyed by `issuer_url`) with a short TTL (5 minutes) — avoids fetching the JWKS on every token exchange request
-- [ ] Add `workloadIdentityFederationRepo` to `internal/app/repositories.go` and wire in `initRepos`
-- [ ] Add `WorkloadIdentityFederationService` to `internal/app/services.go` and `server.Application`
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create `internal/federation/` package with: `model_workload_identity_federation.go`, `repository_workload_identity_federation.go`, `service_workload_identity_federation.go` (+ `service_workload_exchange.go`), `handler_workload_identity_federation.go`, `validation_workload_identity_federation.go`, `routes.go`, `handler_workload_identity_federation_test.go` (+ `foundation.go`, `deps.go`, `types.go`, `helpers.go`, `http_client.go`, `handler_test_helpers_test.go`, `validation_workload_identity_federation_test.go`)
+- [x] Register CRUD endpoints on internal port 8080: `GET`/`POST /workload-identity-federations`, `GET`/`PUT`/`DELETE /workload-identity-federations/{workload_identity_federation_uuid}` — tenant-scoped, guarded by `workload-identity-federation:{read,create,update,delete}` permissions (seeded in `004_permission.go`; granted via `workload-identity-federation:*` in the control policy `012_control_policy.go`)
+- [x] Wire the token exchange flow: when `grant_type=token-exchange` and `subject_token_type=jwt`, delegate to the WIF exchanger — implemented in `internal/oauth/handler_token_exchange.go` (the token-exchange path of `POST /oauth/token`), guarded by the `oauth.SetWorkloadIdentityExchanger` package setter + `oauth.WorkloadIdentityExchanger` consumer interface; returns to the standard RFC 8693 path when no federation trusts the issuer
+- [x] Cache the external issuer's JWKS keyed by `issuer_url` with a short TTL (5 minutes). — **deviation:** the platform Redis `cache.Cache` cannot store a live go-oidc provider/keyset object, so the JWKS is cached in-process via a mutex-guarded provider cache (`providerCacheTTL = 5m`), which meets the intent (no per-request JWKS fetch); mirrors the idp package's provider cache approach
+- [x] Add `workloadIdentityFederationRepo` (`wifRepo`) to `internal/app/repositories.go` and wire in `initRepos`
+- [x] Add `WorkloadIdentityFederationService` to `internal/app/services.go`, `app.App`, `app.ServerApplication`, and `server.Application`; handler built in `server/handlers.go`, route mounted in `server/router.go`
+- [x] Run `go build ./...` and `go test ./...` — all green (`go vet` clean; new handler/validation/unit tests pass)
 
 ---
 
@@ -1667,23 +1667,23 @@ CREATE INDEX IF NOT EXISTS idx_data_erasure_requests_scheduled_at
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/080_create_data_erasure_requests_table.go`
-- [ ] Register `migration.CreateDataErasureRequestsTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/user/` or a `internal/compliance/` package
-- [ ] `scheduled_at`: default to `now() + INTERVAL '30 days'` per GDPR Article 17(3) maximum. Compliance teams can schedule earlier.
-- [ ] `legal_hold`: when TRUE, the background worker must skip this request. Legal hold can be set by a compliance admin; the `legal_hold_reason` must be recorded.
-- [ ] Erasure implementation: anonymize PII fields rather than hard-delete the user row (preserves referential integrity for audit logs). Fields to anonymize: `email`, `phone`, `username` → replace with `deleted_{uuid}@erased`, `pending_email`, `password` → NULL. Cascade to: `user_profiles` (names, avatar, bio), `user_sessions` (ip_address, user_agent), `user_consents`. Do NOT erase `auth_events` or `management_audit_log` rows — these are immutable audit records; anonymize by setting `user_id = NULL` (FK is `ON DELETE SET NULL`).
-- [ ] Expose an internal admin endpoint `POST /users/{uuid}/erasure-requests` and a user self-service endpoint `POST /me/erasure-request`.
-- [ ] Wire the background worker (Phase 6) to process `scheduled_at <= now()` and `status = 'pending'` rows.
+- [x] Create the file above at `internal/platform/database/migration/080_create_data_erasure_requests_table.go`
+- [x] Register `migration.CreateDataErasureRequestsTable` in `internal/platform/runner/migration.go` — appended after 079; `migration_test.go` latest-migration assertion updated to 080
+- [x] Create GORM model in `internal/user/` or a `internal/compliance/` package — placed in `internal/user/model_data_erasure_request.go` (the erasure cascade `AnonymizeUser` lives on `user.UserService`, so the whole feature is cohesive in the user package)
+- [x] `scheduled_at`: default to `now() + INTERVAL '30 days'` — `DataErasureService.RequestErasure` sets `scheduled_at = now + erasureRetentionDays(30)*24h`; earlier scheduling is possible by writing the row directly
+- [x] `legal_hold`: when TRUE, the background worker must skip this request — `FindDueForProcessing` filters `legal_hold = false`; `legal_hold_reason` column present for compliance admins to record
+- [x] Erasure implementation: anonymize PII in place (no hard delete) — `AnonymizeUser` in one transaction. **Schema-reconciled deviations from the plan's field list:** (a) `users.phone` is `VARCHAR(20)` and cannot hold `deleted_{uuid}@erased`, so it is set NULL (PII removed); `email`+`username` get `deleted_{uuid}@erased`; `password` → NULL. (b) `users.pending_email` no longer exists (removed in 1.4). (c) `profiles` names (`first_name`→"Erased" [NOT NULL], `middle_name`/`last_name`/`display_name`→NULL) and avatar (`profile_url`→NULL); `bio` was removed in 3.27. (d) `user_sessions.ip_address`/`user_agent`→NULL; `user_consents.ip_address`/`user_agent`→NULL. (e) `auth_events`/`management_audit_log` are **intentionally left untouched**: the actual FK columns are `actor_user_id`/`target_user_id` (not `user_id`), both tables have BEFORE UPDATE immutability triggers that reject mutation, and they store only integer id references (no PII) — the referenced user row is already scrubbed. The plan's "set user_id = NULL" via `ON DELETE SET NULL` only fires on a hard user delete, which the anonymize-in-place approach deliberately avoids.
+- [x] Expose an internal admin endpoint `POST /users/{uuid}/erasure-requests` and a user self-service endpoint `POST /me/erasure-request`
+- [x] Wire the background worker (Phase 6) to process `scheduled_at <= now()` and `status = 'pending'` rows — `StartDataErasureWorker` (15-min ticker) started in `cmd/server/workers.go`, distinct from the ephemeral-row cleanup runner
 
 **Application-layer wiring:**
-- [ ] Define `AnonymizeUser(ctx context.Context, userID int64) error` in `internal/user/service_user.go`; this method is the canonical erasure implementation — it handles the full cascade across `users`, `user_profiles`, `user_sessions`, `user_consents`, and sets `user_id = NULL` on any linked `auth_events` / `management_audit_log` rows (FK is `ON DELETE SET NULL` on those tables)
-- [ ] Register internal admin endpoint `POST /users/{uuid}/erasure-requests` on port 8080 (requires admin role)
-- [ ] Register self-service endpoint `POST /me/erasure-request` on public port 8081 (requires authenticated user)
-- [ ] Add `dataErasureRequestRepo` to `internal/app/repositories.go` and wire in `initRepos`
-- [ ] Add `DataErasureService` to `internal/app/services.go` and `server.Application`; inject `dataErasureRequestRepo` and `UserService` (for `AnonymizeUser`)
-- [ ] Add `ProcessPendingErasureRequests` as a named job in the cleanup worker (Phase 6) — distinct from the DELETE-expired jobs since erasure involves complex multi-table anonymization, not a simple DELETE
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Define `AnonymizeUser(ctx, userID) error` in `internal/user/service_user.go` — canonical erasure cascade (see reconciliation above)
+- [x] Register internal admin endpoint `POST /users/{uuid}/erasure-requests` on port 8080 (requires admin role) — `user.DataErasureAdminRoute`, guarded by the existing `user:delete` permission (the doc specifies "admin role", not a new permission string; `user:delete` is the existing admin destructive-user permission, already seeded + granted)
+- [x] Register self-service endpoint `POST /me/erasure-request` on public port 8081 (requires authenticated user) — `user.DataErasureSelfRoute`, guarded by the existing `account:user:delete:self` permission; mounted on public 8081 (and internal 8080, matching the existing `/me` and `/account` self-service convention)
+- [x] Add `dataErasureRequestRepo` to `internal/app/repositories.go` and wire in `initRepos`
+- [x] Add `DataErasureService` to `internal/app/services.go` and `server.Application`; inject `dataErasureRequestRepo` and `UserService` (for `AnonymizeUser`) — service constructed with the concrete `userSvc` (satisfies the narrow `UserAnonymizer` interface); exposed on `app.App`, `app.ServerApplication`, and `server.Application`
+- [x] Add `ProcessPendingErasureRequests` as a named job in the cleanup worker — implemented on `DataErasureService`; on anonymize failure the request reverts to `pending` for retry (the `'failed'` status the Phase 6 text mentions is **not** in `chk_data_erasure_requests_status`, so it is never written)
+- [x] Run `go build ./...` and `go test ./...` — all green (`go vet` clean; handler 9-step tests + service-logic tests added)
 
 ---
 
@@ -1729,20 +1729,20 @@ CREATE INDEX IF NOT EXISTS idx_account_link_requests_expires_at
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/081_create_account_link_requests_table.go`
-- [ ] Register `migration.CreateAccountLinkRequestsTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/authn/`
-- [ ] Flow: on social login, if `provider_email` matches an existing user → create a `account_link_requests` row with a random `confirmation_token` and TTL of 15 minutes → redirect user to a confirmation page displaying "Link your Google account to your existing account?" → user authenticates with their existing credential → `POST /account-link/{token}/confirm` → finalize by creating the `user_identities` row and marking request `confirmed`
-- [ ] The `confirmation_token` must be a 32-byte cryptographically random value (never sequential IDs)
-- [ ] Reject if: token expired, already confirmed/rejected, `existing_user_id` has been deleted, or `provider_subject` already linked to a different user
-- [ ] Wire the ephemeral cleanup worker (Phase 6) to expire stale pending requests: `UPDATE account_link_requests SET status='expired' WHERE status='pending' AND expires_at < now()`
+- [x] Create the file above at `internal/platform/database/migration/081_create_account_link_requests_table.go`
+- [x] Register `migration.CreateAccountLinkRequestsTable` in `internal/platform/runner/migration.go` — appended after 080; `migration_test.go` latest-migration assertion updated to 081
+- [x] Create GORM model in `internal/authn/` — `model_account_link_request.go` (+ repository, service, handler, validation)
+- [x] Flow: social login collision → pending request (random token, 15-min TTL) → confirmation → `POST /account-link/{token}/confirm` → create `user_identities` row + mark `confirmed`. **Backend fully implemented** (`AccountLinkRequestService.Initiate` + `Confirm`). **The live collision-detection callsite in the social-login provisioning path is DEFERRED** — see the deferral note below.
+- [x] The `confirmation_token` must be a 32-byte cryptographically random value — `crypto.GenerateRandomString(32)` (base64url); never sequential
+- [x] Reject if: token expired, already confirmed/rejected, `existing_user_id` deleted, or `provider_subject` already linked to a different user — all enforced in `Confirm` (expired → marked expired + 409; non-pending → 409; caller not authenticated as the existing account → 403; existing user missing → 404; subject linked elsewhere → 409; linked to same user → idempotent success)
+- [x] Wire the ephemeral cleanup worker to expire stale pending requests — `AccountLinkRequestRepository.ExpireStale` (`UPDATE ... SET status='expired' WHERE status='pending' AND expires_at < now()`) called from `oauth.StartCleanupRunner`
 
 **Application-layer wiring:**
-- [ ] Create the following files in `internal/authn/` (or `internal/oauth/` if the social login callback lives there): `model_account_link_request.go`, `repository_account_link_request.go`, `service_account_link_request.go`, `handler_account_link.go`, `validation_account_link.go`, `handler_account_link_test.go`
-- [ ] Add email-collision detection in the social login callback handler (`handler_connections.go` or `handler_callback.go`): after fetching the external user profile, query `users WHERE email = provider_email AND tenant_id = $tenantID`; if found, create an `account_link_requests` row instead of creating a new user, then redirect to the confirmation UI
-- [ ] Register `POST /account-link/{token}/confirm` on public port 8081; this endpoint validates the `confirmation_token`, requires the user to re-authenticate (session check or credential re-entry), then finalizes by inserting the `user_identities` row and marking the request `confirmed`
-- [ ] Add `accountLinkRequestRepo` to `internal/app/repositories.go` and wire in `initRepos`
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create the following files in `internal/authn/`: `model_account_link_request.go`, `repository_account_link_request.go`, `service_account_link_request.go`, `handler_account_link.go`, `validation_account_link.go`, `handler_account_link_test.go` (+ `service_account_link_request_test.go`)
+- [~] Add email-collision detection in the social login callback handler — **DEFERRED** (documented). The provisioning path funnels through `idp.federationService.provisionUser`, which currently auto-merges a verified-email match (no duplicate is created). Switching that to "create an `account_link_requests` row + redirect to a confirmation UI" instead of merging is a behavioral change to a security-critical, heavily-tested hot path (also used by the broker callback and multi-issuer middleware) **and depends on a frontend confirmation UI that does not yet exist** — activating it live would redirect/deny real social logins. This follows the same documented-deferral pattern used by §3.12 (MFAService trusted-device migration) and §3.15 (oauth_refresh_tokens `session_id` FK). The backend seam is ready: `AccountLinkRequestService.Initiate` is the exact "create the request" primitive the callsite will call once the confirmation UI ships.
+- [x] Register `POST /account-link/{token}/confirm` on public port 8081 — `authn.AccountLinkConfirmRoute`; requires JWT + user context (the caller re-authenticates as the existing account), validates the token, and finalizes by inserting the `user_identities` row (client-less, via the `AccountIdentityLinker` app adapter) and marking `confirmed`
+- [x] Add `accountLinkRequestRepo` to `internal/app/repositories.go` and wire in `initRepos`; `AccountLinkRequestService` wired through `app.App` → `server.Application` → handler → router
+- [x] Run `go build ./...` and `go test ./...` — all green (`go vet` clean; handler 9-step tests + service-logic tests added)
 
 ---
 
@@ -1802,20 +1802,20 @@ CREATE INDEX IF NOT EXISTS idx_policy_version_history_changed_by
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/082_create_policy_version_history_table.go`
-- [ ] Register `migration.CreatePolicyVersionHistoryTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/policy/` (read-only struct — no update or delete operations)
-- [ ] `version_number`: maintained by the application layer. On every `UPDATE policies SET ...`, atomically insert a `policy_version_history` row with `version_number = (SELECT COALESCE(MAX(version_number), 0) + 1 FROM policy_version_history WHERE policy_id = $1)` and the before-state of the policy. This should be done in a single DB transaction with the policy update.
-- [ ] `actions`, `resources`, `conditions` JSONB: snapshot the exact policy document at the time of the change. If the `policies` table stores these as structured columns, serialize them to JSONB for the history row.
-- [ ] Expose an admin endpoint `GET /policies/{uuid}/history` returning a paginated list of version snapshots.
-- [ ] Expose `GET /policies/{uuid}/history/{version}` to retrieve a specific version for diff/rollback UI.
+- [x] Create the file above at `internal/platform/database/migration/082_create_policy_version_history_table.go` — **schema-reconciled**: the plan modelled the snapshot as `effect`/`actions`/`resources`/`conditions` single-statement columns, but `policies` stores a single multi-statement `document` JSONB + a string `version` (`PolicyDocument{Version, Statement[]}`). Those inferred columns cannot represent a real multi-statement policy (multiple effects, no `conditions` field exists), and rollback needs the full document — so the history row snapshots `document JSONB` + `policy_version VARCHAR(20)` instead. All other columns, the immutability trigger, `UNIQUE(policy_id, version_number)`, `ON DELETE RESTRICT`, and the three indexes are kept exactly as specified.
+- [x] Register `migration.CreatePolicyVersionHistoryTable` in `internal/platform/runner/migration.go` — appended after 081; `migration_test.go` latest-migration assertion updated to 082
+- [x] Create GORM model (read-only struct) — placed in `internal/iam/model_policy_version_history.go` (there is no `internal/policy/` package; policies live in `internal/iam/`, which the wiring section below already targets)
+- [x] `version_number` maintained by the app layer: on every policy `Update`, atomically insert a history row with `version_number = MAX+1` and the **before-state**, in the same transaction — implemented in `policyService.Update` (`historyRepo.WithTx(tx).NextVersionNumber` + `Create`)
+- [x] Snapshot the exact policy document at the time of the change — the full `document` JSONB + `policy_version` are captured (see reconciliation above). `changed_by_user_id`/`changed_by_client_id`/`change_reason` are left NULL: the `management_audit_log` already records **who** made the change (the plan itself notes "management_audit_log captures who … this table captures what"), and `Update`'s signature carries no actor
+- [x] Expose an admin endpoint `GET /policies/{uuid}/history` returning a paginated list of version snapshots
+- [x] Expose `GET /policies/{uuid}/history/{version}` — returns the full document snapshot for the diff/rollback UI
 
 **Application-layer wiring:**
-- [ ] Wrap the policy update in `internal/iam/service_policy.go` in a single DB transaction: `db.Transaction(func(tx *gorm.DB) error { /* UPDATE policies */ /* INSERT policy_version_history */ })` — both writes must succeed or both must roll back
-- [ ] Register `GET /policies/{uuid}/history` and `GET /policies/{uuid}/history/{version}` in `internal/iam/routes.go` on internal port 8080
-- [ ] Create `internal/iam/handler_policy_history.go` and `internal/iam/handler_policy_history_test.go` for the two read-only endpoints
-- [ ] Add `policyVersionHistoryRepo` to `internal/app/repositories.go` and wire in `initRepos`; no separate service needed — the repo is injected into the existing `PolicyService` in `internal/iam/service_policy.go`
-- [ ] Run `go build ./...` and `go test ./internal/iam/...`
+- [x] Wrap the policy update in `internal/iam/service_policy.go` in a single DB transaction (`UPDATE policies` + `INSERT policy_version_history`) — the snapshot insert runs inside the existing `Update` transaction, so both succeed or both roll back
+- [x] Register `GET /policies/{uuid}/history` and `GET /policies/{uuid}/history/{version_number}` in `internal/iam/routes.go` on internal port 8080 (guarded by `policy:read`)
+- [x] Create `internal/iam/handler_policy_history.go` and `internal/iam/handler_policy_history_test.go` for the two read-only endpoints
+- [x] Add `policyVersionHistoryRepo` to `internal/app/repositories.go` and wire in `initRepos`; injected into the existing `PolicyService` via `iam.SetPolicyVersionHistory` (setter pattern, so `NewPolicyService` callers/tests are unaffected — matches the existing `SetServiceEventService` convention)
+- [x] Run `go build ./...` and `go test ./internal/iam/...` — all green (also full `go test ./...` + `go vet`); handler 9-step tests + service history tests added
 
 ---
 
@@ -1853,18 +1853,18 @@ CREATE INDEX IF NOT EXISTS idx_oauth_dpop_nonces_client
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/083_create_oauth_dpop_nonces_table.go`
-- [ ] Register `migration.CreateOAuthDPoPNoncesTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/oauth/`
-- [ ] Nonce issuance: when a DPoP-enabled client (`dpop_required = TRUE`) makes a token request without a server nonce, respond with HTTP 400 `use_dpop_nonce` and a freshly generated nonce (32 random bytes, base64url-encoded) stored in this table with TTL = 5 minutes. Include the nonce in the `DPoP-Nonce` response header.
-- [ ] Nonce validation: on the next request, look up the nonce by value, assert `used_at IS NULL` and `expires_at > now()`, then mark `used_at = now()` atomically before processing the request.
-- [ ] Wire the ephemeral cleanup worker (Phase 6) to `DELETE FROM oauth_dpop_nonces WHERE expires_at < now() LIMIT 1000`
+- [x] Create the file above at `internal/platform/database/migration/083_create_oauth_dpop_nonces_table.go`
+- [x] Register `migration.CreateOAuthDPoPNoncesTable` in `internal/platform/runner/migration.go` — appended after 082; `migration_test.go` latest-migration assertion updated to 083
+- [x] Create GORM model in `internal/oauth/` — `model_oauth_dpop_nonce.go` (+ `repository_oauth_dpop_nonce.go`)
+- [x] Nonce issuance: DPoP-required client without a server nonce → HTTP 400 `use_dpop_nonce` + freshly generated nonce (32 random bytes, base64url) stored with 5-min TTL + `DPoP-Nonce` response header — implemented by `enforceDPoPNonce` in `handler_token.go` + `dpop.StoreNonceManager.IssueNonce`
+- [x] Nonce validation: look up by value, assert `used_at IS NULL` and `expires_at > now()`, mark `used_at = now()` atomically — a single `UPDATE ... WHERE nonce=? AND used_at IS NULL AND expires_at > now()` (`repository_oauth_dpop_nonce.go` `ConsumeNonce`) guarantees single-use under concurrency
+- [x] Wire the ephemeral cleanup worker to `DELETE FROM oauth_dpop_nonces WHERE expires_at < now()` — `OAuthDPoPNonceRepository.DeleteExpired()` called from `oauth.StartCleanupRunner` (no `LIMIT` — matches the other `DeleteExpired` cleanup jobs; PostgreSQL `DELETE` has no direct `LIMIT`)
 
 **Application-layer wiring:**
-- [ ] Check `internal/platform/dpop/` — if a DPoP proof validation package already exists, add nonce issuance and validation methods to it; if not, create `internal/platform/dpop/dpop.go` with `IssueNonce(ctx, clientID) (string, error)` and `ConsumeNonce(ctx, nonce string) error`
-- [ ] In `internal/oauth/handler_token.go`, add nonce gate: if the requesting client has `dpop_required=TRUE`, check for a valid server nonce in the `DPoP` proof header; if absent or used, call `IssueNonce`, return HTTP 400 `use_dpop_nonce` with the nonce in the `DPoP-Nonce` response header; if present and valid, call `ConsumeNonce` before processing the token request
-- [ ] Add `oauthDPoPNonceRepo` to `internal/app/repositories.go` and wire in `initRepos`; inject into the DPoP package (not a top-level service — internal to the DPoP nonce lifecycle)
-- [ ] Run `go build ./...` and `go test ./internal/oauth/...`
+- [x] `internal/platform/dpop/` already exists — added nonce issuance/validation to it (`nonce_store.go`): `NonceStore` consumer interface + `StoreNonceManager` with `IssueNonce(ctx, tenantID, clientID)` and `ConsumeNonce(ctx, nonce)` (kept the platform package domain-agnostic; the oauth repo satisfies `NonceStore` structurally, so no adapter is needed). `tenantID` was added to `IssueNonce` because the table's `tenant_id` is `NOT NULL`. Also added `ExtractProofNonce` to read the DPoP proof's `nonce` claim.
+- [x] In `internal/oauth/handler_token.go`, added the nonce gate: for clients with `dpop_required=TRUE`, if the DPoP proof has no valid server nonce, `IssueNonce` + return 400 `use_dpop_nonce` with the `DPoP-Nonce` header; if the nonce is present and valid, `ConsumeNonce` before processing. **Gated on `dpop_required=TRUE` (default FALSE), so existing clients are unaffected** and DPoP-not-required flows are untouched. The client's DPoP requirement is resolved via a new `oauth.DPoPRequirementResolver` (app adapter over the `clients` table) — the handler previously had no client lookup. Added `apperror.NewOAuthUseDPoPNonce` (RFC 9449 §8, HTTP 400).
+- [x] Add `oauthDPoPNonceRepo` to `internal/app/repositories.go` and wire in `initRepos`; injected into the DPoP package via `dpop.NewStoreNonceManager` (wired onto the token handler in `server/handlers.go`, alongside the resolver)
+- [x] Run `go build ./...` and `go test ./internal/oauth/...` — all green (also full `go test ./...` + `go vet`); dpop store/`ExtractProofNonce` tests + handler nonce-gate tests added
 
 ---
 

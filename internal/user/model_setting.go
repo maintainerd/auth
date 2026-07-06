@@ -8,9 +8,9 @@ import (
 )
 
 type UserSetting struct {
-	UserSettingID            int64          `gorm:"column:user_setting_id;primaryKey"`
-	UserSettingUUID          uuid.UUID      `gorm:"column:user_setting_uuid;unique;not null"`
-	UserID                   int64          `gorm:"column:user_id;not null;unique"`
+	UserSettingID     int64     `gorm:"column:user_setting_id;primaryKey"`
+	UserSettingUUID   uuid.UUID `gorm:"column:user_setting_uuid;unique;not null"`
+	UserID            int64     `gorm:"column:user_id;not null;unique"`
 	Timezone          *string   `gorm:"column:timezone"`
 	Locale            *string   `gorm:"column:locale"`
 	PreferredLanguage *string   `gorm:"-"`

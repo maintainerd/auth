@@ -74,8 +74,8 @@ type loginService struct {
 	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → skip expiry check
 	mfaAuthenticator     MFAFactorAuthenticator              // nil → login MFA disabled
 	jtiDenylist          cache.JTIDenylister
-	lockoutRepo          UserLockoutRepository  // nil → lockout tracking disabled
-	tokenRevoker         AccessTokenRevoker     // nil → persistent revocation skipped
+	lockoutRepo          UserLockoutRepository // nil → lockout tracking disabled
+	tokenRevoker         AccessTokenRevoker    // nil → persistent revocation skipped
 }
 
 func NewLoginService(

@@ -991,12 +991,12 @@ func TestUserHandler_GetUserMFA(t *testing.T) {
 		svc := &mockUserService{
 			getUserMFAFn: func(uuid.UUID, int64) (*UserMFAResponseDTO, error) {
 				return &UserMFAResponseDTO{
-					IsTOTPEnabled:     true,
-					IsWebAuthnEnabled: false,
-					IsSMSEnabled:      true,
-					BackupCodesCount:  5,
-					FirstMFAEnrolledAt:      &mfaEnabledAt,
-					WebAuthnKeys:      []UserMFAWebAuthnKeyDTO{},
+					IsTOTPEnabled:      true,
+					IsWebAuthnEnabled:  false,
+					IsSMSEnabled:       true,
+					BackupCodesCount:   5,
+					FirstMFAEnrolledAt: &mfaEnabledAt,
+					WebAuthnKeys:       []UserMFAWebAuthnKeyDTO{},
 				}, nil
 			},
 		}

@@ -568,7 +568,6 @@ func (m *mockServiceRepo) CountPoliciesByServiceID(serviceID int64) (int64, erro
 	return 0, nil
 }
 
-
 type mockServicePolicyRepo struct {
 	mockBaseRepo[ServicePolicy]
 	findPaginatedFn            func(ServicePolicyRepositoryGetFilter) (*PaginationResult[ServicePolicy], error)
@@ -794,6 +793,8 @@ type mockPolicyService struct {
 	updateFn                  func(uuid.UUID, int64, string, *string, datatypes.JSON, string, string) (*PolicyServiceDataResult, error)
 	setStatusByUUIDFn         func(uuid.UUID, int64, string) (*PolicyServiceDataResult, error)
 	deleteByUUIDFn            func(uuid.UUID, int64) (*PolicyServiceDataResult, error)
+	getHistoryFn              func(uuid.UUID, int64, int, int) (*PolicyHistoryListResult, error)
+	getHistoryVersionFn       func(uuid.UUID, int64, int) (*PolicyHistoryEntryResult, error)
 }
 
 func (m *mockPolicyService) Get(_ context.Context, f PolicyServiceGetFilter) (*PolicyServiceGetResult, error) {
@@ -837,6 +838,18 @@ func (m *mockPolicyService) DeleteByUUID(_ context.Context, id uuid.UUID, tenant
 		return m.deleteByUUIDFn(id, tenantID)
 	}
 	return &PolicyServiceDataResult{}, nil
+}
+func (m *mockPolicyService) GetHistory(_ context.Context, policyUUID uuid.UUID, tenantID int64, page, limit int) (*PolicyHistoryListResult, error) {
+	if m.getHistoryFn != nil {
+		return m.getHistoryFn(policyUUID, tenantID, page, limit)
+	}
+	return &PolicyHistoryListResult{}, nil
+}
+func (m *mockPolicyService) GetHistoryVersion(_ context.Context, policyUUID uuid.UUID, tenantID int64, versionNumber int) (*PolicyHistoryEntryResult, error) {
+	if m.getHistoryVersionFn != nil {
+		return m.getHistoryVersionFn(policyUUID, tenantID, versionNumber)
+	}
+	return &PolicyHistoryEntryResult{}, nil
 }
 
 type mockRoleService struct {

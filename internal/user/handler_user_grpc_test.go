@@ -73,6 +73,9 @@ func (m *testUserService) CompleteAccount(ctx context.Context, userUUID uuid.UUI
 func (m *testUserService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	return m.deleteByUUIDFn(ctx, userUUID, tenantID, deleterUserUUID)
 }
+func (m *testUserService) AnonymizeUser(_ context.Context, _ int64) error {
+	return nil
+}
 func (m *testUserService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	return m.assignUserRolesFn(ctx, userUUID, roleUUIDs, tenantID)
 }

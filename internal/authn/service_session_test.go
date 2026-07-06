@@ -235,7 +235,6 @@ func TestSessionService_CreateSession(t *testing.T) {
 	})
 }
 
-
 func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 	userUUID := uuid.New()
 	sessionUUID := uuid.New()

@@ -671,22 +671,22 @@ func (h *UserHandler) ForcePasswordChange(w http.ResponseWriter, r *http.Request
 // toUserResponseDTO converts a service result to a user response DTO.
 func toUserResponseDTO(u UserServiceDataResult) UserResponseDTO {
 	result := UserResponseDTO{
-		UserUUID:           u.UserUUID,
-		Username:           u.Username,
-		Fullname:           u.Fullname,
-		Email:              u.Email,
-		Phone:              u.Phone,
+		UserUUID:        u.UserUUID,
+		Username:        u.Username,
+		Fullname:        u.Fullname,
+		Email:           u.Email,
+		Phone:           u.Phone,
 		IsEmailVerified: u.IsEmailVerified,
 		IsPhoneVerified: u.IsPhoneVerified,
 		Status:          u.Status,
-		Metadata:           u.Metadata,
-		LastLoginAt:        u.LastLoginAt,
-		LoginCount:         u.LoginCount,
-		EmailVerifiedAt:    u.EmailVerifiedAt,
-		PhoneVerifiedAt:    u.PhoneVerifiedAt,
-		ExternalID:         u.ExternalID,
-		CreatedAt:          u.CreatedAt,
-		UpdatedAt:          u.UpdatedAt,
+		Metadata:        u.Metadata,
+		LastLoginAt:     u.LastLoginAt,
+		LoginCount:      u.LoginCount,
+		EmailVerifiedAt: u.EmailVerifiedAt,
+		PhoneVerifiedAt: u.PhoneVerifiedAt,
+		ExternalID:      u.ExternalID,
+		CreatedAt:       u.CreatedAt,
+		UpdatedAt:       u.UpdatedAt,
 	}
 
 	// Map Tenant if present

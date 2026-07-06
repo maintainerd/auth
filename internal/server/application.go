@@ -7,6 +7,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
+	"github.com/maintainerd/maintainerd-auth/internal/federation"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
 	"github.com/maintainerd/maintainerd-auth/internal/invite"
@@ -90,12 +91,17 @@ type Application struct {
 	EventRouteService            event.EventRouteService
 	// Webhook management wiring (subscription + replay handlers, endpoint repo
 	// for the per-tenant creation cap).
-	WebhookEndpointRepo        webhook.WebhookEndpointRepository
-	WebhookSubscriptionHandler *webhook.SubscriptionHandler
-	WebhookReplayHandler       *webhook.ReplayHandler
-	IPRestrictionRuleRepo      secpolicy.IPRestrictionRuleRepository
-	AuditLogger                auditlog.ManagementAuditLogger
-	AuditLogRepo               auditlog.ManagementAuditLogRepository
-	KeyRotationService         oauth.KeyRotationService
-	TokenRevocationService     oauth.TokenRevocationService
+	WebhookEndpointRepo               webhook.WebhookEndpointRepository
+	WebhookSubscriptionHandler        *webhook.SubscriptionHandler
+	WebhookReplayHandler              *webhook.ReplayHandler
+	IPRestrictionRuleRepo             secpolicy.IPRestrictionRuleRepository
+	AuditLogger                       auditlog.ManagementAuditLogger
+	AuditLogRepo                      auditlog.ManagementAuditLogRepository
+	KeyRotationService                oauth.KeyRotationService
+	TokenRevocationService            oauth.TokenRevocationService
+	WorkloadIdentityFederationService federation.WorkloadIdentityFederationService
+	DataErasureService                user.DataErasureService
+	AccountLinkService                authn.AccountLinkRequestService
+	OAuthDPoPNonceRepo                oauth.OAuthDPoPNonceRepository
+	DPoPRequirementResolver           oauth.DPoPRequirementResolver
 }

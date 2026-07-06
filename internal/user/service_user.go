@@ -27,27 +27,27 @@ import (
 var userHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
 type UserServiceDataResult struct {
-	UserUUID           uuid.UUID
-	Username           string
-	Fullname           string
-	Email              string
-	Phone              string
+	UserUUID        uuid.UUID
+	Username        string
+	Fullname        string
+	Email           string
+	Phone           string
 	IsEmailVerified bool
 	IsPhoneVerified bool
 	Status          string
-	Metadata           datatypes.JSON
-	LastLoginAt        *time.Time
-	LoginCount         int
-	EmailVerifiedAt    *time.Time
-	PhoneVerifiedAt    *time.Time
-	ExternalID         *string
-	CreatedBy          *int64
-	UpdatedBy          *int64
-	Tenant             *TenantServiceDataResult
-	UserIdentities     *[]UserIdentityServiceDataResult
-	Roles              *[]RoleServiceDataResult
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	Metadata        datatypes.JSON
+	LastLoginAt     *time.Time
+	LoginCount      int
+	EmailVerifiedAt *time.Time
+	PhoneVerifiedAt *time.Time
+	ExternalID      *string
+	CreatedBy       *int64
+	UpdatedBy       *int64
+	Tenant          *TenantServiceDataResult
+	UserIdentities  *[]UserIdentityServiceDataResult
+	Roles           *[]RoleServiceDataResult
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type UserIdentityServiceDataResult struct {
@@ -94,6 +94,14 @@ type UserService interface {
 	VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	CompleteAccount(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	// AnonymizeUser is the canonical GDPR Article 17 erasure implementation. It
+	// anonymizes the user's PII in place (rather than hard-deleting the row, so
+	// audit/referential integrity is preserved) and cascades to the user's
+	// profile, sessions, and consents. Immutable audit tables (auth_events,
+	// management_audit_log) are intentionally left untouched: they store only
+	// integer user-id references (no PII), and their BEFORE UPDATE triggers
+	// forbid mutation.
+	AnonymizeUser(ctx context.Context, userID int64) error
 	AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	GetUserRoles(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserRolesFilter) ([]RoleServiceDataResult, int64, error)
@@ -919,6 +927,74 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	return toUserServiceDataResult(user), nil
 }
 
+// AnonymizeUser implements the GDPR Article 17 erasure cascade. Runs in a single
+// transaction so the anonymization is all-or-nothing.
+//
+// Schema-reconciled deviations from the plan's field list:
+//   - users.phone is VARCHAR(20) and cannot hold "deleted_{uuid}@erased"; the
+//     PII is removed by setting it NULL instead.
+//   - users.pending_email no longer exists (removed in section 1.4), so there is
+//     nothing to null there.
+//   - auth_events and management_audit_log carry only integer user-id FKs (no
+//     PII) and are immutable (BEFORE UPDATE triggers raise). They are left as-is;
+//     the referenced user row is already scrubbed, so no PII is reachable.
+func (s *userService) AnonymizeUser(ctx context.Context, userID int64) error {
+	ctx, span := otel.Tracer("service").Start(ctx, "user.anonymize")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("user.id", userID))
+
+	placeholder := fmt.Sprintf("deleted_%s@erased", uuid.NewString())
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// users: scrub the sign-in identity + credential.
+		if e := tx.Model(&User{}).Where("user_id = ?", userID).Updates(map[string]any{
+			"email":    placeholder,
+			"username": placeholder,
+			"phone":    nil,
+			"password": nil,
+		}).Error; e != nil {
+			return e
+		}
+
+		// profiles: scrub names + avatar.
+		if e := tx.Model(&Profile{}).Where("user_id = ?", userID).Updates(map[string]any{
+			"first_name":   "Erased",
+			"middle_name":  nil,
+			"last_name":    nil,
+			"display_name": nil,
+			"profile_url":  nil,
+		}).Error; e != nil {
+			return e
+		}
+
+		// user_sessions: scrub network PII (table-scoped to avoid importing authn).
+		if e := tx.Table("user_sessions").Where("user_id = ?", userID).Updates(map[string]any{
+			"ip_address": nil,
+			"user_agent": nil,
+		}).Error; e != nil {
+			return e
+		}
+
+		// user_consents: scrub network PII on the consent ledger.
+		if e := tx.Table("user_consents").Where("user_id = ?", userID).Updates(map[string]any{
+			"ip_address": nil,
+			"user_agent": nil,
+		}).Error; e != nil {
+			return e
+		}
+
+		return nil
+	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "anonymize failed")
+		return apperror.NewInternal("failed to anonymize user", err)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
 func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user.assignRoles")
 	defer span.End()
@@ -1123,24 +1199,24 @@ func toUserServiceDataResult(user *User) *UserServiceDataResult {
 		derivedFullname = user.Fullname
 	}
 	result := &UserServiceDataResult{
-		UserUUID:           user.UserUUID,
-		Username:           user.Username,
-		Fullname:           derivedFullname,
-		Email:              user.Email,
-		Phone:              user.Phone,
+		UserUUID:        user.UserUUID,
+		Username:        user.Username,
+		Fullname:        derivedFullname,
+		Email:           user.Email,
+		Phone:           user.Phone,
 		IsEmailVerified: user.IsEmailVerified,
 		IsPhoneVerified: user.IsPhoneVerified,
 		Status:          user.Status,
-		Metadata:           user.Metadata,
-		LastLoginAt:        user.LastLoginAt,
-		LoginCount:         user.LoginCount,
-		EmailVerifiedAt:    user.EmailVerifiedAt,
-		PhoneVerifiedAt:    user.PhoneVerifiedAt,
-		ExternalID:         user.ExternalID,
-		CreatedBy:          user.CreatedBy,
-		UpdatedBy:          user.UpdatedBy,
-		CreatedAt:          user.CreatedAt,
-		UpdatedAt:          user.UpdatedAt,
+		Metadata:        user.Metadata,
+		LastLoginAt:     user.LastLoginAt,
+		LoginCount:      user.LoginCount,
+		EmailVerifiedAt: user.EmailVerifiedAt,
+		PhoneVerifiedAt: user.PhoneVerifiedAt,
+		ExternalID:      user.ExternalID,
+		CreatedBy:       user.CreatedBy,
+		UpdatedBy:       user.UpdatedBy,
+		CreatedAt:       user.CreatedAt,
+		UpdatedAt:       user.UpdatedAt,
 	}
 
 	// Map Tenant if present - get from UserIdentities

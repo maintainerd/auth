@@ -119,6 +119,11 @@ var migrations = []migrationEntry{
 	{"076_create_signing_keys_table", migration.CreateSigningKeysTable},
 	{"077_create_oauth_token_revocations_table", migration.CreateOAuthTokenRevocationsTable},
 	{"078_create_oauth_token_exchanges_table", migration.CreateOAuthTokenExchangesTable},
+	{"079_create_workload_identity_federations_table", migration.CreateWorkloadIdentityFederationsTable},
+	{"080_create_data_erasure_requests_table", migration.CreateDataErasureRequestsTable},
+	{"081_create_account_link_requests_table", migration.CreateAccountLinkRequestsTable},
+	{"082_create_policy_version_history_table", migration.CreatePolicyVersionHistoryTable},
+	{"083_create_oauth_dpop_nonces_table", migration.CreateOAuthDPoPNoncesTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

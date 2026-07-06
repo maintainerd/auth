@@ -54,7 +54,6 @@ type Client struct {
 
 func (Client) TableName() string { return "clients" }
 
-
 type UserRole struct {
 	UserRoleID uuid.UUID
 	UserID     int64

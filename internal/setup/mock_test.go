@@ -718,6 +718,9 @@ func (m *mockUserIdentityRepo) DeleteByUserID(userID int64) error {
 	}
 	return nil
 }
+func (m *mockUserIdentityRepo) FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error) {
+	return nil, nil
+}
 
 type mockTenantMemberRepo struct {
 	mockBaseRepo[TenantMember]

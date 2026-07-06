@@ -5,12 +5,35 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 )
 
 func publicAuthSurface(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r.WithContext(contextWithPublicAuthSurface(r.Context())))
+	})
+}
+
+// AccountLinkConfirmRoute mounts the social-login account-link confirmation
+// endpoint. It requires the caller to be authenticated as the existing account
+// being linked (JWT + user context), so it is not part of the unauthenticated
+// public auth surface.
+func AccountLinkConfirmRoute(
+	r chi.Router,
+	handler *AccountLinkHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		r.Post("/account-link/{token}/confirm", handler.Confirm)
 	})
 }
 

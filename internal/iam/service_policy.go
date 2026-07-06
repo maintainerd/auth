@@ -90,6 +90,31 @@ type PolicyService interface {
 	Update(ctx context.Context, policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
+	// GetHistory returns a paginated list of version snapshots for a policy.
+	GetHistory(ctx context.Context, policyUUID uuid.UUID, tenantID int64, page, limit int) (*PolicyHistoryListResult, error)
+	// GetHistoryVersion returns a single version snapshot for a policy.
+	GetHistoryVersion(ctx context.Context, policyUUID uuid.UUID, tenantID int64, versionNumber int) (*PolicyHistoryEntryResult, error)
+}
+
+// PolicyHistoryEntryResult is the service-layer view of a policy version snapshot.
+type PolicyHistoryEntryResult struct {
+	UUID          uuid.UUID
+	VersionNumber int
+	Name          string
+	Description   *string
+	Document      datatypes.JSON
+	PolicyVersion string
+	ChangeReason  *string
+	SnapshotAt    time.Time
+}
+
+// PolicyHistoryListResult is a paginated list of policy version snapshots.
+type PolicyHistoryListResult struct {
+	Data       []PolicyHistoryEntryResult
+	Total      int64
+	Page       int
+	Limit      int
+	TotalPages int
 }
 
 type policyService struct {
@@ -99,6 +124,17 @@ type policyService struct {
 	apiRepo          APIRepository
 	authEventService authevent.AuthEventService
 	eventService     event.EventService
+	historyRepo      PolicyVersionHistoryRepository // nil → policy version history disabled
+}
+
+// SetPolicyVersionHistory injects the append-only policy version history repo
+// into an existing PolicyService (setter pattern, so NewPolicyService callers
+// and tests are unaffected). When set, every policy Update snapshots the
+// before-state; the two history read endpoints also require it.
+func SetPolicyVersionHistory(svc PolicyService, repo PolicyVersionHistoryRepository) {
+	if s, ok := svc.(*policyService); ok {
+		s.historyRepo = repo
+	}
 }
 
 func NewPolicyService(
@@ -370,6 +406,33 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 			changed = append(changed, "document")
 		}
 
+		// Snapshot the before-state into policy_version_history (append-only,
+		// same transaction) so the prior version can be audited or rolled back.
+		// changed_by is left NULL here — the management_audit_log records who
+		// made the change; this table records what the policy looked like.
+		if s.historyRepo != nil {
+			txHistoryRepo := s.historyRepo.WithTx(tx)
+			nextVersion, verr := txHistoryRepo.NextVersionNumber(policy.PolicyID)
+			if verr != nil {
+				return verr
+			}
+			beforeDoc := policy.Document
+			if len(beforeDoc) == 0 {
+				beforeDoc = datatypes.JSON([]byte("{}"))
+			}
+			if _, herr := txHistoryRepo.Create(&PolicyVersionHistory{
+				TenantID:      policy.TenantID,
+				PolicyID:      policy.PolicyID,
+				VersionNumber: nextVersion,
+				Name:          policy.Name,
+				Description:   policy.Description,
+				Document:      beforeDoc,
+				PolicyVersion: policy.Version,
+			}); herr != nil {
+				return herr
+			}
+		}
+
 		// Update policy
 		policy.Name = name
 		policy.Description = description
@@ -538,4 +601,67 @@ func (s *policyService) DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, 
 		CreatedAt:   deletedPolicy.CreatedAt,
 		UpdatedAt:   deletedPolicy.UpdatedAt,
 	}, nil
+}
+
+func (s *policyService) GetHistory(ctx context.Context, policyUUID uuid.UUID, tenantID int64, page, limit int) (*PolicyHistoryListResult, error) {
+	if s.historyRepo == nil {
+		return nil, apperror.NewNotFoundWithReason("policy version history is not available")
+	}
+	policy, err := s.policyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if policy == nil {
+		return nil, apperror.NewNotFoundWithReason("policy not found or access denied")
+	}
+	entries, err := s.historyRepo.FindByPolicyIDPaginated(policy.PolicyID, page, limit)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]PolicyHistoryEntryResult, len(entries.Data))
+	for i, e := range entries.Data {
+		data[i] = toHistoryEntry(&e)
+	}
+	return &PolicyHistoryListResult{
+		Data:       data,
+		Total:      entries.Total,
+		Page:       entries.Page,
+		Limit:      entries.Limit,
+		TotalPages: entries.TotalPages,
+	}, nil
+}
+
+func (s *policyService) GetHistoryVersion(ctx context.Context, policyUUID uuid.UUID, tenantID int64, versionNumber int) (*PolicyHistoryEntryResult, error) {
+	if s.historyRepo == nil {
+		return nil, apperror.NewNotFoundWithReason("policy version history is not available")
+	}
+	policy, err := s.policyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if policy == nil {
+		return nil, apperror.NewNotFoundWithReason("policy not found or access denied")
+	}
+	entry, err := s.historyRepo.FindByPolicyIDAndVersion(policy.PolicyID, versionNumber)
+	if err != nil {
+		return nil, err
+	}
+	if entry == nil {
+		return nil, apperror.NewNotFoundWithReason("policy version not found")
+	}
+	result := toHistoryEntry(entry)
+	return &result, nil
+}
+
+func toHistoryEntry(e *PolicyVersionHistory) PolicyHistoryEntryResult {
+	return PolicyHistoryEntryResult{
+		UUID:          e.PolicyVersionHistoryUUID,
+		VersionNumber: e.VersionNumber,
+		Name:          e.Name,
+		Description:   e.Description,
+		Document:      e.Document,
+		PolicyVersion: e.PolicyVersion,
+		ChangeReason:  e.ChangeReason,
+		SnapshotAt:    e.SnapshotAt,
+	}
 }

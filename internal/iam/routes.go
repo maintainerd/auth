@@ -73,6 +73,7 @@ func PermissionRoute(
 func PolicyRoute(
 	r chi.Router,
 	policyHandler *PolicyHandler,
+	policyHistoryHandler *PolicyHistoryHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	rateLimitMiddleware ...middleware.Middleware,
@@ -90,6 +91,13 @@ func PolicyRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
 			Get("/{policy_uuid}/services", policyHandler.GetServicesByPolicyUUID)
+
+		// Policy version history (append-only audit / rollback source)
+		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
+			Get("/{policy_uuid}/history", policyHistoryHandler.ListHistory)
+
+		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
+			Get("/{policy_uuid}/history/{version_number}", policyHistoryHandler.GetHistoryVersion)
 
 		r.With(middleware.PermissionMiddleware([]string{"policy:create"})).
 			Post("/", policyHandler.Create)
