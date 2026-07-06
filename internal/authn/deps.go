@@ -376,3 +376,7 @@ type RegistrationFlow struct {
 	VerificationRequired bool
 	RequiredFields       datatypes.JSON
 }
+
+type UserConsentRecorder interface {
+	Record(ctx context.Context, tx *gorm.DB, userID, tenantID int64, consentType, policyVersion, ipAddress, userAgent string) error
+}
