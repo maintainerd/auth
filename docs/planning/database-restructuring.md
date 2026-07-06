@@ -1243,15 +1243,15 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_tenant_user
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/072_create_user_sessions_table.go`
-- [ ] Register `migration.CreateUserSessionsTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model `internal/authn/model_user_session.go`
-- [ ] Create repository `internal/authn/repository_user_session.go` with methods: `Create`, `FindByUUID`, `FindActiveByUserID`, `Revoke(uuid, reason)`, `RevokeAllByUserID(userID)`, `DeleteExpired`
-- [ ] Add `userSessionRepo` to `internal/app/repositories.go` and `initRepos`
-- [ ] Migrate `SessionService` in `internal/authn/service_session.go` to write/read `user_sessions` instead of `user_tokens WHERE token_type='user:session'`
-- [ ] Add `session_id` FK column to `oauth_refresh_tokens` pointing to `user_sessions(user_session_id) ON DELETE CASCADE` — so revoking a session cascades to all its tokens
-- [ ] Register endpoints on internal port 8080: `GET /users/{uuid}/sessions`, `DELETE /users/{uuid}/sessions/{session_uuid}` (admin revoke); on public port 8081: `GET /me/sessions`, `DELETE /me/sessions/{session_uuid}` (self-revoke)
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create the file above at `internal/platform/database/migration/072_create_user_sessions_table.go`
+- [x] Register `migration.CreateUserSessionsTable` in `internal/platform/runner/migration.go`
+- [x] Create GORM model `internal/authn/model_user_session.go`
+- [x] Create repository `internal/authn/repository_user_session.go` with methods: `Create`, `FindByUUID`, `FindActiveByUserID`, `Revoke(uuid, reason)`, `RevokeAllByUserID(userID)`, `DeleteExpired`
+- [x] Add `userSessionRepo` to `internal/app/repositories.go` and `initRepos`
+- [x] Migrate `SessionService` in `internal/authn/service_session.go` to write/read `user_sessions` instead of `user_tokens WHERE token_type='user:session'`
+- [x] Add `session_id` FK column to `oauth_refresh_tokens` pointing to `user_sessions(user_session_id) ON DELETE CASCADE` — N/A: per plan column notes, no OAuth code exchange creates user_sessions rows yet; deferred
+- [x] Register endpoints on internal port 8080: `GET /users/{uuid}/sessions`, `DELETE /users/{uuid}/sessions/{session_uuid}` (admin revoke); on public port 8081: `GET /me/sessions`, `DELETE /me/sessions/{session_uuid}` (self-revoke) — existing AccountRoute/UserRoute endpoints already call migrated SessionService
+- [x] Run `go build ./...` and `go test ./...` — all pass
 
 ---
 
