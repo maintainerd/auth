@@ -45,7 +45,7 @@ func TestProfileRoute(t *testing.T) {
 func TestUserRoute(t *testing.T) {
 	r := chi.NewRouter()
 	h := NewUserHandler(&mockUserService{})
-	UserRoute(r, h, nil, nil, nil, nil)
+	UserRoute(r, h, nil, nil, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/users", nil)
 	w := httptest.NewRecorder()

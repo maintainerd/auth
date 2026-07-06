@@ -172,28 +172,12 @@ func ProfileRoute(
 	})
 }
 
-func UserConsentRoute(
-	r chi.Router,
-	consentHandler *UserConsentHandler,
-	userService middleware.UserContextProvider,
-	appCache *cache.Cache,
-	rateLimitMiddleware ...middleware.Middleware,
-) {
-	r.Route("/users", func(r chi.Router) {
-		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, appCache))
-		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
-
-		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
-			Get("/{user_uuid}/consents", consentHandler.GetUserConsents)
-	})
-}
-
 func UserRoute(
 	r chi.Router,
 	userHandler *UserHandler,
 	profileHandler *ProfileHandler,
 	deviceHandler *UserTrustedDeviceHandler,
+	consentHandler *UserConsentHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	rateLimitMiddleware ...middleware.Middleware,
@@ -264,6 +248,12 @@ func UserRoute(
 		if deviceHandler != nil {
 			r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 				Get("/{user_uuid}/devices", deviceHandler.GetUserDevices)
+		}
+
+		// Consents
+		if consentHandler != nil {
+			r.With(middleware.PermissionMiddleware([]string{"user:read"})).
+				Get("/{user_uuid}/consents", consentHandler.GetUserConsents)
 		}
 
 		// Session management
