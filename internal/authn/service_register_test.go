@@ -712,7 +712,7 @@ func TestRegisterService_Register(t *testing.T) {
 			},
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, emailSvc)
+			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, WithEmailVerificationService(emailSvc))
 
 		email := "verify@example.com"
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, &pid, "")
@@ -741,7 +741,7 @@ func TestRegisterService_Register(t *testing.T) {
 			},
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, emailSvc)
+			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, WithEmailVerificationService(emailSvc))
 
 		email := "noverify@example.com"
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, &pid, "")

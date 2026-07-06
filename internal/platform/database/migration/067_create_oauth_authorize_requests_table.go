@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS oauth_authorize_requests (
     oauth_authorize_request_id   BIGSERIAL    PRIMARY KEY,
     oauth_authorize_request_uuid UUID         NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     client_id                    BIGINT       NOT NULL,
-    tenant_id                    BIGINT,
+    tenant_id                    BIGINT       NOT NULL,
+    registration_flow_id         BIGINT,
     redirect_uri                 VARCHAR(2048) NOT NULL,
     scope                        TEXT[],
     state                        TEXT,
@@ -18,7 +19,6 @@ CREATE TABLE IF NOT EXISTS oauth_authorize_requests (
     code_challenge               TEXT,
     code_challenge_method        VARCHAR(10),
     screen_hint                  VARCHAR(20),
-    registration_flow            TEXT,
     status                       VARCHAR(20)  NOT NULL DEFAULT 'pending',
     expires_at                   TIMESTAMPTZ  NOT NULL,
     consumed_at                  TIMESTAMPTZ,
@@ -45,6 +45,22 @@ BEGIN
             ADD CONSTRAINT fk_oauth_authorize_requests_tenant_id FOREIGN KEY (tenant_id)
             REFERENCES tenants(tenant_id) ON DELETE CASCADE;
     END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_oauth_authorize_requests_status'
+    ) THEN
+        ALTER TABLE oauth_authorize_requests ADD CONSTRAINT chk_oauth_authorize_requests_status
+            CHECK (status IN ('pending', 'consumed', 'expired', 'error'));
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_oauth_authorize_requests_registration_flow_id'
+    ) THEN
+        ALTER TABLE oauth_authorize_requests
+            ADD CONSTRAINT fk_oauth_authorize_requests_registration_flow_id
+            FOREIGN KEY (registration_flow_id)
+            REFERENCES registration_flows(registration_flow_id) ON DELETE SET NULL;
+    END IF;
 END$$;
 
 -- ADD INDEXES
@@ -52,6 +68,8 @@ CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_uuid       ON oauth_auth
 CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_client_id    ON oauth_authorize_requests (client_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_expires_at   ON oauth_authorize_requests (expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_deleted_at   ON oauth_authorize_requests (deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_registration_flow_id
+    ON oauth_authorize_requests (registration_flow_id) WHERE registration_flow_id IS NOT NULL;
 `
 	return db.Exec(sql).Error
 }

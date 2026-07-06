@@ -21,7 +21,7 @@ type OAuthAuthorizeRequest struct {
 	CodeChallenge             *string        `gorm:"column:code_challenge"`
 	CodeChallengeMethod       *string        `gorm:"column:code_challenge_method"`
 	ScreenHint                *string        `gorm:"column:screen_hint"`
-	RegistrationFlow          *string        `gorm:"column:registration_flow"`
+	RegistrationFlowID        *int64         `gorm:"column:registration_flow_id"`
 	Status                    string         `gorm:"column:status;not null;default:pending"`
 	ExpiresAt                 time.Time      `gorm:"column:expires_at;not null"`
 	ConsumedAt                *time.Time     `gorm:"column:consumed_at"`
