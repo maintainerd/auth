@@ -2,6 +2,8 @@ package tenant
 
 import "time"
 
+// TenantServiceLink is DEPRECATED — the tenant_services table has been removed.
+// services.tenant_id is the authoritative tenant-scope relationship.
 type TenantServiceLink struct {
 	TenantServiceID int64     `gorm:"column:tenant_service_id;primaryKey"`
 	TenantID        int64     `gorm:"column:tenant_id"`
