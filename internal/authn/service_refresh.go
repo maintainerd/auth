@@ -169,7 +169,7 @@ func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, se
 	if err != nil {
 		return "", err
 	}
-	return sess.UserTokenUUID.String(), nil
+	return sess.UserSessionUUID.String(), nil
 }
 
 // denylistConsumedRefreshToken best-effort denylists the refresh token's JTI for

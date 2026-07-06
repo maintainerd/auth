@@ -1164,7 +1164,7 @@ func (s *federationService) createBrokerSession(ctx context.Context, user *User,
 		if err != nil {
 			return "", apperror.NewInternal("session creation failed", err)
 		}
-		return sess.UserTokenUUID.String(), nil
+		return sess.UserSessionUUID.String(), nil
 	}
 	if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
 		return "", apperror.NewInternal("session limit enforcement failed", err)
@@ -1173,7 +1173,7 @@ func (s *federationService) createBrokerSession(ctx context.Context, user *User,
 	if err != nil {
 		return "", apperror.NewInternal("session creation failed", err)
 	}
-	return sess.UserTokenUUID.String(), nil
+	return sess.UserSessionUUID.String(), nil
 }
 
 func (s *federationService) refreshMetadata(tx *gorm.DB, identity *UserIdentity, meta IdentityMetadata) error {
@@ -1195,7 +1195,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 			if err != nil {
 				return nil, apperror.NewInternal("session creation failed", err)
 			}
-			sessionID = sess.UserTokenUUID.String()
+			sessionID = sess.UserSessionUUID.String()
 		} else {
 			if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
 				return nil, apperror.NewInternal("session limit enforcement failed", err)
@@ -1204,7 +1204,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 			if err != nil {
 				return nil, apperror.NewInternal("session creation failed", err)
 			}
-			sessionID = sess.UserTokenUUID.String()
+			sessionID = sess.UserSessionUUID.String()
 		}
 	}
 
@@ -1311,7 +1311,7 @@ func mapFromJSON(raw []byte) map[string]any {
 
 type policyAwareSessionService interface {
 	EnforceConcurrentLimitWithPolicy(ctx context.Context, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error
-	CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*authn.UserToken, error)
+	CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*authn.UserSession, error)
 }
 
 // findDefaultRole mirrors the logic in registerService to locate the tenant's

@@ -81,8 +81,8 @@ func TestRefreshToken(t *testing.T) {
 			userRepo:   userFound(t),
 			clientRepo: clientFound,
 			sessionService: &mockSessionService{
-				createSessionFn: func(_ context.Context, _ int64, _, _ string) (*UserToken, error) {
-					return &UserToken{UserTokenUUID: newSessUUID}, nil
+				createSessionFn: func(_ context.Context, _ int64, _, _ string) (*UserSession, error) {
+					return &UserSession{UserSessionUUID: newSessUUID}, nil
 				},
 			},
 			jtiDenylist: denylist,
@@ -110,7 +110,7 @@ func TestRefreshToken(t *testing.T) {
 					assert.Equal(t, existing, sid.String())
 					return nil
 				},
-				createSessionFn: func(_ context.Context, _ int64, _, _ string) (*UserToken, error) {
+				createSessionFn: func(_ context.Context, _ int64, _, _ string) (*UserSession, error) {
 					t.Fatal("must not create a new session when reusing a valid one")
 					return nil, nil
 				},

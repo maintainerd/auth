@@ -119,14 +119,14 @@ func tokenAuthContextWithPolicyAndRefreshFamily(amr []string, acr, sessionID str
 }
 
 type policyAwareSessionCreator interface {
-	CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserToken, error)
+	CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error)
 }
 
 type policyAwareConcurrentLimiter interface {
 	EnforceConcurrentLimitWithPolicy(ctx context.Context, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error
 }
 
-func createSessionWithPolicy(ctx context.Context, sessionService SessionService, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserToken, error) {
+func createSessionWithPolicy(ctx context.Context, sessionService SessionService, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error) {
 	if svc, ok := sessionService.(policyAwareSessionCreator); ok {
 		return svc.CreateSessionWithPolicy(ctx, userID, ipAddress, userAgent, policy)
 	}

@@ -192,7 +192,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	// The old webhook dispatcher is deprecated; integration events are now delivered via outbox.
 	authEventSvc := authevent.NewAuthEventService(r.authEventRepo, webhook.NewDispatcher(r.webhookEndpointRepo), tenantSettingSvc)
 
-	sessionSvc := authn.NewSessionService(newAuthnUserTokenRepoAdapter(r.userTokenRepo))
+	sessionSvc := authn.NewSessionService(r.userSessionRepo)
 	iamTenantServiceRepo := newIAMTenantServiceRepo(db)
 	iamClientRepo := newIAMClientRepo(db)
 	iamTenantRepo := newIAMTenantRepo(db)

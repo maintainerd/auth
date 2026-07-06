@@ -24,13 +24,12 @@ func (a *userSessionServiceAdapter) ListSessions(ctx context.Context, userID int
 	result := make([]*user.SessionDataResult, len(sessions))
 	for i, session := range sessions {
 		result[i] = &user.SessionDataResult{
-			SessionID:         session.SessionID,
-			IPAddress:         session.IPAddress,
-			UserAgent:         session.UserAgent,
-			LastUsedAt:        session.LastUsedAt,
-			ExpiresAt:         session.ExpiresAt,
-			AbsoluteExpiresAt: session.AbsoluteExpiresAt,
-			CreatedAt:         session.CreatedAt,
+			SessionID:    session.SessionID,
+			IPAddress:    session.IPAddress,
+			UserAgent:    session.UserAgent,
+			LastUsedAt:   session.LastActiveAt,
+			ExpiresAt:    session.ExpiresAt,
+			CreatedAt:    session.CreatedAt,
 		}
 	}
 	return result, nil
@@ -45,25 +44,22 @@ func (a *userSessionServiceAdapter) RevokeAllSessions(ctx context.Context, userI
 }
 
 func (a *userSessionServiceAdapter) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*user.UserToken, error) {
-	token, err := a.sessionService.CreateSession(ctx, userID, ipAddress, userAgent)
-	if err != nil || token == nil {
+	session, err := a.sessionService.CreateSession(ctx, userID, ipAddress, userAgent)
+	if err != nil || session == nil {
 		return nil, err
 	}
 	return &user.UserToken{
-		UserTokenID:        token.UserTokenID,
-		UserTokenUUID:      token.UserTokenUUID,
-		UserID:             token.UserID,
-		TokenType:          token.TokenType,
-		Token:              token.Token,
-		ExpiresAt:          token.ExpiresAt,
-		IsRevoked:          token.IsRevoked,
-		IPAddress:          token.IPAddress,
-		UserAgent:          token.UserAgent,
-		LastUsedAt:         token.LastUsedAt,
-		IdleTimeoutSeconds: token.IdleTimeoutSeconds,
-		AbsoluteExpiresAt:  token.AbsoluteExpiresAt,
-		CreatedAt:          token.CreatedAt,
-		UpdatedAt:          token.UpdatedAt,
+		UserTokenUUID:      session.UserSessionUUID,
+		UserID:             session.UserID,
+		TokenType:          "user:session",
+		ExpiresAt:          &session.ExpiresAt,
+		IsRevoked:          false,
+		IPAddress:          session.IPAddress,
+		UserAgent:          session.UserAgent,
+		LastUsedAt:         &session.LastActiveAt,
+		IdleTimeoutSeconds: &session.IdleTimeoutSeconds,
+		AbsoluteExpiresAt:  &session.ExpiresAt,
+		CreatedAt:          session.CreatedAt,
 	}, nil
 }
 

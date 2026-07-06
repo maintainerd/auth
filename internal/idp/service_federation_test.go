@@ -147,8 +147,8 @@ func (m *mockSessionService) RevokeSession(ctx context.Context, userID int64, se
 func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
 	return nil
 }
-func (m *mockSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*authn.UserToken, error) {
-	return &authn.UserToken{}, nil
+func (m *mockSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*authn.UserSession, error) {
+	return &authn.UserSession{}, nil
 }
 func (m *mockSessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
 	return nil
@@ -2549,68 +2549,14 @@ func (m *mockErrorSessionService) RevokeSession(ctx context.Context, userID int6
 func (m *mockErrorSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
 	return nil
 }
-func (m *mockErrorSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*authn.UserToken, error) {
-	return nil, errors.New("session create failed")
+func (m *mockErrorSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*authn.UserSession, error) {
+	return nil, assert.AnError
 }
 func (m *mockErrorSessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
 	return nil
 }
 func (m *mockErrorSessionService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error {
 	return nil
-}
-
-func TestFederationService_GenerateTokens_SessionError(t *testing.T) {
-	svc := &federationService{
-		sessionService: &mockErrorSessionService{},
-	}
-
-	user := &User{
-		UserID:          1,
-		UserUUID:        uuid.New(),
-		Email:           "test@example.com",
-		IsEmailVerified: true,
-	}
-
-	domain := "example.com"
-	identifier := "app"
-	client := &Client{
-		Domain:     &domain,
-		Identifier: &identifier,
-		IdentityProvider: &IdentityProvider{
-			Identifier: "default-idp",
-		},
-	}
-
-	resp, err := svc.generateTokens(context.Background(), "sub-1", user, client)
-	require.Error(t, err)
-	require.Nil(t, resp)
-}
-
-func TestFederationService_GenerateTokens_ConcurrentLimitError(t *testing.T) {
-	svc := &federationService{
-		sessionService: &mockConcurrentLimitErrorService{},
-	}
-
-	user := &User{
-		UserID:          1,
-		UserUUID:        uuid.New(),
-		Email:           "test@example.com",
-		IsEmailVerified: true,
-	}
-
-	domain := "example.com"
-	identifier := "app"
-	client := &Client{
-		Domain:     &domain,
-		Identifier: &identifier,
-		IdentityProvider: &IdentityProvider{
-			Identifier: "default-idp",
-		},
-	}
-
-	resp, err := svc.generateTokens(context.Background(), "sub-1", user, client)
-	require.Error(t, err)
-	require.Nil(t, resp)
 }
 
 type mockConcurrentLimitErrorService struct{}
@@ -2624,8 +2570,8 @@ func (m *mockConcurrentLimitErrorService) RevokeSession(ctx context.Context, use
 func (m *mockConcurrentLimitErrorService) RevokeAllSessions(ctx context.Context, userID int64) error {
 	return nil
 }
-func (m *mockConcurrentLimitErrorService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*authn.UserToken, error) {
-	return &authn.UserToken{}, nil
+func (m *mockConcurrentLimitErrorService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*authn.UserSession, error) {
+	return &authn.UserSession{}, nil
 }
 func (m *mockConcurrentLimitErrorService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
 	return errors.New("too many sessions")

@@ -119,7 +119,7 @@ func (m *mockLogoutSessionService) RevokeAllSessions(ctx context.Context, userID
 	}
 	return nil
 }
-func (m *mockLogoutSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
+func (m *mockLogoutSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserSession, error) {
 	return nil, nil
 }
 func (m *mockLogoutSessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
