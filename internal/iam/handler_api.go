@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -15,11 +16,31 @@ import (
 )
 
 type APIHandler struct {
-	apiService APIService
+	apiService  APIService
+	auditLogger auditlog.ManagementAuditLogger
 }
 
 func NewAPIHandler(apiService APIService) *APIHandler {
-	return &APIHandler{apiService}
+	return &APIHandler{apiService: apiService}
+}
+
+// SetAuditLogger wires the management audit logger into the handler.
+func (h *APIHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *APIHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // GetAll APIs with pagination
@@ -181,7 +202,12 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toAPIResponseDTO(*api)
-
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "api.create", "api", api.APIUUID.String(), &api.APIUUID, string(changesJSON), "success")
 	resp.Created(w, dtoRes, "API created successfully")
 }
 
@@ -218,7 +244,12 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toAPIResponseDTO(*api)
-
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "api.update", "api", api.APIUUID.String(), &api.APIUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "API updated successfully")
 }
 
@@ -257,7 +288,12 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toAPIResponseDTO(*api)
-
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "api.set_status", "api", api.APIUUID.String(), &api.APIUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "API status updated successfully")
 }
 
@@ -283,7 +319,12 @@ func (h *APIHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toAPIResponseDTO(*api)
-
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": apiUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "api.delete", "api", apiUUID.String(), &apiUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "API deleted successfully")
 }
 

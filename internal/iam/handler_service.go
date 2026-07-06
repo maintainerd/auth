@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -21,12 +22,32 @@ import (
 // tenant-specific. The handler supports CRUD operations, status management, and
 // policy assignment for access control.
 type ServiceHandler struct {
-	service ServiceService
+	service     ServiceService
+	auditLogger auditlog.ManagementAuditLogger
 }
 
 // NewServiceHandler creates a new service handler instance.
 func NewServiceHandler(service ServiceService) *ServiceHandler {
-	return &ServiceHandler{service}
+	return &ServiceHandler{service: service}
+}
+
+// SetAuditLogger wires the management audit logger into the handler.
+func (h *ServiceHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *ServiceHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // Get retrieves all services with pagination and filters.
@@ -198,6 +219,12 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Build response
 	dtoRes := toServiceResponseDTO(*svc)
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "service.create", "service", svc.ServiceUUID.String(), &svc.ServiceUUID, string(changesJSON), "success")
 	resp.Created(w, dtoRes, "Service created successfully")
 }
 
@@ -254,6 +281,12 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Build response
 	dtoRes := toServiceResponseDTO(*svc)
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "service.update", "service", svc.ServiceUUID.String(), &svc.ServiceUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Service updated successfully")
 }
 
@@ -299,7 +332,12 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	// Build response
 	dtoRes := toServiceResponseDTO(*service)
-
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "service.set_status", "service", service.ServiceUUID.String(), &service.ServiceUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Service updated successfully")
 }
 
@@ -333,6 +371,12 @@ func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// Build response
 	dtoRes := toServiceResponseDTO(*svc)
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": serviceUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "service.delete", "service", serviceUUID.String(), &serviceUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Service deleted successfully")
 }
 
@@ -391,6 +435,12 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"service_uuid": serviceUUID.String(), "policy_uuid": policyUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "service.assign_policy", "service", serviceUUID.String(), &serviceUUID, string(changesJSON), "success")
 	resp.Success(w, nil, "Policy assigned to service successfully")
 }
 
@@ -430,5 +480,11 @@ func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"service_uuid": serviceUUID.String(), "policy_uuid": policyUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "service.remove_policy", "service", serviceUUID.String(), &serviceUUID, string(changesJSON), "success")
 	resp.Success(w, nil, "Policy removed from service successfully")
 }

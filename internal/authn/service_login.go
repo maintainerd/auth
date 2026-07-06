@@ -38,6 +38,7 @@ type LoginService interface {
 	Logout(ctx context.Context, accessToken string) error
 	SetMFAFactorAuthenticator(a MFAFactorAuthenticator)
 	SetUserLockoutRepository(r UserLockoutRepository)
+	SetTokenRevoker(r AccessTokenRevoker)
 	MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
 	IssueMagicLinkSession(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error)
 }
@@ -73,7 +74,8 @@ type loginService struct {
 	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → skip expiry check
 	mfaAuthenticator     MFAFactorAuthenticator              // nil → login MFA disabled
 	jtiDenylist          cache.JTIDenylister
-	lockoutRepo          UserLockoutRepository               // nil → lockout tracking disabled
+	lockoutRepo          UserLockoutRepository  // nil → lockout tracking disabled
+	tokenRevoker         AccessTokenRevoker     // nil → persistent revocation skipped
 }
 
 func NewLoginService(
@@ -115,6 +117,10 @@ func (s *loginService) SetMFAFactorAuthenticator(a MFAFactorAuthenticator) {
 
 func (s *loginService) SetUserLockoutRepository(r UserLockoutRepository) {
 	s.lockoutRepo = r
+}
+
+func (s *loginService) SetTokenRevoker(r AccessTokenRevoker) {
+	s.tokenRevoker = r
 }
 
 // findLoginUser resolves the login subject within a single tenant. Lookups are
@@ -622,6 +628,10 @@ func (s *loginService) Logout(ctx context.Context, accessToken string) error {
 		return err
 	}
 
+	// Persist the JTI to the DB revocation store for RFC 7009 compliance.
+	// Best-effort: a failure here does not block logout (Redis denylist already guards re-use).
+	s.revokeLogoutJTI(ctx, claims)
+
 	sub, ok := claims["sub"].(string)
 	if !ok || sub == "" {
 		return nil
@@ -684,6 +694,42 @@ func jwtClaimTTL(expClaim any) time.Duration {
 		return 0
 	}
 	return time.Until(time.Unix(expUnix, 0))
+}
+
+func jwtClaimExpiry(expClaim any) time.Time {
+	var expUnix int64
+	switch exp := expClaim.(type) {
+	case float64:
+		expUnix = int64(exp)
+	case int64:
+		expUnix = exp
+	case int:
+		expUnix = int64(exp)
+	case json.Number:
+		parsed, err := exp.Int64()
+		if err != nil {
+			return time.Time{}
+		}
+		expUnix = parsed
+	default:
+		return time.Time{}
+	}
+	return time.Unix(expUnix, 0)
+}
+
+func (s *loginService) revokeLogoutJTI(ctx context.Context, claims jwtlib.MapClaims) {
+	if s.tokenRevoker == nil {
+		return
+	}
+	jti, _ := claims["jti"].(string)
+	if strings.TrimSpace(jti) == "" {
+		return
+	}
+	expiresAt := jwtClaimExpiry(claims["exp"])
+	if expiresAt.IsZero() {
+		return
+	}
+	_ = s.tokenRevoker.Revoke(ctx, 0, jti, "access_token", "logout", expiresAt, nil, nil)
 }
 
 // checkPasswordExpiry marks ForcePasswordChange on the user if the policy has an

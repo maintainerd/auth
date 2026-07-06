@@ -86,6 +86,14 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := toTenantMemberResponseDTO(*member)
+
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"after": response})
+	h.logAudit(r, tenant.TenantID, actorUserID, "tenant_member.create", "tenant_member", member.TenantMemberUUID.String(), &member.TenantMemberUUID, string(changesJSON), "success")
+
 	resp.Created(w, response, "Member added successfully")
 }
 
@@ -123,6 +131,14 @@ func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := toTenantMemberResponseDTO(*member)
+
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": response})
+	h.logAudit(r, tenant.TenantID, actorUserID, "tenant_member.update_role", "tenant_member", member.TenantMemberUUID.String(), &member.TenantMemberUUID, string(changesJSON), "success")
+
 	resp.Success(w, response, "Member role updated successfully")
 }
 
@@ -147,6 +163,13 @@ func (h *TenantHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Failed to remove member", err)
 		return
 	}
+
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": tenantMemberUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "tenant_member.delete", "tenant_member", tenantMemberUUID.String(), &tenantMemberUUID, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Member removed successfully")
 }

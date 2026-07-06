@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -15,10 +16,30 @@ type AccountHandler struct {
 	accountService AccountService
 	sessionService SessionService
 	profileRepo    ProfileRepository
+	auditLogger    auditlog.ManagementAuditLogger
 }
 
 func NewAccountHandler(accountService AccountService, sessionService SessionService, profileRepo ProfileRepository) *AccountHandler {
 	return &AccountHandler{accountService: accountService, sessionService: sessionService, profileRepo: profileRepo}
+}
+
+// SetAuditLogger injects the audit logger (called by the wiring layer).
+func (h *AccountHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *AccountHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // GetAccount returns consolidated user information: profile, roles, permissions, tenant.
@@ -136,6 +157,15 @@ func (h *AccountHandler) InitiateEmailChange(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	tenantIDIEC := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDIEC = t.TenantID
+	}
+	actorUserIDIEC := &user.UserID
+	changesJSONIEC, _ := json.Marshal(map[string]any{"update": map[string]any{"new_email": req.NewEmail}})
+	userUUIDIEC := user.UserUUID
+	h.logAudit(r, tenantIDIEC, actorUserIDIEC, "account.initiate_email_change", "account", userUUIDIEC.String(), &userUUIDIEC, string(changesJSONIEC), "success")
+
 	resp.Success(w, nil, "Verification code sent to new email address")
 }
 
@@ -163,6 +193,15 @@ func (h *AccountHandler) VerifyEmailChange(w http.ResponseWriter, r *http.Reques
 		resp.HandleServiceError(w, r, "Failed to verify email change", err)
 		return
 	}
+
+	tenantIDVEC := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDVEC = t.TenantID
+	}
+	actorUserIDVEC := &user.UserID
+	changesJSONVEC, _ := json.Marshal(map[string]any{"update": map[string]any{"email_changed": true}})
+	userUUIDVEC := user.UserUUID
+	h.logAudit(r, tenantIDVEC, actorUserIDVEC, "account.verify_email_change", "account", userUUIDVEC.String(), &userUUIDVEC, string(changesJSONVEC), "success")
 
 	resp.Success(w, nil, "Email address updated successfully")
 }
@@ -192,6 +231,15 @@ func (h *AccountHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	tenantIDCU := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDCU = t.TenantID
+	}
+	actorUserIDCU := &user.UserID
+	changesJSONCU, _ := json.Marshal(map[string]any{"update": map[string]any{"new_username": req.NewUsername}})
+	userUUIDCU := user.UserUUID
+	h.logAudit(r, tenantIDCU, actorUserIDCU, "account.change_username", "account", userUUIDCU.String(), &userUUIDCU, string(changesJSONCU), "success")
+
 	resp.Success(w, nil, "Username updated successfully")
 }
 
@@ -219,6 +267,15 @@ func (h *AccountHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Failed to delete account", err)
 		return
 	}
+
+	tenantIDDA := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDDA = t.TenantID
+	}
+	actorUserIDDA := &user.UserID
+	changesJSONDA, _ := json.Marshal(map[string]any{"before": map[string]any{"id": user.UserUUID.String()}})
+	userUUIDDA := user.UserUUID
+	h.logAudit(r, tenantIDDA, actorUserIDDA, "account.delete", "account", userUUIDDA.String(), &userUUIDDA, string(changesJSONDA), "success")
 
 	resp.Success(w, nil, "Account deleted successfully")
 }
@@ -258,6 +315,15 @@ func (h *AccountHandler) GenerateBackupCodes(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	tenantIDGBC := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDGBC = t.TenantID
+	}
+	actorUserIDGBC := &user.UserID
+	changesJSONGBC, _ := json.Marshal(map[string]any{"update": map[string]any{"backup_codes_regenerated": true}})
+	userUUIDGBC := user.UserUUID
+	h.logAudit(r, tenantIDGBC, actorUserIDGBC, "account.generate_backup_codes", "account", userUUIDGBC.String(), &userUUIDGBC, string(changesJSONGBC), "success")
+
 	resp.Success(w, result, "Backup codes generated. Store them somewhere safe — they will not be shown again.")
 }
 
@@ -280,6 +346,9 @@ func (h *AccountHandler) VerifyBackupCode(w http.ResponseWriter, r *http.Request
 		resp.HandleServiceError(w, r, "Backup code verification failed", err)
 		return
 	}
+
+	changesJSONVBC, _ := json.Marshal(map[string]any{"update": map[string]any{"backup_code_used": true}})
+	h.logAudit(r, 0, nil, "account.verify_backup_code", "account", "", nil, string(changesJSONVBC), "success")
 
 	resp.Success(w, tokens, "Account recovered successfully")
 }
@@ -310,6 +379,15 @@ func (h *AccountHandler) SendPhoneVerification(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	tenantIDSPV := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDSPV = t.TenantID
+	}
+	actorUserIDSPV := &user.UserID
+	changesJSONSPV, _ := json.Marshal(map[string]any{"update": map[string]any{"phone": req.Phone}})
+	userUUIDSPV := user.UserUUID
+	h.logAudit(r, tenantIDSPV, actorUserIDSPV, "account.send_phone_verification", "account", userUUIDSPV.String(), &userUUIDSPV, string(changesJSONSPV), "success")
+
 	resp.Success(w, nil, "Verification code sent to phone number")
 }
 
@@ -337,6 +415,15 @@ func (h *AccountHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Failed to verify phone number", err)
 		return
 	}
+
+	tenantIDVPh := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDVPh = t.TenantID
+	}
+	actorUserIDVPh := &user.UserID
+	changesJSONVPh, _ := json.Marshal(map[string]any{"update": map[string]any{"phone": req.Phone, "is_phone_verified": true}})
+	userUUIDVPh := user.UserUUID
+	h.logAudit(r, tenantIDVPh, actorUserIDVPh, "account.verify_phone", "account", userUUIDVPh.String(), &userUUIDVPh, string(changesJSONVPh), "success")
 
 	resp.Success(w, nil, "Phone number verified successfully")
 }
@@ -381,6 +468,15 @@ func (h *AccountHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantIDRS := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDRS = t.TenantID
+	}
+	actorUserIDRS := &user.UserID
+	changesJSONRS, _ := json.Marshal(map[string]any{"update": map[string]any{"session_uuid": sessionUUID.String()}})
+	sessionUUIDRef := sessionUUID
+	h.logAudit(r, tenantIDRS, actorUserIDRS, "account.revoke_session", "session", sessionUUID.String(), &sessionUUIDRef, string(changesJSONRS), "success")
+
 	resp.Success(w, nil, "Session revoked successfully")
 }
 
@@ -398,6 +494,15 @@ func (h *AccountHandler) RevokeAllSessions(w http.ResponseWriter, r *http.Reques
 		resp.HandleServiceError(w, r, "Failed to revoke all sessions", err)
 		return
 	}
+
+	tenantIDRAS := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDRAS = t.TenantID
+	}
+	actorUserIDRAS := &user.UserID
+	changesJSONRAS, _ := json.Marshal(map[string]any{"update": map[string]any{"all_sessions_revoked": true}})
+	userUUIDRAS := user.UserUUID
+	h.logAudit(r, tenantIDRAS, actorUserIDRAS, "account.revoke_all_sessions", "account", userUUIDRAS.String(), &userUUIDRAS, string(changesJSONRAS), "success")
 
 	resp.Success(w, nil, "All sessions revoked successfully")
 }

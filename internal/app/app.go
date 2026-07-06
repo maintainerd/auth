@@ -97,6 +97,7 @@ type App struct {
 	AuditLogRepo               auditlog.ManagementAuditLogRepository
 	KeyRotationService         oauth.KeyRotationService
 	TokenRevocationService     oauth.TokenRevocationService
+	TokenRevocationRepo        oauth.OAuthTokenRevocationRepository
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -183,5 +184,6 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		AuditLogRepo:                 r.auditLogRepo,
 		KeyRotationService:           s.keyRotationService,
 		TokenRevocationService:       s.tokenRevocationService,
+		TokenRevocationRepo:          s.tokenRevocationRepo,
 	}, nil
 }

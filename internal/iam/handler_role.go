@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -19,12 +20,32 @@ import (
 // All endpoints are tenant-scoped - the middleware validates user access to the tenant
 // and sets it in the request context. The service layer ensures roles belong to the tenant.
 type RoleHandler struct {
-	service RoleService
+	service     RoleService
+	auditLogger auditlog.ManagementAuditLogger
 }
 
 // NewRoleHandler creates a new instance of RoleHandler.
 func NewRoleHandler(service RoleService) *RoleHandler {
-	return &RoleHandler{service}
+	return &RoleHandler{service: service}
+}
+
+// SetAuditLogger wires the management audit logger into the handler.
+func (h *RoleHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *RoleHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // Get retrieves all roles for the tenant with optional filtering and pagination.
@@ -187,7 +208,10 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp.Created(w, toRoleResponseDTO(*role), "Role created successfully")
+	dto := toRoleResponseDTO(*role)
+	changesJSON, _ := json.Marshal(map[string]any{"after": dto})
+	h.logAudit(r, tenant.TenantID, &user.UserID, "role.create", "role", role.RoleUUID.String(), &role.RoleUUID, string(changesJSON), "success")
+	resp.Created(w, dto, "Role created successfully")
 }
 
 // Update updates an existing role.
@@ -235,7 +259,10 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp.Success(w, toRoleResponseDTO(*role), "Role updated successfully")
+	dto := toRoleResponseDTO(*role)
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dto})
+	h.logAudit(r, tenant.TenantID, &user.UserID, "role.update", "role", role.RoleUUID.String(), &role.RoleUUID, string(changesJSON), "success")
+	resp.Success(w, dto, "Role updated successfully")
 }
 
 // SetStatus updates the status of a role (active/inactive).
@@ -285,7 +312,10 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp.Success(w, toRoleResponseDTO(*role), "Role updated successfully")
+	dto := toRoleResponseDTO(*role)
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
+	h.logAudit(r, tenant.TenantID, &user.UserID, "role.set_status", "role", role.RoleUUID.String(), &role.RoleUUID, string(changesJSON), "success")
+	resp.Success(w, dto, "Role updated successfully")
 }
 
 // Delete soft-deletes a role.
@@ -320,7 +350,10 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp.Success(w, toRoleResponseDTO(*role), "Role deleted successfully")
+	dto := toRoleResponseDTO(*role)
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": roleUUID.String()}})
+	h.logAudit(r, tenant.TenantID, &user.UserID, "role.delete", "role", roleUUID.String(), &roleUUID, string(changesJSON), "success")
+	resp.Success(w, dto, "Role deleted successfully")
 }
 
 // GetPermissions retrieves all permissions assigned to a role with optional filtering and pagination.
@@ -464,7 +497,10 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp.Success(w, toRoleResponseDTO(*role), "Permissions added to role successfully")
+	dto := toRoleResponseDTO(*role)
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"permissions": req.Permissions}})
+	h.logAudit(r, tenant.TenantID, &user.UserID, "role.add_permissions", "role", roleUUID.String(), &roleUUID, string(changesJSON), "success")
+	resp.Success(w, dto, "Permissions added to role successfully")
 }
 
 // RemovePermission removes a specific permission from a role.
@@ -506,7 +542,10 @@ func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp.Success(w, toRoleResponseDTO(*role), "Permission removed from role successfully")
+	dto := toRoleResponseDTO(*role)
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"removed_permission": permissionUUID.String()}})
+	h.logAudit(r, tenant.TenantID, &user.UserID, "role.remove_permission", "role", roleUUID.String(), &roleUUID, string(changesJSON), "success")
+	resp.Success(w, dto, "Permission removed from role successfully")
 }
 
 // Helper function for converting service data to response DTO

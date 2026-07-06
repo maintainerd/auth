@@ -1,10 +1,12 @@
 package user
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -13,6 +15,7 @@ type UserTrustedDeviceHandler struct {
 	deviceService UserTrustedDeviceService
 	userService   UserService
 	userRepo      UserRepository
+	auditLogger   auditlog.ManagementAuditLogger
 }
 
 func NewUserTrustedDeviceHandler(deviceService UserTrustedDeviceService, userService UserService, userRepo UserRepository) *UserTrustedDeviceHandler {
@@ -21,6 +24,27 @@ func NewUserTrustedDeviceHandler(deviceService UserTrustedDeviceService, userSer
 		userService:   userService,
 		userRepo:      userRepo,
 	}
+}
+
+// SetAuditLogger injects the audit logger (called by the wiring layer).
+func (h *UserTrustedDeviceHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) {
+	h.auditLogger = l
+}
+
+func (h *UserTrustedDeviceHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 type UserTrustedDeviceResponseDTO struct {
@@ -78,6 +102,14 @@ func (h *UserTrustedDeviceHandler) DeleteMyDevice(w http.ResponseWriter, r *http
 		resp.Error(w, http.StatusInternalServerError, "Failed to delete device")
 		return
 	}
+
+	tenantIDDD := int64(0)
+	if auth.Tenant != nil {
+		tenantIDDD = auth.Tenant.TenantID
+	}
+	actorUserIDDD := &auth.User.UserID
+	changesJSONDD, _ := json.Marshal(map[string]any{"before": map[string]any{"device_uuid": deviceUUID}})
+	h.logAudit(r, tenantIDDD, actorUserIDDD, "device.delete", "trusted_device", deviceUUID, nil, string(changesJSONDD), "success")
 
 	resp.Success(w, nil, "Device removed successfully")
 }

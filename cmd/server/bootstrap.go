@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/maintainerd/maintainerd-auth/internal/app"
+	"github.com/maintainerd/maintainerd-auth/internal/oauth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/runner"
@@ -43,10 +44,13 @@ func run(ctx context.Context) error {
 	}
 	defer telemetryShutdown()
 
-	// JWT keys are required before the app accepts traffic because token
-	// signing and validation depend on the configured RSA key pair.
-	if err := jwt.InitJWTKeys(); err != nil {
-		return fmt.Errorf("initialize JWT keys: %w", err)
+	// JWT keys: prefer env-var RSA key pair. If JWT_PRIVATE_KEY is absent the
+	// server falls back to a DB-backed auto-generated key after migrations run.
+	jwtEnvLoaded := len(config.JWTPrivateKey) > 0
+	if jwtEnvLoaded {
+		if err := jwt.InitJWTKeys(); err != nil {
+			return fmt.Errorf("initialize JWT keys: %w", err)
+		}
 	}
 
 	// Database and Redis are process-level dependencies shared by repositories,
@@ -79,8 +83,23 @@ func run(ctx context.Context) error {
 	}
 	serverApplication := application.ServerApplication()
 
-	// Wire the JTI denylist checker so ValidateToken rejects revoked access tokens.
-	jwt.SetJTIChecker(application.Cache.IsJTIDenied)
+	// When JWT env vars were absent, load or auto-generate the signing key from DB.
+	if !jwtEnvLoaded {
+		if err := oauth.EnsureGlobalSigningKeyFromDB(ctx, db); err != nil {
+			return fmt.Errorf("ensure signing key: %w", err)
+		}
+	}
+
+	// Wire the combined JTI revocation checker:
+	//   1. Redis denylist — fast path for logout and refresh-token rotation.
+	//   2. DB revocation store — authoritative record for RFC 7009 /revoke calls.
+	revocationRepo := application.TokenRevocationRepo
+	jwt.SetJTIChecker(func(ctx context.Context, jti string) (bool, error) {
+		if denied, err := application.Cache.IsJTIDenied(ctx, jti); denied || err != nil {
+			return denied, err
+		}
+		return revocationRepo.IsRevokedByJTI(jti)
+	})
 
 	// Background workers use a child context so they are cancelled after the
 	// blocking REST server returns from graceful shutdown.

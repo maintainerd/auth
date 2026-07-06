@@ -67,6 +67,14 @@ func (h *ClientHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authCtxAssignRole := middleware.AuthFromRequest(r)
+	var actorUserIDAssignRole *int64
+	if authCtxAssignRole.User != nil {
+		actorUserIDAssignRole = &authCtxAssignRole.User.UserID
+	}
+	changesJSONAssignRole, _ := json.Marshal(map[string]any{"update": map[string]any{"role_uuid": roleUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDAssignRole, "assign_role", "client", clientUUID.String(), &clientUUID, string(changesJSONAssignRole), "success")
+
 	resp.Created(w, ClientRoleResponseDTO{
 		ClientRoleUUID: result.ClientRoleUUID.String(),
 		RoleUUID:       roleUUID.String(),
@@ -100,6 +108,14 @@ func (h *ClientHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Failed to remove role from client", err)
 		return
 	}
+
+	authCtxRemoveRole := middleware.AuthFromRequest(r)
+	var actorUserIDRemoveRole *int64
+	if authCtxRemoveRole.User != nil {
+		actorUserIDRemoveRole = &authCtxRemoveRole.User.UserID
+	}
+	changesJSONRemoveRole, _ := json.Marshal(map[string]any{"update": map[string]any{"role_uuid": roleUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDRemoveRole, "remove_role", "client", clientUUID.String(), &clientUUID, string(changesJSONRemoveRole), "success")
 
 	resp.Success(w, nil, "Role removed from client successfully")
 }

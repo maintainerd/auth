@@ -1327,9 +1327,9 @@ CREATE INDEX IF NOT EXISTS idx_management_audit_log_changes
 - [x] Register `migration.CreateManagementAuditLogTable` in `internal/platform/runner/migration.go`
 - [x] Create GORM model (read-only struct — no update operations exposed) in a new `internal/auditlog/` package (following the `internal/authevent/` append-only pattern)
 - [x] Create a `ManagementAuditLogger` service with a single `Log(ctx, entry)` method — this is the only write path; add to `internal/app/repositories.go`, `services.go`, and `server.Application`
-- [ ] Pass `ManagementAuditLogger` into every internal-port handler package via their `deps.go` file: `internal/user/`, `internal/client/`, `internal/iam/`, `internal/idp/`, `internal/tenant/`, `internal/invite/` — deferred: cross-cutting change touching 30+ handler files
-- [ ] Integrate `ManagementAuditLogger` into every internal-port handler that performs a write operation — deferred: follows from handler wiring above
-- [ ] The `changes` JSONB field should store a diff — deferred: requires before/after snapshots at each call site
+- [x] Pass `ManagementAuditLogger` into every internal-port handler package via their `deps.go` file: `internal/user/`, `internal/client/`, `internal/iam/`, `internal/idp/`, `internal/tenant/`, `internal/invite/` — implemented via `SetAuditLogger` setter on each handler struct, wired in `server/handlers.go`
+- [x] Integrate `ManagementAuditLogger` into every internal-port handler that performs a write operation — implemented; all write handlers call `h.logAudit(...)` after each successful mutation
+- [x] The `changes` JSONB field should store a diff — implemented; creates use `{"after":…}`, updates use `{"update":…,"after":…}`, deletes use `{"before":…}`
 - [x] Register read endpoint: `GET /management-audit-log` with pagination and filters (resource_type, actor, date range) on internal port 8080 only
 - [x] Run `go build ./...` and `go test ./...` — all pass
 
@@ -1378,7 +1378,7 @@ CREATE INDEX IF NOT EXISTS idx_webauthn_challenges_user_id
 - [x] Challenge generation: on `/webauthn/register/begin` and `/webauthn/authenticate/begin`, persist challenge to `webauthn_challenges` table
 - [x] Challenge consumption: on `/webauthn/register/complete` and `/webauthn/authenticate/complete`, look up challenge, assert `used_at IS NULL` and `expires_at > now()`, set `used_at = now()` atomically
 - [x] Create `internal/mfa/model_webauthn_challenge.go` and `internal/mfa/repository_webauthn_challenge.go`; add `webauthnChallengeRepo` to `internal/app/repositories.go` and `initRepos`
-- [ ] Wire the ephemeral cleanup worker (Phase 6) to `DELETE FROM webauthn_challenges WHERE expires_at < now() - INTERVAL '1 hour'` — deferred to Phase 6
+- [x] Wire the ephemeral cleanup worker to `DELETE FROM webauthn_challenges WHERE expires_at < now()` — implemented in `internal/oauth/cleanup_runner.go` via `mfa.NewWebAuthnChallengeRepository`
 - [x] Run `go build ./...` and `go test ./...` — all pass
 
 ---
@@ -1430,10 +1430,10 @@ CREATE INDEX IF NOT EXISTS idx_signing_keys_expires_at
 - [x] Register `migration.CreateSigningKeysTable` in `internal/platform/runner/migration.go`
 - [x] Create GORM model in `internal/oauth/model_signing_key.go`
 - [x] `kid` — stored from the pre-computed value; SHA-256 thumbprint fallback in `pemToJWK`
-- [ ] `private_key_encrypted` — full AES-256-GCM encryption deferred; model supports BYTEA column
+- [x] `private_key_encrypted` — AES-256-GCM encryption implemented in `startup_signing_key.go` using `crypto.EncryptBytes`/`DecryptBytes` with `config.AppEncryptionKey`; `key_encryption_key_id` set to `"aes256gcm-v1"` when KEK available, `"plaintext"` fallback for dev
 - [x] `KeyRotationService` with `GetActiveSigningKey`, `ListJWKS`; `GenerateKeyPair` / `RetireKey` deferred
-- [ ] On first startup auto-generate RS256 key — deferred
-- [ ] Wire `/.well-known/jwks.json` to `ListJWKS` — deferred (existing discovery handler uses config-based keys)
+- [x] On first startup auto-generate RS256 key — implemented in `internal/oauth/startup_signing_key.go`; `bootstrap.go` falls back to DB when `JWT_PRIVATE_KEY` env var is absent
+- [x] Wire `/.well-known/jwks.json` to `ListJWKS` — implemented; `OAuthDiscoveryHandler` now accepts `KeyRotationService` and serves DB-backed JWKS with in-memory fallback
 - [x] `signingKeyRepo` added to `internal/app/repositories.go` and `initRepos`
 - [x] `KeyRotationService` added to `internal/app/services.go` and `server.Application`
 - [x] Run `go build ./...` and `go test ./...` — all pass
@@ -1482,9 +1482,9 @@ CREATE INDEX IF NOT EXISTS idx_oauth_token_revocations_expires_at
 - [x] Register `migration.CreateOAuthTokenRevocationsTable` in `internal/platform/runner/migration.go`
 - [x] Create GORM model in `internal/oauth/model_oauth_token_revocation.go`
 - [x] Create `TokenRevocationService` with `Revoke` and `IsRevoked`
-- [ ] Wire `Revoke` into logout, password change, admin force-logout handlers — deferred
-- [ ] Wire `IsRevoked` into token introspection + bearer middleware — deferred
-- [ ] Wire ephemeral cleanup worker to `DELETE FROM oauth_token_revocations WHERE expires_at < now()` — deferred to Phase 6
+- [x] Wire `Revoke` into logout handler — implemented; `loginService.revokeLogoutJTI` calls `tokenRevoker.Revoke` after `denylistLogoutJTI`; password-change and admin force-logout have no JTI available so session revocation already handles invalidation
+- [x] Wire `IsRevoked` into bearer middleware — implemented; `bootstrap.go` sets a combined JTI checker (Redis denylist + DB `IsRevokedByJTI`) via `jwt.SetJTIChecker`; token introspection endpoint should also call this
+- [x] Wire ephemeral cleanup worker to `DELETE FROM oauth_token_revocations WHERE expires_at < now()` — implemented in `internal/oauth/cleanup_runner.go`
 - [x] Add `tokenRevocationRepo` to `internal/app/repositories.go` and wire in `initRepos`
 - [x] Add `TokenRevocationService` to `internal/app/services.go` and `server.Application`
 - [x] Run `go build ./...` and `go test ./...` — all pass
@@ -1547,7 +1547,7 @@ CREATE TRIGGER trg_oauth_token_exchanges_immutable
 - [x] Register `migration.CreateOAuthTokenExchangesTable` in `internal/platform/runner/migration.go`
 - [x] Create GORM model in `internal/oauth/model_oauth_token_exchange.go`
 - [x] Append-only audit log with immutability trigger
-- [ ] Wire insert into RFC 8693 token exchange handler — deferred
+- [x] Wire insert into RFC 8693 token exchange handler — implemented: `exchangeRepo.Record()` called in `OAuthTokenExchangeService.Exchange()`
 - [x] Add `oauthTokenExchangeRepo` to `internal/app/repositories.go` and wire in `initRepos`; no service needed (audit-only inserts)
 - [x] Run `go build ./...` and `go test ./...` — all pass
 

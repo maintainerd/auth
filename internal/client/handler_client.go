@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -19,10 +20,29 @@ import (
 
 type ClientHandler struct {
 	ClientService ClientService
+	auditLogger   auditlog.ManagementAuditLogger
 }
 
 func NewClientHandler(ClientService ClientService) *ClientHandler {
-	return &ClientHandler{ClientService}
+	return &ClientHandler{ClientService: ClientService}
+}
+
+func (h *ClientHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *ClientHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 func (h *ClientHandler) GetPublic(w http.ResponseWriter, r *http.Request) {
@@ -278,6 +298,14 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	var actorUserIDCreate *int64
+	if user != nil {
+		actorUserIDCreate = &user.UserID
+	}
+	createdClientUUID := result.Client.ClientUUID
+	changesJSONCreate, _ := json.Marshal(map[string]any{"after": toClientResponseDTO(*result.Client)})
+	h.logAudit(r, tenant.TenantID, actorUserIDCreate, "create", "client", createdClientUUID.String(), &createdClientUUID, string(changesJSONCreate), "success")
+
 	resp.Created(w, dtoRes, "Auth client created successfully. Store the client_secret now — it will not be shown again.")
 }
 
@@ -317,6 +345,13 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toClientResponseDTO(*Client)
+
+	var actorUserIDUpdate *int64
+	if user != nil {
+		actorUserIDUpdate = &user.UserID
+	}
+	changesJSONUpdate, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserIDUpdate, "update", "client", ClientUUID.String(), &ClientUUID, string(changesJSONUpdate), "success")
 
 	resp.Success(w, dtoRes, "Auth client updated successfully")
 }
@@ -359,6 +394,13 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	dtoRes := toClientResponseDTO(*Client)
 
+	var actorUserIDStatus *int64
+	if user != nil {
+		actorUserIDStatus = &user.UserID
+	}
+	changesJSONStatus, _ := json.Marshal(map[string]any{"update": map[string]any{"status": string(newStatus)}})
+	h.logAudit(r, tenant.TenantID, actorUserIDStatus, "set_status", "client", ClientUUID.String(), &ClientUUID, string(changesJSONStatus), "success")
+
 	resp.Success(w, dtoRes, "Auth client status updated successfully")
 }
 
@@ -400,6 +442,13 @@ func (h *ClientHandler) RotateSecret(w http.ResponseWriter, r *http.Request) {
 		PreviousSecretExpiresAt: expiresAt,
 	}
 
+	var actorUserIDRotate *int64
+	if user != nil {
+		actorUserIDRotate = &user.UserID
+	}
+	changesJSONRotate, _ := json.Marshal(map[string]any{"update": map[string]any{"secret_rotated": true, "grace_period_hours": req.GracePeriodHours}})
+	h.logAudit(r, tenant.TenantID, actorUserIDRotate, "rotate_secret", "client", clientUUID.String(), &clientUUID, string(changesJSONRotate), "success")
+
 	resp.Success(w, dtoRes, "Client secret rotated successfully. Store the new secret now — it will not be shown again.")
 }
 
@@ -428,6 +477,13 @@ func (h *ClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toClientResponseDTO(*Client)
+
+	var actorUserIDDelete *int64
+	if user != nil {
+		actorUserIDDelete = &user.UserID
+	}
+	changesJSONDelete, _ := json.Marshal(map[string]any{"before": map[string]any{"id": ClientUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDDelete, "delete", "client", ClientUUID.String(), &ClientUUID, string(changesJSONDelete), "success")
 
 	resp.Success(w, dtoRes, "Auth client deleted successfully")
 }
@@ -510,6 +566,14 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:     (*uri.ClientURIs)[0].UpdatedAt,
 	}
 
+	var actorUserIDCreateURI *int64
+	if user != nil {
+		actorUserIDCreateURI = &user.UserID
+	}
+	createdURIUUID := (*uri.ClientURIs)[0].ClientURIUUID
+	changesJSONCreateURI, _ := json.Marshal(map[string]any{"after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserIDCreateURI, "create", "client_uri", createdURIUUID.String(), &createdURIUUID, string(changesJSONCreateURI), "success")
+
 	resp.Created(w, dtoRes, "URI created successfully")
 }
 
@@ -577,6 +641,13 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:     updatedURI.UpdatedAt,
 	}
 
+	var actorUserIDUpdateURI *int64
+	if user != nil {
+		actorUserIDUpdateURI = &user.UserID
+	}
+	changesJSONUpdateURI, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserIDUpdateURI, "update", "client_uri", ClientURIUUID.String(), &ClientURIUUID, string(changesJSONUpdateURI), "success")
+
 	resp.Success(w, dtoRes, "URI updated successfully")
 }
 
@@ -610,6 +681,13 @@ func (h *ClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toClientResponseDTO(*Client)
+
+	var actorUserIDDeleteURI *int64
+	if user != nil {
+		actorUserIDDeleteURI = &user.UserID
+	}
+	changesJSONDeleteURI, _ := json.Marshal(map[string]any{"before": map[string]any{"id": ClientURIUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDDeleteURI, "delete", "client_uri", ClientURIUUID.String(), &ClientURIUUID, string(changesJSONDeleteURI), "success")
 
 	resp.Success(w, dtoRes, "URI deleted successfully")
 }
@@ -710,6 +788,14 @@ func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authCtxAddAPIs := middleware.AuthFromRequest(r)
+	var actorUserIDAddAPIs *int64
+	if authCtxAddAPIs.User != nil {
+		actorUserIDAddAPIs = &authCtxAddAPIs.User.UserID
+	}
+	changesJSONAddAPIs, _ := json.Marshal(map[string]any{"update": req})
+	h.logAudit(r, tenant.TenantID, actorUserIDAddAPIs, "add_apis", "client", ClientUUID.String(), &ClientUUID, string(changesJSONAddAPIs), "success")
+
 	response := SuccessResponseDTO{
 		Message: "APIs added to auth client successfully",
 	}
@@ -744,6 +830,14 @@ func (h *ClientHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Failed to remove API from auth client", err)
 		return
 	}
+
+	authCtxRemoveAPI := middleware.AuthFromRequest(r)
+	var actorUserIDRemoveAPI *int64
+	if authCtxRemoveAPI.User != nil {
+		actorUserIDRemoveAPI = &authCtxRemoveAPI.User.UserID
+	}
+	changesJSONRemoveAPI, _ := json.Marshal(map[string]any{"update": map[string]any{"api_uuid": apiUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDRemoveAPI, "remove_api", "client", ClientUUID.String(), &ClientUUID, string(changesJSONRemoveAPI), "success")
 
 	response := SuccessResponseDTO{
 		Message: "API removed from auth client successfully",
@@ -836,6 +930,14 @@ func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	authCtxAddPerms := middleware.AuthFromRequest(r)
+	var actorUserIDAddPerms *int64
+	if authCtxAddPerms.User != nil {
+		actorUserIDAddPerms = &authCtxAddPerms.User.UserID
+	}
+	changesJSONAddPerms, _ := json.Marshal(map[string]any{"update": req})
+	h.logAudit(r, tenant.TenantID, actorUserIDAddPerms, "add_api_permissions", "client", ClientUUID.String(), &ClientUUID, string(changesJSONAddPerms), "success")
+
 	response := SuccessResponseDTO{
 		Message: "Permissions added to auth client API successfully",
 	}
@@ -877,6 +979,14 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 		resp.HandleServiceError(w, r, "Failed to remove permission from auth client API", err)
 		return
 	}
+
+	authCtxRemovePerm := middleware.AuthFromRequest(r)
+	var actorUserIDRemovePerm *int64
+	if authCtxRemovePerm.User != nil {
+		actorUserIDRemovePerm = &authCtxRemovePerm.User.UserID
+	}
+	changesJSONRemovePerm, _ := json.Marshal(map[string]any{"update": map[string]any{"api_uuid": apiUUID.String(), "permission_uuid": permissionUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDRemovePerm, "remove_api_permission", "client", ClientUUID.String(), &ClientUUID, string(changesJSONRemovePerm), "success")
 
 	response := SuccessResponseDTO{
 		Message: "Permission removed from auth client API successfully",
@@ -1057,6 +1167,14 @@ func (h *ClientHandler) AddConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toClientResponseDTO(*Client)
+
+	var actorUserIDAddConn *int64
+	if user != nil {
+		actorUserIDAddConn = &user.UserID
+	}
+	changesJSONAddConn, _ := json.Marshal(map[string]any{"update": req})
+	h.logAudit(r, tenant.TenantID, actorUserIDAddConn, "add_connection", "client", ClientUUID.String(), &ClientUUID, string(changesJSONAddConn), "success")
+
 	resp.Created(w, dtoRes, "Identity provider connected successfully")
 }
 
@@ -1102,6 +1220,14 @@ func (h *ClientHandler) UpdateConnection(w http.ResponseWriter, r *http.Request)
 	}
 
 	dtoRes := toClientResponseDTO(*Client)
+
+	var actorUserIDUpdateConn *int64
+	if user != nil {
+		actorUserIDUpdateConn = &user.UserID
+	}
+	changesJSONUpdateConn, _ := json.Marshal(map[string]any{"update": req})
+	h.logAudit(r, tenant.TenantID, actorUserIDUpdateConn, "update_connection", "client", ClientUUID.String(), &ClientUUID, string(changesJSONUpdateConn), "success")
+
 	resp.Success(w, dtoRes, "Identity provider connection updated successfully")
 }
 
@@ -1132,6 +1258,14 @@ func (h *ClientHandler) RemoveConnection(w http.ResponseWriter, r *http.Request)
 	}
 
 	dtoRes := toClientResponseDTO(*Client)
+
+	var actorUserIDRemoveConn *int64
+	if user != nil {
+		actorUserIDRemoveConn = &user.UserID
+	}
+	changesJSONRemoveConn, _ := json.Marshal(map[string]any{"update": map[string]any{"connection_uuid": connectionUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDRemoveConn, "remove_connection", "client", ClientUUID.String(), &ClientUUID, string(changesJSONRemoveConn), "success")
+
 	resp.Success(w, dtoRes, "Identity provider connection removed successfully")
 }
 

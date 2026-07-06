@@ -298,6 +298,22 @@ func ResetJWTKeys() {
 	defaultKeyStore.reset()
 }
 
+// InstallKeyFromPrivatePEM parses a PEM-encoded RSA private key and installs
+// it in the global key store under the given kid. The public key is derived
+// from the private key. Used by the DB-backed startup path when JWT env vars
+// are not configured.
+func InstallKeyFromPrivatePEM(privPEM []byte, kid string) error {
+	privKey, err := jwtlib.ParseRSAPrivateKeyFromPEM(privPEM)
+	if err != nil {
+		return fmt.Errorf("jwt: parse private key from PEM: %w", err)
+	}
+	if err := validateKeyStrength(privKey); err != nil {
+		return err
+	}
+	defaultKeyStore.install(privKey, &privKey.PublicKey, kid)
+	return nil
+}
+
 // AccessTokenOptions carries optional per-issuance parameters for access tokens.
 type AccessTokenOptions struct {
 	// DPoPThumbprint is the RFC 7638 JWK thumbprint of the client's DPoP key.

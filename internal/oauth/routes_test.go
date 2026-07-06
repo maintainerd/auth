@@ -68,7 +68,7 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 	}
 
 	discovery := chi.NewRouter()
-	OAuthDiscoveryRoute(discovery, NewOAuthDiscoveryHandler())
+	OAuthDiscoveryRoute(discovery, NewOAuthDiscoveryHandler(nil))
 	for _, tt := range []struct {
 		method string
 		path   string

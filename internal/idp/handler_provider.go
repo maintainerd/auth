@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -15,11 +16,30 @@ import (
 )
 
 type IdentityProviderHandler struct {
-	idpService IdentityProviderService
+	idpService  IdentityProviderService
+	auditLogger auditlog.ManagementAuditLogger
 }
 
 func NewIdentityProviderHandler(idpService IdentityProviderService) *IdentityProviderHandler {
-	return &IdentityProviderHandler{idpService}
+	return &IdentityProviderHandler{idpService: idpService}
+}
+
+func (h *IdentityProviderHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *IdentityProviderHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // Get identity provider with pagination
@@ -190,6 +210,18 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 
 	dtoRes := toIdpDetailResponseDTO(*idp)
 
+	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
+	idpUUIDVal := idp.IdentityProviderUUID
+	tenantIDVal := int64(0)
+	if tenant != nil {
+		tenantIDVal = tenant.TenantID
+	}
+	var actorUserID *int64
+	if user != nil {
+		actorUserID = &user.UserID
+	}
+	h.logAudit(r, tenantIDVal, actorUserID, "identity_provider.create", "identity_provider", idpUUIDVal.String(), &idpUUIDVal, string(changesJSON), "success")
+
 	resp.Created(w, dtoRes, "Identity provider created successfully")
 }
 
@@ -242,6 +274,17 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 
 	dtoRes := toIdpDetailResponseDTO(*idp)
 
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	tenantIDVal := int64(0)
+	if tenant != nil {
+		tenantIDVal = tenant.TenantID
+	}
+	var actorUserID *int64
+	if user != nil {
+		actorUserID = &user.UserID
+	}
+	h.logAudit(r, tenantIDVal, actorUserID, "identity_provider.update", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
+
 	resp.Success(w, dtoRes, "Identity provider updated successfully")
 }
 
@@ -277,6 +320,17 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 
 	dtoRes := toIdpDetailResponseDTO(*idp)
 
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
+	tenantIDVal := int64(0)
+	if tenant != nil {
+		tenantIDVal = tenant.TenantID
+	}
+	var actorUserID *int64
+	if user != nil {
+		actorUserID = &user.UserID
+	}
+	h.logAudit(r, tenantIDVal, actorUserID, "identity_provider.set_status", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
+
 	resp.Success(w, dtoRes, "Identity provider status updated successfully")
 }
 
@@ -299,6 +353,17 @@ func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request)
 	}
 
 	dtoRes := toIdpDetailResponseDTO(*idp)
+
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": idpUUID.String()}})
+	tenantIDVal := int64(0)
+	if tenant != nil {
+		tenantIDVal = tenant.TenantID
+	}
+	var actorUserID *int64
+	if user != nil {
+		actorUserID = &user.UserID
+	}
+	h.logAudit(r, tenantIDVal, actorUserID, "identity_provider.delete", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
 
 	resp.Success(w, dtoRes, "Identity provider deleted successfully")
 }

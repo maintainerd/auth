@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jsonutil"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
@@ -18,10 +19,30 @@ import (
 
 type ProfileHandler struct {
 	profileService ProfileService
+	auditLogger    auditlog.ManagementAuditLogger
 }
 
 func NewProfileHandler(profileService ProfileService) *ProfileHandler {
-	return &ProfileHandler{profileService}
+	return &ProfileHandler{profileService: profileService}
+}
+
+// SetAuditLogger injects the audit logger (called by the wiring layer).
+func (h *ProfileHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *ProfileHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +81,18 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 		resp.HandleServiceError(w, r, "Save profile failed", err)
 		return
 	}
+
+	tenantIDCOU := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDCOU = t.TenantID
+	}
+	var actorUserIDCOU *int64
+	if user != nil {
+		actorUserIDCOU = &user.UserID
+	}
+	changesJSONCOU, _ := json.Marshal(map[string]any{"after": profile})
+	profileUUIDCOU := profile.ProfileUUID
+	h.logAudit(r, tenantIDCOU, actorUserIDCOU, "profile.create_or_update", "profile", profileUUIDCOU.String(), &profileUUIDCOU, string(changesJSONCOU), "success")
 
 	resp.Success(w, toProfileResponseDTO(*profile), "Profile saved successfully")
 }
@@ -105,6 +138,17 @@ func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Create profile failed", err)
 		return
 	}
+
+	tenantIDCP := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDCP = t.TenantID
+	}
+	var actorUserIDCP *int64
+	if user != nil {
+		actorUserIDCP = &user.UserID
+	}
+	changesJSONCP, _ := json.Marshal(map[string]any{"after": profile})
+	h.logAudit(r, tenantIDCP, actorUserIDCP, "profile.create", "profile", profileUUID.String(), &profileUUID, string(changesJSONCP), "success")
 
 	resp.Created(w, toProfileResponseDTO(*profile), "Profile created successfully")
 }
@@ -154,6 +198,17 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Update profile failed", err)
 		return
 	}
+
+	tenantIDUP := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDUP = t.TenantID
+	}
+	var actorUserIDUP *int64
+	if user != nil {
+		actorUserIDUP = &user.UserID
+	}
+	changesJSONUP, _ := json.Marshal(map[string]any{"update": req, "after": profile})
+	h.logAudit(r, tenantIDUP, actorUserIDUP, "profile.update", "profile", profileUUID.String(), &profileUUID, string(changesJSONUP), "success")
 
 	resp.Success(w, toProfileResponseDTO(*profile), "Profile updated successfully")
 }
@@ -249,6 +304,18 @@ func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantIDDel := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDDel = t.TenantID
+	}
+	var actorUserIDDel *int64
+	if user != nil {
+		actorUserIDDel = &user.UserID
+	}
+	changesJSONDel, _ := json.Marshal(map[string]any{"before": map[string]any{"id": deletedProfile.ProfileUUID.String()}})
+	delUUID := deletedProfile.ProfileUUID
+	h.logAudit(r, tenantIDDel, actorUserIDDel, "profile.delete", "profile", delUUID.String(), &delUUID, string(changesJSONDel), "success")
+
 	resp.Success(w, toProfileResponseDTO(*deletedProfile), "Profile deleted successfully")
 }
 
@@ -290,6 +357,17 @@ func (h *ProfileHandler) DeleteByUUID(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Failed to delete profile", err)
 		return
 	}
+
+	tenantIDDBU := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDDBU = t.TenantID
+	}
+	var actorUserIDDBU *int64
+	if user != nil {
+		actorUserIDDBU = &user.UserID
+	}
+	changesJSONDBU, _ := json.Marshal(map[string]any{"before": map[string]any{"id": profileUUID.String()}})
+	h.logAudit(r, tenantIDDBU, actorUserIDDBU, "profile.delete", "profile", profileUUID.String(), &profileUUID, string(changesJSONDBU), "success")
 
 	resp.Success(w, toProfileResponseDTO(*deletedProfile), "Profile deleted successfully")
 }
@@ -432,6 +510,17 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	tenantIDACP := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDACP = t.TenantID
+	}
+	var actorUserIDACP *int64
+	if u := middleware.AuthFromRequest(r).User; u != nil {
+		actorUserIDACP = &u.UserID
+	}
+	changesJSONACP, _ := json.Marshal(map[string]any{"after": profile})
+	h.logAudit(r, tenantIDACP, actorUserIDACP, "profile.admin_create", "profile", profileUUID.String(), &profileUUID, string(changesJSONACP), "success")
+
 	resp.Created(w, toProfileResponseDTO(*profile), "Profile created successfully")
 }
 
@@ -488,6 +577,17 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	tenantIDAUP := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDAUP = t.TenantID
+	}
+	var actorUserIDAUP *int64
+	if u := middleware.AuthFromRequest(r).User; u != nil {
+		actorUserIDAUP = &u.UserID
+	}
+	changesJSONAUP, _ := json.Marshal(map[string]any{"update": req, "after": profile})
+	h.logAudit(r, tenantIDAUP, actorUserIDAUP, "profile.admin_update", "profile", profileUUID.String(), &profileUUID, string(changesJSONAUP), "success")
+
 	resp.Success(w, toProfileResponseDTO(*profile), "Profile updated successfully")
 }
 
@@ -515,6 +615,17 @@ func (h *ProfileHandler) AdminDeleteProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	tenantIDADP := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDADP = t.TenantID
+	}
+	var actorUserIDADP *int64
+	if u := middleware.AuthFromRequest(r).User; u != nil {
+		actorUserIDADP = &u.UserID
+	}
+	changesJSONADP, _ := json.Marshal(map[string]any{"before": map[string]any{"id": profileUUID.String()}})
+	h.logAudit(r, tenantIDADP, actorUserIDADP, "profile.admin_delete", "profile", profileUUID.String(), &profileUUID, string(changesJSONADP), "success")
+
 	resp.Success(w, toProfileResponseDTO(*deletedProfile), "Profile deleted successfully")
 }
 
@@ -535,6 +646,17 @@ func (h *ProfileHandler) SetDefaultProfile(w http.ResponseWriter, r *http.Reques
 		resp.HandleServiceError(w, r, "Set default profile failed", err)
 		return
 	}
+
+	tenantIDSDP := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDSDP = t.TenantID
+	}
+	var actorUserIDSDP *int64
+	if user != nil {
+		actorUserIDSDP = &user.UserID
+	}
+	changesJSONSDP, _ := json.Marshal(map[string]any{"update": map[string]any{"is_default": true}})
+	h.logAudit(r, tenantIDSDP, actorUserIDSDP, "profile.set_default", "profile", profileUUID.String(), &profileUUID, string(changesJSONSDP), "success")
 
 	resp.Success(w, toProfileResponseDTO(*profile), "Profile set as default successfully")
 }
@@ -562,6 +684,17 @@ func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.R
 		resp.HandleServiceError(w, r, "Set default profile failed", err)
 		return
 	}
+
+	tenantIDASDP := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDASDP = t.TenantID
+	}
+	var actorUserIDASDP *int64
+	if u := middleware.AuthFromRequest(r).User; u != nil {
+		actorUserIDASDP = &u.UserID
+	}
+	changesJSONASDP, _ := json.Marshal(map[string]any{"update": map[string]any{"is_default": true}})
+	h.logAudit(r, tenantIDASDP, actorUserIDASDP, "profile.admin_set_default", "profile", profileUUID.String(), &profileUUID, string(changesJSONASDP), "success")
 
 	resp.Success(w, toProfileResponseDTO(*profile), "Profile set as default successfully")
 }

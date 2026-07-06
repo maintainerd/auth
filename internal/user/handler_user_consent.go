@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -14,6 +15,7 @@ type UserConsentHandler struct {
 	consentService UserConsentService
 	userService    UserService
 	userRepo       UserRepository
+	auditLogger    auditlog.ManagementAuditLogger
 }
 
 func NewUserConsentHandler(consentService UserConsentService, userService UserService, userRepo UserRepository) *UserConsentHandler {
@@ -22,6 +24,25 @@ func NewUserConsentHandler(consentService UserConsentService, userService UserSe
 		userService:    userService,
 		userRepo:       userRepo,
 	}
+}
+
+// SetAuditLogger injects the audit logger (called by the wiring layer).
+func (h *UserConsentHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *UserConsentHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 type RecordConsentRequestDTO struct {
@@ -82,6 +103,14 @@ func (h *UserConsentHandler) RecordConsent(w http.ResponseWriter, r *http.Reques
 		resp.Error(w, http.StatusInternalServerError, "Failed to record consent")
 		return
 	}
+
+	tenantIDRC := int64(0)
+	if auth.Tenant != nil {
+		tenantIDRC = auth.Tenant.TenantID
+	}
+	actorUserIDRC := &auth.User.UserID
+	changesJSONRC, _ := json.Marshal(map[string]any{"after": req})
+	h.logAudit(r, tenantIDRC, actorUserIDRC, "consent.record", "user_consent", "", nil, string(changesJSONRC), "success")
 
 	resp.Success(w, map[string]string{"status": "recorded"}, "Consent recorded successfully")
 }

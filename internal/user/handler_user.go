@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -23,6 +24,7 @@ import (
 type UserHandler struct {
 	userService      UserService
 	identityUnlinker IdentityUnlinker
+	auditLogger      auditlog.ManagementAuditLogger
 }
 
 // NewUserHandler creates a new user handler instance.
@@ -40,6 +42,25 @@ func NewUserHandler(userService UserService, identityUnlinker ...IdentityUnlinke
 		userService:      userService,
 		identityUnlinker: unlinker,
 	}
+}
+
+// SetAuditLogger injects the audit logger (called by the wiring layer).
+func (h *UserHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *UserHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // GetUsers retrieves all users for the tenant with pagination and filters.
@@ -214,6 +235,14 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Map to response DTO
 	dtoRes := toUserResponseDTO(*user)
 
+	var actorUserID *int64
+	if creatorUser != nil {
+		actorUserID = &creatorUser.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"after": user})
+	userUUIDRef := user.UserUUID
+	h.logAudit(r, tenant.TenantID, actorUserID, "user.create", "user", userUUIDRef.String(), &userUUIDRef, string(changesJSON), "success")
+
 	resp.Created(w, dtoRes, "User created successfully")
 }
 
@@ -263,6 +292,13 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Map to response DTO
 	dtoRes := toUserResponseDTO(*user)
+
+	var actorUserIDUpd *int64
+	if updaterUser != nil {
+		actorUserIDUpd = &updaterUser.UserID
+	}
+	changesJSONUpd, _ := json.Marshal(map[string]any{"update": req, "after": user})
+	h.logAudit(r, tenant.TenantID, actorUserIDUpd, "user.update", "user", userUUID.String(), &userUUID, string(changesJSONUpd), "success")
 
 	resp.Success(w, dtoRes, "User updated successfully")
 }
@@ -314,6 +350,13 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	// Map to response DTO
 	dtoRes := toUserResponseDTO(*user)
 
+	var actorUserIDSS *int64
+	if updaterUser != nil {
+		actorUserIDSS = &updaterUser.UserID
+	}
+	changesJSONSS, _ := json.Marshal(map[string]any{"update": req})
+	h.logAudit(r, tenant.TenantID, actorUserIDSS, "user.set_status", "user", userUUID.String(), &userUUID, string(changesJSONSS), "success")
+
 	resp.Success(w, dtoRes, "User status updated successfully")
 }
 
@@ -347,6 +390,14 @@ func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toUserResponseDTO(*user)
+
+	var actorUserIDVE *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserIDVE = &authUser.UserID
+	}
+	changesJSONVE, _ := json.Marshal(map[string]any{"update": map[string]any{"is_email_verified": true}})
+	h.logAudit(r, tenant.TenantID, actorUserIDVE, "user.verify_email", "user", userUUID.String(), &userUUID, string(changesJSONVE), "success")
+
 	resp.Success(w, dtoRes, "Email verified and account completed successfully")
 }
 
@@ -380,6 +431,14 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toUserResponseDTO(*user)
+
+	var actorUserIDVP *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserIDVP = &authUser.UserID
+	}
+	changesJSONVP, _ := json.Marshal(map[string]any{"update": map[string]any{"is_phone_verified": true}})
+	h.logAudit(r, tenant.TenantID, actorUserIDVP, "user.verify_phone", "user", userUUID.String(), &userUUID, string(changesJSONVP), "success")
+
 	resp.Success(w, dtoRes, "Phone verified successfully")
 }
 
@@ -413,6 +472,14 @@ func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toUserResponseDTO(*user)
+
+	var actorUserIDCA *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserIDCA = &authUser.UserID
+	}
+	changesJSONCA, _ := json.Marshal(map[string]any{"update": map[string]any{"account_completed": true}})
+	h.logAudit(r, tenant.TenantID, actorUserIDCA, "user.complete_account", "user", userUUID.String(), &userUUID, string(changesJSONCA), "success")
+
 	resp.Success(w, dtoRes, "Account marked as completed successfully")
 }
 
@@ -450,6 +517,13 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	// Map to response DTO
 	dtoRes := toUserResponseDTO(*user)
+
+	var actorUserIDDel *int64
+	if deleterUser != nil {
+		actorUserIDDel = &deleterUser.UserID
+	}
+	changesJSONDel, _ := json.Marshal(map[string]any{"before": map[string]any{"id": userUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDDel, "user.delete", "user", userUUID.String(), &userUUID, string(changesJSONDel), "success")
 
 	resp.Success(w, dtoRes, "User deleted successfully")
 }
@@ -498,6 +572,13 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 	// Map to response DTO
 	dtoRes := toUserResponseDTO(*user)
 
+	var actorUserIDAR *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserIDAR = &authUser.UserID
+	}
+	changesJSONAR, _ := json.Marshal(map[string]any{"update": req})
+	h.logAudit(r, tenant.TenantID, actorUserIDAR, "user.assign_roles", "user", userUUID.String(), &userUUID, string(changesJSONAR), "success")
+
 	resp.Success(w, dtoRes, "Roles assigned to user successfully")
 }
 
@@ -541,6 +622,13 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	// Map to response DTO
 	dtoRes := toUserResponseDTO(*user)
 
+	var actorUserIDRR *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserIDRR = &authUser.UserID
+	}
+	changesJSONRR, _ := json.Marshal(map[string]any{"update": map[string]any{"role_uuid": roleUUIDStr}})
+	h.logAudit(r, tenant.TenantID, actorUserIDRR, "user.remove_role", "user", userUUID.String(), &userUUID, string(changesJSONRR), "success")
+
 	resp.Success(w, dtoRes, "Role removed from user successfully")
 }
 
@@ -567,6 +655,13 @@ func (h *UserHandler) ForcePasswordChange(w http.ResponseWriter, r *http.Request
 		resp.HandleServiceError(w, r, "Failed to set force password change", err)
 		return
 	}
+
+	var actorUserIDFPC *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserIDFPC = &authUser.UserID
+	}
+	changesJSONFPC, _ := json.Marshal(map[string]any{"update": map[string]any{"force_password_change": true}})
+	h.logAudit(r, tenant.TenantID, actorUserIDFPC, "user.force_password_change", "user", userUUID.String(), &userUUID, string(changesJSONFPC), "success")
 
 	resp.Success(w, nil, "User will be required to change password on next login")
 }
@@ -866,6 +961,14 @@ func (h *UserHandler) RevokeUserSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	var actorUserIDRS *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserIDRS = &authUser.UserID
+	}
+	changesJSONRS, _ := json.Marshal(map[string]any{"update": map[string]any{"session_uuid": sessionUUID.String()}})
+	sessionUUIDRef := sessionUUID
+	h.logAudit(r, tenant.TenantID, actorUserIDRS, "user.revoke_session", "session", sessionUUID.String(), &sessionUUIDRef, string(changesJSONRS), "success")
+
 	resp.Success(w, nil, "Session revoked successfully")
 }
 
@@ -912,6 +1015,10 @@ func (h *UserHandler) UnlinkUserIdentity(w http.ResponseWriter, r *http.Request)
 		resp.HandleServiceError(w, r, "Failed to unlink identity", err)
 		return
 	}
+
+	actorUserIDUL := &actor.UserID
+	changesJSONUL, _ := json.Marshal(map[string]any{"update": map[string]any{"identity_uuid": identityUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserIDUL, "user.unlink_identity", "user_identity", identityUUID.String(), &identityUUID, string(changesJSONUL), "success")
 
 	resp.Success(w, nil, "Identity unlinked successfully")
 }

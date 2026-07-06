@@ -13,11 +13,15 @@ import (
 
 // OAuthDiscoveryHandler serves the OpenID Connect discovery document and
 // the JSON Web Key Set (JWKS).
-type OAuthDiscoveryHandler struct{}
+type OAuthDiscoveryHandler struct {
+	keySvc KeyRotationService
+}
 
 // NewOAuthDiscoveryHandler creates a new OAuthDiscoveryHandler.
-func NewOAuthDiscoveryHandler() *OAuthDiscoveryHandler {
-	return &OAuthDiscoveryHandler{}
+// keySvc is used to serve JWKS from the DB-backed key rotation service;
+// when no DB keys exist it falls back to the in-memory JWT key store.
+func NewOAuthDiscoveryHandler(keySvc KeyRotationService) *OAuthDiscoveryHandler {
+	return &OAuthDiscoveryHandler{keySvc: keySvc}
 }
 
 // Discovery handles GET /.well-known/openid-configuration (OIDC Discovery 1.0).
@@ -89,10 +93,23 @@ func (h *OAuthDiscoveryHandler) AuthorizationServerMetadata(w http.ResponseWrite
 	_ = json.NewEncoder(w).Encode(doc)
 }
 
-// JWKS handles GET /.well-known/jwks.json (RFC 7517). Returns the active public
-// RSA key plus any recently retired keys so that tokens signed before the last
-// rotation continue to verify until they expire naturally.
+// JWKS handles GET /.well-known/jwks.json (RFC 7517). Serves keys from the
+// DB-backed key rotation service (tenantID=0 → global scope). Falls back to
+// the in-memory JWT key store when no DB keys exist yet.
 func (h *OAuthDiscoveryHandler) JWKS(w http.ResponseWriter, r *http.Request) {
+	// Primary: DB-backed JWKS (tenantID=0 matches global keys with tenant_id IS NULL).
+	if h.keySvc != nil {
+		jwks, err := h.keySvc.ListJWKS(r.Context(), 0)
+		if err == nil && len(jwks) > 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", shared.DefaultDiscoveryCacheMaxAge)
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(JWKSResponseDTO{Keys: jwks})
+			return
+		}
+	}
+
+	// Fallback: in-memory keys loaded from JWT_PRIVATE_KEY env var.
 	entries := jwt.GetAllPublicKeys()
 	if len(entries) == 0 {
 		w.Header().Set("Content-Type", "application/json")
