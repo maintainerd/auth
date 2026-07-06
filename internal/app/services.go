@@ -98,6 +98,7 @@ type svcs struct {
 	auditLogger                  auditlog.ManagementAuditLogger
 	keyRotationService           oauth.KeyRotationService
 	tokenRevocationService       oauth.TokenRevocationService
+	tokenRevocationRepo          oauth.OAuthTokenRevocationRepository
 }
 
 // listenerChecker adapts webhook and event-route repos for the write gate.
@@ -318,6 +319,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		auditLogger:                  auditlog.NewManagementAuditLogger(r.auditLogRepo),
 		keyRotationService:           oauth.NewKeyRotationService(r.signingKeyRepo),
 		tokenRevocationService:       oauth.NewTokenRevocationService(r.tokenRevocationRepo),
+		tokenRevocationRepo:          r.tokenRevocationRepo,
 	}
 	// Wire the broker provider resolver so the oauth broker flow (idp_hint →
 	// upstream provider) can resolve provider authorize endpoints + client_ids
@@ -337,6 +339,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	// Inject the MFA factor verifier so login can run the MFA second step (acr=2).
 	s.loginService.SetMFAFactorAuthenticator(mfaSvc)
 	s.loginService.SetUserLockoutRepository(r.userLockoutRepo)
+	s.loginService.SetTokenRevoker(s.tokenRevocationService)
 	// Wire client permission resolver for M2M token issuance.
 	s.oauthTokenService.SetClientPermissionResolver(newClientPermissionResolver(db))
 	// Magic-link possession is the first factor; delegate MFA policy decisions

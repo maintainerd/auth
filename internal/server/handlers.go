@@ -79,7 +79,7 @@ type handlers struct {
 }
 
 func initHandlers(application *Application) *handlers {
-	return &handlers{
+	h := &handlers{
 		service:            iam.NewServiceHandler(application.ServiceService),
 		api:                iam.NewAPIHandler(application.APIService),
 		permission:         iam.NewPermissionHandler(application.PermissionService),
@@ -116,7 +116,7 @@ func initHandlers(application *Application) *handlers {
 		oauthToken:         oauth.NewOAuthTokenHandler(application.OAuthTokenService, nil, nil),
 		oauthTokenExchange: oauth.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),
 		oauthConsent:       oauth.NewOAuthConsentHandler(application.OAuthConsentService),
-		oauthDiscovery:     oauth.NewOAuthDiscoveryHandler(),
+		oauthDiscovery:     oauth.NewOAuthDiscoveryHandler(application.KeyRotationService),
 		oauthUserInfo:      oauth.NewOAuthUserInfoHandler(),
 		oauthPAR:           oauth.NewOAuthPARHandler(application.OAuthPARService),
 		oauthDevice:        oauth.NewOAuthDeviceHandler(application.OAuthDeviceService),
@@ -134,4 +134,27 @@ func initHandlers(application *Application) *handlers {
 		dashboard:          dashboard.NewHandler(dashboard.NewService(application.DB)),
 		auditLog:           auditlog.NewManagementAuditLogHandler(application.AuditLogRepo),
 	}
+
+	// Inject the management audit logger into every write-path internal handler.
+	al := application.AuditLogger
+	h.service.SetAuditLogger(al)
+	h.api.SetAuditLogger(al)
+	h.permission.SetAuditLogger(al)
+	h.policy.SetAuditLogger(al)
+	h.role.SetAuditLogger(al)
+	h.tenant.SetAuditLogger(al)
+	h.tenantSetting.SetAuditLogger(al)
+	h.identityProvider.SetAuditLogger(al)
+	h.registrationFlow.SetAuditLogger(al)
+	h.federation.SetAuditLogger(al)
+	h.client.SetAuditLogger(al)
+	h.user.SetAuditLogger(al)
+	h.profile.SetAuditLogger(al)
+	h.userSetting.SetAuditLogger(al)
+	h.userConsent.SetAuditLogger(al)
+	h.userTrustedDevice.SetAuditLogger(al)
+	h.account.SetAuditLogger(al)
+	h.invite.SetAuditLogger(al)
+
+	return h
 }

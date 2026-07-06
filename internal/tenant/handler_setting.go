@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
@@ -17,6 +20,7 @@ import (
 type TenantSettingHandler struct {
 	tenantSettingService TenantSettingService
 	authEventService     authevent.AuthEventService
+	auditLogger          auditlog.ManagementAuditLogger
 }
 
 // NewTenantSettingHandler creates a new TenantSettingHandler.
@@ -26,6 +30,24 @@ func NewTenantSettingHandler(tenantSettingService TenantSettingService, authEven
 		eventService = authEventService[0]
 	}
 	return &TenantSettingHandler{tenantSettingService: tenantSettingService, authEventService: eventService}
+}
+
+func (h *TenantSettingHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *TenantSettingHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // GetRateLimitConfig retrieves the rate limit configuration for the tenant.
@@ -77,6 +99,14 @@ func (h *TenantSettingHandler) UpdateRateLimitConfig(w http.ResponseWriter, r *h
 		resp.HandleServiceError(w, r, "Failed to update rate limit config", err)
 		return
 	}
+
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any(req), "after": result.RateLimitConfig})
+	h.logAudit(r, tenant.TenantID, actorUserID, "tenant_setting.update_rate_limit", "tenant_setting", strconv.FormatInt(tenant.TenantID, 10), nil, string(changesJSON), "success")
 
 	resp.Success(w, TenantSettingConfigResponseDTO(result.RateLimitConfig), "Rate limit config updated successfully")
 }
@@ -130,6 +160,14 @@ func (h *TenantSettingHandler) UpdateAuditConfig(w http.ResponseWriter, r *http.
 		resp.HandleServiceError(w, r, "Failed to update audit config", err)
 		return
 	}
+
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any(req), "after": result.AuditConfig})
+	h.logAudit(r, tenant.TenantID, actorUserID, "tenant_setting.update_audit", "tenant_setting", strconv.FormatInt(tenant.TenantID, 10), nil, string(changesJSON), "success")
 
 	resp.Success(w, TenantSettingConfigResponseDTO(result.AuditConfig), "Audit config updated successfully")
 }
@@ -185,6 +223,15 @@ func (h *TenantSettingHandler) UpdateMaintenanceConfig(w http.ResponseWriter, r 
 	}
 
 	h.logMaintenanceConfigUpdated(r, result.MaintenanceConfig)
+
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any(req), "after": result.MaintenanceConfig})
+	h.logAudit(r, tenant.TenantID, actorUserID, "tenant_setting.update_maintenance", "tenant_setting", strconv.FormatInt(tenant.TenantID, 10), nil, string(changesJSON), "success")
+
 	resp.Success(w, TenantSettingConfigResponseDTO(result.MaintenanceConfig), "Maintenance config updated successfully")
 }
 

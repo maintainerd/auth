@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
@@ -22,6 +23,7 @@ type TenantHandler struct {
 	tenantMemberService    TenantMemberService
 	brandingService        branding.BrandingService
 	securitySettingService secpolicy.SecuritySettingService
+	auditLogger            auditlog.ManagementAuditLogger
 }
 
 func NewTenantHandler(
@@ -36,6 +38,24 @@ func NewTenantHandler(
 		brandingService:        brandingService,
 		securitySettingService: securitySettingService,
 	}
+}
+
+func (h *TenantHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *TenantHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // Get all tenants with pagination
@@ -302,6 +322,17 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	dtoRes := toTenantResponseDTO(*tenant)
 
+	tenantID := int64(0)
+	if auth.Tenant != nil {
+		tenantID = auth.Tenant.TenantID
+	}
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
+	h.logAudit(r, tenantID, actorUserID, "tenant.create", "tenant", tenant.TenantUUID.String(), &tenant.TenantUUID, string(changesJSON), "success")
+
 	resp.Created(w, dtoRes, "Tenant created successfully")
 }
 
@@ -349,6 +380,13 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	dtoRes := toTenantResponseDTO(*tenant)
 
+	var actorUserID *int64
+	if user != nil {
+		actorUserID = &user.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "tenant.update", "tenant", tenant.TenantUUID.String(), &tenant.TenantUUID, string(changesJSON), "success")
+
 	resp.Success(w, dtoRes, "Tenant updated successfully")
 }
 
@@ -393,6 +431,13 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toTenantResponseDTO(*tenant)
+
+	var actorUserID *int64
+	if user != nil {
+		actorUserID = &user.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "tenant.set_status", "tenant", tenant.TenantUUID.String(), &tenant.TenantUUID, string(changesJSON), "success")
 
 	resp.Success(w, dtoRes, "Tenant status updated successfully")
 }
@@ -440,6 +485,17 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toTenantResponseDTO(*deletedTenant)
+
+	actorTenantID := int64(0)
+	if auth.Tenant != nil {
+		actorTenantID = auth.Tenant.TenantID
+	}
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": deletedTenant.TenantUUID.String()}})
+	h.logAudit(r, actorTenantID, actorUserID, "tenant.delete", "tenant", deletedTenant.TenantUUID.String(), &deletedTenant.TenantUUID, string(changesJSON), "success")
 
 	resp.Success(w, dtoRes, "Tenant deleted successfully")
 }

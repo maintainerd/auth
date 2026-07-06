@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
@@ -15,12 +16,32 @@ import (
 
 type PolicyHandler struct {
 	policyService PolicyService
+	auditLogger   auditlog.ManagementAuditLogger
 }
 
 func NewPolicyHandler(policyService PolicyService) *PolicyHandler {
 	return &PolicyHandler{
 		policyService: policyService,
 	}
+}
+
+// SetAuditLogger wires the management audit logger into the handler.
+func (h *PolicyHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *PolicyHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // Get policies with filtering and pagination
@@ -192,6 +213,12 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toPolicyDetailResponseDTO(*policy)
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "policy.create", "policy", policy.PolicyUUID.String(), &policy.PolicyUUID, string(changesJSON), "success")
 	resp.Created(w, dtoRes, "Policy created successfully")
 }
 
@@ -238,6 +265,12 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toPolicyDetailResponseDTO(*policy)
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "policy.update", "policy", policy.PolicyUUID.String(), &policy.PolicyUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Policy updated successfully")
 }
 
@@ -275,6 +308,12 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toPolicyDetailResponseDTO(*policy)
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "policy.set_status", "policy", policy.PolicyUUID.String(), &policy.PolicyUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Policy status updated successfully")
 }
 
@@ -301,6 +340,12 @@ func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toPolicyDetailResponseDTO(*policy)
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": policyUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "policy.delete", "policy", policyUUID.String(), &policyUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Policy deleted successfully")
 }
 

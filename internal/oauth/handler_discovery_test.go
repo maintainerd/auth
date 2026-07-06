@@ -19,7 +19,7 @@ func TestOAuthDiscoveryHandler_AuthorizationServerMetadata(t *testing.T) {
 	config.AppPublicHostname = "https://auth.example.com"
 	defer func() { config.AppPublicHostname = origHost }()
 
-	h := NewOAuthDiscoveryHandler()
+	h := NewOAuthDiscoveryHandler(nil)
 	r := httptest.NewRequest(http.MethodGet, "/.well-known/oauth-authorization-server", nil)
 	w := httptest.NewRecorder()
 
@@ -46,7 +46,7 @@ func TestOAuthDiscoveryHandler_Discovery(t *testing.T) {
 	defer func() { config.AppPublicHostname = origHost }()
 
 	w := httptest.NewRecorder()
-	NewOAuthDiscoveryHandler().Discovery(w, httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil))
+	NewOAuthDiscoveryHandler(nil).Discovery(w, httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil))
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -61,7 +61,7 @@ func TestOAuthDiscoveryHandler_JWKS_EmptyKeys(t *testing.T) {
 	jwt.ResetJWTKeys()
 
 	w := httptest.NewRecorder()
-	NewOAuthDiscoveryHandler().JWKS(w, httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil))
+	NewOAuthDiscoveryHandler(nil).JWKS(w, httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil))
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -75,7 +75,7 @@ func TestOAuthDiscoveryHandler_JWKS(t *testing.T) {
 	initTestJWTKeysService(t)
 
 	w := httptest.NewRecorder()
-	NewOAuthDiscoveryHandler().JWKS(w, httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil))
+	NewOAuthDiscoveryHandler(nil).JWKS(w, httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil))
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	var body JWKSResponseDTO

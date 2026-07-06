@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -14,10 +16,29 @@ import (
 // identity link/unlink, and home-realm discovery.
 type FederationHandler struct {
 	federationSvc FederationService
+	auditLogger   auditlog.ManagementAuditLogger
 }
 
 func NewFederationHandler(federationSvc FederationService) *FederationHandler {
 	return &FederationHandler{federationSvc: federationSvc}
+}
+
+func (h *FederationHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *FederationHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // ExchangeExternalToken validates an upstream OIDC token and returns our JWT.
@@ -157,6 +178,13 @@ func (h *FederationHandler) LinkIdentity(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"provider_identifier": req.ProviderIdentifier}})
+	var actorUserID *int64
+	if user != nil {
+		actorUserID = &user.UserID
+	}
+	h.logAudit(r, 0, actorUserID, "federated_identity.link", "federated_identity", req.ProviderIdentifier, nil, string(changesJSON), "success")
+
 	resp.Success(w, identity, "Identity linked successfully")
 }
 
@@ -176,6 +204,13 @@ func (h *FederationHandler) UnlinkIdentity(w http.ResponseWriter, r *http.Reques
 		resp.HandleServiceError(w, r, "Failed to unlink identity", err)
 		return
 	}
+
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": identityUUID}})
+	var actorUserID *int64
+	if user != nil {
+		actorUserID = &user.UserID
+	}
+	h.logAudit(r, 0, actorUserID, "federated_identity.unlink", "federated_identity", identityUUID, nil, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Identity unlinked successfully")
 }

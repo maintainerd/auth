@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -15,10 +16,30 @@ import (
 
 type PermissionHandler struct {
 	permissionService PermissionService
+	auditLogger       auditlog.ManagementAuditLogger
 }
 
 func NewPermissionHandler(permissionService PermissionService) *PermissionHandler {
-	return &PermissionHandler{permissionService}
+	return &PermissionHandler{permissionService: permissionService}
+}
+
+// SetAuditLogger wires the management audit logger into the handler.
+func (h *PermissionHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *PermissionHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // Get permissions with pagination
@@ -156,7 +177,12 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toPermissionResponseDTO(*permission)
-
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "permission.create", "permission", permission.PermissionUUID.String(), &permission.PermissionUUID, string(changesJSON), "success")
 	resp.Created(w, dtoRes, "Permission created successfully")
 }
 
@@ -193,7 +219,12 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toPermissionResponseDTO(*permission)
-
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, actorUserID, "permission.update", "permission", permission.PermissionUUID.String(), &permission.PermissionUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Permission updated successfully")
 }
 
@@ -230,6 +261,12 @@ func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toPermissionResponseDTO(*permission)
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "permission.set_status", "permission", permission.PermissionUUID.String(), &permission.PermissionUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Permission status updated successfully")
 }
 
@@ -255,7 +292,12 @@ func (h *PermissionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := toPermissionResponseDTO(*permission)
-
+	var actorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
+		actorUserID = &authCtx.User.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": permissionUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "permission.delete", "permission", permissionUUID.String(), &permissionUUID, string(changesJSON), "success")
 	resp.Success(w, dtoRes, "Permission deleted successfully")
 }
 

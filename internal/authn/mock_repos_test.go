@@ -262,6 +262,8 @@ func (m *mockLoginService) SetMFAFactorAuthenticator(MFAFactorAuthenticator) {}
 
 func (m *mockLoginService) SetUserLockoutRepository(UserLockoutRepository) {}
 
+func (m *mockLoginService) SetTokenRevoker(AccessTokenRevoker) {}
+
 func (m *mockLoginService) MagicLinkMFAChallenge(context.Context, *User, int64) (*LoginResponseDTO, error) {
 	return nil, nil
 }

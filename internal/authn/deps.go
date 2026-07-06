@@ -380,3 +380,10 @@ type RegistrationFlow struct {
 type UserConsentRecorder interface {
 	Record(ctx context.Context, tx *gorm.DB, userID, tenantID int64, consentType, policyVersion, ipAddress, userAgent string) error
 }
+
+// AccessTokenRevoker is the narrow interface authn needs to record access-token
+// revocations in the persistent store at logout time (RFC 7009 compliance).
+// Implemented by oauth.TokenRevocationService; injected via SetTokenRevoker.
+type AccessTokenRevoker interface {
+	Revoke(ctx context.Context, tenantID int64, jti, tokenType, reason string, expiresAt time.Time, revokedByUserID *int64, revokedByClientID *int64) error
+}

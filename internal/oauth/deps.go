@@ -261,6 +261,9 @@ type SigningKeyRepository interface {
 type OAuthTokenRevocationRepository interface {
 	Revoke(revocation *OAuthTokenRevocation) error
 	IsRevoked(tenantID int64, jti string) (bool, error)
+	// IsRevokedByJTI checks revocation by JTI alone, without a tenant filter.
+	// Used by the JWT bearer middleware where tenant context is not yet available.
+	IsRevokedByJTI(jti string) (bool, error)
 	DeleteExpired() (int64, error)
 }
 

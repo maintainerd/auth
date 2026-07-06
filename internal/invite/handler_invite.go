@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
@@ -16,12 +17,34 @@ import (
 // All endpoints are tenant-scoped - the middleware validates user access to the tenant
 // and sets it in the request context. The service layer ensures invites belong to the tenant.
 type InviteHandler struct {
-	service InviteService
+	service     InviteService
+	auditLogger auditlog.ManagementAuditLogger
 }
 
 // NewInviteHandler creates a new instance of InviteHandler.
 func NewInviteHandler(service InviteService) *InviteHandler {
-	return &InviteHandler{service}
+	return &InviteHandler{service: service}
+}
+
+// SetAuditLogger wires the management audit logger into the handler.
+func (h *InviteHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) {
+	h.auditLogger = l
+}
+
+func (h *InviteHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // Send sends an invitation to a user to join the tenant with specified roles.
@@ -56,11 +79,15 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send invite associated with tenant
-	_, err := h.service.SendInvite(r.Context(), tenant.TenantID, req.Email, user.UserID, req.RegistrationFlowUUID, req.CallbackURL)
+	result, err := h.service.SendInvite(r.Context(), tenant.TenantID, req.Email, user.UserID, req.RegistrationFlowUUID, req.CallbackURL)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to send invite", err)
 		return
 	}
+
+	actorUserID := &user.UserID
+	changesJSON, _ := json.Marshal(map[string]any{"after": result})
+	h.logAudit(r, tenant.TenantID, actorUserID, "invite.send", "invite", result.InviteUUID.String(), &result.InviteUUID, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Invite sent successfully")
 }
@@ -82,11 +109,18 @@ func (h *InviteHandler) Resend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.service.ResendInvite(r.Context(), inviteUUID, tenant.TenantID)
+	result, err := h.service.ResendInvite(r.Context(), inviteUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to resend invite", err)
 		return
 	}
+
+	var actorUserID *int64
+	if u := middleware.AuthFromRequest(r).User; u != nil {
+		actorUserID = &u.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"invite_uuid": inviteUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "invite.resend", "invite", result.InviteUUID.String(), &result.InviteUUID, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Invite resent successfully")
 }
@@ -134,6 +168,13 @@ func (h *InviteHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 		resp.HandleServiceError(w, r, "Failed to revoke invite", err)
 		return
 	}
+
+	var actorUserID *int64
+	if u := middleware.AuthFromRequest(r).User; u != nil {
+		actorUserID = &u.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": inviteUUID.String()}})
+	h.logAudit(r, tenant.TenantID, actorUserID, "invite.revoke", "invite", inviteUUID.String(), &inviteUUID, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Invite revoked successfully")
 }

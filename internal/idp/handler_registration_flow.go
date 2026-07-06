@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -22,6 +23,7 @@ import (
 // middleware validates tenant access and stores it in the request context.
 type RegistrationFlowHandler struct {
 	registrationFlowService RegistrationFlowService
+	auditLogger             auditlog.ManagementAuditLogger
 }
 
 // NewRegistrationFlowHandler creates a new registration flow handler instance.
@@ -29,6 +31,24 @@ func NewRegistrationFlowHandler(registrationFlowService RegistrationFlowService)
 	return &RegistrationFlowHandler{
 		registrationFlowService: registrationFlowService,
 	}
+}
+
+func (h *RegistrationFlowHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+func (h *RegistrationFlowHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
+	if h.auditLogger == nil {
+		return
+	}
+	_ = h.auditLogger.Log(r.Context(), auditlog.LogEntry{
+		TenantID:     tenantID,
+		ActorUserID:  actorUserID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceUUID: resourceUUID,
+		Changes:      changes,
+		Outcome:      outcome,
+	})
 }
 
 // GetAll retrieves all registration flows for the tenant with pagination and filters.
@@ -183,7 +203,17 @@ func (h *RegistrationFlowHandler) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp.Created(w, toRegistrationFlowResponseDTO(*registrationFlow), "Registration flow created successfully")
+	dtoRes := toRegistrationFlowResponseDTO(*registrationFlow)
+	flowUUID := registrationFlow.RegistrationFlowUUID
+	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.create", "registration_flow", flowUUID.String(), &flowUUID, string(changesJSON), "success")
+
+	resp.Created(w, dtoRes, "Registration flow created successfully")
 }
 
 // Update updates an existing registration flow.
@@ -238,7 +268,16 @@ func (h *RegistrationFlowHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp.Success(w, toRegistrationFlowResponseDTO(*registrationFlow), "Registration flow updated successfully")
+	dtoRes := toRegistrationFlowResponseDTO(*registrationFlow)
+	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.update", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
+
+	resp.Success(w, dtoRes, "Registration flow updated successfully")
 }
 
 // Delete deletes a registration flow.
@@ -269,6 +308,14 @@ func (h *RegistrationFlowHandler) Delete(w http.ResponseWriter, r *http.Request)
 		resp.HandleServiceError(w, r, "Failed to delete registration flow", err)
 		return
 	}
+
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": registrationFlowUUID.String()}})
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.delete", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
 	resp.Success(w, toRegistrationFlowResponseDTO(*registrationFlow), "Registration flow deleted successfully")
 }
@@ -313,6 +360,14 @@ func (h *RegistrationFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Re
 		resp.HandleServiceError(w, r, "Failed to update registration flow status", err)
 		return
 	}
+
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.set_status", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
 	resp.Success(w, toRegistrationFlowResponseDTO(*registrationFlow), "Registration flow status updated successfully")
 }
@@ -383,6 +438,14 @@ func (h *RegistrationFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Req
 			UpdatedAt:   role.UpdatedAt,
 		}
 	}
+
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"role_uuids": req.RoleUUIDs}})
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.assign_roles", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
 	resp.Success(w, response, "Roles assigned successfully")
 }
@@ -496,6 +559,14 @@ func (h *RegistrationFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Requ
 		resp.HandleServiceError(w, r, "Failed to remove role", err)
 		return
 	}
+
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"role_uuid": roleUUID.String()}})
+	auth := middleware.AuthFromRequest(r)
+	var actorUserID *int64
+	if auth.User != nil {
+		actorUserID = &auth.User.UserID
+	}
+	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.remove_role", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Role removed successfully")
 }
