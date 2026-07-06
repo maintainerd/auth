@@ -87,6 +87,7 @@ type repos struct {
 	webauthnChallengeRepo     mfa.WebAuthnChallengeRepository
 	signingKeyRepo            oauth.SigningKeyRepository
 	tokenRevocationRepo       oauth.OAuthTokenRevocationRepository
+	tokenExchangeRepo         oauth.OAuthTokenExchangeRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -155,5 +156,6 @@ func initRepos(db *gorm.DB) *repos {
 		webauthnChallengeRepo:     mfa.NewWebAuthnChallengeRepository(db),
 		signingKeyRepo:            oauth.NewSigningKeyRepository(db),
 		tokenRevocationRepo:       oauth.NewOAuthTokenRevocationRepository(db),
+		tokenExchangeRepo:         oauth.NewOAuthTokenExchangeRepository(db),
 	}
 }

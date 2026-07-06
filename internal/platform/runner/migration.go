@@ -118,6 +118,7 @@ var migrations = []migrationEntry{
 	{"075_create_webauthn_challenges_table", migration.CreateWebAuthnChallengesTable},
 	{"076_create_signing_keys_table", migration.CreateSigningKeysTable},
 	{"077_create_oauth_token_revocations_table", migration.CreateOAuthTokenRevocationsTable},
+	{"078_create_oauth_token_exchanges_table", migration.CreateOAuthTokenExchangesTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a
