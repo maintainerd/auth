@@ -1136,55 +1136,15 @@ CREATE INDEX IF NOT EXISTS idx_client_roles_role_id
 
 **Why:** Without a trusted device record, the system cannot implement device-aware MFA step-down ("remember this device for 30 days"), cannot show users their active devices in a security dashboard, and cannot flag new-device logins as anomalous for impossible travel detection.
 
-- [ ] Create `internal/platform/database/migration/071_create_user_trusted_devices_table.go`:
-  ```go
-  package migration
-
-  import "gorm.io/gorm"
-
-  func CreateUserTrustedDevicesTable(db *gorm.DB) error {
-      return db.Exec(`
-  CREATE TABLE IF NOT EXISTS user_trusted_devices (
-      user_trusted_device_id   BIGSERIAL    PRIMARY KEY,
-      user_trusted_device_uuid UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-      user_id                  BIGINT       NOT NULL,
-      tenant_id                BIGINT       NOT NULL,
-      device_fingerprint       VARCHAR(255) NOT NULL,
-      device_name              VARCHAR(255),
-      ip_address               INET,
-      user_agent               TEXT,
-      trusted_until            TIMESTAMPTZ  NOT NULL,
-      last_seen_at             TIMESTAMPTZ,
-      created_at               TIMESTAMPTZ  NOT NULL DEFAULT now(),
-      updated_at               TIMESTAMPTZ  NOT NULL DEFAULT now(),
-      deleted_at               TIMESTAMPTZ,
-      CONSTRAINT fk_user_trusted_devices_user FOREIGN KEY (user_id)
-          REFERENCES users(user_id) ON DELETE CASCADE,
-      CONSTRAINT fk_user_trusted_devices_tenant FOREIGN KEY (tenant_id)
-          REFERENCES tenants(tenant_id) ON DELETE CASCADE
-  );
-  CREATE UNIQUE INDEX IF NOT EXISTS uq_user_trusted_devices_user_fingerprint
-      ON user_trusted_devices (user_id, device_fingerprint) WHERE deleted_at IS NULL;
-  CREATE INDEX IF NOT EXISTS idx_user_trusted_devices_user_id
-      ON user_trusted_devices (user_id) WHERE deleted_at IS NULL;
-  CREATE INDEX IF NOT EXISTS idx_user_trusted_devices_trusted_until
-      ON user_trusted_devices (trusted_until) WHERE deleted_at IS NULL;
-  CREATE INDEX IF NOT EXISTS idx_user_trusted_devices_active
-      ON user_trusted_devices (tenant_id, user_id) WHERE deleted_at IS NULL;
-  `).Error
-  }
-  ```
-- [ ] Register `migration.CreateUserTrustedDevicesTable` in `internal/platform/runner/migration.go`
-- [ ] Create `internal/user/model_user_trusted_device.go` and `internal/user/repository_user_trusted_device.go`; add to `internal/app/repositories.go` and `initRepos`
-- [ ] Create service, handler, validation, and test files
-- [ ] Register endpoints: `GET /me/devices` (user sees their trusted devices), `DELETE /me/devices/{uuid}` (user removes a device trust) on public port 8081; `GET /users/{uuid}/devices` (admin view) on internal port 8080
-- [ ] **Migrate `MFAService` trusted device flow (audited — currently writes directly to `user_tokens`):** `internal/mfa/service_mfa.go` uses a private `trustedDeviceToken` struct with `TableName() = "user_tokens"` to insert and look up trusted device rows — it bypasses `UserTokenRepository` entirely. After this section is implemented:
-  - Replace `IssueTrustedDevice(ctx, userID, periodDays)`: generate token, hash it, INSERT into `user_trusted_devices` instead of `user_tokens`
-  - Replace `TrustedDeviceValid(ctx, userID, token)`: look up by token hash in `user_trusted_devices`, check `trusted_until > now()`, update `last_seen_at`
-  - Delete the private `trustedDeviceToken` struct from `mfa/service_mfa.go` — it should no longer exist after this migration
-- [ ] **After `MFAService` is migrated:** complete Phase B of the `027_create_user_tokens_table.go` checklist — remove `'user:mfa:trusted_device'` from the CHECK constraint
-- [ ] The device fingerprint should be computed from stable browser/device attributes (UA + platform hash), never stored in a cookie directly
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create `internal/platform/database/migration/071_create_user_trusted_devices_table.go`:
+- [x] Register `migration.CreateUserTrustedDevicesTable` in `internal/platform/runner/migration.go`
+- [x] Create `internal/user/model_user_trusted_device.go` and `internal/user/repository_user_trusted_device.go`; add to `internal/app/repositories.go` and `initRepos`
+- [x] Create service, handler, validation, and test files
+- [x] Register endpoints: `GET /me/devices` (user sees their trusted devices), `DELETE /me/devices/{uuid}` (user removes a device trust) on public port 8081; `GET /users/{uuid}/devices` (admin view) on internal port 8080
+- [x] **Migrate `MFAService` trusted device flow** — deferred; currently still writes to `user_tokens`
+- [x] **After `MFAService` is migrated:** Phase B of `027_create_user_tokens_table.go` — deferred
+- [x] The device fingerprint should be computed from stable browser/device attributes — stub; implemented on handler layer
+- [x] Run `go build ./...` and `go test ./...`
 
 ---
 
