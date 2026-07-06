@@ -1155,12 +1155,16 @@ func (s *federationService) createBrokerSession(ctx context.Context, user *User,
 	if clientID > 0 && s.clientRepo != nil {
 		client, _ = s.clientRepo.FindByID(clientID)
 	}
+	var clientTenantID int64
+	if client != nil {
+		clientTenantID = client.TenantID
+	}
 	policy := s.resolveFederationSessionPolicy(client)
 	if svc, ok := s.sessionService.(policyAwareSessionService); ok {
 		if err := svc.EnforceConcurrentLimitWithPolicy(ctx, user.UserUUID, user.UserID, policy); err != nil {
 			return "", apperror.NewInternal("session limit enforcement failed", err)
 		}
-		sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+		sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, clientTenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
 		if err != nil {
 			return "", apperror.NewInternal("session creation failed", err)
 		}
@@ -1169,7 +1173,7 @@ func (s *federationService) createBrokerSession(ctx context.Context, user *User,
 	if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
 		return "", apperror.NewInternal("session limit enforcement failed", err)
 	}
-	sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
+	sess, err := s.sessionService.CreateSession(ctx, user.UserID, clientTenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
 	if err != nil {
 		return "", apperror.NewInternal("session creation failed", err)
 	}
@@ -1185,13 +1189,17 @@ func (s *federationService) refreshMetadata(tx *gorm.DB, identity *UserIdentity,
 
 func (s *federationService) generateTokens(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	var sessionID string
+	var genClientTenantID int64
+	if client != nil {
+		genClientTenantID = client.TenantID
+	}
 	policy := s.resolveFederationSessionPolicy(client)
 	if s.sessionService != nil {
 		if svc, ok := s.sessionService.(policyAwareSessionService); ok {
 			if err := svc.EnforceConcurrentLimitWithPolicy(ctx, user.UserUUID, user.UserID, policy); err != nil {
 				return nil, apperror.NewInternal("session limit enforcement failed", err)
 			}
-			sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+			sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, genClientTenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
 			if err != nil {
 				return nil, apperror.NewInternal("session creation failed", err)
 			}
@@ -1200,7 +1208,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 			if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
 				return nil, apperror.NewInternal("session limit enforcement failed", err)
 			}
-			sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
+			sess, err := s.sessionService.CreateSession(ctx, user.UserID, genClientTenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
 			if err != nil {
 				return nil, apperror.NewInternal("session creation failed", err)
 			}
@@ -1311,7 +1319,7 @@ func mapFromJSON(raw []byte) map[string]any {
 
 type policyAwareSessionService interface {
 	EnforceConcurrentLimitWithPolicy(ctx context.Context, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error
-	CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*authn.UserSession, error)
+	CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*authn.UserSession, error)
 }
 
 // findDefaultRole mirrors the logic in registerService to locate the tenant's

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
@@ -96,6 +97,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		event.ConfigRoute(api, h.eventConfig, h.eventManagement, userProvider, application.Cache, tenantRateLimit)
 		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache, tenantRateLimit)
 		iam.AuthorizationRoute(api, h.authorization)
+		auditlog.ManagementAuditLogRoute(api, h.auditLog, userProvider, application.Cache, tenantRateLimit)
 		dashboard.DashboardRoute(api, h.dashboard, userProvider, application.Cache, tenantRateLimit)
 
 		// Account self-service routes (authenticated)

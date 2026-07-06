@@ -43,8 +43,8 @@ func (a *userSessionServiceAdapter) RevokeAllSessions(ctx context.Context, userI
 	return a.sessionService.RevokeAllSessions(ctx, userID)
 }
 
-func (a *userSessionServiceAdapter) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*user.UserToken, error) {
-	session, err := a.sessionService.CreateSession(ctx, userID, ipAddress, userAgent)
+func (a *userSessionServiceAdapter) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*user.UserToken, error) {
+	session, err := a.sessionService.CreateSession(ctx, userID, tenantID, ipAddress, userAgent)
 	if err != nil || session == nil {
 		return nil, err
 	}

@@ -54,36 +54,6 @@ type Client struct {
 
 func (Client) TableName() string { return "clients" }
 
-// TenantService is DEPRECATED — the tenant_services table has been removed.
-// services.tenant_id is the authoritative tenant-scope relationship.
-// This type is kept only for test compatibility.
-type TenantService struct {
-	TenantServiceID int64
-	TenantID        int64
-	ServiceID       int64
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-}
-
-func (TenantService) TableName() string { return "tenant_services" }
-
-type TenantServiceRepositoryGetFilter struct {
-	TenantID  *int64
-	ServiceID *int64
-	Page      int
-	Limit     int
-	SortBy    string
-	SortOrder string
-}
-
-// TenantServiceRepository is DEPRECATED.
-type TenantServiceRepository interface {
-	BaseRepositoryMethods[TenantService]
-	WithTx(tx *gorm.DB) TenantServiceRepository
-	FindPaginated(filter TenantServiceRepositoryGetFilter) (*PaginationResult[TenantService], error)
-	FindByTenantAndService(tenantID int64, serviceID int64) (*TenantService, error)
-	DeleteByTenantAndService(tenantID int64, serviceID int64) error
-}
 
 type UserRole struct {
 	UserRoleID uuid.UUID

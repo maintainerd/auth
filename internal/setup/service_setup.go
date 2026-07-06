@@ -503,6 +503,7 @@ func (s *setupService) RegisterControlService(ctx context.Context, req RegisterC
 		} else {
 			service = &Service{
 				ServiceUUID: uuid.New(),
+				TenantID:    sysTenant.TenantID,
 				Name:        req.Name,
 				DisplayName: req.DisplayName,
 				Description: description,
@@ -511,9 +512,6 @@ func (s *setupService) RegisterControlService(ctx context.Context, req RegisterC
 				IsSystem:    false,
 			}
 			if _, err := txServiceRepo.CreateOrUpdate(service); err != nil {
-				return err
-			}
-			if err := tx.Create(&TenantServiceLink{TenantID: sysTenant.TenantID, ServiceID: service.ServiceID}).Error; err != nil {
 				return err
 			}
 			registeredService = service

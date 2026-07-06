@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/branding"
@@ -92,6 +93,8 @@ type App struct {
 	WebhookSubscriptionHandler *webhook.SubscriptionHandler
 	WebhookReplayHandler       *webhook.ReplayHandler
 	IPRestrictionRuleRepo      secpolicy.IPRestrictionRuleRepository
+	AuditLogger                auditlog.ManagementAuditLogger
+	AuditLogRepo               auditlog.ManagementAuditLogRepository
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -174,5 +177,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		WebhookSubscriptionHandler:   s.webhookSubscriptionHandler,
 		WebhookReplayHandler:         s.webhookReplayHandler,
 		IPRestrictionRuleRepo:        s.ipRestrictionRuleRepo,
+		AuditLogger:                  s.auditLogger,
+		AuditLogRepo:                 r.auditLogRepo,
 	}, nil
 }

@@ -12,7 +12,7 @@ type OAuthAuthorizeRequest struct {
 	OAuthAuthorizeRequestID   int64          `gorm:"column:oauth_authorize_request_id;primaryKey;autoIncrement"`
 	OAuthAuthorizeRequestUUID uuid.UUID      `gorm:"column:oauth_authorize_request_uuid;type:uuid;uniqueIndex;not null"`
 	ClientID                  int64          `gorm:"column:client_id;not null"`
-	TenantID                  *int64         `gorm:"column:tenant_id"`
+	TenantID                  int64          `gorm:"column:tenant_id;not null"`
 	RedirectURI               string         `gorm:"column:redirect_uri;not null"`
 	Scope                     pq.StringArray `gorm:"column:scope;type:text[]"`
 	State                     *string        `gorm:"column:state"`

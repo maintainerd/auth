@@ -119,18 +119,18 @@ func tokenAuthContextWithPolicyAndRefreshFamily(amr []string, acr, sessionID str
 }
 
 type policyAwareSessionCreator interface {
-	CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error)
+	CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error)
 }
 
 type policyAwareConcurrentLimiter interface {
 	EnforceConcurrentLimitWithPolicy(ctx context.Context, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error
 }
 
-func createSessionWithPolicy(ctx context.Context, sessionService SessionService, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error) {
+func createSessionWithPolicy(ctx context.Context, sessionService SessionService, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error) {
 	if svc, ok := sessionService.(policyAwareSessionCreator); ok {
-		return svc.CreateSessionWithPolicy(ctx, userID, ipAddress, userAgent, policy)
+		return svc.CreateSessionWithPolicy(ctx, userID, tenantID, ipAddress, userAgent, policy)
 	}
-	return sessionService.CreateSession(ctx, userID, ipAddress, userAgent)
+	return sessionService.CreateSession(ctx, userID, tenantID, ipAddress, userAgent)
 }
 
 func enforceConcurrentLimitWithPolicy(ctx context.Context, sessionService SessionService, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error {

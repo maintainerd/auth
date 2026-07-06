@@ -91,7 +91,7 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	}
 
 	// Bind the new tokens to a session (reuse the caller's, or start a new one).
-	resolvedSessionID, err := s.resolveRefreshSession(ctx, user, sessionID, policy)
+	resolvedSessionID, err := s.resolveRefreshSession(ctx, user, clientTenantID(client), sessionID, policy)
 	if err != nil {
 		span.SetStatus(codes.Error, "session resolution failed")
 		return nil, err
@@ -144,7 +144,7 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 // resolveRefreshSession reuses the caller's session when a valid session id is
 // supplied (preserving idle/absolute limits), otherwise creates a new one. It
 // returns the empty string when no session service is configured.
-func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, sessionID string, policy secpolicy.EffectiveSessionPolicy) (string, error) {
+func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, tenantID int64, sessionID string, policy secpolicy.EffectiveSessionPolicy) (string, error) {
 	if s.sessionService == nil {
 		return "", nil
 	}
@@ -165,7 +165,7 @@ func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, se
 	if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
 		return "", err
 	}
-	sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+	sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, tenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
 	if err != nil {
 		return "", err
 	}

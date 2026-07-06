@@ -65,7 +65,6 @@ type ServiceService interface {
 type serviceService struct {
 	db                *gorm.DB
 	serviceRepo       ServiceRepository
-	tenantServiceRepo TenantServiceRepository
 	apiRepo           APIRepository
 	servicePolicyRepo ServicePolicyRepository
 	policyRepo        PolicyRepository
@@ -76,7 +75,6 @@ type serviceService struct {
 func NewServiceService(
 	db *gorm.DB,
 	serviceRepo ServiceRepository,
-	tenantServiceRepo TenantServiceRepository,
 	apiRepo APIRepository,
 	servicePolicyRepo ServicePolicyRepository,
 	policyRepo PolicyRepository,
@@ -89,7 +87,6 @@ func NewServiceService(
 	return &serviceService{
 		db:                db,
 		serviceRepo:       serviceRepo,
-		tenantServiceRepo: tenantServiceRepo,
 		apiRepo:           apiRepo,
 		servicePolicyRepo: servicePolicyRepo,
 		policyRepo:        policyRepo,
@@ -161,9 +158,7 @@ func (s *serviceService) GetByUUID(ctx context.Context, serviceUUID uuid.UUID, t
 		return nil, apperror.NewNotFound("service not found")
 	}
 
-	// Verify service belongs to tenant by checking tenant_services relationship
-	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
-	if err != nil || tenantService == nil {
+	if service.TenantID != tenantID {
 		span.SetStatus(codes.Error, "service not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
 	}
@@ -193,6 +188,7 @@ func (s *serviceService) Create(ctx context.Context, name string, displayName st
 
 		// Create service
 		newService := &Service{
+			TenantID:    tenantID,
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
@@ -202,18 +198,6 @@ func (s *serviceService) Create(ctx context.Context, name string, displayName st
 		}
 
 		_, err = txServiceRepo.CreateOrUpdate(newService)
-		if err != nil {
-			return err
-		}
-
-		// Create tenant-service relationship
-		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
-		tenantService := &TenantService{
-			TenantID:  tenantID,
-			ServiceID: newService.ServiceID,
-		}
-
-		_, err = txTenantServiceRepo.CreateOrUpdate(tenantService)
 		if err != nil {
 			return err
 		}
@@ -251,16 +235,13 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
-		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
 
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
 		if err != nil || service == nil {
 			return apperror.NewNotFound("service not found")
 		}
 
-		// Verify service belongs to tenant
-		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
-		if err != nil || tenantService == nil {
+		if service.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
@@ -324,16 +305,13 @@ func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.U
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
-		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
 
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
 		if err != nil || service == nil {
 			return apperror.NewNotFound("service not found")
 		}
 
-		// Verify service belongs to tenant
-		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
-		if err != nil || tenantService == nil {
+		if service.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
@@ -382,9 +360,7 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 		return nil, apperror.NewNotFound("service not found")
 	}
 
-	// Verify service belongs to tenant
-	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
-	if err != nil || tenantService == nil {
+	if service.TenantID != tenantID {
 		span.SetStatus(codes.Error, "service not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
 	}

@@ -460,7 +460,7 @@ func (m *mockSMSSessionService) RevokeSession(ctx context.Context, userID int64,
 func (m *mockSMSSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
 	return nil
 }
-func (m *mockSMSSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserSession, error) {
+func (m *mockSMSSessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserSession, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, userID, ipAddress, userAgent)
 	}

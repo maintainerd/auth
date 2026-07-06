@@ -568,39 +568,6 @@ func (m *mockServiceRepo) CountPoliciesByServiceID(serviceID int64) (int64, erro
 	return 0, nil
 }
 
-type mockTenantServiceRepo struct {
-	mockBaseRepo[TenantService]
-	findPaginatedFn            func(TenantServiceRepositoryGetFilter) (*PaginationResult[TenantService], error)
-	findByTenantAndServiceFn   func(int64, int64) (*TenantService, error)
-	deleteByTenantAndServiceFn func(int64, int64) error
-	createOrUpdateFn           func(*TenantService) (*TenantService, error)
-}
-
-func (m *mockTenantServiceRepo) WithTx(_ *gorm.DB) TenantServiceRepository { return m }
-func (m *mockTenantServiceRepo) CreateOrUpdate(e *TenantService) (*TenantService, error) {
-	if m.createOrUpdateFn != nil {
-		return m.createOrUpdateFn(e)
-	}
-	return e, nil
-}
-func (m *mockTenantServiceRepo) FindPaginated(f TenantServiceRepositoryGetFilter) (*PaginationResult[TenantService], error) {
-	if m.findPaginatedFn != nil {
-		return m.findPaginatedFn(f)
-	}
-	return &PaginationResult[TenantService]{}, nil
-}
-func (m *mockTenantServiceRepo) FindByTenantAndService(tenantID, serviceID int64) (*TenantService, error) {
-	if m.findByTenantAndServiceFn != nil {
-		return m.findByTenantAndServiceFn(tenantID, serviceID)
-	}
-	return &TenantService{TenantID: tenantID, ServiceID: serviceID}, nil
-}
-func (m *mockTenantServiceRepo) DeleteByTenantAndService(tenantID, serviceID int64) error {
-	if m.deleteByTenantAndServiceFn != nil {
-		return m.deleteByTenantAndServiceFn(tenantID, serviceID)
-	}
-	return nil
-}
 
 type mockServicePolicyRepo struct {
 	mockBaseRepo[ServicePolicy]

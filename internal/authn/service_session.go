@@ -32,7 +32,7 @@ type SessionService interface {
 	ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error)
 	RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error
 	RevokeAllSessions(ctx context.Context, userID int64) error
-	CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserSession, error)
+	CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserSession, error)
 	EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error
 	ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error
 }
@@ -101,11 +101,11 @@ func (s *sessionService) RevokeAllSessions(ctx context.Context, userID int64) er
 	return nil
 }
 
-func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserSession, error) {
-	return s.CreateSessionWithPolicy(ctx, userID, ipAddress, userAgent, defaultEffectiveSessionPolicy())
+func (s *sessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserSession, error) {
+	return s.CreateSessionWithPolicy(ctx, userID, tenantID, ipAddress, userAgent, defaultEffectiveSessionPolicy())
 }
 
-func (s *sessionService) CreateSessionWithPolicy(ctx context.Context, userID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error) {
+func (s *sessionService) CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error) {
 	_, span := otel.Tracer("service").Start(ctx, "session.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -129,6 +129,7 @@ func (s *sessionService) CreateSessionWithPolicy(ctx context.Context, userID int
 
 	session := &UserSession{
 		UserID:             userID,
+		TenantID:           tenantID,
 		AuthTime:           now,
 		IPAddress:          ipPtr,
 		UserAgent:          uaPtr,

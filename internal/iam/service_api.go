@@ -61,18 +61,16 @@ type APIService interface {
 }
 
 type apiService struct {
-	db                *gorm.DB
-	apiRepo           APIRepository
-	serviceRepo       ServiceRepository
-	tenantServiceRepo TenantServiceRepository
-	eventService      event.EventService
+	db           *gorm.DB
+	apiRepo      APIRepository
+	serviceRepo  ServiceRepository
+	eventService event.EventService
 }
 
 func NewAPIService(
 	db *gorm.DB,
 	apiRepo APIRepository,
 	serviceRepo ServiceRepository,
-	tenantServiceRepo TenantServiceRepository,
 	eventService ...event.EventService,
 ) APIService {
 	evtSvc := event.EventService(nil)
@@ -80,11 +78,10 @@ func NewAPIService(
 		evtSvc = eventService[0]
 	}
 	return &apiService{
-		db:                db,
-		apiRepo:           apiRepo,
-		serviceRepo:       serviceRepo,
-		tenantServiceRepo: tenantServiceRepo,
-		eventService:      evtSvc,
+		db:           db,
+		apiRepo:      apiRepo,
+		serviceRepo:  serviceRepo,
+		eventService: evtSvc,
 	}
 }
 
@@ -263,7 +260,6 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
 		txServiceRepo := s.serviceRepo.WithTx(tx)
-		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
 
 		// Get api and validate tenant ownership
 		api, err := txAPIRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
@@ -272,14 +268,6 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 		}
 		if api == nil {
 			return apperror.NewNotFoundWithReason("api not found or access denied")
-		}
-
-		// Verify API's service belongs to tenant
-		if api.ServiceID > 0 {
-			tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
-			if err != nil || tenantService == nil {
-				return apperror.NewNotFoundWithReason("api not found or access denied")
-			}
 		}
 
 		// Check if API is a system record (critical for app functionality)
@@ -298,9 +286,7 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 			return apperror.NewNotFound("service not found")
 		}
 
-		// Verify new service belongs to tenant
-		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
-		if err != nil || tenantService == nil {
+		if service.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
@@ -363,7 +349,6 @@ func (s *apiService) SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, ten
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
-		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
 
 		// Get api and validate tenant ownership
 		api, err := txAPIRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
@@ -372,14 +357,6 @@ func (s *apiService) SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, ten
 		}
 		if api == nil {
 			return apperror.NewNotFoundWithReason("api not found or access denied")
-		}
-
-		// Verify API's service belongs to tenant
-		if api.ServiceID > 0 {
-			tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
-			if err != nil || tenantService == nil {
-				return apperror.NewNotFoundWithReason("api not found or access denied")
-			}
 		}
 
 		// Check if API is a system record (critical for app functionality)
@@ -434,15 +411,6 @@ func (s *apiService) DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenant
 	if api == nil {
 		span.SetStatus(codes.Error, "api not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("api not found or access denied")
-	}
-
-	// Verify API's service belongs to tenant
-	if api.ServiceID > 0 {
-		tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
-		if err != nil || tenantService == nil {
-			span.SetStatus(codes.Error, "api not found or access denied")
-			return nil, apperror.NewNotFoundWithReason("api not found or access denied")
-		}
 	}
 
 	// Check if API is a system record (critical for app functionality)

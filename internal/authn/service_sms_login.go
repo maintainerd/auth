@@ -269,7 +269,7 @@ func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub stri
 		if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
 			return nil, err
 		}
-		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, clientTenantID(client), middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
 		if err != nil {
 			return nil, err
 		}
