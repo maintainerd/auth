@@ -88,8 +88,12 @@ jobs:
           # relative no-regression check.
           COVERAGE_MIN: "68"
         run: |
-          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print substr($3, 1, length($3)-1)}')
-          echo "Total coverage: ${total}% (floor: ${COVERAGE_MIN}%)"
+          # Exclude generated protobuf code — same exclusion policy as gosec.
+          # internal/platform/gen contains ~12k statements of codegen that are
+          # never directly unit-tested; including them collapses the metric.
+          grep -v 'internal/platform/gen/' coverage.out > coverage_filtered.out
+          total=$(go tool cover -func=coverage_filtered.out | awk '/^total:/ {print substr($3, 1, length($3)-1)}')
+          echo "Total coverage (excl. generated): ${total}% (floor: ${COVERAGE_MIN}%)"
           awk "BEGIN{ exit !(${total} >= ${COVERAGE_MIN}) }" || {
             echo "::error::coverage ${total}% is below the ${COVERAGE_MIN}% floor";
             exit 1;
