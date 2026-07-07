@@ -274,7 +274,7 @@ func TestTenantGRPCHandler_MemberRPCErrors(t *testing.T) {
 
 		_, err = NewTenantGRPCHandler(&mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{TenantID: 1}, nil
-		}}, &mockTenantMemberService{}).ListTenantMembers(context.Background(), &authv1.ListTenantMembersRequest{TenantUuid: tenantUUID.String(), Role: "admin"})
+		}}, &mockTenantMemberService{}).ListTenantMembers(context.Background(), &authv1.ListTenantMembersRequest{TenantUuid: tenantUUID.String(), Role: "superuser"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		_, err = NewTenantGRPCHandler(&mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
@@ -295,13 +295,13 @@ func TestTenantGRPCHandler_MemberRPCErrors(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.AddTenantMember(context.Background(), &authv1.AddTenantMemberRequest{TenantUuid: "bad", UserUuid: userUUID.String(), Role: "owner"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.AddTenantMember(context.Background(), &authv1.AddTenantMemberRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Role: "admin"})
+		_, err = h.AddTenantMember(context.Background(), &authv1.AddTenantMemberRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Role: "superuser"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.UpdateTenantMemberRole(context.Background(), &authv1.UpdateTenantMemberRoleRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: "bad", Role: "owner"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.UpdateTenantMemberRole(context.Background(), &authv1.UpdateTenantMemberRoleRequest{TenantUuid: "bad", TenantMemberUuid: memberUUID.String(), Role: "owner"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateTenantMemberRole(context.Background(), &authv1.UpdateTenantMemberRoleRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), Role: "admin"})
+		_, err = h.UpdateTenantMemberRole(context.Background(), &authv1.UpdateTenantMemberRoleRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), Role: "superuser"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.RemoveTenantMember(context.Background(), &authv1.RemoveTenantMemberRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))

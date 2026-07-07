@@ -213,7 +213,7 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		SignCount:                int64(cred.Authenticator.SignCount),
 		Transport:                transportArray(cred.Transport),
 		IsBackupEligible:         cred.Flags.BackupEligible,
-		IsBackupState:            cred.Flags.BackupState,
+		IsBackupActive:           cred.Flags.BackupState,
 		IsDiscoverableCredential: cred.Flags.BackupEligible,
 		Name:                     name,
 	}
@@ -445,7 +445,7 @@ func (s *webAuthnService) loadWebAuthnUser(userID int64) (*webAuthnUser, error) 
 			},
 			Flags: webauthn.CredentialFlags{
 				BackupEligible: sc.IsBackupEligible,
-				BackupState:    sc.IsBackupState,
+				BackupState:    sc.IsBackupActive,
 			},
 		})
 	}
@@ -497,7 +497,7 @@ func (s *webAuthnService) DownloadCredential(ctx context.Context, credentialUUID
 		PublicKeyBase64:  base64.RawStdEncoding.EncodeToString(cred.PublicKey),
 		Transport:        strings.Join([]string(cred.Transport), ","),
 		IsBackupEligible: cred.IsBackupEligible,
-		IsBackupState:    cred.IsBackupState,
+		IsBackupActive:   cred.IsBackupActive,
 		CreatedAt:        cred.CreatedAt.Format(time.RFC3339),
 	}
 	if cred.AAGUID != nil {

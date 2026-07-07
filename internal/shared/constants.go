@@ -35,6 +35,7 @@ const (
 
 	// Tenant member roles (TenantMember.Role)
 	TenantRoleOwner  = "owner"
+	TenantRoleAdmin  = "admin"
 	TenantRoleMember = "member"
 
 	// Client types (Client.ClientType)

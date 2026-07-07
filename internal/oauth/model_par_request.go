@@ -26,7 +26,7 @@ type OAuthPARRequest struct {
 	Nonce               *string        `gorm:"column:nonce"`
 	CodeChallenge       string         `gorm:"column:code_challenge;not null"`
 	CodeChallengeMethod string         `gorm:"column:code_challenge_method;not null;default:'S256'"`
-	IsUsed              bool           `gorm:"column:is_used;not null;default:false"`
+	Used                bool           `gorm:"column:used;not null;default:false"`
 	ExpiresAt           time.Time      `gorm:"column:expires_at;not null"`
 	CreatedAt           time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
 

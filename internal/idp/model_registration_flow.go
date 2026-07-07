@@ -13,14 +13,14 @@ type RegistrationFlow struct {
 	RegistrationFlowID   int64          `gorm:"column:registration_flow_id;primaryKey;autoIncrement" json:"registration_flow_id"`
 	RegistrationFlowUUID uuid.UUID      `gorm:"column:registration_flow_uuid;type:uuid;uniqueIndex;not null" json:"registration_flow_uuid"`
 	TenantID             int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
+	ClientID             int64          `gorm:"column:client_id;not null" json:"client_id"`
 	Name                 string         `gorm:"column:name;type:varchar(100);not null" json:"name"`
 	Description          string         `gorm:"column:description;type:text;not null" json:"description"`
 	Identifier           string         `gorm:"column:identifier;type:varchar(255);not null" json:"identifier"`
-	IsSystem             bool           `gorm:"column:is_system;default:false" json:"is_system"`
-	VerificationRequired bool           `gorm:"column:verification_required;default:false" json:"verification_required"`
 	RequiredFields       datatypes.JSON `gorm:"column:required_fields;type:jsonb;default:'[]'" json:"required_fields"`
+	VerificationRequired bool           `gorm:"column:verification_required;default:false" json:"verification_required"`
+	IsSystem             bool           `gorm:"column:is_system;default:false" json:"is_system"`
 	Status               string         `gorm:"column:status;type:varchar(20);not null;default:'active'" json:"status"`
-	ClientID             int64          `gorm:"column:client_id;not null" json:"client_id"`
 	CreatedBy            *int64         `gorm:"column:created_by" json:"created_by,omitempty"`
 	UpdatedBy            *int64         `gorm:"column:updated_by" json:"updated_by,omitempty"`
 	CreatedAt            time.Time      `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`

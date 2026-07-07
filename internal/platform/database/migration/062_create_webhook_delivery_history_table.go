@@ -30,28 +30,28 @@ CREATE TABLE IF NOT EXISTS webhook_delivery_history (
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_delivery_webhook_endpoint_id'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_webhook_delivery_history_webhook_endpoint_id'
     ) THEN
         ALTER TABLE webhook_delivery_history
-            ADD CONSTRAINT fk_delivery_webhook_endpoint_id FOREIGN KEY (webhook_endpoint_id)
+            ADD CONSTRAINT fk_webhook_delivery_history_webhook_endpoint_id FOREIGN KEY (webhook_endpoint_id)
             REFERENCES webhook_endpoints(webhook_endpoint_id) ON DELETE CASCADE;
     END IF;
 
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_final_status'
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_webhook_delivery_history_final_status'
     ) THEN
         ALTER TABLE webhook_delivery_history
-            ADD CONSTRAINT chk_delivery_final_status CHECK (final_status IN ('pending', 'success', 'failed', 'dead_letter'));
+            ADD CONSTRAINT chk_webhook_delivery_history_final_status CHECK (final_status IN ('pending', 'success', 'failed', 'dead_letter'));
     END IF;
 END$$;
 
 -- CREATE INDEXES
-CREATE INDEX IF NOT EXISTS idx_delivery_uuid ON webhook_delivery_history (delivery_history_uuid);
-CREATE INDEX IF NOT EXISTS idx_delivery_webhook_endpoint_id ON webhook_delivery_history (webhook_endpoint_id);
-CREATE INDEX IF NOT EXISTS idx_delivery_event_id ON webhook_delivery_history (event_id);
-CREATE INDEX IF NOT EXISTS idx_delivery_tenant_id ON webhook_delivery_history (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_delivery_next_retry ON webhook_delivery_history (next_retry_time) WHERE final_status = 'pending';
-CREATE INDEX IF NOT EXISTS idx_delivery_created_at ON webhook_delivery_history (created_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_history_uuid ON webhook_delivery_history (delivery_history_uuid);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_history_webhook_endpoint_id ON webhook_delivery_history (webhook_endpoint_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_history_event_id ON webhook_delivery_history (event_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_history_tenant_id ON webhook_delivery_history (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_history_next_retry ON webhook_delivery_history (next_retry_time) WHERE final_status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_history_created_at ON webhook_delivery_history (created_at);
 `
 
 	return db.Exec(sql).Error

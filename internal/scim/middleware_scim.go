@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+// scimTenantIDKey is the context key for the authenticated SCIM tenant ID.
+type scimTenantIDKey struct{}
+
 type SCIMBearerAuthenticator interface {
 	AuthenticateBearer(ctx context.Context, hash string) (tenantID int64, err error)
 }
@@ -40,7 +43,7 @@ func (m *scimBearerMiddleware) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "scim_tenant_id", cfg.TenantID)
+		ctx := context.WithValue(r.Context(), scimTenantIDKey{}, cfg.TenantID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -50,5 +53,5 @@ func writeSCIMError(w http.ResponseWriter, status int, detail string) {
 	w.WriteHeader(status)
 	err := newSCIMError(status, detail, "")
 	_ = err
-	w.Write([]byte(`{"schemas":["urn:ietf:params:scim:api:messages:2.0:Error"],"detail":"` + detail + `","status":"` + http.StatusText(status) + `"}`))
+	_, _ = w.Write([]byte(`{"schemas":["urn:ietf:params:scim:api:messages:2.0:Error"],"detail":"` + detail + `","status":"` + http.StatusText(status) + `"}`))
 }

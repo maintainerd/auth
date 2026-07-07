@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS integration_event_outbox (
     actor_user_id       BIGINT,
     subject_uuid        UUID,
     subject_type        VARCHAR(50),
-    changed_fields      JSONB DEFAULT '[]',
+    changed_fields      JSONB NOT NULL DEFAULT '[]',
     payload             JSONB NOT NULL DEFAULT '{}',
     occurred_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     trace_id            VARCHAR(255),
@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS integration_event_outbox (
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_outbox_tenant_id'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_integration_event_outbox_tenant_id'
     ) THEN
         ALTER TABLE integration_event_outbox
-            ADD CONSTRAINT fk_outbox_tenant_id FOREIGN KEY (tenant_id)
+            ADD CONSTRAINT fk_integration_event_outbox_tenant_id FOREIGN KEY (tenant_id)
             REFERENCES tenants(tenant_id) ON DELETE CASCADE;
     END IF;
 

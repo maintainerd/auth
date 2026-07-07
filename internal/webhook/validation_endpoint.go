@@ -13,7 +13,7 @@ var webhookURLRule = validation.By(func(value any) error {
 	if raw == "" {
 		return nil
 	}
-	if err := validateWebhookURL(context.TODO(), raw, false); err != nil {
+	if err := validateWebhookURL(context.TODO(), raw, false, nil); err != nil {
 		return validation.NewError("validation_webhook_url", err.Error())
 	}
 	return nil

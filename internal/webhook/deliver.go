@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -78,7 +79,7 @@ func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *aut
 }
 
 func doRequest(ctx context.Context, url string, body []byte, sig string, timestamp int64, deliveryID, eventType string) error {
-	if err := validateWebhookURL(ctx, url, true); err != nil {
+	if err := validateWebhookURL(ctx, url, true, net.DefaultResolver); err != nil {
 		return err
 	}
 
@@ -91,7 +92,7 @@ func doRequest(ctx context.Context, url string, body []byte, sig string, timesta
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
-			return validateWebhookURL(req.Context(), req.URL.String(), true)
+			return validateWebhookURL(req.Context(), req.URL.String(), true, net.DefaultResolver)
 		},
 	}
 	resp, err := client.Do(req)

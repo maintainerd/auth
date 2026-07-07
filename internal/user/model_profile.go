@@ -23,7 +23,7 @@ type Profile struct {
 	Timezone    *string        `gorm:"-"`
 	Language    *string        `gorm:"-"`
 	ProfileURL  *string        `gorm:"column:profile_url"`
-	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
+	Metadata    datatypes.JSON `gorm:"column:metadata;not null;type:jsonb;default:'{}'"`
 	CreatedBy   *int64         `gorm:"column:created_by"`
 	UpdatedBy   *int64         `gorm:"column:updated_by"`
 	CreatedAt   time.Time      `gorm:"column:created_at;not null;autoCreateTime"`

@@ -96,3 +96,15 @@ func (r *userLockoutRepository) ClearLockout(ctx context.Context, tenantID int64
 			"last_failed_at": nil,
 		}).Error
 }
+
+func (r *userLockoutRepository) ResetExpiredLockouts() (int64, error) {
+	result := r.db.
+		Model(&UserLockout{}).
+		Where("locked_until IS NOT NULL AND locked_until < ?", time.Now()).
+		Updates(map[string]any{
+			"failed_count":   0,
+			"locked_until":   nil,
+			"last_failed_at": nil,
+		})
+	return result.RowsAffected, result.Error
+}

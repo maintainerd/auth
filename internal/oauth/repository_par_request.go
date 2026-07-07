@@ -42,7 +42,7 @@ func (r *oauthPARRequestRepository) FindByRequestURIHash(hash string) (*OAuthPAR
 	err := r.DB().
 		Preload("Client").
 		Preload("Client.ClientURIs").
-		Where("request_uri_hash = ? AND is_used = false", hash).
+		Where("request_uri_hash = ? AND used = false", hash).
 		First(&req).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -57,7 +57,7 @@ func (r *oauthPARRequestRepository) FindByRequestURIHash(hash string) (*OAuthPAR
 func (r *oauthPARRequestRepository) MarkUsed(id int64) error {
 	return r.DB().Model(&OAuthPARRequest{}).
 		Where("oauth_par_request_id = ?", id).
-		Update("is_used", true).Error
+		Update("used", true).Error
 }
 
 // DeleteExpired removes PAR requests that expired before the given cutoff.

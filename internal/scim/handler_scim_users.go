@@ -45,7 +45,7 @@ func (h *SCIMUserHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/scim+json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (h *SCIMUserHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +63,7 @@ func (h *SCIMUserHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/scim+json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (h *SCIMUserHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +87,7 @@ func (h *SCIMUserHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/scim+json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (h *SCIMUserHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +111,7 @@ func (h *SCIMUserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/scim+json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (h *SCIMUserHandler) Patch(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +135,7 @@ func (h *SCIMUserHandler) Patch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/scim+json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (h *SCIMUserHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -155,7 +155,7 @@ func (h *SCIMUserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func tenantFromRequest(r *http.Request) int64 {
-	tenantID, ok := r.Context().Value("scim_tenant_id").(int64)
+	tenantID, ok := r.Context().Value(scimTenantIDKey{}).(int64)
 	if !ok {
 		return 0
 	}

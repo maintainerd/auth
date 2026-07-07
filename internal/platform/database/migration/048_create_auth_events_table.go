@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS auth_events (
 
     -- CONTEXT
     trace_id          VARCHAR(32),
-    metadata          JSONB          DEFAULT '{}',
+    metadata          JSONB          NOT NULL DEFAULT '{}',
 
     -- WHEN  (immutable — no updated_at)
     created_at        TIMESTAMPTZ    NOT NULL DEFAULT NOW(),

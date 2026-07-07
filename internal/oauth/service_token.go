@@ -158,7 +158,7 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 	}
 
 	// Check that the code has not been used.
-	if authCode.IsUsed {
+	if authCode.Used {
 		// RFC 6749 §4.1.2: If an authorization code is used more than once,
 		// the authorization server MUST deny the request and SHOULD revoke all
 		// tokens previously issued based on that code.

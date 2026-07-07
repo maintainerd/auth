@@ -70,7 +70,7 @@ func userWebAuthnCredentialRows(values ...driver.Value) *sqlmock.Rows {
 		values = []driver.Value{int64(1), mfaTestCredentialUUID.String(), mfaTestUserID, "cred-key", []byte("public"), nil, int64(1), pq.StringArray{"usb"}, true, false, "Security Key", nil, time.Now(), time.Now()}
 	}
 	return sqlmock.NewRows([]string{
-		"credential_id", "credential_uuid", "user_id", "credential_key_id", "public_key", "aaguid", "sign_count", "transport", "is_backup_eligible", "is_backup_state", "name", "last_used_at", "created_at", "updated_at",
+		"credential_id", "credential_uuid", "user_id", "credential_key_id", "public_key", "aaguid", "sign_count", "transport", "is_backup_eligible", "is_backup_active", "name", "last_used_at", "created_at", "updated_at",
 	}).AddRow(values...)
 }
 

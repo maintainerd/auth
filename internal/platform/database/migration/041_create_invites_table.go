@@ -12,15 +12,15 @@ CREATE TABLE IF NOT EXISTS invites (
     invite_uuid         UUID NOT NULL UNIQUE,
     tenant_id           BIGINT NOT NULL,
     client_id           BIGINT NOT NULL,
+    registration_flow_id BIGINT,               -- FK cluster
+    invited_by_user_id  BIGINT,                -- the human who invited (displayed to the recipient)
     invited_email       VARCHAR(255) NOT NULL,
-    invited_by_user_id  BIGINT,
     invite_token        VARCHAR(512) NOT NULL UNIQUE,
-    registration_flow_id        BIGINT,
     callback_url        VARCHAR(2048),
     status              VARCHAR(20) NOT NULL DEFAULT 'pending',
     expires_at          TIMESTAMPTZ,
     used_at             TIMESTAMPTZ,
-    created_by          BIGINT,
+    created_by          BIGINT,                -- system actor (may differ from invited_by_user_id)
     updated_by          BIGINT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),

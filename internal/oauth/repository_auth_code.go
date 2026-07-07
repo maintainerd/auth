@@ -59,7 +59,7 @@ func (r *oauthAuthorizationCodeRepository) MarkUsed(codeID int64) error {
 	return r.DB().Model(&OAuthAuthorizationCode{}).
 		Where("oauth_authorization_code_id = ?", codeID).
 		Updates(map[string]any{
-			"is_used": true,
+			"used":    true,
 			"used_at": now,
 		}).Error
 }

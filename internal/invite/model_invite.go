@@ -12,10 +12,10 @@ type Invite struct {
 	InviteUUID         uuid.UUID      `gorm:"column:invite_uuid;unique"`
 	TenantID           int64          `gorm:"column:tenant_id;not null"`
 	ClientID           int64          `gorm:"column:client_id"`
-	InvitedEmail       string         `gorm:"column:invited_email"`
-	InvitedByUserID    *int64         `gorm:"column:invited_by_user_id"`
-	InviteToken        string         `gorm:"column:invite_token;unique"`
 	RegistrationFlowID *int64         `gorm:"column:registration_flow_id"`
+	InvitedByUserID    *int64         `gorm:"column:invited_by_user_id"`
+	InvitedEmail       string         `gorm:"column:invited_email"`
+	InviteToken        string         `gorm:"column:invite_token;unique"`
 	CallbackURL        *string        `gorm:"column:callback_url"`
 	Status             string         `gorm:"column:status;not null;default:pending"` // pending, accepted, expired, revoked
 	ExpiresAt          *time.Time     `gorm:"column:expires_at"`

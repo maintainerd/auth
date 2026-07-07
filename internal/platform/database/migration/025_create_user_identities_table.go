@@ -88,6 +88,7 @@ CREATE INDEX IF NOT EXISTS idx_user_identities_user_id ON user_identities (user_
 CREATE INDEX IF NOT EXISTS idx_user_identities_client_id ON user_identities (client_id) WHERE client_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_user_identities_tenant_id ON user_identities (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_user_identities_created_at ON user_identities (created_at);
+CREATE INDEX IF NOT EXISTS idx_user_identities_client_provider ON user_identities (client_id, provider);
 `
 	return db.Exec(sql).Error
 }

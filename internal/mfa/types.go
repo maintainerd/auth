@@ -145,7 +145,7 @@ type WebAuthnCredentialDownloadDTO struct {
 	AAGUID           string `json:"aaguid,omitempty"`
 	Transport        string `json:"transport,omitempty"`
 	IsBackupEligible bool   `json:"is_backup_eligible"`
-	IsBackupState    bool   `json:"is_backup_state"`
+	IsBackupActive   bool   `json:"is_backup_active"`
 	CreatedAt        string `json:"created_at"`
 }
 

@@ -20,7 +20,7 @@ type UserMFAWebAuthnCredential struct {
 	SignCount        int64      `gorm:"column:sign_count;default:0"`
 	Transport        pq.StringArray `gorm:"column:transport;type:text[];default:'{}'"`
 	IsBackupEligible         bool   `gorm:"column:is_backup_eligible;default:false"`
-	IsBackupState            bool   `gorm:"column:is_backup_state;default:false"`
+	IsBackupActive           bool   `gorm:"column:is_backup_active;default:false"`
 	IsDiscoverableCredential bool   `gorm:"column:is_discoverable_credential;not null;default:false"`
 	Name                     string `gorm:"column:name;default:'Security Key'"`
 	LastUsedAt       *time.Time `gorm:"column:last_used_at"`

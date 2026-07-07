@@ -16,15 +16,15 @@ CREATE TABLE IF NOT EXISTS user_tokens (
     user_agent            TEXT,
     ip_address            VARCHAR(50),
     expires_at            TIMESTAMPTZ,
-    is_revoked            BOOLEAN DEFAULT FALSE,
+    is_revoked            BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- Session-specific fields. NULL for non-session token types.
     last_used_at          TIMESTAMPTZ,
     idle_timeout_seconds  INTEGER,
     absolute_expires_at   TIMESTAMPTZ,
 
-    created_at            TIMESTAMPTZ DEFAULT now(),
-    updated_at            TIMESTAMPTZ DEFAULT now()
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

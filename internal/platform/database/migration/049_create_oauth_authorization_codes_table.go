@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
     nonce                         TEXT,
     code_challenge                TEXT          NOT NULL,
     code_challenge_method         VARCHAR(10)   NOT NULL DEFAULT 'S256',
-    is_used                       BOOLEAN       NOT NULL DEFAULT FALSE,
+    used                          BOOLEAN       NOT NULL DEFAULT FALSE,
     used_at                       TIMESTAMPTZ,
     expires_at                    TIMESTAMPTZ   NOT NULL,
     created_at                    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),

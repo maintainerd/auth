@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS client_apis (
     client_api_uuid UUID NOT NULL UNIQUE,
     client_id       BIGINT NOT NULL,
     api_id          BIGINT NOT NULL,
-    created_at      TIMESTAMPTZ DEFAULT now()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

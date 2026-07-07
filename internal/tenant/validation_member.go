@@ -14,7 +14,7 @@ func (r TenantMemberAddMemberRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Role,
 			validation.Required.Error("Role is required"),
-			validation.In("owner", "member").Error("Role must be 'owner' or 'member'"),
+			validation.In("owner", "admin", "member").Error("Role must be 'owner', 'admin', or 'member'"),
 		),
 	)
 }
@@ -33,7 +33,7 @@ func (r TenantMemberUpdateRoleRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Role,
 			validation.Required.Error("Role is required"),
-			validation.In("owner", "member").Error("Role must be 'owner' or 'member'"),
+			validation.In("owner", "admin", "member").Error("Role must be 'owner', 'admin', or 'member'"),
 		),
 	)
 }
@@ -42,7 +42,7 @@ func (r TenantMemberFilterDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Role,
 			validation.When(r.Role != nil,
-				validation.In("owner", "member").Error("Role must be 'owner' or 'member'"),
+				validation.In("owner", "admin", "member").Error("Role must be 'owner', 'admin', or 'member'"),
 			),
 		),
 		validation.Field(&r.PaginationRequestDTO),

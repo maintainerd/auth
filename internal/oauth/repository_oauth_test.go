@@ -46,7 +46,7 @@ func oauthAuthCodeRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
 		values = []driver.Value{int64(1), testResourceUUID.String(), "hash", int64(10), int64(1), int64(1), "https://example.com/cb", pq.StringArray{"openid"}, nil, nil, "challenge", "S256", false, nil, time.Now().Add(time.Minute), time.Now()}
 	}
-	return sqlmock.NewRows([]string{"oauth_authorization_code_id", "oauth_authorization_code_uuid", "code_hash", "client_id", "user_id", "tenant_id", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "is_used", "used_at", "expires_at", "created_at"}).AddRow(values...)
+	return sqlmock.NewRows([]string{"oauth_authorization_code_id", "oauth_authorization_code_uuid", "code_hash", "client_id", "user_id", "tenant_id", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "used", "used_at", "expires_at", "created_at"}).AddRow(values...)
 }
 
 func oauthCIBARows(values ...driver.Value) *sqlmock.Rows {
@@ -81,7 +81,7 @@ func oauthPARRows(values ...driver.Value) *sqlmock.Rows {
 	if len(values) == 0 {
 		values = []driver.Value{int64(1), testResourceUUID.String(), "request-hash", int64(10), int64(1), "code", "https://example.com/cb", pq.StringArray{"openid"}, nil, nil, "challenge", "S256", false, time.Now().Add(time.Minute), time.Now()}
 	}
-	return sqlmock.NewRows([]string{"oauth_par_request_id", "oauth_par_request_uuid", "request_uri_hash", "client_id", "tenant_id", "response_type", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "is_used", "expires_at", "created_at"}).AddRow(values...)
+	return sqlmock.NewRows([]string{"oauth_par_request_id", "oauth_par_request_uuid", "request_uri_hash", "client_id", "tenant_id", "response_type", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "used", "expires_at", "created_at"}).AddRow(values...)
 }
 
 func oauthRefreshRows(values ...driver.Value) *sqlmock.Rows {

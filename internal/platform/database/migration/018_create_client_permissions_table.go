@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS client_permissions (
     client_permission_uuid UUID NOT NULL UNIQUE,
     client_api_id          BIGINT NOT NULL,
     permission_id          BIGINT NOT NULL,
-    created_at             TIMESTAMPTZ DEFAULT now()
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS
