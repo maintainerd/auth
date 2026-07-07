@@ -23,7 +23,7 @@ func (r TenantSettingUpdateConfigRequestDTO) ValidateRateLimitConfig() error {
 	}
 	for key, value := range r {
 		switch key {
-		case "enabled", "per_ip", "per_api_key":
+		case "enabled", "per_ip":
 			if _, ok := value.(bool); !ok {
 				return validation.NewError("validation_error", key+" must be a boolean")
 			}

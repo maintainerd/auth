@@ -2,12 +2,9 @@ package middleware
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -26,7 +23,6 @@ type RequestRateLimitConfig struct {
 	RequestsPerWindow int
 	WindowDuration    time.Duration
 	PerIP             bool
-	PerAPIKey         bool
 	ExemptIPs         []string
 	EndpointOverrides map[string]int
 }
@@ -220,7 +216,6 @@ func mapToRequestRateLimitConfig(cfg map[string]any) *RequestRateLimitConfig {
 	rc.RequestsPerWindow = intFromAny(cfg["requests_per_window"])
 	rc.WindowDuration = time.Duration(intFromAny(cfg["window_duration_seconds"])) * time.Second
 	rc.PerIP = boolFromAny(cfg["per_ip"])
-	rc.PerAPIKey = boolFromAny(cfg["per_api_key"])
 	rc.ExemptIPs = stringSliceFromAny(cfg["exempt_ips"])
 	rc.EndpointOverrides = intMapFromAny(cfg["endpoint_overrides"])
 	return rc
@@ -232,31 +227,10 @@ func tenantRateLimitKeys(auth *authctx.AuthContext, ip string, r *http.Request, 
 	if cfg.PerIP {
 		keys = append(keys, fmt.Sprintf("%s:ip:%s:%s", base, ip, r.URL.Path))
 	}
-	if cfg.PerAPIKey {
-		if fp := apiKeyFingerprint(r); fp != "" {
-			keys = append(keys, fmt.Sprintf("%s:api_key:%s:%s", base, fp, r.URL.Path))
-		}
-	}
 	if len(keys) == 0 {
 		keys = append(keys, fmt.Sprintf("%s:path:%s", base, r.URL.Path))
 	}
 	return keys
-}
-
-func apiKeyFingerprint(r *http.Request) string {
-	raw := strings.TrimSpace(r.Header.Get("X-API-Key"))
-	if raw == "" {
-		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && strings.HasPrefix(parts[1], "ak_") {
-			raw = strings.TrimSpace(parts[1])
-		}
-	}
-	if raw == "" {
-		return ""
-	}
-	sum := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(sum[:])
 }
 
 func boolFromAny(v any) bool {
