@@ -2392,22 +2392,22 @@ Do not mark this phase complete until every item passes on a clean database (dro
 
 - [ ] Drop the local development database and re-run all migrations from 001 to 084 in order: `go run ./cmd/server migrate` (or equivalent)
 - [ ] Confirm zero errors in migration output
-- [ ] Run `go build ./...` — zero compilation errors
-- [ ] Run `go test ./...` — zero failures (run with `-count=1` to disable caching)
-- [ ] Run `go vet ./...` — zero warnings
-- [ ] Run `golangci-lint run` — zero lint errors (required before any push per project convention)
-- [ ] Run `graphify update .` to keep the knowledge graph current
-- [ ] For each new table (068–084), confirm:
-  - [ ] GORM model created in the appropriate domain package
-  - [ ] Repository created with standard CRUD + domain-specific methods
-  - [ ] Service method created if business logic is needed
-  - [ ] Handler created and registered on the appropriate router (internal/public) if the entity needs an API surface
+- [x] Run `go build ./...` — zero compilation errors
+- [x] Run `go test ./...` — zero failures (run with `-count=1` to disable caching)
+- [x] Run `go vet ./...` — zero warnings
+- [x] Run `golangci-lint run` — zero lint errors (required before any push per project convention)
+- [x] Run `graphify update .` to keep the knowledge graph current
+- [x] For each new table (068–084), confirm:
+  - [x] GORM model created in the appropriate domain package
+  - [x] Repository created with standard CRUD + domain-specific methods
+  - [x] Service method created if business logic is needed
+  - [x] Handler created and registered on the appropriate router (internal/public) if the entity needs an API surface
   - [ ] Handler test written per the 9-step checklist in `docs/contributing/testing.md`
-  - [ ] `*Repo` field added to `internal/app/repositories.go` and wired in `initRepos`
-  - [ ] Service field added to `internal/app/services.go` and `server.Application` where a dedicated service was created
-- [ ] Check `internal/app/application_test.go` (if it exists) for struct shape validation — new repo/service fields on `server.Application` will cause compile failures in that file; update the test struct accordingly
-- [ ] Check Phase 5.2 — if `idx_api_keys_status_expires_at` is still listed there, remove it (the `api_keys` table is being dropped in Phase 3.3; the index is moot)
-- [ ] For any domain with an existing gRPC surface (`internal/oauth/grpc_*.go` or similar), check whether the new data (e.g., token revocation status, session info) must also be exposed via the gRPC handler — add it if the gRPC contract needs updating
+  - [x] `*Repo` field added to `internal/app/repositories.go` and wired in `initRepos`
+  - [x] Service field added to `internal/app/services.go` and `server.Application` where a dedicated service was created
+- [x] Check `internal/app/application_test.go` (if it exists) for struct shape validation — new repo/service fields on `server.Application` will cause compile failures in that file; update the test struct accordingly
+- [x] Check Phase 5.2 — if `idx_api_keys_status_expires_at` is still listed there, remove it (the `api_keys` table is being dropped in Phase 3.3; the index is moot)
+- [x] For any domain with an existing gRPC surface (`internal/oauth/grpc_*.go` or similar), check whether the new data (e.g., token revocation status, session info) must also be exposed via the gRPC handler — add it if the gRPC contract needs updating
 - [ ] Confirm the following code paths work end-to-end (manual test with a running server):
   - [ ] User login → `last_login_at` and `login_count` updated on `users`
   - [ ] TOTP enroll → `users.is_totp_enabled` flips to `true` via trigger
