@@ -33,8 +33,6 @@ type MemberUser struct {
 	Phone              string
 	IsEmailVerified    bool
 	IsPhoneVerified    bool
-	IsProfileCompleted bool
-	IsAccountCompleted bool
 	Status             string
 	Metadata           datatypes.JSON
 	CreatedAt          time.Time

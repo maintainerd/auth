@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/dpop"
+	"github.com/maintainerd/maintainerd-auth/internal/scim"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/setup"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
@@ -82,6 +83,8 @@ type handlers struct {
 	wif                *federation.WorkloadIdentityFederationHandler
 	dataErasure        *user.DataErasureHandler
 	accountLink        *authn.AccountLinkHandler
+	scimConfig         *scim.SCIMConfigurationHandler
+	scimUser           *scim.SCIMUserHandler
 }
 
 func initHandlers(application *Application) *handlers {
@@ -143,6 +146,8 @@ func initHandlers(application *Application) *handlers {
 		wif:                federation.NewWorkloadIdentityFederationHandler(application.WorkloadIdentityFederationService),
 		dataErasure:        user.NewDataErasureHandler(application.DataErasureService, application.UserRepo),
 		accountLink:        authn.NewAccountLinkHandler(application.AccountLinkService),
+		scimConfig:         scim.NewSCIMConfigurationHandler(application.SCIMConfigurationService),
+		scimUser:           scim.NewSCIMUserHandler(application.SCIMUserService),
 	}
 
 	// Inject the management audit logger into every write-path internal handler.

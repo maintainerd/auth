@@ -69,8 +69,6 @@ type User struct {
 	Password           *string
 	IsEmailVerified    bool
 	IsPhoneVerified    bool
-	IsProfileCompleted bool
-	IsAccountCompleted bool
 	Status             string
 	Metadata           datatypes.JSON
 	UserIdentities     []UserIdentity `gorm:"foreignKey:UserID;references:UserID"`

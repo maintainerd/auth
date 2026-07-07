@@ -19,7 +19,6 @@ type Profile struct {
 	DisplayName *string        `gorm:"column:display_name"`
 	Birthdate   *time.Time     `gorm:"column:birthdate"`
 	Gender      *string        `gorm:"column:gender"`
-	IsDefault   bool           `gorm:"column:is_default;not null;default:false"`
 	Email       *string        `gorm:"-"`
 	Timezone    *string        `gorm:"-"`
 	Language    *string        `gorm:"-"`

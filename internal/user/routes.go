@@ -162,10 +162,6 @@ func ProfileRoute(
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
 			Put("/{profile_uuid}", profileHandler.UpdateProfile)
 
-		// Set specific profile as default
-		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
-			Patch("/{profile_uuid}/set-default", profileHandler.SetDefaultProfile)
-
 		// Delete specific profile by UUID
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:delete:self"})).
 			Delete("/{profile_uuid}", profileHandler.DeleteByUUID)
@@ -291,9 +287,6 @@ func UserRoute(
 			Put("/{user_uuid}/profiles/{profile_uuid}", profileHandler.AdminUpdateProfile)
 
 		// Set specific profile as default (admin)
-		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
-			Put("/{user_uuid}/profiles/{profile_uuid}/set-default", profileHandler.AdminSetDefaultProfile)
-
 		// Delete specific profile by UUID
 		r.With(middleware.PermissionMiddleware([]string{"user:delete"})).
 			Delete("/{user_uuid}/profiles/{profile_uuid}", profileHandler.AdminDeleteProfile)

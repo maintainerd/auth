@@ -82,11 +82,11 @@ func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		if result, err := h.profileRepo.FindAllByUserID(ProfileRepositoryGetFilter{UserID: auth.User.UserID}); err == nil {
 			for _, p := range result.Data {
 				profiles = append(profiles, AccountProfileDTO{
-					ProfileID:   p.ProfileUUID.String(),
-					FirstName:   p.FirstName,
-					LastName:    p.LastName,
-					DisplayName: p.DisplayName,
-					Default:     p.IsDefault,
+			ProfileID:   p.ProfileUUID.String(),
+			FirstName:   p.FirstName,
+			LastName:    p.LastName,
+			DisplayName: p.DisplayName,
+			Default:     true,
 				})
 			}
 		}

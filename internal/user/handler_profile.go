@@ -3,7 +3,6 @@ package user
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -228,21 +227,11 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	user := middleware.AuthFromRequest(r).User
 	q := r.URL.Query()
 
-	// Parse pagination
-
 	// Build filter DTO
-	var isDefault *bool
-	if v := q.Get("is_default"); v != "" {
-		if val, err := strconv.ParseBool(v); err == nil {
-			isDefault = &val
-		}
-	}
-
 	reqParams := ProfileFilterDTO{
 		FirstName:            ptr.PtrOrNil(q.Get("first_name")),
 		LastName:             ptr.PtrOrNil(q.Get("last_name")),
 		Email:                ptr.PtrOrNil(q.Get("email")),
-		IsDefault:            isDefault,
 		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
@@ -258,7 +247,6 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		reqParams.FirstName,
 		reqParams.LastName,
 		reqParams.Email,
-		reqParams.IsDefault,
 		reqParams.Page,
 		reqParams.Limit,
 		reqParams.SortBy,
@@ -384,8 +372,6 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 
 	q := r.URL.Query()
 
-	// Parse pagination
-
 	// Build filter DTO
 	reqParams := ProfileFilterDTO{
 		FirstName:            ptr.PtrOrNil(q.Get("first_name")),
@@ -406,7 +392,6 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 		reqParams.FirstName,
 		reqParams.LastName,
 		reqParams.Email,
-		reqParams.IsDefault,
 		reqParams.Page,
 		reqParams.Limit,
 		reqParams.SortBy,
@@ -629,76 +614,6 @@ func (h *ProfileHandler) AdminDeleteProfile(w http.ResponseWriter, r *http.Reque
 	resp.Success(w, toProfileResponseDTO(*deletedProfile), "Profile deleted successfully")
 }
 
-func (h *ProfileHandler) SetDefaultProfile(w http.ResponseWriter, r *http.Request) {
-	// Get profile UUID from URL parameter
-	profileUUIDStr := chi.URLParam(r, "profile_uuid")
-	profileUUID, err := uuid.Parse(profileUUIDStr)
-	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
-		return
-	}
-
-	user := middleware.AuthFromRequest(r).User
-
-	// Set profile as default with ownership verification
-	profile, err := h.profileService.SetDefaultProfile(r.Context(), profileUUID, user.UserUUID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Set default profile failed", err)
-		return
-	}
-
-	tenantIDSDP := int64(0)
-	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
-		tenantIDSDP = t.TenantID
-	}
-	var actorUserIDSDP *int64
-	if user != nil {
-		actorUserIDSDP = &user.UserID
-	}
-	changesJSONSDP, _ := json.Marshal(map[string]any{"update": map[string]any{"is_default": true}})
-	h.logAudit(r, tenantIDSDP, actorUserIDSDP, "profile.set_default", "profile", profileUUID.String(), &profileUUID, string(changesJSONSDP), "success")
-
-	resp.Success(w, toProfileResponseDTO(*profile), "Profile set as default successfully")
-}
-
-func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.Request) {
-	// Get user UUID from URL parameter
-	userUUIDStr := chi.URLParam(r, "user_uuid")
-	userUUID, err := uuid.Parse(userUUIDStr)
-	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
-		return
-	}
-
-	// Get profile UUID from URL parameter
-	profileUUIDStr := chi.URLParam(r, "profile_uuid")
-	profileUUID, err := uuid.Parse(profileUUIDStr)
-	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
-		return
-	}
-
-	// Set profile as default without strict ownership check (admin access)
-	profile, err := h.profileService.SetDefaultProfile(r.Context(), profileUUID, userUUID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Set default profile failed", err)
-		return
-	}
-
-	tenantIDASDP := int64(0)
-	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
-		tenantIDASDP = t.TenantID
-	}
-	var actorUserIDASDP *int64
-	if u := middleware.AuthFromRequest(r).User; u != nil {
-		actorUserIDASDP = &u.UserID
-	}
-	changesJSONASDP, _ := json.Marshal(map[string]any{"update": map[string]any{"is_default": true}})
-	h.logAudit(r, tenantIDASDP, actorUserIDASDP, "profile.admin_set_default", "profile", profileUUID.String(), &profileUUID, string(changesJSONASDP), "success")
-
-	resp.Success(w, toProfileResponseDTO(*profile), "Profile set as default successfully")
-}
-
 // Convert service result to DTO
 func toProfileResponseDTO(p ProfileServiceDataResult) ProfileResponseDTO {
 	return ProfileResponseDTO{
@@ -709,7 +624,6 @@ func toProfileResponseDTO(p ProfileServiceDataResult) ProfileResponseDTO {
 		DisplayName: p.DisplayName,
 		Birthdate:   p.Birthdate,
 		Gender:      p.Gender,
-		IsDefault:   p.IsDefault,
 		Email:       p.Email,
 		Timezone:    p.Timezone,
 		Language:    p.Language,
@@ -729,7 +643,6 @@ func NewProfileResponseDTO(p *Profile) *ProfileResponseDTO {
 		DisplayName: p.DisplayName,
 		Birthdate:   p.Birthdate,
 		Gender:      p.Gender,
-		IsDefault:   p.IsDefault,
 		Email:       p.Email,
 		Timezone:    p.Timezone,
 		Language:    p.Language,

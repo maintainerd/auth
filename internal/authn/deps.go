@@ -102,8 +102,6 @@ type User struct {
 	Password                   *string
 	IsEmailVerified            bool
 	IsPhoneVerified            bool
-	IsProfileCompleted         bool
-	IsAccountCompleted         bool
 	Status                     string
 	ForcePasswordChange        bool
 	PasswordChangedAt          *time.Time

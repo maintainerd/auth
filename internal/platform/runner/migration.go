@@ -124,6 +124,7 @@ var migrations = []migrationEntry{
 	{"081_create_account_link_requests_table", migration.CreateAccountLinkRequestsTable},
 	{"082_create_policy_version_history_table", migration.CreatePolicyVersionHistoryTable},
 	{"083_create_oauth_dpop_nonces_table", migration.CreateOAuthDPoPNoncesTable},
+	{"084_create_scim_configurations_table", migration.CreateSCIMConfigurationsTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

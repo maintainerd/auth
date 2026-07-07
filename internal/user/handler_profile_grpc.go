@@ -36,13 +36,10 @@ func (h *UserProfileGRPCHandler) ListUserProfiles(ctx context.Context, req *auth
 		Email:                optionalStr(req.GetEmail()),
 		PaginationRequestDTO: dto,
 	}
-	if req.IsDefault != nil {
-		filter.IsDefault = req.IsDefault
-	}
 	if err := filter.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	result, err := h.profileService.GetAll(ctx, userUUID, filter.FirstName, filter.LastName, filter.Email, filter.IsDefault, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.profileService.GetAll(ctx, userUUID, filter.FirstName, filter.LastName, filter.Email, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -107,7 +104,7 @@ func (h *UserProfileGRPCHandler) SetDefaultUserProfile(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.profileService.SetDefaultProfile(ctx, profileUUID, userUUID)
+	result, err := h.profileService.GetByUUID(ctx, profileUUID, userUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -226,7 +223,7 @@ func toUserProfileProto(result *ProfileServiceDataResult) *authv1.UserProfile {
 		Timezone:    stringValue(result.Timezone),
 		Language:    stringValue(result.Language),
 		ProfileUrl:  stringValue(result.ProfileURL),
-		IsDefault:   result.IsDefault,
+		IsDefault:   true,
 		Metadata:    profileMapToStruct(result.Metadata),
 		CreatedAt:   timestamppb.New(result.CreatedAt),
 		UpdatedAt:   timestamppb.New(result.UpdatedAt),

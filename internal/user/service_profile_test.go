@@ -86,7 +86,6 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.FirstName)
-		assert.True(t, res.IsDefault)
 	})
 
 	t.Run("create with metadata", func(t *testing.T) {
@@ -126,7 +125,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		existing := &Profile{ProfileID: 10, ProfileUUID: uuid.New(), UserID: userID, IsDefault: true}
+		existing := &Profile{ProfileID: 10, ProfileUUID: uuid.New(), UserID: userID}
 		svc := NewProfileService(db, &mockProfileRepo{
 			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return existing, nil },
 			updateByUserIDFn: func(_ int64, _ *Profile) error {
@@ -146,7 +145,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := &Profile{ProfileID: 10, ProfileUUID: uuid.New(), UserID: userID, IsDefault: true}
+		existing := &Profile{ProfileID: 10, ProfileUUID: uuid.New(), UserID: userID}
 		svc := NewProfileService(db, &mockProfileRepo{
 			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return existing, nil },
 		}, &mockUserRepo{
@@ -247,7 +246,6 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.FirstName)
-		assert.True(t, res.IsDefault)
 	})
 
 	t.Run("new profile not first → success → commit", func(t *testing.T) {
@@ -263,9 +261,8 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
-		assert.False(t, res.IsDefault)
 	})
 
 	t.Run("new profile with metadata → success", func(t *testing.T) {
@@ -440,7 +437,7 @@ func TestProfileService_GetByUserUUID(t *testing.T) {
 		pid := uuid.New()
 		svc := newProfileSvc(&mockProfileRepo{
 			findDefaultByUserIDFn: func(_ int64) (*Profile, error) {
-				return &Profile{ProfileUUID: pid, IsDefault: true}, nil
+				return &Profile{ProfileUUID: pid}, nil
 			},
 		}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
@@ -460,7 +457,7 @@ func TestProfileService_GetAll(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, errors.New("db") },
 		})
-		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.Error(t, err)
 	})
 
@@ -474,7 +471,7 @@ func TestProfileService_GetAll(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "repo error")
 	})
@@ -492,7 +489,7 @@ func TestProfileService_GetAll(t *testing.T) {
 				return &User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		res, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), res.Total)
 	})
@@ -540,25 +537,10 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "does not belong")
 	})
 
-	t.Run("cannot delete default profile", func(t *testing.T) {
-		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{UserID: userID, IsDefault: true}, nil
-			},
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID}, nil
-			},
-		})
-		_, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot delete default")
-	})
-
 	t.Run("DeleteByUUID repo error", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: false}, nil
+				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		}, &mockUserRepo{
@@ -574,7 +556,7 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: false}, nil
+				return &Profile{ProfileUUID: profileUUID, UserID: userID, }, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		}, &mockUserRepo{
@@ -585,134 +567,6 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 		res, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
 		require.NoError(t, err)
 		assert.Equal(t, profileUUID, res.ProfileUUID)
-	})
-}
-
-func TestProfileService_SetDefaultProfile(t *testing.T) {
-	profileUUID := uuid.New()
-	userUUID := uuid.New()
-	userID := int64(1)
-
-	t.Run("user not found → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
-		})
-		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "user not found")
-	})
-
-	t.Run("profile not found → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) { return nil, nil },
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID}, nil
-			},
-		})
-		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "profile not found")
-	})
-
-	t.Run("authevent.FindByUUID error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return nil, errors.New("find error")
-			},
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID}, nil
-			},
-		})
-		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "find error")
-	})
-
-	t.Run("profile belongs to different user → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{ProfileUUID: profileUUID, UserID: 999}, nil
-			},
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID}, nil
-			},
-		})
-		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not belong")
-	})
-
-	t.Run("UnsetDefaultProfiles error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
-			},
-			unsetDefaultFn: func(_ int64) error { return errors.New("unset error") },
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID}, nil
-			},
-		})
-		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unset error")
-	})
-
-	t.Run("CreateOrUpdate error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
-			},
-			createOrUpdateFn: func(_ *Profile) (*Profile, error) {
-				return nil, errors.New("save error")
-			},
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID}, nil
-			},
-		})
-		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "save error")
-	})
-
-	t.Run("success → commit", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
-			},
-		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID}, nil
-			},
-		})
-		res, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
-		require.NoError(t, err)
-		assert.True(t, res.IsDefault)
 	})
 }
 

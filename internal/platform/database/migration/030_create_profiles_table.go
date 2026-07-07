@@ -11,6 +11,7 @@ import (
 //   - language  → use user_settings.locale (preference, BCP-47)
 //   - suffix, address, city, country → store in profiles.metadata (OIDC address claim is structured JSON per §5.1.1)
 //   - bio, social_links → not OIDC standard claims; removed
+//   - is_default → removed; replaced by UNIQUE(user_id) partial index enforcing a single canonical profile per user
 func CreateProfileTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
@@ -26,8 +27,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     -- Personal Information
     birthdate       DATE,
     gender          VARCHAR(25),
-    -- Profile flags
-    is_default      BOOLEAN NOT NULL DEFAULT FALSE,
     -- Media & Assets (auth-centric)
     profile_url     VARCHAR(2048),
     -- Extended data
@@ -85,7 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles (last_name);
 CREATE INDEX IF NOT EXISTS idx_profiles_display_name ON profiles (display_name);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at);
 CREATE INDEX IF NOT EXISTS idx_profiles_deleted_at ON profiles (deleted_at) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_profiles_is_default ON profiles (user_id, is_default);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_profiles_user_id ON profiles (user_id) WHERE deleted_at IS NULL;
 `
 	return db.Exec(sql).Error
 }
