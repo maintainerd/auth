@@ -24,8 +24,6 @@ type ProfileServiceDataResult struct {
 	// Personal Information
 	Birthdate *time.Time
 	Gender    *string
-	// Profile flags
-	IsDefault bool
 	// Contact Information (transient)
 	Email *string
 	// Preference
@@ -76,8 +74,7 @@ type ProfileService interface {
 	) (*ProfileServiceDataResult, error)
 	GetByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
-	GetAll(ctx context.Context, userUUID uuid.UUID, firstName, lastName, email *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error)
-	SetDefaultProfile(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	GetAll(ctx context.Context, userUUID uuid.UUID, firstName, lastName, email *string, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error)
 	DeleteByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 }
 
@@ -133,12 +130,11 @@ func (s *profileService) CreateOrUpdateProfile(
 
 		if err != nil {
 			return err
-		} else if existingProfile == nil {
-			// No default profile yet — this new one becomes the default.
+		} else 		if existingProfile == nil {
+			// No profile yet — create one.
 			profile = Profile{
 				ProfileUUID: uuid.New(),
 				UserID:      user.UserID,
-				IsDefault:   true,
 			}
 		} else {
 			// Use existing profile
@@ -239,16 +235,16 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 
 		if err != nil {
 			return err
-		} else if existingProfile == nil {
-			// Check if user already has any profile — if not, this is the first and becomes default.
+		} else 		if existingProfile == nil {
+			// Check if user already has a profile — if not, this is the first.
 			anyProfile, err := txProfileRepo.FindByUserID(user.UserID)
 			if err != nil {
 				return err
 			}
+			_ = anyProfile
 			profile = Profile{
 				ProfileUUID: profileUUID,
 				UserID:      user.UserID,
-				IsDefault:   anyProfile == nil,
 			}
 		} else {
 			// Verify profile belongs to user
@@ -383,7 +379,6 @@ func (s *profileService) GetAll(
 	ctx context.Context,
 	userUUID uuid.UUID,
 	firstName, lastName, email *string,
-	isDefault *bool,
 	page, limit int,
 	sortBy, sortOrder string,
 ) (*ProfileServiceListResult, error) {
@@ -404,7 +399,6 @@ func (s *profileService) GetAll(
 		FirstName: firstName,
 		LastName:  lastName,
 		Email:     email,
-		IsDefault: isDefault,
 		Page:      page,
 		Limit:     limit,
 		SortBy:    sortBy,
@@ -439,55 +433,6 @@ func (s *profileService) GetAll(
 	}, nil
 }
 
-func (s *profileService) SetDefaultProfile(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "profile.setDefault")
-	defer span.End()
-	span.SetAttributes(attribute.String("profile.uuid", profileUUID.String()), attribute.String("user.uuid", userUUID.String()))
-	var updatedProfile *Profile
-
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txProfileRepo := s.profileRepo.WithTx(tx)
-		txUserRepo := s.userRepo.WithTx(tx)
-
-		user, err := txUserRepo.FindByUUID(userUUID)
-		if err != nil || user == nil {
-			return apperror.NewNotFound("user not found")
-		}
-
-		profile, err := txProfileRepo.FindByUUID(profileUUID)
-		if err != nil {
-			return err
-		}
-		if profile == nil {
-			return apperror.NewNotFound("profile not found")
-		}
-		if profile.UserID != user.UserID {
-			return apperror.NewForbidden("profile does not belong to user")
-		}
-
-		// Unset all current defaults, then set this one
-		if err := txProfileRepo.UnsetDefaultProfiles(user.UserID); err != nil {
-			return err
-		}
-		profile.IsDefault = true
-		updated, err := txProfileRepo.CreateOrUpdate(profile)
-		if err != nil {
-			return err
-		}
-		updatedProfile = updated
-		return nil
-	})
-
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "set default profile failed")
-		return nil, err
-	}
-
-	span.SetStatus(codes.Ok, "")
-	return toProfileServiceDataResult(updatedProfile), nil
-}
-
 func (s *profileService) DeleteByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "profile.delete")
 	defer span.End()
@@ -511,12 +456,6 @@ func (s *profileService) DeleteByUUID(ctx context.Context, profileUUID uuid.UUID
 	if profile.UserID != user.UserID {
 		span.SetStatus(codes.Error, "delete profile failed")
 		return nil, apperror.NewForbidden("profile does not belong to user")
-	}
-
-	// Cannot delete the default profile — caller must reassign default first.
-	if profile.IsDefault {
-		span.SetStatus(codes.Error, "delete profile failed")
-		return nil, apperror.NewValidation("cannot delete default profile")
 	}
 
 	// Delete the profile
@@ -555,8 +494,6 @@ func toProfileServiceDataResult(profile *Profile) *ProfileServiceDataResult {
 		// Personal Information
 		Birthdate: profile.Birthdate,
 		Gender:    profile.Gender,
-		// Profile flags
-		IsDefault: profile.IsDefault,
 		// Contact Information (transient)
 		Email: profile.Email,
 		// Preference

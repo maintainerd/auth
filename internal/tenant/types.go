@@ -116,8 +116,6 @@ type MemberUserResponseDTO struct {
 	Phone              string         `json:"phone"`
 	IsEmailVerified    bool           `json:"is_email_verified"`
 	IsPhoneVerified    bool           `json:"is_phone_verified"`
-	IsProfileCompleted bool           `json:"is_profile_completed"`
-	IsAccountCompleted bool           `json:"is_account_completed"`
 	Status             string         `json:"status"`
 	Metadata           datatypes.JSON `json:"metadata"`
 	CreatedAt          time.Time      `json:"created_at"`

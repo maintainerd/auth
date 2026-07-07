@@ -256,8 +256,6 @@ func toMemberUserResponseDTO(u MemberUser) MemberUserResponseDTO {
 		Phone:              u.Phone,
 		IsEmailVerified:    u.IsEmailVerified,
 		IsPhoneVerified:    u.IsPhoneVerified,
-		IsProfileCompleted: u.IsProfileCompleted,
-		IsAccountCompleted: u.IsAccountCompleted,
 		Status:             u.Status,
 		Metadata:           u.Metadata,
 		CreatedAt:          u.CreatedAt,

@@ -14,6 +14,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/mfa"
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
+	"github.com/maintainerd/maintainerd-auth/internal/scim"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 	"github.com/maintainerd/maintainerd-auth/internal/user"
@@ -94,6 +95,7 @@ type repos struct {
 	accountLinkRequestRepo    authn.AccountLinkRequestRepository
 	policyVersionHistoryRepo  iam.PolicyVersionHistoryRepository
 	oauthDPoPNonceRepo        oauth.OAuthDPoPNonceRepository
+	scimConfigRepo             scim.SCIMConfigurationRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -168,5 +170,6 @@ func initRepos(db *gorm.DB) *repos {
 		accountLinkRequestRepo:    authn.NewAccountLinkRequestRepository(db),
 		policyVersionHistoryRepo:  iam.NewPolicyVersionHistoryRepository(db),
 		oauthDPoPNonceRepo:        oauth.NewOAuthDPoPNonceRepository(db),
+		scimConfigRepo:             scim.NewSCIMConfigurationRepository(db),
 	}
 }

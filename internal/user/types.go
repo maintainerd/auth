@@ -104,9 +104,6 @@ type ProfileResponseDTO struct {
 	Birthdate *time.Time `json:"birthdate,omitempty"`
 	Gender    *string    `json:"gender,omitempty"`
 
-	// Profile Flags
-	IsDefault bool `json:"is_default"`
-
 	// Contact Information (transient)
 	Email *string `json:"email,omitempty"`
 
@@ -130,7 +127,6 @@ type ProfileFilterDTO struct {
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`
 	Email     *string `json:"email,omitempty"`
-	IsDefault *bool   `json:"is_default,omitempty"`
 	PaginationRequestDTO
 }
 

@@ -23,20 +23,15 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 	result := &ProfileServiceDataResult{
 		ProfileUUID: profileUUID,
 		FirstName:   "Jane",
-		IsDefault:   true,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	t.Run("list success preserves false is_default filter", func(t *testing.T) {
-		isDefault := false
+	t.Run("list success with pagination", func(t *testing.T) {
 		svc := &mockProfileService{
-			getAllFn: func(gotUserUUID uuid.UUID, firstName, lastName, email *string, gotIsDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
+			getAllFn: func(gotUserUUID uuid.UUID, firstName, lastName, email *string, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
 				if gotUserUUID != userUUID {
 					t.Fatalf("expected user UUID %s, got %s", userUUID, gotUserUUID)
-				}
-				if gotIsDefault == nil || *gotIsDefault {
-					t.Fatalf("expected explicit false is_default filter, got %v", gotIsDefault)
 				}
 				if page != 2 || limit != 5 || sortBy != "first_name" || sortOrder != "asc" {
 					t.Fatalf("unexpected pagination: page=%d limit=%d sort_by=%q sort_order=%q", page, limit, sortBy, sortOrder)
@@ -49,7 +44,6 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		res, err := h.ListUserProfiles(ctx, &authv1.ListUserProfilesRequest{
 			TenantUuid: tenantUUID.String(),
 			UserUuid:   userUUID.String(),
-			IsDefault:  &isDefault,
 			Pagination: &authv1.Pagination{Page: 2, Limit: 5, SortBy: "first_name", SortOrder: "asc"},
 		})
 
@@ -143,9 +137,9 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		}
 	})
 
-	t.Run("set default success", func(t *testing.T) {
+	t.Run("set default returns profile directly (single-profile model)", func(t *testing.T) {
 		svc := &mockProfileService{
-			setDefaultFn: func(gotProfileUUID, gotUserUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+			getByUUIDFn: func(gotProfileUUID, gotUserUUID uuid.UUID) (*ProfileServiceDataResult, error) {
 				if gotProfileUUID != profileUUID || gotUserUUID != userUUID {
 					t.Fatalf("unexpected set default args: profile=%s user=%s", gotProfileUUID, gotUserUUID)
 				}
@@ -201,7 +195,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("service error returns internal", func(t *testing.T) {
 		svc := &mockProfileService{
-			getAllFn: func(userUUID uuid.UUID, firstName, lastName, email *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
+			getAllFn: func(userUUID uuid.UUID, firstName, lastName, email *string, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error) {
 				return nil, errors.New("db")
 			},
 		}

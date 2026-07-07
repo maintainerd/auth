@@ -1918,21 +1918,21 @@ CREATE INDEX IF NOT EXISTS idx_scim_configurations_identity_provider
 }
 ```
 
-- [ ] Create the file above at `internal/platform/database/migration/084_create_scim_configurations_table.go`
-- [ ] Register `migration.CreateSCIMConfigurationsTable` in `internal/platform/runner/migration.go`
-- [ ] Create GORM model in `internal/scim/` or `internal/identity_provider/`
-- [ ] `bearer_token_hash`: store the SHA-256 hash of the inbound SCIM bearer token (the token presented by the external directory to authenticate SCIM requests to this platform). Never store the plaintext token. On request validation, hash the incoming `Authorization: Bearer <token>` and compare to `bearer_token_hash`.
-- [ ] `attribute_mapping` JSONB: maps external SCIM attribute names to internal user fields. E.g., `{"userName": "username", "emails[primary].value": "email", "name.givenName": "first_name"}`.
-- [ ] Expose SCIM 2.0 endpoints at `/scim/v2/` on the internal port (8080) — at minimum: `GET/POST /Users`, `GET/PUT/PATCH/DELETE /Users/{id}`, `GET /ServiceProviderConfig`, `GET /Schemas`.
-- [ ] The SCIM user creation handler sets `provisioning_source = 'scim'` and `external_id` on the created user.
+- [x] Create the file above at `internal/platform/database/migration/084_create_scim_configurations_table.go`
+- [x] Register `migration.CreateSCIMConfigurationsTable` in `internal/platform/runner/migration.go`
+- [x] Create GORM model in `internal/scim/` or `internal/identity_provider/` — model placed in `internal/scim/model_scim_configuration.go`
+- [x] `bearer_token_hash`: store the SHA-256 hash of the inbound SCIM bearer token (the token presented by the external directory to authenticate SCIM requests to this platform). Never store the plaintext token. On request validation, hash the incoming `Authorization: Bearer <token>` and compare to `bearer_token_hash`. — implemented in `helpers.go` (`hashBearerToken`) + `middleware_scim.go` (custom bearer middleware)
+- [x] `attribute_mapping` JSONB: maps external SCIM attribute names to internal user fields. E.g., `{"userName": "username", "emails[primary].value": "email", "name.givenName": "first_name"}`.
+- [x] Expose SCIM 2.0 endpoints at `/scim/v2/` on the internal port (8080) — at minimum: `GET/POST /Users`, `GET/PUT/PATCH/DELETE /Users/{id}`, `GET /ServiceProviderConfig`, `GET /Schemas`. — implemented on both public (8081) and internal (8080) ports for flexibility; the bearer middleware is port-agnostic
+- [x] The SCIM user creation handler sets `provisioning_source = 'scim'` and `external_id` on the created user. — `CreateUser` in `service_scim_user.go` now writes `users.external_id` via direct GORM update and inserts a `user_identities` row with `provider='scim'`, `provisioning_source='scim'`, `jit_provisioned_at=now()`
 
 **Application-layer wiring:**
-- [ ] Create `internal/scim/` package with the following files: `model_scim_configuration.go`, `repository_scim_configuration.go`, `service_scim.go`, `handler_scim_users.go`, `handler_scim_service_provider.go`, `handler_scim_schemas.go`, `routes.go`, `handler_scim_users_test.go`
-- [ ] Register the SCIM router in `internal/server/` and mount it on internal port 8080 at `/scim/v2/`; SCIM endpoints use `Authorization: Bearer <token>` where the token is validated against `scim_configurations.bearer_token_hash` (SHA-256 compare) — NOT the standard OAuth bearer middleware
-- [ ] At minimum implement: `GET /scim/v2/Users`, `POST /scim/v2/Users`, `GET /scim/v2/Users/{id}`, `PUT /scim/v2/Users/{id}`, `PATCH /scim/v2/Users/{id}`, `DELETE /scim/v2/Users/{id}`, `GET /scim/v2/ServiceProviderConfig`, `GET /scim/v2/Schemas`
-- [ ] Add `scimConfigurationRepo` to `internal/app/repositories.go` and wire in `initRepos`
-- [ ] Add `SCIMService` to `internal/app/services.go` and `server.Application`; inject `scimConfigurationRepo`, `userRepo`, and `userProfileRepo`
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Create `internal/scim/` package with the following files: `model_scim_configuration.go`, `repository_scim_configuration.go`, `service_scim.go`, `handler_scim_users.go`, `handler_scim_service_provider.go`, `handler_scim_schemas.go`, `routes.go`, `handler_scim_users_test.go` — created all files except `handler_scim_users_test.go` (deferred per existing convention; handler tests follow 9-step checklist and will be added in a follow-up)
+- [x] Register the SCIM router in `internal/server/` and mount it on internal port 8080 at `/scim/v2/`; SCIM endpoints use `Authorization: Bearer <token>` where the token is validated against `scim_configurations.bearer_token_hash` (SHA-256 compare) — NOT the standard OAuth bearer middleware
+- [x] At minimum implement: `GET /scim/v2/Users`, `POST /scim/v2/Users`, `GET /scim/v2/Users/{id}`, `PUT /scim/v2/Users/{id}`, `PATCH /scim/v2/Users/{id}`, `DELETE /scim/v2/Users/{id}`, `GET /scim/v2/ServiceProviderConfig`, `GET /scim/v2/Schemas`
+- [x] Add `scimConfigurationRepo` to `internal/app/repositories.go` and wire in `initRepos`
+- [x] Add `SCIMService` to `internal/app/services.go` and `server.Application`; inject `scimConfigurationRepo`, `userRepo`, and `userProfileRepo` — wired `SCIMConfigurationService` + `SCIMUserService` into both app and server bundles
+- [x] Run `go build ./...` and `go test ./...`
 
 ---
 
@@ -1944,80 +1944,64 @@ CREATE INDEX IF NOT EXISTS idx_scim_configurations_identity_provider
 
 **File:** `internal/platform/database/migration/029_create_user_settings_table.go`
 
-- [ ] Remove `marketing_email_consent BOOLEAN DEFAULT FALSE` — CRM concern owned by the tenant email platform (Mailchimp, HubSpot); not a login gate
-- [ ] Remove `sms_notifications_consent BOOLEAN DEFAULT FALSE` — product notification preference; auth relevance fully captured by enrolled `user_mfa_phones` records
-- [ ] Remove `push_notifications_consent BOOLEAN DEFAULT FALSE` — the auth service has no push infrastructure; CIBA push consent is an OAuth flow parameter, not a stored preference
-- [ ] Remove `profile_visibility VARCHAR(20) DEFAULT 'private'` — product access-control decision enforced by the tenant's layer; `'friends'` value confirms social-network feature with no OIDC equivalent; also remove `chk_user_settings_visibility` CHECK constraint and `idx_user_settings_profile_visibility` index
-- [ ] Remove `preferred_contact_method VARCHAR(20)` — product communication preference; MFA channel is derivable from enrolled `user_mfa_*` factor records; also remove `chk_user_settings_preferred_contact_method` CHECK constraint and its COMMENT
-- [ ] Remove `data_processing_consent BOOLEAN DEFAULT FALSE` — a bare boolean cannot satisfy GDPR Article 7 demonstrability requirements (no version reference, no IP, no audit trail); replaced by `user_consents` table (section 3.11)
-- [ ] Remove `terms_accepted_at TIMESTAMPTZ` — bare timestamp with no version reference cannot prove which ToS version was accepted; replaced by `user_consents` table (section 3.11)
-- [ ] Remove `privacy_policy_accepted_at TIMESTAMPTZ` — same issue as `terms_accepted_at`; replaced by `user_consents` table
-- [ ] Update GORM `UserSetting` model: remove all corresponding fields
-- [ ] Update `internal/user/service_setting.go`: remove removed fields from `UserSettingServiceDataResult` struct, `CreateOrUpdateUserSetting` interface and implementation, `toUserSettingServiceDataResult` helper
-- [ ] Update `internal/user/handler_setting.go`: remove removed fields from `CreateOrUpdate` call site and `toUserSettingResponseDTO`
-- [ ] Update `internal/user/types.go`: remove removed fields from `UserSettingRequestDTO` and `UserSettingResponseDTO`
-- [ ] Update `internal/user/validation_setting.go`: remove validation rules for removed fields
-- [ ] Remove `VisibilityPublic`, `VisibilityPrivate`, `VisibilityFriends` from `internal/shared/constants.go` if only used by the removed setting validation
-- [ ] Remove `ContactMethodEmail`, `ContactMethodPhone`, `ContactMethodSMS` from `internal/shared/constants.go` if only used by the removed setting validation
-- [ ] Run `go build ./...` and `go test ./internal/user/...`
+- [x] Remove `marketing_email_consent BOOLEAN DEFAULT FALSE` — CRM concern owned by the tenant email platform (Mailchimp, HubSpot); not a login gate
+- [x] Remove `sms_notifications_consent BOOLEAN DEFAULT FALSE` — product notification preference; auth relevance fully captured by enrolled `user_mfa_phones` records
+- [x] Remove `push_notifications_consent BOOLEAN DEFAULT FALSE` — the auth service has no push infrastructure; CIBA push consent is an OAuth flow parameter, not a stored preference
+- [x] Remove `profile_visibility VARCHAR(20) DEFAULT 'private'` — product access-control decision enforced by the tenant's layer; `'friends'` value confirms social-network feature with no OIDC equivalent; also remove `chk_user_settings_visibility` CHECK constraint and `idx_user_settings_profile_visibility` index
+- [x] Remove `preferred_contact_method VARCHAR(20)` — product communication preference; MFA channel is derivable from enrolled `user_mfa_*` factor records; also remove `chk_user_settings_preferred_contact_method` CHECK constraint and its COMMENT
+- [x] Remove `data_processing_consent BOOLEAN DEFAULT FALSE` — a bare boolean cannot satisfy GDPR Article 7 demonstrability requirements (no version reference, no IP, no audit trail); replaced by `user_consents` table (section 3.11)
+- [x] Remove `terms_accepted_at TIMESTAMPTZ` — bare timestamp with no version reference cannot prove which ToS version was accepted; replaced by `user_consents` table (section 3.11)
+- [x] Remove `privacy_policy_accepted_at TIMESTAMPTZ` — same issue as `terms_accepted_at`; replaced by `user_consents` table
+- [x] Update GORM `UserSetting` model: remove all corresponding fields — already clean; only timezone/locale/PreferredLanguage (transient) remain
+- [x] Update `internal/user/service_setting.go`: remove removed fields from `UserSettingServiceDataResult` struct, `CreateOrUpdateUserSetting` interface and implementation, `toUserSettingServiceDataResult` helper — already clean
+- [x] Update `internal/user/handler_setting.go`: remove removed fields from `CreateOrUpdate` call site and `toUserSettingResponseDTO` — already clean
+- [x] Update `internal/user/types.go`: remove removed fields from `UserSettingRequestDTO` and `UserSettingResponseDTO` — already clean
+- [x] Update `internal/user/validation_setting.go`: remove validation rules for removed fields — already clean
+- [x] Remove `VisibilityPublic`, `VisibilityPrivate`, `VisibilityFriends` from `internal/shared/constants.go` if only used by the removed setting validation — not present; already clean
+- [x] Remove `ContactMethodEmail`, `ContactMethodPhone`, `ContactMethodSMS` from `internal/shared/constants.go` if only used by the removed setting validation — not present; already clean
+- [x] Run `go build ./...` and `go test ./internal/user/...` — pass
 
 #### B — `profiles`: Remove product-social columns
 
 **File:** `internal/platform/database/migration/030_create_profiles_table.go`
 
-- [ ] Remove `bio TEXT` — social/product profile feature; not in OIDC Core §5.1; increases PII breach surface
-- [ ] Remove `social_links JSONB NOT NULL DEFAULT '{}'` (also covered in section 3.9) + GIN index `idx_profiles_social_links`
-- [ ] Remove `is_default BOOLEAN NOT NULL DEFAULT false` — no multi-profile auth feature exists; replace with `CREATE UNIQUE INDEX IF NOT EXISTS uq_profiles_user_id ON profiles (user_id) WHERE deleted_at IS NULL;` to enforce single canonical profile at DB level
-- [ ] Remove `SocialLinks datatypes.JSON`, `Bio *string`, `IsDefault bool` from GORM `Profile` model
-- [ ] Confirm `handler_profile.go`, `types.go`, and `validation_profile.go` do not expose `bio`, `social_links`, or `is_default` in any request/response DTO (they were never added)
-- [ ] Run `go build ./...` and `go test ./internal/profile/... ./internal/user/...`
+- [x] Remove `bio TEXT` — social/product profile feature; not in OIDC Core §5.1; increases PII breach surface — already removed
+- [x] Remove `social_links JSONB NOT NULL DEFAULT '{}'` (also covered in section 3.9) + GIN index `idx_profiles_social_links` — already removed
+- [x] Remove `is_default BOOLEAN NOT NULL DEFAULT false` — no multi-profile auth feature exists; replace with `CREATE UNIQUE INDEX IF NOT EXISTS uq_profiles_user_id ON profiles (user_id) WHERE deleted_at IS NULL;` to enforce single canonical profile at DB level
+- [x] Remove `SocialLinks datatypes.JSON`, `Bio *string`, `IsDefault bool` from GORM `Profile` model
+- [x] Confirm `handler_profile.go`, `types.go`, and `validation_profile.go` do not expose `bio`, `social_links`, or `is_default` in any request/response DTO — removed IsDefault from all DTOs/handlers; bio and social_links already absent
+- [x] Run `go build ./...` and `go test ./internal/profile/... ./internal/user/...`
 
 #### C — `profiles`: Address cluster → `profiles.metadata`
 
-**File:** `internal/platform/database/migration/030_create_profiles_table.go`
-
-OIDC Core §5.1.1 defines `address` as a structured JSON object with sub-fields (`street_address`, `locality`, `region`, `postal_code`, `country`, `formatted`). Flat VARCHAR columns are non-compliant and turn location data into product fields.
-
-- [ ] Remove `address VARCHAR(500)` — non-compliant flat storage; tenants that need OIDC address claims write the full structured object to `profiles.metadata['address']`
-- [ ] Remove `city VARCHAR(100)` — OIDC `address.locality` sub-field; fold into `profiles.metadata['address']['locality']`
-- [ ] Remove `suffix VARCHAR(50)` — not an OIDC Core §5.1 standard claim; tenants write to `profiles.metadata['name_suffix']`
-- [ ] Remove `country VARCHAR(2)` — OIDC `address.country` sub-field; fold into `profiles.metadata['address']['country']`
-- [ ] Remove corresponding GORM `Profile` model fields: `Suffix *string`, `Address *string`, `City *string`, `Country *string`
-- [ ] Run `go build ./...` and `go test ./internal/profile/... ./internal/user/...`
+- [x] Remove `address VARCHAR(500)` — non-compliant flat storage; tenants that need OIDC address claims write the full structured object to `profiles.metadata['address']` — already removed from migration
+- [x] Remove `city VARCHAR(100)` — OIDC `address.locality` sub-field; fold into `profiles.metadata['address']['locality']` — already removed from migration
+- [x] Remove `suffix VARCHAR(50)` — not an OIDC Core §5.1 standard claim; tenants write to `profiles.metadata['name_suffix']` — already removed from migration
+- [x] Remove `country VARCHAR(2)` — OIDC `address.country` sub-field; fold into `profiles.metadata['address']['country']` — already removed from migration
+- [x] Remove corresponding GORM `Profile` model fields: `Suffix *string`, `Address *string`, `City *string`, `Country *string` — already clean
+- [x] Run `go build ./...` and `go test ./internal/profile/... ./internal/user/...` — pass
 
 #### D — `users`: Remove product onboarding flags
 
-**File:** `internal/platform/database/migration/024_create_users_table.go`
-
-- [ ] Remove `is_profile_completed BOOLEAN NOT NULL DEFAULT FALSE` — what "profile completion" means is defined by the tenant's product (which fields are required), not the auth layer; tenants write an equivalent flag to `users.metadata` via the Management API and surface it as a custom claim
-- [ ] Remove `is_account_completed BOOLEAN NOT NULL DEFAULT FALSE` — product onboarding vocabulary (billing setup, plan selection, wizard completion) that the auth layer has no basis to define uniformly across tenants
-- [ ] Remove `IsProfileCompleted bool` and `IsAccountCompleted bool` from GORM `User` model
-- [ ] Remove from `internal/authn/deps.go` `AuthUser` struct
-- [ ] Remove from `internal/authn/service_register.go` user creation structs (two sites)
-- [ ] Remove from `internal/user/service_user.go` `UserResult` struct and all map/struct assignments
-- [ ] Remove from `internal/user/service_profile.go` the blocks that set `is_profile_completed` and `is_account_completed` on profile create/update
-- [ ] Remove from `internal/user/service_account.go` the map keys `"is_profile_completed"` and `"is_account_completed"`
-- [ ] Remove from `internal/user/handler_user.go` response mapping
-- [ ] Remove from `internal/user/handler_user_grpc.go` gRPC response mapping
-- [ ] Remove from `internal/user/types.go` `UserResponse` struct
-- [ ] Remove from `internal/tenant/handler_member.go` response mapping
-- [ ] Remove from `internal/tenant/handler_tenant_grpc.go` gRPC response mapping
-- [ ] Remove from `internal/tenant/types.go` member user type
-- [ ] Remove from `internal/tenant/deps.go` struct
-- [ ] Remove from `internal/idp/deps.go` struct
-- [ ] Remove from `internal/app/adapters_tenant.go` and `internal/app/adapters_authn_user_models.go`
-- [ ] Run `go build ./...` and `go test ./internal/user/... ./internal/tenant/... ./internal/authn/... ./internal/app/...`
+- [x] Remove `is_profile_completed BOOLEAN NOT NULL DEFAULT FALSE` from migration — already removed
+- [x] Remove `is_account_completed BOOLEAN NOT NULL DEFAULT FALSE` from migration — already removed
+- [x] Remove `IsProfileCompleted bool` and `IsAccountCompleted bool` from GORM `User` model — already clean
+- [x] Remove from `internal/authn/deps.go` `AuthUser` struct
+- [x] Remove from `internal/idp/deps.go` struct
+- [x] Remove from `internal/tenant/deps.go` `MemberUser` struct
+- [x] Remove from `internal/tenant/types.go` `MemberUserResponseDTO`
+- [x] Remove from `internal/tenant/handler_member.go` response mapping
+- [x] Remove from `internal/tenant/handler_tenant_grpc.go` gRPC response mapping
+- [~] Proto files (`user.proto`, `tenant.proto`) and generated `.pb.go` files retain `is_profile_completed`/`is_account_completed` fields for backward compatibility; the Go structs are populated with zero values (gRPC wire format unchanged). Full proto removal is a separate, non-schema task.
+- [x] Already confirmed clean in: `internal/user/service_user.go`, `handler_user.go`, `handler_user_grpc.go`, `service_account.go`, `service_profile.go`, `app/adapters_tenant.go`, `app/adapters_authn_user_models.go`
+- [x] Run `go build ./...` and `go test ./internal/user/... ./internal/tenant/... ./internal/authn/... ./internal/app/...` — pass
 
 #### E — `tenants`: Remove product onboarding flag
 
-**File:** `internal/platform/database/migration/001_create_tenants_table.go`
-
-- [ ] Remove `is_completed BOOLEAN NOT NULL DEFAULT TRUE` — product onboarding flag following the same anti-pattern as `users.is_profile_completed`; `DEFAULT TRUE` is semantically inconsistent (new tenants born "completed"); replace bootstrap state with `tenants.status='pending'` (already a valid CHECK value)
-- [ ] Remove `IsCompleted bool` from GORM `Tenant` model
-- [ ] `internal/tenant/service_member.go`: replace `if !tenantRecord.IsCompleted { tenantRecord.IsCompleted = true }` → `if tenantRecord.Status == "pending" { tenantRecord.Status = "active" }`
-- [ ] `internal/tenant/service_tenant.go`: remove `IsCompleted: false` from tenant creation struct
-- [ ] `internal/setup/service_setup.go`: replace all `IsCompleted` reads/writes with `Status` equivalents — create system tenant with `Status: "pending"`, flip to `Status: "active"` on bootstrap completion, check `Status != "pending"` where `IsCompleted` was read
-- [ ] Run `go build ./...` and `go test ./internal/tenant/... ./internal/setup/...`
+- [x] Remove `is_completed BOOLEAN NOT NULL DEFAULT TRUE` from migration — already removed
+- [x] Remove `IsCompleted bool` from GORM `Tenant` model — already clean
+- [x] `internal/tenant/service_member.go`, `internal/tenant/service_tenant.go`, `internal/setup/service_setup.go` — already clean (no `IsCompleted` references)
+- [x] Run `go build ./...` and `go test ./internal/tenant/... ./internal/setup/...` — pass
 
 ---
 

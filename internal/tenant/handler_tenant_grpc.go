@@ -357,8 +357,6 @@ func tenantMemberUserProto(user *MemberUser) *authv1.TenantMemberUser {
 		Phone:              user.Phone,
 		IsEmailVerified:    user.IsEmailVerified,
 		IsPhoneVerified:    user.IsPhoneVerified,
-		IsProfileCompleted: user.IsProfileCompleted,
-		IsAccountCompleted: user.IsAccountCompleted,
 		Status:             user.Status,
 		Metadata:           jsonStruct(user.Metadata),
 		CreatedAt:          timestamppb.New(user.CreatedAt),

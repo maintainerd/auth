@@ -120,7 +120,7 @@ func TestProfileHandler_GetAll(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockProfileService{
-			getAllFn: func(u uuid.UUID, fn, ln, em *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
+			getAllFn: func(u uuid.UUID, fn, ln, em *string, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -219,33 +219,6 @@ func TestProfileHandler_DeleteByUUID(t *testing.T) {
 	})
 }
 
-func TestProfileHandler_SetDefaultProfile(t *testing.T) {
-	profUUID := uuid.New()
-
-	t.Run("success", func(t *testing.T) {
-		svc := &mockProfileService{
-			setDefaultFn: func(pUUID, uUUID uuid.UUID) (*ProfileServiceDataResult, error) {
-				return &ProfileServiceDataResult{ProfileUUID: pUUID}, nil
-			},
-		}
-		r := jsonReq(t, http.MethodPost, "/", nil)
-		r = withTenantAndUser(r)
-		r = withChiParam(r, "profile_uuid", profUUID.String())
-		w := httptest.NewRecorder()
-		NewProfileHandler(svc).SetDefaultProfile(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-
-	t.Run("invalid uuid returns 400", func(t *testing.T) {
-		r := jsonReq(t, http.MethodPost, "/", nil)
-		r = withTenantAndUser(r)
-		r = withChiParam(r, "profile_uuid", "bad")
-		w := httptest.NewRecorder()
-		NewProfileHandler(&mockProfileService{}).SetDefaultProfile(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-}
-
 func TestProfileHandler_AdminGetAllProfiles(t *testing.T) {
 	userUUID := uuid.New()
 
@@ -336,25 +309,6 @@ func TestProfileHandler_AdminDeleteProfile(t *testing.T) {
 		r = withChiParam(r, "profile_uuid", profUUID.String())
 		w := httptest.NewRecorder()
 		NewProfileHandler(svc).AdminDeleteProfile(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-}
-
-func TestProfileHandler_AdminSetDefaultProfile(t *testing.T) {
-	userUUID := uuid.New()
-	profUUID := uuid.New()
-
-	t.Run("success", func(t *testing.T) {
-		svc := &mockProfileService{
-			setDefaultFn: func(pUUID, uUUID uuid.UUID) (*ProfileServiceDataResult, error) {
-				return &ProfileServiceDataResult{ProfileUUID: pUUID}, nil
-			},
-		}
-		r := jsonReq(t, http.MethodPost, "/", nil)
-		r = withChiParam(r, "user_uuid", userUUID.String())
-		r = withChiParam(r, "profile_uuid", profUUID.String())
-		w := httptest.NewRecorder()
-		NewProfileHandler(svc).AdminSetDefaultProfile(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
@@ -503,7 +457,7 @@ func TestProfileHandler_GetAll_ValidationError(t *testing.T) {
 
 func TestProfileHandler_GetAll_IsDefaultTrue(t *testing.T) {
 	svc := &mockProfileService{
-		getAllFn: func(u uuid.UUID, fn, ln, em *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
+		getAllFn: func(u uuid.UUID, fn, ln, em *string, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
 			return &ProfileServiceListResult{
 				Data: []ProfileServiceDataResult{{FirstName: "Alice"}},
 			}, nil
@@ -601,23 +555,6 @@ func TestProfileHandler_DeleteByUUID_ServiceError(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-// ── SetDefaultProfile ─────────────────────────────────────────────────────────
-
-func TestProfileHandler_SetDefaultProfile_ServiceError(t *testing.T) {
-	profUUID := uuid.New()
-	svc := &mockProfileService{
-		setDefaultFn: func(pUUID, uUUID uuid.UUID) (*ProfileServiceDataResult, error) {
-			return nil, errValidation
-		},
-	}
-	r := jsonReq(t, http.MethodPost, "/", nil)
-	r = withTenantAndUser(r)
-	r = withChiParam(r, "profile_uuid", profUUID.String())
-	w := httptest.NewRecorder()
-	NewProfileHandler(svc).SetDefaultProfile(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
 // ── AdminGetAllProfiles ───────────────────────────────────────────────────────
 
 func TestProfileHandler_AdminGetAllProfiles_ValidationError(t *testing.T) {
@@ -632,7 +569,7 @@ func TestProfileHandler_AdminGetAllProfiles_ValidationError(t *testing.T) {
 func TestProfileHandler_AdminGetAllProfiles_ServiceError(t *testing.T) {
 	userUUID := uuid.New()
 	svc := &mockProfileService{
-		getAllFn: func(u uuid.UUID, fn, ln, em *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
+		getAllFn: func(u uuid.UUID, fn, ln, em *string, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -646,7 +583,7 @@ func TestProfileHandler_AdminGetAllProfiles_ServiceError(t *testing.T) {
 func TestProfileHandler_AdminGetAllProfiles_IsDefaultTrue(t *testing.T) {
 	userUUID := uuid.New()
 	svc := &mockProfileService{
-		getAllFn: func(u uuid.UUID, fn, ln, em *string, isD *bool, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
+		getAllFn: func(u uuid.UUID, fn, ln, em *string, pg, lim int, sb, so string) (*ProfileServiceListResult, error) {
 			return &ProfileServiceListResult{
 				Data: []ProfileServiceDataResult{{FirstName: "Alice"}},
 			}, nil
@@ -869,41 +806,5 @@ func TestProfileHandler_AdminDeleteProfile_ServiceError(t *testing.T) {
 	r = withChiParam(r, "profile_uuid", profUUID.String())
 	w := httptest.NewRecorder()
 	NewProfileHandler(svc).AdminDeleteProfile(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// ── AdminSetDefaultProfile ────────────────────────────────────────────────────
-
-func TestProfileHandler_AdminSetDefaultProfile_InvalidUserUUID(t *testing.T) {
-	r := jsonReq(t, http.MethodPost, "/", nil)
-	r = withChiParam(r, "user_uuid", "bad")
-	w := httptest.NewRecorder()
-	NewProfileHandler(&mockProfileService{}).AdminSetDefaultProfile(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestProfileHandler_AdminSetDefaultProfile_InvalidProfileUUID(t *testing.T) {
-	userUUID := uuid.New()
-	r := jsonReq(t, http.MethodPost, "/", nil)
-	r = withChiParam(r, "user_uuid", userUUID.String())
-	r = withChiParam(r, "profile_uuid", "bad")
-	w := httptest.NewRecorder()
-	NewProfileHandler(&mockProfileService{}).AdminSetDefaultProfile(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestProfileHandler_AdminSetDefaultProfile_ServiceError(t *testing.T) {
-	userUUID := uuid.New()
-	profUUID := uuid.New()
-	svc := &mockProfileService{
-		setDefaultFn: func(pUUID, uUUID uuid.UUID) (*ProfileServiceDataResult, error) {
-			return nil, errValidation
-		},
-	}
-	r := jsonReq(t, http.MethodPost, "/", nil)
-	r = withChiParam(r, "user_uuid", userUUID.String())
-	r = withChiParam(r, "profile_uuid", profUUID.String())
-	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminSetDefaultProfile(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

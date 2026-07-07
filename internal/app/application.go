@@ -83,5 +83,8 @@ func (a *App) ServerApplication() *server.Application {
 		AccountLinkService:                a.AccountLinkService,
 		OAuthDPoPNonceRepo:                a.OAuthDPoPNonceRepo,
 		DPoPRequirementResolver:           a.DPoPRequirementResolver,
+		SCIMConfigurationService:          a.SCIMConfigurationService,
+		SCIMUserService:                   a.SCIMUserService,
+		SCIMConfigurationRepo:             a.SCIMConfigurationRepo,
 	}
 }

@@ -83,7 +83,6 @@ func TestProfileRepository_FindDefaultByUserID(t *testing.T) {
 		result, err := repo.FindDefaultByUserID(42)
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		assert.True(t, result.IsDefault)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -233,25 +232,6 @@ func TestProfileRepository_FindAllByUserID(t *testing.T) {
 
 		result, err := repo.FindAllByUserID(ProfileRepositoryGetFilter{
 			UserID: 42, Phone: &p, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), result.Total)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("with is default filter", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewProfileRepository(db)
-		d := true
-
-		mock.ExpectQuery(`SELECT count\(\*\) FROM "profiles" WHERE .+is_default = \$[0-9]+`).
-			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-		mock.ExpectQuery(`SELECT \* FROM "profiles" WHERE .+is_default = \$[0-9]+`).
-			WillReturnRows(sqlmock.NewRows([]string{"profile_id", "profile_uuid", "user_id"}).
-				AddRow(1, testResourceUUID, 42))
-
-		result, err := repo.FindAllByUserID(ProfileRepositoryGetFilter{
-			UserID: 42, IsDefault: &d, Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), result.Total)
