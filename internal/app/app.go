@@ -17,7 +17,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
-	"github.com/maintainerd/maintainerd-auth/internal/scim"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/setup"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
@@ -105,9 +104,6 @@ type App struct {
 	AccountLinkService                authn.AccountLinkRequestService
 	OAuthDPoPNonceRepo                oauth.OAuthDPoPNonceRepository
 	DPoPRequirementResolver           oauth.DPoPRequirementResolver
-	SCIMConfigurationService          scim.SCIMConfigurationService
-	SCIMUserService                   scim.SCIMUserService
-	SCIMConfigurationRepo             scim.SCIMConfigurationRepository
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -200,8 +196,5 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		AccountLinkService:                s.accountLinkService,
 		OAuthDPoPNonceRepo:                r.oauthDPoPNonceRepo,
 		DPoPRequirementResolver:           newOAuthDPoPRequirementResolver(db),
-		SCIMConfigurationService:          s.scimConfigService,
-		SCIMUserService:                   s.scimUserService,
-		SCIMConfigurationRepo:             r.scimConfigRepo,
 	}, nil
 }

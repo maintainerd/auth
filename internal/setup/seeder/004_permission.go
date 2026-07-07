@@ -211,6 +211,11 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("client:api:permission:create", "Add permissions to auth client API", tenantID, apiID),
 		newPermission("client:api:permission:delete", "Remove permissions from auth client API", tenantID, apiID),
 
+		// Auth Client Role Assignments
+		newPermission("client:role:read", "Read roles assigned to a client", tenantID, apiID),
+		newPermission("client:role:create", "Assign a role to a client", tenantID, apiID),
+		newPermission("client:role:delete", "Remove a role from a client", tenantID, apiID),
+
 		// User Pools
 
 		// User Administration
@@ -286,6 +291,7 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("workload-identity-federation:update", "Update workload identity federation", tenantID, apiID),
 		newPermission("workload-identity-federation:delete", "Delete workload identity federation", tenantID, apiID),
 
+
 		// OTHER PERMISSIONS
 		// Email
 		newPermission("email:read-config", "View email delivery config", tenantID, apiID),
@@ -323,6 +329,7 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("notification:disable-system-wide", "Mute system-wide notifications (e.g., maintenance window)", tenantID, apiID),
 
 		// Audit Logs & Monitoring
+		newPermission("audit:read", "Read management audit logs", tenantID, apiID),
 		newPermission("audit:read:any", "View audit logs for all users", tenantID, apiID),
 		newPermission("audit:export", "Export logs for compliance", tenantID, apiID),
 		newPermission("system:health-check", "System health metrics", tenantID, apiID),

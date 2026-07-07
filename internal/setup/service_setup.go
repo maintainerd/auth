@@ -353,6 +353,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 			IdentityProviderID: identityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
+			Metadata:           datatypes.JSON([]byte("{}")),
 		}
 		_, err = txUserIdentityRepo.Create(userIdentity)
 		if err != nil {
