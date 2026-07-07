@@ -185,7 +185,9 @@ func (s *scimUserService) CreateUser(ctx context.Context, tenantID int64, req *S
 			}
 		}
 		dn = req.DisplayName
-		s.profileSvc.CreateOrUpdateProfile(ctx, u.UserUUID, firstName, middleName, lastName, dn, nil, nil, nil, nil, nil, nil, nil)
+		if _, err := s.profileSvc.CreateOrUpdateProfile(ctx, u.UserUUID, firstName, middleName, lastName, dn, nil, nil, nil, nil, nil, nil, nil); err != nil {
+			span.RecordError(err)
+		}
 	}
 
 	return s.GetUser(ctx, u.UserUUID.String(), tenantID)
@@ -228,7 +230,7 @@ func (s *scimUserService) UpdateUser(ctx context.Context, userID string, tenantI
 	}
 
 	phone := &existing.Phone
-	if req.PhoneNumbers != nil && len(req.PhoneNumbers) > 0 {
+	if len(req.PhoneNumbers) > 0 {
 		phone = &req.PhoneNumbers[0].Value
 	}
 
@@ -259,7 +261,9 @@ func (s *scimUserService) UpdateUser(ctx context.Context, userID string, tenantI
 			}
 		}
 		dn = req.DisplayName
-		s.profileSvc.CreateOrUpdateProfile(ctx, userUUID, firstName, middleName, lastName, dn, nil, nil, nil, nil, nil, nil, nil)
+		if _, err := s.profileSvc.CreateOrUpdateProfile(ctx, userUUID, firstName, middleName, lastName, dn, nil, nil, nil, nil, nil, nil, nil); err != nil {
+			span.RecordError(err)
+		}
 	}
 
 	return s.GetUser(ctx, u.UserUUID.String(), tenantID)

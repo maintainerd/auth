@@ -29,7 +29,7 @@ func (r *clientPermissionResolver) ResolvePermissions(ctx context.Context, clien
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
@@ -49,7 +49,7 @@ func (r *clientPermissionResolver) ResolvePermissions(ctx context.Context, clien
 	if err != nil {
 		return nil, err
 	}
-	defer roleRows.Close()
+	defer func() { _ = roleRows.Close() }()
 	seen := make(map[string]struct{}, len(names))
 	for _, n := range names {
 		seen[n] = struct{}{}

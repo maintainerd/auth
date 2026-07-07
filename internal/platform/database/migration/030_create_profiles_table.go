@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     -- Media & Assets (auth-centric)
     profile_url     VARCHAR(2048),
     -- Extended data
-    metadata        JSONB DEFAULT '{}',
+    metadata        JSONB NOT NULL DEFAULT '{}',
     -- Audit
     created_by      BIGINT,
     updated_by      BIGINT,
@@ -79,8 +79,7 @@ END$$;
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_profiles_uuid ON profiles (profile_uuid);
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles (user_id);
-CREATE INDEX IF NOT EXISTS idx_profiles_first_name ON profiles (first_name);
-CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles (last_name);
+CREATE INDEX IF NOT EXISTS idx_profiles_first_last_name ON profiles (first_name, last_name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_profiles_display_name ON profiles (display_name);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at);
 CREATE INDEX IF NOT EXISTS idx_profiles_deleted_at ON profiles (deleted_at) WHERE deleted_at IS NULL;

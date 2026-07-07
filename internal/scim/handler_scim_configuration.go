@@ -171,17 +171,7 @@ func (h *SCIMConfigurationHandler) Update(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result, err := h.svc.Update(r.Context(), scimUUID, tenantID, SCIMConfigurationUpdateInput{
-		IdentityProviderID: req.IdentityProviderID,
-		DisplayName:        req.DisplayName,
-		BaseURL:            req.BaseURL,
-		BearerToken:        req.BearerToken,
-		SyncUsers:          req.SyncUsers,
-		SyncGroups:         req.SyncGroups,
-		SyncDirection:      req.SyncDirection,
-		AttributeMapping:   req.AttributeMapping,
-		IsActive:           req.IsActive,
-	})
+	result, err := h.svc.Update(r.Context(), scimUUID, tenantID, SCIMConfigurationUpdateInput(req))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update SCIM configuration", err)
 		return

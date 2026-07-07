@@ -70,6 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_expires_at   ON oauth_au
 CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_deleted_at   ON oauth_authorize_requests (deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_registration_flow_id
     ON oauth_authorize_requests (registration_flow_id) WHERE registration_flow_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_oauth_authorize_requests_scope ON oauth_authorize_requests USING GIN (scope) WHERE scope IS NOT NULL;
 `
 	return db.Exec(sql).Error
 }

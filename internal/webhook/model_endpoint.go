@@ -20,10 +20,10 @@ type WebhookEndpoint struct {
 	SubscribeAll        bool           `gorm:"column:subscribe_all;not null;default:false" json:"subscribe_all"`
 	MaxRetries          int            `gorm:"column:max_retries;not null;default:3" json:"max_retries"`
 	TimeoutSeconds      int            `gorm:"column:timeout_seconds;not null;default:30" json:"timeout_seconds"`
+	Description         string         `gorm:"column:description;type:text" json:"description"`
+	Metadata            datatypes.JSON `gorm:"column:metadata;type:jsonb;not null;default:'{}'" json:"metadata"`
 	Status              string         `gorm:"column:status;type:varchar(20);not null;default:'active'" json:"status"`
 	ConsecutiveFailures int            `gorm:"column:consecutive_failures;not null;default:0" json:"consecutive_failures"`
-	Description         string         `gorm:"column:description;type:text" json:"description"`
-	Metadata            datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'" json:"metadata"`
 	LastTriggeredAt     *time.Time     `gorm:"column:last_triggered_at" json:"last_triggered_at"`
 	CreatedBy           *int64         `gorm:"column:created_by" json:"created_by,omitempty"`
 	UpdatedBy           *int64         `gorm:"column:updated_by" json:"updated_by,omitempty"`

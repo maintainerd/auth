@@ -7,15 +7,20 @@ import (
 	"net/url"
 )
 
+// ipLookup abstracts DNS resolution so tests can inject a stub.
+type ipLookup interface {
+	LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error)
+}
+
 // ValidateDeliveryURL validates a webhook destination URL at delivery time:
 // it resolves DNS and rejects loopback/private/link-local/metadata addresses.
 // Use this on every outbound request (and on each redirect hop) to close the
 // DNS-rebinding / TOCTOU SSRF window left by registration-time validation.
 func ValidateDeliveryURL(ctx context.Context, raw string) error {
-	return validateWebhookURL(ctx, raw, true)
+	return validateWebhookURL(ctx, raw, true, net.DefaultResolver)
 }
 
-func validateWebhookURL(ctx context.Context, raw string, resolve bool) error {
+func validateWebhookURL(ctx context.Context, raw string, resolve bool, resolver ipLookup) error {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return fmt.Errorf("webhook URL must be valid")
@@ -38,7 +43,7 @@ func validateWebhookURL(ctx context.Context, raw string, resolve bool) error {
 		return nil
 	}
 
-	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	addrs, err := resolver.LookupIPAddr(ctx, host)
 	if err != nil {
 		return fmt.Errorf("resolve webhook URL host: %w", err)
 	}

@@ -222,28 +222,3 @@ func newSCIMError(status int, detail, scimType string) SCIMError {
 	}
 }
 
-// ---- DTO conversion helpers ----
-
-func toSCIMConfigurationResponseDTO(cfg *SCIMConfiguration) SCIMConfigurationResponseDTO {
-	dto := SCIMConfigurationResponseDTO{
-		SCIMConfigurationUUID: cfg.SCIMConfigurationUUID.String(),
-		TenantID:              cfg.TenantID,
-		IdentityProviderID:    cfg.IdentityProviderID,
-		DisplayName:           cfg.DisplayName,
-		BaseURL:               cfg.BaseURL,
-		SyncUsers:             cfg.SyncUsers,
-		SyncGroups:            cfg.SyncGroups,
-		SyncDirection:         cfg.SyncDirection,
-		AttributeMapping:      []byte(cfg.AttributeMapping),
-		IsActive:              cfg.IsActive,
-		CreatedAt:             cfg.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:             cfg.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-	}
-	if cfg.LastSyncAt != nil {
-		s := cfg.LastSyncAt.Format("2006-01-02T15:04:05Z07:00")
-		dto.LastSyncAt = &s
-	}
-	dto.LastSyncStatus = cfg.LastSyncStatus
-	dto.LastSyncError = cfg.LastSyncError
-	return dto
-}

@@ -30,8 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_services_tenant_id ON services (tenant_id);
 -- Services are tenant-scoped: name is unique per tenant, not globally.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_services_tenant_name ON services (tenant_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_services_display_name ON services (display_name);
-CREATE INDEX IF NOT EXISTS idx_services_status ON services (status);
-CREATE INDEX IF NOT EXISTS idx_services_is_system ON services (is_system);
+CREATE INDEX IF NOT EXISTS idx_services_tenant_status ON services (tenant_id, status) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_services_created_at ON services (created_at);
 CREATE INDEX IF NOT EXISTS idx_services_deleted_at ON services (deleted_at) WHERE deleted_at IS NULL;
 

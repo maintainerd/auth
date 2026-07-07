@@ -939,7 +939,7 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 //     PII) and are immutable (BEFORE UPDATE triggers raise). They are left as-is;
 //     the referenced user row is already scrubbed, so no PII is reachable.
 func (s *userService) AnonymizeUser(ctx context.Context, userID int64) error {
-	ctx, span := otel.Tracer("service").Start(ctx, "user.anonymize")
+	_, span := otel.Tracer("service").Start(ctx, "user.anonymize")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
 

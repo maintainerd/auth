@@ -7,6 +7,7 @@ func CreateIdentityProviderEmailDomainsTable(db *gorm.DB) error {
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS identity_provider_email_domains (
     identity_provider_email_domain_id BIGSERIAL PRIMARY KEY,
+    identity_provider_email_domain_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     tenant_id            BIGINT NOT NULL,
     identity_provider_id BIGINT NOT NULL,
     domain               VARCHAR(255) NOT NULL,
@@ -35,6 +36,8 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
+CREATE INDEX IF NOT EXISTS idx_idp_email_domains_uuid
+    ON identity_provider_email_domains (identity_provider_email_domain_uuid);
 -- one domain maps to exactly one IdP per tenant (home-realm discovery integrity)
 CREATE UNIQUE INDEX IF NOT EXISTS uq_idp_email_domain
     ON identity_provider_email_domains (tenant_id, domain) WHERE deleted_at IS NULL;

@@ -24,7 +24,7 @@ func TestWebhookURLRule(t *testing.T) {
 	})
 
 	t.Run("valid url", func(t *testing.T) {
-		require.NoError(t, validateWebhookURL(context.Background(), "https://example.com/hook", false))
+		require.NoError(t, validateWebhookURL(context.Background(), "https://example.com/hook", false, nil))
 	})
 }
 

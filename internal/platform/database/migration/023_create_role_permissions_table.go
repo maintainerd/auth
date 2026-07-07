@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
     role_permission_uuid    UUID NOT NULL UNIQUE,
     role_id                 BIGINT NOT NULL,
     permission_id           BIGINT NOT NULL,
-    created_at              TIMESTAMPTZ DEFAULT now()
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

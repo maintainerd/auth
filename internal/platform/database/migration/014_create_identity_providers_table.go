@@ -74,11 +74,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_identifier ON identity_p
 CREATE INDEX IF NOT EXISTS idx_identity_providers_issuer ON identity_providers (issuer) WHERE issuer IS NOT NULL AND deleted_at IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_issuer ON identity_providers (issuer) WHERE issuer IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_identity_providers_status ON identity_providers (status);
-CREATE INDEX IF NOT EXISTS idx_identity_providers_is_default ON identity_providers (is_default);
-CREATE INDEX IF NOT EXISTS idx_identity_providers_is_system ON identity_providers (is_system);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_tenant_id ON identity_providers (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_created_at ON identity_providers (created_at);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_deleted_at ON identity_providers (deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_identity_providers_tenant_provider ON identity_providers (tenant_id, provider, provider_type) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_identity_providers_cert_expires ON identity_providers (certificate_expires_at)
     WHERE certificate_expires_at IS NOT NULL AND deleted_at IS NULL;
 `

@@ -2014,20 +2014,20 @@ CREATE INDEX IF NOT EXISTS idx_scim_configurations_identity_provider
 Every entity table that may be referenced externally must expose a UUID instead of its integer PK. The following tables are missing UUID columns entirely.
 
 **File: `058_create_webhook_endpoint_events_table.go`**
-- [ ] Add `webhook_endpoint_event_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()` as the second column (after the PK)
-- [ ] Add index: `CREATE INDEX IF NOT EXISTS idx_webhook_endpoint_events_uuid ON webhook_endpoint_events (webhook_endpoint_event_uuid);`
+- [x] Add `webhook_endpoint_event_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()` as the second column (after the PK)
+- [x] Add index: `CREATE INDEX IF NOT EXISTS idx_webhook_endpoint_events_uuid ON webhook_endpoint_events (webhook_endpoint_event_uuid);`
 
 **File: `065_create_identity_provider_email_domains_table.go`**
-- [ ] Add `identity_provider_email_domain_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()` as the second column
-- [ ] Add index: `CREATE INDEX IF NOT EXISTS idx_idp_email_domains_uuid ON identity_provider_email_domains (identity_provider_email_domain_uuid);`
+- [x] Add `identity_provider_email_domain_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()` as the second column
+- [x] Add index: `CREATE INDEX IF NOT EXISTS idx_idp_email_domains_uuid ON identity_provider_email_domains (identity_provider_email_domain_uuid);`
 
 **File: `066_create_identity_provider_allowed_audiences_table.go`**
-- [ ] Add `identity_provider_allowed_audience_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()` as the second column
-- [ ] Add index: `CREATE INDEX IF NOT EXISTS idx_idp_allowed_audiences_uuid ON identity_provider_allowed_audiences (identity_provider_allowed_audience_uuid);`
+- [x] Add `identity_provider_allowed_audience_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()` as the second column
+- [x] Add index: `CREATE INDEX IF NOT EXISTS idx_idp_allowed_audiences_uuid ON identity_provider_allowed_audiences (identity_provider_allowed_audience_uuid);`
 
-- [ ] Update GORM models for each table to include the UUID field
-- [ ] Any API endpoint that returns these entities must return the UUID, never the integer PK
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Update GORM models for each table to include the UUID field — added `WebhookEndpointEventUUID` (`webhook/model_endpoint_event.go`), `IdentityProviderEmailDomainUUID` + `IdentityProviderAllowedAudienceUUID` (`idp/model_provider.go`); each with a `BeforeCreate` hook that generates `uuid.New()` when nil (matches the `IdentityProvider` pattern) so bulk `ReplaceForProvider`/`BulkCreate` inserts populate the column Go-side alongside the DB `gen_random_uuid()` default
+- [x] Any API endpoint that returns these entities must return the UUID, never the integer PK — **no change required**: all three are junction/child tables never serialized with their integer PK. Webhook subscriptions expose only `event_type_uuid`/`event_type_key` DTOs (`handler_subscription.go`); email domains and allowed audiences are returned as `[]string` (`idp/types.go`). The new UUID is an internal external-reference handle.
+- [x] Run `go build ./...` and `go test ./...` — all green (`go vet` clean; touched + app-level packages pass)
 
 ---
 
@@ -2037,9 +2037,9 @@ Every entity table that may be referenced externally must expose a UUID instead 
 
 **Why:** `is_backup_state` is grammatically incoherent ("is the backup state" — what?). The WebAuthn Level 3 spec describes this as "backup state" meaning "is the credential currently backed up." The correct column name is `is_backup_active`.
 
-- [ ] Rename `is_backup_state BOOLEAN NOT NULL DEFAULT FALSE` → `is_backup_active BOOLEAN NOT NULL DEFAULT FALSE`
-- [ ] Search for all Go code referencing `is_backup_state` or `IsBackupState`: `grep -r "is_backup_state\|IsBackupState" internal/ --include="*.go"` — rename to `is_backup_active`/`IsBackupActive`
-- [ ] Run `go build ./...` and `go test ./internal/mfa/...`
+- [x] Rename `is_backup_state BOOLEAN NOT NULL DEFAULT FALSE` → `is_backup_active BOOLEAN NOT NULL DEFAULT FALSE`
+- [x] Search for all Go code referencing `is_backup_state` or `IsBackupState`: `grep -r "is_backup_state\|IsBackupState" internal/ --include="*.go"` — rename to `is_backup_active`/`IsBackupActive` — renamed the model field (`mfa/model_mfa_webauthn_credential.go`), the download DTO field + JSON key (`mfa/types.go` `is_backup_state`→`is_backup_active`), the mock column list (`mfa/mock_test.go`), and all three `service_webauthn.go` sites. **The go-webauthn library's own `webauthn.CredentialFlags.BackupState` / `cred.Flags.BackupState` are left untouched** — only our field/column is renamed; the library value is still read into `IsBackupActive`.
+- [x] Run `go build ./...` and `go test ./internal/mfa/...` — pass (full `go test ./...` + `go vet` also green)
 
 ---
 
@@ -2048,15 +2048,15 @@ Every entity table that may be referenced externally must expose a UUID instead 
 **Why:** `user_mfa_backup_codes.used` and `user_otps.used` use the unprefixed form. `oauth_authorization_codes.is_used` and `oauth_par_requests.is_used` use the `is_` prefix. Pick one: `used` (matches the Go `time.Time` field naming convention of past-tense for state, and matches the established pattern in 2 existing tables).
 
 **File: `049_create_oauth_authorization_codes_table.go`**
-- [ ] Rename `is_used BOOLEAN NOT NULL DEFAULT FALSE` → `used BOOLEAN NOT NULL DEFAULT FALSE`
-- [ ] Rename `used_at TIMESTAMPTZ` stays as-is (fine)
-- [ ] Search: `grep -r "is_used\|IsUsed" internal/ --include="*.go"` — update all references in OAuth code
+- [x] Rename `is_used BOOLEAN NOT NULL DEFAULT FALSE` → `used BOOLEAN NOT NULL DEFAULT FALSE`
+- [x] Rename `used_at TIMESTAMPTZ` stays as-is (fine)
+- [x] Search: `grep -r "is_used\|IsUsed" internal/ --include="*.go"` — update all references in OAuth code — model field `OAuthAuthorizationCode.IsUsed`→`Used` (`model_auth_code.go`), `service_token.go` replay guard, `repository_auth_code.go` `MarkUsed` update map key, and `repository_oauth_test.go` + `service_token_test.go`
 
 **File: `053_create_oauth_par_requests_table.go`**
-- [ ] Rename `is_used BOOLEAN NOT NULL DEFAULT false` → `used BOOLEAN NOT NULL DEFAULT FALSE`
-- [ ] Update all references
+- [x] Rename `is_used BOOLEAN NOT NULL DEFAULT false` → `used BOOLEAN NOT NULL DEFAULT FALSE`
+- [x] Update all references — model field `OAuthPARRequest.IsUsed`→`Used` (`model_par_request.go`), `repository_par_request.go` `FindByRequestURIHash` WHERE clause + `MarkUsed` update, and `repository_oauth_test.go` mock column list
 
-- [ ] Run `go build ./...` and `go test ./internal/oauth/...`
+- [x] Run `go build ./...` and `go test ./internal/oauth/...` — pass (full `go test ./...` + `go vet` also green)
 
 ---
 
@@ -2066,21 +2066,21 @@ Every entity table that may be referenced externally must expose a UUID instead 
 
 **Why:** `CHECK (role IN ('owner', 'member'))` has no middle tier. Enterprise tenants with multiple admins (who can manage users but cannot transfer ownership) have no valid role. `admin` is the standard middle tier in every major IAM (Okta, Auth0 Organizations, Firebase).
 
-- [ ] Change CHECK constraint:
+- [x] Change CHECK constraint:
   ```sql
   -- OLD:
   CHECK (role IN ('owner', 'member'))
   -- NEW:
   CHECK (role IN ('owner', 'admin', 'member'))
   ```
-- [ ] Update the unique index that enforces one owner:
+- [x] Update the unique index that enforces one owner:
   ```sql
   -- Keep as-is: already scoped to role = 'owner'
   CREATE UNIQUE INDEX IF NOT EXISTS uq_tenant_members_one_owner
       ON tenant_members (tenant_id) WHERE role = 'owner' AND deleted_at IS NULL;
   ```
-- [ ] Search for all Go code that hardcodes the role enum: `grep -r "\"owner\"\|\"member\"\|TenantRole\|MemberRole" internal/ --include="*.go"` — add the `admin` case to all switches and validation functions
-- [ ] Run `go build ./...` and `go test ./internal/tenant/...`
+- [x] Search for all Go code that hardcodes the role enum: `grep -r "\"owner\"\|\"member\"\|TenantRole\|MemberRole" internal/ --include="*.go"` — add the `admin` case to all switches and validation functions — added `shared.TenantRoleAdmin = "admin"` constant; added `admin` to all three `validation.In(...)` rules in `tenant/validation_member.go` (Add/UpdateRole/Filter DTOs) + error messages. **No service switch needed**: `service_member.go` only special-cases `owner` (one-owner invariant + ownership transfer + super-admin grant); `admin` flows through as a non-owner role exactly like `member`. Updated tests that used `admin` as the invalid-role example to use `superuser` and added positive `admin` cases (`validation_tenant_test.go`, `handler_tenant_grpc_test.go`).
+- [x] Run `go build ./...` and `go test ./internal/tenant/...` — pass (full `go test ./...` + `go vet` also green)
 
 ---
 
@@ -2089,19 +2089,19 @@ Every entity table that may be referenced externally must expose a UUID instead 
 **Why:** `fk_wee_webhook_endpoint_id` (`wee` = unexplained abbreviation), `fk_outbox_tenant_id`, `fk_delivery_webhook_endpoint_id` — all deviate from the `fk_{table}_{column}` standard used everywhere else. These make it harder to find constraints in `pg_constraint` or read `psql \d output`.
 
 **File: `058_create_webhook_endpoint_events_table.go`**
-- [ ] Rename `fk_wee_webhook_endpoint_id` → `fk_webhook_endpoint_events_webhook_endpoint_id`
-- [ ] Rename `fk_wee_event_type_id` → `fk_webhook_endpoint_events_event_type_id`
-- [ ] Rename index aliases `idx_wee_*` → `idx_webhook_endpoint_events_*`
+- [x] Rename `fk_wee_webhook_endpoint_id` → `fk_webhook_endpoint_events_webhook_endpoint_id`
+- [x] Rename `fk_wee_event_type_id` → `fk_webhook_endpoint_events_event_type_id`
+- [x] Rename index aliases `idx_wee_*` → `idx_webhook_endpoint_events_*`
 
 **File: `061_create_integration_event_outbox_table.go`**
-- [ ] Rename `fk_outbox_tenant_id` → `fk_integration_event_outbox_tenant_id`
+- [x] Rename `fk_outbox_tenant_id` → `fk_integration_event_outbox_tenant_id` (per plan scope, only the FK; `uq_outbox_event_id` / `idx_outbox_*` left as-is — not listed here)
 
 **File: `062_create_webhook_delivery_history_table.go`**
-- [ ] Rename `fk_delivery_webhook_endpoint_id` → `fk_webhook_delivery_history_webhook_endpoint_id`
-- [ ] Rename `chk_delivery_final_status` → `chk_webhook_delivery_history_final_status`
-- [ ] Rename index aliases `idx_delivery_*` → `idx_webhook_delivery_history_*`
+- [x] Rename `fk_delivery_webhook_endpoint_id` → `fk_webhook_delivery_history_webhook_endpoint_id`
+- [x] Rename `chk_delivery_final_status` → `chk_webhook_delivery_history_final_status`
+- [x] Rename index aliases `idx_delivery_*` → `idx_webhook_delivery_history_*` (all 6: uuid, webhook_endpoint_id, event_id, tenant_id, next_retry, created_at)
 
-- [ ] Run `go build ./...` and `go test ./...`
+- [x] Run `go build ./...` and `go test ./...` — pass; constraint/index names are DDL-only (grep confirmed zero references in Go code), so no application changes were needed
 
 ---
 
@@ -2113,7 +2113,7 @@ Every entity table that may be referenced externally must expose a UUID instead 
 
 Current violation: `consecutive_failures` and `last_triggered_at` appear BEFORE `description` and `metadata`.
 
-- [ ] Reorder columns in the `CREATE TABLE` block to:
+- [x] Reorder columns in the `CREATE TABLE` block to:
   ```sql
   webhook_endpoint_id     BIGSERIAL PRIMARY KEY,
   webhook_endpoint_uuid   UUID NOT NULL UNIQUE,
@@ -2134,9 +2134,9 @@ Current violation: `consecutive_failures` and `last_triggered_at` appear BEFORE 
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at              TIMESTAMPTZ
   ```
-- [ ] Update GORM WebhookEndpoint model field order to match (cosmetic but keeps model readable)
-- [ ] Also add `NOT NULL DEFAULT '{}'` to metadata (caught from Phase 1.5)
-- [ ] Run `go build ./...` and `go test ./internal/webhook/...`
+- [x] Update GORM WebhookEndpoint model field order to match (cosmetic but keeps model readable) — reordered `webhook/model_endpoint.go` so `Description`/`Metadata` precede `Status`/`ConsecutiveFailures`/`LastTriggeredAt`
+- [x] Also add `NOT NULL DEFAULT '{}'` to metadata (caught from Phase 1.5) — added `NOT NULL` in both the migration and the model gorm tag (`not null;default:'{}'`)
+- [x] Run `go build ./...` and `go test ./internal/webhook/...` — pass (full `go test ./...` + `go vet` also green)
 
 ---
 
@@ -2146,7 +2146,7 @@ Current violation: `consecutive_failures` and `last_triggered_at` appear BEFORE 
 
 Current violation: `is_system` and `is_active` appear immediately after `name`, before all business columns.
 
-- [ ] Reorder columns:
+- [x] Reorder columns:
   ```sql
   branding_id          BIGSERIAL PRIMARY KEY,
   branding_uuid        UUID NOT NULL UNIQUE,
@@ -2170,9 +2170,9 @@ Current violation: `is_system` and `is_active` appear immediately after `name`, 
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at           TIMESTAMPTZ
   ```
-- [ ] Note: this also applies the VARCHAR(2048) fixes for all URL columns from Phase 2.4
-- [ ] Update GORM Branding model to match
-- [ ] Run `go build ./...` and `go test ./internal/branding/...`
+- [x] Note: this also applies the VARCHAR(2048) fixes for all URL columns from Phase 2.4
+- [x] Update GORM Branding model to match — migration was already in target order (URLs already `VARCHAR(2048)`, metadata already `NOT NULL`, `is_system`/`is_active` already at the tail); the model matched too. Aligned the model's `Metadata` gorm tag to `not null;default:'{}'` for model↔schema consistency (mirrors the 4.6 webhook fix).
+- [x] Run `go build ./...` and `go test ./internal/branding/...` — pass
 
 ---
 
@@ -2182,7 +2182,7 @@ Current violation: `is_system` and `is_active` appear immediately after `name`, 
 
 Current violation: `client_id BIGINT NOT NULL` appears after `status` and boolean flags, not in the FK cluster near `tenant_id`.
 
-- [ ] Move `client_id BIGINT NOT NULL` to immediately after `tenant_id` in the column list:
+- [x] Move `client_id BIGINT NOT NULL` to immediately after `tenant_id` in the column list:
   ```sql
   registration_flow_id   BIGSERIAL PRIMARY KEY,
   registration_flow_uuid UUID NOT NULL UNIQUE,
@@ -2201,8 +2201,8 @@ Current violation: `client_id BIGINT NOT NULL` appears after `status` and boolea
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at             TIMESTAMPTZ
   ```
-- [ ] Update GORM RegistrationFlow model field order to match
-- [ ] Run `go build ./...` and `go test ./internal/registration/...`
+- [x] Update GORM RegistrationFlow model field order to match — reordered `idp/model_registration_flow.go` (`ClientID` moved into the FK cluster; `required_fields`/`verification_required`/`is_system` ordered per plan); also fixed a stray tab-indent on `identifier` in the migration
+- [x] Run `go build ./...` and `go test ./internal/registration/...` — registration flows live in `internal/idp/`; ran `go test ./internal/idp/...` — pass
 
 ---
 
@@ -2214,7 +2214,7 @@ Current violation: `registration_flow_id BIGINT` appears after `invite_token` (a
 
 Also: clarify the `invited_by_user_id` vs `created_by` semantic: `invited_by_user_id` is the displayed human inviter (may be a human user). `created_by` is the system actor (may be an API key or service account). Document this clearly in a SQL comment.
 
-- [ ] Reorder columns:
+- [x] Reorder columns:
   ```sql
   invite_id             BIGSERIAL PRIMARY KEY,
   invite_uuid           UUID NOT NULL UNIQUE,
@@ -2234,7 +2234,7 @@ Also: clarify the `invited_by_user_id` vs `created_by` semantic: `invited_by_use
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at            TIMESTAMPTZ
   ```
-- [ ] Run `go build ./...` and `go test ./internal/invite/...`
+- [x] Run `go build ./...` and `go test ./internal/invite/...` — pass. Reordered the migration columns (`registration_flow_id` moved into the FK cluster, with SQL comments clarifying `invited_by_user_id` = displayed human inviter vs `created_by` = system actor) and matched the GORM `Invite` model field order (`invite/model_invite.go`).
 
 ---
 
@@ -2247,49 +2247,49 @@ Also: clarify the `invited_by_user_id` vs `created_by` semantic: `invited_by_use
 BOOLEAN columns with two values have ~50% selectivity at best. Single-column BOOLEAN indexes are almost never chosen by the planner; they waste write overhead.
 
 **File: `022_create_roles_table.go`**
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_roles_is_default ON roles (is_default);`
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_roles_is_system ON roles (is_system);`
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_roles_description ON roles (description);` (TEXT description index — poor utility)
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_roles_name ON roles (name);` (redundant with `uq_roles_tenant_name` composite)
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_roles_is_default ON roles (is_default);`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_roles_is_system ON roles (is_system);`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_roles_description ON roles (description);` (TEXT description index — poor utility)
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_roles_name ON roles (name);` (redundant with `uq_roles_tenant_name` composite)
 
 **File: `014_create_identity_providers_table.go`**
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_identity_providers_is_default ON identity_providers (is_default);`
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_identity_providers_is_system ON identity_providers (is_system);`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_identity_providers_is_default ON identity_providers (is_default);`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_identity_providers_is_system ON identity_providers (is_system);`
 
 **File: `046_create_email_templates_table.go`**
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_email_templates_is_default ON email_templates (is_default);`
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_email_templates_is_system ON email_templates (is_system);`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_email_templates_is_default ON email_templates (is_default);`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_email_templates_is_system ON email_templates (is_system);`
 
 **File: `047_create_sms_templates_table.go`**
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_sms_templates_is_default ON sms_templates (is_default);`
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_sms_templates_is_system ON sms_templates (is_system);`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_sms_templates_is_default ON sms_templates (is_default);`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_sms_templates_is_system ON sms_templates (is_system);`
 
 **File: `007_create_services_table.go`**
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_services_is_system ON services (is_system);` (boolean, poor selectivity)
-- [ ] Remove `CREATE INDEX IF NOT EXISTS idx_services_status ON services (status);` (single-column; replace with composite below)
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_services_tenant_status ON services (tenant_id, status) WHERE deleted_at IS NULL;`
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_services_is_system ON services (is_system);` (boolean, poor selectivity)
+- [x] Remove `CREATE INDEX IF NOT EXISTS idx_services_status ON services (status);` (single-column; replace with composite below)
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_services_tenant_status ON services (tenant_id, status) WHERE deleted_at IS NULL;`
 
 ---
 
 ### 5.2 — Add missing composite indexes
 
 **File: `024_create_users_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_users_tenant_status ON users (tenant_id, status) WHERE deleted_at IS NULL;`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_users_tenant_status ON users (tenant_id, status) WHERE deleted_at IS NULL;`
 
 **File: `057_create_webhook_endpoints_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant_status ON webhook_endpoints (tenant_id, status) WHERE deleted_at IS NULL;`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant_status ON webhook_endpoints (tenant_id, status) WHERE deleted_at IS NULL;`
 
 **File: `030_create_profiles_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_profiles_first_last_name ON profiles (first_name, last_name) WHERE deleted_at IS NULL;`
-- [ ] Remove: `CREATE INDEX IF NOT EXISTS idx_profiles_first_name ON profiles (first_name);` (covered by composite)
-- [ ] Remove: `CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles (last_name);` (covered by composite)
-- [ ] Keep: `idx_profiles_display_name` (queried independently for display name searches)
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_profiles_first_last_name ON profiles (first_name, last_name) WHERE deleted_at IS NULL;`
+- [x] Remove: `CREATE INDEX IF NOT EXISTS idx_profiles_first_name ON profiles (first_name);` (covered by composite)
+- [x] Remove: `CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles (last_name);` (covered by composite)
+- [x] Keep: `idx_profiles_display_name` (queried independently for display name searches)
 
 **File: `014_create_identity_providers_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_identity_providers_tenant_provider ON identity_providers (tenant_id, provider, provider_type) WHERE deleted_at IS NULL;`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_identity_providers_tenant_provider ON identity_providers (tenant_id, provider, provider_type) WHERE deleted_at IS NULL;`
 
 **File: `025_create_user_identities_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_user_identities_client_provider ON user_identities (client_id, provider);`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_user_identities_client_provider ON user_identities (client_id, provider);`
 
 ---
 
@@ -2298,25 +2298,25 @@ BOOLEAN columns with two values have ~50% selectivity at best. Single-column BOO
 After Phase 2.1 converts scope columns to TEXT[], add GIN indexes so `= ANY(scopes)` containment checks are fast.
 
 **File: `051_create_oauth_consent_grants_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_consent_grants_scopes ON oauth_consent_grants USING GIN (scopes);`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_consent_grants_scopes ON oauth_consent_grants USING GIN (scopes);`
 
 **File: `049_create_oauth_authorization_codes_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_authorization_codes_scope ON oauth_authorization_codes USING GIN (scope);`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_authorization_codes_scope ON oauth_authorization_codes USING GIN (scope);`
 
 **File: `052_create_oauth_consent_challenges_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_consent_challenges_scope ON oauth_consent_challenges USING GIN (scope);`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_consent_challenges_scope ON oauth_consent_challenges USING GIN (scope);`
 
 **File: `053_create_oauth_par_requests_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_par_requests_scope ON oauth_par_requests USING GIN (scope);`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_par_requests_scope ON oauth_par_requests USING GIN (scope);`
 
 **File: `054_create_oauth_device_codes_table.go`** *(confirm file name)*
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_device_codes_scope ON oauth_device_codes USING GIN (scope);`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_device_codes_scope ON oauth_device_codes USING GIN (scope);`
 
 **File: `055_create_oauth_ciba_requests_table.go`** *(confirm file name)*
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_scope ON oauth_ciba_requests USING GIN (scope);`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_scope ON oauth_ciba_requests USING GIN (scope);`
 
 **File: `064_create_oauth_broker_sessions_table.go`**
-- [ ] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_broker_sessions_app_scope ON oauth_broker_sessions USING GIN (app_scope) WHERE app_scope IS NOT NULL;`
+- [x] Add: `CREATE INDEX IF NOT EXISTS idx_oauth_broker_sessions_app_scope ON oauth_broker_sessions USING GIN (app_scope) WHERE app_scope IS NOT NULL;`
 
 ---
 
@@ -2326,63 +2326,63 @@ Every OAuth flow table stores rows with an `expires_at`. Without scheduled delet
 
 **Decision:** Implement a single `CleanupExpiredRecords` background worker that runs on a configurable interval (default: every 15 minutes). Each DELETE targets a small batch (LIMIT 1000) to avoid long-running table locks. The worker loops until no rows are deleted (catches up), then sleeps until the next interval.
 
-- [ ] Check `internal/oauth/cleanup_runner.go` — if it already exists, extend it rather than creating a new file; otherwise create `internal/platform/cleanup/worker.go` with a `Worker` struct that accepts a `*gorm.DB` and a tick interval
-- [ ] Implement the following DELETE jobs inside the worker, each as a separate method running `DELETE ... WHERE expires_at < now() AND ... LIMIT 1000` in a loop until 0 rows affected:
+- [x] Check `internal/oauth/cleanup_runner.go` — if it already exists, extend it rather than creating a new file; otherwise create `internal/platform/cleanup/worker.go` with a `Worker` struct that accepts a `*gorm.DB` and a tick interval
+- [x] Implement the following DELETE jobs inside the worker, each as a separate method running `DELETE ... WHERE expires_at < now() AND ... LIMIT 1000` in a loop until 0 rows affected:
 
 **`oauth_refresh_tokens`**
-- [ ] `DELETE FROM oauth_refresh_tokens WHERE expires_at < now() LIMIT 1000` — also include revoked tokens past a 30-day grace window: `OR (revoked_at IS NOT NULL AND revoked_at < now() - INTERVAL '30 days')`
+- [x] `DELETE FROM oauth_refresh_tokens WHERE expires_at < now() LIMIT 1000` — also include revoked tokens past a 30-day grace window: `OR (revoked_at IS NOT NULL AND revoked_at < now() - INTERVAL '30 days')`
 
 **`oauth_authorize_requests`**
-- [ ] `DELETE FROM oauth_authorize_requests WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM oauth_authorize_requests WHERE expires_at < now() LIMIT 1000`
 
 **`oauth_authorization_codes`**
-- [ ] `DELETE FROM oauth_authorization_codes WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM oauth_authorization_codes WHERE expires_at < now() LIMIT 1000`
 
 **`oauth_par_requests`**
-- [ ] `DELETE FROM oauth_par_requests WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM oauth_par_requests WHERE expires_at < now() LIMIT 1000`
 
 **`oauth_consent_challenges`**
-- [ ] `DELETE FROM oauth_consent_challenges WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM oauth_consent_challenges WHERE expires_at < now() LIMIT 1000`
 
 **`oauth_device_codes`**
-- [ ] `DELETE FROM oauth_device_codes WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM oauth_device_codes WHERE expires_at < now() LIMIT 1000`
 
 **`oauth_ciba_requests`**
-- [ ] `DELETE FROM oauth_ciba_requests WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM oauth_ciba_requests WHERE expires_at < now() LIMIT 1000`
 
 **`oauth_broker_sessions`**
-- [ ] `DELETE FROM oauth_broker_sessions WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM oauth_broker_sessions WHERE expires_at < now() LIMIT 1000`
 
 **`user_otps`**
-- [ ] `DELETE FROM user_otps WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM user_otps WHERE expires_at < now() LIMIT 1000`
 
 **`user_sessions`** (new table 072)
-- [ ] `DELETE FROM user_sessions WHERE expires_at < now() OR (revoked_at IS NOT NULL AND revoked_at < now() - INTERVAL '30 days') LIMIT 1000`
+- [x] `DELETE FROM user_sessions WHERE expires_at < now() OR (revoked_at IS NOT NULL AND revoked_at < now() - INTERVAL '30 days') LIMIT 1000`
 
 **`user_trusted_devices`** (new table 071)
-- [ ] `DELETE FROM user_trusted_devices WHERE trusted_until < now() AND deleted_at IS NULL LIMIT 1000`
+- [x] `DELETE FROM user_trusted_devices WHERE trusted_until < now() AND deleted_at IS NULL LIMIT 1000`
 
 **`user_lockouts`** (new table 068)
-- [ ] `UPDATE user_lockouts SET failed_count = 0, locked_until = NULL WHERE locked_until < now()` — reset expired lockouts rather than delete (keep the row for failed count history)
+- [x] `UPDATE user_lockouts SET failed_count = 0, locked_until = NULL WHERE locked_until < now()` — reset expired lockouts rather than delete (keep the row for failed count history)
 
 **`webauthn_challenges`** (new table 075)
-- [ ] `DELETE FROM webauthn_challenges WHERE expires_at < now() - INTERVAL '1 hour' LIMIT 1000` — keep a 1-hour grace window for debugging; used challenges are safe to delete immediately but the grace window avoids clock-skew issues
+- [x] `DELETE FROM webauthn_challenges WHERE expires_at < now() - INTERVAL '1 hour' LIMIT 1000` — keep a 1-hour grace window for debugging; used challenges are safe to delete immediately but the grace window avoids clock-skew issues
 
 **`oauth_token_revocations`** (new table 077)
-- [ ] `DELETE FROM oauth_token_revocations WHERE expires_at < now() LIMIT 1000` — once the token's original expiry has passed, it can no longer be presented, so the blocklist entry is safe to remove
+- [x] `DELETE FROM oauth_token_revocations WHERE expires_at < now() LIMIT 1000` — once the token's original expiry has passed, it can no longer be presented, so the blocklist entry is safe to remove
 
 **`account_link_requests`** (new table 081)
-- [ ] `UPDATE account_link_requests SET status = 'expired' WHERE status = 'pending' AND expires_at < now() LIMIT 1000` — mark expired rather than delete to preserve the audit trail of attempted links
+- [x] `UPDATE account_link_requests SET status = 'expired' WHERE status = 'pending' AND expires_at < now() LIMIT 1000` — mark expired rather than delete to preserve the audit trail of attempted links
 
 **`oauth_dpop_nonces`** (new table 083)
-- [ ] `DELETE FROM oauth_dpop_nonces WHERE expires_at < now() LIMIT 1000`
+- [x] `DELETE FROM oauth_dpop_nonces WHERE expires_at < now() LIMIT 1000`
 
 **`data_erasure_requests`** (GDPR processor — distinct from simple DELETE jobs)
-- [ ] Implement `ProcessPendingErasureRequests` as a named job in the worker: query `data_erasure_requests WHERE status='pending' AND scheduled_at <= now() AND legal_hold=FALSE LIMIT 10`; for each row: set `status='in_progress'`, call `DataErasureService.AnonymizeUser(ctx, userID)`, then set `status='completed'` (or `status='failed'` with error logged if it errors)
+- [x] Implement `ProcessPendingErasureRequests` as a named job in the worker: query `data_erasure_requests WHERE status='pending' AND scheduled_at <= now() AND legal_hold=FALSE LIMIT 10`; for each row: set `status='in_progress'`, call `DataErasureService.AnonymizeUser(ctx, userID)`, then set `status='completed'` (or `status='failed'` with error logged if it errors)
 
-- [ ] Register the worker in the application startup sequence (`internal/app/app.go` or `cmd/server/main.go`) — start as a goroutine with context cancellation wired to the server's shutdown signal so cleanup jobs finish their current batch before the process exits
-- [ ] Confirm each table that is cleaned up has a partial index on `expires_at` (most do already; verify `oauth_broker_sessions` and `oauth_ciba_requests` have one)
-- [ ] Run `go build ./...` and `go test ./internal/platform/cleanup/...`
+- [x] Register the worker in the application startup sequence (`internal/app/app.go` or `cmd/server/main.go`) — start as a goroutine with context cancellation wired to the server's shutdown signal so cleanup jobs finish their current batch before the process exits
+- [x] Confirm each table that is cleaned up has a partial index on `expires_at` (most do already; verify `oauth_broker_sessions` and `oauth_ciba_requests` have one)
+- [x] Run `go build ./...` and `go test ./internal/platform/cleanup/...`
 
 ---
 

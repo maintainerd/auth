@@ -18,10 +18,10 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
     subscribe_all           BOOLEAN NOT NULL DEFAULT false,
     max_retries             INTEGER NOT NULL DEFAULT 3,
     timeout_seconds         INTEGER NOT NULL DEFAULT 30,
+    description             TEXT,
+    metadata                JSONB NOT NULL DEFAULT '{}',
     status                  VARCHAR(20) NOT NULL DEFAULT 'active',
     consecutive_failures    INTEGER NOT NULL DEFAULT 0,
-    description             TEXT,
-    metadata                JSONB DEFAULT '{}',
     last_triggered_at       TIMESTAMPTZ,
     created_by              BIGINT,
     updated_by              BIGINT,
@@ -70,7 +70,7 @@ END$$;
 -- CREATE INDEXES
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_uuid ON webhook_endpoints (webhook_endpoint_uuid);
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant_id ON webhook_endpoints (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_status ON webhook_endpoints (status);
+CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant_status ON webhook_endpoints (tenant_id, status) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_created_at ON webhook_endpoints (created_at);
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_deleted_at ON webhook_endpoints (deleted_at) WHERE deleted_at IS NULL;
 `

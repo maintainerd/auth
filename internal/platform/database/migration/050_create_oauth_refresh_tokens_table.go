@@ -64,6 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_oauth_refresh_family ON oauth_refresh_tokens (fam
 CREATE INDEX IF NOT EXISTS idx_oauth_refresh_user_client ON oauth_refresh_tokens (user_id, client_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_refresh_expires ON oauth_refresh_tokens (expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_refresh_revoked ON oauth_refresh_tokens (is_revoked) WHERE is_revoked = FALSE;
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_scope ON oauth_refresh_tokens USING GIN (scope);
 `
 	return db.Exec(sql).Error
 }

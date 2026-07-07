@@ -7,6 +7,7 @@ func CreateIdentityProviderAllowedAudiencesTable(db *gorm.DB) error {
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS identity_provider_allowed_audiences (
     identity_provider_allowed_audience_id BIGSERIAL PRIMARY KEY,
+    identity_provider_allowed_audience_uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     tenant_id            BIGINT NOT NULL,
     identity_provider_id BIGINT NOT NULL,
     audience             VARCHAR(255) NOT NULL,
@@ -35,6 +36,8 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
+CREATE INDEX IF NOT EXISTS idx_idp_allowed_audiences_uuid
+    ON identity_provider_allowed_audiences (identity_provider_allowed_audience_uuid);
 -- one audience per IdP, soft-delete aware
 CREATE UNIQUE INDEX IF NOT EXISTS uq_idp_allowed_audience
     ON identity_provider_allowed_audiences (identity_provider_id, audience) WHERE deleted_at IS NULL;

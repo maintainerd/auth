@@ -81,29 +81,45 @@ func (ip *IdentityProvider) ProviderClientIDOrEmpty() string {
 // home-realm discovery. One domain belongs to exactly one IdP per tenant
 // (enforced by uq_idp_email_domain). Replaces the former config.email_domains.
 type IdentityProviderEmailDomain struct {
-	IdentityProviderEmailDomainID int64          `gorm:"column:identity_provider_email_domain_id;primaryKey"`
-	TenantID                      int64          `gorm:"column:tenant_id"`
-	IdentityProviderID            int64          `gorm:"column:identity_provider_id"`
-	Domain                        string         `gorm:"column:domain"`
-	CreatedAt                     time.Time      `gorm:"column:created_at;autoCreateTime"`
-	DeletedAt                     gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	IdentityProviderEmailDomainID   int64          `gorm:"column:identity_provider_email_domain_id;primaryKey"`
+	IdentityProviderEmailDomainUUID uuid.UUID      `gorm:"column:identity_provider_email_domain_uuid"`
+	TenantID                        int64          `gorm:"column:tenant_id"`
+	IdentityProviderID              int64          `gorm:"column:identity_provider_id"`
+	Domain                          string         `gorm:"column:domain"`
+	CreatedAt                       time.Time      `gorm:"column:created_at;autoCreateTime"`
+	DeletedAt                       gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (IdentityProviderEmailDomain) TableName() string {
 	return "identity_provider_email_domains"
 }
 
+func (d *IdentityProviderEmailDomain) BeforeCreate(tx *gorm.DB) (err error) {
+	if d.IdentityProviderEmailDomainUUID == uuid.Nil {
+		d.IdentityProviderEmailDomainUUID = uuid.New()
+	}
+	return
+}
+
 type IdentityProviderAllowedAudience struct {
-	IdentityProviderAllowedAudienceID int64          `gorm:"column:identity_provider_allowed_audience_id;primaryKey"`
-	TenantID                          int64          `gorm:"column:tenant_id"`
-	IdentityProviderID                int64          `gorm:"column:identity_provider_id"`
-	Audience                          string         `gorm:"column:audience"`
-	CreatedAt                         time.Time      `gorm:"column:created_at;autoCreateTime"`
-	DeletedAt                         gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	IdentityProviderAllowedAudienceID   int64          `gorm:"column:identity_provider_allowed_audience_id;primaryKey"`
+	IdentityProviderAllowedAudienceUUID uuid.UUID      `gorm:"column:identity_provider_allowed_audience_uuid"`
+	TenantID                            int64          `gorm:"column:tenant_id"`
+	IdentityProviderID                  int64          `gorm:"column:identity_provider_id"`
+	Audience                            string         `gorm:"column:audience"`
+	CreatedAt                           time.Time      `gorm:"column:created_at;autoCreateTime"`
+	DeletedAt                           gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (IdentityProviderAllowedAudience) TableName() string {
 	return "identity_provider_allowed_audiences"
+}
+
+func (a *IdentityProviderAllowedAudience) BeforeCreate(tx *gorm.DB) (err error) {
+	if a.IdentityProviderAllowedAudienceUUID == uuid.Nil {
+		a.IdentityProviderAllowedAudienceUUID = uuid.New()
+	}
+	return
 }
 
 func (ip *IdentityProvider) BeforeCreate(tx *gorm.DB) (err error) {

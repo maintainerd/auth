@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS client_uris (
     type            VARCHAR(20) NOT NULL DEFAULT 'redirect_uri',
     created_by      BIGINT,
     updated_by      BIGINT,
-    created_at      TIMESTAMPTZ DEFAULT now(),
-    updated_at      TIMESTAMPTZ DEFAULT now(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at      TIMESTAMPTZ
 );
 
@@ -40,19 +40,9 @@ BEGIN
             REFERENCES clients(client_id) ON DELETE CASCADE;
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_client_uris_created_by'
-    ) THEN
-        ALTER TABLE client_uris ADD CONSTRAINT fk_client_uris_created_by
-            FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_client_uris_updated_by'
-    ) THEN
-        ALTER TABLE client_uris ADD CONSTRAINT fk_client_uris_updated_by
-            FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL;
-    END IF;
+    -- created_by / updated_by FKs on client_uris reference users, but users
+    -- is created later (migration 024). They are attached via the deferred
+    -- FK loop in 024_create_users_table.go instead of here.
 
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'chk_client_uris_type'

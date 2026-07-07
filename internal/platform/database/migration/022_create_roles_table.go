@@ -38,11 +38,7 @@ END$$;
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_roles_role_uuid ON roles (role_uuid);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_roles_tenant_name ON roles (tenant_id, name) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_roles_name ON roles (name);
-CREATE INDEX IF NOT EXISTS idx_roles_description ON roles (description);
 CREATE INDEX IF NOT EXISTS idx_roles_status ON roles (status);
-CREATE INDEX IF NOT EXISTS idx_roles_is_default ON roles (is_default);
-CREATE INDEX IF NOT EXISTS idx_roles_is_system ON roles (is_system);
 CREATE INDEX IF NOT EXISTS idx_roles_tenant_id ON roles (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_roles_created_at ON roles (created_at);
 CREATE INDEX IF NOT EXISTS idx_roles_deleted_at ON roles (deleted_at) WHERE deleted_at IS NULL;

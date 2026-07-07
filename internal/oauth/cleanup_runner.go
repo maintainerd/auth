@@ -22,6 +22,7 @@ func StartCleanupRunner(ctx context.Context, db *gorm.DB, interval time.Duration
 	cibaRequestRepo := NewOAuthCIBARequestRepository(db)
 	deviceCodeRepo := NewOAuthDeviceCodeRepository(db)
 	authorizeRequestRepo := NewOAuthAuthorizeRequestRepository(db)
+	brokerSessionRepo := NewOAuthBrokerSessionRepository(db)
 	userTokenRepo := user.NewUserTokenRepository(db)
 	userOTPRepo := notifier.NewUserOTPRepository(db)
 	inviteRepo := invite.NewInviteRepository(db)
@@ -29,6 +30,9 @@ func StartCleanupRunner(ctx context.Context, db *gorm.DB, interval time.Duration
 	webAuthnChallengeRepo := mfa.NewWebAuthnChallengeRepository(db)
 	accountLinkRepo := authn.NewAccountLinkRequestRepository(db)
 	dpopNonceRepo := NewOAuthDPoPNonceRepository(db)
+	userSessionRepo := authn.NewUserSessionRepository(db)
+	trustedDeviceRepo := user.NewUserTrustedDeviceRepository(db)
+	lockoutRepo := authn.NewUserLockoutRepository(db)
 
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -81,8 +85,20 @@ func StartCleanupRunner(ctx context.Context, db *gorm.DB, interval time.Duration
 				n, err = accountLinkRepo.ExpireStale(now)
 				logCleanup("account_link_requests", n, err)
 
-				n, err = dpopNonceRepo.DeleteExpired()
-				logCleanup("oauth_dpop_nonces", n, err)
+			n, err = dpopNonceRepo.DeleteExpired()
+			logCleanup("oauth_dpop_nonces", n, err)
+
+			n, err = brokerSessionRepo.DeleteExpired(now)
+			logCleanup("oauth_broker_sessions", n, err)
+
+			n, err = userSessionRepo.DeleteExpired()
+			logCleanup("user_sessions", n, err)
+
+			n, err = trustedDeviceRepo.DeleteExpired()
+			logCleanup("user_trusted_devices", n, err)
+
+			n, err = lockoutRepo.ResetExpiredLockouts()
+			logCleanup("user_lockouts (reset)", n, err)
 			}
 		}
 	}()

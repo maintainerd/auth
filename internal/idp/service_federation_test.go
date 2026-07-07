@@ -2538,48 +2538,6 @@ func TestFederationService_GenerateTokens_RefreshTokenError(t *testing.T) {
 	assert.Contains(t, err.Error(), "refresh token generation failed")
 }
 
-type mockErrorSessionService struct{}
-
-func (m *mockErrorSessionService) ListSessions(ctx context.Context, userID int64) ([]*authn.SessionDataResult, error) {
-	return nil, nil
-}
-func (m *mockErrorSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
-	return nil
-}
-func (m *mockErrorSessionService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
-	return nil
-}
-func (m *mockErrorSessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*authn.UserSession, error) {
-	return nil, assert.AnError
-}
-func (m *mockErrorSessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
-	return nil
-}
-func (m *mockErrorSessionService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error {
-	return nil
-}
-
-type mockConcurrentLimitErrorService struct{}
-
-func (m *mockConcurrentLimitErrorService) ListSessions(ctx context.Context, userID int64) ([]*authn.SessionDataResult, error) {
-	return nil, nil
-}
-func (m *mockConcurrentLimitErrorService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
-	return nil
-}
-func (m *mockConcurrentLimitErrorService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
-	return nil
-}
-func (m *mockConcurrentLimitErrorService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*authn.UserSession, error) {
-	return &authn.UserSession{}, nil
-}
-func (m *mockConcurrentLimitErrorService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
-	return errors.New("too many sessions")
-}
-func (m *mockConcurrentLimitErrorService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error {
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // Federation pure helpers
 // ---------------------------------------------------------------------------

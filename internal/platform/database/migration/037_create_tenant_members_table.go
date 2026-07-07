@@ -28,7 +28,7 @@ BEGIN
     ) THEN
         ALTER TABLE tenant_members
             ADD CONSTRAINT chk_tenant_members_role
-            CHECK (role IN ('owner', 'member'));
+            CHECK (role IN ('owner', 'admin', 'member'));
     END IF;
 
     IF NOT EXISTS (

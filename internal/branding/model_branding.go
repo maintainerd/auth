@@ -24,7 +24,7 @@ type Branding struct {
 	TermsOfServiceURL string    `gorm:"column:terms_of_service_url;type:varchar(2048)" json:"terms_of_service_url"`
 	// Metadata holds all theme tokens (colors, fonts, panel backgrounds, …) as a
 	// flexible JSON object so the palette can extend without schema changes.
-	Metadata  datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'" json:"metadata"`
+	Metadata  datatypes.JSON `gorm:"column:metadata;type:jsonb;not null;default:'{}'" json:"metadata"`
 	IsSystem  bool           `gorm:"column:is_system;not null;default:false" json:"is_system"`
 	IsActive  bool           `gorm:"column:is_active;not null;default:false" json:"is_active"`
 	CreatedBy *int64         `gorm:"column:created_by" json:"created_by,omitempty"`

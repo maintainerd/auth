@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS oauth_par_requests (
     nonce                  TEXT,
     code_challenge         TEXT         NOT NULL,
     code_challenge_method  VARCHAR(10)  NOT NULL DEFAULT 'S256',
-    is_used                BOOLEAN      NOT NULL DEFAULT false,
+    used                   BOOLEAN      NOT NULL DEFAULT FALSE,
     expires_at             TIMESTAMPTZ  NOT NULL,
     created_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 

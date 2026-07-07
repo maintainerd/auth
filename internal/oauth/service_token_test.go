@@ -208,7 +208,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 			&mockOAuthAuthCodeRepo{
 				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return &OAuthAuthorizationCode{
-						IsUsed:   true,
+						Used:     true,
 						ClientID: 10,
 						UserID:   1,
 						TenantID: 1,

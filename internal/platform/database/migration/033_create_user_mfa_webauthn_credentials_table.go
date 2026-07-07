@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS user_mfa_webauthn_credentials (
     transport          TEXT[]       NOT NULL DEFAULT '{}',
     -- Whether the authenticator supports backup eligibility / backup state.
     is_backup_eligible BOOLEAN      NOT NULL DEFAULT FALSE,
-    is_backup_state    BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_backup_active   BOOLEAN      NOT NULL DEFAULT FALSE,
     -- Whether this is a discoverable credential (passkey) enabling usernameless auth
     is_discoverable_credential BOOLEAN NOT NULL DEFAULT FALSE,
     -- Human-readable name for this credential (set by the user).

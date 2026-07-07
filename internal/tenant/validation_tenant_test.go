@@ -159,8 +159,13 @@ func TestTenantMemberAddMemberRequestDto_Validate(t *testing.T) {
 		assert.NoError(t, d.Validate())
 	})
 
-	t.Run("invalid role", func(t *testing.T) {
+	t.Run("valid admin", func(t *testing.T) {
 		d := TenantMemberAddMemberRequestDTO{UserUUID: uuid.New(), Role: "admin"}
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("invalid role", func(t *testing.T) {
+		d := TenantMemberAddMemberRequestDTO{UserUUID: uuid.New(), Role: "superuser"}
 		require.Error(t, d.Validate())
 	})
 
@@ -173,7 +178,8 @@ func TestTenantMemberAddMemberRequestDto_Validate(t *testing.T) {
 func TestTenantMemberUpdateRoleRequestDto_Validate(t *testing.T) {
 	assert.NoError(t, TenantMemberUpdateRoleRequestDTO{Role: "owner"}.Validate())
 	assert.NoError(t, TenantMemberUpdateRoleRequestDTO{Role: "member"}.Validate())
-	require.Error(t, TenantMemberUpdateRoleRequestDTO{Role: "admin"}.Validate())
+	assert.NoError(t, TenantMemberUpdateRoleRequestDTO{Role: "admin"}.Validate())
+	require.Error(t, TenantMemberUpdateRoleRequestDTO{Role: "superuser"}.Validate())
 	require.Error(t, TenantMemberUpdateRoleRequestDTO{Role: ""}.Validate())
 }
 
@@ -183,8 +189,14 @@ func TestTenantMemberFilterDto_Validate(t *testing.T) {
 		assert.NoError(t, f.Validate())
 	})
 
+	t.Run("valid admin role filter", func(t *testing.T) {
+		role := "admin"
+		f := TenantMemberFilterDTO{PaginationRequestDTO: validPagination(), Role: &role}
+		assert.NoError(t, f.Validate())
+	})
+
 	t.Run("invalid role filter", func(t *testing.T) {
-		bad := "admin"
+		bad := "superuser"
 		f := TenantMemberFilterDTO{PaginationRequestDTO: validPagination(), Role: &bad}
 		require.Error(t, f.Validate())
 	})

@@ -67,6 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_users_last_login_at ON users (tenant_id, last_log
     WHERE last_login_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (tenant_id, external_id)
     WHERE external_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_tenant_status ON users (tenant_id, status) WHERE deleted_at IS NULL;
 
 -- Now that users exists, attach the audit FK constraints to all earlier
 -- tables that declared created_by/updated_by columns. These can't be added
@@ -77,7 +78,7 @@ DECLARE
     tables TEXT[] := ARRAY[
         'tenants', 'branding', 'email_config', 'sms_config',
         'services', 'policies', 'apis', 'permissions',
-        'identity_providers', 'clients', 'roles'
+        'identity_providers', 'clients', 'client_uris', 'roles'
         -- webhook_endpoints is created AFTER users (migration 056, grouped with
         -- the event tables), so it attaches its own created_by/updated_by FKs there.
     ];

@@ -60,8 +60,6 @@ CREATE INDEX IF NOT EXISTS idx_email_templates_uuid ON email_templates (email_te
 CREATE INDEX IF NOT EXISTS idx_email_templates_tenant_id ON email_templates (tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_email_templates_tenant_name ON email_templates (tenant_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_email_templates_status ON email_templates (status);
-CREATE INDEX IF NOT EXISTS idx_email_templates_is_default ON email_templates (is_default);
-CREATE INDEX IF NOT EXISTS idx_email_templates_is_system ON email_templates (is_system);
 CREATE INDEX IF NOT EXISTS idx_email_templates_created_at ON email_templates (created_at);
 CREATE INDEX IF NOT EXISTS idx_email_templates_deleted_at ON email_templates (deleted_at) WHERE deleted_at IS NULL;
 `

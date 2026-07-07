@@ -65,8 +65,6 @@ CREATE INDEX IF NOT EXISTS idx_sms_templates_uuid ON sms_templates (sms_template
 CREATE INDEX IF NOT EXISTS idx_sms_templates_tenant_id ON sms_templates (tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sms_templates_tenant_name ON sms_templates (tenant_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_sms_templates_status ON sms_templates (status);
-CREATE INDEX IF NOT EXISTS idx_sms_templates_is_default ON sms_templates (is_default);
-CREATE INDEX IF NOT EXISTS idx_sms_templates_is_system ON sms_templates (is_system);
 CREATE INDEX IF NOT EXISTS idx_sms_templates_created_at ON sms_templates (created_at);
 CREATE INDEX IF NOT EXISTS idx_sms_templates_deleted_at ON sms_templates (deleted_at) WHERE deleted_at IS NULL;
 `
