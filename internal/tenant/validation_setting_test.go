@@ -31,7 +31,6 @@ func TestTenantSettingUpdateConfigRequestDTO_ValidateRateLimitConfig(t *testing.
 			"requests_per_window":     float64(100),
 			"window_duration_seconds": float64(60),
 			"per_ip":                  true,
-			"per_api_key":             false,
 			"exempt_ips":              []any{"10.0.0.1"},
 			"endpoint_overrides":      map[string]any{"/login": float64(10)},
 		}

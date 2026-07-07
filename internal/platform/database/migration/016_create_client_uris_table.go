@@ -58,7 +58,7 @@ BEGIN
         SELECT 1 FROM pg_constraint WHERE conname = 'chk_client_uris_type'
     ) THEN
         ALTER TABLE client_uris
-            ADD CONSTRAINT chk_client_uris_type CHECK (type IN ('redirect_uri', 'origin_uri', 'logout_uri', 'login_uri', 'cors-origin_uri'));
+            ADD CONSTRAINT chk_client_uris_type CHECK (type IN ('redirect_uri', 'origin_uri', 'logout_uri', 'login_uri', 'cors_origin_uri'));
     END IF;
 END$$;
 

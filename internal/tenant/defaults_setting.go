@@ -12,7 +12,6 @@ var defaultTenantSettingConfigs = map[string]map[string]any{
 		"requests_per_window":     100,
 		"window_duration_seconds": 60,
 		"per_ip":                  true,
-		"per_api_key":             true,
 		"exempt_ips":              []string{},
 		"endpoint_overrides":      map[string]any{},
 	},

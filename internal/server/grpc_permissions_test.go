@@ -17,8 +17,14 @@ import (
 // SetupService is bootstrap-only: its mutating RPCs are gated by the persisted
 // setup-complete lock inside the setup service (ensureSetupOpen), not the PDP,
 // because no policy can exist before setup runs.
+//
+// APIKeyService is decommissioned (replaced by M2M OAuth client credentials).
+// The proto definition is retained for backward-compat wire format only; no
+// handler is registered, so the gRPC server returns UNIMPLEMENTED before any
+// interceptor (including authz) runs — the fail-open risk is zero.
 var grpcUnauthenticatedServices = map[string]struct{}{
-	authv1.SetupService_ServiceDesc.ServiceName: {},
+	authv1.SetupService_ServiceDesc.ServiceName:  {},
+	authv1.APIKeyService_ServiceDesc.ServiceName: {},
 }
 
 // TestGRPCServicePermissions_EveryAppRPCIsRegistered walks every RPC defined in
