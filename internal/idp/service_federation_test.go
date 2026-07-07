@@ -144,7 +144,7 @@ func (m *mockSessionService) ListSessions(ctx context.Context, userID int64) ([]
 func (m *mockSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
 	return nil
 }
-func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
+func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
 	return nil
 }
 func (m *mockSessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*authn.UserSession, error) {
@@ -2546,7 +2546,7 @@ func (m *mockErrorSessionService) ListSessions(ctx context.Context, userID int64
 func (m *mockErrorSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
 	return nil
 }
-func (m *mockErrorSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
+func (m *mockErrorSessionService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
 	return nil
 }
 func (m *mockErrorSessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*authn.UserSession, error) {
@@ -2567,7 +2567,7 @@ func (m *mockConcurrentLimitErrorService) ListSessions(ctx context.Context, user
 func (m *mockConcurrentLimitErrorService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
 	return nil
 }
-func (m *mockConcurrentLimitErrorService) RevokeAllSessions(ctx context.Context, userID int64) error {
+func (m *mockConcurrentLimitErrorService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
 	return nil
 }
 func (m *mockConcurrentLimitErrorService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*authn.UserSession, error) {

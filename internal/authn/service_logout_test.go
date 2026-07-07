@@ -113,7 +113,7 @@ func (m *mockLogoutSessionService) ListSessions(ctx context.Context, userID int6
 func (m *mockLogoutSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
 	return nil
 }
-func (m *mockLogoutSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
+func (m *mockLogoutSessionService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
 	if m.revokeAllSessionsFn != nil {
 		return m.revokeAllSessionsFn(userID)
 	}

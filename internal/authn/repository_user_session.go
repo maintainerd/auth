@@ -16,7 +16,7 @@ type UserSessionRepository interface {
 	Create(session *UserSession) error
 	Touch(sessionID int64, now time.Time) error
 	RevokeByUUID(userID int64, sessionUUID uuid.UUID, reason string) error
-	RevokeAllByUserID(userID int64) error
+	RevokeAllByUserID(userID int64, reason string) error
 	DeleteExpired() (int64, error)
 }
 
@@ -81,9 +81,8 @@ func (r *userSessionRepository) RevokeByUUID(userID int64, sessionUUID uuid.UUID
 		}).Error
 }
 
-func (r *userSessionRepository) RevokeAllByUserID(userID int64) error {
+func (r *userSessionRepository) RevokeAllByUserID(userID int64, reason string) error {
 	now := time.Now()
-	reason := "admin_revoke"
 	return r.DB().Model(&UserSession{}).
 		Where("user_id = ? AND revoked_at IS NULL", userID).
 		Updates(map[string]interface{}{

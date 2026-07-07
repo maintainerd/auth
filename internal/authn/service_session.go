@@ -29,7 +29,7 @@ type SessionDataResult struct {
 type SessionService interface {
 	ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error)
 	RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error
-	RevokeAllSessions(ctx context.Context, userID int64) error
+	RevokeAllSessions(ctx context.Context, userID int64, reason string) error
 	CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserSession, error)
 	EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error
 	ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error
@@ -85,12 +85,12 @@ func (s *sessionService) RevokeSession(ctx context.Context, userID int64, sessio
 	return nil
 }
 
-func (s *sessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
+func (s *sessionService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
 	_, span := otel.Tracer("service").Start(ctx, "session.revokeAll")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
 
-	if err := s.sessionRepo.RevokeAllByUserID(userID); err != nil {
+	if err := s.sessionRepo.RevokeAllByUserID(userID, reason); err != nil {
 		span.RecordError(err)
 		return err
 	}

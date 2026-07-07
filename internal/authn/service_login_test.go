@@ -1617,7 +1617,7 @@ func (m *mockSessionService) ListSessions(ctx context.Context, userID int64) ([]
 func (m *mockSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
 	return nil
 }
-func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
+func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
 	return nil
 }
 func (m *mockSessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserSession, error) {

@@ -647,7 +647,7 @@ func (s *loginService) Logout(ctx context.Context, accessToken string) error {
 		return nil
 	}
 
-	if err := s.sessionService.RevokeAllSessions(ctx, user.UserID); err != nil {
+	if err := s.sessionService.RevokeAllSessions(ctx, user.UserID, "logout"); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "session revoke failed")
 		return err
