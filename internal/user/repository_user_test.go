@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -546,26 +547,21 @@ func TestUserRepository_SetEmailVerified(t *testing.T) {
 }
 
 func expectProfilePreloads(mock sqlmock.Sqlmock, userIDs ...int64) {
-	switch len(userIDs) {
-	case 0:
+	if len(userIDs) == 0 {
 		return
-	case 1:
-		mock.ExpectQuery(`SELECT \* FROM "profiles" WHERE`).
-			WithArgs(userIDs[0], true).
-			WillReturnRows(sqlmock.NewRows([]string{"profile_id", "user_id", "is_default", "display_name"}).
-				AddRow(1, userIDs[0], true, "Test User"))
-	default:
-		args := make([]driver.Value, len(userIDs)+1)
-		for i, uid := range userIDs {
-			args[i] = uid
-		}
-		args[len(userIDs)] = true
-		mock.ExpectQuery(`SELECT \* FROM "profiles" WHERE`).
-			WithArgs(args...).
-			WillReturnRows(sqlmock.NewRows([]string{"profile_id", "user_id", "is_default", "display_name"}).
-				AddRow(1, userIDs[0], true, "Test User").
-				AddRow(2, userIDs[1], true, "Test User 2"))
 	}
+	args := make([]driver.Value, len(userIDs)+1)
+	for i, uid := range userIDs {
+		args[i] = uid
+	}
+	args[len(userIDs)] = true
+	rows := sqlmock.NewRows([]string{"profile_id", "user_id", "is_default", "display_name"})
+	for i, uid := range userIDs {
+		rows.AddRow(i+1, uid, true, fmt.Sprintf("Test User %d", i+1))
+	}
+	mock.ExpectQuery(`SELECT \* FROM "profiles" WHERE`).
+		WithArgs(args...).
+		WillReturnRows(rows)
 }
 
 func TestUserRepository_SetStatus(t *testing.T) {

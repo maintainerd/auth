@@ -22,7 +22,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
-	"github.com/maintainerd/maintainerd-auth/internal/scim"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/setup"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
@@ -104,8 +103,6 @@ type svcs struct {
 	wifService                   federation.WorkloadIdentityFederationService
 	dataErasureService           user.DataErasureService
 	accountLinkService           authn.AccountLinkRequestService
-	scimConfigService            scim.SCIMConfigurationService
-	scimUserService              scim.SCIMUserService
 }
 
 // listenerChecker adapts webhook and event-route repos for the write gate.
@@ -330,10 +327,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		wifService:                   federation.NewWorkloadIdentityFederationService(db, r.wifRepo, newFederationExchangeAuditor(r.tokenExchangeRepo)),
 		dataErasureService:           user.NewDataErasureService(r.dataErasureRequestRepo, userSvc),
 		accountLinkService:           authn.NewAccountLinkRequestService(r.accountLinkRequestRepo, newAuthnUserRepoAdapter(r.userRepo), newAccountLinkIdentityLinker(r.userIdentityRepo)),
-		scimConfigService:            scim.NewSCIMConfigurationService(db, r.scimConfigRepo),
 	}
-	// Post-init: SCIM user service wraps user + profile services (already in s).
-	s.scimUserService = scim.NewSCIMUserService(db, s.userService, s.profileService, r.userRepo, r.userIdentityRepo)
 	// Wire the broker provider resolver so the oauth broker flow (idp_hint →
 	// upstream provider) can resolve provider authorize endpoints + client_ids
 	// without importing the idp package directly.

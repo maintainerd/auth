@@ -22,7 +22,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
 	securityMiddleware "github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
-	"github.com/maintainerd/maintainerd-auth/internal/scim"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/setup"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
@@ -51,10 +50,6 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 
 	// OpenAPI 3.1 spec — internal port only
 	r.Get("/openapi.json", ServeOpenAPISpec)
-
-	// SCIM 2.0 protocol endpoints — custom bearer auth against
-	// scim_configurations.bearer_token_hash. No JWT middleware.
-	scim.SCIMProtocolRoute(r, h.scimUser, application.SCIMConfigurationRepo)
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Audience guard: the internal API is the first-party management surface.
@@ -108,7 +103,6 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		auditlog.ManagementAuditLogRoute(api, h.auditLog, userProvider, application.Cache, tenantRateLimit)
 		federation.WorkloadIdentityFederationRoute(api, h.wif, userProvider, application.Cache, tenantRateLimit)
 		dashboard.DashboardRoute(api, h.dashboard, userProvider, application.Cache, tenantRateLimit)
-		scim.SCIMConfigurationRoute(api, h.scimConfig, userProvider, application.Cache, tenantRateLimit)
 
 		// Account self-service routes (authenticated)
 		user.AccountRoute(api, h.account, h.userConsent, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRateLimit)

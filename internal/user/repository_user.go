@@ -262,9 +262,7 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 
 	// Preload the default Profile so the computed `fullname` (Profile.display_name
 	// → first_name/last_name) is populated on every listed user. The users.fullname
-	// column was removed; without this the derived name is always empty. Scoped to
-	// the default profile to match FindBySubAndClientID and keep the has-one load
-	// deterministic when a user has multiple profiles.
+	// column was removed; without this the derived name is always empty.
 	query = query.Preload("Profile", "is_default = ?", true)
 
 	// Filter by user_identities fields (tenant, client) — join once to avoid duplicates.
