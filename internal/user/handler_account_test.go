@@ -103,7 +103,7 @@ func (m *mockSessionService) RevokeSession(_ context.Context, userID int64, sess
 	}
 	return nil
 }
-func (m *mockSessionService) RevokeAllSessions(_ context.Context, userID int64) error {
+func (m *mockSessionService) RevokeAllSessions(_ context.Context, userID int64, reason string) error {
 	if m.revokeAllSessionsFn != nil {
 		return m.revokeAllSessionsFn(userID)
 	}

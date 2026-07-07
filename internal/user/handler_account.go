@@ -490,7 +490,7 @@ func (h *AccountHandler) RevokeAllSessions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := h.sessionService.RevokeAllSessions(r.Context(), user.UserID); err != nil {
+	if err := h.sessionService.RevokeAllSessions(r.Context(), user.UserID, "user_revoke"); err != nil {
 		resp.HandleServiceError(w, r, "Failed to revoke all sessions", err)
 		return
 	}

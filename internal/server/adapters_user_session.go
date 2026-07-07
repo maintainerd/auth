@@ -40,8 +40,8 @@ func (a *userSessionServiceAdapter) RevokeSession(ctx context.Context, userID in
 	return a.sessionService.RevokeSession(ctx, userID, sessionUUID)
 }
 
-func (a *userSessionServiceAdapter) RevokeAllSessions(ctx context.Context, userID int64) error {
-	return a.sessionService.RevokeAllSessions(ctx, userID)
+func (a *userSessionServiceAdapter) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
+	return a.sessionService.RevokeAllSessions(ctx, userID, reason)
 }
 
 func (a *userSessionServiceAdapter) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*user.UserToken, error) {

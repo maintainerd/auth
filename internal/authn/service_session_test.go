@@ -19,7 +19,7 @@ type mockUserSessionRepo struct {
 	createFn             func(*UserSession) error
 	touchFn              func(int64, time.Time) error
 	revokeByUUIDFn       func(int64, uuid.UUID, string) error
-	revokeAllByUserIDFn  func(int64) error
+	revokeAllByUserIDFn  func(int64, string) error
 }
 
 func (m *mockUserSessionRepo) FindActiveByUserID(id int64) ([]UserSession, error) {
@@ -58,9 +58,9 @@ func (m *mockUserSessionRepo) RevokeByUUID(id int64, uid uuid.UUID, reason strin
 	}
 	return nil
 }
-func (m *mockUserSessionRepo) RevokeAllByUserID(id int64) error {
+func (m *mockUserSessionRepo) RevokeAllByUserID(id int64, reason string) error {
 	if m.revokeAllByUserIDFn != nil {
-		return m.revokeAllByUserIDFn(id)
+		return m.revokeAllByUserIDFn(id, reason)
 	}
 	return nil
 }
@@ -173,18 +173,18 @@ func TestSessionService_RevokeAllSessions(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := &mockUserSessionRepo{}
 		svc := NewSessionService(repo)
-		err := svc.RevokeAllSessions(context.Background(), 1)
+		err := svc.RevokeAllSessions(context.Background(), 1, "logout")
 		require.NoError(t, err)
 	})
 
 	t.Run("error", func(t *testing.T) {
 		repo := &mockUserSessionRepo{
-			revokeAllByUserIDFn: func(int64) error {
+			revokeAllByUserIDFn: func(int64, string) error {
 				return errors.New("revoke error")
 			},
 		}
 		svc := NewSessionService(repo)
-		err := svc.RevokeAllSessions(context.Background(), 1)
+		err := svc.RevokeAllSessions(context.Background(), 1, "logout")
 		require.Error(t, err)
 	})
 }

@@ -12,7 +12,7 @@ import (
 type SessionService interface {
 	ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error)
 	RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error
-	RevokeAllSessions(ctx context.Context, userID int64) error
+	RevokeAllSessions(ctx context.Context, userID int64, reason string) error
 	CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserToken, error)
 	EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error
 	ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error
