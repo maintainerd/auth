@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -17,6 +18,7 @@ type OAuthDeviceCodeRepository interface {
 	FindByDeviceCodeHash(hash string) (*OAuthDeviceCode, error)
 	FindByUserCode(userCode string) (*OAuthDeviceCode, error)
 	UpdateStatus(id int64, status string, userID *int64) error
+	ConsumeApproved(id int64) error
 	UpdateApproval(id int64, userID int64, acr string, amr []string) error
 	UpdateLastPollAt(id int64) error
 	DeleteExpired(before time.Time) (int64, error)
@@ -72,6 +74,21 @@ func (r *oauthDeviceCodeRepository) FindByUserCode(userCode string) (*OAuthDevic
 		return nil, err
 	}
 	return &code, nil
+}
+
+// ConsumeApproved atomically transitions a device code from approved → consumed.
+// Returns apperror.Conflict if the code was already consumed by a concurrent request.
+func (r *oauthDeviceCodeRepository) ConsumeApproved(id int64) error {
+	result := r.DB().Model(&OAuthDeviceCode{}).
+		Where("oauth_device_code_id = ? AND status = ?", id, DeviceCodeStatusApproved).
+		Update("status", DeviceCodeStatusConsumed)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return apperror.NewConflict("device code already consumed")
+	}
+	return nil
 }
 
 // UpdateStatus sets the status and optionally the approving user on a device code.

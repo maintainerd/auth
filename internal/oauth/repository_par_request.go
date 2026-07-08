@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -54,10 +55,19 @@ func (r *oauthPARRequestRepository) FindByRequestURIHash(hash string) (*OAuthPAR
 }
 
 // MarkUsed marks a PAR request as consumed so it cannot be replayed.
+// The WHERE clause includes used = false so concurrent redemption attempts
+// find 0 rows affected and receive an error rather than silently succeeding.
 func (r *oauthPARRequestRepository) MarkUsed(id int64) error {
-	return r.DB().Model(&OAuthPARRequest{}).
-		Where("oauth_par_request_id = ?", id).
-		Update("used", true).Error
+	result := r.DB().Model(&OAuthPARRequest{}).
+		Where("oauth_par_request_id = ? AND used = false", id).
+		Update("used", true)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return apperror.NewConflict("PAR request already used")
+	}
+	return nil
 }
 
 // DeleteExpired removes PAR requests that expired before the given cutoff.

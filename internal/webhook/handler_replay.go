@@ -125,7 +125,7 @@ func (h *ReplayHandler) ReplayDelivery(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := h.replayFn(r.Context(), *ep, eventID, true); err != nil {
-			resp.Error(w, http.StatusInternalServerError, "Replay failed: "+err.Error())
+			resp.HandleServiceError(w, r, "Replay failed", err)
 			return
 		}
 	} else {

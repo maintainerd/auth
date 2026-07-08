@@ -592,11 +592,9 @@ func (s *setupService) CompleteSetup(ctx context.Context) (*CompleteSetupRespons
 }
 
 func (s *setupService) ensureSetupOpen() error {
-	// Setup is open until the system tenant exists and is marked completed.
 	systemTenant, err := s.tenantRepo.FindSystem()
 	if err != nil {
-		// No system tenant yet → setup is still open.
-		return nil
+		return err
 	}
 	if systemTenant != nil && systemTenant.Status == "active" {
 		return apperror.NewConflict("setup is complete and locked")

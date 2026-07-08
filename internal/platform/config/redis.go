@@ -9,14 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/retry"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
 
-// NewRedisClient creates and verifies a Redis client. It returns the client and
-// any connection error, so main() can decide how to handle failures instead of
-// the library calling panic().
-func NewRedisClient() (*redis.Client, error) {
+// NewRedisClient creates and verifies a Redis client, retrying the initial ping
+// with exponential backoff until ctx is cancelled or all attempts are exhausted.
+func NewRedisClient(ctx context.Context) (*redis.Client, error) {
 	addr := GetEnvOrDefault("REDIS_ADDR", "redis-db:6379")
 	password := GetEnvOrDefault("REDIS_PASSWORD", "")
 
@@ -35,10 +35,11 @@ func NewRedisClient() (*redis.Client, error) {
 
 	rdb := redis.NewClient(opts)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	if err := rdb.Ping(ctx).Err(); err != nil {
+	if err := retry.WithBackoff(ctx, "redis", 10, 2*time.Second, func() error {
+		pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		return rdb.Ping(pingCtx).Err()
+	}); err != nil {
 		return nil, fmt.Errorf("failed to connect to Redis at %s: %w", addr, err)
 	}
 

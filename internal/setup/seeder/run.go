@@ -14,7 +14,7 @@ import (
 // The per-tenant baseline (roles, permissions, clients, idp, branding, etc.)
 // lives in SeedTenant so that admin-side tenant creation reuses the exact same
 // seeding path.
-func RunAll(db *gorm.DB, _ string) error {
+func RunAll(db *gorm.DB, appVersion string) error {
 	slog.Info("Running default seeders")
 
 	// Locate the system tenant (created just before seeding during bootstrap).
@@ -28,7 +28,7 @@ func RunAll(db *gorm.DB, _ string) error {
 	// Per-tenant baseline for the system tenant (same path new tenants use).
 	// Everything — including the tenant's own service and event-type catalog —
 	// is seeded per tenant by SeedTenant.
-	if err := SeedTenant(db, sysTenant.TenantID); err != nil {
+	if err := SeedTenant(db, sysTenant.TenantID, appVersion); err != nil {
 		slog.Error("Failed to seed system tenant baseline", "error", err)
 		return err
 	}

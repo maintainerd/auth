@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -62,12 +63,19 @@ func (r *userMFABackupCodeRepository) FindByUserIDAndCodeHash(userID int64, code
 
 func (r *userMFABackupCodeRepository) MarkUsed(id int64) error {
 	now := time.Now()
-	return r.DB().Model(&UserMFABackupCode{}).
-		Where("backup_code_id = ?", id).
+	result := r.DB().Model(&UserMFABackupCode{}).
+		Where("backup_code_id = ? AND used = false", id).
 		Updates(map[string]interface{}{
 			"used":    true,
 			"used_at": now,
-		}).Error
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return apperror.NewConflict("backup code already used")
+	}
+	return nil
 }
 
 func (r *userMFABackupCodeRepository) DeleteAllByUserID(userID int64) error {

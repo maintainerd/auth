@@ -3,7 +3,7 @@ services:
   auth:
     build: .
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
       - "8081:8081"
     env_file: .env
     depends_on:

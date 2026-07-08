@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS policy_version_history (
     description                 TEXT,
     document                    JSONB        NOT NULL DEFAULT '{}',
     policy_version              VARCHAR(20)  NOT NULL,
-    changed_by_user_id          BIGINT       REFERENCES users(user_id) ON DELETE SET NULL,
-    changed_by_client_id        BIGINT       REFERENCES clients(client_id) ON DELETE SET NULL,
+    changed_by_user_id          BIGINT,
+    changed_by_client_id        BIGINT,
     change_reason               TEXT,
     snapshot_at                 TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT uq_policy_version_history_policy_version UNIQUE (policy_id, version_number)

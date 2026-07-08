@@ -78,16 +78,9 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 
 	// Validate using DTO convention for registration (includes sanitization and password strength)
 	if err := req.ValidateForRegistration(); err != nil {
-		// Determine event type based on error
 		eventType := "registration_validation_failure"
 		severity := "MEDIUM"
-		if err.Error() == "password is too weak" ||
-			err.Error() == "password must contain at least one uppercase letter" ||
-			err.Error() == "password must contain at least one lowercase letter" ||
-			err.Error() == "password must contain at least one digit" ||
-			err.Error() == "password must contain at least one special character" ||
-			err.Error() == "password contains a common weak password" ||
-			err.Error() == "password is a common weak password" {
+		if security.IsPasswordStrengthError(err) {
 			eventType = "registration_weak_password"
 		}
 
@@ -174,16 +167,9 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Validate using DTO convention for registration (includes sanitization and password strength)
 	if err := req.ValidateForRegistration(); err != nil {
-		// Determine event type based on error
 		eventType := "registration_validation_failure"
 		severity := "MEDIUM"
-		if err.Error() == "password is too weak" ||
-			err.Error() == "password must contain at least one uppercase letter" ||
-			err.Error() == "password must contain at least one lowercase letter" ||
-			err.Error() == "password must contain at least one digit" ||
-			err.Error() == "password must contain at least one special character" ||
-			err.Error() == "password contains a common weak password" ||
-			err.Error() == "password is a common weak password" {
+		if security.IsPasswordStrengthError(err) {
 			eventType = "registration_weak_password"
 		}
 

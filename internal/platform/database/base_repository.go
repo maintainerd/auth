@@ -70,6 +70,9 @@ func sanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol string) string 
 }
 
 // BaseRepository provides common CRUD operations for GORM-backed entities.
+// WARNING: FindAll, FindByID, and FindByUUID are unscoped — they do not apply
+// tenant_id filtering. Use them only on globally-shared tables (e.g. services,
+// event_type_catalog) or when the caller applies scoping via a pre-scoped DB.
 type BaseRepository[T any] struct {
 	db            *gorm.DB
 	uuidFieldName string // e.g., "role_uuid", "user_uuid"

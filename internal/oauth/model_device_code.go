@@ -15,6 +15,7 @@ const (
 	DeviceCodeStatusApproved = "approved"
 	DeviceCodeStatusDenied   = "denied"
 	DeviceCodeStatusExpired  = "expired"
+	DeviceCodeStatusConsumed = "consumed"
 )
 
 // OAuthDeviceCode represents a pending device authorization request (RFC 8628).

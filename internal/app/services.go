@@ -127,7 +127,7 @@ func (c *listenerChecker) HasAnyActiveListener(tenantID int64) (bool, error) {
 	return len(routes) > 0, nil
 }
 
-func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *redis.Client) (*svcs, error) {
+func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *redis.Client) (*svcs, error) {
 	// Create event infrastructure first — write gate, relay, event service
 	lc := &listenerChecker{
 		webhookEndpointRepo: r.webhookEndpointRepo,
@@ -147,7 +147,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 	// activates the moment RABBITMQ_URL is set — matching the "disables
 	// cleanly when RabbitMQ config is absent" contract.
 	amqpCfg := event.NewAMQPConfigFromEnv()
-	amqpPublish, _, amqpErr := event.ConnectAMQP(amqpCfg)
+	amqpPublish, _, amqpErr := event.ConnectAMQP(ctx, amqpCfg)
 	if amqpErr != nil {
 		return nil, fmt.Errorf("init services: amqp: %w", amqpErr)
 	}

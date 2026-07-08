@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
@@ -111,10 +112,10 @@ type App struct {
 //  2. initServices — every service, consuming repos
 //
 // Handler creation is delegated to transport packages (rest, grpcserver).
-func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
+func NewApp(ctx context.Context, db *gorm.DB, redisClient *redis.Client) (*App, error) {
 	r := initRepos(db)
 	appCache := cache.New(redisClient)
-	s, err := initServices(db, r, appCache, redisClient)
+	s, err := initServices(ctx, db, r, appCache, redisClient)
 	if err != nil {
 		return nil, fmt.Errorf("service init failed: %w", err)
 	}

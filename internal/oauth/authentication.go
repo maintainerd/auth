@@ -223,6 +223,9 @@ func findClientJWK(client *Client, kid string) (interface{}, error) {
 				}
 				e := new(big.Int).SetBytes(eBytes)
 
+				if n.BitLen() < 2048 {
+					return nil, fmt.Errorf("RSA key too weak: %d bits (minimum 2048)", n.BitLen())
+				}
 				pubKey := &rsa.PublicKey{
 					N: n,
 					E: int(e.Int64()),
