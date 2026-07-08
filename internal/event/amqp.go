@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/retry"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -27,13 +29,20 @@ func NewAMQPConfigFromEnv() *AMQPConfig {
 // ConnectAMQP dials RabbitMQ, opens a channel, and declares the exchange.
 // Returns a publish function and a close function for cleanup.
 // Returns (nil, nil, nil) when config is nil (broker disabled).
-func ConnectAMQP(cfg *AMQPConfig) (func(ctx context.Context, exchange, routingKey string, body []byte, messageID, eventType string) error, func(), error) {
+//
+// The dial is retried with exponential backoff using the shared retry helper,
+// inheriting the caller's context so startup can be cancelled cleanly.
+func ConnectAMQP(ctx context.Context, cfg *AMQPConfig) (func(ctx context.Context, exchange, routingKey string, body []byte, messageID, eventType string) error, func(), error) {
 	if cfg == nil {
 		return nil, nil, nil
 	}
 
-	conn, err := amqp.Dial(cfg.URL)
-	if err != nil {
+	var conn *amqp.Connection
+	if err := retry.WithBackoff(ctx, "amqp", 10, 2*time.Second, func() error {
+		var dialErr error
+		conn, dialErr = amqp.Dial(cfg.URL)
+		return dialErr
+	}); err != nil {
 		return nil, nil, fmt.Errorf("amqp: dial: %w", err)
 	}
 

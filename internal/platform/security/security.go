@@ -195,7 +195,10 @@ var (
 // For per-tenant policy enforcement, use ValidatePasswordPolicy with a loaded PasswordPolicy.
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.3
 func ValidatePasswordStrength(password string) error {
-	return ValidatePasswordPolicy(password, DefaultPasswordPolicy())
+	if err := ValidatePasswordPolicy(password, DefaultPasswordPolicy()); err != nil {
+		return &PasswordStrengthError{Err: err}
+	}
+	return nil
 }
 
 // SanitizeInput sanitizes user input to prevent injection attacks

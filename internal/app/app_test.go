@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ func TestNewAppWiresAllExportedServices(t *testing.T) {
 		config.AppPublicHostname = origPublicHostname
 	})
 
-	application, err := NewApp(nil, nil)
+	application, err := NewApp(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("NewApp failed: %v", err)
 	}
@@ -40,7 +41,7 @@ func TestNewApp_ServiceInitError(t *testing.T) {
 		config.AppPublicHostname = origPublicHostname
 	})
 
-	application, err := NewApp(nil, nil)
+	application, err := NewApp(context.Background(), nil, nil)
 	if err == nil {
 		t.Fatal("NewApp error = nil")
 	}

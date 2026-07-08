@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -54,14 +55,23 @@ func (r *oauthAuthorizationCodeRepository) FindByCodeHash(codeHash string) (*OAu
 }
 
 // MarkUsed marks an authorization code as consumed so it cannot be reused.
+// The WHERE clause includes used = false so a concurrent redemption attempt
+// finds 0 rows affected and receives an error rather than silently succeeding.
 func (r *oauthAuthorizationCodeRepository) MarkUsed(codeID int64) error {
 	now := time.Now()
-	return r.DB().Model(&OAuthAuthorizationCode{}).
-		Where("oauth_authorization_code_id = ?", codeID).
+	result := r.DB().Model(&OAuthAuthorizationCode{}).
+		Where("oauth_authorization_code_id = ? AND used = false", codeID).
 		Updates(map[string]any{
 			"used":    true,
 			"used_at": now,
-		}).Error
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return apperror.NewConflict("authorization code already used")
+	}
+	return nil
 }
 
 // DeleteExpired removes authorization codes that expired before the given

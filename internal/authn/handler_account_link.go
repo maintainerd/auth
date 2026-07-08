@@ -40,7 +40,7 @@ func (h *AccountLinkHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 
 	token := chi.URLParam(r, "token")
 	if err := validateAccountLinkToken(token); err != nil {
-		resp.Error(w, http.StatusBadRequest, err.Error())
+		resp.ValidationError(w, err)
 		return
 	}
 

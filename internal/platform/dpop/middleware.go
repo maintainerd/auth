@@ -46,7 +46,7 @@ func Middleware(store JTIStore, getRequestURL func(r *http.Request) string) func
 
 			claims, err := ValidateProof(r.Context(), proof, r.Method, requestURL, ath, store)
 			if err != nil {
-				http.Error(w, `{"error":"invalid_dpop_proof","error_description":"`+err.Error()+`"}`, http.StatusUnauthorized)
+				http.Error(w, `{"error":"invalid_dpop_proof","error_description":"DPoP proof validation failed"}`, http.StatusUnauthorized)
 				return
 			}
 

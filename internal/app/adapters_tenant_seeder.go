@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/setup/seeder"
 	"gorm.io/gorm"
 )
@@ -14,5 +15,5 @@ import (
 type tenantSeederAdapter struct{}
 
 func (tenantSeederAdapter) SeedTenant(_ context.Context, tx *gorm.DB, tenantID int64) error {
-	return seeder.SeedTenant(tx, tenantID)
+	return seeder.SeedTenant(tx, tenantID, config.AppVersion)
 }

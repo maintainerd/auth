@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS workload_identity_federations (
     allowed_scopes                      TEXT[]       NOT NULL DEFAULT '{}',
     attribute_mapping                   JSONB        NOT NULL DEFAULT '{}',
     is_active                           BOOLEAN      NOT NULL DEFAULT TRUE,
-    created_by                          BIGINT       REFERENCES users(user_id) ON DELETE SET NULL,
-    updated_by                          BIGINT       REFERENCES users(user_id) ON DELETE SET NULL,
+    created_by                          BIGINT,
+    updated_by                          BIGINT,
     created_at                          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at                          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     deleted_at                          TIMESTAMPTZ

@@ -229,7 +229,7 @@ func (h *FederationHandler) TestConnection(w http.ResponseWriter, r *http.Reques
 
 	result, err := h.federationSvc.TestConnection(r.Context(), req)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Test connection failed: "+err.Error())
+		resp.HandleServiceError(w, r, "Test connection failed", err)
 		return
 	}
 

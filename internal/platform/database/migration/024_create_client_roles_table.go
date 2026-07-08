@@ -14,9 +14,7 @@ CREATE TABLE IF NOT EXISTS client_roles (
     CONSTRAINT fk_client_roles_client FOREIGN KEY (client_id)
         REFERENCES clients(client_id) ON DELETE CASCADE,
     CONSTRAINT fk_client_roles_role FOREIGN KEY (role_id)
-        REFERENCES roles(role_id) ON DELETE CASCADE,
-    CONSTRAINT fk_client_roles_created_by FOREIGN KEY (created_by)
-        REFERENCES users(user_id) ON DELETE SET NULL
+        REFERENCES roles(role_id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_client_roles_client_role
     ON client_roles (client_id, role_id);

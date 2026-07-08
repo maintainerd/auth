@@ -15,7 +15,7 @@ import (
 func TestMigrations_RegisterLatestMigration(t *testing.T) {
 	require.NotEmpty(t, migrations)
 	last := migrations[len(migrations)-1]
-	assert.Equal(t, "084_create_scim_configurations_table", last.Version)
+	assert.Equal(t, "079_create_webhook_delivery_history_table", last.Version)
 	assert.NotNil(t, last.Fn)
 }
 

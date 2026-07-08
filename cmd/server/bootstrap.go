@@ -55,12 +55,12 @@ func run(ctx context.Context) error {
 
 	// Database and Redis are process-level dependencies shared by repositories,
 	// cache, rate limiting, sessions, and background workers.
-	db, err := config.InitDB()
+	db, err := config.InitDB(ctx)
 	if err != nil {
 		return fmt.Errorf("initialize database: %w", err)
 	}
 
-	redisClient, err := config.NewRedisClient()
+	redisClient, err := config.NewRedisClient(ctx)
 	if err != nil {
 		return fmt.Errorf("initialize Redis: %w", err)
 	}
@@ -77,7 +77,7 @@ func run(ctx context.Context) error {
 
 	// internal/app owns domain composition; cmd/server only receives the fully
 	// wired app and adapts it to transport runtime dependencies.
-	application, err := app.NewApp(db, redisClient)
+	application, err := app.NewApp(ctx, db, redisClient)
 	if err != nil {
 		return fmt.Errorf("initialize application: %w", err)
 	}

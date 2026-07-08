@@ -7,10 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// seedServiceVersion is the version stamped on the per-tenant "auth" service
-// record when a tenant is seeded.
-const seedServiceVersion = "v0.1.0"
-
 // SeedTenant seeds the full per-tenant baseline for an existing tenant:
 // the tenant↔service link, API, permissions (+ api_permissions backfill),
 // control policy, identity provider, client(s) and their URIs, roles
@@ -25,9 +21,9 @@ const seedServiceVersion = "v0.1.0"
 // Everything SeedTenant creates is tenant-scoped, including the tenant's own
 // "auth" service record. The only globally-shared seed is the integration
 // event-type catalog, which is seeded per tenant separately by RunAll/callers.
-func SeedTenant(db *gorm.DB, tenantID int64) error {
+func SeedTenant(db *gorm.DB, tenantID int64, appVersion string) error {
 	// Seed this tenant's own "auth" service (services are tenant-scoped).
-	service, err := SeedService(db, tenantID, seedServiceVersion)
+	service, err := SeedService(db, tenantID, appVersion)
 	if err != nil {
 		return fmt.Errorf("seed service: %w", err)
 	}

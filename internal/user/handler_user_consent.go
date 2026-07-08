@@ -92,7 +92,7 @@ func (h *UserConsentHandler) RecordConsent(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := req.Validate(); err != nil {
-		resp.Error(w, http.StatusBadRequest, err.Error())
+		resp.ValidationError(w, err)
 		return
 	}
 

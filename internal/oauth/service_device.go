@@ -280,7 +280,13 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 	case DeviceCodeStatusDenied:
 		return nil, apperror.NewOAuthAccessDenied("the user denied the device authorization request")
 	case DeviceCodeStatusApproved:
-		// Fall through to token issuance.
+		// Atomically transition approved → consumed before issuing tokens.
+		// A concurrent poll that already consumed this code will find 0 rows
+		// affected and receive a Conflict error here.
+		if err := s.deviceCodeRepo.ConsumeApproved(record.OAuthDeviceCodeID); err != nil {
+			span.RecordError(err)
+			return nil, apperror.NewOAuthInvalidGrant("device code already redeemed")
+		}
 	default:
 		return nil, apperror.NewOAuthInvalidGrant("unexpected device code status")
 	}

@@ -1,7 +1,9 @@
 package config
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +18,7 @@ func TestNewRedisClient_Success(t *testing.T) {
 	t.Setenv("REDIS_ADDR", mr.Addr())
 	t.Setenv("REDIS_PASSWORD", "")
 
-	rdb, err := NewRedisClient()
+	rdb, err := NewRedisClient(context.Background())
 	require.NoError(t, err)
 	require.NotNil(t, rdb)
 	defer func() { _ = rdb.Close() }()
@@ -35,7 +37,7 @@ func TestNewRedisClient_WithPassword(t *testing.T) {
 	t.Setenv("REDIS_ADDR", mr.Addr())
 	t.Setenv("REDIS_PASSWORD", "s3cret")
 
-	rdb, err := NewRedisClient()
+	rdb, err := NewRedisClient(context.Background())
 	require.NoError(t, err)
 	require.NotNil(t, rdb)
 	defer func() { _ = rdb.Close() }()
@@ -53,7 +55,10 @@ func TestNewRedisClient_WrongPassword(t *testing.T) {
 	t.Setenv("REDIS_ADDR", mr.Addr())
 	t.Setenv("REDIS_PASSWORD", "wrong-password")
 
-	rdb, err := NewRedisClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	rdb, err := NewRedisClient(ctx)
 	assert.Nil(t, rdb)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to connect to Redis")
@@ -63,7 +68,10 @@ func TestNewRedisClient_Unreachable(t *testing.T) {
 	t.Setenv("REDIS_ADDR", "127.0.0.1:1")
 	t.Setenv("REDIS_PASSWORD", "")
 
-	rdb, err := NewRedisClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	rdb, err := NewRedisClient(ctx)
 	assert.Nil(t, rdb)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to connect to Redis")
@@ -73,7 +81,10 @@ func TestNewRedisClient_DefaultAddr(t *testing.T) {
 	// When no REDIS_ADDR is set, falls back to "redis-db:6379" which is unreachable in tests.
 	t.Setenv("REDIS_ADDR", "")
 
-	rdb, err := NewRedisClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	rdb, err := NewRedisClient(ctx)
 	assert.Nil(t, rdb)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to connect to Redis")
@@ -87,7 +98,7 @@ func TestNewRedisClient_OTelTracingRegistered(t *testing.T) {
 	t.Setenv("REDIS_ADDR", mr.Addr())
 	t.Setenv("REDIS_PASSWORD", "")
 
-	rdb, err := NewRedisClient()
+	rdb, err := NewRedisClient(context.Background())
 	require.NoError(t, err)
 	require.NotNil(t, rdb)
 	defer func() { _ = rdb.Close() }()
@@ -110,7 +121,10 @@ func TestNewRedisClient_TLSViaRedissPrefix(t *testing.T) {
 	t.Setenv("REDIS_ADDR", "rediss://"+mr.Addr())
 	t.Setenv("REDIS_PASSWORD", "")
 
-	rdb, _ := NewRedisClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	rdb, _ := NewRedisClient(ctx)
 	if rdb != nil {
 		defer func() { _ = rdb.Close() }()
 	}
@@ -126,7 +140,10 @@ func TestNewRedisClient_TLSViaEnvVar(t *testing.T) {
 	t.Setenv("REDIS_PASSWORD", "")
 	t.Setenv("REDIS_TLS", "true")
 
-	rdb, _ := NewRedisClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	rdb, _ := NewRedisClient(ctx)
 	if rdb != nil {
 		defer func() { _ = rdb.Close() }()
 	}
