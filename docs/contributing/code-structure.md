@@ -274,6 +274,48 @@ for existing code, not a mandate to rewrite working symbols all at once.
   so the pairing stays obvious. Test-only helpers use the shared
   `*_test.go` helper file names listed above.
 
+### Type and Symbol Naming
+
+- **Acronyms are all-caps in exported identifiers.** Use `ID`, `UUID`, `URL`,
+  `HTTP`, `API`, `MFA`, `GRPC` — never `Id`, `Uuid`, `Url`, `Http`. In unexported
+  identifiers use camelCase: `tenantID`, `apiUUID`.
+- **Receiver names are short and consistent per type.** One or two letters derived
+  from the type: `s` for service implementations, `h` for handlers, `r` for
+  repositories, `a` for adapters. Never use `this` or `self`.
+- **Error sentinel variables use `ErrXxx`.** Custom error types use `XxxError`
+  (e.g. `NotFoundError`, `ConflictError`). Never return raw `errors.New(...)` from
+  service functions; use `apperror` constructors so handlers translate them
+  automatically.
+- **Single-method interfaces use the `-er` suffix.** `AccessTokenRevoker`,
+  `ClientPermissionResolver`. Multi-method service and repository interfaces are
+  named by the concept they represent: `TenantService`, `TenantRepository`.
+- **Directory names are lowercase with hyphens for multi-word paths.**
+  `tenant-settings`, not `tenant_settings` or `tenant settings`.
+
+### DTO and Result Type Naming
+
+The codebase uses `DTO` suffixes on HTTP wire types (`TenantResponseDTO`,
+`TenantCreateRequestDTO`). This is an established internal convention — do not
+rename existing symbols. For **new** types follow the same convention:
+
+| Role | Pattern | Example |
+| --- | --- | --- |
+| HTTP request body | `{Entity}{Action}RequestDTO` | `CreateClientRequestDTO` |
+| HTTP response body | `{Entity}ResponseDTO` | `ClientResponseDTO` |
+| Filter / list params | `{Entity}FilterDTO` | `ClientFilterDTO` |
+
+**Do not** add a `DTO` suffix to:
+- GORM model structs (e.g. `OAuthAuthorizeRequest`, `AccountLinkRequest`) — these
+  are persisted entities; `Request` is domain language, not an HTTP word.
+- Unexported internal structs used only within a package.
+- Service-layer input/result types that never cross the HTTP boundary.
+
+**Avoid encoding the layer name inside a type name** when the package already
+provides that context. Inside the `tenant` package, `ListFilter` is clearer than
+`TenantServiceGetFilter`. Reserve the entity prefix only when multiple entities
+share the same file and the name would otherwise be ambiguous (e.g.
+`TenantFilterDTO` vs `TenantMemberFilterDTO` in the same `types.go`).
+
 ## Before Updating Graphify
 
 After code edits, run the affected package tests and any app-level tests touched

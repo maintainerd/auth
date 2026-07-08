@@ -11,7 +11,7 @@ import (
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
 // Validate validates the invite request fields.
-func (r SendInviteRequest) Validate() error {
+func (r SendInviteRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Email,
 			validation.Required.Error("Email is required"),
