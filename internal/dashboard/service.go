@@ -8,7 +8,7 @@ import (
 )
 
 type Service interface {
-	GetSummary(ctx context.Context, tenantID int64) (*SummaryResponse, error)
+	GetSummary(ctx context.Context, tenantID int64) (*SummaryResponseDTO, error)
 }
 
 type service struct {
@@ -19,8 +19,8 @@ func NewService(db *gorm.DB) Service {
 	return &service{db: db}
 }
 
-func (s *service) GetSummary(ctx context.Context, tenantID int64) (*SummaryResponse, error) {
-	var summary SummaryResponse
+func (s *service) GetSummary(ctx context.Context, tenantID int64) (*SummaryResponseDTO, error) {
+	var summary SummaryResponseDTO
 
 	if err := s.countUsers(tenantID, &summary.Users); err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (s *service) countResource(table string, tenantID int64, out *ResourceCount
 	return nil
 }
 
-func (s *service) countAuthEvents(tenantID int64, out *SummaryResponse) error {
+func (s *service) countAuthEvents(tenantID int64, out *SummaryResponseDTO) error {
 	since := time.Now().Add(-24 * time.Hour)
 
 	if err := s.db.Table("auth_events").

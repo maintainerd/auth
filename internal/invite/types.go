@@ -2,8 +2,8 @@ package invite
 
 import "time"
 
-// SendInviteRequest represents the payload to invite a user.
-type SendInviteRequest struct {
+// SendInviteRequestDTO represents the payload to invite a user.
+type SendInviteRequestDTO struct {
 	Email                string  `json:"email"`
 	RegistrationFlowUUID *string `json:"registration_flow_uuid,omitempty"`
 	CallbackURL          *string `json:"callback_url,omitempty"`

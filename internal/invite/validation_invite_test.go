@@ -7,37 +7,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSendInviteRequest_Validate(t *testing.T) {
+func TestSendInviteRequestDTO_Validate(t *testing.T) {
 	registrationFlowStr := "00000000-0000-0000-0000-000000000001"
 
 	tests := []struct {
 		name    string
-		dto     SendInviteRequest
+		dto     SendInviteRequestDTO
 		wantErr bool
 	}{
 		{
 			name:    "valid with email only",
-			dto:     SendInviteRequest{Email: "user@example.com"},
+			dto:     SendInviteRequestDTO{Email: "user@example.com"},
 			wantErr: false,
 		},
 		{
 			name:    "valid with email and registration_flow",
-			dto:     SendInviteRequest{Email: "user@example.com", RegistrationFlowUUID: &registrationFlowStr},
+			dto:     SendInviteRequestDTO{Email: "user@example.com", RegistrationFlowUUID: &registrationFlowStr},
 			wantErr: false,
 		},
 		{
 			name:    "missing email",
-			dto:     SendInviteRequest{Email: ""},
+			dto:     SendInviteRequestDTO{Email: ""},
 			wantErr: true,
 		},
 		{
 			name:    "invalid email format",
-			dto:     SendInviteRequest{Email: "not-an-email"},
+			dto:     SendInviteRequestDTO{Email: "not-an-email"},
 			wantErr: true,
 		},
 		{
 			name:    "email too short",
-			dto:     SendInviteRequest{Email: "a@b"},
+			dto:     SendInviteRequestDTO{Email: "a@b"},
 			wantErr: true,
 		},
 	}

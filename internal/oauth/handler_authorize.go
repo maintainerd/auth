@@ -171,7 +171,7 @@ func (h *OAuthAuthorizeHandler) HandleConsent(w http.ResponseWriter, r *http.Req
 	}, "Consent processed")
 }
 
-type ContinueAuthorizeRequest struct {
+type ContinueAuthorizeRequestDTO struct {
 	RequestID string `json:"request_id"`
 }
 
@@ -182,7 +182,7 @@ func (h *OAuthAuthorizeHandler) ContinueAuthorize(w http.ResponseWriter, r *http
 		return
 	}
 
-	var req ContinueAuthorizeRequest
+	var req ContinueAuthorizeRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
 		return

@@ -14,7 +14,7 @@ type UserCount struct {
 	Pending   int64 `json:"pending"`
 }
 
-type SummaryResponse struct {
+type SummaryResponseDTO struct {
 	Users             UserCount     `json:"users"`
 	Services          ResourceCount `json:"services"`
 	Clients           ResourceCount `json:"clients"`
