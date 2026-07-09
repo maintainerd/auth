@@ -1,0 +1,117 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "2053e9ab-761e-4a99-9ab7-80c09bc081f8",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "f70d06d9-4f58-41b2-85e7-49172956a114",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "f2cf9cf8-09c3-41e6-af29-736322355a7b",
+        "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "687ce6ac-1d52-4ff4-abb8-0cebd596f5d2",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "fa502461-9094-4ec6-98a4-9837360ed9b5",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "e2d035c7-5632-43ba-a31c-e43ca733ae8d",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "The exact files and symbols, with importers/callers — read only what the graph points at.",
+    "prerequisites": [
+      {
+        "id": "9923c2be-5b27-46d1-8341-214531743392",
+        "text": "A saved map — the graph answers instead of grep"
+      }
+    ],
+    "purpose": "Locate the code for a symbol/feature via the graph",
+    "steps": [
+      {
+        "id": "63b3429a-c3d4-4c2c-a61d-708f515d384b",
+        "text": "Locate the code for a symbol/feature WITHOUT grepping the whole repo: $ARGUMENTS"
+      },
+      {
+        "id": "9a57bf00-6744-4c0f-a6fa-dde61468af4e",
+        "text": "STEP 1 — ASK THE GRAPH (huge token savings vs grep): \"{PEBBLES_CLI}\" map-symbol <name> [--kind class] for where something is DEFINED; map-search <term> to locate a feature (ranked by importance); map-file <path> for a file's symbols + imports + imported-by + calls; map-callers <symbol> for who CALLS it; map-neighbors <path> --depth 2 for the connected cluster."
+      },
+      {
+        "id": "efe58eac-532e-48a8-a7f4-3ce95cecfa5d",
+        "text": "STEP 2 — READ ONLY what the graph points at — not the whole repo. A feature usually spans several files; map-neighbors surfaces the ones that belong together."
+      },
+      {
+        "id": "a121d62c-c4c5-4339-932e-f047ab4d3bb0",
+        "text": "Report: the files and symbols you found, each with its role (definition / caller / dependency)."
+      }
+    ],
+    "verify": [
+      {
+        "id": "f95f2702-3d51-4411-8f8f-44e71adc3367",
+        "text": "Locations came from the graph (map-*), not a repo-wide grep"
+      },
+      {
+        "id": "b92eb0fe-abfa-4267-8738-aac29e26567f",
+        "text": "Only the files the graph pointed at were read; each reported with its role"
+      }
+    ],
+    "whenToUse": "Locating implementation code without grepping — where is this symbol defined, who calls it, what belongs to this feature."
+  },
+  "createdAt": "2026-07-21T14:32:38.757Z",
+  "description": "Locate the code for a symbol/feature via the graph",
+  "id": "fa659395-d911-4d05-bfc7-85a501432c67",
+  "name": "pebbles-find-code",
+  "refs": [
+    {
+      "id": "35237f01-a484-4d2d-bd83-e2b0c6836001",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "9261f191-24ad-420e-be15-04033230732c",
+      "label": "Graph-first navigation",
+      "path": ".pebbles/rules/system/graph-first-navigation.pebble",
+      "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "2f218dd0-bae2-4c53-a288-d50299bb1ec9",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "4df56c1c-ad7f-4e6c-a649-04cdb97368e8",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.757Z",
+  "version": 1
+}

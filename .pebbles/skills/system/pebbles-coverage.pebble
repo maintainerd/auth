@@ -1,0 +1,141 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "aa8974d8-1965-4158-9844-6eb7d0b094fe",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "883e47c4-2e9f-4e7c-8cb2-a4f64e22c266",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "164501a2-2a2e-46a5-97d0-a1e6f33002a5",
+        "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
+      },
+      {
+        "id": "f78c59a1-4213-4dd9-a490-1ad3facd49a8",
+        "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
+      },
+      {
+        "id": "598a03de-4e89-4c5a-8fea-8b0419423c1f",
+        "text": "Bound by system rule: Analysis standard (rules/system/analysis-standard)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "0b3458dd-73b4-4f89-bef7-22dce538b0a2",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "96dcd75e-33ae-4b02-9146-5bc5e0438c2c",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "363a3d6f-bd70-4db1-adc1-8a176278638c",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "A prioritized table of gaps — nothing is fixed by this skill.",
+    "prerequisites": [
+      {
+        "id": "a2bc7c10-68b2-42e7-8e19-7b9fa5f330d3",
+        "text": "A saved map — its hubs drive the code-side gap"
+      }
+    ],
+    "purpose": "Gap analysis: spec without code, code without spec",
+    "steps": [
+      {
+        "id": "a2bf5cdd-8ae0-40a1-8532-650bfb599833",
+        "text": "Coverage report — the gaps in BOTH directions: $ARGUMENTS"
+      },
+      {
+        "id": "485e6b4f-2d6e-4344-ad75-41d437311e08",
+        "text": "PREFLIGHT: a saved map (its hubs drive the code-side gap)."
+      },
+      {
+        "id": "40052827-8c5d-404d-93b4-bf69d84c5d66",
+        "text": "Find THREE gaps: (1) SPEC WITHOUT CODE — `query` pebbles (models/structures/contracts/workflows/requirements) lacking codeLinks: the spec claims what the graph can't point to. (2) CODE WITHOUT SPEC — the map's hubs (most-imported files) with no pebble referencing them: core code nobody specified. (3) REQUIREMENTS WITHOUT TESTS — requirement pebbles with no tests/ pebble ref."
+      },
+      {
+        "id": "5257ab20-9fc4-430b-b3c7-07d2091fe28a",
+        "text": "Fix NOTHING here. Record the totals so coverage is comparable over time: \"{PEBBLES_CLI}\" add-finding <most-relevant-pebble> --title \"Coverage: ...\" --category measurement --observation \"spec-without-code N, code-without-spec M, requirements-without-tests K\"."
+      },
+      {
+        "id": "cf5e58bb-1eb6-44df-a086-42b7504bc91b",
+        "text": "Report: a prioritized table of gaps, worst first."
+      }
+    ],
+    "verify": [
+      {
+        "id": "cb5c576a-c3e2-4c93-937b-d63d91e69d53",
+        "text": "The gap table is recorded as a finding (--category measurement) so coverage is comparable over time"
+      }
+    ],
+    "whenToUse": "Gap analysis in both directions: spec without code, code (hubs) without spec, requirements without tests."
+  },
+  "createdAt": "2026-07-21T14:32:38.766Z",
+  "description": "Gap analysis: spec without code, code without spec",
+  "id": "d8d1e56e-e4bb-4984-91a9-98430691a139",
+  "name": "pebbles-coverage",
+  "refs": [
+    {
+      "id": "9c1fd232-1838-42b7-a6b0-a4eb2a40d719",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "7ce5359f-bfa1-4459-866e-df91e4844690",
+      "label": "Reference integrity",
+      "path": ".pebbles/rules/system/reference-integrity.pebble",
+      "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "3455ae0b-42ed-4fa9-ba2a-f6feabd3def7",
+      "label": "Graph-first navigation",
+      "path": ".pebbles/rules/system/graph-first-navigation.pebble",
+      "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "7a04d4fe-d8ea-44e9-a922-39cd6fe95ce8",
+      "label": "Analysis standard",
+      "path": ".pebbles/rules/system/analysis-standard.pebble",
+      "pebbleId": "8b8e366f-5ede-47df-a887-ca721e3f51d0",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "86dc2017-3430-421b-a6b0-f8aa955cfb1d",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "98adc5ed-63d6-49c2-b741-4076008519b0",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.766Z",
+  "version": 1
+}

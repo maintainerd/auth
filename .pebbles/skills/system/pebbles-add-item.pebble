@@ -1,0 +1,83 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "c32f6aa4-856b-4a61-817c-bfd9a94a5e54",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "09a2ab69-54b2-4bd4-8e1f-b5c739ac1ac1",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "13c0ad65-4aed-4139-bd4c-d79bf2ee9ce9",
+        "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "c8c35111-dd33-40a3-a731-4cefb707101b",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "5a1975f6-4b79-4093-9b4c-2db5870e17d4",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "a2065f57-de75-4805-8605-cde90e383af5",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "The checklist with the new item.",
+    "prerequisites": [],
+    "purpose": "Append an item to a checklist pebble",
+    "steps": [
+      {
+        "id": "71532d7a-00c9-41c5-8151-f4a14e3ff427",
+        "text": "Run: \"{PEBBLES_CLI}\" add-item <path> --text \"...\" [--status S] based on: $ARGUMENTS"
+      }
+    ],
+    "verify": [],
+    "whenToUse": "Appending one entry to a checklist pebble (requirement AC, test case…)."
+  },
+  "createdAt": "2026-07-21T14:32:38.747Z",
+  "description": "Append an item to a checklist pebble",
+  "id": "6aa608d9-c03d-497c-a2e6-c69be39a7a63",
+  "name": "pebbles-add-item",
+  "refs": [
+    {
+      "id": "4a935171-090f-4e68-97c2-b4e250ce043b",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "5c29768a-90ab-44c4-858e-53fed8b8ab47",
+      "label": "Status discipline",
+      "path": ".pebbles/rules/system/status-discipline.pebble",
+      "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "67c756af-d8be-4574-8dfd-850c6b140a89",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.747Z",
+  "version": 1
+}

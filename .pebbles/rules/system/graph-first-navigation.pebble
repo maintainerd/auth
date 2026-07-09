@@ -1,0 +1,49 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "map-symbol (where defined) · map-search (ranked matches) · map-file (symbols + imports + importers + calls) · map-callers (who calls it) · map-neighbors (dependency closure). Only read the files the graph points you to.",
+        "enforcement": "strict",
+        "id": "216e6b45-4cf3-4056-ac98-64c2f0a42373",
+        "status": "verified",
+        "text": "Locate code through the map, not grep"
+      },
+      {
+        "description": "Queries read the latest SAVED map; the relay reports its age. Add --fresh when the code has changed since — extraction REQUIRES a current map.",
+        "enforcement": "strict",
+        "id": "f3582dca-e7ae-4b52-8421-a56688e0cb24",
+        "status": "verified",
+        "text": "Mind map freshness"
+      },
+      {
+        "description": "refs <path> shows a pebble's connections both ways (outgoing refs + codeLinks, and every pebble/unit referencing it). Use it before changing anything shared.",
+        "enforcement": "strict",
+        "id": "04bae6c9-c6ea-4908-b9e2-bcc706d22872",
+        "status": "verified",
+        "text": "Traverse the spec graph with refs and query"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.684Z",
+  "description": "The project map is a real dependency graph (imports, re-exports, inheritance, calls — 28 languages). Query it in token-cheap slices instead of grepping the repo.",
+  "id": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+  "name": "Graph-first navigation",
+  "refs": [
+    {
+      "id": "f037ff9f-20e1-40c8-ae6a-b0b3b43e4d1a",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.684Z",
+  "version": 1
+}

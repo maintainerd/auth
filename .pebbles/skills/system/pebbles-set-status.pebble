@@ -1,0 +1,92 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "6af9b7cd-acda-4c49-af10-0f18b23a3729",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "8dd8ac74-7fb3-4dea-bf4c-dc4fdf5d0070",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "cad26358-e668-48f9-9514-872492fad9e6",
+        "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "8a89e427-35d9-41bd-9db7-7346d2da0706",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "dcab1c03-eb7c-4417-aa3c-3e266e8ba55c",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "9d4e3a3a-97ad-4931-a3b1-66e9d6efbdf1",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "The pebble/unit with its new, truthful status.",
+    "prerequisites": [],
+    "purpose": "Set a pebble's (or unit's) status",
+    "steps": [
+      {
+        "id": "207d1386-6fc1-45d5-9734-a720a21bd1a6",
+        "text": "Run: \"{PEBBLES_CLI}\" set-status <path> <status> [--unit <id>] based on: $ARGUMENTS"
+      },
+      {
+        "id": "50c8749a-6d9c-4784-abef-a5ce240682ae",
+        "text": "Only set a status you have verified against the actual code."
+      }
+    ],
+    "verify": [
+      {
+        "id": "ae8a2ba2-0aa9-4fbd-9372-b43872d84c73",
+        "text": "The status you set is one you VERIFIED against code/behavior, not assumed"
+      }
+    ],
+    "whenToUse": "Recording verified progress or regressions — at the pebble or a single unit (--unit). Only after checking the actual code."
+  },
+  "createdAt": "2026-07-21T14:32:38.745Z",
+  "description": "Set a pebble's (or unit's) status",
+  "id": "be000177-de31-4e31-80d7-a5e07ef4f41f",
+  "name": "pebbles-set-status",
+  "refs": [
+    {
+      "id": "05b74dd0-b2dc-4904-a4ab-cc1788b5cd64",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "a288df24-3fb4-42ca-9767-1261c8bca64a",
+      "label": "Status discipline",
+      "path": ".pebbles/rules/system/status-discipline.pebble",
+      "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "55af6162-7398-4307-965c-d1cfbff18291",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.745Z",
+  "version": 1
+}

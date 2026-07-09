@@ -1,0 +1,87 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "2ba2b66f-6cc8-4353-86ad-1d27425aa517",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "0e4f9b08-90fd-4b96-ab07-fd256808f3c6",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "cf384f8d-8815-4a2b-86f7-16662413441e",
+        "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "abb7fb30-7454-491f-9ad8-dd69c582f927",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "770614ed-c198-4e5e-a19f-9f85ecd60333",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "9b7259be-4a49-414b-93b1-4d5232609a15",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "Outgoing refs + codeLinks and every pebble/unit referencing the target, both directions.",
+    "prerequisites": [],
+    "purpose": "A pebble's connections both ways (refs, codeLinks, backlinks)",
+    "steps": [
+      {
+        "id": "2b8bd451-6fe9-43e6-a057-da1c9ade7cc0",
+        "text": "Run: \"{PEBBLES_CLI}\" refs $ARGUMENTS"
+      },
+      {
+        "id": "997bf831-be98-4c15-9185-9b52010b7d69",
+        "text": "(Argument: a pebble path.) Report its outgoing refs + codeLinks AND every pebble/unit that references it. If deeper code analysis is wanted, each codeLink path is a map node id — `map-file <path>` gives its symbols/imports/callers instantly."
+      }
+    ],
+    "verify": [],
+    "whenToUse": "Before changing anything shared: who references this pebble, and what does it point at (refs, codeLinks, backlinks)?"
+  },
+  "createdAt": "2026-07-21T14:32:38.752Z",
+  "description": "A pebble's connections both ways (refs, codeLinks, backlinks)",
+  "id": "e9c0be9e-b3e0-4473-aeb9-47429e114a3b",
+  "name": "pebbles-refs",
+  "refs": [
+    {
+      "id": "2f75dfb4-6990-425c-809b-554604a117ac",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "5ff6852a-5ff1-4ccd-b28d-d81694b338e0",
+      "label": "Reference integrity",
+      "path": ".pebbles/rules/system/reference-integrity.pebble",
+      "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "03214297-191f-42fe-bec4-831c202266b5",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.752Z",
+  "version": 1
+}

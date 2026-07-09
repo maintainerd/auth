@@ -1,0 +1,112 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "Completeness is the FIRST duty and it is language-agnostic: enumerate every point where control DECIDES or LEAVES, in whatever forms the language uses, and account for EACH one as a node/branch (or fold it into a described step with a cited reason — never silently). That includes: every conditional (if/else if/else, ternary, null/optional check, guard clause, early return/continue/break); every multi-way branch (switch/match/case — INCLUDING the default/fallthrough); every loop (and how it exits/retries); every THROW/raise/reject/panic/error-return site; every catch/except/rescue CLAUSE — a multi-clause handler (multi-catch, chained except, several rescue, a type-switch on the error) is SEVERAL handlers: model each clause's DISTINCT handling (different logging, notify flags, rollback, rethrow, mapped status/response) — do NOT merge different handlers into one node; and every terminal outcome. A step that CAN fail internally need not sprout a branch per throw — the enclosing catch (its exception-type condition) covers those collectively — but an EXPLICIT decision or exit you can see in the code and did not model is a gap. BEFORE finishing: list the source's decision + exit points and confirm each maps to the graph; a mismatch blocks completion. This holds for every programming language and paradigm (procedural, OO, functional, async/callbacks, Result/err-return, pattern-matching) — recognize the construct, then model it.",
+        "enforcement": "strict",
+        "id": "38e06785-79de-4a89-a414-c0cbcee6bbfb",
+        "status": "verified",
+        "text": "Capture EVERY branch and exit — no path left behind (ALL languages)"
+      },
+      {
+        "description": "end is the sole terminal. Each OUTCOME node — success, error AND exception — has exactly ONE incoming line and ONE dedicated end: a private chain (check → outcome → its own end). DUPLICATE, never share: even two paths hitting the SAME outcome type get a separate outcome node + separate end each. The CLI rejects an outcome node (or its end) shared by more than one path. PROCESS convergence stays legal — many steps/arms/branches may point at one shared step/subprocess/parallel, and plain step-paths may share one plain end; success/error/exception are duplicated. FULLY CONNECTED — every node has ≥1 incoming line EXCEPT the roots: start, external sources (an external may inject with no start) and global-exception handlers (their own flow beside the main one); every non-end node has ≥1 outgoing line, every condition arm/parallel branch targets a real node, and every node is reachable from a root (start, an external source, or a global-exception). No orphans; the CLI rejects a disconnected node.",
+        "enforcement": "strict",
+        "id": "85fee7f4-9f34-491e-8be4-4a6577dd8b03",
+        "status": "verified",
+        "text": "Outcomes are DUPLICATED — each success/error is a private chain to its own end"
+      },
+      {
+        "description": "Emit success only where the code shows a positive signal (2xx/201, Ok(...), resolve(...), a success event/branch); emit error only where it emits/handles failure (throw/raise, Err(...), 4xx/5xx, reject, a catch that exits) — these live anywhere, not just APIs. A function that just computes and RETURNS A VALUE ends at a PLAIN end, no marker. No cited outcome token → plain end; never manufacture or split a plain return into success+error. One outcome per distinct result (status code / contract / compensation); auth denial always its own.",
+        "enforcement": "strict",
+        "id": "5aedf6d9-21e9-410a-9171-ebbb7746d744",
+        "status": "verified",
+        "text": "success/error are EVIDENCE-BASED — not every flow has them"
+      },
+      {
+        "description": "A DB transaction is Begin → … → Commit with an explicit Rollback path on failure. Any side-effect that can fail AFTER the commit boundary (event dispatch, outbox, notification) gets either its own error/compensation arm or an in-transaction outbox step with a cited at-least-once guarantee — never a silent fire-and-forget step.",
+        "enforcement": "strict",
+        "id": "3d892ad7-5a56-4433-99b2-8b4e601ec6b4",
+        "status": "verified",
+        "text": "Model the transaction and post-commit effects honestly"
+      },
+      {
+        "description": "The one legitimate backward/loop edge is a genuine PROCESS retry: a step/subprocess/parallel (or a condition deciding whether to retry) looping back to an EARLIER process node because the code actually re-processes, loops, or goes back and forth. Everything OUTCOME- or terminal-bound moves FORWARD only — success, error, exception, rollback/compensation, and end never take a backward edge and are NEVER reached by pointing back up to reuse a shared node. If tempted to draw an arrow up to an existing success/error/exception/rollback, DUPLICATE it forward instead (its own node + its own end).",
+        "enforcement": "strict",
+        "id": "daf6bb0b-d8ef-415f-b935-b120d1a676a9",
+        "status": "verified",
+        "text": "Flow forward — a backward edge is ONLY a process retry"
+      },
+      {
+        "description": "An external system is anything outside this app's boundary — another backend/service, a frontend, a queue/message bus, a third-party or partner API, a webhook peer, an AI service. Every crossing is an `external` node, in EITHER direction, never hidden in a plain step: INBOUND (the flow is triggered by data we receive — a REST request, a webhook, a gRPC call, a consumed queue message) gets an external node at the entry (right after start, detailing what was received) or a source with no start; OUTBOUND (a call that leaves our boundary — an HTTP client call, a queue publish, a frontend notify, a partner/AI SDK call) gets an external node where it happens. The node's description MUST state the direction, the communication type (REST/HTTP · webhook · gRPC · GraphQL · queue · WebSocket · …) and the data structure/requirements, ref-linking the contract/structure pebble.",
+        "enforcement": "strict",
+        "id": "36b7f4b4-dc0f-4dbe-ad5f-979eeda71ddd",
+        "status": "verified",
+        "text": "Represent every external-system crossing explicitly"
+      },
+      {
+        "description": "Match the CODE's shape; the deciding question is CAUGHT vs UNCAUGHT. (a) A single-purpose guard (auth, input validation, one check) stays INLINE: its failure → its own error node → an end, right below it. (b) A GUARDED try/catch you identify in the code — in ANY language, whatever the keywords (try/catch, try/except, begin/rescue, do/catch, defer+recover, an err-return guarded region, …) → the dedicated `try`/`catch` nodes; an error CAUGHT & handled by that catch stays LOCAL (the catch's real steps → end, no global-exception). (c) An UNCAUGHT / ESCAPED error goes to the GLOBAL handler → an `exception` node (the HAND-OFF marker) → its own end, plus the app's shared handler modeled ONCE as a `global-exception` flow (its REAL processes — rollback, log, notify, mark-failed — as explicit nodes, usually after a condition on error type → the error terminals). This is the case when the error is NOT bounded by a local catch: a `throw`/error-return with no enclosing try/catch, an error propagating past all catches, a catch that RE-THROWS/delegates, or a framework/middleware error filter. An `exception` node ALWAYS requires a `global-exception` flow (CLI-enforced) — but never invent one for a catch that fully handles its own error. exception nodes are DUPLICATED like success/error: each covered region gets its OWN exception node + OWN end (in-degree 1). NEVER reuse one, point several regions at one, or route back UP to a distant one (back-up is only for re-entering a real process, e.g. a retry). FLOW FORWARD: outcomes/terminals never take a backward edge.",
+        "enforcement": "strict",
+        "id": "20ea9f40-8131-4685-82cd-7fb5d9ebb6c6",
+        "status": "verified",
+        "text": "Error handling by SCOPE — try/catch nodes for a guarded try/catch (any language), exception/global-exception otherwise"
+      },
+      {
+        "description": "This applies to EVERY language — YOU identify the guarded error-handling construct in the code (try/catch, try/except, begin/rescue, do/catch, try-with-resources, defer+recover, an err-return guarded region, …), NOT by matching a keyword; once recognized the node model is the SAME. Model it with the `try` and `catch` node types (circles), CLI-enforced. (1) The `try` `{` opens the guarded region with exactly TWO outputs: the BODY (the try block's statements as ordinary nodes flowing down, whose last node RETURNS to the catch) and a SPINE straight to the matching `catch` (its 2nd line may ONLY target a catch). (2) The BODY is modeled in FULL — an inner guard that throws keeps its OWN condition with both arms and its throw arm → an `error` \"<what> — error thrown\" → its own end (scope conveys the catch handles it; no edge drawn); never collapse or drop inner guards. (3) The `catch` `}` closes the block with exactly TWO inputs (the try's spine + the body's return) and exactly TWO outputs: the EXCEPTION line ALWAYS labeled \"Exceptions\" (fixed) → the failure handling, and the CONTINUATION line with NO label → the code AFTER the try/catch. CAUGHT vs UNCAUGHT decides where the Exceptions line goes: a catch that HANDLES the error locally (rollback, log, recover, set-status, return a default) → those REAL processes as EXPLICIT nodes → `end`, self-contained, NO global-exception; a catch that RE-THROWS or delegates to the app's global handler → its local step(s), then an `exception` hand-off node → `end`, which routes to a `global-exception` flow (exception ⟹ global-exception). Never one generic box; never invent a global-exception for a catch that fully handles its own error. (4) Auto-arrange draws it as a BRACKET: try + catch on the same spine column, the FIRST body node aligned horizontally with the try (a step to the right, not a diagonal) and the rest flowing down between them, the catch one row below the body's footprint, the continuation down the spine, the \"Exceptions\" line peeling right. A try has exactly one catch.",
+        "enforcement": "strict",
+        "id": "d15cc378-d48d-4bb4-b3e4-8119e647b956",
+        "status": "verified",
+        "text": "A guarded try/catch (any language, you identify it) → the dedicated `try`/`catch` nodes"
+      },
+      {
+        "description": "Each node's description ends with the file:line it was read from; the pebble's codeLinks bind every source file the flow was traced through. A node with no citation is not extracted, it is guessed.",
+        "enforcement": "strict",
+        "id": "e3d0d015-1746-46f2-821e-bc80309cab4d",
+        "status": "verified",
+        "text": "Every node cites its code location"
+      },
+      {
+        "description": "Altitude sets WHAT qualifies as a node, NEVER how many — NO cap, NO target count; capture every qualifying process and NEVER merge two distinct processes or drop one. shallow = each node is a top-level TOPIC (a nameable phase that could be its own workflow; internals described) — RECOMMENDED first pass to map a whole flow. extract = every discrete operation at ONE level, callees flattened to described steps. deep = same completeness PLUS the PROMOTION TEST per non-utility callee: gate utilities out; a callee with <6 distinct operations (would graph to ~2–5 nodes) stays a described step; a callee with ≥6 operations that is nameable as a noun-phrase (a service/event-handler/imported file with real internal flow) is PROMOTED to its OWN child workflow linked as one subprocess node (reconciled, never re-traced). The bar is per-callee and NEVER caps the parent. extract/deep may run whole-flow, just heavier. FORBIDDEN: subprocess explosion (promoting every import) AND collapsing a real ≥6-op service into one vague step.",
+        "enforcement": "strict",
+        "id": "c055c71e-dc2e-4238-8d35-da55680c9336",
+        "status": "verified",
+        "text": "Respect the depth's node-production rule"
+      },
+      {
+        "description": "You place nodes poorly by hand. After create/update of a workflow, run \"{PEBBLES_CLI}\" arrange <path> — it lays out the graph with the app's own engine (straight spine, 2-way splits peel right, collision-free) and writes the positions. x/y you set are placeholders the arrange overwrites; locked nodes are preserved. If the app is open it hot-reloads the arranged flow automatically.",
+        "enforcement": "strict",
+        "id": "25b4f1d3-3ed8-4d72-98f3-2e9ebe217c5d",
+        "status": "verified",
+        "text": "Never hand-place nodes — run `arrange` after writing"
+      },
+      {
+        "description": "For the envelope pattern (a controller opens a transaction, delegates the core mutation to a domain service, maps result→response): the domain call becomes a subprocess. Resolve the callee file:symbol → query for an existing workflow rooted there → if found LINK it, else create the child then link. Reconcile on entry-symbol identity, not title. The API layer stays high; detail lives in the child, satisfying termination independently.",
+        "enforcement": "strict",
+        "id": "8c9f5aad-3f7a-4a94-8d15-769afd48a223",
+        "status": "verified",
+        "text": "Deep-extract: check-before-create, in order"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.726Z",
+  "description": "How code becomes a WORKFLOW pebble at production quality: total termination, outcome/exception markers, external crossings, forward-flow, the API-envelope→domain-subprocess pattern, file:line-cited nodes. These specifics apply to WORKFLOW extraction ONLY — every other pebble type extracts by its own standard (see the by-type extraction standards). What is shared across ALL kinds is the completeness bar (extraction-standard) and the scope boundary (extraction-scope): capture everything, drop nothing.",
+  "id": "9243a095-f907-4483-a4d7-b7108ff902bf",
+  "name": "Extraction — workflow graph standard",
+  "refs": [
+    {
+      "id": "c74a4e05-c8d5-4950-99a8-138b26571647",
+      "label": "Extraction — workflow modeling (nodes, altitude, modes)",
+      "path": ".pebbles/knowledge/system/workflow-modeling.pebble",
+      "pebbleId": "7ac0eded-c92f-49f9-ab2c-984aaa92e502",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.726Z",
+  "version": 1
+}

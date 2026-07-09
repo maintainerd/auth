@@ -1,0 +1,125 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "94b121c1-d56f-4b0d-a819-b75d6e7da6c0",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "96b4909e-43b2-433f-aa32-6d6475337b64",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "aa08e6f2-19b3-48dc-b1b6-c8ead46fdadd",
+        "text": "Bound by system rule: Table completeness (rules/system/table-completeness)"
+      },
+      {
+        "id": "b27264ee-619e-4948-b705-530c80455c08",
+        "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "458032ce-f64a-4cba-851d-1877e082b179",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "c6c18591-fc75-48bc-81e4-0f020f030b5a",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "7c833b12-88a9-462c-ab6c-0b63bf9ce639",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "The updated path, with droppedRefs reporting any links that didn't resolve.",
+    "prerequisites": [
+      {
+        "id": "63f6f88c-4192-48c0-af6a-39148845c02e",
+        "text": "The target is read with get FIRST — content is replaced whole, so patch from reality"
+      }
+    ],
+    "purpose": "Update a pebble via a validated patch",
+    "steps": [
+      {
+        "id": "eb9b5621-b637-442e-94fc-bd96b562607b",
+        "text": "Update a pebble through a validated patch: $ARGUMENTS"
+      },
+      {
+        "id": "79d82631-64a8-400a-8c15-fbddbb3d5920",
+        "text": "STEP 1 — GET FIRST: read the target with \"{PEBBLES_CLI}\" get <path> so you patch from reality, not memory. content is replaced WHOLE — send the full content object, never a fragment; id/version/createdAt are immutable."
+      },
+      {
+        "id": "8145a45a-52fa-4822-9a98-5aa713da96dd",
+        "text": "STEP 2 — PRESERVE UNIT STATE: units matched by id (or name when the patch omits id) keep their existing id/status/description when you omit them — but set what you actually know; never blank a field by forgetting it."
+      },
+      {
+        "id": "752dd0ad-4370-4bf2-b048-5ccca50ef183",
+        "text": "STEP 3 — PATCH: \"{PEBBLES_CLI}\" update <path> --patch '{...}'; wire FKs via refKey when targets exist."
+      },
+      {
+        "id": "39ab5e88-1f30-4292-b8f1-a5736c4f35b6",
+        "text": "Report: what changed, plus any droppedRefs (unresolved links) with why; `get` it back if unsure the content matches intent."
+      }
+    ],
+    "verify": [
+      {
+        "id": "51758e91-c246-4623-9b18-d4f38a774434",
+        "text": "get the pebble back and confirm the content matches what you intended"
+      },
+      {
+        "id": "60577acb-723d-44fd-af51-9401fd1749d9",
+        "text": "droppedRefs is empty — or every drop is reported to the user with why"
+      }
+    ],
+    "whenToUse": "Changing existing spec through a validated patch. content is replaced whole — send the full object; unit ids/statuses/descriptions survive when omitted."
+  },
+  "createdAt": "2026-07-21T14:32:38.742Z",
+  "description": "Update a pebble via a validated patch",
+  "id": "6a51e959-6f2e-489d-8162-3ff9680b9ad4",
+  "name": "pebbles-update",
+  "refs": [
+    {
+      "id": "15b715dd-2da6-44be-bbb3-27dd31f8438f",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "2323cc70-b6fe-4aad-90bd-f32c4e64d3eb",
+      "label": "Table completeness",
+      "path": ".pebbles/rules/system/table-completeness.pebble",
+      "pebbleId": "d374da94-58db-4e58-8fc0-c42ec2e62c69",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "18b736c8-200e-40c5-b53a-5b8c6e206096",
+      "label": "Reference integrity",
+      "path": ".pebbles/rules/system/reference-integrity.pebble",
+      "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "eefe2f39-5974-4e88-8ac1-790789cedcf9",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.742Z",
+  "version": 1
+}

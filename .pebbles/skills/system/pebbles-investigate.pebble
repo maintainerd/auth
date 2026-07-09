@@ -1,0 +1,153 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "5339a8cb-e913-4bdf-b445-eaa71f42e127",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "1732515e-e154-4bc1-bbb1-3ce58a2be676",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "b5bd395c-9c94-4ffe-a400-627eb2557d35",
+        "text": "Bound by system rule: Findings are the append-only evidence log (rules/system/findings-as-evidence)"
+      },
+      {
+        "id": "8d64ac27-3665-47fe-8b87-9460e99a6e3d",
+        "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
+      },
+      {
+        "id": "0a271f66-d366-45dd-b7ef-76111dfc705a",
+        "text": "Bound by system rule: Analysis standard (rules/system/analysis-standard)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "abe782a3-e192-481a-a8e6-f174093ddba2",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "40678c49-db72-4f99-af1e-58dff1419855",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "64e5cc74-7435-4b7b-8af2-796b721084b0",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "Dated findings (bug, verified-working, performance, tech-debt…) and corrected statuses where reality differs.",
+    "prerequisites": [
+      {
+        "id": "f93d31f0-82cf-465a-b7cf-e194c2cd1f1c",
+        "text": "A saved map — trace via the graph"
+      },
+      {
+        "id": "f2841a64-f151-499f-acb3-5abd0e0ec66e",
+        "text": "The question and the search boundary are stated before digging"
+      }
+    ],
+    "purpose": "Investigate an area deeply (records findings)",
+    "steps": [
+      {
+        "id": "4a31ea95-7b87-4118-8143-b3c30de1514e",
+        "text": "Investigate this area and report evidence — not opinions: $ARGUMENTS"
+      },
+      {
+        "id": "1ceb339f-e8f9-4578-bf2e-0877235d0ca4",
+        "text": "SCOPE FIRST (echo before digging): the question you are answering and the boundary of the search (which files/subsystem). An open-ended \"look around\" produces nothing auditable."
+      },
+      {
+        "id": "dcef2578-3d3c-48bd-8fcb-9b21e16c6b33",
+        "text": "STEP 1 — TRACE: reach the relevant code via the graph (map-search/map-symbol/map-neighbors/map-callers), then READ it — whole functions, not excerpts — following references to their definitions before concluding."
+      },
+      {
+        "id": "277b04c5-82a9-4004-b953-0f01482b5f4c",
+        "text": "STEP 2 — WEIGH: label every claim EVIDENCE (file:line) or INFERENCE (say so); try to REFUTE your leading hypothesis at least once before reporting it; state coverage — what you read, what you did not, and why the gap is safe."
+      },
+      {
+        "id": "a3361184-d18d-48ac-8051-e2d512989296",
+        "text": "STEP 3 — RECORD EVERY CONCLUSION as a finding: \"{PEBBLES_CLI}\" add-finding <target> --title \"...\" [--unit <id>] --category bug|verified-working|research|measurement|performance|tech-debt|security --observation \"...\" --evidence \"file:line\". An investigation with no findings is unauditable. Never edit a prior finding — supersede it (--supersedes). Set statuses truthfully where reality differs from the spec."
+      },
+      {
+        "id": "77725229-908a-4c21-b64b-f27aab151224",
+        "text": "Report: the answer with its evidence, and the open questions that remain."
+      }
+    ],
+    "verify": [
+      {
+        "id": "95d6b10a-3963-46fd-980e-2720a361009a",
+        "text": "Every conclusion is recorded as a finding (research/bug/measurement as fits) — an investigation with no findings is unauditable"
+      },
+      {
+        "id": "edc2dd83-16c0-4c55-b3a9-98c7a11398eb",
+        "text": "Prior findings on the same question are superseded, not edited"
+      }
+    ],
+    "whenToUse": "Deep-diving an area with no preconception — trace, read, gather evidence, record every conclusion."
+  },
+  "createdAt": "2026-07-21T14:32:38.788Z",
+  "description": "Investigate an area deeply (records findings)",
+  "id": "3c49d217-bb52-4cf0-8cf3-cb24b3534b07",
+  "name": "pebbles-investigate",
+  "refs": [
+    {
+      "id": "8481518d-3850-4f86-a4a4-5edc1586a881",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "f6d3d965-f6e6-43c5-9f8d-c07622315555",
+      "label": "Findings are the append-only evidence log",
+      "path": ".pebbles/rules/system/findings-as-evidence.pebble",
+      "pebbleId": "468bc1e3-c8ac-4495-8166-f6dd6ed9b469",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "32beb464-60fe-4e65-a3c2-ade8ee6a067b",
+      "label": "Graph-first navigation",
+      "path": ".pebbles/rules/system/graph-first-navigation.pebble",
+      "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "48ecb021-5c16-46cb-9c2b-b2c9d18a83e0",
+      "label": "Analysis standard",
+      "path": ".pebbles/rules/system/analysis-standard.pebble",
+      "pebbleId": "8b8e366f-5ede-47df-a887-ca721e3f51d0",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "80d187ad-adec-43a1-bc3e-71605370a755",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "2e056a1b-2090-4ee0-af4c-cf6cecb0ca09",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.788Z",
+  "version": 1
+}

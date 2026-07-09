@@ -1,0 +1,8 @@
+{
+  "languages": [
+    "Go"
+  ],
+  "envVars": [],
+  "name": "Maintainerd-Auth",
+  "description": "Identity and Access Management"
+}

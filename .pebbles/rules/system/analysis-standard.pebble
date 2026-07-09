@@ -1,0 +1,70 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "No verdicts from excerpts.",
+        "enforcement": "strict",
+        "id": "d3985151-a2ae-4fd1-b066-9c925fe4b230",
+        "status": "verified",
+        "text": "Read the entire artifact before any judgment"
+      },
+      {
+        "description": "Callers, configs, schemas — names deceive.",
+        "enforcement": "strict",
+        "id": "6b455c56-658e-43eb-9500-8e08f3717551",
+        "status": "verified",
+        "text": "Trace every reference to its definition before concluding"
+      },
+      {
+        "description": "What was read, what wasn't, and why the gap is safe to leave.",
+        "enforcement": "strict",
+        "id": "3b32b860-c9dd-4d40-8f57-17ee5a334759",
+        "status": "verified",
+        "text": "State coverage explicitly"
+      },
+      {
+        "description": "Evidence cites file:line; inference says so. Presenting inference as fact is a violation.",
+        "enforcement": "strict",
+        "id": "ee859fdf-4c5c-42fb-a115-29883aafd05d",
+        "status": "verified",
+        "text": "Label every claim: evidence or inference"
+      },
+      {
+        "description": "Try to refute your leading hypothesis at least once before reporting it.",
+        "enforcement": "strict",
+        "id": "691bde8b-b17e-420d-8872-0977687dbca7",
+        "status": "verified",
+        "text": "Seek disconfirming evidence before committing"
+      },
+      {
+        "description": "\"not found where I looked\" is a finding; \"doesn't exist\" requires an exhaustive search you can describe.",
+        "enforcement": "strict",
+        "id": "893ba1f8-4f38-4830-b5a4-cb1a2f5c63d2",
+        "status": "verified",
+        "text": "Report absence honestly"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.706Z",
+  "description": "Trustworthy investigation: whole-artifact reads, traced references, evidence separated from inference.",
+  "id": "8b8e366f-5ede-47df-a887-ca721e3f51d0",
+  "name": "Analysis standard",
+  "refs": [
+    {
+      "id": "3a23a450-5348-4c9c-869b-ddb8ea3ee4b4",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.706Z",
+  "version": 1
+}

@@ -1,0 +1,84 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "entry_points as concrete file:symbol (never a phrase) · the topic closure definition · the depth (shallow/extract/deep) · the exclusion list · the utility filter. The Scope Block is echoed into the conversation BEFORE any pebble write.",
+        "enforcement": "strict",
+        "id": "d30c218f-e15f-4a9d-822e-41dfde190318",
+        "status": "verified",
+        "text": "Emit the SCOPE BLOCK before reading any code"
+      },
+      {
+        "description": "If the topic resolves to more than one plausible entry symbol, list the candidates and confirm with the user. Extraction from the wrong entry is 100% wasted work.",
+        "enforcement": "strict",
+        "id": "378d4314-bc17-4533-b241-7a50b78aa294",
+        "status": "verified",
+        "text": "Ambiguous entry point? Ask BEFORE extracting, never after"
+      },
+      {
+        "description": "A node is in scope iff it is reachable FROM an entry point via the call/import graph (map-neighbors --out, map-callers to verify direction). Upstream callers of the entry point are OUT. Siblings are OUT. The processes that happen BEFORE the topic are OUT — always.",
+        "enforcement": "strict",
+        "id": "4f381f10-a90b-49e5-b956-912eb32c24ef",
+        "status": "verified",
+        "text": "The topic closure is FORWARD reachability only"
+      },
+      {
+        "description": "A callee with codebase-wide fan-in ≥5 (from the map), or matching the utility list (log, validate, auth-check, serialize, config), appears only inside a step's description — never as its own node or workflow.",
+        "enforcement": "strict",
+        "id": "8c209698-7afc-45d7-9d46-6d5d26f1df1f",
+        "status": "verified",
+        "text": "Shared utilities are never nodes"
+      },
+      {
+        "description": "A node citing a file the map doesn't place in the closure is rejected. No citation = no node.",
+        "enforcement": "strict",
+        "id": "30a29b95-08de-4900-9496-10a3d8be4b17",
+        "status": "verified",
+        "text": "Every node cites a code location inside the declared closure"
+      },
+      {
+        "description": "Reachable-but-excluded items are listed with reason codes (utility, out-of-topic, upstream). A non-trivial topic with zero exclusions means the boundary wasn't actually applied.",
+        "enforcement": "strict",
+        "id": "b0dfc7d2-7605-45b7-b962-a15cf1b4f1ff",
+        "status": "verified",
+        "text": "Emit the exclusion list — empty is a red flag"
+      },
+      {
+        "description": "Count the branches in the source closure and the condition nodes emitted; unexplained deltas block completion.",
+        "enforcement": "strict",
+        "id": "ad0bacd9-01d4-4893-884c-ca29e1bd621f",
+        "status": "verified",
+        "text": "Reconcile branches vs nodes before publishing"
+      },
+      {
+        "description": "Needing a second start node means the scope should SPLIT into another workflow, not grow.",
+        "enforcement": "strict",
+        "id": "038133c6-caf9-4d41-9ad5-a9ecb5de1149",
+        "status": "verified",
+        "text": "One workflow per entry point"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.718Z",
+  "description": "Off-topic extraction is the observed failure: extracting things unrelated to the requested topic. The boundary is mechanical, declared up front, and every emitted node must prove it belongs.",
+  "id": "4baf83c3-426f-467b-8642-e79a9683cce0",
+  "name": "Extraction — scope boundary (topic is law)",
+  "refs": [
+    {
+      "id": "e209e64d-0661-4e5c-9625-0b81b66374c9",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.718Z",
+  "version": 1
+}

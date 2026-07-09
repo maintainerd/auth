@@ -1,0 +1,70 @@
+{
+  "content": {
+    "dialect": "mysql",
+    "filters": [
+      {
+        "field": "ser.number",
+        "id": "d0b17fa9-9b93-464b-b183-a01c77e77f60",
+        "op": "like",
+        "value": "OR12345"
+      }
+    ],
+    "groupBy": [],
+    "joins": [
+      {
+        "id": "a5a53b90-aee9-4c33-8141-0dec421d7653",
+        "leftField": "ser.service_request_id",
+        "op": "=",
+        "rightField": "wor.service_request_id",
+        "tableId": "8c5842e7-de15-41ce-9291-772ec1009caa",
+        "type": "inner"
+      }
+    ],
+    "kind": "query",
+    "orderBy": [],
+    "preloads": [
+      {
+        "fields": [
+          "service_request_id",
+          "service_request_uuid",
+          "number"
+        ],
+        "id": "246f57fa-a1d1-4055-8b28-994d1189456d",
+        "relationship": "serviceRequest",
+        "tableId": "8c5842e7-de15-41ce-9291-772ec1009caa"
+      }
+    ],
+    "select": [
+      "service_requests.service_request_uuid",
+      "service_requests.number",
+      "wor.work_order_uuid",
+      "wor.service_request_id",
+      "wor.work_order_id",
+      "service_requests.service_request_id"
+    ],
+    "tables": [
+      {
+        "alias": "service_requests",
+        "id": "f0fc95a0-d8a0-4207-ac79-dd042ea1ec1f",
+        "path": ".pebbles/models/servicerequests.pebble",
+        "pebbleId": "e4409156-d07d-4302-960b-f691106fa61f",
+        "table": "ServiceRequests"
+      },
+      {
+        "alias": "wor",
+        "id": "8c5842e7-de15-41ce-9291-772ec1009caa",
+        "path": ".pebbles/models/workorders.pebble",
+        "pebbleId": "e24b9c04-d005-4848-9b77-f1c371ebc061",
+        "table": "WorkOrders"
+      }
+    ]
+  },
+  "createdAt": "2026-07-22T10:22:49.794Z",
+  "description": "",
+  "id": "fef122de-ddbc-48f5-883e-96af8e5955d4",
+  "name": "GetServiceRequest",
+  "tags": [],
+  "type": "query",
+  "updatedAt": "2026-07-22T17:45:49.756Z",
+  "version": 1
+}

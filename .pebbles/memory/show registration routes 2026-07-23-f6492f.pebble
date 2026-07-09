@@ -1,0 +1,17 @@
+{
+  "content": {
+    "context": "Claude Code · project-wide · 2026-07-23",
+    "facts": [],
+    "kind": "memory",
+    "summary": "",
+    "transcript": "**User:** show registration routes\n\n**Assistant:** There are two distinct sets of registration routes.\n\n## 1. User registration endpoints — `internal/authn/routes.go`\n\nBoth apply a stricter 1 MB body limit and 30 s timeout.\n\n**Internal (port 8080, `RegisterRoute`)** — no `client_id`, auth through system client:\n| Method | Path | Handler |\n|--------|------|---------|\n| POST | `/register` | `RegisterHandler.Register` |\n| POST | `/register/invite` | `RegisterHandler.RegisterInvite` |\n\n**Public (port 8081, `RegisterPublicRoute`)** — requires `client_id`/`tenant_id`, guarded by `publicAuthSurface`:\n| Method | Path | Handler |\n|--------|------|---------|\n| POST | `/register` | `RegisterHandler.RegisterPublic` |\n| POST | `/register/invite` | `RegisterHandler.RegisterInvitePublic` |\n\n## 2. Registration-flow admin CRUD — `internal/idp/routes.go` (`RegistrationFlowRoute`)\n\nControl-plane management of registration flows. All under `/registration_flows`, behind JWT + user-context + rate-limit middleware and per-route permissions:\n\n| Method | Path | Handler | Permission |\n|--------|------|---------|-----------|\n| GET | `/registration_flows` | `GetAll` | `registration-flow:read` |\n| GET | `/registration_flows/{uuid}` | `Get` | `registration-flow:read` |\n| POST | `/registration_flows` | `Create` | `registration-flow:create` |\n| PUT | `/registration_flows/{uuid}` | `Update` | `registration-flow:update` |\n| PATCH | `/registration_flows/{uuid}/status` | `UpdateStatus` | `registration-flow:update` |\n| DELETE | `/registration_flows/{uuid}` | `Delete` | `registration-flow:delete` |\n| POST | `/registration_flows/{uuid}/roles` | `AssignRoles` | `registration-flow:update` |\n| GET | `/registration_flows/{uuid}/roles` | `GetRoles` | `registration-flow:read` |\n| DELETE | `/registration_flows/{uuid}/roles/{role_uuid}` | `RemoveRole` | `registration-flow:update` |\n\nWant me to trace where these route functions get mounted onto the two servers (`internal/server`)?"
+  },
+  "createdAt": "2026-07-23T08:03:16.533Z",
+  "description": "Saved from a chat session",
+  "id": "3c162694-c1a9-4aef-b46a-080c0b088f6a",
+  "name": "show registration routes",
+  "tags": [],
+  "type": "memory",
+  "updatedAt": "2026-07-23T08:03:16.533Z",
+  "version": 1
+}

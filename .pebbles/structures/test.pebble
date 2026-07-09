@@ -1,0 +1,32 @@
+{
+  "content": {
+    "fields": [
+      {
+        "accepted": [
+          "ws"
+        ],
+        "description": "",
+        "id": "11b19db7-dacf-4f16-96ad-ca0ed40dc166",
+        "name": "test",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "description": "",
+        "id": "928da904-d6fa-46ba-a8a0-f5767fb3d709",
+        "name": "test2",
+        "required": false,
+        "type": "string"
+      }
+    ],
+    "kind": "schema"
+  },
+  "createdAt": "2026-07-21T17:16:26.369Z",
+  "description": "",
+  "id": "871afd09-29ce-472b-8d92-0163ba4ad645",
+  "name": "test",
+  "tags": [],
+  "type": "structure",
+  "updatedAt": "2026-07-23T10:27:54.062Z",
+  "version": 1
+}

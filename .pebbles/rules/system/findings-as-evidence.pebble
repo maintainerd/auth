@@ -1,0 +1,77 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "Same question, new answer → NEW finding with --supersedes pointing at the old one (the old file stays untouched; backlinks show it was superseded). New question → fresh finding. The log is the history.",
+        "enforcement": "strict",
+        "id": "c37c1861-9a4f-4875-8810-8e50490f2caa",
+        "status": "verified",
+        "text": "Never update or delete an existing finding"
+      },
+      {
+        "description": "verify, audit, fix, implement, investigate, impact and coverage runs record at least one finding — even \"verified-working\" or \"inconclusive\" is an outcome; a run with no recorded outcome is unauditable. extract/onboard/sync-model/plan file one only when something notable surfaced. Read/query work never does — retrieval is not an outcome.",
+        "enforcement": "strict",
+        "id": "f907bccc-b533-4e07-963c-170b2fd57261",
+        "status": "verified",
+        "text": "Outcome-producing work MUST end with a finding"
+      },
+      {
+        "description": "bug · verified-working · spec-violation · security · performance · regression · tech-debt · ux · data · research (how something works, root cause) · decision (choice + rationale + rejected alternatives) · assumption (believed, unverified, downstream work depends on it) · measurement (benchmark/count/coverage at a date) · incomplete (declared partial work: done, remaining, why stopped) · other.",
+        "enforcement": "strict",
+        "id": "d42ea419-74ee-4170-b3cd-c1f4ce5f748d",
+        "status": "verified",
+        "text": "Pick the category that matches the outcome"
+      },
+      {
+        "description": "open = needs action as of the report date · resolved = settled · info = no action implied. \"Is it still open?\" is answered by the supersedes chain — latest finding in the chain wins — never by editing.",
+        "enforcement": "strict",
+        "id": "5760dd72-e06d-452c-9dfc-ebc8ff0680b7",
+        "status": "verified",
+        "text": "Disposition is set at birth and never mutated"
+      },
+      {
+        "description": "--evidence carries file:line or command output. A finding without evidence is an opinion.",
+        "enforcement": "strict",
+        "id": "d555575c-a4ff-46d5-a02c-c40b8ab49f40",
+        "status": "verified",
+        "text": "Cite concrete evidence"
+      },
+      {
+        "description": "add-finding links the report and the target pebble (and unit, with --unit) both ways — never hand-craft the refs.",
+        "enforcement": "strict",
+        "id": "f3c8fd0b-0db3-4d5c-962b-72bee1d04574",
+        "status": "verified",
+        "text": "Findings cross-link automatically"
+      },
+      {
+        "description": "An open finding whose chain-tip is old may be a zombie (fixed incidentally, never superseded). Audit runs re-test open chain-tips and append the current truth — resolved, or still-open re-confirmed.",
+        "enforcement": "strict",
+        "id": "ac4e3923-9629-4301-826f-9b0179cdcd7a",
+        "status": "verified",
+        "text": "Audits re-confirm stale open chains"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.683Z",
+  "description": "Findings are dated reports covering EVERYTHING with an outcome — bugs, pass evidence, research, decisions, measurements. The log is append-only: what you knew then stays on record; what you know now is a new entry.",
+  "id": "468bc1e3-c8ac-4495-8166-f6dd6ed9b469",
+  "name": "Findings are the append-only evidence log",
+  "refs": [
+    {
+      "id": "971d1801-d7e5-4c61-847e-8fc2d89a9c6b",
+      "label": "The spec lifecycle — both directions",
+      "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
+      "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.683Z",
+  "version": 1
+}

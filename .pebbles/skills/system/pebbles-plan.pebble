@@ -1,0 +1,153 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "fbb6bd74-980a-47ff-aa51-fbfc8827248a",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "da1ae5bf-4506-401e-b0a1-48460e5f775b",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "ebf898ee-7feb-4c92-b203-9656b17a2917",
+        "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
+      },
+      {
+        "id": "e3431501-6039-43b9-8fba-f58697754481",
+        "text": "Bound by system rule: Table completeness (rules/system/table-completeness)"
+      },
+      {
+        "id": "c1306637-8434-4459-800f-0af9c4b10da8",
+        "text": "Bound by system rule: Requirement fidelity (rules/system/requirement-fidelity)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "625f94d1-2d70-42f2-a3f2-7b859001f96a",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "1814b872-4864-4fe8-b314-1d22c9b75cc2",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "e2a47f73-be30-47f9-94e6-522c6e277a2c",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "Spec, not code: items with testable descriptions, statuses starting planned.",
+    "prerequisites": [
+      {
+        "id": "1f51db56-8c00-47bb-ba73-3b35ab1a6f88",
+        "text": "The outcome and its acceptance criteria are settled — ask if genuinely ambiguous before decomposing"
+      }
+    ],
+    "purpose": "Decompose a requirement into linked, verifiable spec",
+    "steps": [
+      {
+        "id": "a7560f9b-4831-4ad9-8e90-d2b2ee568f20",
+        "text": "Plan from this requirement — produce spec, not code: $ARGUMENTS"
+      },
+      {
+        "id": "22329213-e76d-410f-b72b-eeb8fbc02fed",
+        "text": "SCOPE FIRST (echo before writing): the outcome being planned and its acceptance criteria as you understand them; ask if the criteria are genuinely ambiguous — a plan on the wrong target is wasted."
+      },
+      {
+        "id": "0ebe9c7f-9d52-49b1-9e36-14d4ac3ae120",
+        "text": "STEP 1 — DECOMPOSE into concrete, independently VERIFIABLE pieces — each a checklist item with a testable description (\"given X, when Y, then Z\"), never a vague task. Untestable items are the failure mode."
+      },
+      {
+        "id": "45884d8f-ec2f-4117-a9c5-763c0b249498",
+        "text": "STEP 2 — MODEL what the work needs: where warranted create the linked pebbles (a workflow for a process, the models/structures/contracts it touches) via the CLI, and connect them with refs so the plan is a graph, not a flat list. Reference what exists; note what must be created first."
+      },
+      {
+        "id": "7ad367f3-10cb-4cf0-8293-96e42f13fa81",
+        "text": "STEP 3 — WRITE: add-item the checklist entries and create the linked pebbles; every piece starts status planned. Do NOT write application code — this skill produces the spec that implementation will follow."
+      },
+      {
+        "id": "4675242c-4850-43db-b4ce-ac5244955682",
+        "text": "Report: the decomposition with each piece's acceptance criterion and how the pieces connect (refs)."
+      }
+    ],
+    "verify": [
+      {
+        "id": "0a5112bf-25ed-4d5f-9c10-3e026706b07b",
+        "text": "Every piece has a testable description; statuses start planned; refs connect the pieces"
+      }
+    ],
+    "whenToUse": "Decomposing a requirement into verifiable pieces — checklist items and linked pebbles — before any code is written."
+  },
+  "createdAt": "2026-07-21T14:32:38.770Z",
+  "description": "Decompose a requirement into linked, verifiable spec",
+  "id": "fa4bf5de-e11f-42fc-9845-3919d58cf24a",
+  "name": "pebbles-plan",
+  "refs": [
+    {
+      "id": "aa001bf8-a9f2-4068-83ae-3b0cc53c5616",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "dc984322-82eb-4294-b2af-02dd2bd2c30b",
+      "label": "Status discipline",
+      "path": ".pebbles/rules/system/status-discipline.pebble",
+      "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "fd5e7203-36d3-46f9-98db-bf63bdc1377f",
+      "label": "Table completeness",
+      "path": ".pebbles/rules/system/table-completeness.pebble",
+      "pebbleId": "d374da94-58db-4e58-8fc0-c42ec2e62c69",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "f62545c0-a631-449b-a7f9-a32e46cfd730",
+      "label": "Requirement fidelity",
+      "path": ".pebbles/rules/system/requirement-fidelity.pebble",
+      "pebbleId": "4e4afae6-8bf7-4310-b541-a26b7e3bd37d",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "f45c01ee-9bce-4b3c-a9d3-f97db88c200e",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "e17d7bf7-f2cc-4bf3-bd30-476f98573c90",
+      "label": "The spec lifecycle — both directions",
+      "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
+      "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "fd60b5d8-24fd-49c0-9da6-42c6783b81f4",
+      "label": "Extraction — workflow modeling (nodes, altitude, modes)",
+      "path": ".pebbles/knowledge/system/workflow-modeling.pebble",
+      "pebbleId": "7ac0eded-c92f-49f9-ab2c-984aaa92e502",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.770Z",
+  "version": 1
+}
