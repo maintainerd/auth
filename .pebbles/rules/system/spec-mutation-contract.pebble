@@ -1,0 +1,63 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "No Edit/Write tools, no sed, no heredocs, no shell redirection into .pebbles/. The CLI validates and writes atomically; direct edits corrupt ids, refs and statuses. Reading spec files is always fine.",
+        "enforcement": "strict",
+        "id": "d953ab71-8c32-4445-8043-763794fb4fed",
+        "status": "verified",
+        "text": "Never create, edit or delete .pebble files directly"
+      },
+      {
+        "description": "Ask the user where pebbles-cli lives — never fall back to editing files by hand.",
+        "enforcement": "strict",
+        "id": "3231ecef-2c54-46f3-9753-76fe3fc84b92",
+        "status": "verified",
+        "text": "If the CLI is unavailable, treat the spec graph as read-only"
+      },
+      {
+        "description": "Plain pebbles-cli calls are pre-approved and run without prompting. Mixing in other programs, && or | chaining, redirects, or $(…) forces a manual permission prompt.",
+        "enforcement": "strict",
+        "id": "4b877115-aada-4864-aeb2-5354fd72b80b",
+        "status": "verified",
+        "text": "Call the CLI purely — one binary, no chaining"
+      },
+      {
+        "description": "Validation errors are written to be actionable: wrong status vocabularies list the allowed values, missing targets name the path, incomplete fields name the field.",
+        "enforcement": "strict",
+        "id": "bf1925f4-70e2-4fea-b0aa-5bc579992f76",
+        "status": "verified",
+        "text": "On an error, READ the message — it tells you the fix"
+      },
+      {
+        "description": "Removing spec is a human decision made in the Pebbles app. Mark superseded things `deprecated` instead.",
+        "enforcement": "strict",
+        "id": "de1f5fdb-ae2e-43b1-9cb0-75c4c52db0ed",
+        "status": "verified",
+        "text": "There is deliberately no delete"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.676Z",
+  "description": "The spec graph is written ONLY through pebbles-cli. This is the prime rule of the platform — every other rule builds on it.",
+  "id": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+  "name": "Spec mutation contract",
+  "refs": [
+    {
+      "id": "815932d7-230f-40cd-ad3a-30bf1d036f09",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.676Z",
+  "version": 1
+}

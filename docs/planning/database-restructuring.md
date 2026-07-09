@@ -1330,7 +1330,7 @@ CREATE INDEX IF NOT EXISTS idx_management_audit_log_changes
 - [x] Pass `ManagementAuditLogger` into every internal-port handler package via their `deps.go` file: `internal/user/`, `internal/client/`, `internal/iam/`, `internal/idp/`, `internal/tenant/`, `internal/invite/` — implemented via `SetAuditLogger` setter on each handler struct, wired in `server/handlers.go`
 - [x] Integrate `ManagementAuditLogger` into every internal-port handler that performs a write operation — implemented; all write handlers call `h.logAudit(...)` after each successful mutation
 - [x] The `changes` JSONB field should store a diff — implemented; creates use `{"after":…}`, updates use `{"update":…,"after":…}`, deletes use `{"before":…}`
-- [x] Register read endpoint: `GET /management-audit-log` with pagination and filters (resource_type, actor, date range) on internal port 8080 only
+- [x] Register read endpoints: `GET /management-audit-log` and `GET /management-audit-log/{uuid}` with pagination and filters (resource_type, actor, date range) on internal port 8080 only
 - [x] Run `go build ./...` and `go test ./...` — all pass
 
 ---

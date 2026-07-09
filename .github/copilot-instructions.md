@@ -86,3 +86,65 @@ Test (scope): short imperative description
 - [ ] `golangci-lint run ./...` passes with zero issues
 - [ ] Relevant files under `docs/` updated to reflect the change (no new docs created unless asked)
 - [ ] Commit message provided
+
+<!-- pebbles:onboard:begin -->
+## Pebbles spec graph — required reading for AI agents
+
+This project is specified by a **pebble graph** under `.pebbles/`: small linked
+JSON files (`.pebble` extension) holding requirements, rules, models,
+structures, workflows, tests, findings — each with statuses that track
+spec↔code alignment. **Read `PEBBLES.md` at the project root first**; it is the
+full contract. This section is the non-negotiable summary.
+
+### The platform is self-describing — read it from inside the graph
+
+Everything system-provided is an editable pebble: 27 skills
+(`.pebbles/skills/system/`), the enforcement rules
+(`.pebbles/rules/system/`), six knowledge docs covering the whole
+platform (`.pebbles/knowledge/system/` — platform-overview, oathkeeper,
+pebbles-cli, code-map, skills-and-agents, spec-lifecycle), and seven
+specialist agent personas (`.pebbles/agents/system/`). `pebbles-cli get`
+any of them for authoritative, current guidance.
+
+### The prime rule
+
+**NEVER create, edit or delete `.pebble` files directly — no Edit/Write tools,
+no `sed`, no heredocs.** Every spec mutation goes through the `pebbles-cli`
+binary, which validates and writes atomically. Direct edits corrupt ids, refs
+and statuses. Reading spec files is always fine. The CLI ships with the
+Pebbles app (`pebbles-cli help`); if it's not on PATH, ask the user where it
+is — do NOT fall back to editing files.
+
+### Command cheat sheet
+
+- Read: `sections` · `list <section>` · `get <path>` ·
+  `query [--status X] [--unit-status X] [--type T] [--text S]` ·
+  `refs <path>` (connections both ways) · `validate <path>`
+- Code graph (avoid grepping — the map knows): `map [--fresh]` ·
+  `map-symbol <name>` · `map-file <path>` · `map-search <term>` ·
+  `map-neighbors <path> [--in|--out]` · `map-callers <symbol>`
+- Write: `create <section> --title T --content JSON` ·
+  `update <path> --patch JSON` · `set-status <path> <status> [--unit ID]` ·
+  `add-item` · `add-finding` · `link-code` · `unlink-code`
+
+### Enforced at write time (the CLI will reject or correct you)
+
+- **Field completeness**: every model/structure field needs a `description`
+  (what it's for, from the code) and a truthful `status`.
+- **Reference integrity**: refs/typeRef/refKey pointing at pebbles that don't
+  exist are DROPPED and reported in `droppedRefs` — create the target first.
+  A foreign key may name the target field (`"refKey": {"path": "models/x.pebble",
+  "field": "user_id"}`); the CLI resolves ids and wires the graph edges.
+- **Statuses are the product** — they tell the user what is implemented:
+  planned · in-progress · implemented (exists in code) · verified (behavior
+  proven) · drift · broken · missing · deprecated. Set them at BOTH levels
+  (`set-status --unit` per touched unit), and only claim what you verified.
+- **Findings are an APPEND-ONLY evidence log** — record bugs AND pass
+  evidence (`add-finding --category verified-working`) so verdicts have
+  provenance. Never update or delete a finding: a new answer to the same
+  question is a NEW finding with `--supersedes <old>`; the chain's
+  latest entry is the current truth. Categories also include research,
+  decision, assumption, measurement, incomplete.
+- There is deliberately **no delete** — mark things `deprecated` instead.
+
+<!-- pebbles:onboard:end -->

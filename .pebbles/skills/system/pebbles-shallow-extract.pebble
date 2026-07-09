@@ -1,0 +1,197 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "f973e088-2bef-4fb7-b970-2d10fbc33162",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "25bbccb3-4a6a-47b4-9353-6d803587ade4",
+        "text": "Bound by system rule: Extraction — workflow graph standard (rules/system/workflow-extraction)"
+      },
+      {
+        "id": "9afa4732-e097-499f-b371-1919b188913f",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "808f43d0-82d5-4c52-b5d1-df8faa34b562",
+        "text": "Bound by system rule: Extraction — completeness standard (rules/system/extraction-standard)"
+      },
+      {
+        "id": "af27df35-14e5-4dbe-8c31-7ec070befc57",
+        "text": "Bound by system rule: Extraction — scope boundary (topic is law) (rules/system/extraction-scope)"
+      },
+      {
+        "id": "ae7b3599-0e41-4de0-99a6-bcb414330026",
+        "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
+      },
+      {
+        "id": "c3502a68-897b-4349-943e-f2b55c9c7f0e",
+        "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "5aed80cf-cee8-4d5f-ab48-d7d953ae86cd",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "9ef459bf-5a5a-4416-be79-653f22cdaaf0",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "ff7544f2-6494-4cfe-8336-9475f766ceba",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "A top-level-topic overview workflow (as many topics as genuinely exist — no cap, none merged or dropped), every topic cited and ref-linked, internals described not decomposed.",
+    "prerequisites": [
+      {
+        "id": "9712952e-c6f0-4db0-b9df-5e17ad52287c",
+        "text": "A CURRENT project map exists (--fresh if stale)"
+      },
+      {
+        "id": "39d80e23-45ff-45cd-8a92-c829099387de",
+        "text": "The topic SPAN is unambiguous — first and last milestone confirmed with the user if not"
+      }
+    ],
+    "purpose": "Overview extraction: top-level topics only (milestone altitude)",
+    "steps": [
+      {
+        "id": "2f414879-1996-4732-a0ca-1afecad013ba",
+        "text": "Shallow extraction — the OVERVIEW altitude: $ARGUMENTS"
+      },
+      {
+        "id": "3e91ceb0-a6a5-481d-b2c0-24357cf151d0",
+        "text": "KIND GUARD: this extracts a WORKFLOW (flow graph) only. If a non-workflow pebble is focused (model/structure/contract/checklist), STOP and tell the user to use /pebbles-extract instead — shallow/deep are workflow-only. With no focus, you are creating a new WORKFLOW pebble."
+      },
+      {
+        "id": "90bd8763-e7ee-46a1-b815-9433530c0991",
+        "text": "SCOPE BLOCK FIRST (echo before reading code): the topic SPAN (first milestone → last, e.g. \"work order created → closed\"), entry point(s) as file:symbol (ASK if ambiguous), depth: shallow. REQUIRED: a current map."
+      },
+      {
+        "id": "43017339-27a5-4aab-83d3-5a89498ffa60",
+        "text": "Extract ONLY top-level topics — a node qualifies when it is a distinct, nameable phase/responsibility a reader would list answering \"what are the major things this does?\" and that could stand alone as its own workflow. Internals (individual calls/branches/queries) do NOT qualify — describe them inside the topic, do not decompose. Capture EVERY top-level topic — there is NO cap; NEVER merge two distinct topics or drop one to reduce count (each is a future entry point the user may promote to its own workflow). Two topics stay separate whenever they answer different \"what does it do\" questions. Every path still terminates at an end (success/error only where the code shows a real signal). If it feels like too much detail, RAISE altitude (coarser topics) — never merge/drop."
+      },
+      {
+        "id": "101f6afb-e5ba-41d6-bda6-1637f2f49d55",
+        "text": "Detail lives in each step's DESCRIPTION (what happens inside, in prose) + refs to the contracts/models/code — never in more nodes. Conditions only for branches that change the business outcome. When a topic step later deserves detail, a dedicated workflow gets created and the step becomes a subprocess link — that is regular/deep extract's job, not yours."
+      },
+      {
+        "id": "b75bf2b6-2f03-4a0e-b1cc-a1cf5075e82e",
+        "text": "Finish: run \"{PEBBLES_CLI}\" arrange <path> to lay out the flow (never hand-place); every step cites its code location; report the milestone evidence per step and what was deliberately left as description-only."
+      }
+    ],
+    "verify": [
+      {
+        "id": "7659a9f9-9755-4468-b11b-f0d0ea2101f3",
+        "text": "The Scope Block was echoed before any write"
+      },
+      {
+        "id": "fc8cb17f-0aff-4102-9b47-752c1c8feda5",
+        "text": "Every distinct top-level topic captured (none merged/dropped), each a nameable phase with a code citation"
+      },
+      {
+        "id": "49632948-5fff-4fe6-a808-cd52f587a875",
+        "text": "No function internals leaked into nodes — detail lives in descriptions + refs"
+      }
+    ],
+    "whenToUse": "RECOMMENDED (not required) first pass for understanding a whole app/flow: top-level topics only, each a nameable phase the user can later promote to its own workflow and extract. extract/deep CAN also run on a whole flow but are heavier (they capture every discrete step). Use shallow to MAP, extract to DETAIL one topic, deep to detail a topic AND its substantial sub-flows."
+  },
+  "createdAt": "2026-07-21T14:32:38.776Z",
+  "description": "Overview extraction: top-level topics only (milestone altitude)",
+  "id": "00895f3d-7037-45ce-ab09-d2220c9ea3bf",
+  "name": "pebbles-shallow-extract",
+  "refs": [
+    {
+      "id": "c143fa40-d927-42a2-bb20-968da1cefc31",
+      "label": "Extraction — workflow graph standard",
+      "path": ".pebbles/rules/system/workflow-extraction.pebble",
+      "pebbleId": "9243a095-f907-4483-a4d7-b7108ff902bf",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "0b15201a-11cb-4976-802e-fd2844d2b6f7",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "eb9efd81-7e6d-4c7b-98a8-a11900af5159",
+      "label": "Extraction — completeness standard",
+      "path": ".pebbles/rules/system/extraction-standard.pebble",
+      "pebbleId": "c191b26f-080b-4cae-9387-e3249e02393a",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "3fdb9640-a979-44b4-a39f-a290f64fabdd",
+      "label": "Extraction — scope boundary (topic is law)",
+      "path": ".pebbles/rules/system/extraction-scope.pebble",
+      "pebbleId": "4baf83c3-426f-467b-8642-e79a9683cce0",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "3ce9dc26-a97b-4597-8e08-ed7ec1c33851",
+      "label": "Status discipline",
+      "path": ".pebbles/rules/system/status-discipline.pebble",
+      "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "9ee168dd-d43f-4579-9141-9f91d744bd25",
+      "label": "Graph-first navigation",
+      "path": ".pebbles/rules/system/graph-first-navigation.pebble",
+      "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "cff82439-00e4-497e-9b63-e65f7cf53bd6",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "1e45d6de-0443-4d6f-b0f4-1dbe57a56077",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "211d7a61-98ae-4769-aec5-c5b6da9e5bcf",
+      "label": "The spec lifecycle — both directions",
+      "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
+      "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "620acbac-4195-4deb-aae6-ed484c072bae",
+      "label": "Extraction — workflow modeling (nodes, altitude, modes)",
+      "path": ".pebbles/knowledge/system/workflow-modeling.pebble",
+      "pebbleId": "7ac0eded-c92f-49f9-ab2c-984aaa92e502",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.776Z",
+  "version": 1
+}

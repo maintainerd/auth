@@ -26,6 +26,10 @@ type ManagementAuditLog struct {
 	Outcome                string         `gorm:"column:outcome;type:varchar(20);not null;default:'success'"`
 	ErrorMessage           *string        `gorm:"column:error_message;type:text"`
 	CreatedAt              time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
+
+	// Read-only presentation fields populated by audit-log read queries.
+	ActorUserName   *string `gorm:"->;column:actor_user_name"`
+	ActorClientName *string `gorm:"->;column:actor_client_name"`
 }
 
 func (ManagementAuditLog) TableName() string {

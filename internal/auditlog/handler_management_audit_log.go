@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -73,29 +75,72 @@ func (h *ManagementAuditLogHandler) List(w http.ResponseWriter, r *http.Request)
 
 	dtos := make([]ManagementAuditLogResponseDTO, 0, len(logs))
 	for _, l := range logs {
-		dto := ManagementAuditLogResponseDTO{
-			UUID:          l.ManagementAuditLogUUID.String(),
-			Action:        l.Action,
-			ResourceType:  l.ResourceType,
-			ResourceID:    l.ResourceID,
-			Outcome:       l.Outcome,
-			CreatedAt:     l.CreatedAt.UTC().Format(time.RFC3339),
-			ActorUserID:   l.ActorUserID,
-			ActorClientID: l.ActorClientID,
-			Changes:       string(l.Changes),
-			ErrorMessage:  l.ErrorMessage,
-			TraceID:       l.TraceID,
-		}
-		if l.IPAddress != nil {
-			dto.IPAddress = *l.IPAddress
-		}
-		dtos = append(dtos, dto)
+		dtos = append(dtos, toManagementAuditLogResponseDTO(l))
 	}
 
 	resp.Success(w, PaginatedResponseDTO[ManagementAuditLogResponseDTO]{
-		Rows:  dtos,
-		Total: total,
-		Page:  filter.Page,
-		Limit: filter.Limit,
+		Rows:       dtos,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages(total, filter.Limit),
 	}, "Management audit log retrieved successfully")
+}
+
+// Get retrieves one management audit log entry by UUID.
+//
+// GET /management-audit-log/{audit_log_uuid}
+func (h *ManagementAuditLogHandler) Get(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.AuthFromRequest(r)
+	if auth.Tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	auditLogUUID, err := uuid.Parse(chi.URLParam(r, "audit_log_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid audit log UUID")
+		return
+	}
+
+	log, err := h.repo.FindByUUIDAndTenantID(auditLogUUID, auth.Tenant.TenantID)
+	if err != nil {
+		resp.Error(w, http.StatusInternalServerError, "Failed to retrieve audit log entry")
+		return
+	}
+	if log == nil {
+		resp.Error(w, http.StatusNotFound, "Audit log entry not found")
+		return
+	}
+
+	resp.Success(w, toManagementAuditLogResponseDTO(*log), "Management audit log entry retrieved successfully")
+}
+
+func toManagementAuditLogResponseDTO(l ManagementAuditLog) ManagementAuditLogResponseDTO {
+	dto := ManagementAuditLogResponseDTO{
+		UUID:            l.ManagementAuditLogUUID.String(),
+		Action:          l.Action,
+		ResourceType:    l.ResourceType,
+		ResourceID:      l.ResourceID,
+		Outcome:         l.Outcome,
+		CreatedAt:       l.CreatedAt.UTC().Format(time.RFC3339),
+		ActorUserID:     l.ActorUserID,
+		ActorUserName:   l.ActorUserName,
+		ActorClientID:   l.ActorClientID,
+		ActorClientName: l.ActorClientName,
+		Changes:         string(l.Changes),
+		ErrorMessage:    l.ErrorMessage,
+		TraceID:         l.TraceID,
+	}
+	if l.IPAddress != nil {
+		dto.IPAddress = *l.IPAddress
+	}
+	return dto
+}
+
+func totalPages(total int64, limit int) int {
+	if total <= 0 || limit <= 0 {
+		return 0
+	}
+	return int((total + int64(limit) - 1) / int64(limit))
 }

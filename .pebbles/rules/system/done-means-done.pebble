@@ -1,0 +1,77 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "Before work starts, emit the full scope with counts (fields, refs, requirements). M cannot shrink later; a report against an undeclared scope is invalid.",
+        "enforcement": "strict",
+        "id": "6105489a-b4a6-440b-9f30-0c9f6d831407",
+        "status": "verified",
+        "text": "Declare the denominator first"
+      },
+      {
+        "description": "fields 12/14 · refs 3/3 · requirements 5/6. Prose like \"mostly done\" or \"core functionality complete\" is a violation.",
+        "enforcement": "strict",
+        "id": "42410d80-5df3-474c-9aa5-411fd4e2ad0c",
+        "status": "verified",
+        "text": "Report coverage as N of M per category"
+      },
+      {
+        "description": "Every item in M−N listed individually with a reason (blocked/skipped/deferred). An empty remainder states: remainder none — verified.",
+        "enforcement": "strict",
+        "id": "739daacd-b16b-4f5d-96f9-e015fcf2cce8",
+        "status": "verified",
+        "text": "Name the remainder, always"
+      },
+      {
+        "description": "done/complete/implemented are forbidden unless N=M in every category — partial work says partial and sets statuses accordingly.",
+        "enforcement": "strict",
+        "id": "abd47fde-7855-42ea-8366-64c600028941",
+        "status": "verified",
+        "text": "No success verbs over partial work"
+      },
+      {
+        "description": "droppedRefs, tool errors and warnings are quoted, not summarized. Paraphrasing a warning is concealment.",
+        "enforcement": "strict",
+        "id": "d176a213-e0ae-4438-b701-e6a2ddc2d50d",
+        "status": "verified",
+        "text": "Surface warnings verbatim"
+      },
+      {
+        "description": "Even when empty. Its absence invalidates the report.",
+        "enforcement": "strict",
+        "id": "600e00ba-f1a3-4911-a853-cb86c73286ad",
+        "status": "verified",
+        "text": "Mandatory \"what I did NOT do\" section"
+      },
+      {
+        "description": "N<M can never yield implemented. A lying status is worse than a missing feature — when uncertain, downgrade (drift/planned over implemented).",
+        "enforcement": "strict",
+        "id": "228d448a-9e71-477b-b715-7d81d14aed9d",
+        "status": "verified",
+        "text": "Statuses must match the report's own numbers"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.687Z",
+  "description": "Every report is a reconciliation against an upfront-declared denominator, so partial work is impossible to present as complete.",
+  "id": "57736a43-ae9e-4d99-a1ce-577deaba9f26",
+  "name": "Done means done — reporting",
+  "refs": [
+    {
+      "id": "16ef4bed-f2e3-402f-ae59-97e5357b1e91",
+      "label": "Pebbles platform overview",
+      "path": ".pebbles/knowledge/system/platform-overview.pebble",
+      "pebbleId": "0666d6bf-0891-49a1-93f8-b4cac16ecd57",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.687Z",
+  "version": 1
+}

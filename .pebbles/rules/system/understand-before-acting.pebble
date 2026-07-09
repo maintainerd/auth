@@ -1,0 +1,56 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "Goal, scope, and the interpretation you chose — with plausible alternatives named. For any non-trivial request this happens BEFORE the first mutating tool call, even when the user didn't invoke /pebbles-discover.",
+        "enforcement": "strict",
+        "id": "04d9e759-24f7-4dc2-9988-f04041117e13",
+        "status": "verified",
+        "text": "Restate the ask before acting"
+      },
+      {
+        "description": "Before executing against a pebble, verify it carries what THIS task needs — descriptions, refs, codeLinks, map freshness. Surface material gaps to the user in your response; do NOT fix references or content unasked while understanding (that is the follow-up skill's job).",
+        "enforcement": "strict",
+        "id": "a6e02be0-8c4f-499c-a8c4-e208e332f6fe",
+        "status": "verified",
+        "text": "Readiness-check the target pebble silently"
+      },
+      {
+        "description": "When interpretations genuinely change the outcome, ask before working. When interactive asking isn't possible, record an assumption finding naming the interpretation chosen and why.",
+        "enforcement": "strict",
+        "id": "a4f603fe-1aae-4cd5-99f1-5e0035f91de3",
+        "status": "verified",
+        "text": "Diverging interpretations → ask; minor ambiguity → record"
+      },
+      {
+        "description": "When the request spans many topics or the spec has major gaps, recommend running /pebbles-discover to settle scope first — then the specific skill/agent for the work.",
+        "enforcement": "strict",
+        "id": "1781cad1-bad8-4697-9c12-3604b603af9a",
+        "status": "verified",
+        "text": "Recommend the settling step for big or vague asks"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.722Z",
+  "description": "No work runs on assumptions. The intent is settled and the spec's readiness is checked BEFORE tools act — explicitly via /pebbles-discover, or implicitly as the first beat of any task.",
+  "id": "5310ca82-51e0-4fcc-b428-f876e3263b8c",
+  "name": "Understand before acting",
+  "refs": [
+    {
+      "id": "889255a7-4201-4aa2-80ba-0e0d2317a0a1",
+      "label": "Pebbles platform overview",
+      "path": ".pebbles/knowledge/system/platform-overview.pebble",
+      "pebbleId": "0666d6bf-0891-49a1-93f8-b4cac16ecd57",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.722Z",
+  "version": 1
+}

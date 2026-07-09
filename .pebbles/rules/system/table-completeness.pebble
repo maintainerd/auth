@@ -1,0 +1,56 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "Derive it from the code — comments, validations, call sites. Never leave it empty and never write filler.",
+        "enforcement": "strict",
+        "id": "8ac24c2e-7311-4333-913f-e05424d4478e",
+        "status": "verified",
+        "text": "Every field carries a description: what it is used for"
+      },
+      {
+        "description": "implemented = exists in code · verified = behavior proven · planned = not built yet. Extraction from real code marks fields implemented explicitly.",
+        "enforcement": "strict",
+        "id": "bef2c4b5-6c9a-419e-8fb6-78ff423deb52",
+        "status": "verified",
+        "text": "Every field carries a truthful status"
+      },
+      {
+        "description": "The app displays this inverted as a Nullable checkbox. Record real nullability and real defaults (the `default` key, verbatim from code/schema).",
+        "enforcement": "strict",
+        "id": "1724ba71-91bb-4e82-a69d-d54fc9e2ed30",
+        "status": "verified",
+        "text": "On a DB model, required: true means NOT NULL"
+      },
+      {
+        "description": "update replaces `content` whole, BUT units matched by id (or name when the patch has no id) keep their existing id, status and description when the patch omits them. Explicit values always win. Still set what you know.",
+        "enforcement": "strict",
+        "id": "dc6b343a-c7a7-4079-adb3-70e177aec85e",
+        "status": "verified",
+        "text": "Content rewrites preserve unit state"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.678Z",
+  "description": "Applies to ALL fields content — models, structures and contracts alike: the CLI REJECTS any field lacking a description or a status. The DB-specific items below (NOT NULL, DDL defaults, FKs) bind MODELS only — structures and contracts carry code types and no DB semantics.",
+  "id": "d374da94-58db-4e58-8fc0-c42ec2e62c69",
+  "name": "Table completeness",
+  "refs": [
+    {
+      "id": "a061d11e-3c34-44fc-a3f8-5487627e7d65",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.678Z",
+  "version": 1
+}

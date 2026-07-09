@@ -1,0 +1,95 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "2fefe81d-6123-489c-9f0b-816785c32ad1",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "b97df6e4-c050-4825-b065-ac2ab613ccb2",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "4a248727-d25c-4e0a-877b-57f4cf1e4c33",
+        "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "640287b4-61d1-4f5a-9ede-7f4cb46c40b4",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "18da9dc5-46ed-47f4-82a7-67e334e13ecb",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "2c75e33c-cce3-44f8-871d-4686f9a16703",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "A saved dependency graph (files, languages, import/call edges, hubs) plus a printed summary; all map-* queries read it.",
+    "prerequisites": [],
+    "purpose": "Map the project's files (honors .pebblesignore)",
+    "steps": [
+      {
+        "id": "42653359-ba98-485c-9b82-2c7e828bf0ce",
+        "text": "Run: \"{PEBBLES_CLI}\" map"
+      },
+      {
+        "id": "5770f1f1-a563-4f26-aa81-17f95e543868",
+        "text": "Summarize the layout for the user: main directories, dominant languages, notable files. Mention if the output says truncated. $ARGUMENTS"
+      }
+    ],
+    "verify": [],
+    "whenToUse": "Before any code navigation, extraction, or audit — and again (--fresh) whenever the code changed since the last run. The map is the prerequisite for every map-* query."
+  },
+  "createdAt": "2026-07-21T14:32:38.732Z",
+  "description": "Map the project's files (honors .pebblesignore)",
+  "id": "0ccc4265-0a42-4c62-9fab-9f0c39b84fa0",
+  "name": "pebbles-map",
+  "refs": [
+    {
+      "id": "d62820fc-4f1e-4123-9554-357e2281335d",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "684a5ac7-c023-414b-bb2e-e5dab94ec6ac",
+      "label": "Graph-first navigation",
+      "path": ".pebbles/rules/system/graph-first-navigation.pebble",
+      "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "31dfdc7e-06f6-404e-bad8-f73a8ed801cb",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "78451489-d061-4537-8367-4377536e3f4a",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.732Z",
+  "version": 1
+}

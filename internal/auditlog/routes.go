@@ -20,5 +20,7 @@ func ManagementAuditLogRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"audit:read"})).
 			Get("/", handler.List)
+		r.With(middleware.PermissionMiddleware([]string{"audit:read"})).
+			Get("/{audit_log_uuid}", handler.Get)
 	})
 }

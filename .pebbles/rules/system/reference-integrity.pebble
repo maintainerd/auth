@@ -1,0 +1,56 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "refs, typeRef, refKey and subprocess entries are resolved on create/update; failures land in the result's droppedRefs. Create the target pebble first, then link.",
+        "enforcement": "strict",
+        "id": "af8bf29c-1355-4eb7-b0b2-757006356924",
+        "status": "verified",
+        "text": "Links to pebbles that don't exist are DROPPED and reported"
+      },
+      {
+        "description": "When a field references another model (FK column, *_id) and the target model pebble exists, set refKey: {\"path\": \"models/<target>.pebble\", \"field\": \"<target field name>\"} — the CLI resolves the name to the field id, fills pebbleId/label, and auto-wires the graph refs on both the field and the pebble. An FK without its refKey when the target exists is an incomplete extraction.",
+        "enforcement": "strict",
+        "id": "2e2e1a8a-6f28-4fc3-a8f1-415858e2b429",
+        "status": "verified",
+        "text": "Foreign keys are first-class graph edges — always link them"
+      },
+      {
+        "description": "query or list the target model first. If it doesn't exist yet, leave the field unlinked (exists-or-ignore) and mention it in your report so a later pass can wire it.",
+        "enforcement": "strict",
+        "id": "61a77fc2-3d35-47df-989d-4f2d3693144d",
+        "status": "verified",
+        "text": "Check for the target before writing"
+      },
+      {
+        "description": "link-code refuses files that don't exist. A codeLink's path doubles as a map node id — map-file on it yields symbols/imports/callers instantly.",
+        "enforcement": "strict",
+        "id": "ee7ba91d-f013-4eee-93ff-8c928481a343",
+        "status": "verified",
+        "text": "codeLinks bind spec to real files"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.680Z",
+  "description": "Every pebble-to-pebble link is resolved at write time: reference what exists, or the link is dropped — never stored dangling.",
+  "id": "5497c1c2-5759-4f94-a7c9-cb543287838c",
+  "name": "Reference integrity",
+  "refs": [
+    {
+      "id": "9d1c7249-ae37-4d6f-930b-377f7588044a",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.680Z",
+  "version": 1
+}

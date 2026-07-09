@@ -1,0 +1,181 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "33fe8d00-169c-44d9-beb6-3fc46bb0ba23",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "e86a5fc8-252b-4ec9-b5a9-bc6a162b187c",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "a9fdcc0f-2c57-448d-a31a-beeda65fe1dd",
+        "text": "Bound by system rule: Table completeness (rules/system/table-completeness)"
+      },
+      {
+        "id": "5a9405f0-695f-47c1-9126-49344ab0d62c",
+        "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
+      },
+      {
+        "id": "0734e9ae-93ee-4f3f-b110-c8863b815a3f",
+        "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
+      },
+      {
+        "id": "18c6bb0f-44b2-4753-a979-3edf20432d08",
+        "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
+      },
+      {
+        "id": "90afe35e-ac75-4ecc-8c1b-c9ec7bb34795",
+        "text": "Bound by system rule: Extraction — completeness standard (rules/system/extraction-standard)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "2e4d8bc8-f21f-4ac7-a7f8-1ab31274833e",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "d3e2e66e-fe3e-476a-b451-ff4f0ffeb035",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "1007cb23-44e1-4490-890d-f0ed00b3d1a1",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "Batches of created models/structures/contracts/workflows, linked and code-linked, with a progress report of what remains.",
+    "prerequisites": [
+      {
+        "id": "deaabea4-4e9c-487e-8701-ce4b095046f9",
+        "text": "A fresh map (map --fresh) — the hubs drive the domain inventory"
+      }
+    ],
+    "purpose": "Onboard an existing app: extract the whole project into pebbles (first run)",
+    "steps": [
+      {
+        "id": "75e4f155-3dc0-4d44-8a84-071da64b7c19",
+        "text": "Onboard this project — extract the ENTIRE existing codebase into the spec graph: $ARGUMENTS"
+      },
+      {
+        "id": "bb44304a-37f2-48c6-935b-afc6c00d8826",
+        "text": "This is first-time onboarding of an existing app (a whole-app reverse extraction — NOT scoping a ticket). Steps, in order: (1) \"{PEBBLES_CLI}\" map --fresh — required; note byLanguage + hubs (the most-imported files ARE the domain core). (2) From hubs and map-search, inventory the domain: models/entities, DTOs/structures, API contracts (routes/controllers), and the key workflows. (3) Work in batches by domain area — for each item, read the source the graph points to, then \"{PEBBLES_CLI}\" create <section> --title \"...\" --content {…} with the real extracted shape, and link-code its source files. Use map-neighbors to find what belongs together. (4) Status implemented for everything extracted. (5) Report progress per batch (created N models, M structures…) and what remains — for a large app, propose continuing in a follow-up run rather than truncating silently."
+      }
+    ],
+    "verify": [
+      {
+        "id": "81a1f156-55a3-4632-acdf-38686642dc51",
+        "text": "Each batch reports created pebbles with counts; nothing failed silently"
+      },
+      {
+        "id": "240aa640-d474-4e4e-9a74-bcf27bdcbf12",
+        "text": "Cross-model FKs between created models are refKey-wired (second pass after both exist)"
+      }
+    ],
+    "whenToUse": "First-run onboarding of an existing app: inventory the domain from the map's hubs and batch-create the spec graph."
+  },
+  "createdAt": "2026-07-21T14:32:38.780Z",
+  "description": "Onboard an existing app: extract the whole project into pebbles (first run)",
+  "id": "8da3d03b-7543-4b80-9df0-30a7af4cfad7",
+  "name": "pebbles-onboard",
+  "refs": [
+    {
+      "id": "5a899588-db2f-4935-92f4-a3af4238b0c6",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "20f29b50-001c-4b80-a8e7-489d89b88334",
+      "label": "Table completeness",
+      "path": ".pebbles/rules/system/table-completeness.pebble",
+      "pebbleId": "d374da94-58db-4e58-8fc0-c42ec2e62c69",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "b593540b-2008-4f8a-8a61-0d2e564c110f",
+      "label": "Reference integrity",
+      "path": ".pebbles/rules/system/reference-integrity.pebble",
+      "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "b62844ec-b53e-4bd7-b9bf-3182924d6455",
+      "label": "Status discipline",
+      "path": ".pebbles/rules/system/status-discipline.pebble",
+      "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "45e608bf-8214-4fd7-b54b-f35f768a8713",
+      "label": "Graph-first navigation",
+      "path": ".pebbles/rules/system/graph-first-navigation.pebble",
+      "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "fe9a3edd-75d0-49c1-b039-8bb639d52384",
+      "label": "Extraction — completeness standard",
+      "path": ".pebbles/rules/system/extraction-standard.pebble",
+      "pebbleId": "c191b26f-080b-4cae-9387-e3249e02393a",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "6192b60e-e098-4e69-961f-ee83789915a7",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "78f1520a-4f82-4a75-b2b6-52c7ff294bcd",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "e0618f5b-15bc-4fde-8828-ef12938cc536",
+      "label": "The spec lifecycle — both directions",
+      "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
+      "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "3dab493d-b7ed-4738-b470-4396ea5f86b5",
+      "label": "Extraction — workflow modeling (nodes, altitude, modes)",
+      "path": ".pebbles/knowledge/system/workflow-modeling.pebble",
+      "pebbleId": "7ac0eded-c92f-49f9-ab2c-984aaa92e502",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "f94a1a30-3e40-40e1-815a-2bb93d207ad3",
+      "label": "Extraction — standards by pebble type",
+      "path": ".pebbles/knowledge/system/extraction-by-kind.pebble",
+      "pebbleId": "23577b1f-7856-41f1-b757-85ff70323ab3",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.780Z",
+  "version": 1
+}

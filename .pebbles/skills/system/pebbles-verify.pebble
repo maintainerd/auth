@@ -1,0 +1,217 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "6421abd5-ff38-4d63-8551-741c537f908f",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "06adf7fd-b21b-4d60-b87e-6fcec38333a1",
+        "text": "Bound by system rule: Verification — standard (rules/system/verification-standard)"
+      },
+      {
+        "id": "f972e16a-9de4-4239-afc8-5566cdf2957d",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "322f117f-57dd-4048-a233-fd4faefb1a05",
+        "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
+      },
+      {
+        "id": "68484e60-70d6-469e-975f-f6c49730bfdc",
+        "text": "Bound by system rule: Findings are the append-only evidence log (rules/system/findings-as-evidence)"
+      },
+      {
+        "id": "81de673f-a3c5-4fd5-82a5-6f6a76311a59",
+        "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
+      },
+      {
+        "id": "96211d66-0c61-4bd6-9795-a86e0aedb9b2",
+        "text": "Bound by system rule: Command discipline (rules/system/command-discipline)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "6a7cbfd8-aa28-4cbd-8dde-65df7a71218e",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "8774006c-c626-4ed3-8922-3d1cca7c4937",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "ddf97788-bfcd-4fae-931c-48f410a59713",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "A per-unit finding (verified-working with evidence, or a defect with severity) AND a truthful per-unit status for every unit checked; the pebble rolled up to its worst unit; a coverage statement.",
+    "prerequisites": [
+      {
+        "id": "190bdf4c-5f59-48d0-9c7c-cc0705d5c945",
+        "text": "The pebble is read and its UNITS enumerated first (spec-first) — nodes/items/fields/endpoints + its refs, rules and architecture"
+      },
+      {
+        "id": "df4d36a1-b7d2-4c26-ae60-345ec978908f",
+        "text": "Each unit's implementation is locatable: codeLinks first, else map-symbol/map-search (models: migrations/DDL/SQL even with no ORM)"
+      }
+    ],
+    "purpose": "Verify a spec against the actual code (records findings)",
+    "steps": [
+      {
+        "id": "8762b2f8-46e5-4eef-bbf0-7c688e1cd3d9",
+        "text": "Verify the code complies with this spec — start from the PEBBLE (the spec), not the code: $ARGUMENTS"
+      },
+      {
+        "id": "7d4ff56e-9f77-485f-8978-02e406ad9b94",
+        "text": "Covers ANYTHING that needs verifying, whatever its origin — a spec the user hand-wrote and implemented himself, or any other; hand-coded or generated; workflows, models, structures, contracts, requirements, tests. The question is always compliance: does the code deliver what the spec requires? If the SPEC itself looks wrong, file it as an assumption/spec-violation finding for the user — never silently pass, never fix."
+      },
+      {
+        "id": "35ce712f-efa7-4b21-909a-7394c05e4c3d",
+        "text": "READ-ONLY: this skill NEVER edits application code or spec content — it only reads, judges, sets statuses and files findings with evidence. If a fix is needed, record it as a finding and hand it to /pebbles-fix; do NOT verify-and-fix in one pass."
+      },
+      {
+        "id": "0579b195-6a17-425b-8979-5d5b431b945d",
+        "text": "STEP 0 — LOAD THE COMPLETE CONTEXT, then enumerate (echo before judging): the pre-loaded chat context may be CAPPED, so fetch the full set yourself — `get` the FULL pebble, `refs` it BOTH ways, and resolve EVERY ref and codeLink (never rely on a partial digest). List EVERY unit it holds and load its connections: the requirements it serves, the governing rules/ (enforcement levels matter) and architecture/ boundaries. That set is the contract. A verification on partial context, or with no enumerated unit list, is a vibe check."
+      },
+      {
+        "id": "97aacec7-4037-4675-8cbc-e60f4aae9b84",
+        "text": "STEP 1 — LOCATE per unit: implementation via codeLinks, else map-symbol/map-search. For a MODEL/persisted data, find the storage truth even with NO ORM — the migrations (walk the full history for that table), DDL, or raw SQL. No code located for a unit → status missing + a finding; never assume a pass."
+      },
+      {
+        "id": "327dc7f4-b860-4424-a057-bbbf69f25650",
+        "text": "STEP 2 — VALIDATE EVERY UNIT, ONE BY ONE — NO exceptions, NO sampling, NO caps, NO \"representative subset\" (don't advance until the current one is judged): does the implementation satisfy EVERYTHING attached to this unit — its own description AND the requirements it serves AND every governing rule (strict = MUST — a violation is a finding even if the code \"works\") AND the architecture boundaries AND the contracts/models it must honor? Chase every reference to its definition; an unread reference is an unfinished validation. Verify BEHAVIOR, not existence. JUDGE BY THE UNIT'S CLAIM (its label + description + refs), NOT by any drawing convention — you know how a workflow is normally drawn but the spec need not follow it; node/unit usage is FREE, so validate whatever intent the unit states in whatever shape the author chose, and handle the most unusual use case on its own terms. A whole behavior modeled as ONE process node that DESCRIBES everything — no branch/condition/try-catch/outcome nodes at all — is valid: read its claim and validate ALL of it against the code, as thoroughly as a decomposed graph (alignment of spec↔code is the test; a missing convention is never a finding). EVERY node counts, of EVERY kind and role — none privileged, none scenery. WORKFLOW: walk EVERY node in FLOW ORDER — start, every step, every condition arm, every parallel branch, every subprocess (recurse), AND every terminal/outcome node (success/error/exception/external alike). TRY/CATCH (the dedicated `try`/`catch` nodes): given a `try` (BODY + SPINE-to-catch outputs) and its paired `catch` (an \"Exceptions\" line + an unlabeled continuation), verify against the code that a real guarded try/catch (in whatever form the language uses — you identify it, not by keyword) opens where the try says and closes at the catch; the BODY nodes match the try block's statements in order and the last returns to the catch; each INNER GUARD is verified individually (its own condition + any throw its own `error` \"… error thrown\" — both arms vs the code, never waved off as \"inside the try\"); the \"Exceptions\" line matches the code's catch/rescue — follow it and verify the failure handling NODE-FOR-NODE (every rollback/log/notify/mark-failed/rethrow node maps to a real catch action and every real catch action has a node — code-but-no-node is `missing`, node-but-no-code is `drift`); CAUGHT vs UNCAUGHT is correct — a catch that handles locally ends at an end with NO global-exception (an invented one is `drift`), a rethrow/escape hands off via an `exception` node into a `global-exception` flow (a missing one for a real escape is `missing`; verify that flow too); the CONTINUATION line (no label) matches the code after the try/catch, reached when no exception is thrown; every path terminates. If the control-flow reading is unclear (where the try closes, which line is the catch vs the continuation, whether a rollback truly runs), CONSULT the workflow expert before labeling. MODEL: field by field vs the storage truth. CHECKLIST: each item is a REQUIREMENT the functionality must meet to pass verification — met with proof → verified; NOT met → CHANGE its status to what is true (missing when nothing implements it, broken/drift when the implementation contradicts it) + a finding; an unmet requirement never stays looking passed. The count you validated MUST equal the total node/unit count; if they differ you are not done."
+      },
+      {
+        "id": "02d4fc61-4d92-4119-9f14-f69d711d379d",
+        "text": "STEP 3 — GET THE VERDICT RIGHT, then RECORD PER UNIT (always, pass or fail): a confident wrong status is worse than none — when unsure about a domain, CONSULT the relevant expert and let their judgment settle it before labeling (control-flow → workflow expert · schema/migrations/FKs → data-modeler · architecture boundaries → architect · auth/exposure/injection → sentinel · external contracts → integration expert). An uncertain verdict is not a verdict. Then: \"{PEBBLES_CLI}\" add-finding <path> --title \"...\" --unit <id> --category verified-working|bug|spec-violation|security|performance|regression --severity low|medium|high --observation \"...\" --evidence \"file:line — proof\". WRITE THE OBSERVATION IN TWO TIERS: (1) PLAIN LANGUAGE first — what you checked and, if wrong, WHAT is wrong + WHY it matters, readable by product/QA; (2) TECHNICAL last, a separate paragraph — file:line, symbols, the exact mismatch. The ISSUE goes in the FINDING, NEVER in the node/pebble description (you never edit a description to say something is wrong). And \"{PEBBLES_CLI}\" set-status <path> <status> --unit <id> from the worst finding on it (clean→verified · claims-but-absent→missing · wrong/partial→drift · high-severity defect→broken). A node you genuinely cannot validate is set missing/unverifiable WITH a finding — accounted for, NEVER silently omitted. Supersede a prior finding on the same unit, never edit it."
+      },
+      {
+        "id": "82164efd-1f3f-443c-9f97-42f0ccc917bd",
+        "text": "STEP 3b — REVERSE GAP (code the spec does NOT cover): after the units, scan the SAME code span for real behavior with NO corresponding node/item — an extra branch, an error path, a side effect, a whole feature in code but absent from the spec. Record each as a PEBBLE-level finding (\"{PEBBLES_CLI}\" add-finding <path> --category spec-violation|tech-debt|other --observation \"code does X …\" --evidence \"file:line\") naming what the code does + where and that the spec lacks it. Do NOT add the node yourself — verify is READ-ONLY on spec structure (its only writes are per-unit statuses + findings); the finding lets the USER update the workflow. A spec is trustworthy only if it covers what actually runs. STATUS: a node the spec claims but code lacks = that node `missing` (spec ahead of code); code that exists but the spec omits has no node to status → record the finding AND roll the PEBBLE to at least `drift` (code ahead of spec — reconcile) even if every drawn node verified. No new status is needed — `missing` and `drift` are the two directions."
+      },
+      {
+        "id": "e134c9ea-dcd1-43ee-b839-2c9add256663",
+        "text": "STEP 4 — CONFIRM & ROLL UP: `get` the pebble back and confirm EVERY unit now carries a verify status — none left planned/untouched (verified-count == total-node-count). Only then set the pebble's status to the WORST unit status (most severe wins) and file one summary finding. The explorer colors the file from that automatically."
+      },
+      {
+        "id": "ba3f2575-3181-4253-a8f8-5d958c86cd18",
+        "text": "Report: a coverage LEDGER — list every node with its verdict and prove verified-count == total-node-count (no node missing from the list); then the per-unit evidence and the pebble's rolled-up status."
+      }
+    ],
+    "verify": [
+      {
+        "id": "1f6d5b6e-fe2d-4900-98cc-d2b8871fe495",
+        "text": "EVERY node/unit verified — the verified count EQUALS the total; nothing sampled, capped, or silently skipped (a genuinely unverifiable unit is set missing/unverifiable WITH a finding, never omitted)"
+      },
+      {
+        "id": "49cc4df5-dde7-4be7-ac60-9c0392da92d9",
+        "text": "Every node verified individually regardless of kind or role — steps, conditions, parallels, subprocesses, and every terminal/outcome (success paths and failure paths alike); none privileged, none skipped, down to the smallest"
+      },
+      {
+        "id": "280f2894-8570-4325-be8e-fd99c9500fea",
+        "text": "Each unit proven against real BEHAVIOR (not symbol presence); workflows walked in flow order incl. subprocesses; models checked field by field vs migrations/DDL"
+      },
+      {
+        "id": "667348c9-c872-407a-b13c-348d152ad140",
+        "text": "Each unit has BOTH a per-unit finding AND a truthful per-unit status; the pebble rolled up to its WORST unit; a summary finding filed"
+      }
+    ],
+    "whenToUse": "The correctness gate — the REVERSE of extract: start from the pebble, check EVERY unit (nodes/items/fields) against its specs (requirements, rules, architecture), and prove each is implemented correctly."
+  },
+  "createdAt": "2026-07-21T14:32:38.782Z",
+  "description": "Verify a spec against the actual code (records findings)",
+  "id": "0950f946-88d2-4a8a-930c-6e0c2ad5f5ac",
+  "name": "pebbles-verify",
+  "refs": [
+    {
+      "id": "79857a7d-3dcd-4825-b10d-0fa4929f8de9",
+      "label": "Verification — standard",
+      "path": ".pebbles/rules/system/verification-standard.pebble",
+      "pebbleId": "6771fa07-1e4e-4e97-962e-dcf46d58c0b6",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "4c14a9bc-bea3-48e2-b16f-46cd5f35bab1",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "bb26d860-b141-49cf-a244-d579a5db9cc7",
+      "label": "Status discipline",
+      "path": ".pebbles/rules/system/status-discipline.pebble",
+      "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "03447485-6002-46b6-aec5-29fc98be7cda",
+      "label": "Findings are the append-only evidence log",
+      "path": ".pebbles/rules/system/findings-as-evidence.pebble",
+      "pebbleId": "468bc1e3-c8ac-4495-8166-f6dd6ed9b469",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "e5f17f17-e300-448e-ab49-2856de6c5483",
+      "label": "Graph-first navigation",
+      "path": ".pebbles/rules/system/graph-first-navigation.pebble",
+      "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "ecfe2e2c-27e1-40be-ac36-bd34d02420c3",
+      "label": "Command discipline",
+      "path": ".pebbles/rules/system/command-discipline.pebble",
+      "pebbleId": "197d289c-06cc-4cd5-b560-2efd427ed161",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "050019ad-a111-4c0c-bf01-0cee8ae559db",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "f8d484b9-72c5-4514-8736-294011b4aca6",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "6c91fe6d-f1b4-4d50-af98-60c5cdc7d109",
+      "label": "The spec lifecycle — both directions",
+      "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
+      "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "8c6b432d-8674-4eb9-852e-c0d83a4c5dcd",
+      "label": "Verification — spec-first, unit-by-unit",
+      "path": ".pebbles/knowledge/system/verification-model.pebble",
+      "pebbleId": "6fefc4f2-c41e-48b9-af3e-4af4c953fd74",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.782Z",
+  "version": 1
+}

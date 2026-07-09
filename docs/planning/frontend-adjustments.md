@@ -1033,8 +1033,8 @@ These backend entities have API endpoints but no console UI yet. Each item is a 
 
 ### 9.1 — Management Audit Log (new page)
 
-**Backend:** `GET /management-audit-log` (internal :8080, paginated, filterable)  
-**Response fields:** `uuid`, `action`, `resource_type`, `resource_id`, `changes` (JSONB diff — `{"after":…}` for creates, `{"update":…,"after":…}` for updates, `{"before":…}` for deletes), `ip_address`, `actor_user_id`, `actor_client_id`, `outcome`, `created_at`
+**Backend:** `GET /management-audit-log` and `GET /management-audit-log/{uuid}` (internal :8080, paginated, filterable)
+**Response fields:** `uuid`, `action`, `resource_type`, `resource_id`, `changes` (JSONB diff — `{"after":…}` for creates, `{"update":…,"after":…}` for updates, `{"before":…}` for deletes), `ip_address`, `actor_user_id`, `actor_user_name`, `actor_client_id`, `actor_client_name`, `outcome`, `created_at`
 
 - [ ] Add `MANAGEMENT_AUDIT_LOG: '/management-audit-log'` to `src/services/api/config.ts`
 - [ ] Create `src/services/api/audit-log/types.ts` and `index.ts` with `fetchAuditLog(params)` function

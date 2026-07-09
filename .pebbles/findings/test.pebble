@@ -1,0 +1,17 @@
+{
+  "content": {
+    "body": "## Observation\n\n<!-- What was found and why it matters — plain-language first, then technical detail -->\n\n## Evidence\n\n- <!-- file:line references, log excerpts, reproduction steps -->\n\n## Impact\n\n<!-- Why it matters — blast radius, who's affected -->\n\n## Root cause\n\n<!-- The underlying cause, once analyzed -->\n\n## Solution\n\n<!-- What to do about it -->\n\n## Solution steps\n\n1. <!-- concrete step -->\n",
+    "category": "bug",
+    "kind": "finding",
+    "severity": "medium",
+    "state": "open"
+  },
+  "createdAt": "2026-07-23T10:37:42.910Z",
+  "description": "",
+  "id": "40ab755d-0fe2-44ba-8b7a-3ed80a5da853",
+  "name": "test",
+  "tags": [],
+  "type": "finding",
+  "updatedAt": "2026-07-23T10:37:42.910Z",
+  "version": 1
+}

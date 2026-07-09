@@ -1,0 +1,77 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "Every referenced model, requirement and workflow — and list what you loaded. Coding from the pebble title alone is a violation.",
+        "enforcement": "strict",
+        "id": "9fcc62e0-986b-4f5a-acce-7b9b333190e5",
+        "status": "verified",
+        "text": "Read the full spec including every ref before writing code"
+      },
+      {
+        "description": "The final report pairs each checklist item with the code/test satisfying it. An untraceable requirement is an unimplemented requirement.",
+        "enforcement": "strict",
+        "id": "a14900a9-5965-4afe-879b-416015b998c0",
+        "status": "verified",
+        "text": "Map every requirement item to code and test, 1:1"
+      },
+      {
+        "description": "Nullability, defaults and types per the model pebble. Silent divergence on nullable/default is the #1 implementation defect.",
+        "enforcement": "strict",
+        "id": "9041eaa2-35ac-4433-8019-5ba61b1a087e",
+        "status": "verified",
+        "text": "Honor field spec exactly — no invented defaults"
+      },
+      {
+        "description": "Null FK, empty list, invalid state transition — not just the happy path.",
+        "enforcement": "strict",
+        "id": "fffd8bfa-093f-4b7f-9140-7c834c045549",
+        "status": "verified",
+        "text": "Cover the error paths the spec implies"
+      },
+      {
+        "description": "Name the test per requirement so the mapping is checkable.",
+        "enforcement": "strict",
+        "id": "a7a6848b-7a24-4f65-9a84-10efd848af17",
+        "status": "verified",
+        "text": "Write or update a test for every changed behavior"
+      },
+      {
+        "description": "Find the codebase's way via graph queries and cite one precedent file per pattern you followed.",
+        "enforcement": "strict",
+        "id": "c50e9c4e-91a8-4631-b62f-116fa03c6665",
+        "status": "verified",
+        "text": "Follow existing conventions, cite a precedent"
+      },
+      {
+        "description": "With a finding. Never mark a requirement done to finish the session.",
+        "enforcement": "strict",
+        "id": "66f6b23c-0a2b-49c1-8259-1705b147e44a",
+        "status": "verified",
+        "text": "Report incomplete work as incomplete"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.690Z",
+  "description": "How code gets written from spec. Agents chronically code from the title — this rule makes the full spec, its refs, and its edge cases binding.",
+  "id": "f4ec7510-7bfa-4a74-92fa-954f8efb95a4",
+  "name": "Implementation standard",
+  "refs": [
+    {
+      "id": "8703b1fa-e094-4874-bd69-f670089bf783",
+      "label": "The spec lifecycle — both directions",
+      "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
+      "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.690Z",
+  "version": 1
+}

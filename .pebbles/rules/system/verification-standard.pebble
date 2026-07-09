@@ -1,0 +1,126 @@
+{
+  "content": {
+    "items": [
+      {
+        "description": "The only writes verification makes are statuses it can prove and findings with evidence. It never edits application code, never changes the spec content it is checking, never 'fixes while it's there'. A needed change is RECORDED as a finding and handed to /pebbles-fix — verifying and fixing in one pass destroys the independence that makes a verdict trustworthy.",
+        "enforcement": "strict",
+        "id": "54f58ea0-9359-4dd6-8060-942b2c1b46b2",
+        "status": "verified",
+        "text": "READ-ONLY on code — verification NEVER writes or fixes it"
+      },
+      {
+        "description": "Read the pebble, enumerate its units (nodes/items/fields/endpoints) AND its connections (refs, codeLinks, governing rules/, architecture/, the requirements it serves). That set is the contract; you begin from it and hold the code to it. Works on ANY pebble regardless of how the spec or the code was produced — hand-written or generated; never limited to any particular origin.",
+        "enforcement": "strict",
+        "id": "61aac0db-4d3e-4a1b-aec5-ae729ad1becb",
+        "status": "verified",
+        "text": "Spec-first — start from the pebble, not the code"
+      },
+      {
+        "description": "Judge each unit individually against everything expected of it (its description, the requirements, the rules with their enforcement levels, the architecture boundaries). There is NO cap, NO sample, NO 'representative subset' — the count you verified MUST equal the total unit count. A unit you genuinely cannot verify is given a truthful status (missing/unverifiable) + a finding — it is accounted for, never silently left out. A pebble-level pass inferred from a subset, or any node quietly skipped, is a violation.",
+        "enforcement": "strict",
+        "id": "28116f6a-263b-42c2-a59a-693bc2fa14cf",
+        "status": "verified",
+        "text": "Check EVERY unit — no sampling, no caps, no omission"
+      },
+      {
+        "description": "Verify behavior, not existence (a symbol with the right name proves nothing). EVERY node/unit is verified individually regardless of kind or role — success paths and failure paths, common cases and edge cases, down to the smallest. Do not fixate on one category (e.g. errors) and pass over the rest (e.g. the success outcome): if it is a node in the pebble, it gets its own proof. One case never stands in for another.",
+        "enforcement": "strict",
+        "id": "4c2af31a-108d-4ddc-9057-5e944133c601",
+        "status": "verified",
+        "text": "Every node counts, of every kind — none privileged, none scenery"
+      },
+      {
+        "description": "A unit is correct only if it satisfies everything attached to the spec: its description AND the requirements it serves AND every governing rule (strict = MUST — a violation is a finding even if the code 'works') AND the architecture boundaries AND the contracts/models it must honor. Chase every reference to its definition before judging; an unread reference is an unfinished verification. Code can run perfectly and still FAIL by violating a rule or boundary.",
+        "enforcement": "strict",
+        "id": "3aa07d9f-8f85-4df4-b0a5-c1ef8c80f149",
+        "status": "verified",
+        "text": "Validate against ALL the spec's references, not just its text"
+      },
+      {
+        "description": "Verify whether the CODE matches what THIS unit claims (its label + description + refs), NOT whether it was drawn the conventional way. You know how a workflow is normally drawn, but the spec need not follow it — developers model the same behavior differently; honor the intent the unit states, in whatever shape, and handle the most unusual use case on its own terms. A whole behavior modeled as ONE process node that DESCRIBES everything — no branch/condition/try-catch/outcome nodes at all — is valid: read its claim and validate ALL of it against the code, as thoroughly as a fully decomposed graph. Alignment of spec↔code is the test; conformance to any drawing convention is never a finding.",
+        "enforcement": "strict",
+        "id": "9284cad1-3c0e-4a3a-b1b2-69f7e4176da3",
+        "status": "verified",
+        "text": "Judge by the unit's CLAIM — usage is free, no drawing convention is the test"
+      },
+      {
+        "description": "Walk the nodes in flow order; each node's implementation correct AND reached in order; every condition arm and parallel branch checked; recurse subprocesses. Terminal/outcome nodes are FIRST-CLASS, not scenery — every one (success and failure alike) gets its own verification, status and finding. A branch that never fires, or a terminal whose outcome the code never produces, is a divergence.",
+        "enforcement": "strict",
+        "id": "9a08269b-b54a-4d4b-af31-582d6d68e54c",
+        "status": "verified",
+        "text": "Workflow: verify EVERY node in flow order — no node excepted"
+      },
+      {
+        "description": "Given a `try` node (with its BODY + SPINE-to-catch outputs) and its paired `catch` (with its \"Exceptions\" line + unlabeled continuation), verify against the CODE: a real guarded try/catch (in whatever form the language uses — you identify it, not by keyword) opens where the try says and closes at the catch; the BODY nodes match the try block's statements in order and the last returns to the catch; inner guards count individually (each is its own condition + any throw its own `error` \"… error thrown\" — verify both arms against the code, never waved off as \"inside the try\"); the \"Exceptions\" line matches the code's catch/rescue — follow it and verify the failure handling NODE-FOR-NODE (every rollback/log/notify/mark-failed/rethrow node maps to a real catch action, and every real catch action has a node — code-but-no-node is `missing`, node-but-no-code is `drift`); CAUGHT vs UNCAUGHT is correct — a catch that handles locally ends at an `end` with NO global-exception (an invented one is `drift`), while a rethrow/escape must hand off via an `exception` node into a `global-exception` flow (a missing one for a real escape is `missing`), which you verify the same way; the CONTINUATION line (no label) matches the code after the try/catch, reached when no exception is thrown; every path terminates. If the control-flow reading is unclear — where the try closes, which line is the catch vs the continuation, whether a rollback truly runs — do NOT guess: consult the workflow expert and reconcile before labeling.",
+        "enforcement": "strict",
+        "id": "9edc28e3-1957-4f81-b990-fb3c31a5e6e0",
+        "status": "verified",
+        "text": "Workflow try/catch: verify the body, the Exceptions handling, and the continuation"
+      },
+      {
+        "description": "Read migrations (the full history for that table), DDL or raw SQL — even with NO ORM. Type, nullability, default, PK and every FK per field.",
+        "enforcement": "strict",
+        "id": "cb02f9b6-be42-49f8-970c-13f8e8d52abb",
+        "status": "verified",
+        "text": "Model/persisted: verify field by field against storage truth"
+      },
+      {
+        "description": "A checklist is the pass/fail gate of a specific functionality: every item is a requirement that must be MET for the functionality to pass verification. Judge each item against the code/tests it claims: met with proof → the item's status moves to verified; NOT met → the status CHANGES to reflect reality (missing when nothing implements it, broken/drift when the implementation contradicts it) + a finding with the evidence. An unmet requirement is never left looking passed — the changed status IS the signal that the functionality failed its verification stage.",
+        "enforcement": "strict",
+        "id": "a4993aef-39a9-4378-a3f5-7b0f25130390",
+        "status": "verified",
+        "text": "Checklist: each item is a REQUIREMENT the functionality must meet to pass"
+      },
+      {
+        "description": "Every verified unit produces a finding: verified-working WITH evidence (file:line / run / query) on pass, or bug/spec-violation/security/performance/regression with severity on fail. Attach it to the SPECIFIC unit (--unit) and the pebble. WRITE THE FINDING IN TWO TIERS: (1) PLAIN LANGUAGE first — what was checked and, if something is wrong, WHAT is wrong and WHY it matters, in plain English a product owner/QA can read; (2) TECHNICAL last, a separate final paragraph — file:line, symbols, the exact mismatch, evidence. The ISSUE goes here in the finding, NEVER in the node/pebble description (verify never edits a description to say something is wrong — it records a finding). Never edit a prior finding — supersede it.",
+        "enforcement": "strict",
+        "id": "c427ba79-6d27-48d2-b1ed-9f4441975c3d",
+        "status": "verified",
+        "text": "Always a finding — pass OR fail (proof), written in two tiers"
+      },
+      {
+        "description": "Verify BOTH directions. Forward: does the code satisfy each spec unit (set its status). REVERSE: after the units, scan the same code span for real behavior with NO corresponding node/item — an extra branch, an error path, a side effect, a whole feature in code but absent from the spec. Each is a pebble-level FINDING (category spec-violation, or tech-debt/other as fits) naming what the code does + where (file:line) and that the spec lacks it. Do NOT add the node yourself — verify is read-only on spec structure; the finding lets the USER update the workflow. A spec is only trustworthy if it covers what actually runs.",
+        "enforcement": "strict",
+        "id": "63e458eb-156b-4bb7-a9a6-ac970dac9dd7",
+        "status": "verified",
+        "text": "The reverse gap — record code the spec does NOT cover"
+      },
+      {
+        "description": "A confident wrong status is worse than none. When you are not certain about a domain, do NOT guess — bring in the relevant DOMAIN EXPERT and reconcile before labeling: control-flow → the workflow expert; schema/migrations/FKs → the data modeler; architecture boundaries → the architect; auth/exposure/injection → security (sentinel); external-system contracts → the integration expert. Let their judgment settle the call and cite whose expertise backed it. An uncertain verdict is not a verdict.",
+        "enforcement": "strict",
+        "id": "dabd03ad-afd8-45d0-9c66-fab5dd6ac9cb",
+        "status": "verified",
+        "text": "Get the verdict RIGHT — consult a domain expert when unsure"
+      },
+      {
+        "description": "The two gap directions map to the two existing statuses — no new status is needed. Set each unit's status from its worst correctness finding: clean+proven → verified; SPEC AHEAD OF CODE (spec claims this unit, code has no implementation of it) → missing; present-but-wrong/partial, or code diverged from what the unit says → drift; confirmed high-severity defect → broken. The PEBBLE's status is the WORST of its units — the most severe wins. One more rule for the REVERSE direction (CODE AHEAD OF SPEC): when the reverse gap found real behavior the spec does NOT cover, the pebble is at LEAST `drift` (exists in code but no longer matches this spec — reconcile) even if every drawn node verified. So: node claimed-but-code-lacks = that node `missing`; code that exists but the spec omits = pebble-level finding + pebble `drift`. verified requires a passing proof; downgrades require evidence.",
+        "enforcement": "strict",
+        "id": "895bec21-a265-4732-8e58-9949a4123d12",
+        "status": "verified",
+        "text": "Severity → status, and the worst unit rolls up to the pebble"
+      }
+    ],
+    "kind": "checklist"
+  },
+  "createdAt": "2026-07-21T14:32:38.694Z",
+  "description": "Verification holds the CODE to the SPEC — for ANY pebble and any origin (a hand-written spec the user implemented himself, or any other; all kinds): start from the pebble, check EVERY unit against the specs, prove correctness with a per-unit status + finding. The question is always compliance: does the code deliver what the spec requires? Strictly read-only on code. What makes it trustworthy instead of a rubber stamp.",
+  "id": "6771fa07-1e4e-4e97-962e-dcf46d58c0b6",
+  "name": "Verification — standard",
+  "refs": [
+    {
+      "id": "86a1ad0c-c5ed-4a31-a1b3-ad4abddae988",
+      "label": "Verification — spec-first, unit-by-unit",
+      "path": ".pebbles/knowledge/system/verification-model.pebble",
+      "pebbleId": "6fefc4f2-c41e-48b9-af3e-4af4c953fd74",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "rule",
+  "updatedAt": "2026-07-21T14:32:38.694Z",
+  "version": 1
+}

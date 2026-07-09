@@ -1,0 +1,133 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "a3f44950-2277-4cd7-85bf-bb1f199e2384",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "32849c96-9cad-46ce-a30d-5ba1bd729d61",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "182903b3-1485-4dea-896b-677785de990e",
+        "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
+      },
+      {
+        "id": "8e7a6a66-3523-496b-8498-dc19b4d0968a",
+        "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "7d6fce4f-082a-4b92-9a43-e10b9c2337dc",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "996f2026-5166-47b1-b135-bcb58a4a9641",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "3fb4739b-052b-42b9-b659-f12506f9d357",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "codeLinks on the pebble; each link's path doubles as a map node id.",
+    "prerequisites": [
+      {
+        "id": "c8128680-dbad-4d47-8b82-ddd1e5263d88",
+        "text": "A saved map — find implementing files via the graph, not grep"
+      }
+    ],
+    "purpose": "Bind a pebble to its implementation files",
+    "steps": [
+      {
+        "id": "d8d18f41-0b00-4c74-88de-6e7674b33024",
+        "text": "Bind a pebble to every file that implements it: $ARGUMENTS"
+      },
+      {
+        "id": "7de8dbb5-3515-4a3a-8853-0f7f2a5cbc1e",
+        "text": "STEP 1 — READ the pebble (`get`) so you know exactly what implementation you are hunting for."
+      },
+      {
+        "id": "8be47713-d770-47f3-9421-fba81a36eb7f",
+        "text": "STEP 2 — FIND ALL of it via the graph (map-symbol/map-search/map-neighbors) — a feature usually spans SEVERAL files; linking only some leaves the spec half-bound. Use the map, do not grep."
+      },
+      {
+        "id": "b7b5eff2-aaa8-4c0f-ab80-8ea0a4ff3cb7",
+        "text": "STEP 3 — LINK each: \"{PEBBLES_CLI}\" link-code <pebble> --file <rel-path> [--symbol NAME] [--line N] [--note \"why\"]. link-code refuses files that do not exist (a refusal means your path is wrong, not that the code is missing)."
+      },
+      {
+        "id": "dd521663-5c4e-4c79-a86c-a7a7fc91da5d",
+        "text": "Report: the links made (refs <pebble> confirms them); a codeLink's path doubles as a map node id for instant map-file analysis later."
+      }
+    ],
+    "verify": [
+      {
+        "id": "60c5f98e-301f-4c6b-b623-61d568f4c96d",
+        "text": "Every linked file exists in the map (link-code would have refused otherwise)"
+      },
+      {
+        "id": "2828370b-68c1-49f7-ba74-ca89a86aad76",
+        "text": "refs <pebble> shows the codeLinks you added"
+      }
+    ],
+    "whenToUse": "Binding a pebble to every file that implements it — a feature usually spans several. Find them via the graph first."
+  },
+  "createdAt": "2026-07-21T14:32:38.760Z",
+  "description": "Bind a pebble to its implementation files",
+  "id": "19c775a9-0850-440a-98ec-63f8bac0ca92",
+  "name": "pebbles-link-code",
+  "refs": [
+    {
+      "id": "bd3644c9-a18c-4863-aee3-2f11dbb634f1",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "91eb6e84-9725-4c53-851c-c0b9443e5684",
+      "label": "Reference integrity",
+      "path": ".pebbles/rules/system/reference-integrity.pebble",
+      "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "04f2c17e-6b3b-4ae4-bbc2-583e6fbcb56f",
+      "label": "Graph-first navigation",
+      "path": ".pebbles/rules/system/graph-first-navigation.pebble",
+      "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "a0674232-3194-4b6c-b71b-916cfcd84a0c",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "771bb557-5709-44af-8697-ac14bf3ac9f5",
+      "label": "The code map — a real dependency graph",
+      "path": ".pebbles/knowledge/system/code-map.pebble",
+      "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.760Z",
+  "version": 1
+}

@@ -1,0 +1,133 @@
+{
+  "content": {
+    "arguments": "$ARGUMENTS",
+    "constraints": [
+      {
+        "id": "3d32aedf-6ecc-4b6f-9e80-2db2442df689",
+        "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
+      },
+      {
+        "id": "10e319f3-f5e0-4bcd-9853-eaf720d986f3",
+        "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
+      },
+      {
+        "id": "c32eb613-a524-4320-9167-7b5f1aa71d30",
+        "text": "Bound by system rule: Table completeness (rules/system/table-completeness)"
+      },
+      {
+        "id": "87858972-9e56-4bc2-9c90-c6e9e78a0ff8",
+        "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
+      }
+    ],
+    "examples": [],
+    "kind": "skill",
+    "onFailure": [
+      {
+        "id": "b1588a57-6a22-4c60-9da0-c592fe148d7d",
+        "text": "Read the CLI error — it names the fix; correct the call and retry once"
+      },
+      {
+        "id": "b26da6fb-54d2-437a-9d29-64bd99ec06c2",
+        "text": "NEVER fall back to editing .pebble files directly, whatever failed"
+      },
+      {
+        "id": "325dbe6c-5150-4da7-8649-7dc747d8cfd2",
+        "text": "If still blocked, report the exact command and error to the user and stop"
+      }
+    ],
+    "output": "The created pebble's path and id (plus droppedRefs if links didn't resolve).",
+    "prerequisites": [
+      {
+        "id": "212206fd-8bf2-4e14-84e4-dd6d9ac836da",
+        "text": "The pebble's SECTION/kind is classified (model vs structure vs contract vs workflow vs checklist) before creating"
+      },
+      {
+        "id": "1e7c4f8d-9550-4e96-8de8-f585bd44754c",
+        "text": "A query confirms no existing pebble already covers this topic"
+      }
+    ],
+    "purpose": "Create a new pebble safely",
+    "steps": [
+      {
+        "id": "c42c4e9b-266f-458f-bab8-82ba918bc871",
+        "text": "Create a new pebble — classified correctly and complete: $ARGUMENTS"
+      },
+      {
+        "id": "9c2c67a3-fb54-4e8e-af05-d1f5780e55d4",
+        "text": "STEP 0 — CLASSIFY (the load-bearing decision): persisted DB table → models (DB semantics: PK/refKey/NOT NULL/defaults) · in-code shape (DTO/payload/config/return type) → structures (code types, NO DB semantics) · wire surface (endpoint/event/webhook) → contracts (payloads REFERENCE structures via typeRef, never redefined) · a process → workflows · a behavior list → tests/requirements. Misclassifying a DTO as a model is a defect — pick the section by what the thing IS, not by its fields."
+      },
+      {
+        "id": "60b91939-1655-41e7-a29f-0fdd89e649ef",
+        "text": "STEP 1 — CHECK FIRST: query for an existing pebble on this topic (avoid duplicates); if a target you need to reference does not exist yet, create it first or note it for a second pass."
+      },
+      {
+        "id": "3fd843c7-ce8c-459f-855a-b7bcc3f5dec5",
+        "text": "STEP 2 — CREATE with real content: \"{PEBBLES_CLI}\" create <section> --title \"...\" [--kind K] [--content JSON]. Fields content needs a description + status per field (the CLI rejects otherwise); wire FKs via refKey when the target exists."
+      },
+      {
+        "id": "6f1bac78-d44a-4d92-93cb-178749c07a1b",
+        "text": "DESCRIPTIONS (every unit, every kind): write in TWO TIERS — (1) PLAIN LANGUAGE first, 1-3 sentences any stakeholder (product owner, QA, non-engineer) can read: what it is and how it works; (2) TECHNICAL last, a SEPARATE final paragraph: file:line, symbols, types, rules. A description states ONLY what the thing IS + its technical detail — NEVER an issue/bug/verdict (problems are FINDINGS, never descriptions). Be DETAILED: no stubs; an external/boundary node carries its FULL contract (direction + comm type + complete payload shape & requirements)."
+      },
+      {
+        "id": "bcd9f7b0-f581-4a3c-8f2a-6b764aa97e39",
+        "text": "Report: the created path + id, and any droppedRefs (links whose target did not resolve) with why."
+      }
+    ],
+    "verify": [
+      {
+        "id": "6ecbbd2c-7717-4c8c-a1ea-6813c69dff28",
+        "text": "The result shows ok:true and the returned path/id"
+      },
+      {
+        "id": "32fdfe9a-56e8-4145-b02b-0a06962f9c56",
+        "text": "droppedRefs is empty — or every drop is reported to the user with why"
+      }
+    ],
+    "whenToUse": "Adding new spec: a model, requirement, workflow… The AI picks the right section and kind from your description."
+  },
+  "createdAt": "2026-07-21T14:32:38.740Z",
+  "description": "Create a new pebble safely",
+  "id": "1d2b6113-e760-43e3-86ea-b3e379a93f94",
+  "name": "pebbles-create",
+  "refs": [
+    {
+      "id": "11305d59-5440-46d7-b3eb-68395b049549",
+      "label": "Spec mutation contract",
+      "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
+      "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "24a99ca0-86bf-46e3-9a38-4ae80c799313",
+      "label": "Table completeness",
+      "path": ".pebbles/rules/system/table-completeness.pebble",
+      "pebbleId": "d374da94-58db-4e58-8fc0-c42ec2e62c69",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "e0e95d3a-64c5-4d2e-a611-bd5d51c309a4",
+      "label": "Reference integrity",
+      "path": ".pebbles/rules/system/reference-integrity.pebble",
+      "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
+      "section": "rules",
+      "targetKind": "pebble"
+    },
+    {
+      "id": "7c9af15a-59cb-4faa-a7ef-2cb0860c4d30",
+      "label": "pebbles-cli — complete command reference",
+      "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
+      "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
+      "section": "knowledge",
+      "targetKind": "pebble"
+    }
+  ],
+  "status": "verified",
+  "tags": [
+    "system"
+  ],
+  "type": "skill",
+  "updatedAt": "2026-07-21T14:32:38.740Z",
+  "version": 1
+}
