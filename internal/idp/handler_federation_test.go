@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/stretchr/testify/assert"
 )
@@ -102,6 +103,7 @@ func (m *mockFederationService) SAMLMetadata(_ context.Context, _ string) ([]byt
 func (m *mockFederationService) TestConnection(_ context.Context, _ TestConnectionRequestDTO) (*TestConnectionResultDTO, error) {
 	return &TestConnectionResultDTO{Success: true}, nil
 }
+func (m *mockFederationService) SetAccountLinkService(_ authn.AccountLinkRequestService) {}
 
 func TestFederationHandler_ExchangeExternalToken(t *testing.T) {
 	t.Run("bad JSON returns 400", func(t *testing.T) {

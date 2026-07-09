@@ -337,6 +337,13 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// upstream provider code and resolve/provision the user.
 	oauth.SetBrokerCallbackResolver(&oauthBrokerCallbackResolver{federation: s.federationService})
 
+	// Inject the account-link service so the federation provisioning path can
+	// create a confirmation request on email collision instead of silently merging.
+	s.federationService.SetAccountLinkService(s.accountLinkService)
+
+	// Wire the account-link verifier so BrokerResume can validate confirmed tokens.
+	oauth.SetBrokerAccountLinkVerifier(&accountLinkVerifierAdapter{repo: r.accountLinkRequestRepo})
+
 	// Sweep expired broker sessions every 5 minutes so single-use short-lived
 	// rows don't accumulate in the database.
 	oauth.SweepExpiredBrokerSessions(context.Background(), db, 5*time.Minute)

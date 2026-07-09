@@ -187,6 +187,16 @@ type BrokerResolvedUser struct {
 	UserUUID    uuid.UUID
 	IdentitySub string
 	SessionID   string
+	// Populated when a verified-email collision requires explicit confirmation.
+	AccountLinkToken    string
+	AccountLinkProvider string
+	AccountLinkEmail    string
+}
+
+// AccountLinkVerifier checks that a confirmation token is confirmed and returns
+// the linked user's ID. Satisfied by an adapter over authn.AccountLinkRequestRepository.
+type AccountLinkVerifier interface {
+	FindConfirmedLink(token string) (userID int64, found bool, err error)
 }
 
 // BrokerCallbackResolver resolves the maintainerd user for the broker callback

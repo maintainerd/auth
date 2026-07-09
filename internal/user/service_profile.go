@@ -33,6 +33,8 @@ type ProfileServiceDataResult struct {
 	ProfileURL *string
 	// Extended data
 	Metadata map[string]any
+	// Profile state
+	IsDefault bool
 	// System Fields
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -75,6 +77,7 @@ type ProfileService interface {
 	GetByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	GetAll(ctx context.Context, userUUID uuid.UUID, firstName, lastName, email *string, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error)
+	SetDefault(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 }
 
@@ -503,10 +506,52 @@ func toProfileServiceDataResult(profile *Profile) *ProfileServiceDataResult {
 		ProfileURL: profile.ProfileURL,
 		// Extended data
 		Metadata: metadata,
+		// Profile state
+		IsDefault: profile.IsDefault,
 		// System Fields
 		CreatedAt: profile.CreatedAt,
 		UpdatedAt: profile.UpdatedAt,
 	}
 
 	return result
+}
+
+func (s *profileService) SetDefault(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "profile.set_default")
+	defer span.End()
+	span.SetAttributes(attribute.String("profile.uuid", profileUUID.String()), attribute.String("user.uuid", userUUID.String()))
+
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, apperror.NewNotFound("user not found")
+	}
+
+	profile, err := s.profileRepo.FindByUUID(profileUUID)
+	if err != nil || profile == nil {
+		return nil, apperror.NewNotFound("profile not found")
+	}
+	if profile.UserID != user.UserID {
+		return nil, apperror.NewForbidden("profile does not belong to user")
+	}
+
+	profileID := profile.ProfileID
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := s.profileRepo.WithTx(tx).UnsetDefaultProfiles(user.UserID); err != nil {
+			return err
+		}
+		return tx.Model(&Profile{}).Where("profile_id = ?", profileID).Update("is_default", true).Error
+	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "set default profile failed")
+		return nil, err
+	}
+
+	updated, err := s.profileRepo.FindByUUID(profileUUID)
+	if err != nil || updated == nil {
+		return nil, apperror.NewNotFound("profile not found after update")
+	}
+	hydrateProfileTransients(updated, user, nil)
+	span.SetStatus(codes.Ok, "")
+	return toProfileServiceDataResult(updated), nil
 }

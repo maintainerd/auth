@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -15,6 +16,7 @@ type OAuthBrokerSessionRepository interface {
 	BaseRepositoryMethods[OAuthBrokerSession]
 	WithTx(tx *gorm.DB) OAuthBrokerSessionRepository
 	FindByIdpState(idpState string) (*OAuthBrokerSession, error)
+	FindByUUID(sessionUUID uuid.UUID) (*OAuthBrokerSession, error)
 	Consume(id int64, at time.Time) error
 	DeleteExpired(before time.Time) (int64, error)
 }
@@ -43,6 +45,20 @@ func (r *oauthBrokerSessionRepository) FindByIdpState(idpState string) (*OAuthBr
 	err := r.DB().
 		Where("idp_state = ? AND consumed_at IS NULL", idpState).
 		First(&session).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &session, nil
+}
+
+// FindByUUID looks up a broker session by its stable UUID. Returns nil, nil
+// when no row matches.
+func (r *oauthBrokerSessionRepository) FindByUUID(sessionUUID uuid.UUID) (*OAuthBrokerSession, error) {
+	var session OAuthBrokerSession
+	err := r.DB().Where("oauth_broker_session_uuid = ?", sessionUUID).First(&session).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

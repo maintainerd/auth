@@ -72,6 +72,7 @@ func OAuthPublicRoute(
 			r.Get("/consent/{challenge_id}", authorizeHandler.GetConsentChallenge)
 			r.Post("/consent", authorizeHandler.HandleConsent)
 			r.Post("/authorize/continue", authorizeHandler.ContinueAuthorize)
+			r.Post("/broker/resume", authorizeHandler.BrokerResume)
 			r.Get("/userinfo", userInfoHandler.UserInfo)
 			r.Get("/consent/grants", consentHandler.ListGrants)
 			r.Delete("/consent/grants/{grant_uuid}", consentHandler.RevokeGrant)

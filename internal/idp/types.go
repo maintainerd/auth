@@ -158,6 +158,10 @@ type BrokerResolvedUser struct {
 	UserUUID    uuid.UUID
 	IdentitySub string
 	SessionID   string
+	// Populated when a verified-email collision requires explicit confirmation.
+	AccountLinkToken    string
+	AccountLinkProvider string
+	AccountLinkEmail    string
 }
 
 // IdentityMetadata is stored as JSONB in UserIdentity.Metadata for external

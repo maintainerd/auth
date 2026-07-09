@@ -117,6 +117,9 @@ type ProfileResponseDTO struct {
 	// Extended data (includes OIDC address claim as metadata.address)
 	Metadata map[string]any `json:"metadata"`
 
+	// Profile state
+	IsDefault bool `json:"is_default"`
+
 	// System Fields
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

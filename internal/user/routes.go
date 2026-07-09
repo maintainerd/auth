@@ -162,6 +162,10 @@ func ProfileRoute(
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
 			Put("/{profile_uuid}", profileHandler.UpdateProfile)
 
+		// Set a profile as the default/active profile
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Put("/{profile_uuid}/set-default", profileHandler.SetDefaultProfile)
+
 		// Delete specific profile by UUID
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:delete:self"})).
 			Delete("/{profile_uuid}", profileHandler.DeleteByUUID)

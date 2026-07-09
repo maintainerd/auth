@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
@@ -43,6 +44,16 @@ var brokerCallbackResolver BrokerCallbackResolver
 // app startup before serving requests.
 func SetBrokerCallbackResolver(r BrokerCallbackResolver) {
 	brokerCallbackResolver = r
+}
+
+// brokerAccountLinkVerifier checks whether a confirmation token has been
+// confirmed and returns the linked user's ID. Set once at startup.
+var brokerAccountLinkVerifier AccountLinkVerifier
+
+// SetBrokerAccountLinkVerifier installs the account-link verifier used by
+// BrokerResume. Call once during app startup before serving requests.
+func SetBrokerAccountLinkVerifier(v AccountLinkVerifier) {
+	brokerAccountLinkVerifier = v
 }
 
 // HandleCallback implements OAuthAuthorizeService.
@@ -223,6 +234,18 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 		return "", "", apperror.NewOAuthServerError("failed to authenticate with identity provider")
 	}
 
+	// Account link required: the broker resolved a collision. Redirect to the
+	// identity app for explicit user confirmation instead of issuing an auth code.
+	if resolved.AccountLinkToken != "" {
+		linkURL := strings.TrimRight(config.AppFrontendIdentityHostname, "/") +
+			"/account-link?token=" + url.QueryEscape(resolved.AccountLinkToken) +
+			"&provider=" + url.QueryEscape(resolved.AccountLinkProvider) +
+			"&email=" + url.QueryEscape(resolved.AccountLinkEmail) +
+			"&broker_session=" + url.QueryEscape(session.OAuthBrokerSessionUUID.String())
+		span.SetStatus(codes.Ok, "account_link_required")
+		return linkURL, "", nil
+	}
+
 	// Reconstruct the original OAuth #1 request from the stored session.
 	req := OAuthAuthorizeRequestDTO{
 		ResponseType:        "code",
@@ -293,4 +316,108 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 
 	span.SetStatus(codes.Ok, "")
 	return redirectURL, accessToken, nil
+}
+
+// BrokerResume implements OAuthAuthorizeService.
+func (s *oauthAuthorizeService) BrokerResume(ctx context.Context, req BrokerResumeRequestDTO, userID int64) (*BrokerResumeResult, *apperror.OAuthError) {
+	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.broker_resume")
+	defer span.End()
+
+	if brokerAccountLinkVerifier == nil {
+		return nil, apperror.NewOAuthServerError("account link verifier not configured")
+	}
+
+	// Validate the link token is confirmed and belongs to the authenticated user.
+	linkedUserID, found, err := brokerAccountLinkVerifier.FindConfirmedLink(req.AccountLinkToken)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "link token lookup failed")
+		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+	if !found {
+		return nil, apperror.NewOAuthInvalidRequest("account link token is not confirmed or has expired")
+	}
+	if linkedUserID != userID {
+		return nil, apperror.NewOAuthInvalidRequest("account link token does not belong to the authenticated user")
+	}
+
+	// Load the broker session.
+	sessionRepo := NewOAuthBrokerSessionRepository(s.db)
+	sessionUUID, uuidErr := uuid.Parse(req.BrokerSessionUUID)
+	if uuidErr != nil {
+		return nil, apperror.NewOAuthInvalidRequest("invalid broker session uuid")
+	}
+	session, err := sessionRepo.FindByUUID(sessionUUID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "broker session lookup failed")
+		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+	if session == nil || session.IsExpired() || session.IsConsumed() {
+		return nil, apperror.NewOAuthInvalidRequest("broker session is expired, already used, or not found")
+	}
+
+	// Load the downstream app client.
+	appClient, cerr := s.clientRepo.FindByID(session.ClientID)
+	if cerr != nil || appClient == nil {
+		return nil, apperror.NewOAuthInvalidRequest("unknown client context")
+	}
+
+	// Reconstruct the original authorize request from the stored session.
+	authorizeReq := OAuthAuthorizeRequestDTO{
+		ResponseType:        "code",
+		RedirectURI:         session.AppRedirectURI,
+		State:               ptrOrEmpty(session.AppState),
+		Scope:               strings.Join([]string(session.AppScope), " "),
+		Nonce:               ptrOrEmpty(session.AppNonce),
+		CodeChallenge:       ptrOrEmpty(session.AppCodeChallenge),
+		CodeChallengeMethod: ptrOrEmpty(session.AppCodeChallengeMethod),
+	}
+
+	// Issue auth code and consume broker session atomically.
+	var redirectURL string
+	var issueOErr *apperror.OAuthError
+	if txErr := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := sessionRepo.WithTx(tx).Consume(session.OAuthBrokerSessionID, time.Now()); err != nil {
+			return err
+		}
+		txSvc := *s
+		txSvc.authCodeRepo = s.authCodeRepo.WithTx(tx)
+		var oerr *apperror.OAuthError
+		redirectURL, oerr = txSvc.issueAuthorizationCode(ctx, appClient, userID, authorizeReq)
+		if oerr != nil {
+			issueOErr = oerr
+			return oerr
+		}
+		return nil
+	}); txErr != nil {
+		if errors.Is(txErr, ErrAlreadyConsumed) {
+			return nil, apperror.NewOAuthInvalidRequest("broker session has already been used")
+		}
+		if issueOErr != nil {
+			return nil, issueOErr
+		}
+		span.RecordError(txErr)
+		span.SetStatus(codes.Error, "broker resume transaction failed")
+		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+
+	// Generate SSO cookie token.
+	accessToken := ""
+	if session.IdentityProviderIdentifier != "" {
+		if tok, gerr := jwt.GenerateAccessTokenWithOptionsContext(ctx,
+			fmt.Sprintf("%d", userID),
+			"openid",
+			strings.TrimRight(config.AppPublicHostname, "/"),
+			strings.TrimRight(config.AppPublicHostname, "/"),
+			"",
+			fmt.Sprintf("tenant:%d", session.TenantID),
+			&jwt.AccessTokenOptions{AccessTokenTTL: 30 * time.Minute, ACR: jwt.ACRLevel1},
+		); gerr == nil {
+			accessToken = tok
+		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return &BrokerResumeResult{RedirectURL: redirectURL, AccessToken: accessToken}, nil
 }
