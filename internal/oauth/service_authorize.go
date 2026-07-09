@@ -88,6 +88,25 @@ type OAuthAuthorizeService interface {
 	// ContinueAuthorize resumes a persisted authorize request after registration,
 	// issuing an authorization code bound to the authenticated user.
 	ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
+
+	// BrokerResume completes a brokered OAuth flow after a user has confirmed an
+	// account link. It validates the link token, finds the pending broker session,
+	// issues an authorization code for the linked user, and returns the downstream
+	// redirect URL.
+	BrokerResume(ctx context.Context, req BrokerResumeRequestDTO, userID int64) (*BrokerResumeResult, *apperror.OAuthError)
+}
+
+// BrokerResumeRequestDTO is the request body for POST /oauth/broker/resume.
+type BrokerResumeRequestDTO struct {
+	BrokerSessionUUID string `json:"broker_session_uuid"`
+	AccountLinkToken  string `json:"account_link_token"`
+}
+
+// BrokerResumeResult carries the downstream redirect URL and optional SSO
+// access token issued after a successful broker resume.
+type BrokerResumeResult struct {
+	RedirectURL string
+	AccessToken string
 }
 
 type oauthAuthorizeService struct {

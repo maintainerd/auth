@@ -257,22 +257,30 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Map service result to dto
 	rows := make([]ProfileResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toProfileResponseDTO(r)
 	}
 
-	// Build response data
-	response := PaginatedResponseDTO[ProfileResponseDTO]{
-		Rows:       rows,
-		Total:      result.Total,
-		Page:       result.Page,
-		Limit:      result.Limit,
-		TotalPages: result.TotalPages,
+	resp.Success(w, rows, "Profiles fetched successfully")
+}
+
+func (h *ProfileHandler) SetDefaultProfile(w http.ResponseWriter, r *http.Request) {
+	profileUUIDStr := chi.URLParam(r, "profile_uuid")
+	profileUUID, err := uuid.Parse(profileUUIDStr)
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
+		return
 	}
 
-	resp.Success(w, response, "Profiles fetched successfully")
+	user := middleware.AuthFromRequest(r).User
+	profile, err := h.profileService.SetDefault(r.Context(), profileUUID, user.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Set default profile failed", err)
+		return
+	}
+
+	resp.Success(w, toProfileResponseDTO(*profile), "Default profile updated")
 }
 
 func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -629,6 +637,7 @@ func toProfileResponseDTO(p ProfileServiceDataResult) ProfileResponseDTO {
 		Language:    p.Language,
 		ProfileURL:  p.ProfileURL,
 		Metadata:    p.Metadata,
+		IsDefault:   p.IsDefault,
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,
 	}

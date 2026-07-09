@@ -33,6 +33,23 @@ import (
 
 const DefaultOIDCUserinfoEndpoint = "/userinfo"
 
+// errEmailCollision is returned by provisionUser when a verified email already
+// belongs to an existing user and the account-link service is wired. The
+// ResolveBrokerUser caller catches it and creates a confirmation request.
+type errEmailCollision struct {
+	tenantID       int64
+	existingUserID int64
+	providerName   string
+	providerSub    string
+	providerEmail  string
+	providerClaims []byte
+	ipAddress      string
+}
+
+func (e *errEmailCollision) Error() string {
+	return "account link required: email collision detected"
+}
+
 var (
 	errIdentityCreatedConcurrently = errors.New("external identity was created concurrently")
 
@@ -146,6 +163,11 @@ type FederationService interface {
 	// SAMLMetadata returns the SP metadata XML for the IdP identified by identifier.
 	// IdPs import this XML to configure the trust relationship.
 	SAMLMetadata(ctx context.Context, identifier string) ([]byte, error)
+
+	// SetAccountLinkService injects the account-link service so the broker
+	// provisioning path can create a confirmation request instead of silently
+	// merging identities on an email collision.
+	SetAccountLinkService(svc authn.AccountLinkRequestService)
 }
 
 type federationService struct {
@@ -159,6 +181,7 @@ type federationService struct {
 	roleRepo            RoleRepository
 	authEventService    authevent.AuthEventService
 	sessionService      authn.SessionService
+	accountLinkSvc      authn.AccountLinkRequestService
 	eventService        event.EventService
 	securitySettingRepo secpolicy.SecuritySettingRepository
 	samlStore           cache.WebAuthnSessionStore
@@ -200,6 +223,11 @@ func NewFederationService(
 		securitySettingRepo: securitySettingRepo,
 		samlStore:           samlStore,
 	}
+}
+
+// SetAccountLinkService implements FederationService.
+func (s *federationService) SetAccountLinkService(svc authn.AccountLinkRequestService) {
+	s.accountLinkSvc = svc
 }
 
 // buildOIDCConfig unmarshals the non-secret JSONB config (endpoints / scopes /
@@ -956,6 +984,26 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 	if errors.Is(err, errIdentityCreatedConcurrently) {
 		user, identitySub, err = s.resolveExistingUserIdentity(idp.TenantID, idp.Provider, externalSub, idp.Provider)
 	}
+	var collision *errEmailCollision
+	if errors.As(err, &collision) {
+		req, initErr := s.accountLinkSvc.Initiate(ctx, authn.InitiateAccountLinkInput{
+			TenantID:        collision.tenantID,
+			ExistingUserID:  collision.existingUserID,
+			ProviderName:    collision.providerName,
+			ProviderSubject: collision.providerSub,
+			ProviderEmail:   collision.providerEmail,
+			ProviderClaims:  collision.providerClaims,
+			IPAddress:       middleware.ClientIPFromContext(ctx),
+		})
+		if initErr != nil {
+			return nil, initErr
+		}
+		return &BrokerResolvedUser{
+			AccountLinkToken:    req.ConfirmationToken,
+			AccountLinkProvider: collision.providerName,
+			AccountLinkEmail:    collision.providerEmail,
+		}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1042,7 +1090,17 @@ func (s *federationService) provisionUser(
 			return nil, false, apperror.NewInternal("email lookup failed", err)
 		}
 		if existing != nil {
-			user = existing
+			if s.accountLinkSvc != nil {
+				return nil, false, &errEmailCollision{
+					tenantID:       idp.TenantID,
+					existingUserID: existing.UserID,
+					providerName:   idp.Provider,
+					providerSub:    externalSub,
+					providerEmail:  email,
+					providerClaims: func() []byte { b, _ := json.Marshal(meta); return b }(),
+				}
+			}
+			user = existing // fallback: silent link when account link service not wired
 		}
 	}
 

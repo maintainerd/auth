@@ -876,7 +876,8 @@ type mockProfileService struct {
 	createOrUpdateSpecificFn func(uuid.UUID, uuid.UUID, string, *string, *string, *string, *time.Time, *string, *string, *string, *string, *string, map[string]any) (*ProfileServiceDataResult, error)
 	getByUUIDFn              func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	getByUserUUIDFn          func(uuid.UUID) (*ProfileServiceDataResult, error)
-	getAllFn                 func(uuid.UUID, *string, *string, *string, int, int, string, string) (*ProfileServiceListResult, error)
+	getAllFn                  func(uuid.UUID, *string, *string, *string, int, int, string, string) (*ProfileServiceListResult, error)
+	setDefaultFn             func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	deleteByUUIDFn           func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 }
 
@@ -909,6 +910,12 @@ func (m *mockProfileService) GetAll(_ context.Context, userUUID uuid.UUID, first
 		return m.getAllFn(userUUID, firstName, lastName, email, page, limit, sortBy, sortOrder)
 	}
 	return &ProfileServiceListResult{}, nil
+}
+func (m *mockProfileService) SetDefault(_ context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	if m.setDefaultFn != nil {
+		return m.setDefaultFn(profileUUID, userUUID)
+	}
+	return &ProfileServiceDataResult{}, nil
 }
 func (m *mockProfileService) DeleteByUUID(_ context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
 	if m.deleteByUUIDFn != nil {

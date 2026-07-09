@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 
+	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
 )
@@ -37,9 +38,29 @@ func (r *oauthBrokerCallbackResolver) ResolveBrokerUser(ctx context.Context, idp
 		return nil, err
 	}
 	return &oauth.BrokerResolvedUser{
-		UserID:      info.UserID,
-		UserUUID:    info.UserUUID,
-		IdentitySub: info.IdentitySub,
-		SessionID:   info.SessionID,
+		UserID:              info.UserID,
+		UserUUID:            info.UserUUID,
+		IdentitySub:         info.IdentitySub,
+		SessionID:           info.SessionID,
+		AccountLinkToken:    info.AccountLinkToken,
+		AccountLinkProvider: info.AccountLinkProvider,
+		AccountLinkEmail:    info.AccountLinkEmail,
 	}, nil
+}
+
+// accountLinkVerifierAdapter bridges authn.AccountLinkRequestRepository to the
+// oauth.AccountLinkVerifier consumer interface.
+type accountLinkVerifierAdapter struct {
+	repo authn.AccountLinkRequestRepository
+}
+
+func (a *accountLinkVerifierAdapter) FindConfirmedLink(token string) (int64, bool, error) {
+	req, err := a.repo.FindByToken(token)
+	if err != nil || req == nil {
+		return 0, false, err
+	}
+	if req.Status != "confirmed" {
+		return 0, false, nil
+	}
+	return req.ExistingUserID, true, nil
 }
