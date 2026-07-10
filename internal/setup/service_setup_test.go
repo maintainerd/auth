@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -541,25 +540,6 @@ func TestSetupService_CreateTenant(t *testing.T) {
 		_, err := svc.CreateTenant(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant already exists")
-	})
-
-	t.Run("GenerateIdentifier failure", func(t *testing.T) {
-		orig := crypto.GenerateIdentifier
-		defer func() { crypto.GenerateIdentifier = orig }()
-		crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
-
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := NewSetupService(db, &mockUserRepo{},
-			&mockTenantRepo{},
-			&mockTenantMemberRepo{}, &mockClientRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{},
-			&mockUserIdentityRepo{}, &mockProfileRepo{},
-		)
-		_, err := svc.CreateTenant(context.Background(), validReq)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "rand failure")
 	})
 
 	t.Run("tenant Create error → rollback", func(t *testing.T) {

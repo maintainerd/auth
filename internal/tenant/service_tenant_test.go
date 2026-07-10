@@ -7,7 +7,6 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -131,38 +130,38 @@ func TestTenantService_GetSystem(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// TenantService.GetByIdentifier
+// TenantService.GetByName
 // ---------------------------------------------------------------------------
 
-func TestTenantService_GetByIdentifier(t *testing.T) {
+func TestTenantService_GetByName(t *testing.T) {
 	cases := []struct {
 		name        string
-		identifier  string
+		tenantName  string
 		setupRepo   func(r *mockTenantRepo)
 		expectError bool
 	}{
 		{
 			name:       "found → success",
-			identifier: "acme-corp",
+			tenantName: "acme-corp",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByIdentifierFn = func(id string) (*Tenant, error) {
+				r.findByNameFn = func(id string) (*Tenant, error) {
 					return newTenant(1, "Acme"), nil
 				}
 			},
 		},
 		{
 			name:       "not found → error",
-			identifier: "unknown",
+			tenantName: "unknown",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByIdentifierFn = func(id string) (*Tenant, error) { return nil, nil }
+				r.findByNameFn = func(id string) (*Tenant, error) { return nil, nil }
 			},
 			expectError: true,
 		},
 		{
 			name:       "repo error → error",
-			identifier: "acme-corp",
+			tenantName: "acme-corp",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByIdentifierFn = func(id string) (*Tenant, error) { return nil, errors.New("db error") }
+				r.findByNameFn = func(id string) (*Tenant, error) { return nil, errors.New("db error") }
 			},
 			expectError: true,
 		},
@@ -173,7 +172,7 @@ func TestTenantService_GetByIdentifier(t *testing.T) {
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
 			svc := NewTenantService(repo, nil, nil)
-			result, err := svc.GetByIdentifier(context.Background(), tc.identifier)
+			result, err := svc.GetByName(context.Background(), tc.tenantName)
 			if tc.expectError {
 				require.Error(t, err)
 			} else {
@@ -465,19 +464,13 @@ func TestTenantService_Create(t *testing.T) {
 		assert.Contains(t, err.Error(), "already exists")
 	})
 
-	t.Run("GenerateIdentifier failure", func(t *testing.T) {
-		orig := crypto.GenerateIdentifier
-		defer func() { crypto.GenerateIdentifier = orig }()
-		crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
-
+	t.Run("reserved slug rejected", func(t *testing.T) {
 		repo := &mockTenantRepo{}
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
+		db, _ := newMockGormDB(t)
 		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, &mockTenantMemberRepo{}, testCascadeModels()), nil)
-		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active")
+		_, err := svc.Create(context.Background(), "console", "Console", "desc", "active")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "rand failure")
+		assert.Contains(t, err.Error(), "reserved")
 	})
 
 	t.Run("CreateOrUpdate error", func(t *testing.T) {

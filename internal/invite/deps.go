@@ -17,7 +17,6 @@ type TenantRecord struct {
 	TenantID   int64
 	TenantUUID uuid.UUID
 	Name       string
-	Identifier string
 	Status     string
 	IsSystem   bool
 	CreatedAt  time.Time

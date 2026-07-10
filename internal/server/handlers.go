@@ -153,6 +153,15 @@ func initHandlers(application *Application) *handlers {
 	h.policy.SetAuditLogger(al)
 	h.role.SetAuditLogger(al)
 	h.tenant.SetAuditLogger(al)
+	// Domain-bootstrap endpoint: resolve a tenant's seeded system client per surface.
+	h.tenant.SetSurfaceClientReader(surfaceClientReaderAdapter{svc: application.ClientService})
+	// Public auth surface: make the subdomain tenant (tenant_id = slug) authoritative
+	// by resolving the slug to a tenant ID. authn enforces client-vs-subdomain binding.
+	authn.SetTenantResolver(authnTenantResolverAdapter{svc: application.TenantService})
+	// OAuth authorize endpoint: make the request host authoritative for the
+	// client_id ↔ tenant binding (an app cannot drive a client from another tenant
+	// on this tenant's surface). Reuses the same subdomain-slug resolver as authn.
+	oauth.SetTenantResolver(authnTenantResolverAdapter{svc: application.TenantService})
 	h.tenantSetting.SetAuditLogger(al)
 	h.identityProvider.SetAuditLogger(al)
 	h.registrationFlow.SetAuditLogger(al)

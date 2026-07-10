@@ -14,7 +14,7 @@ type mockTenantService struct {
 	getFn             func(TenantServiceGetFilter) (*TenantServiceGetResult, error)
 	getByUUIDFn       func(uuid.UUID) (*TenantServiceDataResult, error)
 	getSystemFn       func() (*TenantServiceDataResult, error)
-	getByIdentifierFn func(string) (*TenantServiceDataResult, error)
+	getByNameFn       func(string) (*TenantServiceDataResult, error)
 	createFn          func(string, string, string, string) (*TenantServiceDataResult, error)
 	updateFn          func(uuid.UUID, string, string, string, string) (*TenantServiceDataResult, error)
 	setStatusByUUIDFn func(uuid.UUID, string) (*TenantServiceDataResult, error)
@@ -39,9 +39,9 @@ func (m *mockTenantService) GetSystem(_ context.Context) (*TenantServiceDataResu
 	}
 	return nil, nil
 }
-func (m *mockTenantService) GetByIdentifier(_ context.Context, id string) (*TenantServiceDataResult, error) {
-	if m.getByIdentifierFn != nil {
-		return m.getByIdentifierFn(id)
+func (m *mockTenantService) GetByName(_ context.Context, name string) (*TenantServiceDataResult, error) {
+	if m.getByNameFn != nil {
+		return m.getByNameFn(name)
 	}
 	return nil, nil
 }

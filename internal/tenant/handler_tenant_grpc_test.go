@@ -26,7 +26,6 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		Name:        "tenant-one",
 		DisplayName: "Tenant One",
 		Description: "Tenant description",
-		Identifier:  "tenant-identifier",
 		Status:      shared.StatusActive,
 		Metadata:    datatypes.JSON(`{"plan":"pro"}`),
 		CreatedAt:   now,
@@ -45,24 +44,6 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		_, err = NewTenantGRPCHandler(&mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
 			return nil, apperror.NewNotFound("missing")
 		}}, nil).GetDefaultTenant(context.Background(), &authv1.GetDefaultTenantRequest{})
-		assert.Equal(t, codes.NotFound, status.Code(err))
-	})
-
-	t.Run("get by identifier validation success and error", func(t *testing.T) {
-		h := NewTenantGRPCHandler(&mockTenantService{getByIdentifierFn: func(identifier string) (*TenantServiceDataResult, error) {
-			assert.Equal(t, "tenant-identifier", identifier)
-			return sample, nil
-		}}, nil)
-		resp, err := h.GetTenantByIdentifier(context.Background(), &authv1.GetTenantByIdentifierRequest{Identifier: "tenant-identifier"})
-		require.NoError(t, err)
-		assert.Equal(t, "tenant-one", resp.Tenant.Name)
-
-		_, err = h.GetTenantByIdentifier(context.Background(), &authv1.GetTenantByIdentifierRequest{})
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-
-		_, err = NewTenantGRPCHandler(&mockTenantService{getByIdentifierFn: func(string) (*TenantServiceDataResult, error) {
-			return nil, apperror.NewNotFound("missing")
-		}}, nil).GetTenantByIdentifier(context.Background(), &authv1.GetTenantByIdentifierRequest{Identifier: "missing"})
 		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 

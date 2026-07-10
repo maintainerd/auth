@@ -11,10 +11,9 @@ import (
 type Tenant struct {
 	TenantID    int64          `gorm:"column:tenant_id;primaryKey"`
 	TenantUUID  uuid.UUID      `gorm:"column:tenant_uuid"`
-	Name        string         `gorm:"column:name"`
+	Name        string         `gorm:"column:name;not null"`
 	DisplayName string         `gorm:"column:display_name"`
 	Description string         `gorm:"column:description"`
-	Identifier  string         `gorm:"column:identifier"`
 	Status      string         `gorm:"column:status;not null;default:'active'"`
 	IsSystem    bool           `gorm:"column:is_system;not null;default:false"`
 	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;not null;default:'{}'"`

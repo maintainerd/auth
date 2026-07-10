@@ -175,7 +175,7 @@ func (s *clientService) GetPublicByIdentifier(ctx context.Context, identifier st
 		DisplayName:      client.DisplayName,
 		ClientType:       client.ClientType,
 		Domain:           client.Domain,
-		TenantIdentifier: client.Tenant.Identifier,
+		TenantIdentifier: client.Tenant.Name,
 	}, nil
 }
 
@@ -197,7 +197,33 @@ func (s *clientService) GetPublicConsoleByTenantIdentifier(ctx context.Context, 
 		DisplayName:      client.DisplayName,
 		ClientType:       client.ClientType,
 		Domain:           client.Domain,
-		TenantIdentifier: client.Tenant.Identifier,
+		TenantIdentifier: client.Tenant.Name,
+	}, nil
+}
+
+// GetPublicIdentityByTenantIdentifier returns the tenant's seeded identity
+// system client (auth-identity). It mirrors GetPublicConsoleByTenantIdentifier
+// so the domain-bootstrap endpoint can advertise the correct per-surface client:
+// console → auth-console, identity → auth-identity.
+func (s *clientService) GetPublicIdentityByTenantIdentifier(ctx context.Context, tenantIdentifier string) (*ClientPublicServiceDataResult, error) {
+	client, err := s.clientRepo.FindSystemByTenantIdentifierAndName(
+		strings.TrimSpace(tenantIdentifier),
+		shared.SystemClientNameAuthIdentity,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if client == nil || client.Status != shared.StatusActive || client.Identifier == nil ||
+		client.Tenant == nil {
+		return nil, apperror.NewNotFound("identity client not found")
+	}
+	return &ClientPublicServiceDataResult{
+		ClientID:         *client.Identifier,
+		Name:             client.Name,
+		DisplayName:      client.DisplayName,
+		ClientType:       client.ClientType,
+		Domain:           client.Domain,
+		TenantIdentifier: client.Tenant.Name,
 	}, nil
 }
 
@@ -247,11 +273,11 @@ func NewClientService(
 	clientURIRepo ClientURIRepository,
 	idpRepo IdentityProviderRepository,
 	permissionRepo PermissionRepository,
-clientPermissionRepo ClientPermissionRepository,
-	clientAPIRepo        ClientAPIRepository,
-	clientRoleRepo       ClientRoleRepository,
-	roleRepo             RoleRepository,
-	apiRepo              APIRepository,
+	clientPermissionRepo ClientPermissionRepository,
+	clientAPIRepo ClientAPIRepository,
+	clientRoleRepo ClientRoleRepository,
+	roleRepo RoleRepository,
+	apiRepo APIRepository,
 	userRepo UserRepository,
 	tenantRepo TenantRepository,
 	authEventService authevent.AuthEventService,
@@ -1541,25 +1567,25 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 	}
 
 	result := &ClientServiceDataResult{
-		ClientUUID:             Client.ClientUUID,
-		Name:                   Client.Name,
-		DisplayName:            Client.DisplayName,
-		ClientType:             Client.ClientType,
-		Domain:                 Client.Domain,
-		Status:                 Client.Status,
-		IsDefault:              Client.IsDefault,
-		IsSystem:               Client.IsSystem,
+		ClientUUID:                       Client.ClientUUID,
+		Name:                             Client.Name,
+		DisplayName:                      Client.DisplayName,
+		ClientType:                       Client.ClientType,
+		Domain:                           Client.Domain,
+		Status:                           Client.Status,
+		IsDefault:                        Client.IsDefault,
+		IsSystem:                         Client.IsSystem,
 		AllowRegistration:                Client.AllowRegistration,
 		BackchannelLogoutURI:             Client.BackchannelLogoutURI,
 		FrontchannelLogoutURI:            Client.FrontchannelLogoutURI,
 		BackchannelLogoutSessionRequired: Client.BackchannelLogoutSessionRequired,
 		DPoPRequired:                     Client.DPoPRequired,
 		RequirePKCE:                      Client.RequirePKCE,
-		RequiredACR:            Client.RequiredACR,
-		SessionIdleTimeout:     Client.SessionIdleTimeout,
-		SessionAbsoluteTimeout: Client.SessionAbsoluteTimeout,
-		CreatedAt:              Client.CreatedAt,
-		UpdatedAt:              Client.UpdatedAt,
+		RequiredACR:                      Client.RequiredACR,
+		SessionIdleTimeout:               Client.SessionIdleTimeout,
+		SessionAbsoluteTimeout:           Client.SessionAbsoluteTimeout,
+		CreatedAt:                        Client.CreatedAt,
+		UpdatedAt:                        Client.UpdatedAt,
 	}
 
 	if Client.Branding != nil {

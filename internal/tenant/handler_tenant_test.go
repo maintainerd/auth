@@ -1,13 +1,17 @@
 package tenant
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTenantHandler(ts *mockTenantService, ms *mockTenantMemberService) *TenantHandler {
@@ -168,31 +172,155 @@ func TestTenantHandler_GetDefault(t *testing.T) {
 	})
 }
 
-func TestTenantHandler_GetByIdentifier(t *testing.T) {
-	t.Run("empty identifier returns 400", func(t *testing.T) {
+// mockSurfaceClientReader is an inline SurfaceClientReader for bootstrap tests.
+type mockSurfaceClientReader struct {
+	fn func(tenantName, surface string) (*SurfaceClient, error)
+}
+
+func (m *mockSurfaceClientReader) GetSurfaceClient(_ context.Context, tenantName, surface string) (*SurfaceClient, error) {
+	if m.fn != nil {
+		return m.fn(tenantName, surface)
+	}
+	return nil, nil
+}
+
+func TestTenantHandler_GetBootstrap(t *testing.T) {
+	setBootstrapBases := func(t *testing.T) {
+		t.Helper()
+		origIdentity := config.AppFrontendIdentityHostname
+		origConsole := config.AppFrontendConsoleHostname
+		config.AppFrontendIdentityHostname = "https://auth.maintainerd.local"
+		config.AppFrontendConsoleHostname = "https://console.auth.maintainerd.local"
+		t.Cleanup(func() {
+			config.AppFrontendIdentityHostname = origIdentity
+			config.AppFrontendConsoleHostname = origConsole
+		})
+	}
+
+	decode := func(t *testing.T, w *httptest.ResponseRecorder) TenantBootstrapResponseDTO {
+		t.Helper()
+		var body struct {
+			Data TenantBootstrapResponseDTO `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		return body.Data
+	}
+
+	t.Run("unknown domain returns 404", func(t *testing.T) {
+		setBootstrapBases(t)
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=evil.example.com", nil)
+		newTenantHandler(&mockTenantService{}, nil).GetDefault(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("system identity host resolves system tenant with identity surface", func(t *testing.T) {
+		setBootstrapBases(t)
+		svc := &mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: "system", DisplayName: "System", Status: "active", IsSystem: true}, nil
+		}}
+		h := newTenantHandler(svc, nil)
+		h.SetSurfaceClientReader(&mockSurfaceClientReader{fn: func(_, surface string) (*SurfaceClient, error) {
+			return &SurfaceClient{ClientID: "cid-identity", Name: "auth-identity", ClientType: "spa"}, nil
+		}})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=auth.maintainerd.local", nil)
+		h.GetDefault(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		got := decode(t, w)
+		assert.Equal(t, "identity", got.Surface)
+		assert.True(t, got.Tenant.IsSystem)
+		assert.Equal(t, "system", got.Tenant.Name)
+		assert.Equal(t, "https://auth.maintainerd.local", got.IdentityURL)
+		assert.Equal(t, "https://console.auth.maintainerd.local", got.ConsoleURL)
+		require.NotNil(t, got.Client)
+		assert.Equal(t, "cid-identity", got.Client.ClientID)
+		assert.Equal(t, "auth-identity", got.Client.Name)
+	})
+
+	t.Run("tenant console subdomain resolves by name with console surface", func(t *testing.T) {
+		setBootstrapBases(t)
+		var gotSurface string
+		svc := &mockTenantService{getByNameFn: func(name string) (*TenantServiceDataResult, error) {
+			assert.Equal(t, "acme", name)
+			return &TenantServiceDataResult{Name: "acme", Status: "active"}, nil
+		}}
+		h := newTenantHandler(svc, nil)
+		h.SetSurfaceClientReader(&mockSurfaceClientReader{fn: func(_, surface string) (*SurfaceClient, error) {
+			gotSurface = surface
+			return &SurfaceClient{ClientID: "cid-console", Name: "auth-console", ClientType: "spa"}, nil
+		}})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=acme.console.auth.maintainerd.local", nil)
+		h.GetDefault(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		got := decode(t, w)
+		assert.Equal(t, "console", got.Surface)
+		assert.Equal(t, "console", gotSurface)
+		assert.False(t, got.Tenant.IsSystem)
+		assert.Equal(t, "acme", got.Tenant.Name)
+		// Per-tenant subdomain URLs.
+		assert.Equal(t, "https://acme.auth.maintainerd.local", got.IdentityURL)
+		assert.Equal(t, "https://acme.console.auth.maintainerd.local", got.ConsoleURL)
+		require.NotNil(t, got.Client)
+		assert.Equal(t, "cid-console", got.Client.ClientID)
+	})
+
+	t.Run("missing surface client still returns 200 without client field", func(t *testing.T) {
+		setBootstrapBases(t)
+		svc := &mockTenantService{getByNameFn: func(string) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: "acme", Status: "active"}, nil
+		}}
+		h := newTenantHandler(svc, nil)
+		h.SetSurfaceClientReader(&mockSurfaceClientReader{fn: func(_, _ string) (*SurfaceClient, error) {
+			return nil, errNotFound
+		}})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=acme.auth.maintainerd.local", nil)
+		h.GetDefault(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.Nil(t, decode(t, w).Client)
+	})
+
+	t.Run("tenant not found returns 404", func(t *testing.T) {
+		setBootstrapBases(t)
+		svc := &mockTenantService{getByNameFn: func(string) (*TenantServiceDataResult, error) {
+			return nil, errNotFound
+		}}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=acme.auth.maintainerd.local", nil)
+		newTenantHandler(svc, nil).GetDefault(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
+func TestTenantHandler_GetByName(t *testing.T) {
+	t.Run("empty name returns 400", func(t *testing.T) {
 		// no chi param set → chi.URLParam returns ""
 		w := httptest.NewRecorder()
-		newTenantHandler(nil, nil).GetByIdentifier(w, httptest.NewRequest(http.MethodGet, "/", nil))
+		newTenantHandler(nil, nil).GetByName(w, httptest.NewRequest(http.MethodGet, "/", nil))
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("service error returns 404", func(t *testing.T) {
-		svc := &mockTenantService{getByIdentifierFn: func(string) (*TenantServiceDataResult, error) {
+		svc := &mockTenantService{getByNameFn: func(string) (*TenantServiceDataResult, error) {
 			return nil, errNotFound
 		}}
-		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "identifier", "my-tenant")
+		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "name", "my-tenant")
 		w := httptest.NewRecorder()
-		newTenantHandler(svc, nil).GetByIdentifier(w, r)
+		newTenantHandler(svc, nil).GetByName(w, r)
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockTenantService{getByIdentifierFn: func(string) (*TenantServiceDataResult, error) {
+		svc := &mockTenantService{getByNameFn: func(string) (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{Name: "t"}, nil
 		}}
-		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "identifier", "my-tenant")
+		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "name", "my-tenant")
 		w := httptest.NewRecorder()
-		newTenantHandler(svc, nil).GetByIdentifier(w, r)
+		newTenantHandler(svc, nil).GetByName(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }

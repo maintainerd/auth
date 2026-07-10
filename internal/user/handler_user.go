@@ -696,12 +696,13 @@ func toUserResponseDTO(u UserServiceDataResult) UserResponseDTO {
 			Name:        u.Tenant.Name,
 			DisplayName: u.Tenant.DisplayName,
 			Description: u.Tenant.Description,
-			Identifier:  u.Tenant.Identifier,
-			Status:      u.Tenant.Status,
-			IsSystem:    u.Tenant.IsSystem,
-			Metadata:    u.Tenant.Metadata,
-			CreatedAt:   u.Tenant.CreatedAt,
-			UpdatedAt:   u.Tenant.UpdatedAt,
+			// Tenant identifier was dropped; the DNS-safe name is the slug.
+			Identifier: u.Tenant.Name,
+			Status:     u.Tenant.Status,
+			IsSystem:   u.Tenant.IsSystem,
+			Metadata:   u.Tenant.Metadata,
+			CreatedAt:  u.Tenant.CreatedAt,
+			UpdatedAt:  u.Tenant.UpdatedAt,
 		}
 	}
 

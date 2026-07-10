@@ -13,8 +13,8 @@ func TenantPublicRoute(r chi.Router, tenantHandler *TenantHandler) {
 		// Get default tenant (public endpoint)
 		r.Get("/", tenantHandler.GetDefault)
 
-		// Get tenant by identifier (public endpoint)
-		r.Get("/{identifier}", tenantHandler.GetByIdentifier)
+		// Get tenant by name/slug (public endpoint)
+		r.Get("/{name}", tenantHandler.GetByName)
 	})
 }
 
@@ -33,8 +33,8 @@ func TenantRoute(
 		// Get default tenant (public endpoint)
 		r.Get("/", tenantHandler.GetDefault)
 
-		// Get tenant by identifier (public endpoint)
-		r.Get("/{identifier}", tenantHandler.GetByIdentifier)
+		// Get tenant by name/slug (public endpoint)
+		r.Get("/{name}", tenantHandler.GetByName)
 	})
 
 	// Multiple tenants endpoints (existing)

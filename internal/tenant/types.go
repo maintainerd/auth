@@ -13,7 +13,6 @@ type TenantResponseDTO struct {
 	Name        string         `json:"name"`
 	DisplayName string         `json:"display_name"`
 	Description string         `json:"description"`
-	Identifier  string         `json:"identifier"`
 	Status      string         `json:"status"`
 	IsSystem    bool           `json:"is_system"`
 	Metadata    datatypes.JSON `json:"metadata"`
@@ -25,7 +24,6 @@ type TenantResponseDTO struct {
 // It includes password policy, registration config, and active branding needed by
 // the login/register/reset-password pages for client-side validation and theming.
 type TenantPublicResponseDTO struct {
-	Identifier         string                    `json:"identifier"`
 	Name               string                    `json:"name"`
 	DisplayName        string                    `json:"display_name"`
 	Description        string                    `json:"description"`
@@ -35,6 +33,42 @@ type TenantPublicResponseDTO struct {
 	PasswordConfig     *PasswordConfigPublic     `json:"password_config,omitempty"`
 	RegistrationConfig *RegistrationConfigPublic `json:"registration_config,omitempty"`
 	Branding           *BrandingPublic           `json:"branding,omitempty"`
+}
+
+// TenantBootstrapResponseDTO is the domain-resolved bootstrap payload returned
+// by GET /tenant?domain=<host>. It tells the frontend which tenant and surface a
+// host maps to, the canonical per-surface URLs, public branding, and the seeded
+// system client for the resolved surface. It is a public (unauthenticated)
+// response and carries only public fields.
+type TenantBootstrapResponseDTO struct {
+	Tenant             TenantBootstrapTenantDTO  `json:"tenant"`
+	Surface            string                    `json:"surface"`
+	IdentityURL        string                    `json:"identity_url"`
+	ConsoleURL         string                    `json:"console_url"`
+	PasswordConfig     *PasswordConfigPublic     `json:"password_config,omitempty"`
+	RegistrationConfig *RegistrationConfigPublic `json:"registration_config,omitempty"`
+	Branding           *BrandingPublic           `json:"branding,omitempty"`
+	Client             *TenantBootstrapClientDTO `json:"client,omitempty"`
+}
+
+// TenantBootstrapTenantDTO is the public tenant projection embedded in the
+// bootstrap response — only non-sensitive identifying fields.
+type TenantBootstrapTenantDTO struct {
+	TenantUUID  uuid.UUID `json:"tenant_uuid"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"display_name"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	IsSystem    bool      `json:"is_system"`
+}
+
+// TenantBootstrapClientDTO is the public projection of the tenant's seeded
+// system client for the resolved surface. No secrets or internal IDs.
+type TenantBootstrapClientDTO struct {
+	ClientID    string `json:"client_id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	ClientType  string `json:"client_type"`
 }
 
 type PasswordConfigPublic struct {
@@ -89,7 +123,6 @@ type TenantFilterDTO struct {
 	Name        *string  `json:"name"`
 	DisplayName *string  `json:"display_name"`
 	Description *string  `json:"description"`
-	Identifier  *string  `json:"identifier"`
 	Status      []string `json:"status"`
 	IsSystem    *bool    `json:"is_system"`
 
@@ -109,17 +142,17 @@ type TenantMemberResponseDTO struct {
 // MemberUserResponseDTO is tenant's view of a user in member responses.
 // It mirrors the user domain's user response shape to preserve the API.
 type MemberUserResponseDTO struct {
-	UserUUID           uuid.UUID      `json:"user_id"`
-	Username           string         `json:"username"`
-	Fullname           string         `json:"fullname"`
-	Email              string         `json:"email"`
-	Phone              string         `json:"phone"`
-	IsEmailVerified    bool           `json:"is_email_verified"`
-	IsPhoneVerified    bool           `json:"is_phone_verified"`
-	Status             string         `json:"status"`
-	Metadata           datatypes.JSON `json:"metadata"`
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `json:"updated_at"`
+	UserUUID        uuid.UUID      `json:"user_id"`
+	Username        string         `json:"username"`
+	Fullname        string         `json:"fullname"`
+	Email           string         `json:"email"`
+	Phone           string         `json:"phone"`
+	IsEmailVerified bool           `json:"is_email_verified"`
+	IsPhoneVerified bool           `json:"is_phone_verified"`
+	Status          string         `json:"status"`
+	Metadata        datatypes.JSON `json:"metadata"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
 // TenantMemberAddMemberRequestDTO for adding member to tenant

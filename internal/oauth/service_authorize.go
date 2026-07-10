@@ -31,6 +31,73 @@ const (
 	authorizationCodeLength = 32
 )
 
+// TenantResolver resolves a subdomain tenant slug (the DNS name) to its tenant
+// ID. It lets the authorize endpoint make the REQUEST's own host authoritative
+// for the client_id ↔ tenant binding without importing internal/tenant: the
+// oauth package declares this consumer interface and internal/server wires an
+// app-layer adapter over the tenant service via SetTenantResolver. This mirrors
+// authn.TenantResolver so /oauth/authorize and /login agree on tenant binding.
+type TenantResolver interface {
+	ResolveTenantIDByName(ctx context.Context, name string) (tenantID int64, isSystem bool, err error)
+	// ResolveSystemTenantID returns the ID of the unique system tenant so the
+	// bare system host can be bound as strictly as a subdomain tenant.
+	ResolveSystemTenantID(ctx context.Context) (tenantID int64, err error)
+}
+
+// authorizeTenantResolver is the injected resolver that maps a request-host slug
+// to a tenant ID. It is set once at wiring time via SetTenantResolver. When nil
+// (e.g. unit tests that do not exercise the subdomain path) the authorize
+// endpoint preserves the legacy session-tenant binding, so the change is
+// strictly additive.
+var authorizeTenantResolver TenantResolver
+
+// SetTenantResolver injects the subdomain tenant resolver used to make the
+// request host authoritative on the OAuth authorize endpoint. Mirrors
+// authn.SetTenantResolver; an app-layer adapter over the tenant service is wired
+// in internal/server.
+func SetTenantResolver(r TenantResolver) { authorizeTenantResolver = r }
+
+// resolveRequestTenantID reports the tenant the browser is actually on, derived
+// server-side from the request host (Origin → X-Forwarded-Host → Host, resolved
+// by middleware.RequestTenantMiddleware) — NEVER from a caller-supplied
+// tenant_id. It returns ok=true, and the request is bound strictly, in two
+// cases:
+//
+//   - a recognized subdomain tenant whose slug resolves to a real tenant ID; or
+//   - the bare system host (rt.IsSystem), resolved to the system tenant's ID.
+//
+// Only a genuinely unrecognized host (not OK), or a missing/failing resolver,
+// yields ok=false so the caller falls back to the existing session-tenant
+// binding.
+func resolveRequestTenantID(ctx context.Context) (int64, bool) {
+	rt, ok := middleware.RequestTenantFromContext(ctx)
+	if !ok || !rt.OK {
+		return 0, false
+	}
+	if authorizeTenantResolver == nil {
+		return 0, false
+	}
+
+	// Bare system host: the client_id must belong to the system tenant, so a
+	// regular tenant's client cannot be driven on the system surface.
+	if rt.IsSystem {
+		tenantID, err := authorizeTenantResolver.ResolveSystemTenantID(ctx)
+		if err != nil || tenantID == 0 {
+			return 0, false
+		}
+		return tenantID, true
+	}
+
+	if rt.Slug == "" {
+		return 0, false
+	}
+	tenantID, _, err := authorizeTenantResolver.ResolveTenantIDByName(ctx, rt.Slug)
+	if err != nil || tenantID == 0 {
+		return 0, false
+	}
+	return tenantID, true
+}
+
 // OAuthAuthorizeResult is the internal result returned by the authorize service
 // method. One of RedirectURI or ConsentChallenge will be set.
 type OAuthAuthorizeResult struct {
@@ -172,7 +239,24 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 		return nil, apperror.NewOAuthInvalidRequest("unknown or inactive client context")
 	}
 
-	if client.TenantID != tenantID {
+	// Tenant binding (SECURITY-CRITICAL): the client_id must belong to the tenant
+	// whose surface the browser is actually on. When the request host resolves to
+	// a known subdomain tenant, THAT tenant is authoritative — it is derived
+	// server-side from the request (Origin/Host), not from any caller-supplied
+	// tenant_id — so an external app cannot drive a client_id from tenant A while
+	// the browser is on tenant B's subdomain. This is a hard error: there is NO
+	// fallback to the system tenant. When the request host is NOT recognizable
+	// (e.g. a trusted internal caller with no tenant surface), we preserve the
+	// legacy binding against the authenticated session's tenant. Combined with
+	// resolveAuthorizeClient (which rejects seeded system clients as public
+	// client_ids, except the allowed hosted-login client), an external client_id
+	// caller cannot act as another tenant.
+	if requestTenantID, ok := resolveRequestTenantID(ctx); ok {
+		if client.TenantID != requestTenantID {
+			span.SetStatus(codes.Error, "client request-tenant mismatch")
+			return nil, apperror.NewOAuthInvalidRequest("unknown client_id")
+		}
+	} else if client.TenantID != tenantID {
 		span.SetStatus(codes.Error, "client tenant mismatch")
 		return nil, apperror.NewOAuthInvalidRequest("unknown client_id")
 	}
@@ -308,6 +392,18 @@ func (s *oauthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthA
 	if client == nil || client.Status != shared.StatusActive {
 		span.SetStatus(codes.Error, "client not found or inactive")
 		return apperror.NewOAuthInvalidRequest("unknown or inactive client context")
+	}
+	// Tenant binding (SECURITY-CRITICAL): reject a cross-tenant client_id BEFORE
+	// any login page is shown. When the request host resolves to a known subdomain
+	// tenant (derived server-side from Origin/Host, not from a caller-supplied
+	// tenant_id), the client_id MUST belong to that tenant — hard reject with NO
+	// fallback to the system tenant. When the request host is not recognizable we
+	// preserve the existing pre-login behavior (no tenant binding here).
+	if requestTenantID, ok := resolveRequestTenantID(ctx); ok {
+		if client.TenantID != requestTenantID {
+			span.SetStatus(codes.Error, "client request-tenant mismatch")
+			return apperror.NewOAuthInvalidRequest("unknown client_id")
+		}
 	}
 	if oerr := s.validateRedirectURI(client, req.RedirectURI); oerr != nil {
 		span.SetStatus(codes.Error, "invalid redirect_uri")

@@ -2,10 +2,12 @@ package middleware
 
 import (
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // CORSMiddleware enforces a per-environment origin allow-list.
@@ -25,7 +27,13 @@ func CORSMiddleware(next http.Handler) http.Handler {
 		if len(allowed) == 1 && allowed[0] == "*" {
 			// Wildcard is only safe without credentials.
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-		} else if slices.Contains(allowed, origin) {
+		} else if slices.Contains(allowed, origin) || originMatchesTenantHost(origin) {
+			// Allow either a statically configured origin or a tenant-surface
+			// origin that shared.ResolveTenantHost recognizes (any {tenant}.<base>
+			// or a bare configured base). This is required for cross-origin prod,
+			// where the browser is on {tenant}.auth.<domain> and the API is on its
+			// own host; it is harmless in dev/same-origin. Arbitrary origins are
+			// never allowed — only ones ResolveTenantHost accepts.
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -42,6 +50,22 @@ func CORSMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// originMatchesTenantHost reports whether an Origin header value points at a
+// tenant surface that shared.ResolveTenantHost recognizes. Only origins whose
+// host is a configured base or a {tenant}.<base> subdomain are accepted, so this
+// never opens CORS to arbitrary origins.
+func originMatchesTenantHost(origin string) bool {
+	if origin == "" {
+		return false
+	}
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	_, _, _, ok := shared.ResolveTenantHost(u.Host)
+	return ok
 }
 
 func allowedOrigins() []string {

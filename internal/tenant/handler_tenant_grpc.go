@@ -30,23 +30,11 @@ func (h *TenantGRPCHandler) GetDefaultTenant(ctx context.Context, _ *authv1.GetD
 	return &authv1.GetDefaultTenantResponse{Tenant: tenantProto(tenant)}, nil
 }
 
-func (h *TenantGRPCHandler) GetTenantByIdentifier(ctx context.Context, req *authv1.GetTenantByIdentifierRequest) (*authv1.GetTenantByIdentifierResponse, error) {
-	if req.GetIdentifier() == "" {
-		return nil, apperror.ToGRPCError(apperror.NewValidation("Identifier is required"))
-	}
-	tenant, err := h.tenantService.GetByIdentifier(ctx, req.GetIdentifier())
-	if err != nil {
-		return nil, apperror.ToGRPCError(err)
-	}
-	return &authv1.GetTenantByIdentifierResponse{Tenant: tenantProto(tenant)}, nil
-}
-
 func (h *TenantGRPCHandler) ListTenants(ctx context.Context, req *authv1.ListTenantsRequest) (*authv1.ListTenantsResponse, error) {
 	dto := TenantFilterDTO{
 		Name:                 optionalString(req.GetName()),
 		DisplayName:          optionalString(req.GetDisplayName()),
 		Description:          optionalString(req.GetDescription()),
-		Identifier:           optionalString(req.GetIdentifier()),
 		Status:               req.GetStatus(),
 		IsSystem:             optionalBool(req.IsSystem),
 		PaginationRequestDTO: paginationDTO(req.GetPagination()),
@@ -59,7 +47,6 @@ func (h *TenantGRPCHandler) ListTenants(ctx context.Context, req *authv1.ListTen
 		Name:        dto.Name,
 		DisplayName: dto.DisplayName,
 		Description: dto.Description,
-		Identifier:  dto.Identifier,
 		Status:      dto.Status,
 		IsSystem:    dto.IsSystem,
 		Page:        dto.Page,
@@ -323,7 +310,6 @@ func tenantProto(tenant *TenantServiceDataResult) *authv1.Tenant {
 		Name:        tenant.Name,
 		DisplayName: tenant.DisplayName,
 		Description: tenant.Description,
-		Identifier:  tenant.Identifier,
 		Status:      tenant.Status,
 		IsSystem:    tenant.IsSystem,
 		Metadata:    jsonStruct(tenant.Metadata),
@@ -350,17 +336,17 @@ func tenantMemberUserProto(user *MemberUser) *authv1.TenantMemberUser {
 		return nil
 	}
 	return &authv1.TenantMemberUser{
-		UserUuid:           user.UserUUID.String(),
-		Username:           user.Username,
-		Fullname:           user.Fullname,
-		Email:              user.Email,
-		Phone:              user.Phone,
-		IsEmailVerified:    user.IsEmailVerified,
-		IsPhoneVerified:    user.IsPhoneVerified,
-		Status:             user.Status,
-		Metadata:           jsonStruct(user.Metadata),
-		CreatedAt:          timestamppb.New(user.CreatedAt),
-		UpdatedAt:          timestamppb.New(user.UpdatedAt),
+		UserUuid:        user.UserUUID.String(),
+		Username:        user.Username,
+		Fullname:        user.Fullname,
+		Email:           user.Email,
+		Phone:           user.Phone,
+		IsEmailVerified: user.IsEmailVerified,
+		IsPhoneVerified: user.IsPhoneVerified,
+		Status:          user.Status,
+		Metadata:        jsonStruct(user.Metadata),
+		CreatedAt:       timestamppb.New(user.CreatedAt),
+		UpdatedAt:       timestamppb.New(user.UpdatedAt),
 	}
 }
 

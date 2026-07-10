@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -93,6 +94,71 @@ func TestCORSMiddleware_OptionsPreflight(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	assert.Equal(t, "https://app.example.com", w.Header().Get("Access-Control-Allow-Origin"))
+}
+
+// setTenantBases points the configured surface bases at test hostnames so
+// shared.ResolveTenantHost recognizes tenant-surface origins.
+func setTenantBases(t *testing.T) {
+	t.Helper()
+	origI := config.AppFrontendIdentityHostname
+	origC := config.AppFrontendConsoleHostname
+	config.AppFrontendIdentityHostname = "auth.example.com"
+	config.AppFrontendConsoleHostname = "console.auth.example.com"
+	t.Cleanup(func() {
+		config.AppFrontendIdentityHostname = origI
+		config.AppFrontendConsoleHostname = origC
+	})
+}
+
+// (e) A tenant-surface origin that shared.ResolveTenantHost recognizes is allowed
+// with credentials even when it is NOT in the static CORS_ALLOWED_ORIGINS list.
+func TestCORSMiddleware_TenantSubdomainOriginAllowed(t *testing.T) {
+	setTenantBases(t)
+	// No static origins configured → only the tenant-host rule can allow it.
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+
+	handler := CORSMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	for _, origin := range []string{
+		"https://acme.auth.example.com",         // subdomain tenant on identity surface
+		"https://auth.example.com",              // bare system-tenant base
+		"https://acme.console.auth.example.com", // subdomain tenant on console surface
+	} {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+
+		assert.Equal(t, origin, w.Header().Get("Access-Control-Allow-Origin"), origin)
+		assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"), origin)
+		assert.Equal(t, "Origin", w.Header().Get("Vary"), origin)
+	}
+}
+
+// (e) A random origin that is neither in the static list nor a recognized tenant
+// host is rejected.
+func TestCORSMiddleware_RandomOriginRejected(t *testing.T) {
+	setTenantBases(t)
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com")
+
+	handler := CORSMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	for _, origin := range []string{
+		"https://evil.com",             // unrelated host
+		"https://evil.auth.example.io", // wrong base
+		"https://a.b.auth.example.com", // multi-label prefix (not a single tenant slug)
+	} {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+
+		assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"), origin)
+	}
 }
 
 func TestCORSMiddleware_AllowedOriginsEmpty(t *testing.T) {

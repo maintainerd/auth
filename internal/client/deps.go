@@ -46,7 +46,6 @@ type Tenant struct {
 	Name        string
 	DisplayName string
 	Description string
-	Identifier  string
 	Status      string
 	IsSystem    bool
 	CreatedAt   time.Time
@@ -61,7 +60,6 @@ type TenantServiceDataResult struct {
 	Name        string
 	DisplayName string
 	Description string
-	Identifier  string
 	Status      string
 	IsSystem    bool
 	CreatedAt   time.Time

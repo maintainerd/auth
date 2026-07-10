@@ -173,21 +173,22 @@ func (r *clientRepository) FindSystem() (*Client, error) {
 }
 
 // FindSystemByTenantIdentifier returns the active is_system client belonging
-// to the tenant identified by its identifier string. This is used when the
-// API consumer provides a tenant_id instead of a client_id.
+// to the tenant identified by its name (the DNS slug). This is used when the
+// API consumer provides a tenant_id (tenant name) instead of a client_id.
 func (r *clientRepository) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
 	return r.FindSystemByTenantIdentifierAndName(tenantIdentifier, shared.SystemClientNameAuthConsole)
 }
 
 // FindSystemByTenantIdentifierAndName returns the named active is_system client
-// belonging to the tenant identified by its identifier string.
+// belonging to the tenant identified by its name (the DNS slug). The
+// tenantIdentifier argument now carries the tenant name.
 func (r *clientRepository) FindSystemByTenantIdentifierAndName(tenantIdentifier, name string) (*Client, error) {
 	var client Client
 	err := r.DB().
 		Joins("JOIN tenants ON tenants.tenant_id = clients.tenant_id").
 		Where("clients.is_system = ? AND clients.status = ?", true, shared.StatusActive).
 		Where("clients.name = ?", name).
-		Where("tenants.identifier = ?", tenantIdentifier).
+		Where("tenants.name = ?", tenantIdentifier).
 		Preload("Tenant").
 		Preload("ConnectedProviders", "enabled = ?", true).
 		Preload("ConnectedProviders.IdentityProvider").

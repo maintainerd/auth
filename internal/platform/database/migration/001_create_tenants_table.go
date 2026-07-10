@@ -10,10 +10,9 @@ func CreateTenantTable(db *gorm.DB) error {
 CREATE TABLE IF NOT EXISTS tenants (
     tenant_id      BIGSERIAL PRIMARY KEY,
     tenant_uuid    UUID NOT NULL UNIQUE,
-    name           VARCHAR(255) NOT NULL,
+    name           VARCHAR(63) NOT NULL,
     display_name   VARCHAR(255),
     description    TEXT,
-    identifier     VARCHAR(255) NOT NULL,
     status         VARCHAR(20) NOT NULL DEFAULT 'active',
     is_system      BOOLEAN NOT NULL DEFAULT FALSE,
     metadata       JSONB NOT NULL DEFAULT '{}',
@@ -26,8 +25,8 @@ CREATE TABLE IF NOT EXISTS tenants (
 
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_tenants_uuid ON tenants (tenant_uuid);
-CREATE INDEX IF NOT EXISTS idx_tenants_name ON tenants (name);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_identifier ON tenants (identifier) WHERE deleted_at IS NULL;
+-- name is the unique, DNS-safe subdomain slug ({tenant}.auth.maintainerd.local).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tenants_name ON tenants (name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants (status);
 CREATE INDEX IF NOT EXISTS idx_tenants_is_system ON tenants (is_system);
 -- Singleton guarantee: at most one live system tenant can ever exist (the root).

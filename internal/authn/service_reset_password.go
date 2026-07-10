@@ -68,7 +68,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			// the provider identifier.
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *tenantID)
 		case publicAuthSurfaceFromContext(ctx):
-			Client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
+			Client, txErr = resolvePublicClient(ctx, txClientRepo, clientID, tenantID)
 		case clientID != nil:
 			Client, txErr = txClientRepo.FindByIdentifier(*clientID)
 		case tenantID != nil:

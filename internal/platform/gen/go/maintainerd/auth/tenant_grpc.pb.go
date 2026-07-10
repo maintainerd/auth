@@ -20,7 +20,6 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	TenantService_GetDefaultTenant_FullMethodName       = "/maintainerd.auth.v1.TenantService/GetDefaultTenant"
-	TenantService_GetTenantByIdentifier_FullMethodName  = "/maintainerd.auth.v1.TenantService/GetTenantByIdentifier"
 	TenantService_ListTenants_FullMethodName            = "/maintainerd.auth.v1.TenantService/ListTenants"
 	TenantService_GetTenant_FullMethodName              = "/maintainerd.auth.v1.TenantService/GetTenant"
 	TenantService_CreateTenant_FullMethodName           = "/maintainerd.auth.v1.TenantService/CreateTenant"
@@ -38,7 +37,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TenantServiceClient interface {
 	GetDefaultTenant(ctx context.Context, in *GetDefaultTenantRequest, opts ...grpc.CallOption) (*GetDefaultTenantResponse, error)
-	GetTenantByIdentifier(ctx context.Context, in *GetTenantByIdentifierRequest, opts ...grpc.CallOption) (*GetTenantByIdentifierResponse, error)
 	ListTenants(ctx context.Context, in *ListTenantsRequest, opts ...grpc.CallOption) (*ListTenantsResponse, error)
 	GetTenant(ctx context.Context, in *GetTenantRequest, opts ...grpc.CallOption) (*GetTenantResponse, error)
 	CreateTenant(ctx context.Context, in *TenantServiceCreateTenantRequest, opts ...grpc.CallOption) (*TenantServiceCreateTenantResponse, error)
@@ -63,16 +61,6 @@ func (c *tenantServiceClient) GetDefaultTenant(ctx context.Context, in *GetDefau
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetDefaultTenantResponse)
 	err := c.cc.Invoke(ctx, TenantService_GetDefaultTenant_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *tenantServiceClient) GetTenantByIdentifier(ctx context.Context, in *GetTenantByIdentifierRequest, opts ...grpc.CallOption) (*GetTenantByIdentifierResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetTenantByIdentifierResponse)
-	err := c.cc.Invoke(ctx, TenantService_GetTenantByIdentifier_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +172,6 @@ func (c *tenantServiceClient) RemoveTenantMember(ctx context.Context, in *Remove
 // for forward compatibility.
 type TenantServiceServer interface {
 	GetDefaultTenant(context.Context, *GetDefaultTenantRequest) (*GetDefaultTenantResponse, error)
-	GetTenantByIdentifier(context.Context, *GetTenantByIdentifierRequest) (*GetTenantByIdentifierResponse, error)
 	ListTenants(context.Context, *ListTenantsRequest) (*ListTenantsResponse, error)
 	GetTenant(context.Context, *GetTenantRequest) (*GetTenantResponse, error)
 	CreateTenant(context.Context, *TenantServiceCreateTenantRequest) (*TenantServiceCreateTenantResponse, error)
@@ -207,9 +194,6 @@ type UnimplementedTenantServiceServer struct{}
 
 func (UnimplementedTenantServiceServer) GetDefaultTenant(context.Context, *GetDefaultTenantRequest) (*GetDefaultTenantResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultTenant not implemented")
-}
-func (UnimplementedTenantServiceServer) GetTenantByIdentifier(context.Context, *GetTenantByIdentifierRequest) (*GetTenantByIdentifierResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTenantByIdentifier not implemented")
 }
 func (UnimplementedTenantServiceServer) ListTenants(context.Context, *ListTenantsRequest) (*ListTenantsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTenants not implemented")
@@ -276,24 +260,6 @@ func _TenantService_GetDefaultTenant_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TenantServiceServer).GetDefaultTenant(ctx, req.(*GetDefaultTenantRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _TenantService_GetTenantByIdentifier_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetTenantByIdentifierRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TenantServiceServer).GetTenantByIdentifier(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TenantService_GetTenantByIdentifier_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TenantServiceServer).GetTenantByIdentifier(ctx, req.(*GetTenantByIdentifierRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -488,10 +454,6 @@ var TenantService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDefaultTenant",
 			Handler:    _TenantService_GetDefaultTenant_Handler,
-		},
-		{
-			MethodName: "GetTenantByIdentifier",
-			Handler:    _TenantService_GetTenantByIdentifier_Handler,
 		},
 		{
 			MethodName: "ListTenants",

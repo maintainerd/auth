@@ -176,7 +176,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	startTime := time.Now()
 
 	// Resolve client early for rate-limiting scope and threat detection.
-	resolvedClient, resolveErr := resolvePublicClient(s.clientRepo, clientID, tenantID)
+	resolvedClient, resolveErr := resolvePublicClient(ctx, s.clientRepo, clientID, tenantID)
 	clientIDStr := ""
 	if clientID != nil {
 		clientIDStr = *clientID
@@ -235,7 +235,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 		var txErr error
-		client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
+		client, txErr = resolvePublicClient(ctx, txClientRepo, clientID, tenantID)
 		if txErr != nil {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_client_lookup_failure",

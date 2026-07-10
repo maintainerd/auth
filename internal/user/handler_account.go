@@ -73,7 +73,8 @@ func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 			UUID:        auth.Tenant.TenantUUID.String(),
 			Name:        auth.Tenant.Name,
 			DisplayName: auth.Tenant.DisplayName,
-			Identifier:  auth.Tenant.Identifier,
+			// Tenant identifier was dropped; the DNS-safe name is the slug.
+			Identifier: auth.Tenant.Name,
 		}
 	}
 
@@ -82,11 +83,11 @@ func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		if result, err := h.profileRepo.FindAllByUserID(ProfileRepositoryGetFilter{UserID: auth.User.UserID}); err == nil {
 			for _, p := range result.Data {
 				profiles = append(profiles, AccountProfileDTO{
-			ProfileID:   p.ProfileUUID.String(),
-			FirstName:   p.FirstName,
-			LastName:    p.LastName,
-			DisplayName: p.DisplayName,
-			Default:     true,
+					ProfileID:   p.ProfileUUID.String(),
+					FirstName:   p.FirstName,
+					LastName:    p.LastName,
+					DisplayName: p.DisplayName,
+					Default:     true,
 				})
 			}
 		}

@@ -14,8 +14,8 @@ func TestTenantPublicRoute(t *testing.T) {
 		getSystemFn: func() (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{Name: "system"}, nil
 		},
-		getByIdentifierFn: func(identifier string) (*TenantServiceDataResult, error) {
-			return &TenantServiceDataResult{Identifier: identifier}, nil
+		getByNameFn: func(name string) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: name}, nil
 		},
 	}, nil)
 	router := chi.NewRouter()

@@ -63,7 +63,6 @@ func TestSetupGRPCHandler_CreateTenant(t *testing.T) {
 					TenantUUID:  tenantUUID,
 					Name:        req.Name,
 					DisplayName: req.DisplayName,
-					Identifier:  "tenant-identifier",
 				},
 				DefaultClientID:   "client",
 				DefaultProviderID: "provider",

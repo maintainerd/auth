@@ -11,7 +11,9 @@ func toAuthnTenantFromClient(t *client.Tenant) *authn.Tenant {
 	}
 	return &authn.Tenant{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name,
-		DisplayName: t.DisplayName, Description: t.Description, Identifier: t.Identifier,
+		// authn.Tenant.Identifier is the tenant slug; the tenant identifier
+		// column was dropped, so the DNS-safe name is the slug.
+		DisplayName: t.DisplayName, Description: t.Description, Identifier: t.Name,
 		Status: t.Status, IsSystem: t.IsSystem,
 		CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}

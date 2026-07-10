@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
-	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/runner"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
@@ -155,12 +154,6 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		txTenantRepo := s.tenantRepo.WithTx(tx)
 
-		// Generate identifier
-		identifier, err := crypto.GenerateIdentifier(24)
-		if err != nil {
-			return err
-		}
-
 		// Handle description (optional field)
 		description := ""
 		if req.Description != nil {
@@ -180,7 +173,6 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 			Name:        req.Name,
 			DisplayName: req.DisplayName,
 			Description: description,
-			Identifier:  identifier,
 			Metadata:    metadataJSON,
 			Status:      "pending", // Not yet complete: bootstrap finishes (admin + owner created) before it becomes active.
 			IsSystem:    true,      // This is a system tenant that cannot be deleted
@@ -211,7 +203,6 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 		Name:        createdTenant.Name,
 		DisplayName: createdTenant.DisplayName,
 		Description: createdTenant.Description,
-		Identifier:  createdTenant.Identifier,
 		Status:      createdTenant.Status,
 		IsSystem:    createdTenant.IsSystem,
 		Metadata:    createdTenant.Metadata,

@@ -69,7 +69,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 			// Compatibility for already-issued legacy links.
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *tenantID)
 		case publicAuthSurfaceFromContext(ctx):
-			Client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
+			Client, txErr = resolvePublicClient(ctx, txClientRepo, clientID, tenantID)
 			linkTenantID = tenantID
 		case clientID != nil:
 			Client, txErr = txClientRepo.FindByIdentifier(*clientID)

@@ -421,8 +421,9 @@ func toIdpDetailResponseDTO(r IdentityProviderServiceDataResult) IdentityProvide
 			TenantUUID:  r.Tenant.TenantUUID,
 			Name:        r.Tenant.Name,
 			Description: r.Tenant.Description,
-			Identifier:  r.Tenant.Identifier,
-			Status:      r.Tenant.Status,
+			// Tenant identifier was dropped; the DNS-safe name is the slug.
+			Identifier: r.Tenant.Name,
+			Status:     r.Tenant.Status,
 
 			CreatedAt: r.Tenant.CreatedAt,
 			UpdatedAt: r.Tenant.UpdatedAt,

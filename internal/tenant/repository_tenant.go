@@ -13,7 +13,6 @@ type TenantRepositoryGetFilter struct {
 	Name        *string
 	DisplayName *string
 	Description *string
-	Identifier  *string
 	Status      []string
 	IsSystem    *bool
 	// TenantIDs, when non-empty, restricts results to these tenant IDs.
@@ -32,7 +31,6 @@ type TenantRepository interface {
 	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) TenantRepository
 	FindByName(name string) (*Tenant, error)
-	FindByIdentifier(identifier string) (*Tenant, error)
 	FindSystem() (*Tenant, error)
 	FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[Tenant], error)
 	SetStatusByUUID(tenantUUID uuid.UUID, status string) error
@@ -68,18 +66,6 @@ func (r *tenantRepository) FindByName(name string) (*Tenant, error) {
 	return &tenant, nil
 }
 
-func (r *tenantRepository) FindByIdentifier(identifier string) (*Tenant, error) {
-	var tenant Tenant
-	err := r.DB().Where("identifier = ?", identifier).First(&tenant).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &tenant, nil
-}
-
 // FindSystem returns the unique system tenant (is_system = true).
 // There is always exactly one system tenant; it cannot be deleted.
 func (r *tenantRepository) FindSystem() (*Tenant, error) {
@@ -100,7 +86,6 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 	query = database.ApplyILike(query, "name", filter.Name)
 	query = database.ApplyILike(query, "display_name", filter.DisplayName)
 	query = database.ApplyILike(query, "description", filter.Description)
-	query = database.ApplyILike(query, "identifier", filter.Identifier)
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}

@@ -9,7 +9,6 @@ option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/g
 
 service TenantService {
   rpc GetDefaultTenant(GetDefaultTenantRequest) returns (GetDefaultTenantResponse);
-  rpc GetTenantByIdentifier(GetTenantByIdentifierRequest) returns (GetTenantByIdentifierResponse);
   rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
   rpc GetTenant(GetTenantRequest) returns (GetTenantResponse);
   rpc CreateTenant(TenantServiceCreateTenantRequest) returns (TenantServiceCreateTenantResponse);
@@ -36,7 +35,6 @@ message Tenant {
   string name = 2;
   string display_name = 3;
   string description = 4;
-  string identifier = 5;
   string status = 6;
   bool is_system = 8;
   google.protobuf.Struct metadata = 9;
@@ -88,19 +86,10 @@ message GetDefaultTenantResponse {
   Tenant tenant = 1;
 }
 
-message GetTenantByIdentifierRequest {
-  string identifier = 1;
-}
-
-message GetTenantByIdentifierResponse {
-  Tenant tenant = 1;
-}
-
 message ListTenantsRequest {
   string name = 1;
   string display_name = 2;
   string description = 3;
-  string identifier = 4;
   repeated string status = 5;
   optional bool is_system = 7;
   Pagination pagination = 8;

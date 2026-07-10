@@ -32,6 +32,13 @@ var (
 	LogLevel string // "debug", "info", "warn", "error"; defaults "info"
 
 	// FRONTEND
+	// These hold the SYSTEM-tenant frontend hosts (e.g. auth.maintainerd.local
+	// and console.auth.maintainerd.local). Multi-tenancy is subdomain-based: the
+	// tenant name is the DNS slug, so a regular tenant "acme" is served from
+	// acme.auth.maintainerd.local / acme.console.auth.maintainerd.local while the
+	// system tenant uses the bare host. Per-tenant URLs are derived via
+	// shared.FrontendURL, which normalizes any scheme to https; do not build
+	// tenant hosts by string-concatenating these values directly.
 	AppFrontendIdentityHostname string
 	AppFrontendConsoleHostname  string
 

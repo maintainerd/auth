@@ -211,12 +211,15 @@ func (s *inviteService) SendInvite(
 		"invite_token": invite.InviteToken,
 		"email":        invite.InvitedEmail,
 	}
+	// Resolve the invite tenant. The tenant name is the DNS slug used both for
+	// the tenant_id param (system-client invites) and for the per-tenant
+	// identity subdomain the invite email links to.
+	var inviteTenant TenantRecord
+	if err := s.db.Select("name", "is_system").Where("tenant_id = ?", invite.TenantID).First(&inviteTenant).Error; err != nil || inviteTenant.Name == "" {
+		return nil, apperror.NewInternal("failed to resolve invite tenant", err)
+	}
 	if clientIsSystem {
-		var tenantIdentifier string
-		if err := s.db.Model(&TenantRecord{}).Select("identifier").Where("tenant_id = ?", invite.TenantID).Scan(&tenantIdentifier).Error; err != nil || tenantIdentifier == "" {
-			return nil, apperror.NewInternal("failed to resolve invite tenant", err)
-		}
-		params["tenant_id"] = tenantIdentifier
+		params["tenant_id"] = inviteTenant.Name
 	} else {
 		params["client_id"] = clientIdentifier
 	}
@@ -226,7 +229,7 @@ func (s *inviteService) SendInvite(
 		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
 	}
 
-	frontendBaseURL := config.AppFrontendIdentityHostname + "/register/invite"
+	frontendBaseURL := shared.FrontendURL(shared.FrontendSurfaceIdentity, inviteTenant.Name, inviteTenant.IsSystem, "/register/invite")
 	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to convert invite URL", err)
@@ -276,12 +279,12 @@ func (s *inviteService) ResendInvite(
 	if err := s.db.Model(&Client{}).Select("is_system").Where("client_id = ?", existing.ClientID).Scan(&clientIsSystem).Error; err != nil {
 		return nil, apperror.NewInternal("failed to resolve invite client", err)
 	}
+	var inviteTenant TenantRecord
+	if err := s.db.Select("name", "is_system").Where("tenant_id = ?", existing.TenantID).First(&inviteTenant).Error; err != nil || inviteTenant.Name == "" {
+		return nil, apperror.NewInternal("failed to resolve invite tenant", err)
+	}
 	if clientIsSystem {
-		var tenantIdentifier string
-		if err := s.db.Model(&TenantRecord{}).Select("identifier").Where("tenant_id = ?", existing.TenantID).Scan(&tenantIdentifier).Error; err != nil || tenantIdentifier == "" {
-			return nil, apperror.NewInternal("failed to resolve invite tenant", err)
-		}
-		params["tenant_id"] = tenantIdentifier
+		params["tenant_id"] = inviteTenant.Name
 	} else {
 		var clientIdentifier string
 		if err := s.db.Model(&Client{}).Select("identifier").Where("client_id = ?", existing.ClientID).Scan(&clientIdentifier).Error; err != nil || clientIdentifier == "" {
@@ -289,7 +292,7 @@ func (s *inviteService) ResendInvite(
 		}
 		params["client_id"] = clientIdentifier
 	}
-	frontendBaseURL := config.AppFrontendIdentityHostname + "/register/invite"
+	frontendBaseURL := shared.FrontendURL(shared.FrontendSurfaceIdentity, inviteTenant.Name, inviteTenant.IsSystem, "/register/invite")
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
 	if err != nil {

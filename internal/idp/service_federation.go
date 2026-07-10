@@ -1339,8 +1339,8 @@ func federationTokenRealm(client *Client) string {
 	if client == nil {
 		return ""
 	}
-	if client.Tenant != nil && strings.TrimSpace(client.Tenant.Identifier) != "" {
-		return client.Tenant.Identifier
+	if client.Tenant != nil && strings.TrimSpace(client.Tenant.Name) != "" {
+		return client.Tenant.Name
 	}
 	return fmt.Sprintf("tenant:%d", client.TenantID)
 }
