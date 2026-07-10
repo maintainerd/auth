@@ -237,8 +237,18 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 	// Account link required: the broker resolved a collision. Redirect to the
 	// identity app for explicit user confirmation instead of issuing an auth code.
 	if resolved.AccountLinkToken != "" {
-		linkURL := strings.TrimRight(config.AppFrontendIdentityHostname, "/") +
-			"/account-link?token=" + url.QueryEscape(resolved.AccountLinkToken) +
+		// Derive the identity frontend host for the session's tenant. A regular
+		// tenant links accounts on its own subdomain; the system tenant uses the
+		// bare host. This must distinguish system vs regular to pick the subdomain.
+		linkTenantName := ""
+		linkTenantIsSystem := true
+		var linkTenant Tenant
+		if err := s.db.Select("name", "is_system").Where("tenant_id = ?", session.TenantID).First(&linkTenant).Error; err == nil {
+			linkTenantName = linkTenant.Name
+			linkTenantIsSystem = linkTenant.IsSystem
+		}
+		linkURL := shared.FrontendURL(shared.FrontendSurfaceIdentity, linkTenantName, linkTenantIsSystem, "/account-link") +
+			"?token=" + url.QueryEscape(resolved.AccountLinkToken) +
 			"&provider=" + url.QueryEscape(resolved.AccountLinkProvider) +
 			"&email=" + url.QueryEscape(resolved.AccountLinkEmail) +
 			"&broker_session=" + url.QueryEscape(session.OAuthBrokerSessionUUID.String())

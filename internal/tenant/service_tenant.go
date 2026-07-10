@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
-	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -20,7 +19,6 @@ type TenantServiceDataResult struct {
 	Name        string
 	DisplayName string
 	Description string
-	Identifier  string
 	Status      string
 	IsSystem    bool
 	Metadata    datatypes.JSON
@@ -32,7 +30,6 @@ type TenantServiceGetFilter struct {
 	Name        *string
 	DisplayName *string
 	Description *string
-	Identifier  *string
 	Status      []string
 	IsSystem    *bool
 	// TenantIDs, when non-empty, restricts results to these tenants. Used to
@@ -56,7 +53,7 @@ type TenantService interface {
 	Get(ctx context.Context, filter TenantServiceGetFilter) (*TenantServiceGetResult, error)
 	GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	GetSystem(ctx context.Context) (*TenantServiceDataResult, error)
-	GetByIdentifier(ctx context.Context, identifier string) (*TenantServiceDataResult, error)
+	GetByName(ctx context.Context, name string) (*TenantServiceDataResult, error)
 	Create(ctx context.Context, name string, displayName string, description string, status string) (*TenantServiceDataResult, error)
 	Update(ctx context.Context, tenantUUID uuid.UUID, name string, displayName string, description string, status string) (*TenantServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error)
@@ -155,12 +152,12 @@ func (s *tenantService) GetSystem(ctx context.Context) (*TenantServiceDataResult
 	return toTenantServiceDataResult(tenant), nil
 }
 
-func (s *tenantService) GetByIdentifier(ctx context.Context, identifier string) (*TenantServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "tenant.getByIdentifier")
+func (s *tenantService) GetByName(ctx context.Context, name string) (*TenantServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "tenant.getByName")
 	defer span.End()
-	span.SetAttributes(attribute.String("tenant.identifier", identifier))
+	span.SetAttributes(attribute.String("tenant.name", name))
 
-	tenant, err := s.tenantRepo.FindByIdentifier(identifier)
+	tenant, err := s.tenantRepo.FindByName(name)
 	if err != nil || tenant == nil {
 		if err != nil {
 			span.RecordError(err)
@@ -180,6 +177,14 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 
 	var createdTenant *Tenant
 
+	// The tenant name is the unique, DNS-safe subdomain slug. Reject reserved
+	// slugs that would shadow a platform host (security-critical).
+	if err := validateTenantSlug(name); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid tenant name")
+		return nil, err
+	}
+
 	err := s.uow.Do(ctx, func(tx Transaction) error {
 		txTenantRepo := tx.TenantRepository()
 		// Check if tenant already exists
@@ -191,12 +196,6 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 			return apperror.NewConflict(name + " tenant already exists")
 		}
 
-		// Generate identifier
-		identifier, err := crypto.GenerateIdentifier(12)
-		if err != nil {
-			return err
-		}
-
 		// A tenant becomes complete only after its first owner is assigned.
 		// The baseline is seeded here, but ownership is a separate privileged
 		// transition performed by tenant member management.
@@ -204,7 +203,6 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
-			Identifier:  identifier,
 			Status:      status,
 		}
 
@@ -259,6 +257,14 @@ func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name s
 	_, span := otel.Tracer("service").Start(ctx, "tenant.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID.String()))
+
+	// The tenant name is the unique, DNS-safe subdomain slug. Reject reserved
+	// slugs that would shadow a platform host (security-critical).
+	if err := validateTenantSlug(name); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid tenant name")
+		return nil, err
+	}
 
 	var updatedTenant *Tenant
 
@@ -454,7 +460,6 @@ func toTenantServiceDataResult(tenant *Tenant) *TenantServiceDataResult {
 		Name:        tenant.Name,
 		DisplayName: tenant.DisplayName,
 		Description: tenant.Description,
-		Identifier:  tenant.Identifier,
 		Status:      tenant.Status,
 		IsSystem:    tenant.IsSystem,
 		Metadata:    tenant.Metadata,

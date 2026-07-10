@@ -1600,12 +1600,13 @@ func toTenantServiceDataResult(t *Tenant) *TenantServiceDataResult {
 		Name:        t.Name,
 		DisplayName: t.DisplayName,
 		Description: t.Description,
-		Identifier:  t.Identifier,
-		Status:      t.Status,
-		IsSystem:    t.IsSystem,
-		Metadata:    t.Metadata,
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
+		// Tenant identifier was dropped; the DNS-safe name is the slug.
+		Identifier: t.Name,
+		Status:     t.Status,
+		IsSystem:   t.IsSystem,
+		Metadata:   t.Metadata,
+		CreatedAt:  t.CreatedAt,
+		UpdatedAt:  t.UpdatedAt,
 	}
 }
 

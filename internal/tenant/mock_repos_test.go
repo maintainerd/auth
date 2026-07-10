@@ -9,17 +9,16 @@ import (
 )
 
 type mockTenantRepo struct {
-	findAllFn          func(preloads ...string) ([]Tenant, error)
-	findByUUIDFn       func(id any, preloads ...string) (*Tenant, error)
-	findByIDFn         func(id any, preloads ...string) (*Tenant, error)
-	findByNameFn       func(name string) (*Tenant, error)
-	findByIdentifierFn func(identifier string) (*Tenant, error)
-	findSystemFn       func() (*Tenant, error)
-	findPaginatedFn    func(filter TenantRepositoryGetFilter) (*PaginationResult[Tenant], error)
-	createFn           func(e *Tenant) (*Tenant, error)
-	createOrUpdateFn   func(e *Tenant) (*Tenant, error)
-	setStatusByUUIDFn  func(tenantUUID uuid.UUID, status string) error
-	deleteByUUIDFn     func(id any) error
+	findAllFn         func(preloads ...string) ([]Tenant, error)
+	findByUUIDFn      func(id any, preloads ...string) (*Tenant, error)
+	findByIDFn        func(id any, preloads ...string) (*Tenant, error)
+	findByNameFn      func(name string) (*Tenant, error)
+	findSystemFn      func() (*Tenant, error)
+	findPaginatedFn   func(filter TenantRepositoryGetFilter) (*PaginationResult[Tenant], error)
+	createFn          func(e *Tenant) (*Tenant, error)
+	createOrUpdateFn  func(e *Tenant) (*Tenant, error)
+	setStatusByUUIDFn func(tenantUUID uuid.UUID, status string) error
+	deleteByUUIDFn    func(id any) error
 }
 
 func (m *mockTenantRepo) WithTx(_ *gorm.DB) TenantRepository { return m }
@@ -68,12 +67,6 @@ func (m *mockTenantRepo) CreateOrUpdate(e *Tenant) (*Tenant, error) {
 func (m *mockTenantRepo) FindByName(name string) (*Tenant, error) {
 	if m.findByNameFn != nil {
 		return m.findByNameFn(name)
-	}
-	return nil, nil
-}
-func (m *mockTenantRepo) FindByIdentifier(id string) (*Tenant, error) {
-	if m.findByIdentifierFn != nil {
-		return m.findByIdentifierFn(id)
 	}
 	return nil, nil
 }

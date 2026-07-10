@@ -78,7 +78,6 @@ func TestToTenantServiceDataResult(t *testing.T) {
 			Name:        "tenant",
 			DisplayName: "Tenant",
 			Description: "desc",
-			Identifier:  "tenant",
 			Status:      shared.StatusActive,
 			IsSystem:    true,
 			CreatedAt:   now,
@@ -90,7 +89,8 @@ func TestToTenantServiceDataResult(t *testing.T) {
 		assert.Equal(t, tnt.Name, dto.Name)
 		assert.Equal(t, tnt.DisplayName, dto.DisplayName)
 		assert.Equal(t, tnt.Description, dto.Description)
-		assert.Equal(t, tnt.Identifier, dto.Identifier)
+		// Tenant identifier was dropped; the mapper now surfaces the name as the slug.
+		assert.Equal(t, tnt.Name, dto.Identifier)
 		assert.Equal(t, tnt.Status, dto.Status)
 		assert.True(t, dto.IsSystem)
 		assert.Equal(t, now, dto.CreatedAt)

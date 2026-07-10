@@ -18,7 +18,7 @@ func buildClientService(t *testing.T, clientRepo *mockClientRepo, idpRepo *mockI
 	db, _ := newMockGormDB(t)
 	return NewClientService(db, clientRepo, &mockClientURIRepo{}, idpRepo,
 		&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
-			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
+		&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 }
 
 // helper: builds a full ClientService with all mock repos exposed
@@ -83,7 +83,7 @@ func TestClientService_GetPublicConsoleByTenantIdentifier(t *testing.T) {
 					ClientType:  shared.ClientTypeSPA,
 					Identifier:  &identifier,
 					Status:      shared.StatusActive,
-					Tenant:      &Tenant{Identifier: "acme"},
+					Tenant:      &Tenant{Name: "acme"},
 				}, nil
 			},
 		}
@@ -100,6 +100,42 @@ func TestClientService_GetPublicConsoleByTenantIdentifier(t *testing.T) {
 		svc := buildClientService(t, &mockClientRepo{}, &mockIdentityProviderRepo{}, &mockUserRepo{})
 
 		result, err := svc.(*clientService).GetPublicConsoleByTenantIdentifier(context.Background(), "acme")
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestClientService_GetPublicIdentityByTenantIdentifier(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		identifier := "identity-client"
+		clientRepo := &mockClientRepo{
+			findSystemByTenantIdentifierNameFn: func(tenantIdentifier, name string) (*Client, error) {
+				assert.Equal(t, "acme", tenantIdentifier)
+				assert.Equal(t, shared.SystemClientNameAuthIdentity, name)
+				return &Client{
+					Name:        shared.SystemClientNameAuthIdentity,
+					DisplayName: "Maintainerd Auth Identity",
+					ClientType:  shared.ClientTypeSPA,
+					Identifier:  &identifier,
+					Status:      shared.StatusActive,
+					Tenant:      &Tenant{Name: "acme"},
+				}, nil
+			},
+		}
+		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
+
+		result, err := svc.(*clientService).GetPublicIdentityByTenantIdentifier(context.Background(), " acme ")
+
+		require.NoError(t, err)
+		assert.Equal(t, identifier, result.ClientID)
+		assert.Equal(t, "acme", result.TenantIdentifier)
+	})
+
+	t.Run("missing client returns not found", func(t *testing.T) {
+		svc := buildClientService(t, &mockClientRepo{}, &mockIdentityProviderRepo{}, &mockUserRepo{})
+
+		result, err := svc.(*clientService).GetPublicIdentityByTenantIdentifier(context.Background(), "acme")
 
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -1804,7 +1840,7 @@ func TestClientService_SetStatusByUUID_ValidateTenantAccess(t *testing.T) {
 	}
 	svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 		&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
-			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
+		&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 	_, err := svc.SetStatusByUUID(context.Background(), cUUID, tenantID, "inactive", actorUUID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "access denied")
@@ -1832,7 +1868,7 @@ func TestClientService_DeleteByUUID_ValidateTenantAccess(t *testing.T) {
 	}
 	svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 		&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
-			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
+		&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 	_, err := svc.DeleteByUUID(context.Background(), cUUID, tenantID, actorUUID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "access denied")

@@ -46,7 +46,7 @@ func toUserContext(u *user.User, clientID string) *authctx.UserContext {
 				TenantUUID:  identity.Tenant.TenantUUID,
 				Name:        identity.Tenant.Name,
 				DisplayName: identity.Tenant.DisplayName,
-				Identifier:  identity.Tenant.Identifier,
+				Identifier:  identity.Tenant.Name,
 			}
 		} else if identity.TenantID != 0 {
 			tenantID = identity.TenantID
@@ -89,7 +89,7 @@ func toUserContextByTenant(u *user.User, tenantID int64) *authctx.UserContext {
 					TenantUUID:  identity.Tenant.TenantUUID,
 					Name:        identity.Tenant.Name,
 					DisplayName: identity.Tenant.DisplayName,
-					Identifier:  identity.Tenant.Identifier,
+					Identifier:  identity.Tenant.Name,
 				}
 			} else {
 				tenant = &authctx.AuthTenant{TenantID: tenantID}

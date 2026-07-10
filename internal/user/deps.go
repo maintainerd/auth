@@ -32,7 +32,6 @@ type Tenant struct {
 	Name        string
 	DisplayName string
 	Description string
-	Identifier  string
 	Status      string
 	IsSystem    bool
 	Metadata    datatypes.JSON

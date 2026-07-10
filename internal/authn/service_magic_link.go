@@ -192,7 +192,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 
 		// Resolve client using the same pattern as login (client_id or tenant_id).
 		var txErr error
-		Client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
+		Client, txErr = resolvePublicClient(ctx, txClientRepo, clientID, tenantID)
 		if txErr != nil || Client == nil ||
 			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" ||
@@ -322,7 +322,7 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 		if linkTenantID != nil && *linkTenantID != "" {
 			params["tenant_id"] = *linkTenantID
 		} else if Client.IdentityProvider != nil && Client.IdentityProvider.Tenant != nil {
-			params["tenant_id"] = Client.IdentityProvider.Tenant.Identifier
+			params["tenant_id"] = Client.IdentityProvider.Tenant.Name
 		} else {
 			return apperror.NewInternal("failed to resolve tenant for magic link", nil)
 		}
@@ -336,12 +336,20 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 		return apperror.NewInternal("failed to create signed URL", err)
 	}
 
-	var frontendBaseURL string
+	// Derive the frontend host per-tenant: regular tenants live on their
+	// subdomain, the system tenant on the bare host. Internal magic links go to
+	// the console surface, public ones to the identity surface.
+	surface := shared.FrontendSurfaceIdentity
 	if isInternal {
-		frontendBaseURL = config.AppFrontendConsoleHostname + "/magic-link"
-	} else {
-		frontendBaseURL = config.AppFrontendIdentityHostname + "/magic-link"
+		surface = shared.FrontendSurfaceConsole
 	}
+	linkTenantName := ""
+	linkTenantIsSystem := true
+	if Client.IdentityProvider != nil && Client.IdentityProvider.Tenant != nil {
+		linkTenantName = Client.IdentityProvider.Tenant.Name
+		linkTenantIsSystem = Client.IdentityProvider.Tenant.IsSystem
+	}
+	frontendBaseURL := shared.FrontendURL(surface, linkTenantName, linkTenantIsSystem, "/magic-link")
 	magicLinkURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return apperror.NewInternal("failed to convert to frontend URL", err)

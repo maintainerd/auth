@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	model "github.com/maintainerd/maintainerd-auth/internal/client"
-	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/datatypes"
@@ -17,8 +16,15 @@ import (
 )
 
 func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
-	consoleHostName := config.AppFrontendConsoleHostname
-	identityHostName := config.AppFrontendIdentityHostname
+	// Derive the per-tenant frontend hosts from the tenant name/is_system so a
+	// regular tenant (e.g. "acme") seeds acme.console.auth.maintainerd.local and
+	// acme.auth.maintainerd.local, while the system tenant uses the bare host.
+	tenantName, tenantIsSystem, err := loadTenantHostInfo(db, tenantID)
+	if err != nil {
+		return err
+	}
+	consoleHostName := shared.FrontendURL(shared.FrontendSurfaceConsole, tenantName, tenantIsSystem, "")
+	identityHostName := shared.FrontendURL(shared.FrontendSurfaceIdentity, tenantName, tenantIsSystem, "")
 
 	consoleID, err := crypto.GenerateIdentifier(32)
 	if err != nil {
@@ -156,4 +162,23 @@ func seedClientIdentityProvider(db *gorm.DB, clientID, tenantID, identityProvide
 
 func strPtr(s string) *string {
 	return &s
+}
+
+// loadTenantHostInfo returns the tenant's DNS slug (name) and whether it is the
+// system tenant, so seeders can derive per-tenant frontend hosts.
+func loadTenantHostInfo(db *gorm.DB, tenantID int64) (string, bool, error) {
+	var t struct {
+		Name     string
+		IsSystem bool
+	}
+	if err := db.Table("tenants").
+		Select("name", "is_system").
+		Where("tenant_id = ?", tenantID).
+		Scan(&t).Error; err != nil {
+		return "", false, fmt.Errorf("failed to resolve tenant %d when seeding client hosts: %w", tenantID, err)
+	}
+	if t.Name == "" {
+		return "", false, fmt.Errorf("tenant %d not found when seeding client hosts", tenantID)
+	}
+	return t.Name, t.IsSystem, nil
 }

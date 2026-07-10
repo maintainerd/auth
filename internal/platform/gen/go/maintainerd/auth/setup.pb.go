@@ -299,7 +299,6 @@ type CreateTenantResponse struct {
 	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName       string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Identifier        string                 `protobuf:"bytes,4,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	DefaultClientId   string                 `protobuf:"bytes,5,opt,name=default_client_id,json=defaultClientId,proto3" json:"default_client_id,omitempty"`
 	DefaultProviderId string                 `protobuf:"bytes,6,opt,name=default_provider_id,json=defaultProviderId,proto3" json:"default_provider_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
@@ -353,13 +352,6 @@ func (x *CreateTenantResponse) GetName() string {
 func (x *CreateTenantResponse) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *CreateTenantResponse) GetIdentifier() string {
-	if x != nil {
-		return x.Identifier
 	}
 	return ""
 }
@@ -1021,15 +1013,12 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12?\n" +
-	"\bmetadata\x18\x04 \x01(\v2#.maintainerd.auth.v1.TenantMetadataR\bmetadata\"\xea\x01\n" +
+	"\bmetadata\x18\x04 \x01(\v2#.maintainerd.auth.v1.TenantMetadataR\bmetadata\"\xca\x01\n" +
 	"\x14CreateTenantResponse\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1e\n" +
-	"\n" +
-	"identifier\x18\x04 \x01(\tR\n" +
-	"identifier\x12*\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12*\n" +
 	"\x11default_client_id\x18\x05 \x01(\tR\x0fdefaultClientId\x12.\n" +
 	"\x13default_provider_id\x18\x06 \x01(\tR\x11defaultProviderId\"~\n" +
 	"\x12CreateAdminRequest\x12\x1a\n" +

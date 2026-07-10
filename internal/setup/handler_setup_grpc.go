@@ -43,7 +43,6 @@ func (h *SetupGRPCHandler) CreateTenant(ctx context.Context, req *authv1.CreateT
 		TenantUuid:        resp.Tenant.TenantUUID.String(),
 		Name:              resp.Tenant.Name,
 		DisplayName:       resp.Tenant.DisplayName,
-		Identifier:        resp.Tenant.Identifier,
 		DefaultClientId:   resp.DefaultClientID,
 		DefaultProviderId: resp.DefaultProviderID,
 	}, nil

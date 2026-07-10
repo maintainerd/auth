@@ -3,40 +3,25 @@ package seeder
 import (
 	"testing"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNormalizedHTTPSBaseURL(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "keeps https URL",
-			input:    "https://identity.auth.maintainerd.local",
-			expected: "https://identity.auth.maintainerd.local",
-		},
-		{
-			name:     "keeps http URL",
-			input:    "http://localhost:5174/",
-			expected: "http://localhost:5174",
-		},
-		{
-			name:     "adds https to bare host",
-			input:    "identity.auth.maintainerd.local",
-			expected: "https://identity.auth.maintainerd.local",
-		},
-		{
-			name:     "trims whitespace and trailing slash",
-			input:    " https://identity.auth.maintainerd.local/ ",
-			expected: "https://identity.auth.maintainerd.local",
-		},
-	}
+// TestFrontendURLPerTenant verifies the per-tenant frontend host derivation used
+// when seeding client URIs. The system tenant uses the bare configured host; a
+// regular tenant is served from its {name}. subdomain, and any scheme on the
+// configured value is normalized to https.
+func TestFrontendURLPerTenant(t *testing.T) {
+	config.AppFrontendConsoleHostname = "https://console.auth.maintainerd.local"
+	config.AppFrontendIdentityHostname = "auth.maintainerd.local"
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, normalizedHTTPSBaseURL(tt.input))
-		})
-	}
+	assert.Equal(t,
+		"https://console.auth.maintainerd.local/auth/callback",
+		shared.FrontendURL(shared.FrontendSurfaceConsole, "maintainerd", true, "/auth/callback"),
+	)
+	assert.Equal(t,
+		"https://acme.auth.maintainerd.local/callback",
+		shared.FrontendURL(shared.FrontendSurfaceIdentity, "acme", false, "/callback"),
+	)
 }

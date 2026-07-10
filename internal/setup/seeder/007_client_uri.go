@@ -4,19 +4,22 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	model "github.com/maintainerd/maintainerd-auth/internal/client"
-	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 )
 
 func SeedClientURIs(db *gorm.DB, tenantID int64, _ int64) error {
-	consoleHostName := normalizedHTTPSBaseURL(config.AppFrontendConsoleHostname)
-	identityHostName := normalizedHTTPSBaseURL(config.AppFrontendIdentityHostname)
+	// Derive the per-tenant frontend hosts from the tenant name/is_system.
+	tenantName, tenantIsSystem, err := loadTenantHostInfo(db, tenantID)
+	if err != nil {
+		return err
+	}
+	consoleHostName := shared.FrontendURL(shared.FrontendSurfaceConsole, tenantName, tenantIsSystem, "")
+	identityHostName := shared.FrontendURL(shared.FrontendSurfaceIdentity, tenantName, tenantIsSystem, "")
 
 	// Map of client name -> URIs with their types.
 	uris := map[string][]struct {
@@ -86,12 +89,4 @@ func SeedClientURIs(db *gorm.DB, tenantID int64, _ int64) error {
 	}
 
 	return nil
-}
-
-func normalizedHTTPSBaseURL(hostname string) string {
-	base := strings.TrimRight(strings.TrimSpace(hostname), "/")
-	if strings.HasPrefix(base, "http://") || strings.HasPrefix(base, "https://") {
-		return base
-	}
-	return "https://" + base
 }

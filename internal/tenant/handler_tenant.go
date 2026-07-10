@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 type TenantHandler struct {
@@ -23,6 +24,7 @@ type TenantHandler struct {
 	tenantMemberService    TenantMemberService
 	brandingService        branding.BrandingService
 	securitySettingService secpolicy.SecuritySettingService
+	clientReader           SurfaceClientReader
 	auditLogger            auditlog.ManagementAuditLogger
 }
 
@@ -41,6 +43,11 @@ func NewTenantHandler(
 }
 
 func (h *TenantHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+// SetSurfaceClientReader injects the resolver used by the domain-bootstrap
+// endpoint to advertise a tenant's seeded system client per surface. It is
+// optional: when unset, the bootstrap response simply omits the client field.
+func (h *TenantHandler) SetSurfaceClientReader(r SurfaceClientReader) { h.clientReader = r }
 
 func (h *TenantHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
 	if h.auditLogger == nil {
@@ -85,7 +92,6 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
-		Identifier:           ptr.PtrOrNil(q.Get("identifier")),
 		IsSystem:             isSystem,
 		Status:               status,
 		PaginationRequestDTO: pagination.ParseQuery(r),
@@ -101,7 +107,6 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Name:        reqParams.Name,
 		DisplayName: reqParams.DisplayName,
 		Description: reqParams.Description,
-		Identifier:  reqParams.Identifier,
 		IsSystem:    reqParams.IsSystem,
 		Status:      reqParams.Status,
 		Page:        reqParams.Page,
@@ -182,8 +187,15 @@ func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Tenant fetched successfully")
 }
 
-// GetDefault returns the system tenant, which is the root of the tenant hierarchy.
+// GetDefault serves GET /tenant. With ?domain=<host> it becomes the
+// domain-based bootstrap endpoint (resolve host → tenant + surface + client).
+// Without ?domain it keeps the original behaviour: return the system tenant.
 func (h *TenantHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
+	if domain := strings.TrimSpace(r.URL.Query().Get("domain")); domain != "" {
+		h.getBootstrap(w, r, domain)
+		return
+	}
+
 	tenant, err := h.tenantService.GetSystem(r.Context())
 	if err != nil {
 		resp.HandleServiceError(w, r, "System tenant not found", err)
@@ -195,14 +207,95 @@ func (h *TenantHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "System tenant fetched successfully")
 }
 
-func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) {
-	identifier := chi.URLParam(r, "identifier")
-	if identifier == "" {
-		resp.Error(w, http.StatusBadRequest, "Identifier is required")
+// getBootstrap resolves an incoming host to its tenant + surface and returns the
+// public bootstrap payload the frontend needs before login: tenant identity,
+// canonical per-surface URLs, public branding, and the seeded system client for
+// the resolved surface. It is a public (unauthenticated) endpoint and returns
+// only public fields.
+func (h *TenantHandler) getBootstrap(w http.ResponseWriter, r *http.Request, domain string) {
+	surface, slug, isSystem, ok := shared.ResolveTenantHost(domain)
+	if !ok {
+		resp.Error(w, http.StatusNotFound, "Unknown domain")
 		return
 	}
 
-	tenant, err := h.tenantService.GetByIdentifier(r.Context(), identifier)
+	var (
+		tenant *TenantServiceDataResult
+		err    error
+	)
+	if isSystem {
+		tenant, err = h.tenantService.GetSystem(r.Context())
+	} else {
+		tenant, err = h.tenantService.GetByName(r.Context(), slug)
+	}
+	if err != nil {
+		resp.HandleServiceError(w, r, "Tenant not found", err)
+		return
+	}
+
+	res := TenantBootstrapResponseDTO{
+		Tenant: TenantBootstrapTenantDTO{
+			TenantUUID:  tenant.TenantUUID,
+			Name:        tenant.Name,
+			DisplayName: tenant.DisplayName,
+			Description: tenant.Description,
+			Status:      tenant.Status,
+			IsSystem:    tenant.IsSystem,
+		},
+		Surface:     surface,
+		IdentityURL: shared.FrontendURL(shared.FrontendSurfaceIdentity, tenant.Name, tenant.IsSystem, ""),
+		ConsoleURL:  shared.FrontendURL(shared.FrontendSurfaceConsole, tenant.Name, tenant.IsSystem, ""),
+		Branding:    h.publicBranding(r.Context(), tenant.TenantID),
+	}
+	res.PasswordConfig, res.RegistrationConfig = h.publicSecurityConfigs(r.Context(), tenant.TenantID)
+
+	// Advertise the tenant's seeded system client for the resolved surface.
+	// Best-effort: a missing client (e.g. not yet seeded) leaves the field unset
+	// rather than failing the whole bootstrap.
+	if h.clientReader != nil {
+		if c, cerr := h.clientReader.GetSurfaceClient(r.Context(), tenant.Name, surface); cerr == nil && c != nil {
+			res.Client = &TenantBootstrapClientDTO{
+				ClientID:    c.ClientID,
+				Name:        c.Name,
+				DisplayName: c.DisplayName,
+				ClientType:  c.ClientType,
+			}
+		}
+	}
+
+	resp.Success(w, res, "Tenant bootstrap fetched successfully")
+}
+
+// publicBranding loads a tenant's public branding, returning nil when branding
+// is unavailable. Shared by the bootstrap and public tenant responses.
+func (h *TenantHandler) publicBranding(ctx context.Context, tenantID int64) *BrandingPublic {
+	if h.brandingService == nil {
+		return nil
+	}
+	b, err := h.brandingService.GetPublic(ctx, tenantID)
+	if err != nil || b == nil {
+		return nil
+	}
+	return &BrandingPublic{
+		Layout:            b.Layout,
+		CompanyName:       b.CompanyName,
+		LogoURL:           b.LogoURL,
+		FaviconURL:        b.FaviconURL,
+		SupportURL:        b.SupportURL,
+		PrivacyPolicyURL:  b.PrivacyPolicyURL,
+		TermsOfServiceURL: b.TermsOfServiceURL,
+		Metadata:          b.Metadata,
+	}
+}
+
+func (h *TenantHandler) GetByName(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	if name == "" {
+		resp.Error(w, http.StatusBadRequest, "Name is required")
+		return
+	}
+
+	tenant, err := h.tenantService.GetByName(r.Context(), name)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Tenant not found", err)
 		return
@@ -215,7 +308,6 @@ func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) 
 
 func (h *TenantHandler) toPublicResponse(ctx context.Context, tenant TenantServiceDataResult) TenantPublicResponseDTO {
 	res := TenantPublicResponseDTO{
-		Identifier:  tenant.Identifier,
 		Name:        tenant.Name,
 		DisplayName: tenant.DisplayName,
 		Description: tenant.Description,
@@ -223,42 +315,40 @@ func (h *TenantHandler) toPublicResponse(ctx context.Context, tenant TenantServi
 		IsSystem:    tenant.IsSystem,
 	}
 
-	if h.securitySettingService != nil {
-		if pwd, err := h.securitySettingService.GetPasswordConfig(ctx, tenant.TenantID); err == nil {
-			res.PasswordConfig = &PasswordConfigPublic{
-				MinLength:        intFromMap(pwd, "min_length"),
-				MaxLength:        intFromMap(pwd, "max_length"),
-				RequireUppercase: boolFromMap(pwd, "require_uppercase"),
-				RequireLowercase: boolFromMap(pwd, "require_lowercase"),
-				RequireNumber:    boolFromMap(pwd, "require_number"),
-				RequireSymbol:    boolFromMap(pwd, "require_symbol"),
-			}
-		}
-		if reg, err := h.securitySettingService.GetRegistrationConfig(ctx, tenant.TenantID); err == nil {
-			res.RegistrationConfig = &RegistrationConfigPublic{
-				SelfRegistrationEnabled:  boolFromMap(reg, "self_registration_enabled"),
-				RequireEmailVerification: boolFromMap(reg, "require_email_verification"),
-				CaptchaOnSignup:          boolFromMap(reg, "captcha_on_signup"),
-			}
-		}
-	}
-
-	if h.brandingService != nil {
-		if b, err := h.brandingService.GetPublic(ctx, tenant.TenantID); err == nil && b != nil {
-			res.Branding = &BrandingPublic{
-				Layout:            b.Layout,
-				CompanyName:       b.CompanyName,
-				LogoURL:           b.LogoURL,
-				FaviconURL:        b.FaviconURL,
-				SupportURL:        b.SupportURL,
-				PrivacyPolicyURL:  b.PrivacyPolicyURL,
-				TermsOfServiceURL: b.TermsOfServiceURL,
-				Metadata:          b.Metadata,
-			}
-		}
-	}
+	res.PasswordConfig, res.RegistrationConfig = h.publicSecurityConfigs(ctx, tenant.TenantID)
+	res.Branding = h.publicBranding(ctx, tenant.TenantID)
 
 	return res
+}
+
+// publicSecurityConfigs loads a tenant's public password and registration
+// policy, returning nil for either when unavailable. Shared by the bootstrap
+// and public tenant responses so both surfaces enforce the same tenant-managed
+// config (password policy, self-registration gating).
+func (h *TenantHandler) publicSecurityConfigs(ctx context.Context, tenantID int64) (*PasswordConfigPublic, *RegistrationConfigPublic) {
+	if h.securitySettingService == nil {
+		return nil, nil
+	}
+	var pwdCfg *PasswordConfigPublic
+	var regCfg *RegistrationConfigPublic
+	if pwd, err := h.securitySettingService.GetPasswordConfig(ctx, tenantID); err == nil {
+		pwdCfg = &PasswordConfigPublic{
+			MinLength:        intFromMap(pwd, "min_length"),
+			MaxLength:        intFromMap(pwd, "max_length"),
+			RequireUppercase: boolFromMap(pwd, "require_uppercase"),
+			RequireLowercase: boolFromMap(pwd, "require_lowercase"),
+			RequireNumber:    boolFromMap(pwd, "require_number"),
+			RequireSymbol:    boolFromMap(pwd, "require_symbol"),
+		}
+	}
+	if reg, err := h.securitySettingService.GetRegistrationConfig(ctx, tenantID); err == nil {
+		regCfg = &RegistrationConfigPublic{
+			SelfRegistrationEnabled:  boolFromMap(reg, "self_registration_enabled"),
+			RequireEmailVerification: boolFromMap(reg, "require_email_verification"),
+			CaptchaOnSignup:          boolFromMap(reg, "captcha_on_signup"),
+		}
+	}
+	return pwdCfg, regCfg
 }
 
 func intFromMap(m map[string]any, key string) int {
@@ -519,7 +609,6 @@ func toTenantResponseDTO(r TenantServiceDataResult) TenantResponseDTO {
 		Name:        r.Name,
 		DisplayName: r.DisplayName,
 		Description: r.Description,
-		Identifier:  r.Identifier,
 		Status:      r.Status,
 		IsSystem:    r.IsSystem,
 		Metadata:    r.Metadata,

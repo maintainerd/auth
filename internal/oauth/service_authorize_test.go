@@ -13,6 +13,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -350,6 +351,84 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		assert.Contains(t, result.RedirectURI, "code=")
 		assert.Contains(t, result.RedirectURI, "state=state123")
 		assert.Empty(t, result.ConsentChallenge)
+	})
+
+	// Tenant binding (SECURITY-CRITICAL): a client_id must belong to the tenant
+	// context the user is acting in. Matching → ok; mismatch → hard reject with no
+	// fallback to the system tenant.
+	t.Run("tenant binding: matching client tenant and context is accepted", func(t *testing.T) {
+		client := activeClient() // TenantID = 1
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, client.TenantID)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "code=")
+	})
+
+	t.Run("tenant binding: mismatched client tenant and context is rejected", func(t *testing.T) {
+		client := activeClient() // TenantID = 1
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		// Act as tenant 2 with a client that belongs to tenant 1 → cross-tenant.
+		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, 2)
+		require.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+
+	t.Run("tenant binding: a seeded system client is not a valid public client_id", func(t *testing.T) {
+		sysClient := activeClient()
+		sysClient.IsSystem = true
+		sysClient.Name = "internal-system" // not the allowed hosted-login client
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return sysClient, nil
+				},
+				findByIdentifierFn: func(_ string) (*Client, error) {
+					return sysClient, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		result, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1, sysClient.TenantID)
+		require.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
 	})
 
 	t.Run("returns consent challenge when consent required", func(t *testing.T) {
@@ -880,6 +959,245 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		assert.Equal(t, "mystate", *capturedChallenge.State)
 		require.NotNil(t, capturedChallenge.Nonce)
 		assert.Equal(t, "mynonce", *capturedChallenge.Nonce)
+	})
+}
+
+// ── Request-host tenant binding (SECURITY-CRITICAL) ─────────────────────────
+
+// stubAuthorizeTenantResolver is a function-field test double for TenantResolver.
+type stubAuthorizeTenantResolver struct {
+	fn       func(ctx context.Context, name string) (int64, bool, error)
+	systemFn func(ctx context.Context) (int64, error)
+}
+
+func (s stubAuthorizeTenantResolver) ResolveTenantIDByName(ctx context.Context, name string) (int64, bool, error) {
+	if s.fn != nil {
+		return s.fn(ctx, name)
+	}
+	return 0, false, nil
+}
+
+func (s stubAuthorizeTenantResolver) ResolveSystemTenantID(ctx context.Context) (int64, error) {
+	if s.systemFn != nil {
+		return s.systemFn(ctx)
+	}
+	return 0, nil
+}
+
+// withAuthorizeTenantResolver installs r as the package-level authorize tenant
+// resolver for the duration of the test. oauth tests do not run in parallel, so
+// the shared global is safe here.
+func withAuthorizeTenantResolver(t *testing.T, r TenantResolver) {
+	t.Helper()
+	prev := authorizeTenantResolver
+	authorizeTenantResolver = r
+	t.Cleanup(func() { authorizeTenantResolver = prev })
+}
+
+// ctxWithRequestTenantSlug returns a context carrying a resolved request tenant
+// with the given subdomain slug, as RequestTenantMiddleware would set it.
+func ctxWithRequestTenantSlug(slug string) context.Context {
+	return middleware.WithRequestTenant(context.Background(), middleware.RequestTenant{
+		Surface: shared.FrontendSurfaceIdentity,
+		Slug:    slug,
+		OK:      true,
+	})
+}
+
+// ctxWithRequestTenantSystem returns a context carrying a resolved request tenant
+// for the bare system host (empty slug, IsSystem true), as
+// RequestTenantMiddleware would set it.
+func ctxWithRequestTenantSystem() context.Context {
+	return middleware.WithRequestTenant(context.Background(), middleware.RequestTenant{
+		Surface:  shared.FrontendSurfaceIdentity,
+		IsSystem: true,
+		OK:       true,
+	})
+}
+
+// TestOAuthAuthorizeService_RequestHostTenantBinding exercises the STRICT
+// enforcement that an authorize client_id belongs to the tenant identified by
+// the REQUEST's own host, resolved server-side — not from a passed tenant_id.
+func TestOAuthAuthorizeService_RequestHostTenantBinding(t *testing.T) {
+	build := func(client *Client) OAuthAuthorizeService {
+		db, _ := newMockDB(t)
+		return newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+	}
+
+	// (a) request host = tenant acme + client of acme → accepted. The request host
+	// is authoritative even though the session tenant is a DIFFERENT value.
+	t.Run("request host acme with acme client is accepted", func(t *testing.T) {
+		const acmeTenantID int64 = 42
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			fn: func(_ context.Context, name string) (int64, bool, error) {
+				assert.Equal(t, "acme", name)
+				return acmeTenantID, false, nil
+			},
+		})
+		client := activeClient()
+		client.TenantID = acmeTenantID
+
+		// Session tenant deliberately different (999) — proves the request host,
+		// not the session tenant, drives the binding.
+		result, oerr := build(client).Authorize(ctxWithRequestTenantSlug("acme"), validAuthorizeRequest(), 1, 999)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "code=")
+	})
+
+	// (b) request host = acme + client of another tenant → HARD reject. This is the
+	// exact hole: the session tenant and the client agree (both tenant 1), so the
+	// legacy session check would PASS — but the browser is on acme, so it must be
+	// rejected with NO fallback to system.
+	t.Run("request host acme with cross-tenant client is hard rejected", func(t *testing.T) {
+		const acmeTenantID int64 = 42
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			fn: func(_ context.Context, _ string) (int64, bool, error) { return acmeTenantID, false, nil },
+		})
+		client := activeClient() // TenantID = 1 (system / other tenant)
+
+		result, oerr := build(client).Authorize(ctxWithRequestTenantSlug("acme"), validAuthorizeRequest(), 1, 1)
+		require.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+
+	// (b') the same hole at the PRE-AUTH PrepareAuthorize path — a cross-tenant
+	// client must be rejected BEFORE any login page is shown.
+	t.Run("PrepareAuthorize rejects cross-tenant client before login page", func(t *testing.T) {
+		const acmeTenantID int64 = 42
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			fn: func(_ context.Context, _ string) (int64, bool, error) { return acmeTenantID, false, nil },
+		})
+		client := activeClient() // TenantID = 1
+
+		oerr := build(client).PrepareAuthorize(ctxWithRequestTenantSlug("acme"), validAuthorizeRequest())
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+
+	t.Run("PrepareAuthorize accepts a matching-tenant client", func(t *testing.T) {
+		const acmeTenantID int64 = 42
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			fn: func(_ context.Context, _ string) (int64, bool, error) { return acmeTenantID, false, nil },
+		})
+		client := activeClient()
+		client.TenantID = acmeTenantID
+
+		oerr := build(client).PrepareAuthorize(ctxWithRequestTenantSlug("acme"), validAuthorizeRequest())
+		assert.Nil(t, oerr)
+	})
+
+	// (c) unresolvable request host + valid session → the existing session-tenant
+	// binding still applies (no weakening).
+	t.Run("unresolvable host falls back to session binding: mismatch rejected", func(t *testing.T) {
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			fn: func(_ context.Context, _ string) (int64, bool, error) {
+				t.Fatalf("resolver must not be consulted when the request host is unresolvable")
+				return 0, false, nil
+			},
+		})
+		client := activeClient() // TenantID = 1
+
+		// No request tenant in context → falls back to session check; session
+		// tenant 2 != client tenant 1 → rejected exactly as before.
+		result, oerr := build(client).Authorize(context.Background(), validAuthorizeRequest(), 1, 2)
+		require.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+
+	t.Run("unresolvable host falls back to session binding: match accepted", func(t *testing.T) {
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{})
+		client := activeClient() // TenantID = 1
+
+		result, oerr := build(client).Authorize(context.Background(), validAuthorizeRequest(), 1, 1)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "code=")
+	})
+
+	// A wired request-tenant slug that does not resolve (unknown tenant) falls
+	// back to the session binding rather than failing open.
+	t.Run("unknown request-tenant slug falls back to session binding", func(t *testing.T) {
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			fn: func(_ context.Context, _ string) (int64, bool, error) { return 0, false, nil },
+		})
+		client := activeClient() // TenantID = 1
+
+		// Session tenant matches the client → accepted via fallback.
+		result, oerr := build(client).Authorize(ctxWithRequestTenantSlug("ghost"), validAuthorizeRequest(), 1, 1)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "code=")
+	})
+
+	// (a) system client on the bare system host → accepted. The system host binds
+	// strictly to the system tenant's ID (resolved via ResolveSystemTenantID), and
+	// the client belongs to it.
+	t.Run("system host with system-tenant client is accepted", func(t *testing.T) {
+		const systemTenantID int64 = 1
+		resolverCalled := false
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			fn: func(_ context.Context, _ string) (int64, bool, error) {
+				t.Fatalf("ResolveTenantIDByName must not be called on the bare system host")
+				return 0, false, nil
+			},
+			systemFn: func(_ context.Context) (int64, error) {
+				resolverCalled = true
+				return systemTenantID, nil
+			},
+		})
+		client := activeClient() // TenantID = 1 = system tenant
+
+		// Session tenant deliberately different (999) — the request host is
+		// authoritative.
+		result, oerr := build(client).Authorize(ctxWithRequestTenantSystem(), validAuthorizeRequest(), 1, 999)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "code=")
+		assert.True(t, resolverCalled, "system-tenant resolver must be consulted on the bare system host")
+	})
+
+	// (b) a regular tenant's client on the bare system host → HARD reject. This is
+	// the reverse hole: the session tenant and client agree (both tenant 42), so
+	// the legacy session check would PASS — but the browser is on the system host,
+	// so it must be rejected with NO fallback.
+	t.Run("system host with regular-tenant client is hard rejected", func(t *testing.T) {
+		const systemTenantID int64 = 1
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			systemFn: func(_ context.Context) (int64, error) { return systemTenantID, nil },
+		})
+		client := activeClient()
+		client.TenantID = 42 // regular tenant, not the system tenant
+
+		result, oerr := build(client).Authorize(ctxWithRequestTenantSystem(), validAuthorizeRequest(), 1, 42)
+		require.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+
+	// PrepareAuthorize enforces the system-host binding before any login page too.
+	t.Run("PrepareAuthorize rejects regular-tenant client on the system host", func(t *testing.T) {
+		const systemTenantID int64 = 1
+		withAuthorizeTenantResolver(t, stubAuthorizeTenantResolver{
+			systemFn: func(_ context.Context) (int64, error) { return systemTenantID, nil },
+		})
+		client := activeClient()
+		client.TenantID = 42
+
+		oerr := build(client).PrepareAuthorize(ctxWithRequestTenantSystem(), validAuthorizeRequest())
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
 	})
 }
 

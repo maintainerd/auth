@@ -58,6 +58,24 @@ type UserProvisioner interface {
 	RevokeRoleByName(ctx context.Context, tx *gorm.DB, userID, tenantID int64, roleName string) error
 }
 
+// SurfaceClient is tenant's projection of a client's public fields, used by the
+// domain-bootstrap endpoint to advertise the seeded system client for a surface.
+type SurfaceClient struct {
+	ClientID    string
+	Name        string
+	DisplayName string
+	ClientType  string
+}
+
+// SurfaceClientReader resolves the seeded system client for a tenant on a given
+// frontend surface ("identity" or "console"). It is implemented by an app-layer
+// adapter over the client service so the tenant package does not import client
+// (avoiding a cross-domain dependency). tenantName is the DNS slug; surface is
+// one of shared.FrontendSurfaceIdentity / shared.FrontendSurfaceConsole.
+type SurfaceClientReader interface {
+	GetSurfaceClient(ctx context.Context, tenantName, surface string) (*SurfaceClient, error)
+}
+
 // AccessActor exposes the tenant-relevant identity data needed for access
 // control checks. The user domain implements this on its User.
 type AccessActor interface {

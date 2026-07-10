@@ -329,7 +329,7 @@ func (s *registerService) RegisterPublic(
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
 		var txErr error
-		Client, txErr = resolvePublicClient(txClientRepo, clientID, tenantID)
+		Client, txErr = resolvePublicClient(ctx, txClientRepo, clientID, tenantID)
 		if txErr != nil {
 			return txErr
 		}
@@ -753,7 +753,7 @@ func (s *registerService) RegisterInvitePublic(
 		txRoleRepo := s.roleRepo.WithTx(tx)
 
 		var txErr error
-		Client, txErr = resolvePublicClient(txClientRepo, stringPtrOrNil(clientID), stringPtrOrNil(tenantID))
+		Client, txErr = resolvePublicClient(ctx, txClientRepo, stringPtrOrNil(clientID), stringPtrOrNil(tenantID))
 		if txErr != nil {
 			return txErr
 		}

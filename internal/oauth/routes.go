@@ -50,6 +50,11 @@ func OAuthPublicRoute(
 	r.Route("/oauth", func(r chi.Router) {
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		// Resolve the request's own tenant (Origin → X-Forwarded-Host → Host) so
+		// the authorize endpoint can make the request host authoritative for the
+		// client_id ↔ tenant binding. Never rejects; unrecognized hosts fall back
+		// to the existing session-tenant binding.
+		r.Use(middleware.RequestTenantMiddleware)
 
 		// ── Authorization endpoint — session-aware ────────────────────────
 		// It returns login_required (not a hard 401) when no session is present,

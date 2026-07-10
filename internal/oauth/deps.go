@@ -27,14 +27,24 @@ type Tenant struct {
 	Name        string
 	DisplayName string
 	Description string
-	Identifier  string
-	Status      string
-	IsSystem    bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// Identifier is the tenant slug. The tenant identifier column was dropped;
+	// the DNS-safe name is now the slug. It is not a real column (gorm:"-") and
+	// is populated from Name in AfterFind so downstream consumers that still read
+	// the slug via Identifier keep working.
+	Identifier string `gorm:"-"`
+	Status     string
+	IsSystem   bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 func (Tenant) TableName() string { return "tenants" }
+
+// AfterFind mirrors the tenant name into Identifier (the slug) after every load.
+func (t *Tenant) AfterFind(_ *gorm.DB) error {
+	t.Identifier = t.Name
+	return nil
+}
 
 type IdentityProvider struct {
 	IdentityProviderID   int64

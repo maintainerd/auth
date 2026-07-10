@@ -15,7 +15,6 @@ type Tenant struct {
 	Name        string
 	DisplayName string
 	Description string
-	Identifier  string
 	Status      string
 	IsSystem    bool
 	CreatedAt   time.Time
@@ -59,21 +58,21 @@ type UserIdentity struct {
 func (UserIdentity) TableName() string { return "user_identities" }
 
 type User struct {
-	UserID             int64
-	UserUUID           uuid.UUID
-	TenantID           int64
-	Username           string
-	Fullname           string `gorm:"-"`
-	Email              string
-	Phone              string
-	Password           *string
-	IsEmailVerified    bool
-	IsPhoneVerified    bool
-	Status             string
-	Metadata           datatypes.JSON
-	UserIdentities     []UserIdentity `gorm:"foreignKey:UserID;references:UserID"`
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	UserID          int64
+	UserUUID        uuid.UUID
+	TenantID        int64
+	Username        string
+	Fullname        string `gorm:"-"`
+	Email           string
+	Phone           string
+	Password        *string
+	IsEmailVerified bool
+	IsPhoneVerified bool
+	Status          string
+	Metadata        datatypes.JSON
+	UserIdentities  []UserIdentity `gorm:"foreignKey:UserID;references:UserID"`
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func (User) TableName() string { return "users" }
@@ -242,10 +241,11 @@ func toTenantServiceDataResult(t *Tenant) *TenantServiceDataResult {
 		Name:        t.Name,
 		DisplayName: t.DisplayName,
 		Description: t.Description,
-		Identifier:  t.Identifier,
-		Status:      t.Status,
-		IsSystem:    t.IsSystem,
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
+		// Tenant identifier was dropped; the DNS-safe name is the slug.
+		Identifier: t.Name,
+		Status:     t.Status,
+		IsSystem:   t.IsSystem,
+		CreatedAt:  t.CreatedAt,
+		UpdatedAt:  t.UpdatedAt,
 	}
 }
