@@ -25,18 +25,18 @@ type TenantSeeder interface {
 
 // MemberUser is tenant's projection of a user, used when listing tenant members.
 type MemberUser struct {
-	UserID             int64
-	UserUUID           uuid.UUID
-	Username           string
-	Fullname           string
-	Email              string
-	Phone              string
-	IsEmailVerified    bool
-	IsPhoneVerified    bool
-	Status             string
-	Metadata           datatypes.JSON
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	UserID          int64
+	UserUUID        uuid.UUID
+	Username        string
+	Fullname        string
+	Email           string
+	Phone           string
+	IsEmailVerified bool
+	IsPhoneVerified bool
+	Status          string
+	Metadata        datatypes.JSON
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // UserReader is the subset of the user domain that tenant needs to resolve

@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"strings"
@@ -149,12 +150,17 @@ type OAuthAuthorizeService interface {
 	HandleConsent(ctx context.Context, decision OAuthConsentDecisionDTO, userID int64) (*OAuthConsentDecisionResult, *apperror.OAuthError)
 
 	// PrepareAuthorizeSignup persists the authorize request for a signup flow
-	// (screen_hint=signup, no session) and returns the request_id for the SPA.
-	PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError)
+	// (screen_hint=signup, no session) and returns the request_id for the SPA
+	// plus an opaque browser-binding secret the caller stores in an httpOnly
+	// cookie. Only the secret's hash is persisted, binding the request to the
+	// initiating browser (Ory login_challenge / Keycloak auth-session model).
+	PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (requestID string, bindingSecret string, oerr *apperror.OAuthError)
 
 	// ContinueAuthorize resumes a persisted authorize request after registration,
-	// issuing an authorization code bound to the authenticated user.
-	ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
+	// issuing an authorization code bound to the authenticated user. bindingSecret
+	// (from the initiating browser's cookie) must match the hash stored at prepare
+	// time, so a leaked request_id cannot be continued from another session.
+	ContinueAuthorize(ctx context.Context, requestID string, bindingSecret string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
 
 	// BrokerResume completes a brokered OAuth flow after a user has confirmed an
 	// account link. It validates the link token, finds the pending broker session,
@@ -825,27 +831,27 @@ func splitScopes(scope string) []string {
 
 const authorizeRequestTTL = 10 * time.Minute
 
-func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
+func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (string, string, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.prepare_authorize_signup")
 	defer span.End()
 
 	client, err := s.resolveAuthorizeClient(req)
 	if err != nil {
 		span.RecordError(err)
-		return "", apperror.NewOAuthServerError("an unexpected error occurred")
+		return "", "", apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 	if client == nil || client.Status != shared.StatusActive {
-		return "", apperror.NewOAuthInvalidRequest("unknown or inactive client context")
+		return "", "", apperror.NewOAuthInvalidRequest("unknown or inactive client context")
 	}
 	if oerr := s.validateRedirectURI(client, req.RedirectURI); oerr != nil {
-		return "", oerr
+		return "", "", oerr
 	}
 
 	var flowID int64
 	if req.ScreenHint == "signup" && req.RegistrationFlow != "" {
 		id, oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, req.RegistrationFlow)
 		if oerr != nil {
-			return "", oerr
+			return "", "", oerr
 		}
 		flowID = id
 	}
@@ -853,6 +859,16 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 	var regFlowID *int64
 	if flowID != 0 {
 		regFlowID = &flowID
+	}
+
+	// Browser-binding secret: the raw value is returned to the caller for storage
+	// in an httpOnly cookie; only its hash is persisted. ContinueAuthorize later
+	// requires the matching secret, so a leaked request_id cannot be continued
+	// from a different session in the same tenant.
+	bindingSecret, err := crypto.GenerateRandomString(32)
+	if err != nil {
+		span.RecordError(err)
+		return "", "", apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
 	authReq := &OAuthAuthorizeRequest{
@@ -865,6 +881,7 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 		Nonce:               ptr.PtrOrNil(req.Nonce),
 		CodeChallenge:       ptr.PtrOrNil(req.CodeChallenge),
 		CodeChallengeMethod: ptr.PtrOrNil(req.CodeChallengeMethod),
+		BindingHash:         ptr.Ptr(crypto.HashOAuthBindingToken(bindingSecret)),
 		ScreenHint:          ptr.Ptr(req.ScreenHint),
 		RegistrationFlowID:  regFlowID,
 		Status:              "pending",
@@ -872,13 +889,13 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 	}
 	if _, err := s.authReqRepo.Create(authReq); err != nil {
 		span.RecordError(err)
-		return "", apperror.NewOAuthServerError("an unexpected error occurred")
+		return "", "", apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 	span.SetStatus(codes.Ok, "")
-	return authReq.OAuthAuthorizeRequestUUID.String(), nil
+	return authReq.OAuthAuthorizeRequestUUID.String(), bindingSecret, nil
 }
 
-func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID string, bindingSecret string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.continue_authorize")
 	defer span.End()
 
@@ -897,6 +914,22 @@ func (s *oauthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID
 	}
 	if savedReq.IsExpired() {
 		return nil, apperror.NewOAuthInvalidRequest("authorize request has expired")
+	}
+
+	// Session binding (SECURITY): the request is bound to the browser that
+	// initiated it via an httpOnly cookie set at prepare time. Require the
+	// matching secret so a different authenticated session in the same tenant
+	// cannot consume another user's pending request with a leaked request_id.
+	if savedReq.BindingHash == nil || *savedReq.BindingHash == "" {
+		span.SetStatus(codes.Error, "authorize request missing session binding")
+		return nil, apperror.NewOAuthInvalidRequest("authorize request is not bound to a session")
+	}
+	if subtle.ConstantTimeCompare(
+		[]byte(*savedReq.BindingHash),
+		[]byte(crypto.HashOAuthBindingToken(bindingSecret)),
+	) != 1 {
+		span.SetStatus(codes.Error, "authorize request session-binding mismatch")
+		return nil, apperror.NewOAuthInvalidRequest("authorize request binding mismatch")
 	}
 
 	client, err := s.clientRepo.FindByID(savedReq.ClientID)

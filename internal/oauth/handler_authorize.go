@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cookie"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -79,11 +80,14 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 				oerr.WriteJSON(w)
 				return
 			}
-			requestID, oerr := h.authorizeService.PrepareAuthorizeSignup(r.Context(), req)
+			requestID, bindingSecret, oerr := h.authorizeService.PrepareAuthorizeSignup(r.Context(), req)
 			if oerr != nil {
 				oerr.WriteJSON(w)
 				return
 			}
+			// Bind the pending request to this browser: the secret lives only in
+			// this httpOnly cookie, and ContinueAuthorize requires it to match.
+			cookie.SetAuthorizeBindingCookie(w, bindingSecret)
 			loginErr := apperror.NewOAuthLoginRequired("authentication required")
 			loginErr.RequestID = requestID
 			loginErr.WriteJSON(w)
@@ -192,11 +196,16 @@ func (h *OAuthAuthorizeHandler) ContinueAuthorize(w http.ResponseWriter, r *http
 		return
 	}
 
-	redirectURI, oerr := h.authorizeService.ContinueAuthorize(r.Context(), req.RequestID, auth.User.UserID, auth.Tenant.TenantID)
+	// The browser-binding secret set at prepare time must accompany the request_id;
+	// the service verifies it against the stored hash before issuing a code.
+	bindingSecret := cookie.AuthorizeBindingValue(r)
+	redirectURI, oerr := h.authorizeService.ContinueAuthorize(r.Context(), req.RequestID, bindingSecret, auth.User.UserID, auth.Tenant.TenantID)
 	if oerr != nil {
 		oerr.WriteJSON(w)
 		return
 	}
+	// The pending request is consumed (or rejected) — the binding cookie is spent.
+	cookie.ClearAuthorizeBindingCookie(w)
 
 	if redirectURI.ConsentChallenge != "" {
 		resp.Success(w, OAuthConsentRequiredResponseDTO{

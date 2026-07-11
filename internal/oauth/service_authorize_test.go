@@ -130,6 +130,58 @@ func TestOAuthAuthorizeService_PrepareAuthorize(t *testing.T) {
 	})
 }
 
+// TestOAuthAuthorizeService_ContinueAuthorize_Binding covers the browser-binding
+// gate: a persisted authorize request may only be continued by the browser that
+// initiated it (whose httpOnly cookie carries the secret whose hash was stored at
+// prepare time). This blocks a different authenticated session in the same tenant
+// from consuming another user's pending request with a leaked request_id.
+func TestOAuthAuthorizeService_ContinueAuthorize_Binding(t *testing.T) {
+	ctx := context.Background()
+	reqUUID := uuid.New()
+
+	build := func() (OAuthAuthorizeService, sqlmock.Sqlmock) {
+		db, mock := newMockDB(t)
+		svc := newOAuthAuthorizeSvc(db, &mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{}, &mockOAuthConsentChallRepo{}, &mockAuthEventService{})
+		return svc, mock
+	}
+
+	// savedRow builds the FindByUUID result for a live (unexpired, pending)
+	// authorize request with the given binding_hash (nil = no binding stored).
+	savedRow := func(bindingHash interface{}) *sqlmock.Rows {
+		return sqlmock.NewRows([]string{
+			"oauth_authorize_request_id", "oauth_authorize_request_uuid", "client_id", "tenant_id",
+			"redirect_uri", "response_type", "status", "binding_hash", "expires_at",
+		}).AddRow(int64(1), reqUUID, int64(10), int64(1),
+			"https://example.com/callback", "code", "pending", bindingHash, time.Now().Add(5*time.Minute))
+	}
+
+	t.Run("missing session binding is rejected", func(t *testing.T) {
+		svc, mock := build()
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(savedRow(nil))
+		_, oerr := svc.ContinueAuthorize(ctx, reqUUID.String(), "any-secret", 5, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Contains(t, oerr.Description, "not bound")
+	})
+
+	t.Run("binding secret mismatch is rejected", func(t *testing.T) {
+		svc, mock := build()
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(savedRow(crypto.HashOAuthBindingToken("correct-secret")))
+		_, oerr := svc.ContinueAuthorize(ctx, reqUUID.String(), "wrong-secret", 5, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Contains(t, oerr.Description, "binding mismatch")
+	})
+
+	t.Run("invalid request_id is rejected before any lookup", func(t *testing.T) {
+		svc, _ := build()
+		_, oerr := svc.ContinueAuthorize(ctx, "not-a-uuid", "any-secret", 5, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+	})
+}
+
 func TestOAuthAuthorizeService_StartBroker(t *testing.T) {
 	ctx := context.Background()
 	req := validAuthorizeRequest()

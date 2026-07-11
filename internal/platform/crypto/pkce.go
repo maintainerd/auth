@@ -65,3 +65,12 @@ func HashRefreshToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
+
+// HashOAuthBindingToken produces a SHA-256 hash of a browser-binding secret for
+// storage on a pending authorize request. The raw secret lives only in the
+// initiating browser's httpOnly cookie and is never persisted, so a leaked
+// request_id alone cannot be continued from another session.
+func HashOAuthBindingToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
+}

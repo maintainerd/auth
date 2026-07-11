@@ -296,6 +296,61 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 	})
 }
 
+func TestGRPCInterceptors_BootstrapAndDefaultDeny(t *testing.T) {
+	const bootstrapMethod = "/maintainerd.auth.v1.SetupService/CreateTenant"
+	const ghostAppMethod = "/maintainerd.auth.v1.GhostService/DoThing"
+
+	origToken := config.SetupBootstrapToken
+	t.Cleanup(func() { config.SetupBootstrapToken = origToken })
+
+	t.Run("app-prefixed unlisted method is default-denied", func(t *testing.T) {
+		_, err := authenticateAndAuthorizeGRPC(context.Background(), &Application{}, newGRPCLimiter(1, time.Minute), ghostAppMethod)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+	})
+
+	t.Run("non-app unknown method still passes (health/reflection)", func(t *testing.T) {
+		ctx, err := authenticateAndAuthorizeGRPC(context.Background(), &Application{}, newGRPCLimiter(1, time.Minute), "/grpc.health.v1.Health/Check")
+		require.NoError(t, err)
+		assert.NotNil(t, ctx)
+	})
+
+	t.Run("bootstrap denied when token unset", func(t *testing.T) {
+		config.SetupBootstrapToken = ""
+		_, err := authenticateAndAuthorizeGRPC(context.Background(), &Application{}, newGRPCLimiter(1, time.Minute), bootstrapMethod)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+	})
+
+	t.Run("bootstrap rejects missing token", func(t *testing.T) {
+		config.SetupBootstrapToken = "s3cr3t-bootstrap"
+		_, err := authenticateAndAuthorizeGRPC(context.Background(), &Application{}, newGRPCLimiter(1, time.Minute), bootstrapMethod)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+
+	t.Run("bootstrap rejects wrong token", func(t *testing.T) {
+		config.SetupBootstrapToken = "s3cr3t-bootstrap"
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(grpcSetupTokenKey, "nope"))
+		_, err := authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(1, time.Minute), bootstrapMethod)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+
+	t.Run("bootstrap accepts valid token", func(t *testing.T) {
+		config.SetupBootstrapToken = "s3cr3t-bootstrap"
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(grpcSetupTokenKey, "s3cr3t-bootstrap"))
+		_, err := authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(2, time.Minute), bootstrapMethod)
+		require.NoError(t, err)
+	})
+
+	t.Run("bootstrap rate limits", func(t *testing.T) {
+		config.SetupBootstrapToken = "s3cr3t-bootstrap"
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(grpcSetupTokenKey, "s3cr3t-bootstrap"))
+		limiter := newGRPCLimiter(1, time.Minute)
+		_, err := authenticateAndAuthorizeGRPC(ctx, &Application{}, limiter, bootstrapMethod)
+		require.NoError(t, err)
+		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{}, limiter, bootstrapMethod)
+		assert.Equal(t, codes.ResourceExhausted, status.Code(err))
+	})
+}
+
 func TestGRPCTLSConfig(t *testing.T) {
 	origEnv := config.AppEnv
 	origCert := config.GRPCTLSCertFile

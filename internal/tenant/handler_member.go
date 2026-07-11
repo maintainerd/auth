@@ -249,16 +249,16 @@ func toTenantMemberResponseDTO(r TenantMemberServiceDataResult) TenantMemberResp
 // toMemberUserResponseDTO maps tenant's MemberUser projection to its response DTO.
 func toMemberUserResponseDTO(u MemberUser) MemberUserResponseDTO {
 	return MemberUserResponseDTO{
-		UserUUID:           u.UserUUID,
-		Username:           u.Username,
-		Fullname:           u.Fullname,
-		Email:              u.Email,
-		Phone:              u.Phone,
-		IsEmailVerified:    u.IsEmailVerified,
-		IsPhoneVerified:    u.IsPhoneVerified,
-		Status:             u.Status,
-		Metadata:           u.Metadata,
-		CreatedAt:          u.CreatedAt,
-		UpdatedAt:          u.UpdatedAt,
+		UserUUID:        u.UserUUID,
+		Username:        u.Username,
+		Fullname:        u.Fullname,
+		Email:           u.Email,
+		Phone:           u.Phone,
+		IsEmailVerified: u.IsEmailVerified,
+		IsPhoneVerified: u.IsPhoneVerified,
+		Status:          u.Status,
+		Metadata:        u.Metadata,
+		CreatedAt:       u.CreatedAt,
+		UpdatedAt:       u.UpdatedAt,
 	}
 }

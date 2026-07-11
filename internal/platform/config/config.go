@@ -25,6 +25,12 @@ var (
 	GRPCClientCAFile   string
 	GRPCRequireMTLS    bool
 
+	// SetupBootstrapToken (SETUP_BOOTSTRAP_TOKEN) is a pre-shared secret that gates
+	// the gRPC SetupService (system-tenant/admin/control-service provisioning by
+	// core). Empty disables gRPC setup entirely — standalone instances bootstrap via
+	// the REST setup wizard instead.
+	SetupBootstrapToken string
+
 	// Application Encryption Key (AES-256)
 	AppEncryptionKey []byte
 
@@ -119,6 +125,7 @@ func Init() error {
 	GRPCTLSKeyFile = GetEnvOrDefault("GRPC_TLS_KEY_FILE", "")
 	GRPCClientCAFile = GetEnvOrDefault("GRPC_CLIENT_CA_FILE", "")
 	GRPCRequireMTLS = strings.EqualFold(GetEnvOrDefault("GRPC_REQUIRE_MTLS", "false"), "true")
+	SetupBootstrapToken = GetEnvOrDefault("SETUP_BOOTSTRAP_TOKEN", "")
 
 	// Frontend Config
 	if AppFrontendIdentityHostname, err = GetEnv("APP_FRONTEND_IDENTITY_HOSTNAME"); err != nil {
@@ -195,16 +202,17 @@ func Init() error {
 }
 
 type Config struct {
-	AppEnv             string
-	AppVersion         string
-	AppPublicHostname  string
-	AppPrivateHostname string
-	ManagementPort     string
-	GRPCTLSCertFile    string
-	GRPCTLSKeyFile     string
-	GRPCClientCAFile   string
-	GRPCRequireMTLS    bool
-	AppEncryptionKey   []byte
+	AppEnv              string
+	AppVersion          string
+	AppPublicHostname   string
+	AppPrivateHostname  string
+	ManagementPort      string
+	GRPCTLSCertFile     string
+	GRPCTLSKeyFile      string
+	GRPCClientCAFile    string
+	GRPCRequireMTLS     bool
+	SetupBootstrapToken string
+	AppEncryptionKey    []byte
 
 	LogLevel string
 
@@ -247,6 +255,7 @@ func GetConfig() Config {
 		GRPCTLSKeyFile:              GRPCTLSKeyFile,
 		GRPCClientCAFile:            GRPCClientCAFile,
 		GRPCRequireMTLS:             GRPCRequireMTLS,
+		SetupBootstrapToken:         SetupBootstrapToken,
 		AppEncryptionKey:            AppEncryptionKey,
 		LogLevel:                    LogLevel,
 		AppFrontendIdentityHostname: AppFrontendIdentityHostname,

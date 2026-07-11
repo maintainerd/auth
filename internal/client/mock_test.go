@@ -89,8 +89,8 @@ type mockClientService struct {
 	getByUUIDFn           func(uuid.UUID, int64) (*ClientServiceDataResult, error)
 	getSecretByUUIDFn     func(uuid.UUID, int64) (*ClientSecretServiceDataResult, error)
 	getConfigByUUIDFn     func(uuid.UUID, int64) (datatypes.JSON, error)
-	createFn func(int64, string, string, string, string, datatypes.JSON, string, bool, string, *uuid.UUID, bool, *string, *string, *bool, *bool, uuid.UUID) (*ClientCreateServiceResult, error)
-	updateFn func(uuid.UUID, int64, string, string, string, string, datatypes.JSON, string, bool, *uuid.UUID, *bool, *string, *string, *bool, *bool, uuid.UUID) (*ClientServiceDataResult, error)
+	createFn              func(int64, string, string, string, string, datatypes.JSON, string, bool, string, *uuid.UUID, bool, *string, *string, *bool, *bool, uuid.UUID) (*ClientCreateServiceResult, error)
+	updateFn              func(uuid.UUID, int64, string, string, string, string, datatypes.JSON, string, bool, *uuid.UUID, *bool, *string, *string, *bool, *bool, uuid.UUID) (*ClientServiceDataResult, error)
 	setStatusByUUIDFn     func(uuid.UUID, int64, string, uuid.UUID) (*ClientServiceDataResult, error)
 	deleteByUUIDFn        func(uuid.UUID, int64, uuid.UUID) (*ClientServiceDataResult, error)
 	createURIFn           func(uuid.UUID, int64, string, string, uuid.UUID) (*ClientServiceDataResult, error)
@@ -688,27 +688,35 @@ func (m *mockClientPermissionRepo) FindByClientAPIID(clientAPIID int64) ([]Clien
 
 type mockClientRoleRepo struct {
 	mockBaseRepo[ClientRole]
-	assignRoleFn       func(clientID, roleID int64, createdBy *int64) (*ClientRole, error)
-	removeRoleFn       func(clientID, roleID int64) error
-	listRolesFn        func(clientID int64) ([]ClientRole, error)
-	resolvePermsFn     func(clientID int64) ([]int64, error)
+	assignRoleFn   func(clientID, roleID int64, createdBy *int64) (*ClientRole, error)
+	removeRoleFn   func(clientID, roleID int64) error
+	listRolesFn    func(clientID int64) ([]ClientRole, error)
+	resolvePermsFn func(clientID int64) ([]int64, error)
 }
 
 func (m *mockClientRoleRepo) WithTx(tx *gorm.DB) ClientRoleRepository { return m }
 func (m *mockClientRoleRepo) AssignRole(clientID, roleID int64, createdBy *int64) (*ClientRole, error) {
-	if m.assignRoleFn != nil { return m.assignRoleFn(clientID, roleID, createdBy) }
+	if m.assignRoleFn != nil {
+		return m.assignRoleFn(clientID, roleID, createdBy)
+	}
 	return &ClientRole{}, nil
 }
 func (m *mockClientRoleRepo) RemoveRole(clientID, roleID int64) error {
-	if m.removeRoleFn != nil { return m.removeRoleFn(clientID, roleID) }
+	if m.removeRoleFn != nil {
+		return m.removeRoleFn(clientID, roleID)
+	}
 	return nil
 }
 func (m *mockClientRoleRepo) ListRoles(clientID int64) ([]ClientRole, error) {
-	if m.listRolesFn != nil { return m.listRolesFn(clientID) }
+	if m.listRolesFn != nil {
+		return m.listRolesFn(clientID)
+	}
 	return nil, nil
 }
 func (m *mockClientRoleRepo) ResolvePermissions(clientID int64) ([]int64, error) {
-	if m.resolvePermsFn != nil { return m.resolvePermsFn(clientID) }
+	if m.resolvePermsFn != nil {
+		return m.resolvePermsFn(clientID)
+	}
 	return nil, nil
 }
 
