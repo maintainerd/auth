@@ -206,13 +206,20 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 		return apperror.NewInternal("failed to create signed URL", err)
 	}
 
-	// Convert to frontend URL - use different hostname based on request type
-	var frontendBaseURL string
+	// Derive the frontend host per-tenant: regular tenants live on their
+	// subdomain, the system tenant on the bare host. Internal resets go to
+	// the console surface, public ones to the identity surface.
+	surface := shared.FrontendSurfaceIdentity
 	if isInternal {
-		frontendBaseURL = config.AppFrontendConsoleHostname + "/reset-password"
-	} else {
-		frontendBaseURL = config.AppFrontendIdentityHostname + "/reset-password"
+		surface = shared.FrontendSurfaceConsole
 	}
+	linkTenantName := ""
+	linkTenantIsSystem := true
+	if Client.IdentityProvider != nil && Client.IdentityProvider.Tenant != nil {
+		linkTenantName = Client.IdentityProvider.Tenant.Name
+		linkTenantIsSystem = Client.IdentityProvider.Tenant.IsSystem
+	}
+	frontendBaseURL := shared.FrontendURL(surface, linkTenantName, linkTenantIsSystem, "/reset-password")
 	resetURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return apperror.NewInternal("failed to convert to frontend URL", err)

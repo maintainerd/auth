@@ -20,6 +20,7 @@ type OAuthAuthorizeRequest struct {
 	ResponseType              string         `gorm:"column:response_type;not null"`
 	CodeChallenge             *string        `gorm:"column:code_challenge"`
 	CodeChallengeMethod       *string        `gorm:"column:code_challenge_method"`
+	BindingHash               *string        `gorm:"column:binding_hash"`
 	ScreenHint                *string        `gorm:"column:screen_hint"`
 	RegistrationFlowID        *int64         `gorm:"column:registration_flow_id"`
 	Status                    string         `gorm:"column:status;not null;default:pending"`

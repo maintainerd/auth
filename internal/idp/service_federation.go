@@ -43,7 +43,6 @@ type errEmailCollision struct {
 	providerSub    string
 	providerEmail  string
 	providerClaims []byte
-	ipAddress      string
 }
 
 func (e *errEmailCollision) Error() string {
@@ -935,11 +934,15 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 	if err != nil {
 		return nil, apperror.NewUnauthorized("failed to validate provider token")
 	}
-	if nonce != "" {
-		tokNonce, _ := claims["nonce"].(string)
-		if tokNonce != nonce {
-			return nil, apperror.NewUnauthorized("provider token nonce mismatch")
-		}
+	// The broker always generates and stores a nonce (see service_broker.go), so
+	// an empty nonce here means a corrupted or forged session — fail closed rather
+	// than skipping the id_token replay check.
+	if nonce == "" {
+		return nil, apperror.NewUnauthorized("missing nonce for provider token validation")
+	}
+	tokNonce, _ := claims["nonce"].(string)
+	if tokNonce != nonce {
+		return nil, apperror.NewUnauthorized("provider token nonce mismatch")
 	}
 
 	externalSub, ok := claims["sub"].(string)

@@ -291,7 +291,6 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("workload-identity-federation:update", "Update workload identity federation", tenantID, apiID),
 		newPermission("workload-identity-federation:delete", "Delete workload identity federation", tenantID, apiID),
 
-
 		// OTHER PERMISSIONS
 		// Email
 		newPermission("email:read-config", "View email delivery config", tenantID, apiID),

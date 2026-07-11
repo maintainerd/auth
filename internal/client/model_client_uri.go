@@ -8,12 +8,12 @@ import (
 )
 
 type ClientURI struct {
-	ClientURIID   int64     `gorm:"column:client_uri_id;primaryKey"`
-	ClientURIUUID uuid.UUID `gorm:"column:client_uri_uuid"`
-	TenantID      int64     `gorm:"column:tenant_id;not null"`
-	ClientID      int64     `gorm:"column:client_id"`
-	URI           string    `gorm:"column:uri"`
-	Type          string    `gorm:"column:type;default:'redirect_uri'"`
+	ClientURIID   int64          `gorm:"column:client_uri_id;primaryKey"`
+	ClientURIUUID uuid.UUID      `gorm:"column:client_uri_uuid"`
+	TenantID      int64          `gorm:"column:tenant_id;not null"`
+	ClientID      int64          `gorm:"column:client_id"`
+	URI           string         `gorm:"column:uri"`
+	Type          string         `gorm:"column:type;default:'redirect_uri'"`
 	CreatedBy     *int64         `gorm:"column:created_by"`
 	UpdatedBy     *int64         `gorm:"column:updated_by"`
 	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime"`

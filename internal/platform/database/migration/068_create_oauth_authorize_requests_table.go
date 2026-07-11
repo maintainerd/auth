@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS oauth_authorize_requests (
     response_type                VARCHAR(20)  NOT NULL,
     code_challenge               TEXT,
     code_challenge_method        VARCHAR(10),
+    binding_hash                 VARCHAR(64),
     screen_hint                  VARCHAR(20),
     status                       VARCHAR(20)  NOT NULL DEFAULT 'pending',
     expires_at                   TIMESTAMPTZ  NOT NULL,

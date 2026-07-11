@@ -133,7 +133,7 @@ func (s *profileService) CreateOrUpdateProfile(
 
 		if err != nil {
 			return err
-		} else 		if existingProfile == nil {
+		} else if existingProfile == nil {
 			// No profile yet — create one.
 			profile = Profile{
 				ProfileUUID: uuid.New(),
@@ -238,7 +238,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 
 		if err != nil {
 			return err
-		} else 		if existingProfile == nil {
+		} else if existingProfile == nil {
 			// Check if user already has a profile — if not, this is the first.
 			anyProfile, err := txProfileRepo.FindByUserID(user.UserID)
 			if err != nil {

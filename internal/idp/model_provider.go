@@ -32,13 +32,13 @@ type IdentityProvider struct {
 	Config               datatypes.JSON `gorm:"column:config;type:jsonb;not null;default:'{}'"`
 	CertificateExpiresAt *time.Time     `gorm:"column:certificate_expires_at"`
 	Status               string         `gorm:"column:status;not null;default:'inactive'"`
-	IsDefault bool           `gorm:"column:is_default;not null;default:false"`
-	IsSystem  bool           `gorm:"column:is_system;not null;default:false"`
-	CreatedBy *int64         `gorm:"column:created_by"`
-	UpdatedBy *int64         `gorm:"column:updated_by"`
-	CreatedAt time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
-	UpdatedAt time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
-	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	IsDefault            bool           `gorm:"column:is_default;not null;default:false"`
+	IsSystem             bool           `gorm:"column:is_system;not null;default:false"`
+	CreatedBy            *int64         `gorm:"column:created_by"`
+	UpdatedBy            *int64         `gorm:"column:updated_by"`
+	CreatedAt            time.Time      `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt            time.Time      `gorm:"column:updated_at;not null;autoUpdateTime"`
+	DeletedAt            gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
 	Tenant           *Tenant                           `gorm:"foreignKey:TenantID;references:TenantID"`

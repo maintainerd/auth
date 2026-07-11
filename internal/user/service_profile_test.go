@@ -556,7 +556,7 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{ProfileUUID: profileUUID, UserID: userID, }, nil
+				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		}, &mockUserRepo{

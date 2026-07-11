@@ -9,22 +9,36 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
-// grpcUnauthenticatedServices lists the gRPC services whose RPCs are
-// intentionally NOT in grpcServicePermissions. The authz interceptor treats any
-// method absent from the registry as unprotected (fail-open, no authentication),
-// so this allowlist must stay deliberately tiny and well-justified.
+// grpcUnauthenticatedServices lists gRPC services whose RPCs are intentionally
+// NOT in grpcServicePermissions AND not bootstrap-token gated. The interceptor
+// default-denies any unclassified maintainerd.auth.v1 method, so a service belongs
+// here ONLY when no handler is registered for it (the server returns UNIMPLEMENTED
+// before any interceptor runs — zero exposure). This list must stay tiny.
 //
-// SetupService is bootstrap-only: its mutating RPCs are gated by the persisted
-// setup-complete lock inside the setup service (ensureSetupOpen), not the PDP,
-// because no policy can exist before setup runs.
+// APIKeyService is decommissioned (replaced by M2M OAuth client credentials); the
+// proto is retained for wire compat but no handler is registered.
 //
-// APIKeyService is decommissioned (replaced by M2M OAuth client credentials).
-// The proto definition is retained for backward-compat wire format only; no
-// handler is registered, so the gRPC server returns UNIMPLEMENTED before any
-// interceptor (including authz) runs — the fail-open risk is zero.
+// The following are admin/UX/comms operations that were REMOVED from the gRPC
+// surface (they live on the REST control plane consumed by the console). Their
+// proto/handlers are retained in-package but no gRPC handler is registered, so
+// they return UNIMPLEMENTED before any interceptor runs.
+//
+// SetupService is NOT here: it is bootstrap-token gated via grpcBootstrapMethods.
 var grpcUnauthenticatedServices = map[string]struct{}{
-	authv1.SetupService_ServiceDesc.ServiceName:  {},
-	authv1.APIKeyService_ServiceDesc.ServiceName: {},
+	authv1.APIKeyService_ServiceDesc.ServiceName:            {},
+	authv1.TenantSettingService_ServiceDesc.ServiceName:     {},
+	authv1.IdentityProviderService_ServiceDesc.ServiceName:  {},
+	authv1.RegistrationFlowService_ServiceDesc.ServiceName:  {},
+	authv1.InviteService_ServiceDesc.ServiceName:            {},
+	authv1.SecuritySettingService_ServiceDesc.ServiceName:   {},
+	authv1.IPRestrictionRuleService_ServiceDesc.ServiceName: {},
+	authv1.BrandingService_ServiceDesc.ServiceName:          {},
+	authv1.EmailTemplateService_ServiceDesc.ServiceName:     {},
+	authv1.SMSTemplateService_ServiceDesc.ServiceName:       {},
+	authv1.EmailConfigService_ServiceDesc.ServiceName:       {},
+	authv1.SMSConfigService_ServiceDesc.ServiceName:         {},
+	authv1.WebhookEndpointService_ServiceDesc.ServiceName:   {},
+	authv1.AuthEventService_ServiceDesc.ServiceName:         {},
 }
 
 // TestGRPCServicePermissions_EveryAppRPCIsRegistered walks every RPC defined in
@@ -52,8 +66,10 @@ func TestGRPCServicePermissions_EveryAppRPCIsRegistered(t *testing.T) {
 			for j := 0; j < methods.Len(); j++ {
 				method := grpcMethod(serviceName, string(methods.Get(j).Name()))
 				checked++
-				if _, registered := grpcServicePermissions[method]; !registered {
-					t.Errorf("RPC %s has no grpcServicePermissions entry; the authz interceptor would serve it with NO authentication (fail-open). Add a permission string, or \"\" for a service-account-only verification read.", method)
+				_, registered := grpcServicePermissions[method]
+				_, bootstrap := grpcBootstrapMethods[method]
+				if !registered && !bootstrap {
+					t.Errorf("RPC %s has no grpcServicePermissions entry and is not a bootstrap method; the authz interceptor default-denies it. Add a permission string (\"\" for a service-account-only read), a grpcBootstrapMethods entry, or an allowlist entry if the handler is unregistered.", method)
 				}
 			}
 		}
@@ -62,16 +78,25 @@ func TestGRPCServicePermissions_EveryAppRPCIsRegistered(t *testing.T) {
 
 	// Guard against the discovery loop silently finding nothing (e.g. descriptors
 	// not linked), which would make the whole test vacuously pass.
-	assert.Greater(t, checked, 100, "expected to discover the full maintainerd.auth.v1 RPC surface")
+	assert.Greater(t, checked, 80, "expected to discover the full maintainerd.auth.v1 RPC surface")
 }
 
-func TestGRPCServicePermissions_InviteIsPolicyGated(t *testing.T) {
-	method := grpcMethod(authv1.InviteService_ServiceDesc.ServiceName, "SendInvite")
-
-	permission, protected := grpcServicePermissions[method]
-
-	assert.True(t, protected)
-	assert.Equal(t, "user:invite", permission)
+func TestGRPCServicePermissions_RemovedAdminServicesAreUnregistered(t *testing.T) {
+	// These admin/UX/comms services were removed from the gRPC surface: they must
+	// have NO permission entry (they are allowlisted as unregistered → UNIMPLEMENTED).
+	for _, method := range []string{
+		grpcMethod(authv1.InviteService_ServiceDesc.ServiceName, "SendInvite"),
+		grpcMethod(authv1.BrandingService_ServiceDesc.ServiceName, "UpdateBranding"),
+		grpcMethod(authv1.WebhookEndpointService_ServiceDesc.ServiceName, "CreateWebhookEndpoint"),
+		grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateMFAConfig"),
+		grpcMethod(authv1.AuthEventService_ServiceDesc.ServiceName, "ListAuthEvents"),
+		grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "GetFeatureFlags"),
+	} {
+		t.Run(method, func(t *testing.T) {
+			_, protected := grpcServicePermissions[method]
+			assert.False(t, protected, "removed admin RPC must not be in grpcServicePermissions")
+		})
+	}
 }
 
 func TestGRPCServicePermissions_UserProfilesArePolicyGated(t *testing.T) {

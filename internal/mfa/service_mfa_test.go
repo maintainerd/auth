@@ -9,9 +9,9 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-webauthn/webauthn/protocol"
-	"github.com/lib/pq"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"

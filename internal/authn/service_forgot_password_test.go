@@ -712,6 +712,116 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 	assert.Contains(t, revokedUUIDs, token2UUID)
 }
 
+func TestForgotPasswordService_SendPasswordResetEmail_NonSystemTenantURL(t *testing.T) {
+	// Verifies that a non-system (regular) tenant gets a subdomain-based URL,
+	// NOT the bare system host. This mirrors the magic-link URL pattern.
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+
+	origAppPublicHostname := config.AppPublicHostname
+	origConsoleHostname := config.AppFrontendConsoleHostname
+	origIdentityHostname := config.AppFrontendIdentityHostname
+	defer func() {
+		config.AppPublicHostname = origAppPublicHostname
+		config.AppFrontendConsoleHostname = origConsoleHostname
+		config.AppFrontendIdentityHostname = origIdentityHostname
+	}()
+	config.AppPublicHostname = "https://api.example.com"
+	config.AppFrontendConsoleHostname = "https://console.auth.example.com"
+	config.AppFrontendIdentityHostname = "https://identity.auth.example.com"
+
+	origSendEmail := email.SendEmail
+	defer func() { email.SendEmail = origSendEmail }()
+
+	nonSystemTenant := &Tenant{TenantID: 2, Name: "acme", IsSystem: false}
+	nonSystemIDP := &IdentityProvider{
+		IdentityProviderID: 2,
+		TenantID:           2,
+		Name:               "acme-idp",
+		Provider:           shared.IDPProviderMaintainerd,
+		ProviderType:       shared.IDPTypeSystem,
+		Identifier:         "acme-idp",
+		Status:             shared.StatusActive,
+		Tenant:             nonSystemTenant,
+	}
+	nonSystemClient := &Client{
+		ClientID:         2,
+		TenantID:         2,
+		Name:             "acme-client",
+		Domain:           strPtr("https://acme.example.com"),
+		Identifier:       strPtr("acme-client"),
+		Status:           shared.StatusActive,
+		IdentityProvider: nonSystemIDP,
+	}
+
+	t.Run("internal console URL includes tenant subdomain", func(t *testing.T) {
+		email.SendEmail = func(_ context.Context, _ *gorm.DB, p email.SendEmailParams) error {
+			assert.Contains(t, p.BodyHTML, "https://acme.console.auth.example.com/reset-password")
+			return nil
+		}
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		clientRepo := &mockClientRepo{
+			findSystemFn: func() (*Client, error) { return nonSystemClient, nil },
+		}
+		userRepo := &mockUserRepo{
+			findByEmailFn: func(_ string) (*User, error) {
+				return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@acme.com", Status: shared.StatusActive}, nil
+			},
+		}
+		tokenRepo := &mockUserTokenRepo{
+			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		}
+		emailTemplateRepo := &mockEmailTemplateRepo{
+			findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+				return &branding.EmailTemplate{Subject: "Reset", BodyHTML: `<a href="{{.ResetURL}}">R</a>`}, nil
+			},
+		}
+
+		svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
+		resp, err := svc.SendPasswordResetEmail(context.Background(), "user@acme.com", nil, nil, true)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.Success)
+	})
+
+	t.Run("external identity URL includes tenant subdomain", func(t *testing.T) {
+		email.SendEmail = func(_ context.Context, _ *gorm.DB, p email.SendEmailParams) error {
+			assert.Contains(t, p.BodyHTML, "https://acme.identity.auth.example.com/reset-password")
+			return nil
+		}
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		clientRepo := &mockClientRepo{
+			findSystemFn: func() (*Client, error) { return nonSystemClient, nil },
+		}
+		userRepo := &mockUserRepo{
+			findByEmailFn: func(_ string) (*User, error) {
+				return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@acme.com", Status: shared.StatusActive}, nil
+			},
+		}
+		tokenRepo := &mockUserTokenRepo{
+			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		}
+		emailTemplateRepo := &mockEmailTemplateRepo{
+			findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+				return &branding.EmailTemplate{Subject: "Reset", BodyHTML: `<a href="{{.ResetURL}}">R</a>`}, nil
+			},
+		}
+
+		svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
+		resp, err := svc.SendPasswordResetEmail(context.Background(), "user@acme.com", nil, nil, false)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.Success)
+	})
+}
+
 func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *testing.T) {
 	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain

@@ -11,23 +11,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/maintainerd-auth/internal/authevent"
-	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
-	"github.com/maintainerd/maintainerd-auth/internal/idp"
-	"github.com/maintainerd/maintainerd-auth/internal/invite"
-	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
-	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/setup"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 	"github.com/maintainerd/maintainerd-auth/internal/user"
-	"github.com/maintainerd/maintainerd-auth/internal/webhook"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -66,30 +59,26 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 		reflection.Register(s)
 	}
 
+	// gRPC exposes ONLY the machine-to-machine surface:
+	//   - CORE provisioning: IAM primitives (service/api/permission/policy/role),
+	//     client, tenant records, and bootstrap setup.
+	//   - Peer services / BFF: user-info reads, token introspection, authorization (PDP).
+	// Tenant admin/UX/comms operations (branding, templates, email/SMS config,
+	// webhooks, IdP, registration flows, invites, security settings, IP rules, audit
+	// browsing, tenant settings) are REST control-plane only and are intentionally
+	// NOT registered here. Their proto/handlers remain in-package but, with no gRPC
+	// handler registered, the server returns UNIMPLEMENTED before any interceptor.
 	authv1.RegisterSetupServiceServer(s, setup.NewSetupGRPCHandler(application.SetupService))
 	authv1.RegisterTenantServiceServer(s, tenant.NewTenantGRPCHandler(application.TenantService, application.TenantMemberService))
-	authv1.RegisterTenantSettingServiceServer(s, tenant.NewTenantSettingGRPCHandler(application.TenantService, application.TenantSettingService, application.AuthEventService))
 	authv1.RegisterServiceServiceServer(s, iam.NewServiceGRPCHandler(application.TenantService, application.ServiceService, application.AuthorizationService))
 	authv1.RegisterAPIServiceServer(s, iam.NewAPIGRPCHandler(application.TenantService, application.APIService))
 	authv1.RegisterPermissionServiceServer(s, iam.NewPermissionGRPCHandler(application.TenantService, application.PermissionService))
 	authv1.RegisterPolicyServiceServer(s, iam.NewPolicyGRPCHandler(application.TenantService, application.PolicyService))
 	authv1.RegisterRoleServiceServer(s, iam.NewRoleGRPCHandler(application.TenantService, application.RoleService))
 	authv1.RegisterAuthorizationServiceServer(s, iam.NewAuthorizationGRPCHandler(application.AuthorizationService))
-	authv1.RegisterIdentityProviderServiceServer(s, idp.NewIdentityProviderGRPCHandler(idpTenantResolver{application.TenantService}, application.IdentityProviderService))
-	authv1.RegisterRegistrationFlowServiceServer(s, idp.NewRegistrationFlowGRPCHandler(idpTenantResolver{application.TenantService}, application.RegistrationFlowService))
 	authv1.RegisterClientServiceServer(s, client.NewClientGRPCHandler(clientTenantResolver{application.TenantService}, application.ClientService))
 	authv1.RegisterUserServiceServer(s, user.NewUserGRPCHandler(userTenantResolver{application.TenantService}, application.UserService))
 	authv1.RegisterUserProfileServiceServer(s, user.NewUserProfileGRPCHandler(userTenantResolver{application.TenantService}, application.ProfileService))
-	authv1.RegisterInviteServiceServer(s, invite.NewInviteGRPCHandler(inviteTenantResolver{application.TenantService}, application.InviteService))
-	authv1.RegisterSecuritySettingServiceServer(s, secpolicy.NewSecuritySettingGRPCHandler(application.SecuritySettingService))
-	authv1.RegisterIPRestrictionRuleServiceServer(s, secpolicy.NewIPRestrictionRuleGRPCHandler(secpolicyTenantResolver{application.TenantService}, application.IPRestrictionRuleService))
-	authv1.RegisterBrandingServiceServer(s, branding.NewBrandingGRPCHandler(brandingTenantResolver{application.TenantService}, application.BrandingService))
-	authv1.RegisterEmailTemplateServiceServer(s, branding.NewEmailTemplateGRPCHandler(brandingTenantResolver{application.TenantService}, application.EmailTemplateService))
-	authv1.RegisterSMSTemplateServiceServer(s, branding.NewSMSTemplateGRPCHandler(brandingTenantResolver{application.TenantService}, application.SMSTemplateService))
-	authv1.RegisterEmailConfigServiceServer(s, notifier.NewEmailConfigGRPCHandler(notifierTenantResolver{application.TenantService}, application.EmailConfigService))
-	authv1.RegisterSMSConfigServiceServer(s, notifier.NewSMSConfigGRPCHandler(notifierTenantResolver{application.TenantService}, application.SMSConfigService))
-	authv1.RegisterWebhookEndpointServiceServer(s, webhook.NewWebhookEndpointGRPCHandler(webhookTenantResolver{application.TenantService}, application.WebhookEndpointService))
-	authv1.RegisterAuthEventServiceServer(s, authevent.NewAuthEventGRPCHandler(autheventTenantResolver{application.TenantService}, application.AuthEventService))
 	authv1.RegisterOAuthIntrospectionServiceServer(s, oauth.NewOAuthIntrospectionGRPCHandler(application.OAuthTokenService))
 
 	// Stop the server when the context is cancelled (e.g. after REST servers drain).
@@ -110,28 +99,15 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 func setGRPCServiceHealth(healthServer *health.Server, status healthpb.HealthCheckResponse_ServingStatus) {
 	healthServer.SetServingStatus(authv1.SetupService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.TenantService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.TenantSettingService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.ServiceService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.APIService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.PermissionService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.PolicyService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.RoleService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.AuthorizationService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.IdentityProviderService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.RegistrationFlowService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.ClientService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.UserService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.UserProfileService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.InviteService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.SecuritySettingService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.BrandingService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.EmailTemplateService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.SMSTemplateService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.EmailConfigService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.SMSConfigService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.WebhookEndpointService_ServiceDesc.ServiceName, status)
-	healthServer.SetServingStatus(authv1.AuthEventService_ServiceDesc.ServiceName, status)
 	healthServer.SetServingStatus(authv1.OAuthIntrospectionService_ServiceDesc.ServiceName, status)
 }
 
@@ -225,28 +201,6 @@ func loadGRPCTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-type idpTenantResolver struct {
-	svc tenant.TenantService
-}
-
-func (r idpTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*idp.TenantServiceDataResult, error) {
-	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil {
-		return nil, err
-	}
-	return &idp.TenantServiceDataResult{
-		TenantID:    t.TenantID,
-		TenantUUID:  t.TenantUUID,
-		Name:        t.Name,
-		DisplayName: t.DisplayName,
-		Description: t.Description,
-		Status:      t.Status,
-		IsSystem:    t.IsSystem,
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
-	}, nil
-}
-
 type clientTenantResolver struct {
 	svc tenant.TenantService
 }
@@ -288,87 +242,5 @@ func (r userTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID)
 		IsSystem:    t.IsSystem,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
-	}, nil
-}
-
-type inviteTenantResolver struct {
-	svc tenant.TenantService
-}
-
-func (r inviteTenantResolver) GetTenantIDByUUID(ctx context.Context, tenantUUID uuid.UUID) (int64, error) {
-	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil {
-		return 0, err
-	}
-	return t.TenantID, nil
-}
-
-type secpolicyTenantResolver struct{ svc tenant.TenantService }
-
-func (r secpolicyTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*secpolicy.TenantServiceDataResult, error) {
-	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil {
-		return nil, err
-	}
-	return &secpolicy.TenantServiceDataResult{
-		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
-		Description: t.Description, Status: t.Status,
-		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
-	}, nil
-}
-
-type brandingTenantResolver struct{ svc tenant.TenantService }
-
-func (r brandingTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*branding.TenantServiceDataResult, error) {
-	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil {
-		return nil, err
-	}
-	return &branding.TenantServiceDataResult{
-		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
-		Description: t.Description, Status: t.Status,
-		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
-	}, nil
-}
-
-type notifierTenantResolver struct{ svc tenant.TenantService }
-
-func (r notifierTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*notifier.TenantServiceDataResult, error) {
-	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil {
-		return nil, err
-	}
-	return &notifier.TenantServiceDataResult{
-		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
-		Description: t.Description, Status: t.Status,
-		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
-	}, nil
-}
-
-type webhookTenantResolver struct{ svc tenant.TenantService }
-
-func (r webhookTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*webhook.TenantServiceDataResult, error) {
-	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil {
-		return nil, err
-	}
-	return &webhook.TenantServiceDataResult{
-		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
-		Description: t.Description, Status: t.Status,
-		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
-	}, nil
-}
-
-type autheventTenantResolver struct{ svc tenant.TenantService }
-
-func (r autheventTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*authevent.TenantServiceDataResult, error) {
-	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil {
-		return nil, err
-	}
-	return &authevent.TenantServiceDataResult{
-		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
-		Description: t.Description, Status: t.Status,
-		IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}, nil
 }

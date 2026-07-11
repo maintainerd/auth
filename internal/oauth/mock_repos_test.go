@@ -513,8 +513,8 @@ type mockOAuthAuthorizeService struct {
 	startBrokerFn         func(context.Context, OAuthAuthorizeRequestDTO) (*OAuthAuthorizeResult, *apperror.OAuthError)
 	handleCallbackFn      func(context.Context, string, string, string) (string, string, *apperror.OAuthError)
 	prepareAuthorizeFn    func(context.Context, OAuthAuthorizeRequestDTO) *apperror.OAuthError
-	prepareAuthSignupFn   func(context.Context, OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError)
-	continueAuthorizeFn   func(context.Context, string, int64, int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
+	prepareAuthSignupFn   func(context.Context, OAuthAuthorizeRequestDTO) (string, string, *apperror.OAuthError)
+	continueAuthorizeFn   func(context.Context, string, string, int64, int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
 	getConsentChallengeFn func(context.Context, uuid.UUID, int64) (*OAuthConsentChallengeResponseDTO, error)
 	handleConsentFn       func(context.Context, OAuthConsentDecisionDTO, int64) (*OAuthConsentDecisionResult, *apperror.OAuthError)
 }
@@ -555,15 +555,15 @@ func (m *mockOAuthAuthorizeService) HandleConsent(ctx context.Context, decision 
 	}
 	return nil, nil
 }
-func (m *mockOAuthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
+func (m *mockOAuthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req OAuthAuthorizeRequestDTO) (string, string, *apperror.OAuthError) {
 	if m.prepareAuthSignupFn != nil {
 		return m.prepareAuthSignupFn(ctx, req)
 	}
-	return "", nil
+	return "", "", nil
 }
-func (m *mockOAuthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+func (m *mockOAuthAuthorizeService) ContinueAuthorize(ctx context.Context, requestID string, bindingSecret string, userID int64, tenantID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
 	if m.continueAuthorizeFn != nil {
-		return m.continueAuthorizeFn(ctx, requestID, userID, tenantID)
+		return m.continueAuthorizeFn(ctx, requestID, bindingSecret, userID, tenantID)
 	}
 	return nil, nil
 }

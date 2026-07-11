@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/subtle"
 	"log/slog"
 	"net"
 	"runtime/debug"
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"google.golang.org/grpc"
@@ -26,6 +28,12 @@ const (
 	defaultGRPCRateLimit = 600
 	defaultGRPCWindow    = time.Minute
 	grpcRequestIDKey     = "x-request-id"
+	// grpcAppServicePrefix is the RPC path prefix for the application proto package.
+	// Any method under it that is not explicitly classified is denied (fail closed);
+	// infrastructure services (health, reflection) fall outside it and pass through.
+	grpcAppServicePrefix = "/maintainerd.auth.v1."
+	// grpcSetupTokenKey carries the SETUP_BOOTSTRAP_TOKEN on bootstrap RPCs.
+	grpcSetupTokenKey = "x-setup-token"
 )
 
 type grpcRequestIDContextKey struct{}
@@ -168,8 +176,23 @@ func grpcAuthStreamInterceptor(application *Application, limiter *grpcLimiter) g
 }
 
 func authenticateAndAuthorizeGRPC(ctx context.Context, application *Application, limiter *grpcLimiter, method string) (context.Context, error) {
+	// Bootstrap/setup RPCs authenticate with a pre-shared token rather than a JWT:
+	// at first boot no accounts or service principals exist yet. Core presents
+	// SETUP_BOOTSTRAP_TOKEN to provision a system auth (system tenant + admin +
+	// control service). The setup service layer additionally locks these once the
+	// system tenant is active (ensureSetupOpen).
+	if _, isBootstrap := grpcBootstrapMethods[method]; isBootstrap {
+		return authorizeSetupBootstrap(ctx, limiter)
+	}
+
 	permission, protected := grpcServicePermissions[method]
 	if !protected {
+		// Default-deny for the application RPC surface: any maintainerd.auth.v1
+		// method not explicitly classified is rejected (fail closed). Infrastructure
+		// services (health, reflection) are not in the app package and pass through.
+		if strings.HasPrefix(method, grpcAppServicePrefix) {
+			return ctx, status.Error(codes.PermissionDenied, "method not permitted")
+		}
 		return ctx, nil
 	}
 
@@ -199,6 +222,29 @@ func authenticateAndAuthorizeGRPC(ctx context.Context, application *Application,
 	}
 
 	return middleware.ContextWithJWTClaims(ctx, claims), nil
+}
+
+// authorizeSetupBootstrap gates the gRPC SetupService with the pre-shared
+// SETUP_BOOTSTRAP_TOKEN. When the token is unset the whole gRPC setup surface is
+// disabled (standalone instances bootstrap via the REST wizard). The token is
+// compared in constant time and its use is rate-limited.
+func authorizeSetupBootstrap(ctx context.Context, limiter *grpcLimiter) (context.Context, error) {
+	expected := config.SetupBootstrapToken
+	if expected == "" {
+		return ctx, status.Error(codes.PermissionDenied, "gRPC setup is disabled")
+	}
+	md, _ := metadata.FromIncomingContext(ctx)
+	provided := ""
+	if values := md.Get(grpcSetupTokenKey); len(values) > 0 {
+		provided = strings.TrimSpace(values[0])
+	}
+	if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+		return ctx, status.Error(codes.Unauthenticated, "invalid setup bootstrap token")
+	}
+	if !limiter.Allow("setup-bootstrap", time.Now()) {
+		return ctx, status.Error(codes.ResourceExhausted, "rate limit exceeded")
+	}
+	return ctx, nil
 }
 
 func grpcJWTClaims(ctx context.Context) (*middleware.JWTClaims, error) {

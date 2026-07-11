@@ -263,16 +263,16 @@ type IdentityProviderFilterDTO struct {
 
 // Registration flow output structure
 type RegistrationFlowResponseDTO struct {
-	RegistrationFlowUUID string    `json:"registration_flow_id"`
-	Name                 string    `json:"name"`
-	Description          string    `json:"description"`
-	Identifier           string    `json:"identifier"`
-	Status               string    `json:"status"`
-	ClientUUID           string    `json:"client_id,omitempty"`
+	RegistrationFlowUUID string         `json:"registration_flow_id"`
+	Name                 string         `json:"name"`
+	Description          string         `json:"description"`
+	Identifier           string         `json:"identifier"`
+	Status               string         `json:"status"`
+	ClientUUID           string         `json:"client_id,omitempty"`
 	VerificationRequired bool           `json:"verification_required"`
 	RequiredFields       datatypes.JSON `json:"required_fields"`
 	CreatedAt            time.Time      `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	UpdatedAt            time.Time      `json:"updated_at"`
 }
 
 // Create registration flow request dto

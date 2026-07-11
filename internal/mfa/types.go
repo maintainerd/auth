@@ -46,13 +46,13 @@ type BackupCodeVerifyRequestDTO struct {
 
 // MFAStatusResponseDTO describes all enrolled MFA factors for a user.
 type MFAStatusResponseDTO struct {
-	IsTOTPEnabled     bool                           `json:"is_totp_enabled"`
-	IsWebAuthnEnabled bool                           `json:"is_webauthn_enabled"`
-	IsSMSEnabled      bool                           `json:"is_sms_available"`
-	IsEmailOTPEnabled bool                           `json:"is_email_otp_available"`
-	BackupCodesCount  int                            `json:"backup_codes_count"`
-	WebAuthnKeys      []WebAuthnCredentialSummaryDTO `json:"webauthn_keys,omitempty"`
-	FirstMFAEnrolledAt *string                       `json:"mfa_enabled_at,omitempty"`
+	IsTOTPEnabled      bool                           `json:"is_totp_enabled"`
+	IsWebAuthnEnabled  bool                           `json:"is_webauthn_enabled"`
+	IsSMSEnabled       bool                           `json:"is_sms_available"`
+	IsEmailOTPEnabled  bool                           `json:"is_email_otp_available"`
+	BackupCodesCount   int                            `json:"backup_codes_count"`
+	WebAuthnKeys       []WebAuthnCredentialSummaryDTO `json:"webauthn_keys,omitempty"`
+	FirstMFAEnrolledAt *string                        `json:"mfa_enabled_at,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

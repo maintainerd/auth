@@ -189,6 +189,38 @@ func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 	}
 }
 
+// authorizeBindingCookieName is the httpOnly cookie that binds a pending OAuth
+// authorize request to the browser that initiated it. The __Host- prefix forces
+// Secure + host-only + Path=/ so it cannot be fixated from a subdomain.
+func authorizeBindingCookieName() string { return "__Host-authz_binding" }
+
+// authorizeBindingMaxAge matches the authorize-request TTL (10 minutes); the
+// cookie need not outlive the pending request it binds.
+const authorizeBindingMaxAge = 10 * 60
+
+// SetAuthorizeBindingCookie stores the raw browser-binding secret for a pending
+// OAuth authorize request. Only its hash is persisted server-side, so possession
+// of a request_id without this cookie cannot continue the flow.
+func SetAuthorizeBindingCookie(w http.ResponseWriter, secret string) {
+	setAuthCookie(w, authorizeBindingCookieName(), secret, "/", authorizeBindingMaxAge, authCookieOptions{})
+}
+
+// AuthorizeBindingValue returns the browser-binding secret from the request, or
+// an empty string when the cookie is absent.
+func AuthorizeBindingValue(r *http.Request) string {
+	c, err := r.Cookie(authorizeBindingCookieName())
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}
+
+// ClearAuthorizeBindingCookie removes the binding cookie once the authorize
+// request has been continued (or is being abandoned).
+func ClearAuthorizeBindingCookie(w http.ResponseWriter) {
+	setAuthCookie(w, authorizeBindingCookieName(), "", "/", -1, authCookieOptions{})
+}
+
 // ClearAuthCookies clears all authentication-related cookies.
 func ClearAuthCookies(w http.ResponseWriter) {
 	for _, name := range []string{accessTokenCookieName(), "access_token"} {
