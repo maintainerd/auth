@@ -6,6 +6,7 @@ import (
 	"math"
 	"testing"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,6 +87,8 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.FirstName)
+		// Invariant: when no default exists, the created profile becomes the default.
+		assert.True(t, res.IsDefault, "first/default profile must be marked default")
 	})
 
 	t.Run("create with metadata", func(t *testing.T) {
@@ -246,6 +249,8 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.FirstName)
+		// Invariant: the user's first profile becomes the default.
+		assert.True(t, res.IsDefault, "first profile must be the default")
 	})
 
 	t.Run("new profile not first → success → commit", func(t *testing.T) {
@@ -261,8 +266,10 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
+		// Invariant: a subsequent profile is NOT default (must be promoted explicitly).
+		assert.False(t, res.IsDefault, "subsequent profiles must not be default")
 	})
 
 	t.Run("new profile with metadata → success", func(t *testing.T) {
@@ -537,8 +544,11 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "does not belong")
 	})
 
-	t.Run("DeleteByUUID repo error", func(t *testing.T) {
-		svc := newProfileSvc(&mockProfileRepo{
+	t.Run("DeleteByUUID repo error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewProfileService(db, &mockProfileRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
 				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
 			},
@@ -553,12 +563,67 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "delete failed")
 	})
 
-	t.Run("success", func(t *testing.T) {
-		svc := newProfileSvc(&mockProfileRepo{
+	t.Run("success (non-default) → commit, no promotion", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewProfileService(db, &mockProfileRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
-				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
+				return &Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: false}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
+			findByUserIDFn: func(_ int64) (*Profile, error) {
+				t.Fatal("promotion must not run when a non-default profile is deleted")
+				return nil, nil
+			},
+		}, &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
+			},
+		})
+		res, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
+		require.NoError(t, err)
+		assert.Equal(t, profileUUID, res.ProfileUUID)
+	})
+
+	t.Run("default deleted → promotes oldest remaining profile", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		// The promotion issues a direct UPDATE on the tx (unset happens via the
+		// mocked repo, so only the promote UPDATE reaches the DB).
+		mock.ExpectExec(`UPDATE "profiles" SET`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		unsetCalled := false
+		svc := NewProfileService(db, &mockProfileRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: true}, nil
+			},
+			deleteByUUIDFn: func(_ any) error { return nil },
+			findByUserIDFn: func(_ int64) (*Profile, error) {
+				return &Profile{ProfileID: 7, UserID: userID}, nil
+			},
+			unsetDefaultProfilesFn: func(_ int64) error { unsetCalled = true; return nil },
+		}, &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
+			},
+		})
+		res, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
+		require.NoError(t, err)
+		assert.Equal(t, profileUUID, res.ProfileUUID)
+		assert.True(t, unsetCalled, "stray defaults must be cleared before promoting")
+	})
+
+	t.Run("default deleted → no remaining profile → no promotion", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewProfileService(db, &mockProfileRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: true}, nil
+			},
+			deleteByUUIDFn: func(_ any) error { return nil },
+			findByUserIDFn: func(_ int64) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return &User{UserID: userID}, nil
