@@ -84,7 +84,11 @@ CREATE INDEX IF NOT EXISTS idx_profiles_first_last_name ON profiles (first_name,
 CREATE INDEX IF NOT EXISTS idx_profiles_display_name ON profiles (display_name);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at);
 CREATE INDEX IF NOT EXISTS idx_profiles_deleted_at ON profiles (deleted_at) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_profiles_is_default ON profiles (user_id, is_default);
+-- At most one default profile per user, enforced at the DB level. The partial
+-- predicate scopes uniqueness to live rows, so soft-deleting a default frees the
+-- slot for another profile to be promoted. Also serves the "find default by user"
+-- lookup (WHERE user_id = ? AND is_default = true).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_one_default_per_user ON profiles (user_id) WHERE is_default AND deleted_at IS NULL;
 `
 	return db.Exec(sql).Error
 }

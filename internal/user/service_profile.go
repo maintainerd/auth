@@ -138,6 +138,7 @@ func (s *profileService) CreateOrUpdateProfile(
 			profile = Profile{
 				ProfileUUID: uuid.New(),
 				UserID:      user.UserID,
+				IsDefault:   true,
 			}
 		} else {
 			// Use existing profile
@@ -244,10 +245,10 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 			if err != nil {
 				return err
 			}
-			_ = anyProfile
 			profile = Profile{
 				ProfileUUID: profileUUID,
 				UserID:      user.UserID,
+				IsDefault:   anyProfile == nil,
 			}
 		} else {
 			// Verify profile belongs to user
@@ -461,8 +462,36 @@ func (s *profileService) DeleteByUUID(ctx context.Context, profileUUID uuid.UUID
 		return nil, apperror.NewForbidden("profile does not belong to user")
 	}
 
-	// Delete the profile
-	err = s.profileRepo.DeleteByUUID(profileUUID)
+	// Delete the profile. If it was the default, promote another of the user's
+	// remaining profiles so the "exactly one default" invariant holds: the row is
+	// soft-deleted, so it drops out of the live-row unique index and the promoted
+	// profile can safely take the default slot. All in one transaction.
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txProfileRepo := s.profileRepo.WithTx(tx)
+		if err := txProfileRepo.DeleteByUUID(profileUUID); err != nil {
+			return err
+		}
+		if profile.IsDefault {
+			// Oldest remaining live profile (soft-deleted rows are excluded).
+			next, err := txProfileRepo.FindByUserID(user.UserID)
+			if err != nil {
+				return err
+			}
+			if next != nil {
+				// Clear stray defaults first (idempotent), then promote — keeps the
+				// promotion safe against the partial unique index.
+				if err := txProfileRepo.UnsetDefaultProfiles(user.UserID); err != nil {
+					return err
+				}
+				if err := tx.Model(&Profile{}).
+					Where("profile_id = ?", next.ProfileID).
+					Update("is_default", true).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "delete profile failed")
