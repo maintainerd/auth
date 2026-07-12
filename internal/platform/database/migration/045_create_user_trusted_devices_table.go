@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS user_trusted_devices (
     user_id                  BIGINT       NOT NULL,
     tenant_id                BIGINT       NOT NULL,
     device_fingerprint       VARCHAR(255) NOT NULL,
+    device_token_hash        VARCHAR(255) NOT NULL DEFAULT '',
     device_name              VARCHAR(255),
     ip_address               INET,
     user_agent               TEXT,
@@ -25,6 +26,8 @@ CREATE TABLE IF NOT EXISTS user_trusted_devices (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_trusted_devices_user_fingerprint
     ON user_trusted_devices (user_id, device_fingerprint) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_user_trusted_devices_token
+    ON user_trusted_devices (user_id, device_token_hash) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_user_trusted_devices_user_id
     ON user_trusted_devices (user_id) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_user_trusted_devices_trusted_until

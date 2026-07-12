@@ -108,6 +108,7 @@ type UserService interface {
 	GetUserIdentities(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
 	GetUserSessions(ctx context.Context, userUUID uuid.UUID, tenantID int64) ([]*SessionDataResult, error)
 	RevokeUserSession(ctx context.Context, userUUID uuid.UUID, tenantID int64, sessionUUID uuid.UUID) error
+	RevokeAllUserSessions(ctx context.Context, userUUID uuid.UUID, tenantID int64) error
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
 	// Used by UserContextMiddleware to populate the request context.
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error)
@@ -428,8 +429,12 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 			return err
 		}
 
-		// Record password history
-		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, newUser.UserID, policy.HistoryCount, hashedPasswordStr)
+		// Record password history within the same transaction. Using the base
+		// (non-tx) repo here inserts before the user row is committed, so the
+		// user_password_history.user_id FK fails and history is silently dropped.
+		if s.passwordHistoryRepo != nil {
+			secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), newUser.UserID, policy.HistoryCount, hashedPasswordStr)
+		}
 
 		// Find default auth client for this tenant
 		defaultClient, err := txClientRepo.FindDefaultByTenantID(targetTenant.TenantID)
@@ -437,12 +442,22 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 			return apperror.NewNotFoundWithReason("default auth client not found for tenant")
 		}
 
+		// Resolve the tenant's default identity provider. Clients relate to IdPs
+		// via the client_identity_providers join table, so Client.IdentityProviderID
+		// is a transient (gorm:"-") field that FindDefaultByTenantID does not
+		// populate — using it here would insert identity_provider_id = 0 and violate
+		// fk_user_identities_idp. Look the default IdP up directly instead.
+		defaultIdP, err := s.identityProviderRepo.WithTx(tx).FindDefaultByTenantID(targetTenant.TenantID)
+		if err != nil || defaultIdP == nil {
+			return apperror.NewNotFoundWithReason("default identity provider not found for tenant")
+		}
+
 		// Create default user identity
 		userIdentity := &UserIdentity{
 			TenantID:           targetTenant.TenantID,
 			UserID:             newUser.UserID,
 			ClientID:           &defaultClient.ClientID,
-			IdentityProviderID: &defaultClient.IdentityProviderID,
+			IdentityProviderID: &defaultIdP.IdentityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                newUser.UserUUID.String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -1353,6 +1368,34 @@ func (s *userService) RevokeUserSession(ctx context.Context, userUUID uuid.UUID,
 	}
 
 	if err := s.userTokenRepo.RevokeSessionByUUID(user.UserID, sessionUUID); err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// RevokeAllUserSessions revokes every active session for a user (admin action —
+// force global sign-out). The user must belong to the requesting tenant; the
+// operation is idempotent.
+func (s *userService) RevokeAllUserSessions(ctx context.Context, userUUID uuid.UUID, tenantID int64) error {
+	_, span := otel.Tracer("service").Start(ctx, "user.revokeAllUserSessions")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
+	if err != nil || user == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		return apperror.NewNotFound("user not found")
+	}
+	if !userHasTenantAccess(user, tenantID) {
+		return apperror.NewNotFoundWithReason("user not found or access denied")
+	}
+
+	if err := s.userTokenRepo.RevokeAllSessionsByUserID(user.UserID); err != nil {
 		span.RecordError(err)
 		return err
 	}

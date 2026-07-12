@@ -15,6 +15,14 @@ import (
 type mockUserConsentService struct {
 	recordFn       func(ctx context.Context, tx *gorm.DB, userID, tenantID int64, consentType, policyVersion, ipAddress, userAgent string) error
 	findByUserIDFn func(ctx context.Context, userID int64) ([]UserConsent, error)
+	withdrawFn     func(ctx context.Context, userID, tenantID int64, consentType, ipAddress, userAgent string) error
+}
+
+func (m *mockUserConsentService) Withdraw(ctx context.Context, userID, tenantID int64, consentType, ipAddress, userAgent string) error {
+	if m.withdrawFn != nil {
+		return m.withdrawFn(ctx, userID, tenantID, consentType, ipAddress, userAgent)
+	}
+	return nil
 }
 
 func (m *mockUserConsentService) Record(ctx context.Context, tx *gorm.DB, userID, tenantID int64, consentType, policyVersion, ipAddress, userAgent string) error {

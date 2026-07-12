@@ -36,6 +36,7 @@ type LoginService interface {
 	RefreshToken(ctx context.Context, refreshToken string, sessionID string) (*LoginResponseDTO, error)
 	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error)
 	Logout(ctx context.Context, accessToken string) error
+	ForgetTrustedDevice(ctx context.Context, token string)
 	SetMFAFactorAuthenticator(a MFAFactorAuthenticator)
 	SetUserLockoutRepository(r UserLockoutRepository)
 	SetTokenRevoker(r AccessTokenRevoker)
@@ -59,7 +60,8 @@ type MFAFactorAuthenticator interface {
 
 type MFATrustedDeviceAuthenticator interface {
 	TrustedDeviceValid(ctx context.Context, userID int64, token string) (bool, error)
-	IssueTrustedDevice(ctx context.Context, userID int64, periodDays int) (string, error)
+	IssueTrustedDevice(ctx context.Context, userID, tenantID int64, deviceID string, periodDays int) (string, error)
+	RevokeTrustedDeviceByToken(ctx context.Context, token string) error
 }
 
 type loginService struct {
@@ -795,9 +797,24 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 		return nil, nil
 	}
 
-	// Check for a valid trusted-device token; skip MFA when recognized.
+	// Check for a valid trusted-device token; skip MFA when recognized. This is a
+	// security-relevant step-down, so it is audited (SOC2/ISO/NIST expect MFA
+	// bypasses to be logged).
 	trustedDeviceToken := trustedDeviceTokenFromContext(ctx)
 	if trustedDeviceToken != "" && s.isTrustedDeviceValid(ctx, user.UserID, tenantID, trustedDeviceToken) {
+		if s.authEventService != nil {
+			s.authEventService.Log(ctx, authevent.AuthEventInput{
+				TenantID:    tenantID,
+				ActorUserID: &user.UserID,
+				IPAddress:   middleware.ClientIPFromContext(ctx),
+				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+				Category:    authevent.AuthEventCategoryAuthn,
+				EventType:   authevent.AuthEventTypeMFATrustedDeviceSkip,
+				Severity:    authevent.AuthEventSeverityInfo,
+				Result:      authevent.AuthEventResultSuccess,
+				Description: ptr.Ptr("MFA step skipped: request presented a valid trusted-device token"),
+			})
+		}
 		return nil, nil
 	}
 
@@ -1279,8 +1296,22 @@ func (s *loginService) CompleteMFALogin(ctx context.Context, challengeToken, met
 
 	// Issue a trusted-device token when the client opted in.
 	if rememberDeviceFromContext(ctx) {
-		if deviceToken, tokenErr := s.issueTrustedDeviceToken(ctx, user.UserID, clientTenantID(client)); tokenErr == nil {
+		if deviceToken, maxAge, tokenErr := s.issueTrustedDeviceToken(ctx, user.UserID, clientTenantID(client)); tokenErr == nil && deviceToken != "" {
 			resp.TrustedDeviceToken = deviceToken
+			resp.TrustedDeviceMaxAge = maxAge
+			if s.authEventService != nil {
+				s.authEventService.Log(ctx, authevent.AuthEventInput{
+					TenantID:    clientTenantID(client),
+					ActorUserID: &user.UserID,
+					IPAddress:   middleware.ClientIPFromContext(ctx),
+					UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+					Category:    authevent.AuthEventCategoryAuthn,
+					EventType:   authevent.AuthEventTypeMFATrustedDeviceTrust,
+					Severity:    authevent.AuthEventSeverityInfo,
+					Result:      authevent.AuthEventResultSuccess,
+					Description: ptr.Ptr("Device marked trusted; future logins from it may skip MFA until the trust window expires"),
+				})
+			}
 		}
 	}
 
@@ -1351,16 +1382,35 @@ func (s *loginService) BeginMFALoginWebAuthn(ctx context.Context, challengeToken
 	return s.mfaAuthenticator.BeginWebAuthnLogin(ctx, user.UserID)
 }
 
-func (s *loginService) issueTrustedDeviceToken(ctx context.Context, userID, tenantID int64) (string, error) {
+// issueTrustedDeviceToken records the current device as trusted and returns the
+// one-time plaintext secret plus the cookie/token lifetime in seconds. Returns
+// an empty token (and 0 maxAge) when the tenant policy disables trusted devices.
+func (s *loginService) issueTrustedDeviceToken(ctx context.Context, userID, tenantID int64) (string, int, error) {
 	mfaPolicy := secpolicy.LoadMFAPolicy(s.securitySettingRepo, tenantID)
 	if mfaPolicy == nil || mfaPolicy.Mode == "disabled" || mfaPolicy.TrustedDevicePeriodDays <= 0 {
-		return "", nil
+		return "", 0, nil
 	}
 	trusted, ok := s.mfaAuthenticator.(MFATrustedDeviceAuthenticator)
 	if !ok {
-		return "", nil
+		return "", 0, nil
 	}
-	return trusted.IssueTrustedDevice(ctx, userID, mfaPolicy.TrustedDevicePeriodDays)
+	token, err := trusted.IssueTrustedDevice(ctx, userID, tenantID, deviceIDFromContext(ctx), mfaPolicy.TrustedDevicePeriodDays)
+	if err != nil {
+		return "", 0, err
+	}
+	return token, mfaPolicy.TrustedDevicePeriodDays * 24 * 60 * 60, nil
+}
+
+// ForgetTrustedDevice removes the trusted-device row for the presented token, so
+// a browser can drop its own trust (e.g. on a shared computer). No-op on unknown
+// or empty tokens.
+func (s *loginService) ForgetTrustedDevice(ctx context.Context, token string) {
+	if strings.TrimSpace(token) == "" {
+		return
+	}
+	if trusted, ok := s.mfaAuthenticator.(MFATrustedDeviceAuthenticator); ok {
+		_ = trusted.RevokeTrustedDeviceByToken(ctx, token)
+	}
 }
 
 func (s *loginService) isTrustedDeviceValid(ctx context.Context, userID, tenantID int64, rawToken string) bool {

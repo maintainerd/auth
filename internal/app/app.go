@@ -49,6 +49,7 @@ type App struct {
 	UserSettingService           user.UserSettingService
 	UserConsentService           user.UserConsentService
 	UserTrustedDeviceService     user.UserTrustedDeviceService
+	UserLockoutClearer           user.UserLockoutClearer
 	UserRepo                     user.UserRepository
 	InviteService                invite.InviteService
 	ForgotPasswordService        authn.ForgotPasswordService
@@ -142,6 +143,7 @@ func NewApp(ctx context.Context, db *gorm.DB, redisClient *redis.Client) (*App, 
 		UserSettingService:                s.userSettingService,
 		UserConsentService:                s.userConsentService,
 		UserTrustedDeviceService:          s.userTrustedDeviceService,
+		UserLockoutClearer:                r.userLockoutRepo,
 		UserRepo:                          r.userRepo,
 		InviteService:                     s.inviteService,
 		ForgotPasswordService:             s.forgotPasswordService,

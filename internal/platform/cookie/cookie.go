@@ -221,6 +221,75 @@ func ClearAuthorizeBindingCookie(w http.ResponseWriter) {
 	setAuthCookie(w, authorizeBindingCookieName(), "", "/", -1, authCookieOptions{})
 }
 
+// trustedDeviceCookieName is the httpOnly cookie that lets a previously trusted
+// browser skip the login MFA step until the tenant's trusted-device window
+// expires. The __Host- prefix forces Secure + host-only + Path=/, so it cannot
+// be read by JavaScript or fixated from a subdomain. It deliberately outlives a
+// logout (see ClearAuthCookies) because device trust is meant to persist across
+// sessions on the same browser.
+func trustedDeviceCookieName() string { return "__Host-mfa_trusted_device" }
+
+// trustedDeviceDefaultMaxAge (30 days) is used when the caller cannot supply an
+// explicit lifetime.
+const trustedDeviceDefaultMaxAge = 30 * 24 * 60 * 60
+
+// SetTrustedDeviceCookie stores the opaque trusted-device secret for
+// maxAgeSeconds. The secret — never the fingerprint — is the trust credential;
+// only its hash is persisted server-side (user_trusted_devices.device_token_hash).
+func SetTrustedDeviceCookie(w http.ResponseWriter, token string, maxAgeSeconds int) {
+	if maxAgeSeconds <= 0 {
+		maxAgeSeconds = trustedDeviceDefaultMaxAge
+	}
+	setAuthCookie(w, trustedDeviceCookieName(), token, "/", maxAgeSeconds, authCookieOptions{})
+}
+
+// TrustedDeviceValue returns the trusted-device secret from the request, or an
+// empty string when the cookie is absent.
+func TrustedDeviceValue(r *http.Request) string {
+	c, err := r.Cookie(trustedDeviceCookieName())
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}
+
+// ClearTrustedDeviceCookie removes the trusted-device cookie from this browser.
+// Not part of ClearAuthCookies: an ordinary logout keeps device trust intact.
+func ClearTrustedDeviceCookie(w http.ResponseWriter) {
+	setAuthCookie(w, trustedDeviceCookieName(), "", "/", -1, authCookieOptions{})
+}
+
+// deviceIDCookieName is a stable, long-lived per-browser identifier used only to
+// dedupe trusted-device rows (so two browsers with an identical User-Agent don't
+// collide onto one row). It is NOT a secret and never grants trust on its own —
+// the opaque trusted-device token is the credential. httpOnly all the same, so
+// page scripts can't read or fixate it.
+func deviceIDCookieName() string { return "__Host-device_id" }
+
+// deviceIDMaxAge (2 years) lets the identifier outlive individual trust windows.
+const deviceIDMaxAge = 2 * 365 * 24 * 60 * 60
+
+// SetDeviceIDCookie persists the per-browser device identifier.
+func SetDeviceIDCookie(w http.ResponseWriter, deviceID string) {
+	setAuthCookie(w, deviceIDCookieName(), deviceID, "/", deviceIDMaxAge, authCookieOptions{})
+}
+
+// DeviceIDValue returns the per-browser device identifier, or an empty string
+// when the cookie is absent.
+func DeviceIDValue(r *http.Request) string {
+	c, err := r.Cookie(deviceIDCookieName())
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}
+
+// ClearDeviceIDCookie removes the device identifier (used alongside
+// ClearTrustedDeviceCookie when a browser explicitly forgets its trust).
+func ClearDeviceIDCookie(w http.ResponseWriter) {
+	setAuthCookie(w, deviceIDCookieName(), "", "/", -1, authCookieOptions{})
+}
+
 // ClearAuthCookies clears all authentication-related cookies.
 func ClearAuthCookies(w http.ResponseWriter) {
 	for _, name := range []string{accessTokenCookieName(), "access_token"} {

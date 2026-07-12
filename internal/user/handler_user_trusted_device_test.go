@@ -81,10 +81,12 @@ func TestUserTrustedDeviceHandler_DeleteMyDevice_MissingUUID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestUserTrustedDeviceHandler_DeleteMyDevice_ServiceError(t *testing.T) {
+func TestUserTrustedDeviceHandler_DeleteMyDevice_NotOwned(t *testing.T) {
+	// Ownership guard (IDOR): revoking a device UUID the user does not own is a
+	// 404, not a delete.
 	svc := &mockUserTrustedDeviceService{
-		deleteDeviceFn: func(ctx context.Context, deviceUUID string) error {
-			return assert.AnError
+		listDevicesFn: func(ctx context.Context, userID int64) ([]UserTrustedDevice, error) {
+			return []UserTrustedDevice{{UserTrustedDeviceUUID: uuid.New()}}, nil
 		},
 	}
 	h := NewUserTrustedDeviceHandler(svc, nil, nil)
@@ -92,13 +94,37 @@ func TestUserTrustedDeviceHandler_DeleteMyDevice_ServiceError(t *testing.T) {
 	r = withChiParam(r, "device_uuid", uuid.New().String())
 	w := httptest.NewRecorder()
 	h.DeleteMyDevice(w, r)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestUserTrustedDeviceHandler_DeleteMyDevice_ServiceError(t *testing.T) {
+	devUUID := uuid.New()
+	svc := &mockUserTrustedDeviceService{
+		listDevicesFn: func(ctx context.Context, userID int64) ([]UserTrustedDevice, error) {
+			return []UserTrustedDevice{{UserTrustedDeviceUUID: devUUID}}, nil
+		},
+		deleteDeviceFn: func(ctx context.Context, deviceUUID string) error {
+			return assert.AnError
+		},
+	}
+	h := NewUserTrustedDeviceHandler(svc, nil, nil)
+	r := withTenantAndUser(httptest.NewRequest(http.MethodDelete, "/me/devices/123", nil))
+	r = withChiParam(r, "device_uuid", devUUID.String())
+	w := httptest.NewRecorder()
+	h.DeleteMyDevice(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestUserTrustedDeviceHandler_DeleteMyDevice_Success(t *testing.T) {
-	h := NewUserTrustedDeviceHandler(&mockUserTrustedDeviceService{}, nil, nil)
+	devUUID := uuid.New()
+	svc := &mockUserTrustedDeviceService{
+		listDevicesFn: func(ctx context.Context, userID int64) ([]UserTrustedDevice, error) {
+			return []UserTrustedDevice{{UserTrustedDeviceUUID: devUUID}}, nil
+		},
+	}
+	h := NewUserTrustedDeviceHandler(svc, nil, nil)
 	r := withTenantAndUser(httptest.NewRequest(http.MethodDelete, "/me/devices/123", nil))
-	r = withChiParam(r, "device_uuid", uuid.New().String())
+	r = withChiParam(r, "device_uuid", devUUID.String())
 	w := httptest.NewRecorder()
 	h.DeleteMyDevice(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -136,8 +162,25 @@ func TestUserTrustedDeviceHandler_GetUserDevices_UserNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
+func TestUserTrustedDeviceHandler_GetUserDevices_WrongTenant(t *testing.T) {
+	// Tenant isolation: a user that belongs to another tenant is a 404, so an
+	// admin cannot read across tenants by guessing a user UUID.
+	testUser := &User{UserID: 42, UserIdentities: []UserIdentity{{TenantID: tenantID + 999}}}
+	h := NewUserTrustedDeviceHandler(&mockUserTrustedDeviceService{}, nil, &mockUserRepo{
+		findByUUIDFn: func(id any, p ...string) (*User, error) {
+			return testUser, nil
+		},
+	})
+	uu := uuid.New().String()
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/users/"+uu+"/devices", nil))
+	r = withChiParam(r, "user_uuid", uu)
+	w := httptest.NewRecorder()
+	h.GetUserDevices(w, r)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
 func TestUserTrustedDeviceHandler_GetUserDevices_ServiceError(t *testing.T) {
-	testUser := &User{UserID: 42}
+	testUser := &User{UserID: 42, UserIdentities: []UserIdentity{{TenantID: tenantID}}}
 	svc := &mockUserTrustedDeviceService{
 		listDevicesFn: func(ctx context.Context, userID int64) ([]UserTrustedDevice, error) {
 			return nil, assert.AnError
@@ -157,7 +200,7 @@ func TestUserTrustedDeviceHandler_GetUserDevices_ServiceError(t *testing.T) {
 }
 
 func TestUserTrustedDeviceHandler_GetUserDevices_Success(t *testing.T) {
-	testUser := &User{UserID: 42}
+	testUser := &User{UserID: 42, UserIdentities: []UserIdentity{{TenantID: tenantID}}}
 	svc := &mockUserTrustedDeviceService{
 		listDevicesFn: func(ctx context.Context, userID int64) ([]UserTrustedDevice, error) {
 			return []UserTrustedDevice{}, nil

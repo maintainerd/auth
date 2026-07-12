@@ -87,6 +87,7 @@ type LoginResponseDTO struct {
 	MFAChallengeToken       *string  `json:"mfa_challenge_token,omitempty"`
 	MFAAllowedMethods       []string `json:"mfa_allowed_methods,omitempty"`
 	TrustedDeviceToken      string   `json:"trusted_device_token,omitempty"`
+	TrustedDeviceMaxAge     int      `json:"-"`
 	CookieSecure            *bool    `json:"-"`
 	CookieHTTPOnly          *bool    `json:"-"`
 	CookieSameSite          string   `json:"-"`

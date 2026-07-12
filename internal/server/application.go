@@ -42,6 +42,7 @@ type Application struct {
 	ClientService                client.ClientService
 	RoleService                  iam.RoleService
 	UserService                  user.UserService
+	UserLockoutClearer           user.UserLockoutClearer
 	RegisterService              authn.RegisterService
 	LoginService                 authn.LoginService
 	ProfileService               user.ProfileService

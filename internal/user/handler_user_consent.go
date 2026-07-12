@@ -162,3 +162,65 @@ func (h *UserConsentHandler) GetUserConsents(w http.ResponseWriter, r *http.Requ
 
 	resp.Success(w, dtos, "User consents fetched successfully")
 }
+
+type WithdrawConsentRequestDTO struct {
+	ConsentType string `json:"consent_type"`
+}
+
+// WithdrawUserConsent records a withdrawal of a user's consent (admin). The
+// original grant is preserved; a withdrawal row is appended (GDPR Art. 7(3)).
+//
+// POST /users/{user_uuid}/consents/withdraw
+func (h *UserConsentHandler) WithdrawUserConsent(w http.ResponseWriter, r *http.Request) {
+	userUUID := chi.URLParam(r, "user_uuid")
+	if _, err := uuid.Parse(userUUID); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user_uuid format")
+		return
+	}
+
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	var req WithdrawConsentRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	switch req.ConsentType {
+	case "terms_of_service", "privacy_policy", "data_processing":
+	default:
+		resp.Error(w, http.StatusBadRequest, "Invalid consent_type")
+		return
+	}
+
+	u, err := h.userRepo.FindByUUID(userUUID, "UserIdentities")
+	if err != nil || u == nil {
+		resp.Error(w, http.StatusNotFound, "User not found")
+		return
+	}
+	// Tenant isolation: the target user must belong to the requesting tenant.
+	if !userHasTenantAccess(u, tenant.TenantID) {
+		resp.Error(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	clientIP := middleware.ClientIPFromContext(r.Context())
+	userAgent := r.UserAgent()
+	if err := h.consentService.Withdraw(r.Context(), u.UserID, tenant.TenantID, req.ConsentType, clientIP, userAgent); err != nil {
+		resp.Error(w, http.StatusInternalServerError, "Failed to withdraw consent")
+		return
+	}
+
+	var actorUserID *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserID = &authUser.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"withdraw": map[string]any{"consent_type": req.ConsentType}})
+	userUUIDRef := u.UserUUID
+	h.logAudit(r, tenant.TenantID, actorUserID, "consent.withdraw", "user_consent", userUUID, &userUUIDRef, string(changesJSON), "success")
+
+	resp.Success(w, nil, "Consent withdrawn successfully")
+}

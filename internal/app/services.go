@@ -241,7 +241,12 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// (acr=2 elevation) via the MFAFactorAuthenticator interface.
 	mfaSvc := mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.mfaWebAuthnCredRepo, webAuthnSvc, r.userBackupCodeRepo, r.mfaPhoneRepo, r.emailOTPRepo, r.smsOtpRepo, r.securitySettingRepo, authEventSvc)
 	emailVerificationSvc := authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo, newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), appCache, r.securitySettingRepo)
-	userSvc := user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, appCache, r.userTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc)
+	// The user service's session-admin operations (list/revoke) must read the
+	// canonical user_sessions store (owned by authn), not the legacy user_tokens
+	// session rows the login flow no longer writes. Wrap the token repo so its
+	// session methods are backed by user_sessions while token methods are unchanged.
+	userSessionTokenRepo := newUserSessionBackedTokenRepo(r.userTokenRepo, authn.NewUserSessionRepository(db))
+	userSvc := user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, appCache, userSessionTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc)
 
 	// idpEmailDomainRepo backs the identity_provider_email_domains child table
 	// (home-realm discovery + create/update domain membership).

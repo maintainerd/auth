@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cookie"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
@@ -133,8 +134,14 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Public login is client-scoped; the service derives the tenant.
-	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
+	// Public login is client-scoped; the service derives the tenant. The
+	// trusted-device secret comes from the request body (bearer clients) or, for
+	// cookie-based clients, the httpOnly cookie set at the previous MFA verify.
+	trustedDeviceToken := req.TrustedDeviceToken
+	if trustedDeviceToken == "" {
+		trustedDeviceToken = cookie.TrustedDeviceValue(r)
+	}
+	ctx := contextWithTrustedDeviceToken(r.Context(), trustedDeviceToken)
 	tokenResponse, err := h.loginService.LoginPublic(
 		ctx, req.Username, req.Password, clIDPtr, tnIDPtr,
 	)
@@ -218,12 +225,41 @@ func (h *LoginHandler) mfaLoginVerify(w http.ResponseWriter, r *http.Request, pu
 		return
 	}
 	ctx := contextWithRememberDevice(r.Context(), req.RememberDevice)
+
+	// For cookie-based browsers opting into trust, resolve a stable per-browser
+	// device id (generating one on first use) so re-trusting the same browser
+	// updates one row instead of colliding with another same-User-Agent device.
+	cookieMode := r.Header.Get("X-Token-Delivery") == "cookie"
+	var newDeviceID string
+	if req.RememberDevice && cookieMode {
+		deviceID := cookie.DeviceIDValue(r)
+		if deviceID == "" {
+			if gen, gerr := crypto.GenerateRandomString(32); gerr == nil {
+				deviceID = gen
+				newDeviceID = gen
+			}
+		}
+		ctx = contextWithDeviceID(ctx, deviceID)
+	}
+
 	tokenResponse, err := h.loginService.CompleteMFALogin(
 		ctx, req.ChallengeToken, req.Method, req.Code, req.Assertion, clientID, tenantID,
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "MFA verification failed", err)
 		return
+	}
+
+	// Deliver the trusted-device secret as an httpOnly cookie for cookie-based
+	// clients (browsers): the browser resends it on the next login so the MFA
+	// step is skipped, and JS can never read it. Bearer clients keep it in the
+	// body to store themselves.
+	if tokenResponse != nil && tokenResponse.TrustedDeviceToken != "" && cookieMode {
+		if newDeviceID != "" {
+			cookie.SetDeviceIDCookie(w, newDeviceID)
+		}
+		cookie.SetTrustedDeviceCookie(w, tokenResponse.TrustedDeviceToken, tokenResponse.TrustedDeviceMaxAge)
+		tokenResponse.TrustedDeviceToken = ""
 	}
 
 	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
@@ -345,6 +381,15 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cookie.ClearAuthCookies(w)
+
+	// Ordinary logout keeps device trust intact. When the client explicitly asks
+	// to forget this device (e.g. a shared computer), revoke the trust row and
+	// clear the browser's trusted-device + device-id cookies.
+	if strings.EqualFold(r.URL.Query().Get("forget_device"), "true") {
+		h.loginService.ForgetTrustedDevice(r.Context(), cookie.TrustedDeviceValue(r))
+		cookie.ClearTrustedDeviceCookie(w)
+		cookie.ClearDeviceIDCookie(w)
+	}
 
 	resp.Success(w, nil, "Logout successful")
 }
@@ -479,8 +524,13 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Internal login attempt (tenant system client only).
-	ctx := contextWithTrustedDeviceToken(r.Context(), req.TrustedDeviceToken)
+	// Internal login attempt (tenant system client only). Trusted-device secret
+	// comes from the body or, for cookie-based clients, the httpOnly cookie.
+	trustedDeviceToken := req.TrustedDeviceToken
+	if trustedDeviceToken == "" {
+		trustedDeviceToken = cookie.TrustedDeviceValue(r)
+	}
+	ctx := contextWithTrustedDeviceToken(r.Context(), trustedDeviceToken)
 	tokenResponse, err := h.loginService.Login(
 		ctx, req.Username, req.Password, nil, tenantIDPtr,
 	)

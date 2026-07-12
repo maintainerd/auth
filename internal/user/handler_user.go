@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -21,9 +22,17 @@ import (
 // are tenant-isolated - middleware validates tenant access and stores it in the request
 // context. The handler supports CRUD operations, role management, identity management,
 // and account verification workflows.
+// UserLockoutClearer clears a user's failed-login lockout state. Implemented by
+// the authn user-lockout repository (structurally satisfied) and injected by the
+// wiring layer, so the user package doesn't depend on authn.
+type UserLockoutClearer interface {
+	ClearLockout(ctx context.Context, tenantID int64, identifier string) error
+}
+
 type UserHandler struct {
 	userService      UserService
 	identityUnlinker IdentityUnlinker
+	lockoutClearer   UserLockoutClearer
 	auditLogger      auditlog.ManagementAuditLogger
 }
 
@@ -46,6 +55,9 @@ func NewUserHandler(userService UserService, identityUnlinker ...IdentityUnlinke
 
 // SetAuditLogger injects the audit logger (called by the wiring layer).
 func (h *UserHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+// SetLockoutClearer injects the failed-login lockout clearer (wiring layer).
+func (h *UserHandler) SetLockoutClearer(c UserLockoutClearer) { h.lockoutClearer = c }
 
 func (h *UserHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
 	if h.auditLogger == nil {
@@ -971,6 +983,89 @@ func (h *UserHandler) RevokeUserSession(w http.ResponseWriter, r *http.Request) 
 	h.logAudit(r, tenant.TenantID, actorUserIDRS, "user.revoke_session", "session", sessionUUID.String(), &sessionUUIDRef, string(changesJSONRS), "success")
 
 	resp.Success(w, nil, "Session revoked successfully")
+}
+
+// RevokeAllUserSessions revokes every active session for a user (force global
+// sign-out).
+//
+// DELETE /users/{user_uuid}/sessions
+func (h *UserHandler) RevokeAllUserSessions(w http.ResponseWriter, r *http.Request) {
+	userUUID, err := uuid.Parse(chi.URLParam(r, "user_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	if err := h.userService.RevokeAllUserSessions(r.Context(), userUUID, tenant.TenantID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to revoke sessions", err)
+		return
+	}
+
+	var actorUserIDRA *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserIDRA = &authUser.UserID
+	}
+	changesJSONRA, _ := json.Marshal(map[string]any{"update": map[string]any{"sessions": "all_revoked"}})
+	userUUIDRefRA := userUUID
+	h.logAudit(r, tenant.TenantID, actorUserIDRA, "user.revoke_all_sessions", "user", userUUID.String(), &userUUIDRefRA, string(changesJSONRA), "success")
+
+	resp.Success(w, nil, "All sessions revoked successfully")
+}
+
+// UnlockUser clears a user's failed-login lockout (admin remediation).
+//
+// POST /users/{user_uuid}/unlock
+func (h *UserHandler) UnlockUser(w http.ResponseWriter, r *http.Request) {
+	userUUID, err := uuid.Parse(chi.URLParam(r, "user_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+	if h.lockoutClearer == nil {
+		resp.Error(w, http.StatusServiceUnavailable, "Unlock is not available")
+		return
+	}
+
+	// Tenant-scoped lookup — errors if the user isn't accessible from this tenant.
+	u, err := h.userService.GetByUUID(r.Context(), userUUID, tenant.TenantID)
+	if err != nil || u == nil {
+		resp.HandleServiceError(w, r, "Failed to unlock account", err)
+		return
+	}
+
+	// Lockouts are keyed by the login identifier (email or username), so clear
+	// both to fully unlock regardless of which the user logs in with.
+	for _, identifier := range []string{u.Username, u.Email} {
+		if strings.TrimSpace(identifier) == "" {
+			continue
+		}
+		if cerr := h.lockoutClearer.ClearLockout(r.Context(), tenant.TenantID, identifier); cerr != nil {
+			resp.HandleServiceError(w, r, "Failed to unlock account", cerr)
+			return
+		}
+	}
+
+	var actorUserID *int64
+	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
+		actorUserID = &authUser.UserID
+	}
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"lockout": "cleared"}})
+	userUUIDRef := userUUID
+	h.logAudit(r, tenant.TenantID, actorUserID, "user.unlock", "user", userUUID.String(), &userUUIDRef, string(changesJSON), "success")
+
+	resp.Success(w, nil, "Account unlocked successfully")
 }
 
 // UnlinkUserIdentity unlinks an external (federated) identity from a user.

@@ -78,6 +78,13 @@ type PasswordConfigPublic struct {
 	RequireLowercase bool `json:"require_lowercase"`
 	RequireNumber    bool `json:"require_number"`
 	RequireSymbol    bool `json:"require_symbol"`
+	// Backend-authoritative checks, surfaced so the frontend can show them as
+	// requirements/hints. Common-password and HIBP screening run only on the
+	// backend (the client can't do them reliably); the frontend displays the
+	// backend's rejection message. MinStrengthScore 0 disables the strength gate.
+	MinStrengthScore      int  `json:"min_strength_score"`
+	RejectCommonPasswords bool `json:"reject_common_passwords"`
+	CheckHibp             bool `json:"check_hibp"`
 }
 
 type RegistrationConfigPublic struct {

@@ -94,6 +94,9 @@ func (m *testUserService) GetUserSessions(_ context.Context, _ uuid.UUID, _ int6
 func (m *testUserService) RevokeUserSession(_ context.Context, _ uuid.UUID, _ int64, _ uuid.UUID) error {
 	return nil
 }
+func (m *testUserService) RevokeAllUserSessions(_ context.Context, _ uuid.UUID, _ int64) error {
+	return nil
+}
 func (m *testUserService) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error) {
 	return nil, nil
 }

@@ -333,12 +333,15 @@ func (h *TenantHandler) publicSecurityConfigs(ctx context.Context, tenantID int6
 	var regCfg *RegistrationConfigPublic
 	if pwd, err := h.securitySettingService.GetPasswordConfig(ctx, tenantID); err == nil {
 		pwdCfg = &PasswordConfigPublic{
-			MinLength:        intFromMap(pwd, "min_length"),
-			MaxLength:        intFromMap(pwd, "max_length"),
-			RequireUppercase: boolFromMap(pwd, "require_uppercase"),
-			RequireLowercase: boolFromMap(pwd, "require_lowercase"),
-			RequireNumber:    boolFromMap(pwd, "require_number"),
-			RequireSymbol:    boolFromMap(pwd, "require_symbol"),
+			MinLength:             intFromMap(pwd, "min_length"),
+			MaxLength:             intFromMap(pwd, "max_length"),
+			RequireUppercase:      boolFromMap(pwd, "require_uppercase"),
+			RequireLowercase:      boolFromMap(pwd, "require_lowercase"),
+			RequireNumber:         boolFromMap(pwd, "require_number"),
+			RequireSymbol:         boolFromMap(pwd, "require_symbol"),
+			MinStrengthScore:      intFromMap(pwd, "min_strength_score"),
+			RejectCommonPasswords: boolFromMap(pwd, "reject_common_passwords"),
+			CheckHibp:             boolFromMap(pwd, "check_hibp"),
 		}
 	}
 	if reg, err := h.securitySettingService.GetRegistrationConfig(ctx, tenantID); err == nil {

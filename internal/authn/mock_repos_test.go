@@ -307,6 +307,8 @@ func (m *mockLoginService) Logout(ctx context.Context, accessToken string) error
 	return nil
 }
 
+func (m *mockLoginService) ForgetTrustedDevice(ctx context.Context, token string) {}
+
 // ---------------------------------------------------------------------------
 // Mock: RegisterService
 // ---------------------------------------------------------------------------

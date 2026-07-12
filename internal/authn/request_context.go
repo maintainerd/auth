@@ -11,6 +11,7 @@ const (
 	registrationCaptchaTokenKey requestContextKey = "registration_captcha_token"
 	loginTrustedDeviceTokenKey  requestContextKey = "login_trusted_device_token"
 	loginRememberDeviceKey      requestContextKey = "login_remember_device"
+	loginDeviceIDKey            requestContextKey = "login_device_id"
 	publicAuthSurfaceKey        requestContextKey = "public_auth_surface"
 )
 
@@ -44,6 +45,23 @@ func trustedDeviceTokenFromContext(ctx context.Context) string {
 	}
 	if token, ok := ctx.Value(loginTrustedDeviceTokenKey).(string); ok {
 		return token
+	}
+	return ""
+}
+
+func contextWithDeviceID(ctx context.Context, deviceID string) context.Context {
+	if strings.TrimSpace(deviceID) == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, loginDeviceIDKey, strings.TrimSpace(deviceID))
+}
+
+func deviceIDFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if id, ok := ctx.Value(loginDeviceIDKey).(string); ok {
+		return id
 	}
 	return ""
 }
