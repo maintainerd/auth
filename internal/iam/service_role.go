@@ -394,21 +394,19 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 		if role.Description != description {
 			changed = append(changed, "description")
 		}
-		if role.IsDefault != isDefault {
-			changed = append(changed, "is_default")
-		}
-		if role.IsSystem != isSystem {
-			changed = append(changed, "is_system")
-		}
 		if role.Status != status {
 			changed = append(changed, "status")
 		}
 
-		// Update role
+		// Update role. is_default/is_system are protected, system-managed flags
+		// (set during seeding/registration, toggled only via their dedicated
+		// repo methods) — a general update must NOT change them, so an ordinary
+		// name/description/status edit can't silently downgrade a default or
+		// system role. The isDefault/isSystem params are intentionally not applied.
+		_ = isDefault
+		_ = isSystem
 		role.Name = name
 		role.Description = description
-		role.IsDefault = isDefault
-		role.IsSystem = isSystem
 		role.Status = status
 
 		_, err = txRoleRepo.CreateOrUpdate(role)
@@ -502,6 +500,11 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 		if role.IsSystem {
 			return apperror.NewValidation("system role is not allowed to be updated")
 		}
+		// The default role is the auto-assigned registration role — deactivating
+		// it would break new-user onboarding for the tenant.
+		if role.IsDefault && status != "active" {
+			return apperror.NewValidation("default role cannot be deactivated")
+		}
 
 		// Update role
 		role.Status = status
@@ -584,6 +587,12 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 	if role.IsSystem {
 		span.SetStatus(codes.Error, "delete role failed")
 		return nil, apperror.NewValidation("system role is not allowed to be deleted")
+	}
+	// The default role is the auto-assigned registration role — deleting it
+	// would break new-user onboarding for the tenant.
+	if role.IsDefault {
+		span.SetStatus(codes.Error, "delete role failed")
+		return nil, apperror.NewValidation("default role cannot be deleted")
 	}
 
 	// Delete role + emit role.deleted atomically; cache invalidation and the
