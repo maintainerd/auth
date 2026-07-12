@@ -13,6 +13,7 @@ type UserTrustedDevice struct {
 	UserID                int64          `gorm:"column:user_id;not null"`
 	TenantID              int64          `gorm:"column:tenant_id;not null"`
 	DeviceFingerprint     string         `gorm:"column:device_fingerprint;not null"`
+	DeviceTokenHash       string         `gorm:"column:device_token_hash;not null"`
 	DeviceName            *string        `gorm:"column:device_name"`
 	IPAddress             *string        `gorm:"column:ip_address"`
 	UserAgent             *string        `gorm:"column:user_agent"`

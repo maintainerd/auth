@@ -248,12 +248,18 @@ func UserRoute(
 		if deviceHandler != nil {
 			r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 				Get("/{user_uuid}/devices", deviceHandler.GetUserDevices)
+			// Revoke a user's trusted device (admin)
+			r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
+				Delete("/{user_uuid}/devices/{device_uuid}", deviceHandler.DeleteUserDevice)
 		}
 
 		// Consents
 		if consentHandler != nil {
 			r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 				Get("/{user_uuid}/consents", consentHandler.GetUserConsents)
+			// Withdraw a user's consent (admin) — GDPR right to withdraw
+			r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
+				Post("/{user_uuid}/consents/withdraw", consentHandler.WithdrawUserConsent)
 		}
 
 		// Session management
@@ -264,6 +270,14 @@ func UserRoute(
 		// Revoke a single user session
 		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
 			Delete("/{user_uuid}/sessions/{session_uuid}", userHandler.RevokeUserSession)
+
+		// Revoke ALL of a user's sessions (force global sign-out)
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
+			Delete("/{user_uuid}/sessions", userHandler.RevokeAllUserSessions)
+
+		// Unlock a user's failed-login lockout (admin remediation)
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
+			Post("/{user_uuid}/unlock", userHandler.UnlockUser)
 
 		// Assign roles to user
 		r.With(middleware.PermissionMiddleware([]string{"user:create"}), middleware.RequireStepUp).

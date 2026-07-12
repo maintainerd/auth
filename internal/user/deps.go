@@ -214,6 +214,7 @@ type IdentityProviderRepository interface {
 	BaseRepositoryMethods[IdentityProvider]
 	WithTx(tx *gorm.DB) IdentityProviderRepository
 	FindByIdentifier(identifier string) (*IdentityProvider, error)
+	FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error)
 }
 
 type UserMFABackupCodeRepository interface {

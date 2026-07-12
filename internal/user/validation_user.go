@@ -1,16 +1,37 @@
 package user
 
 import (
+	"errors"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/valid"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 func (dto UserCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
-		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
-		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
+		validation.Field(&dto.Email, validation.When(dto.Email != nil,
+			validation.By(func(value interface{}) error {
+				if email := value.(*string); email != nil && *email != "" {
+					if !valid.IsValidEmail(*email) {
+						return errors.New("email must be a valid email address")
+					}
+				}
+				return nil
+			}),
+		)),
+		validation.Field(&dto.Phone, validation.When(dto.Phone != nil,
+			validation.By(func(value interface{}) error {
+				if phone := value.(*string); phone != nil && *phone != "" {
+					if !valid.IsValidPhoneNumber(*phone) {
+						return errors.New("phone must be a valid phone number")
+					}
+				}
+				return nil
+			}),
+		)),
 		validation.Field(&dto.Password, validation.Required, validation.Length(8, 100)),
 		validation.Field(&dto.Status, validation.Required, validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended)),
 	)
@@ -19,8 +40,26 @@ func (dto UserCreateRequestDTO) Validate() error {
 func (dto UserUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
-		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
-		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
+		validation.Field(&dto.Email, validation.When(dto.Email != nil,
+			validation.By(func(value interface{}) error {
+				if email := value.(*string); email != nil && *email != "" {
+					if !valid.IsValidEmail(*email) {
+						return errors.New("email must be a valid email address")
+					}
+				}
+				return nil
+			}),
+		)),
+		validation.Field(&dto.Phone, validation.When(dto.Phone != nil,
+			validation.By(func(value interface{}) error {
+				if phone := value.(*string); phone != nil && *phone != "" {
+					if !valid.IsValidPhoneNumber(*phone) {
+						return errors.New("phone must be a valid phone number")
+					}
+				}
+				return nil
+			}),
+		)),
 		validation.Field(&dto.Status, validation.Required, validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended)),
 	)
 }

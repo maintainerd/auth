@@ -30,6 +30,7 @@ func (a *App) ServerApplication() *server.Application {
 		UserSettingService:                a.UserSettingService,
 		UserConsentService:                a.UserConsentService,
 		UserTrustedDeviceService:          a.UserTrustedDeviceService,
+		UserLockoutClearer:                a.UserLockoutClearer,
 		UserRepo:                          a.UserRepo,
 		InviteService:                     a.InviteService,
 		ForgotPasswordService:             a.ForgotPasswordService,

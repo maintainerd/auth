@@ -237,3 +237,85 @@ func TestSameSiteForCookie(t *testing.T) {
 	// None downgrades to Lax when the cookie is not Secure (browser requirement).
 	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(false, "none"))
 }
+
+func TestSetTrustedDeviceCookie(t *testing.T) {
+	rr := httptest.NewRecorder()
+	SetTrustedDeviceCookie(rr, "td-secret", 3600)
+
+	c := findCookie(t, rr, "__Host-mfa_trusted_device")
+	require.NotNil(t, c)
+	assert.Equal(t, "td-secret", c.Value)
+	assert.Equal(t, 3600, c.MaxAge)
+	assert.Equal(t, "/", c.Path)
+	assert.True(t, c.HttpOnly, "trusted-device cookie must be httpOnly")
+	assert.True(t, c.Secure, "__Host- prefix forces Secure")
+}
+
+func TestSetTrustedDeviceCookie_DefaultsMaxAgeWhenNonPositive(t *testing.T) {
+	rr := httptest.NewRecorder()
+	SetTrustedDeviceCookie(rr, "td-secret", 0)
+
+	c := findCookie(t, rr, "__Host-mfa_trusted_device")
+	require.NotNil(t, c)
+	assert.Equal(t, trustedDeviceDefaultMaxAge, c.MaxAge)
+}
+
+func TestTrustedDeviceValue(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/login", nil)
+	req.AddCookie(&http.Cookie{Name: "__Host-mfa_trusted_device", Value: "from-cookie"})
+	assert.Equal(t, "from-cookie", TrustedDeviceValue(req))
+
+	// Absent cookie → empty string, never an error.
+	bare := httptest.NewRequest(http.MethodPost, "/api/v1/login", nil)
+	assert.Equal(t, "", TrustedDeviceValue(bare))
+}
+
+func TestClearTrustedDeviceCookie(t *testing.T) {
+	rr := httptest.NewRecorder()
+	ClearTrustedDeviceCookie(rr)
+
+	c := findCookie(t, rr, "__Host-mfa_trusted_device")
+	require.NotNil(t, c)
+	assert.Equal(t, "", c.Value)
+	assert.Equal(t, -1, c.MaxAge, "MaxAge -1 signals deletion")
+}
+
+// Device trust must survive an ordinary logout, so ClearAuthCookies must not
+// touch the trusted-device cookie.
+func TestClearAuthCookies_LeavesTrustedDeviceCookie(t *testing.T) {
+	rr := httptest.NewRecorder()
+	ClearAuthCookies(rr)
+	assert.Nil(t, findCookie(t, rr, "__Host-mfa_trusted_device"))
+}
+
+func TestSetDeviceIDCookie(t *testing.T) {
+	rr := httptest.NewRecorder()
+	SetDeviceIDCookie(rr, "dev-123")
+
+	c := findCookie(t, rr, "__Host-device_id")
+	require.NotNil(t, c)
+	assert.Equal(t, "dev-123", c.Value)
+	assert.Equal(t, deviceIDMaxAge, c.MaxAge)
+	assert.Equal(t, "/", c.Path)
+	assert.True(t, c.HttpOnly)
+	assert.True(t, c.Secure)
+}
+
+func TestDeviceIDValue(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/login", nil)
+	req.AddCookie(&http.Cookie{Name: "__Host-device_id", Value: "dev-123"})
+	assert.Equal(t, "dev-123", DeviceIDValue(req))
+
+	bare := httptest.NewRequest(http.MethodPost, "/api/v1/login", nil)
+	assert.Equal(t, "", DeviceIDValue(bare))
+}
+
+func TestClearDeviceIDCookie(t *testing.T) {
+	rr := httptest.NewRecorder()
+	ClearDeviceIDCookie(rr)
+
+	c := findCookie(t, rr, "__Host-device_id")
+	require.NotNil(t, c)
+	assert.Equal(t, "", c.Value)
+	assert.Equal(t, -1, c.MaxAge)
+}

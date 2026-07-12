@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net"
 	"strings"
 	"time"
 
@@ -24,7 +25,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/sms"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
-	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/hotp"
 	"github.com/pquerna/otp/totp"
@@ -33,6 +33,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -145,22 +146,30 @@ type mfaService struct {
 	authEventService    authevent.AuthEventService
 }
 
-type trustedDeviceToken struct {
-	UserTokenID   int64      `gorm:"column:user_token_id"`
-	UserTokenUUID uuid.UUID  `gorm:"column:user_token_uuid"`
-	UserID        int64      `gorm:"column:user_id"`
-	TokenType     string     `gorm:"column:token_type"`
-	Token         string     `gorm:"column:token"`
-	UserAgent     *string    `gorm:"column:user_agent"`
-	IPAddress     *string    `gorm:"column:ip_address"`
-	ExpiresAt     *time.Time `gorm:"column:expires_at"`
-	IsRevoked     bool       `gorm:"column:is_revoked"`
-	LastUsedAt    *time.Time `gorm:"column:last_used_at"`
-	CreatedAt     time.Time  `gorm:"column:created_at"`
-	UpdatedAt     time.Time  `gorm:"column:updated_at"`
+// trustedDeviceRecord is the mfa package's local view of the canonical
+// user_trusted_devices table (owned by the user package). One row per device:
+// the opaque trust secret is never stored — device_token_hash holds a
+// deterministic hash so validation can match exactly.
+type trustedDeviceRecord struct {
+	UserTrustedDeviceID   int64      `gorm:"column:user_trusted_device_id;primaryKey"`
+	UserTrustedDeviceUUID uuid.UUID  `gorm:"column:user_trusted_device_uuid"`
+	UserID                int64      `gorm:"column:user_id"`
+	TenantID              int64      `gorm:"column:tenant_id"`
+	DeviceFingerprint     string     `gorm:"column:device_fingerprint"`
+	DeviceTokenHash       string     `gorm:"column:device_token_hash"`
+	DeviceName            *string    `gorm:"column:device_name"`
+	IPAddress             *string    `gorm:"column:ip_address"`
+	UserAgent             *string    `gorm:"column:user_agent"`
+	TrustedUntil          time.Time      `gorm:"column:trusted_until"`
+	LastSeenAt            *time.Time     `gorm:"column:last_seen_at"`
+	CreatedAt             time.Time      `gorm:"column:created_at"`
+	UpdatedAt             time.Time      `gorm:"column:updated_at"`
+	// DeletedAt makes revocation a soft delete, consistent with the canonical
+	// user.UserTrustedDevice model and the admin/self revoke paths.
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
 }
 
-func (trustedDeviceToken) TableName() string { return "user_tokens" }
+func (trustedDeviceRecord) TableName() string { return "user_trusted_devices" }
 
 // NewMFAService constructs a MFAService.
 func NewMFAService(
@@ -1402,9 +1411,14 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 	}
 
 	issuer := config.AppPublicHostname
+	// Bind aud to the client_id, not the issuer. Access tokens minted by this
+	// server set aud == client_id, and the management-API guard rejects any token
+	// whose aud != client_id. Passing the issuer as the audience made the elevated
+	// step-up token fail that guard ("token is not valid for the management API"),
+	// so a sensitive admin action never succeeded even after a successful step-up.
 	accessToken, err := generateStepUpAccessToken(
 		ctx,
-		sub, scope, issuer, issuer, clientID, providerID,
+		sub, scope, issuer, clientID, clientID, providerID,
 		&jwt.AccessTokenOptions{
 			AMR:       amr,
 			ACR:       jwt.ACRLevel2,
@@ -1597,18 +1611,18 @@ func (s *mfaService) BeginWebAuthnLogin(ctx context.Context, userID int64) (json
 }
 
 // TrustedDeviceValid reports whether a presented trusted-device token is valid
-// for userID. The plaintext token is never stored; user_tokens.token contains a
-// deterministic hash so lookup can be exact.
+// for userID. The plaintext token is never stored; user_trusted_devices holds a
+// deterministic hash (device_token_hash) so lookup can be exact.
 func (s *mfaService) TrustedDeviceValid(ctx context.Context, userID int64, token string) (bool, error) {
 	if s.db == nil || strings.TrimSpace(token) == "" {
 		return false, nil
 	}
 	now := time.Now()
 	hash := crypto.HashAuthorizationCode(strings.TrimSpace(token))
-	var rec trustedDeviceToken
+	var rec trustedDeviceRecord
 	err := s.db.WithContext(ctx).
-		Where("user_id = ? AND token_type = ? AND token = ? AND is_revoked = false AND (expires_at IS NULL OR expires_at > ?)",
-			userID, shared.TokenTypeMFATrustedDevice, hash, now).
+		Where("user_id = ? AND device_token_hash = ? AND deleted_at IS NULL AND trusted_until > ?",
+			userID, hash, now).
 		First(&rec).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -1617,15 +1631,23 @@ func (s *mfaService) TrustedDeviceValid(ctx context.Context, userID int64, token
 		return false, apperror.NewInternal("trusted device lookup failed", err)
 	}
 	_ = s.db.WithContext(ctx).
-		Model(&trustedDeviceToken{}).
-		Where("user_token_id = ?", rec.UserTokenID).
-		Updates(map[string]any{"last_used_at": now, "updated_at": now}).Error
+		Model(&trustedDeviceRecord{}).
+		Where("user_trusted_device_id = ?", rec.UserTrustedDeviceID).
+		Updates(map[string]any{"last_seen_at": now, "updated_at": now}).Error
 	return true, nil
 }
 
-// IssueTrustedDevice creates a new trusted-device token for userID and returns
-// the one-time plaintext value for the client to store.
-func (s *mfaService) IssueTrustedDevice(ctx context.Context, userID int64, periodDays int) (string, error) {
+// IssueTrustedDevice records userID's current device as trusted for periodDays
+// and returns the one-time plaintext secret for the client to store. A device is
+// keyed by a (user, deviceID) fingerprint (falling back to the User-Agent when
+// no per-browser deviceID is supplied): re-trusting the same device rotates the
+// secret and extends the window on the existing row rather than piling up
+// duplicates. The opaque secret — not the fingerprint — is the trust credential.
+//
+// The write is a single atomic upsert (INSERT ... ON CONFLICT) against the
+// partial unique index, so concurrent logins from the same device can't race
+// into a duplicate-key error or two rows.
+func (s *mfaService) IssueTrustedDevice(ctx context.Context, userID, tenantID int64, deviceID string, periodDays int) (string, error) {
 	if s.db == nil || periodDays <= 0 {
 		return "", nil
 	}
@@ -1633,21 +1655,83 @@ func (s *mfaService) IssueTrustedDevice(ctx context.Context, userID int64, perio
 	if err != nil {
 		return "", apperror.NewInternal("trusted device token generation failed", err)
 	}
-	expiresAt := time.Now().Add(time.Duration(periodDays) * 24 * time.Hour)
-	rec := &trustedDeviceToken{
-		UserTokenUUID: uuid.New(),
-		UserID:        userID,
-		TokenType:     shared.TokenTypeMFATrustedDevice,
-		Token:         crypto.HashAuthorizationCode(raw),
-		UserAgent:     ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		IPAddress:     ptr.PtrOrNil(middleware.ClientIPFromContext(ctx)),
-		ExpiresAt:     &expiresAt,
-		IsRevoked:     false,
+
+	now := time.Now()
+	fingerprint := deviceFingerprint(userID, deviceID, middleware.UserAgentFromContext(ctx))
+	rec := &trustedDeviceRecord{
+		UserTrustedDeviceUUID: uuid.New(),
+		UserID:                userID,
+		TenantID:              tenantID,
+		DeviceFingerprint:     fingerprint,
+		DeviceTokenHash:       crypto.HashAuthorizationCode(raw),
+		UserAgent:             ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		IPAddress:             inetOrNil(middleware.ClientIPFromContext(ctx)),
+		TrustedUntil:          now.Add(time.Duration(periodDays) * 24 * time.Hour),
+		LastSeenAt:            &now,
 	}
-	if err := s.db.WithContext(ctx).Create(rec).Error; err != nil {
-		return "", apperror.NewInternal("trusted device token storage failed", err)
+
+	// ON CONFLICT targets the partial unique index
+	// uq_user_trusted_devices_user_fingerprint (WHERE deleted_at IS NULL), so the
+	// TargetWhere predicate must match that index exactly.
+	err = s.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:     []clause.Column{{Name: "user_id"}, {Name: "device_fingerprint"}},
+			TargetWhere: clause.Where{Exprs: []clause.Expression{clause.Expr{SQL: "deleted_at IS NULL"}}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"tenant_id":         rec.TenantID,
+				"device_token_hash": rec.DeviceTokenHash,
+				"user_agent":        rec.UserAgent,
+				"ip_address":        rec.IPAddress,
+				"trusted_until":     rec.TrustedUntil,
+				"last_seen_at":      now,
+				"updated_at":        now,
+			}),
+		}).
+		Create(rec).Error
+	if err != nil {
+		return "", apperror.NewInternal("trusted device storage failed", err)
 	}
 	return raw, nil
+}
+
+// RevokeTrustedDeviceByToken soft-deletes the trusted-device row matching the
+// presented opaque token, if any. Used when a browser explicitly forgets its
+// trust (e.g. "sign out of this device"); safe to call with an unknown token.
+func (s *mfaService) RevokeTrustedDeviceByToken(ctx context.Context, token string) error {
+	if s.db == nil || strings.TrimSpace(token) == "" {
+		return nil
+	}
+	hash := crypto.HashAuthorizationCode(strings.TrimSpace(token))
+	err := s.db.WithContext(ctx).
+		Where("device_token_hash = ? AND deleted_at IS NULL", hash).
+		Delete(&trustedDeviceRecord{}).Error
+	if err != nil {
+		return apperror.NewInternal("trusted device revoke failed", err)
+	}
+	return nil
+}
+
+// deviceFingerprint derives a stable per-(user, device) key used to dedupe
+// trusted-device rows. It is not a secret and must never be used on its own to
+// grant trust — the opaque device_token_hash is the credential. It prefers the
+// per-browser deviceID (distinct per browser) and falls back to the User-Agent
+// only when no deviceID is available (e.g. non-cookie bearer clients).
+func deviceFingerprint(userID int64, deviceID, userAgent string) string {
+	seed := strings.TrimSpace(deviceID)
+	if seed == "" {
+		seed = strings.TrimSpace(userAgent)
+	}
+	return crypto.HashAuthorizationCode(fmt.Sprintf("%d|%s", userID, seed))
+}
+
+// inetOrNil returns a pointer to ip only when it parses as a valid IP address,
+// so a malformed value never breaks the INET column insert. Empty/invalid → nil.
+func inetOrNil(ip string) *string {
+	ip = strings.TrimSpace(ip)
+	if ip == "" || net.ParseIP(ip) == nil {
+		return nil
+	}
+	return &ip
 }
 
 func stepUpMethodAllowed(raw any, method string) bool {

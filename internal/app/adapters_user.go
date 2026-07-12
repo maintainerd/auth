@@ -130,6 +130,15 @@ func (r *userIDPRepo) FindByIdentifier(identifier string) (*user.IdentityProvide
 	return &provider, nil
 }
 
+func (r *userIDPRepo) FindDefaultByTenantID(tenantID int64) (*user.IdentityProvider, error) {
+	var provider user.IdentityProvider
+	err := r.DB().Where("tenant_id = ? AND is_default = ?", tenantID, true).First(&provider).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &provider, nil
+}
+
 type userBackupCodeRepo struct {
 	*database.BaseRepository[user.UserMFABackupCode]
 }

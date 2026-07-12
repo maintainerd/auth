@@ -583,7 +583,8 @@ func (m *mockClientRepo) FindByIDs(ids []int64) ([]Client, error) {
 
 type mockIdentityProviderRepo struct {
 	mockBaseRepo[IdentityProvider]
-	findByIdentifierFn func(string) (*IdentityProvider, error)
+	findByIdentifierFn      func(string) (*IdentityProvider, error)
+	findDefaultByTenantIDFn func(int64) (*IdentityProvider, error)
 }
 
 func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) IdentityProviderRepository { return m }
@@ -592,6 +593,12 @@ func (m *mockIdentityProviderRepo) FindByIdentifier(identifier string) (*Identit
 		return m.findByIdentifierFn(identifier)
 	}
 	return nil, nil
+}
+func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error) {
+	if m.findDefaultByTenantIDFn != nil {
+		return m.findDefaultByTenantIDFn(tenantID)
+	}
+	return &IdentityProvider{IdentityProviderID: 1}, nil
 }
 
 type mockUserIdentityRepo struct {
@@ -819,6 +826,9 @@ func (m *mockUserService) GetUserSessions(_ context.Context, _ uuid.UUID, _ int6
 	return nil, nil
 }
 func (m *mockUserService) RevokeUserSession(_ context.Context, _ uuid.UUID, _ int64, _ uuid.UUID) error {
+	return nil
+}
+func (m *mockUserService) RevokeAllUserSessions(_ context.Context, _ uuid.UUID, _ int64) error {
 	return nil
 }
 func (m *mockUserService) FindBySubAndClientID(_ context.Context, sub string, clientID string) (*User, error) {
