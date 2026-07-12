@@ -16,6 +16,18 @@ func validProfileBody() map[string]any {
 	return map[string]any{"first_name": "Alice"}
 }
 
+// adminProfileHandler builds a ProfileHandler whose admin tenant-access guard
+// passes: the target user resolves to a member of the test tenant.
+func adminProfileHandler(svc ProfileService) *ProfileHandler {
+	h := NewProfileHandler(svc)
+	h.SetUserRepo(&mockUserRepo{
+		findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: tenantID}}}, nil
+		},
+	})
+	return h
+}
+
 func TestProfileHandler_CreateOrUpdate(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockProfileService{
@@ -233,8 +245,9 @@ func TestProfileHandler_AdminGetAllProfiles(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/?page=1&limit=10", nil)
 		r = withChiParam(r, "user_uuid", userUUID.String())
+		r = withTenantAndUser(r)
 		w := httptest.NewRecorder()
-		NewProfileHandler(&mockProfileService{}).AdminGetAllProfiles(w, r)
+		adminProfileHandler(&mockProfileService{}).AdminGetAllProfiles(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
@@ -252,8 +265,9 @@ func TestProfileHandler_AdminGetProfile(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "user_uuid", userUUID.String())
 		r = withChiParam(r, "profile_uuid", profUUID.String())
+		r = withTenantAndUser(r)
 		w := httptest.NewRecorder()
-		NewProfileHandler(svc).AdminGetProfile(w, r)
+		adminProfileHandler(svc).AdminGetProfile(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
@@ -269,8 +283,9 @@ func TestProfileHandler_AdminCreateProfile(t *testing.T) {
 		}
 		r := jsonReq(t, http.MethodPost, "/", validProfileBody())
 		r = withChiParam(r, "user_uuid", userUUID.String())
+		r = withTenantAndUser(r)
 		w := httptest.NewRecorder()
-		NewProfileHandler(svc).AdminCreateProfile(w, r)
+		adminProfileHandler(svc).AdminCreateProfile(w, r)
 		assert.Equal(t, http.StatusCreated, w.Code)
 	})
 }
@@ -288,8 +303,9 @@ func TestProfileHandler_AdminUpdateProfile(t *testing.T) {
 		r := jsonReq(t, http.MethodPut, "/", validProfileBody())
 		r = withChiParam(r, "user_uuid", userUUID.String())
 		r = withChiParam(r, "profile_uuid", profUUID.String())
+		r = withTenantAndUser(r)
 		w := httptest.NewRecorder()
-		NewProfileHandler(svc).AdminUpdateProfile(w, r)
+		adminProfileHandler(svc).AdminUpdateProfile(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
@@ -307,8 +323,9 @@ func TestProfileHandler_AdminDeleteProfile(t *testing.T) {
 		r := jsonReq(t, http.MethodDelete, "/", nil)
 		r = withChiParam(r, "user_uuid", userUUID.String())
 		r = withChiParam(r, "profile_uuid", profUUID.String())
+		r = withTenantAndUser(r)
 		w := httptest.NewRecorder()
-		NewProfileHandler(svc).AdminDeleteProfile(w, r)
+		adminProfileHandler(svc).AdminDeleteProfile(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
@@ -575,8 +592,9 @@ func TestProfileHandler_AdminGetAllProfiles_ServiceError(t *testing.T) {
 	}
 	r := jsonReq(t, http.MethodGet, "/?page=1&limit=10", nil)
 	r = withChiParam(r, "user_uuid", userUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminGetAllProfiles(w, r)
+	adminProfileHandler(svc).AdminGetAllProfiles(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
@@ -591,8 +609,9 @@ func TestProfileHandler_AdminGetAllProfiles_IsDefaultTrue(t *testing.T) {
 	}
 	r := jsonReq(t, http.MethodGet, "/?is_default=true&page=1&limit=10", nil)
 	r = withChiParam(r, "user_uuid", userUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminGetAllProfiles(w, r)
+	adminProfileHandler(svc).AdminGetAllProfiles(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
@@ -600,8 +619,9 @@ func TestProfileHandler_AdminGetAllProfiles_IsDefaultFalse(t *testing.T) {
 	userUUID := uuid.New()
 	r := jsonReq(t, http.MethodGet, "/?is_default=false&page=1&limit=10", nil)
 	r = withChiParam(r, "user_uuid", userUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(&mockProfileService{}).AdminGetAllProfiles(w, r)
+	adminProfileHandler(&mockProfileService{}).AdminGetAllProfiles(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
@@ -636,8 +656,9 @@ func TestProfileHandler_AdminGetProfile_NotFound(t *testing.T) {
 	r := jsonReq(t, http.MethodGet, "/", nil)
 	r = withChiParam(r, "user_uuid", userUUID.String())
 	r = withChiParam(r, "profile_uuid", profUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminGetProfile(w, r)
+	adminProfileHandler(svc).AdminGetProfile(w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
@@ -679,8 +700,9 @@ func TestProfileHandler_AdminCreateProfile_WithBirthdate(t *testing.T) {
 	body := map[string]any{"first_name": "Dave", "birthdate": "1995-08-10"}
 	r := jsonReq(t, http.MethodPost, "/", body)
 	r = withChiParam(r, "user_uuid", userUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminCreateProfile(w, r)
+	adminProfileHandler(svc).AdminCreateProfile(w, r)
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
@@ -693,8 +715,9 @@ func TestProfileHandler_AdminCreateProfile_ServiceError(t *testing.T) {
 	}
 	r := jsonReq(t, http.MethodPost, "/", validProfileBody())
 	r = withChiParam(r, "user_uuid", userUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminCreateProfile(w, r)
+	adminProfileHandler(svc).AdminCreateProfile(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
@@ -752,8 +775,9 @@ func TestProfileHandler_AdminUpdateProfile_WithBirthdate(t *testing.T) {
 	r := jsonReq(t, http.MethodPut, "/", body)
 	r = withChiParam(r, "user_uuid", userUUID.String())
 	r = withChiParam(r, "profile_uuid", profUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminUpdateProfile(w, r)
+	adminProfileHandler(svc).AdminUpdateProfile(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
@@ -768,8 +792,9 @@ func TestProfileHandler_AdminUpdateProfile_ServiceError(t *testing.T) {
 	r := jsonReq(t, http.MethodPut, "/", validProfileBody())
 	r = withChiParam(r, "user_uuid", userUUID.String())
 	r = withChiParam(r, "profile_uuid", profUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminUpdateProfile(w, r)
+	adminProfileHandler(svc).AdminUpdateProfile(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
@@ -804,7 +829,8 @@ func TestProfileHandler_AdminDeleteProfile_ServiceError(t *testing.T) {
 	r := jsonReq(t, http.MethodDelete, "/", nil)
 	r = withChiParam(r, "user_uuid", userUUID.String())
 	r = withChiParam(r, "profile_uuid", profUUID.String())
+	r = withTenantAndUser(r)
 	w := httptest.NewRecorder()
-	NewProfileHandler(svc).AdminDeleteProfile(w, r)
+	adminProfileHandler(svc).AdminDeleteProfile(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

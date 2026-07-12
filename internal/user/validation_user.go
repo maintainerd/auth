@@ -32,7 +32,10 @@ func (dto UserCreateRequestDTO) Validate() error {
 				return nil
 			}),
 		)),
-		validation.Field(&dto.Password, validation.Required, validation.Length(8, 100)),
+		// Length/complexity are enforced authoritatively by the tenant's password
+		// policy (security.ValidatePasswordPolicy) so its configured min/max is the
+		// single source of truth; the DTO only requires a value and bounds abuse.
+		validation.Field(&dto.Password, validation.Required, validation.Length(1, 4096)),
 		validation.Field(&dto.Status, validation.Required, validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended)),
 	)
 }

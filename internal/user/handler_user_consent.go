@@ -80,7 +80,7 @@ type UserConsentResponseDTO struct {
 // POST /me/consent
 func (h *UserConsentHandler) RecordConsent(w http.ResponseWriter, r *http.Request) {
 	auth := middleware.AuthFromRequest(r)
-	if auth.User == nil {
+	if auth.User == nil || auth.Tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -130,8 +130,20 @@ func (h *UserConsentHandler) GetUserConsents(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	u, err := h.userRepo.FindByUUID(userUUID)
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	u, err := h.userRepo.FindByUUID(userUUID, "UserIdentities")
 	if err != nil || u == nil {
+		resp.Error(w, http.StatusNotFound, "User not found")
+		return
+	}
+	// Tenant isolation: the target user must belong to the requesting tenant, so
+	// an admin cannot read another tenant's consent records by guessing a UUID.
+	if !userHasTenantAccess(u, tenant.TenantID) {
 		resp.Error(w, http.StatusNotFound, "User not found")
 		return
 	}
