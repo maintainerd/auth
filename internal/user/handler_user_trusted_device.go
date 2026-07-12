@@ -53,11 +53,15 @@ type UserTrustedDeviceResponseDTO struct {
 	UUID              string `json:"uuid"`
 	DeviceFingerprint string `json:"device_fingerprint"`
 	DeviceName        string `json:"device_name,omitempty"`
+	Location          string `json:"location,omitempty"`
 	IPAddress         string `json:"ip_address,omitempty"`
 	UserAgent         string `json:"user_agent,omitempty"`
 	TrustedUntil      string `json:"trusted_until"`
 	LastSeenAt        string `json:"last_seen_at,omitempty"`
 	CreatedAt         string `json:"created_at"`
+	// Current is true for the device making the request (self-service list only),
+	// so the UI can badge "This device".
+	Current bool `json:"current,omitempty"`
 }
 
 // ListMyDevices returns all trusted devices for the authenticated user.
@@ -76,9 +80,19 @@ func (h *UserTrustedDeviceHandler) ListMyDevices(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Identify the requesting browser's own device so the UI can badge it.
+	var currentHash string
+	if td := cookie.TrustedDeviceValue(r); td != "" {
+		currentHash = crypto.HashAuthorizationCode(td)
+	}
+
 	dtos := make([]UserTrustedDeviceResponseDTO, 0, len(devices))
 	for _, d := range devices {
-		dtos = append(dtos, toDeviceDTO(d))
+		dto := toDeviceDTO(d)
+		if currentHash != "" && d.DeviceTokenHash == currentHash {
+			dto.Current = true
+		}
+		dtos = append(dtos, dto)
 	}
 
 	resp.Success(w, dtos, "Devices retrieved successfully")
@@ -268,6 +282,9 @@ func toDeviceDTO(d UserTrustedDevice) UserTrustedDeviceResponseDTO {
 	}
 	if d.DeviceName != nil {
 		dto.DeviceName = *d.DeviceName
+	}
+	if d.Location != nil {
+		dto.Location = *d.Location
 	}
 	if d.IPAddress != nil {
 		dto.IPAddress = *d.IPAddress

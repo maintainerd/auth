@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
@@ -19,6 +20,8 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/geoip"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
@@ -240,6 +243,13 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// Built before the login service so login can verify the MFA second step
 	// (acr=2 elevation) via the MFAFactorAuthenticator interface.
 	mfaSvc := mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.mfaWebAuthnCredRepo, webAuthnSvc, r.userBackupCodeRepo, r.mfaPhoneRepo, r.emailOTPRepo, r.smsOtpRepo, r.securitySettingRepo, authEventSvc)
+	// Trusted-device geolocation uses a local MaxMind GeoLite2 DB (GEOIP_DB_PATH),
+	// so no client IP leaves the server. Disabled (no-op) when unset/unreadable.
+	if geoResolver, geoErr := geoip.New(config.GetEnvOrDefault("GEOIP_DB_PATH", "")); geoErr != nil {
+		slog.Warn("geoip: trusted-device geolocation disabled", "error", geoErr)
+	} else {
+		mfaSvc.SetGeoResolver(geoResolver)
+	}
 	emailVerificationSvc := authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo, newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), appCache, r.securitySettingRepo)
 	// The user service's session-admin operations (list/revoke) must read the
 	// canonical user_sessions store (owned by authn), not the legacy user_tokens
