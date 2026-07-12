@@ -142,7 +142,7 @@ func TestUserConsentHandler_GetUserConsents_UserNotFound(t *testing.T) {
 }
 
 func TestUserConsentHandler_GetUserConsents_ServiceError(t *testing.T) {
-	testUser := &User{UserID: 42}
+	testUser := &User{UserID: 42, UserIdentities: []UserIdentity{{TenantID: tenantID}}}
 	svc := &mockUserConsentService{
 		findByUserIDFn: func(ctx context.Context, userID int64) ([]UserConsent, error) {
 			return nil, assert.AnError
@@ -162,7 +162,7 @@ func TestUserConsentHandler_GetUserConsents_ServiceError(t *testing.T) {
 }
 
 func TestUserConsentHandler_GetUserConsents_Success(t *testing.T) {
-	testUser := &User{UserID: 42}
+	testUser := &User{UserID: 42, UserIdentities: []UserIdentity{{TenantID: tenantID}}}
 	consentUUID := uuid.New()
 	svc := &mockUserConsentService{
 		findByUserIDFn: func(ctx context.Context, userID int64) ([]UserConsent, error) {

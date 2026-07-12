@@ -46,9 +46,11 @@ func TestUserCreateRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("password too short", func(t *testing.T) {
+	t.Run("password required", func(t *testing.T) {
+		// The DTO only requires a value; min length/complexity are enforced by the
+		// tenant password policy at the service layer, not here.
 		d := validUserCreate()
-		d.Password = "short"
+		d.Password = ""
 		require.Error(t, d.Validate())
 	})
 

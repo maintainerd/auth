@@ -279,12 +279,12 @@ func UserRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
 			Post("/{user_uuid}/unlock", userHandler.UnlockUser)
 
-		// Assign roles to user
-		r.With(middleware.PermissionMiddleware([]string{"user:create"}), middleware.RequireStepUp).
+		// Assign roles to user (managing a user's role assignments is a user:update)
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
 			Post("/{user_uuid}/roles", userHandler.AssignRoles)
 
 		// Remove role from user
-		r.With(middleware.PermissionMiddleware([]string{"user:create"}), middleware.RequireStepUp).
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
 			Delete("/{user_uuid}/roles/{role_uuid}", userHandler.RemoveRole)
 
 		// Profile management (admin access to user profiles)
@@ -325,8 +325,9 @@ func DataErasureAdminRoute(
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
-		// Admin requests erasure of a target user's data (GDPR Art.17).
-		r.With(middleware.PermissionMiddleware([]string{"user:delete"})).
+		// Admin requests erasure of a target user's data (GDPR Art.17). Step-up
+		// required — this is the most destructive action on a user.
+		r.With(middleware.PermissionMiddleware([]string{"user:delete"}), middleware.RequireStepUp).
 			Post("/users/{user_uuid}/erasure-requests", handler.RequestAdmin)
 	})
 }

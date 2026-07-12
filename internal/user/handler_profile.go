@@ -18,6 +18,7 @@ import (
 
 type ProfileHandler struct {
 	profileService ProfileService
+	userRepo       UserRepository
 	auditLogger    auditlog.ManagementAuditLogger
 }
 
@@ -27,6 +28,29 @@ func NewProfileHandler(profileService ProfileService) *ProfileHandler {
 
 // SetAuditLogger injects the audit logger (called by the wiring layer).
 func (h *ProfileHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
+
+// SetUserRepo injects the user repository used to enforce tenant isolation on the
+// admin profile endpoints (called by the wiring layer).
+func (h *ProfileHandler) SetUserRepo(r UserRepository) { h.userRepo = r }
+
+// assertAdminTenantAccess verifies the target user exists and belongs to the
+// caller's tenant before an admin profile operation. It fails closed: a missing
+// tenant context or unconfigured userRepo is treated as no access. On failure it
+// writes the response and returns false. This prevents cross-tenant IDOR — an
+// admin in tenant A must not read/modify/delete a user's profile in tenant B.
+func (h *ProfileHandler) assertAdminTenantAccess(w http.ResponseWriter, r *http.Request, userUUID string) bool {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil || h.userRepo == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return false
+	}
+	u, err := h.userRepo.FindByUUID(userUUID, "UserIdentities")
+	if err != nil || u == nil || !userHasTenantAccess(u, tenant.TenantID) {
+		resp.Error(w, http.StatusNotFound, "User not found")
+		return false
+	}
+	return true
+}
 
 func (h *ProfileHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
 	if h.auditLogger == nil {
@@ -393,6 +417,10 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if !h.assertAdminTenantAccess(w, r, userUUIDStr) {
+		return
+	}
+
 	// Get all profiles for specified user
 	result, err := h.profileService.GetAll(
 		r.Context(),
@@ -445,7 +473,11 @@ func (h *ProfileHandler) AdminGetProfile(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Get profile by UUID without ownership check (admin access)
+	if !h.assertAdminTenantAccess(w, r, userUUIDStr) {
+		return
+	}
+
+	// Get profile by UUID (tenant access verified above)
 	profile, err := h.profileService.GetByUUID(r.Context(), profileUUID, userUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Profile not found", err)
@@ -480,6 +512,10 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 	if req.Birthdate != nil && *req.Birthdate != "" {
 		parsed, _ := time.Parse("2006-01-02", *req.Birthdate)
 		birthdate = &parsed
+	}
+
+	if !h.assertAdminTenantAccess(w, r, userUUIDStr) {
+		return
 	}
 
 	// Generate new UUID for the profile
@@ -552,6 +588,10 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 		birthdate = &parsed
 	}
 
+	if !h.assertAdminTenantAccess(w, r, userUUIDStr) {
+		return
+	}
+
 	profile, err := h.profileService.CreateOrUpdateSpecificProfile(
 		r.Context(),
 		profileUUID,
@@ -601,7 +641,11 @@ func (h *ProfileHandler) AdminDeleteProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Delete by profile UUID without strict ownership check (admin access)
+	if !h.assertAdminTenantAccess(w, r, userUUIDStr) {
+		return
+	}
+
+	// Delete by profile UUID (tenant access verified above)
 	deletedProfile, err := h.profileService.DeleteByUUID(r.Context(), profileUUID, userUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Delete profile failed", err)

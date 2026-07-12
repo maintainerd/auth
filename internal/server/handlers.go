@@ -170,6 +170,7 @@ func initHandlers(application *Application) *handlers {
 	h.user.SetAuditLogger(al)
 	h.user.SetLockoutClearer(application.UserLockoutClearer)
 	h.profile.SetAuditLogger(al)
+	h.profile.SetUserRepo(application.UserRepo)
 	h.userSetting.SetAuditLogger(al)
 	h.userConsent.SetAuditLogger(al)
 	h.userTrustedDevice.SetAuditLogger(al)

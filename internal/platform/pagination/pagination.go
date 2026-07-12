@@ -33,6 +33,7 @@ func (p PaginationRequestDTO) Validate() error {
 		validation.Field(&p.Limit,
 			validation.Required.Error("Limit is required"),
 			validation.Min(1).Error("Limit must be greater than 0"),
+			validation.Max(MaxPageSize).Error("Limit is too large"),
 		),
 		validation.Field(&p.SortBy,
 			validation.Length(0, 50).Error("SortBy cannot exceed 50 characters"),
