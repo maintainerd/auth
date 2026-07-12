@@ -134,22 +134,24 @@ func RoleRoute(
 		r.With(middleware.PermissionMiddleware([]string{"role:create"})).
 			Post("/", roleHandler.Create)
 
-		r.With(middleware.PermissionMiddleware([]string{"role:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"role:update"}), middleware.RequireStepUp).
 			Put("/{role_uuid}", roleHandler.Update)
 
-		r.With(middleware.PermissionMiddleware([]string{"role:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"role:update"}), middleware.RequireStepUp).
 			Put("/{role_uuid}/status", roleHandler.SetStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"role:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"role:delete"}), middleware.RequireStepUp).
 			Delete("/{role_uuid}", roleHandler.Delete)
 
 		r.With(middleware.PermissionMiddleware([]string{"role:read"})).
 			Get("/{role_uuid}/permissions", roleHandler.GetPermissions)
 
-		r.With(middleware.PermissionMiddleware([]string{"role:permission:create"})).
+		// Adding/removing permissions on a role is a privilege-escalation surface —
+		// step-up required, like the user-domain role assignment routes.
+		r.With(middleware.PermissionMiddleware([]string{"role:permission:create"}), middleware.RequireStepUp).
 			Post("/{role_uuid}/permissions", roleHandler.AddPermissions)
 
-		r.With(middleware.PermissionMiddleware([]string{"role:permission:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"role:permission:delete"}), middleware.RequireStepUp).
 			Delete("/{role_uuid}/permissions/{permission_uuid}", roleHandler.RemovePermission)
 	})
 }

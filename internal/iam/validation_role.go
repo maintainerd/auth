@@ -1,16 +1,21 @@
 package iam
 
 import (
+	"regexp"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
+
+var roleNamePattern = regexp.MustCompile(`^[a-z0-9:-]+$`)
 
 func (r RoleCreateOrUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Role name is required"),
 			validation.Length(3, 20).Error("Role name must be between 3 and 20 characters"),
+			validation.Match(roleNamePattern).Error("Role name must contain only lowercase letters, numbers, hyphens, and colons"),
 		),
 		validation.Field(&r.Description,
 			validation.Length(0, 100).Error("Description must be at most 100 characters"),
@@ -26,6 +31,7 @@ func (r RoleAddPermissionsRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Permissions,
 			validation.Required.Error("Permission UUIDs are required"),
+			validation.Length(1, 200).Error("Too many permissions in one request (max 200)"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
 		),
 	)
