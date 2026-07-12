@@ -17,6 +17,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/geoip"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
@@ -258,6 +259,7 @@ func (m *mockMFAService) DisableEmailOTP(ctx context.Context, userID int64) erro
 	}
 	return nil
 }
+func (m *mockMFAService) SetGeoResolver(geoip.Resolver) {}
 func (m *mockMFAService) SendEmailOTPChallenge(ctx context.Context, userID int64) error {
 	if m.sendEmailOTPChallengeFn != nil {
 		return m.sendEmailOTPChallengeFn(ctx, userID)

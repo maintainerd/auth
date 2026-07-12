@@ -19,6 +19,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/email"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/geoip"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -130,6 +131,9 @@ type MFAService interface {
 	EnrollEmailOTP(ctx context.Context, userID int64, emailAddr string) error
 	VerifyEmailOTP(ctx context.Context, userID int64, emailAddr, code string) error
 	DisableEmailOTP(ctx context.Context, userID int64) error
+
+	// SetGeoResolver injects the IP→location resolver for trusted-device labels.
+	SetGeoResolver(r geoip.Resolver)
 }
 
 type mfaService struct {
@@ -144,7 +148,12 @@ type mfaService struct {
 	smsOtpRepo          notifier.UserOTPRepository
 	secSettingRepo      secpolicy.SecuritySettingRepository
 	authEventService    authevent.AuthEventService
+	geo                 geoip.Resolver
 }
+
+// SetGeoResolver injects the IP→location resolver used to label trusted devices.
+// Optional: when unset, devices are stored without a location.
+func (s *mfaService) SetGeoResolver(r geoip.Resolver) { s.geo = r }
 
 // trustedDeviceRecord is the mfa package's local view of the canonical
 // user_trusted_devices table (owned by the user package). One row per device:
@@ -158,6 +167,7 @@ type trustedDeviceRecord struct {
 	DeviceFingerprint     string     `gorm:"column:device_fingerprint"`
 	DeviceTokenHash       string     `gorm:"column:device_token_hash"`
 	DeviceName            *string    `gorm:"column:device_name"`
+	Location              *string    `gorm:"column:location"`
 	IPAddress             *string    `gorm:"column:ip_address"`
 	UserAgent             *string    `gorm:"column:user_agent"`
 	TrustedUntil          time.Time      `gorm:"column:trusted_until"`
@@ -1657,6 +1667,7 @@ func (s *mfaService) IssueTrustedDevice(ctx context.Context, userID, tenantID in
 	}
 
 	now := time.Now()
+	ip := middleware.ClientIPFromContext(ctx)
 	fingerprint := deviceFingerprint(userID, deviceID, middleware.UserAgentFromContext(ctx))
 	rec := &trustedDeviceRecord{
 		UserTrustedDeviceUUID: uuid.New(),
@@ -1665,7 +1676,8 @@ func (s *mfaService) IssueTrustedDevice(ctx context.Context, userID, tenantID in
 		DeviceFingerprint:     fingerprint,
 		DeviceTokenHash:       crypto.HashAuthorizationCode(raw),
 		UserAgent:             ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		IPAddress:             inetOrNil(middleware.ClientIPFromContext(ctx)),
+		IPAddress:             inetOrNil(ip),
+		Location:              s.resolveLocation(ip),
 		TrustedUntil:          now.Add(time.Duration(periodDays) * 24 * time.Hour),
 		LastSeenAt:            &now,
 	}
@@ -1682,6 +1694,7 @@ func (s *mfaService) IssueTrustedDevice(ctx context.Context, userID, tenantID in
 				"device_token_hash": rec.DeviceTokenHash,
 				"user_agent":        rec.UserAgent,
 				"ip_address":        rec.IPAddress,
+				"location":          rec.Location,
 				"trusted_until":     rec.TrustedUntil,
 				"last_seen_at":      now,
 				"updated_at":        now,
@@ -1707,6 +1720,18 @@ func (s *mfaService) RevokeTrustedDeviceByToken(ctx context.Context, token strin
 		Delete(&trustedDeviceRecord{}).Error
 	if err != nil {
 		return apperror.NewInternal("trusted device revoke failed", err)
+	}
+	return nil
+}
+
+// resolveLocation returns a coarse "City, Country" label for ip via the injected
+// GeoIP resolver, or nil when unavailable (no resolver, private IP, or unknown).
+func (s *mfaService) resolveLocation(ip string) *string {
+	if s.geo == nil {
+		return nil
+	}
+	if loc, ok := s.geo.Lookup(ip); ok {
+		return &loc
 	}
 	return nil
 }

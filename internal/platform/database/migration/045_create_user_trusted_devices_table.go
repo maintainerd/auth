@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS user_trusted_devices (
     device_fingerprint       VARCHAR(255) NOT NULL,
     device_token_hash        VARCHAR(255) NOT NULL DEFAULT '',
     device_name              VARCHAR(255),
+    location                 VARCHAR(255),
     ip_address               INET,
     user_agent               TEXT,
     trusted_until            TIMESTAMPTZ  NOT NULL,

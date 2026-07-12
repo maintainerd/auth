@@ -15,6 +15,7 @@ type UserTrustedDevice struct {
 	DeviceFingerprint     string         `gorm:"column:device_fingerprint;not null"`
 	DeviceTokenHash       string         `gorm:"column:device_token_hash;not null"`
 	DeviceName            *string        `gorm:"column:device_name"`
+	Location              *string        `gorm:"column:location"`
 	IPAddress             *string        `gorm:"column:ip_address"`
 	UserAgent             *string        `gorm:"column:user_agent"`
 	TrustedUntil          time.Time      `gorm:"column:trusted_until;not null"`
