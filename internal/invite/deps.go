@@ -77,6 +77,11 @@ type ClientRepository interface {
 	BaseRepositoryMethods[Client]
 	WithTx(tx *gorm.DB) ClientRepository
 	FindSystem() (*Client, error)
+	// FindSystemIdentityByTenantID returns the given tenant's active system
+	// identity client (auth-identity). Invites open the identity app, so the
+	// link is scoped to the *initiating* tenant's identity client — which also
+	// determines the tenant subdomain the link points to.
+	FindSystemIdentityByTenantID(tenantID int64) (*Client, error)
 }
 
 type RoleRepository interface {

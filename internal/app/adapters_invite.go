@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/invite"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -22,6 +23,20 @@ func (r *inviteClientRepo) WithTx(tx *gorm.DB) invite.ClientRepository {
 func (r *inviteClientRepo) FindSystem() (*invite.Client, error) {
 	var c invite.Client
 	err := r.DB().Where("is_system = ?", true).First(&c).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &c, nil
+}
+
+// FindSystemIdentityByTenantID returns the tenant's active system identity
+// client (auth-identity) — the public-surface client an invite link targets.
+func (r *inviteClientRepo) FindSystemIdentityByTenantID(tenantID int64) (*invite.Client, error) {
+	var c invite.Client
+	err := r.DB().
+		Where("tenant_id = ? AND is_system = ? AND status = ? AND name = ?",
+			tenantID, true, shared.StatusActive, shared.SystemClientNameAuthIdentity).
+		First(&c).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}

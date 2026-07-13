@@ -80,31 +80,28 @@ func (s *inviteService) SendInvite(
 
 	var invite *Invite
 	var clientIdentifier string
-	var clientIsSystem bool
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		clientRepo := s.clientRepo.WithTx(tx)
 		registrationFlowRepo := s.registrationFlowRepo.WithTx(tx)
 		inviteRepo := s.inviteRepo.WithTx(tx)
 
-		Client, err := clientRepo.FindSystem()
+		// Resolve the *initiating* tenant's system identity client. The invite
+		// email links to the identity app, and the tenant subdomain the link
+		// points to is derived from this tenant below — so a regular tenant's
+		// invite correctly lands on {tenant}.identity..., and the system tenant on
+		// the bare host.
+		Client, err := clientRepo.FindSystemIdentityByTenantID(tenantID)
 		if err != nil {
 			return err
 		}
 		if Client == nil ||
 			Client.Status != shared.StatusActive ||
-			Client.Domain == nil || *Client.Domain == "" ||
-			Client.TenantID == 0 {
-			return apperror.NewValidation("invalid client or identity provider")
+			Client.Identifier == nil || *Client.Identifier == "" ||
+			Client.TenantID != tenantID {
+			return apperror.NewValidation("no active system identity client for this tenant")
 		}
 		clientIdentifier = *Client.Identifier
-		clientIsSystem = Client.IsSystem
-
-		// The system client's tenant is the tenant this invite belongs under.
-		systemTenantID := Client.TenantID
-		if tenantID != systemTenantID {
-			return apperror.NewValidation("tenant mismatch: invite tenant must match the system tenant")
-		}
 
 		inviteToken, err := crypto.GenerateIdentifier(32)
 		if err != nil {
@@ -127,7 +124,7 @@ func (s *inviteService) SendInvite(
 			if err != nil {
 				return apperror.NewValidation("invalid registration flow UUID")
 			}
-			registrationFlow, err := registrationFlowRepo.FindByUUIDAndTenantID(registrationFlowUUIDParsed, systemTenantID)
+			registrationFlow, err := registrationFlowRepo.FindByUUIDAndTenantID(registrationFlowUUIDParsed, tenantID)
 			if err != nil || registrationFlow == nil {
 				return apperror.NewNotFoundWithReason("registration flow not found")
 			}
@@ -150,7 +147,6 @@ func (s *inviteService) SendInvite(
 					return apperror.NewNotFoundWithReason("registration flow client not found or access denied")
 				}
 				invite.ClientID = flowClientID
-				clientIsSystem = false
 				var flowClientIdentifier string
 				if err := tx.Table("clients").
 					Select("identifier").
@@ -207,21 +203,23 @@ func (s *inviteService) SendInvite(
 	}
 
 	// Generate signed invite URL (API domain) — all invites go to the identity app.
+	// The tenant is identified by the identity subdomain (below), never a query
+	// param. The link always carries client_id (the identity app is the public
+	// surface, which requires client_id), plus email, the invite token, the
+	// callback URL (when set), and the signed-URL fields (expires + signature).
 	params := map[string]string{
 		"invite_token": invite.InviteToken,
 		"email":        invite.InvitedEmail,
+		"client_id":    clientIdentifier,
 	}
-	// Resolve the invite tenant. The tenant name is the DNS slug used both for
-	// the tenant_id param (system-client invites) and for the per-tenant
+	if invite.CallbackURL != nil && *invite.CallbackURL != "" {
+		params["callback_url"] = *invite.CallbackURL
+	}
+	// Resolve the invite tenant — its name is the DNS slug for the per-tenant
 	// identity subdomain the invite email links to.
 	var inviteTenant TenantRecord
 	if err := s.db.Select("name", "is_system").Where("tenant_id = ?", invite.TenantID).First(&inviteTenant).Error; err != nil || inviteTenant.Name == "" {
 		return nil, apperror.NewInternal("failed to resolve invite tenant", err)
-	}
-	if clientIsSystem {
-		params["tenant_id"] = inviteTenant.Name
-	} else {
-		params["client_id"] = clientIdentifier
 	}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, inviteTTL())
