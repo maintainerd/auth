@@ -272,23 +272,33 @@ func (s *inviteService) ResendInvite(
 		"email":        existing.InvitedEmail,
 	}
 
-	// All invites go to the identity app. Determine surface param by client type.
-	var clientIsSystem bool
-	if err := s.db.Model(&Client{}).Select("is_system").Where("client_id = ?", existing.ClientID).Scan(&clientIsSystem).Error; err != nil {
-		return nil, apperror.NewInternal("failed to resolve invite client", err)
-	}
-	var inviteTenant TenantRecord
-	if err := s.db.Select("name", "is_system").Where("tenant_id = ?", existing.TenantID).First(&inviteTenant).Error; err != nil || inviteTenant.Name == "" {
-		return nil, apperror.NewInternal("failed to resolve invite tenant", err)
-	}
-	if clientIsSystem {
-		params["tenant_id"] = inviteTenant.Name
-	} else {
-		var clientIdentifier string
+	// Mirror SendInvite: the link always carries client_id (tenant comes from the
+	// subdomain, never a query param) plus the callback when set. Use the invite's
+	// flow client when it has a registration flow, otherwise the initiating
+	// tenant's system identity client.
+	var clientIdentifier string
+	if existing.RegistrationFlowID != nil {
 		if err := s.db.Model(&Client{}).Select("identifier").Where("client_id = ?", existing.ClientID).Scan(&clientIdentifier).Error; err != nil || clientIdentifier == "" {
 			return nil, apperror.NewInternal("failed to resolve invite client", err)
 		}
-		params["client_id"] = clientIdentifier
+	} else {
+		c, err := s.clientRepo.FindSystemIdentityByTenantID(existing.TenantID)
+		if err != nil {
+			return nil, err
+		}
+		if c == nil || c.Identifier == nil || *c.Identifier == "" {
+			return nil, apperror.NewValidation("no active system identity client for this tenant")
+		}
+		clientIdentifier = *c.Identifier
+	}
+	params["client_id"] = clientIdentifier
+	if existing.CallbackURL != nil && *existing.CallbackURL != "" {
+		params["callback_url"] = *existing.CallbackURL
+	}
+
+	var inviteTenant TenantRecord
+	if err := s.db.Select("name", "is_system").Where("tenant_id = ?", existing.TenantID).First(&inviteTenant).Error; err != nil || inviteTenant.Name == "" {
+		return nil, apperror.NewInternal("failed to resolve invite tenant", err)
 	}
 	frontendBaseURL := shared.FrontendURL(shared.FrontendSurfaceIdentity, inviteTenant.Name, inviteTenant.IsSystem, "/register/invite")
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
