@@ -25,8 +25,13 @@ type samlRelayState struct {
 	ClientID           string `json:"cid"`
 	RedirectURI        string `json:"ruri"`
 	TenantID           int64  `json:"tid"`
-	Nonce              string `json:"n"`
-	IssuedAt           int64  `json:"iat"`
+	// RequestID is the ID of the SAML AuthnRequest this flow generated. It is
+	// carried back through RelayState and fed to ParseResponse as the only
+	// accepted InResponseTo value, binding the IdP's Response to the exact
+	// request we issued (anti-replay / anti-injection).
+	RequestID string `json:"rid"`
+	Nonce     string `json:"n"`
+	IssuedAt  int64  `json:"iat"`
 }
 
 // signRelayState encodes rs as JSON, computes HMAC-SHA256 over it with the
@@ -192,12 +197,15 @@ func samlSPURLs(providerIdentifier string) (entityID, acsURL, metadataURL string
 }
 
 // newSAMLRelayState creates a signed relay state token for the given flow params.
-func newSAMLRelayState(providerIdentifier, clientID, redirectURI string, tenantID int64) (string, error) {
+// requestID is the AuthnRequest ID so the ACS handler can bind the IdP Response
+// to the request we issued.
+func newSAMLRelayState(providerIdentifier, clientID, redirectURI string, tenantID int64, requestID string) (string, error) {
 	rs := &samlRelayState{
 		ProviderIdentifier: providerIdentifier,
 		ClientID:           clientID,
 		RedirectURI:        redirectURI,
 		TenantID:           tenantID,
+		RequestID:          requestID,
 		Nonce:              uuid.New().String(),
 		IssuedAt:           time.Now().Unix(),
 	}
@@ -264,10 +272,34 @@ func extractSAMLClaims(assertion *crewsaml.Assertion, attrMapping map[string]str
 	}
 
 	return IdentityMetadata{
-		Email:         email,
-		EmailVerified: email != "",
+		Email: email,
+		// EmailVerified is intentionally NOT derived from the mere presence of an
+		// email attribute. A SAML IdP asserting an email address is not proof that
+		// the address is owned by the subject, and treating it as verified would
+		// let the merge-with-existing-user gate in provisionUser fire on an
+		// unproven email. The caller (HandleSAMLResponse) sets EmailVerified only
+		// when the email's domain is on the provider's configured allow-list.
+		EmailVerified: false,
 		Name:          displayName,
 		GivenName:     givenName,
 		FamilyName:    familyName,
 	}
+}
+
+// samlEmailDomainAllowed reports whether the asserted email's domain is on the
+// provider's configured email_domains allow-list. Only an allow-listed domain is
+// treated as proof the SAML IdP is authoritative for that email, which is the
+// precondition for merging into (rather than creating separately from) an
+// existing local account.
+func samlEmailDomainAllowed(email string, allowed []IdentityProviderEmailDomain) bool {
+	domain := emailDomain(email)
+	if domain == "" || len(allowed) == 0 {
+		return false
+	}
+	for _, d := range allowed {
+		if strings.EqualFold(strings.TrimSpace(d.Domain), domain) {
+			return true
+		}
+	}
+	return false
 }

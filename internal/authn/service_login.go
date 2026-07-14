@@ -1060,7 +1060,7 @@ func (s *loginService) ensureUserIdentityForClient(ctx context.Context, user *Us
 		return identity, nil
 	}
 
-	idpID := connectedMaintainerdIdentityProviderID(client)
+	idpID := connectedSystemIdentityProviderID(client)
 	if idpID == nil {
 		return nil, apperror.NewUnauthorized("authentication failed")
 	}
@@ -1079,7 +1079,12 @@ func (s *loginService) ensureUserIdentityForClient(ctx context.Context, user *Us
 	return created, nil
 }
 
-func connectedMaintainerdIdentityProviderID(client *Client) *int64 {
+// connectedSystemIdentityProviderID returns the id of the client's connected
+// built-in system IdP, used to anchor a password-authenticated user's local
+// identity. Selection keys off the system flag (is_system / provider_type ==
+// system), NEVER the "maintainerd" provider string, so a connected EXTERNAL
+// maintainerd (enterprise) IdP is never mistaken for the built-in one.
+func connectedSystemIdentityProviderID(client *Client) *int64 {
 	if client == nil {
 		return nil
 	}
@@ -1089,7 +1094,7 @@ func connectedMaintainerdIdentityProviderID(client *Client) *int64 {
 			if !conn.Enabled || conn.IdentityProvider == nil {
 				continue
 			}
-			if conn.IdentityProvider.Provider == shared.IDPProviderMaintainerd {
+			if isSystemIdentityProvider(conn.IdentityProvider) {
 				id := conn.IdentityProviderID
 				if id == 0 {
 					id = conn.IdentityProvider.IdentityProviderID
@@ -1100,7 +1105,7 @@ func connectedMaintainerdIdentityProviderID(client *Client) *int64 {
 			}
 		}
 	}
-	if client.IdentityProvider != nil && client.IdentityProvider.Provider == shared.IDPProviderMaintainerd {
+	if client.IdentityProvider != nil && isSystemIdentityProvider(client.IdentityProvider) {
 		id := client.IdentityProvider.IdentityProviderID
 		if id == 0 {
 			id = client.IdentityProviderID
@@ -1110,6 +1115,12 @@ func connectedMaintainerdIdentityProviderID(client *Client) *int64 {
 		}
 	}
 	return nil
+}
+
+// isSystemIdentityProvider reports whether an IdP is the built-in system
+// provider by its authoritative flags, independent of the provider slug.
+func isSystemIdentityProvider(idp *IdentityProvider) bool {
+	return idp != nil && (idp.IsSystem || idp.ProviderType == shared.IDPTypeSystem)
 }
 
 // generateTokenResponseWithAuth issues a full session token set with the given

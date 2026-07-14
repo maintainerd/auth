@@ -72,7 +72,6 @@ const (
 	IDPProviderFacebook    = "facebook"
 	IDPProviderGitHub      = "github"
 	IDPProviderMicrosoft   = "microsoft"
-	IDPProviderApple       = "apple"
 	IDPProviderLinkedIn    = "linkedin"
 	IDPProviderTwitter     = "twitter"
 	IDPProviderGitLab      = "gitlab"

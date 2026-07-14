@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -21,6 +23,16 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+// TestMain installs a valid 32-byte AES-256 key for the whole idp test package so
+// encrypt/decrypt round-trips (encryptProviderClientSecret, the strict federation
+// decrypt path) work without every test wiring the key by hand. Individual tests
+// that need a different key or an override still set config.AppEncryptionKey /
+// crypto.EncryptAtRest locally and restore it in cleanup.
+func TestMain(m *testing.M) {
+	config.AppEncryptionKey = []byte("0123456789abcdef0123456789abcdef")
+	os.Exit(m.Run())
+}
 
 var (
 	errNotFound   = apperror.NewNotFoundWithReason("not found")
@@ -125,6 +137,7 @@ type mockIdentityProviderRepo struct {
 	findByIssuerFn            func(string) (*IdentityProvider, error)
 	findByIDFn                func(any, ...string) (*IdentityProvider, error)
 	findDefaultByTenantIDFn   func(int64) (*IdentityProvider, error)
+	findSystemByTenantIDFn    func(int64) (*IdentityProvider, error)
 	findByTenantAndProviderFn func(int64, string) (*IdentityProvider, error)
 	findAllByTenantIDFn       func(int64) ([]IdentityProvider, error)
 	findPaginatedFn           func(IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error)
@@ -192,6 +205,12 @@ func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tenantID int64) (*Ident
 	}
 	return nil, nil
 }
+func (m *mockIdentityProviderRepo) FindSystemByTenantID(tenantID int64) (*IdentityProvider, error) {
+	if m.findSystemByTenantIDFn != nil {
+		return m.findSystemByTenantIDFn(tenantID)
+	}
+	return nil, nil
+}
 func (m *mockIdentityProviderRepo) FindByTenantAndProvider(tenantID int64, provider string) (*IdentityProvider, error) {
 	if m.findByTenantAndProviderFn != nil {
 		return m.findByTenantAndProviderFn(tenantID, provider)
@@ -235,6 +254,27 @@ func (m *mockIdentityProviderEmailDomainRepo) FindByProviderID(idpID int64) ([]I
 func (m *mockIdentityProviderEmailDomainRepo) ReplaceForProvider(tenantID, idpID int64, domains []string) error {
 	if m.replaceForProviderFn != nil {
 		return m.replaceForProviderFn(tenantID, idpID, domains)
+	}
+	return nil
+}
+
+type mockIdentityProviderAllowedAudienceRepo struct {
+	findByProviderIDFn   func(int64) ([]IdentityProviderAllowedAudience, error)
+	replaceForProviderFn func(int64, int64, []string) error
+}
+
+func (m *mockIdentityProviderAllowedAudienceRepo) WithTx(_ *gorm.DB) IdentityProviderAllowedAudienceRepository {
+	return m
+}
+func (m *mockIdentityProviderAllowedAudienceRepo) FindByProviderID(idpID int64) ([]IdentityProviderAllowedAudience, error) {
+	if m.findByProviderIDFn != nil {
+		return m.findByProviderIDFn(idpID)
+	}
+	return nil, nil
+}
+func (m *mockIdentityProviderAllowedAudienceRepo) ReplaceForProvider(tenantID, idpID int64, audiences []string) error {
+	if m.replaceForProviderFn != nil {
+		return m.replaceForProviderFn(tenantID, idpID, audiences)
 	}
 	return nil
 }
@@ -409,9 +449,16 @@ type mockClientRepo struct {
 	findByIDFn                          func(any, ...string) (*Client, error)
 	findSystemFn                        func() (*Client, error)
 	findByClientIDAndIdentityProviderFn func(string, string) (*Client, error)
+	findRedirectURIsFn                  func(int64) ([]ClientURI, error)
 }
 
 func (m *mockClientRepo) WithTx(_ *gorm.DB) ClientRepository { return m }
+func (m *mockClientRepo) FindRedirectURIs(clientID int64) ([]ClientURI, error) {
+	if m.findRedirectURIsFn != nil {
+		return m.findRedirectURIsFn(clientID)
+	}
+	return nil, nil
+}
 func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)

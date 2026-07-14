@@ -227,6 +227,20 @@ func (s *identityProviderService) Create(ctx context.Context, in IdentityProvide
 		attribute.String("idp.name", in.Name),
 	)
 
+	// The 'system' provider type is reserved for the seeded, built-in provider —
+	// exactly one per tenant (is_system, undeletable), provisioned only by the
+	// seeder. It can never be created through the API; every user-created
+	// provider (including additional external maintainerd instances) is non-system.
+	if in.ProviderType == shared.IDPTypeSystem {
+		return nil, apperror.NewValidation("the 'system' provider type is reserved for the built-in provider and cannot be created")
+	}
+
+	// config is JSONB NOT NULL; a nil/empty datatypes.JSON serializes to SQL NULL
+	// on write and violates the constraint, so normalize an omitted config to '{}'.
+	if len(in.Config) == 0 {
+		in.Config = datatypes.JSON([]byte("{}"))
+	}
+
 	// Enforce the active-gated structural rule on every surface (HTTP + gRPC).
 	if err := validateExternalProviderColumns(in.ProviderType, in.Status, in.Issuer, in.ProviderClientID); err != nil {
 		return nil, err
@@ -355,6 +369,18 @@ func (s *identityProviderService) Update(ctx context.Context, in IdentityProvide
 		attribute.String("idp.uuid", in.IdpUUID.String()),
 		attribute.Int64("tenant.id", in.TenantID),
 	)
+
+	// The 'system' provider type is reserved for the built-in provider and can
+	// never be assigned via the API (the built-in itself is update-blocked below).
+	if in.ProviderType == shared.IDPTypeSystem {
+		return nil, apperror.NewValidation("the 'system' provider type is reserved for the built-in provider and cannot be assigned")
+	}
+
+	// config is JSONB NOT NULL; a nil/empty datatypes.JSON serializes to SQL NULL
+	// on write and violates the constraint, so normalize an omitted config to '{}'.
+	if len(in.Config) == 0 {
+		in.Config = datatypes.JSON([]byte("{}"))
+	}
 
 	// Enforce the active-gated structural rule on every surface (HTTP + gRPC).
 	if err := validateExternalProviderColumns(in.ProviderType, in.Status, in.Issuer, in.ProviderClientID); err != nil {
@@ -515,6 +541,17 @@ func (s *identityProviderService) SetStatusByUUID(ctx context.Context, idpUUID u
 			return apperror.NewValidation("default idp cannot be updated")
 		}
 
+		// Activating a provider must not bypass the structural validation the
+		// create/update DTOs enforce: a draft (missing issuer/client_id/config)
+		// could otherwise be flipped ACTIVE and become an unconfigured live IdP.
+		// Validate the STORED provider before flipping status to active. Deactivating
+		// is never gated.
+		if status == shared.StatusActive {
+			if err := validateStoredProviderForActivation(idp); err != nil {
+				return err
+			}
+		}
+
 		// Set status
 		idp.Status = status
 
@@ -585,7 +622,22 @@ func (s *identityProviderService) DeleteByUUID(ctx context.Context, idpUUID uuid
 		return nil, apperror.NewValidation("default idp cannot be deleted")
 	}
 
-	if err := s.idpRepo.DeleteByUUID(idpUUID); err != nil {
+	// A soft delete does NOT fire the FK ON DELETE CASCADE, so the child email_domains
+	// and allowed_audiences rows would be left live — later blocking domain reuse
+	// (unique-constraint violation) and misrouting home-realm discovery to a deleted
+	// IdP. Clear the children and soft-delete the provider atomically.
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := s.emailDomainRepo.WithTx(tx).ReplaceForProvider(idp.TenantID, idp.IdentityProviderID, nil); err != nil {
+			return err
+		}
+		if s.allowedAudienceRepo != nil {
+			if err := s.allowedAudienceRepo.WithTx(tx).ReplaceForProvider(idp.TenantID, idp.IdentityProviderID, nil); err != nil {
+				return err
+			}
+		}
+		return s.idpRepo.WithTx(tx).DeleteByUUID(idpUUID)
+	})
+	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to delete identity provider")
 		return nil, err
@@ -612,6 +664,30 @@ func validateExternalProviderColumns(providerType, status, issuer, clientID stri
 	}
 	if strings.TrimSpace(clientID) == "" {
 		return apperror.NewValidation("provider_client_id is required for active social/enterprise identity providers")
+	}
+	return nil
+}
+
+// validateStoredProviderForActivation runs the same structural + config rules the
+// create/update DTOs enforce, but against the STORED provider row, so a draft can
+// never be flipped ACTIVE through the status endpoint without being fully
+// configured. It mirrors the DTO wiring: the column rule always runs, then the
+// SAML config rule (SAML providers) or the external OIDC/OAuth2 config rule
+// (social/enterprise providers). Config rule errors are ozzo validation errors, so
+// they are wrapped in apperror.NewValidation to map to HTTP 400 at the service edge.
+func validateStoredProviderForActivation(idp *IdentityProvider) error {
+	if err := validateExternalProviderColumns(idp.ProviderType, shared.StatusActive, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty()); err != nil {
+		return err
+	}
+	switch {
+	case isSAMLProviderType(idp.ProviderType):
+		if err := validateSAMLConfig(true)(idp.Config); err != nil {
+			return apperror.NewValidation(err.Error())
+		}
+	case isExternalProviderType(idp.ProviderType):
+		if err := validateExternalProviderConfig(idp.Provider, isOAuth2OnlyProvider(idp.Provider))(idp.Config); err != nil {
+			return apperror.NewValidation(err.Error())
+		}
 	}
 	return nil
 }

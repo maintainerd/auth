@@ -129,7 +129,7 @@ func TestCompleteMFALogin_CreatesMaintainerdIdentityWhenMissing(t *testing.T) {
 	challenge, err := platformjwt.GenerateStepUpChallengeTokenWithContext(context.Background(), userUUID.String(), time.Minute, []string{"webauthn"})
 	require.NoError(t, err)
 	clientID := "test-client"
-	maintainerdIDP := &IdentityProvider{IdentityProviderID: 7, Provider: shared.IDPProviderMaintainerd}
+	maintainerdIDP := &IdentityProvider{IdentityProviderID: 7, Provider: shared.IDPProviderMaintainerd, ProviderType: shared.IDPTypeSystem, IsSystem: true}
 	googleIDP := &IdentityProvider{IdentityProviderID: 8, Provider: shared.IDPProviderGoogle}
 	connections := []ClientIdentityProvider{
 		{IdentityProviderID: 8, Enabled: true, IsDefault: true, IdentityProvider: googleIDP},

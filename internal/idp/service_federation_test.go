@@ -24,6 +24,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
@@ -48,6 +49,7 @@ type mockFederationUserIdentityRepo struct {
 	mockBaseRepo[UserIdentity]
 	findByUserIDFn               func(int64) ([]UserIdentity, error)
 	findByUserIDAndProviderFn    func(int64, string) (*UserIdentity, error)
+	findByUserIDAndIDPIDFn       func(int64, int64) (*UserIdentity, error)
 	findByTenantProviderAndSubFn func(int64, string, string) (*UserIdentity, error)
 	createFn                     func(*UserIdentity) (*UserIdentity, error)
 	createIfAbsentFn             func(*UserIdentity) (*UserIdentity, bool, error)
@@ -75,6 +77,13 @@ func (m *mockFederationUserIdentityRepo) FindByTenantProviderAndSub(tenantID int
 func (m *mockFederationUserIdentityRepo) FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error) {
 	if m.findByUserIDAndProviderFn != nil {
 		return m.findByUserIDAndProviderFn(userID, provider)
+	}
+	return nil, nil
+}
+
+func (m *mockFederationUserIdentityRepo) FindByUserIDAndIdentityProviderID(userID int64, idpID int64) (*UserIdentity, error) {
+	if m.findByUserIDAndIDPIDFn != nil {
+		return m.findByUserIDAndIDPIDFn(userID, idpID)
 	}
 	return nil, nil
 }
@@ -168,8 +177,9 @@ func validOAuth2ConfigJSON() datatypes.JSON {
 // promoteIDPConfigColumns mirrors production storage: issuer / client_id /
 // client_secret / allow_jit_provisioning live in dedicated columns, not the
 // config JSONB. It parses those keys out of the legacy config JSON and sets the
-// columns. The secret is stored as-is (plaintext) — SafeDecryptAtRest returns the
-// input verbatim on decrypt failure, so DecryptedProviderClientSecret() round-trips it.
+// columns. The secret is ENCRYPTED at rest (as production does), so the strict
+// federation decrypt path round-trips it back to plaintext. The package TestMain
+// installs the AES key that makes this work.
 func promoteIDPConfigColumns(idp *IdentityProvider) {
 	if len(idp.Config) == 0 {
 		return
@@ -187,8 +197,9 @@ func promoteIDPConfigColumns(idp *IdentityProvider) {
 		idp.ProviderClientID = &s
 	}
 	if v, ok := m["client_secret"].(string); ok && v != "" {
-		s := v
-		idp.ProviderClientSecretEncrypted = &s
+		if enc, err := crypto.EncryptAtRest(v); err == nil {
+			idp.ProviderClientSecretEncrypted = &enc
+		}
 	}
 	if v, ok := m["allow_jit_provisioning"].(bool); ok {
 		idp.AllowJITProvisioning = v
@@ -299,6 +310,13 @@ func TestFederationService_ResolveBrokerProvider(t *testing.T) {
 		_, err := svc.ResolveBrokerProvider(context.Background(), "google")
 		require.Error(t, err)
 	})
+}
+
+// systemIDPStub returns the tenant's built-in system IdP. Its id matches
+// activeOIDCProvider's id (1) so the single identity created in most fixtures is
+// reachable both by the external-IdP id and the system-IdP id.
+func systemIDPStub(int64) (*IdentityProvider, error) {
+	return &IdentityProvider{IdentityProviderID: 1, IsSystem: true, ProviderType: shared.IDPTypeSystem}, nil
 }
 
 func activeOIDCProvider(identifier string) *IdentityProvider {
@@ -417,7 +435,7 @@ func TestFederationServiceProvisionUser_UnverifiedEmailDoesNotMergeExistingAccou
 	svc := &federationService{
 		userRepo:         userRepo,
 		userIdentityRepo: identityRepo,
-		idpRepo:          &mockIdentityProviderRepo{},
+		idpRepo:          &mockIdentityProviderRepo{findSystemByTenantIDFn: systemIDPStub},
 		roleRepo:         &mockRoleRepo{},
 	}
 
@@ -439,7 +457,10 @@ func TestFederationServiceProvisionUser_UnverifiedEmailDoesNotMergeExistingAccou
 	assert.Equal(t, int64(200), externalIdentity.UserID)
 }
 
-func TestFederationServiceProvisionUser_VerifiedEmailMergesTenantAccount(t *testing.T) {
+// F3: a verified-email collision with a pre-existing account must fail closed —
+// provisionUser surfaces errEmailCollision instead of silently merging, even
+// when no account-link service is wired.
+func TestFederationServiceProvisionUser_VerifiedEmailCollisionFailsClosed(t *testing.T) {
 	gormDB, _ := newMockGormDB(t)
 
 	existingUser := &User{UserID: 100, Email: "owner@example.com", IsEmailVerified: true}
@@ -460,20 +481,20 @@ func TestFederationServiceProvisionUser_VerifiedEmailMergesTenantAccount(t *test
 		},
 	}
 
-	var externalIdentity *UserIdentity
+	var externalIdentityCreated bool
 	identityRepo := &mockFederationUserIdentityRepo{
 		createFn: func(identity *UserIdentity) (*UserIdentity, error) {
-			if identity.Provider == "google" {
-				externalIdentity = identity
-			}
+			externalIdentityCreated = true
 			return identity, nil
 		},
 	}
 
+	// accountLinkSvc intentionally left nil — the old code silently merged in this
+	// case; the fix must instead fail closed with a collision.
 	svc := &federationService{
 		userRepo:         userRepo,
 		userIdentityRepo: identityRepo,
-		idpRepo:          &mockIdentityProviderRepo{},
+		idpRepo:          &mockIdentityProviderRepo{findSystemByTenantIDFn: systemIDPStub},
 		roleRepo:         &mockRoleRepo{},
 	}
 
@@ -486,12 +507,15 @@ func TestFederationServiceProvisionUser_VerifiedEmailMergesTenantAccount(t *test
 		EmailVerified: true,
 	}, int64Ptr(10))
 
-	require.NoError(t, err)
-	require.Same(t, existingUser, user)
+	require.Error(t, err)
+	var collision *errEmailCollision
+	require.ErrorAs(t, err, &collision)
+	assert.Equal(t, int64(100), collision.existingUserID)
+	assert.Equal(t, "owner@example.com", collision.providerEmail)
+	assert.Nil(t, user)
 	assert.False(t, isNew)
-	assert.False(t, createUserCalled)
-	require.NotNil(t, externalIdentity)
-	assert.Equal(t, int64(100), externalIdentity.UserID)
+	assert.False(t, createUserCalled, "must not create a new user on collision")
+	assert.False(t, externalIdentityCreated, "must not silently link into the existing account")
 }
 
 func TestFederationServiceProvisionUser_VerifiedEmailLookupErrorFailsClosed(t *testing.T) {
@@ -677,14 +701,12 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
-				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
+				findByIdentifierFn:     func(string) (*IdentityProvider, error) { return idp, nil },
+				findSystemByTenantIDFn: systemIDPStub,
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByUserIDAndProviderFn: func(userID int64, provider string) (*UserIdentity, error) {
-					if provider == shared.ProviderMaintainerd {
-						return &UserIdentity{UserID: userID, Provider: provider, Sub: "internal-sub"}, nil
-					}
-					return nil, nil
+				findByUserIDAndIDPIDFn: func(userID int64, idpID int64) (*UserIdentity, error) {
+					return &UserIdentity{UserID: userID, Provider: shared.ProviderMaintainerd, Sub: "internal-sub"}, nil
 				},
 			},
 			userRepo: &mockUserRepo{
@@ -725,14 +747,15 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
-				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
+				findByIdentifierFn:     func(string) (*IdentityProvider, error) { return idp, nil },
+				findSystemByTenantIDFn: systemIDPStub,
 				findDefaultByTenantIDFn: func(int64) (*IdentityProvider, error) {
 					return &IdentityProvider{Identifier: "default-idp"}, nil
 				},
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByUserIDAndProviderFn: func(userID int64, provider string) (*UserIdentity, error) {
-					return &UserIdentity{UserID: userID, Provider: provider, Sub: "internal-sub"}, nil
+				findByUserIDAndIDPIDFn: func(userID int64, idpID int64) (*UserIdentity, error) {
+					return &UserIdentity{UserID: userID, Sub: "internal-sub"}, nil
 				},
 			},
 			userRepo: &mockUserRepo{
@@ -819,13 +842,14 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
-				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
+				findByIdentifierFn:     func(string) (*IdentityProvider, error) { return idp, nil },
+				findSystemByTenantIDFn: systemIDPStub,
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
 				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return nil, nil
 				},
-				findByUserIDAndProviderFn: func(int64, string) (*UserIdentity, error) {
+				findByUserIDAndIDPIDFn: func(int64, int64) (*UserIdentity, error) {
 					return nil, errors.New("default lookup error")
 				},
 			},
@@ -891,14 +915,15 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
-				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
+				findByIdentifierFn:     func(string) (*IdentityProvider, error) { return idp, nil },
+				findSystemByTenantIDFn: systemIDPStub,
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
 				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return &UserIdentity{UserIdentityID: 1, UserID: 30, Provider: "google", Sub: "external-sub"}, nil
 				},
-				findByUserIDAndProviderFn: func(userID int64, provider string) (*UserIdentity, error) {
-					return &UserIdentity{UserID: userID, Provider: provider, Sub: "internal-sub"}, nil
+				findByUserIDAndIDPIDFn: func(userID int64, idpID int64) (*UserIdentity, error) {
+					return &UserIdentity{UserID: userID, Sub: "internal-sub"}, nil
 				},
 			},
 			userRepo: &mockUserRepo{
@@ -958,7 +983,8 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
-				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
+				findByIdentifierFn:     func(string) (*IdentityProvider, error) { return idp, nil },
+				findSystemByTenantIDFn: systemIDPStub,
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{},
 			userRepo: &mockUserRepo{
@@ -1050,6 +1076,32 @@ func TestFederationService_ExchangeOAuth2Code_ErrorPaths(t *testing.T) {
 		_, err := svc.ExchangeOAuth2Code(context.Background(), req)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "missing userinfo endpoint")
+	})
+
+	// FIX E: an undecryptable stored secret must fail the exchange CLOSED — the raw
+	// ciphertext must never be POSTed upstream as the client secret. The stored
+	// value below is not valid ciphertext for the configured key, so strict decrypt
+	// errors and the exchange aborts before any upstream call.
+	t.Run("undecryptable secret fails closed", func(t *testing.T) {
+		idp := activeOIDCProvider("idp-1")
+		setIDPConfigJSON(idp, datatypes.JSON(json.RawMessage(`{"issuer":"https://auth.example.com","client_id":"test-client","userinfo_endpoint":"https://auth.example.com/userinfo"}`)))
+		garbage := "this-is-not-valid-ciphertext"
+		idp.ProviderClientSecretEncrypted = &garbage
+
+		origExchange := idpOAuth2Exchange
+		idpOAuth2Exchange = func(context.Context, *oauth2.Config, string) (*oauth2.Token, error) {
+			t.Fatal("upstream token exchange must not be called when the secret is undecryptable")
+			return nil, nil
+		}
+		t.Cleanup(func() { idpOAuth2Exchange = origExchange })
+
+		idpRepo := &mockIdentityProviderRepo{
+			findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
+		}
+		svc := &federationService{idpRepo: idpRepo}
+		_, err := svc.ExchangeOAuth2Code(context.Background(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "provider client secret unavailable")
 	})
 }
 
@@ -1167,12 +1219,13 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
-				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
+				findByIdentifierFn:     func(string) (*IdentityProvider, error) { return idp, nil },
+				findSystemByTenantIDFn: systemIDPStub,
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByUserIDAndProviderFn: func(userID int64, provider string) (*UserIdentity, error) {
-					if provider == idp.Provider {
-						return &UserIdentity{UserID: userID, Provider: provider, Sub: "external-id"}, nil
+				findByUserIDAndIDPIDFn: func(userID int64, idpID int64) (*UserIdentity, error) {
+					if idpID == idp.IdentityProviderID {
+						return &UserIdentity{UserID: userID, Provider: idp.Provider, Sub: "external-id"}, nil
 					}
 					return nil, nil
 				},
@@ -1301,10 +1354,11 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 		svc := &federationService{
 			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
-				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
+				findByIdentifierFn:     func(string) (*IdentityProvider, error) { return idp, nil },
+				findSystemByTenantIDFn: systemIDPStub,
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{
-				findByUserIDAndProviderFn: func(int64, string) (*UserIdentity, error) {
+				findByUserIDAndIDPIDFn: func(int64, int64) (*UserIdentity, error) {
 					return nil, errors.New("identity resolution error")
 				},
 			},
@@ -1346,8 +1400,8 @@ func TestFederationService_ExchangeOAuth2Code_Branches(t *testing.T) {
 				findByTenantProviderAndSubFn: func(int64, string, string) (*UserIdentity, error) {
 					return &UserIdentity{UserIdentityID: 1, UserID: 40, Provider: "google", Sub: "external-sub"}, nil
 				},
-				findByUserIDAndProviderFn: func(userID int64, provider string) (*UserIdentity, error) {
-					return &UserIdentity{UserID: userID, Provider: provider, Sub: "external-sub"}, nil
+				findByUserIDAndIDPIDFn: func(userID int64, idpID int64) (*UserIdentity, error) {
+					return &UserIdentity{UserID: userID, Sub: "external-sub"}, nil
 				},
 			},
 			userRepo: &mockUserRepo{
@@ -1821,6 +1875,157 @@ func TestFederationService_UnlinkIdentity(t *testing.T) {
 		}
 		err := svc.UnlinkIdentity(context.Background(), userID, identUUID.String())
 		require.NoError(t, err)
+	})
+
+	// An EXTERNAL maintainerd federated identity (provider="maintainerd" but
+	// linked to a non-system IdP) can be unlinked — the built-in guard must key
+	// off the tenant's system IdP id, not the provider string.
+	t.Run("external maintainerd federated identity is unlinkable", func(t *testing.T) {
+		extIDPID := int64(2)
+		extMaintainerd := UserIdentity{
+			UserIdentityID:     10,
+			UserIdentityUUID:   identUUID,
+			Provider:           shared.ProviderMaintainerd,
+			IdentityProviderID: &extIDPID,
+			TenantID:           1,
+			UserID:             userID,
+		}
+		identityRepo := &mockFederationUserIdentityRepo{
+			findByUserIDFn: func(int64) ([]UserIdentity, error) {
+				return []UserIdentity{extMaintainerd}, nil
+			},
+		}
+		idpRepo := &mockIdentityProviderRepo{
+			findSystemByTenantIDFn: func(int64) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, IsSystem: true, ProviderType: shared.IDPTypeSystem}, nil
+			},
+		}
+		gdb, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := &federationService{
+			db:               gdb,
+			userIdentityRepo: identityRepo,
+			idpRepo:          idpRepo,
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.UnlinkIdentity(context.Background(), userID, identUUID.String())
+		require.NoError(t, err)
+	})
+
+	// The real built-in system identity (linked to the tenant's system IdP) must
+	// never be unlinkable, decided by is_system — not the provider string.
+	t.Run("built-in system identity cannot be unlinked (by is_system)", func(t *testing.T) {
+		systemIDPID := int64(1)
+		builtin := UserIdentity{
+			UserIdentityID:     10,
+			UserIdentityUUID:   identUUID,
+			Provider:           shared.ProviderMaintainerd,
+			IdentityProviderID: &systemIDPID,
+			TenantID:           1,
+			UserID:             userID,
+		}
+		identityRepo := &mockFederationUserIdentityRepo{
+			findByUserIDFn: func(int64) ([]UserIdentity, error) {
+				return []UserIdentity{builtin}, nil
+			},
+		}
+		idpRepo := &mockIdentityProviderRepo{
+			findSystemByTenantIDFn: func(int64) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, IsSystem: true, ProviderType: shared.IDPTypeSystem}, nil
+			},
+		}
+		svc := &federationService{
+			userIdentityRepo: identityRepo,
+			idpRepo:          idpRepo,
+			authEventService: &mockAuthEventService{},
+		}
+		err := svc.UnlinkIdentity(context.Background(), userID, identUUID.String())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "built-in identity")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Identity disambiguation — a user holding BOTH a built-in maintainerd identity
+// and an external (enterprise) maintainerd identity must resolve each distinctly
+// by identity_provider_id, never by the shared "maintainerd" provider string.
+// ---------------------------------------------------------------------------
+
+func TestFederationService_ResolveExistingUserIdentity_DisambiguatesMaintainerd(t *testing.T) {
+	const (
+		systemIDPID  = int64(1)
+		externalIDID = int64(2)
+		theUserID    = int64(50)
+	)
+	// External IdP: provider slug is "maintainerd" (a peer Maintainerd instance)
+	// but it is an enterprise IdP with its own identity_provider_id.
+	externalIDP := &IdentityProvider{
+		IdentityProviderID: externalIDID,
+		TenantID:           1,
+		Provider:           shared.ProviderMaintainerd,
+		ProviderType:       shared.IDPTypeEnterprise,
+	}
+	systemIdentity := &UserIdentity{UserID: theUserID, Provider: shared.ProviderMaintainerd, Sub: "system-sub", IdentityProviderID: int64Ptr(systemIDPID)}
+	externalIdentity := &UserIdentity{UserID: theUserID, Provider: shared.ProviderMaintainerd, Sub: "external-sub", IdentityProviderID: int64Ptr(externalIDID)}
+
+	newSvc := func() *federationService {
+		return &federationService{
+			userRepo: &mockUserRepo{
+				findByIDFn: func(any, ...string) (*User, error) {
+					return &User{UserID: theUserID, UserUUID: uuid.New()}, nil
+				},
+			},
+			userIdentityRepo: &mockFederationUserIdentityRepo{
+				// Keyed by sub — unambiguous even though both rows share the
+				// "maintainerd" provider slug.
+				findByTenantProviderAndSubFn: func(_ int64, provider, sub string) (*UserIdentity, error) {
+					if provider == shared.ProviderMaintainerd && sub == "external-sub" {
+						return externalIdentity, nil
+					}
+					return nil, nil
+				},
+				findByUserIDAndIDPIDFn: func(_ int64, idpID int64) (*UserIdentity, error) {
+					switch idpID {
+					case systemIDPID:
+						return systemIdentity, nil
+					case externalIDID:
+						return externalIdentity, nil
+					}
+					return nil, nil
+				},
+			},
+			idpRepo: &mockIdentityProviderRepo{
+				findSystemByTenantIDFn: func(int64) (*IdentityProvider, error) {
+					return &IdentityProvider{IdentityProviderID: systemIDPID, IsSystem: true, ProviderType: shared.IDPTypeSystem}, nil
+				},
+			},
+		}
+	}
+
+	t.Run("useSystemIdentity resolves the built-in identity by system IdP id", func(t *testing.T) {
+		user, sub, err := newSvc().resolveExistingUserIdentity(externalIDP, "external-sub", true)
+		require.NoError(t, err)
+		require.NotNil(t, user)
+		assert.Equal(t, "system-sub", sub)
+	})
+
+	t.Run("without useSystemIdentity resolves the external identity's own sub", func(t *testing.T) {
+		user, sub, err := newSvc().resolveExistingUserIdentity(externalIDP, "external-sub", false)
+		require.NoError(t, err)
+		require.NotNil(t, user)
+		assert.Equal(t, "external-sub", sub)
+	})
+
+	t.Run("built-in system identity is not the external one", func(t *testing.T) {
+		// Sanity: the two identities are distinct rows differing only by
+		// identity_provider_id / sub — resolving each id yields a different sub.
+		svc := newSvc()
+		sys, err := svc.userIdentityRepo.FindByUserIDAndIdentityProviderID(theUserID, systemIDPID)
+		require.NoError(t, err)
+		ext, err := svc.userIdentityRepo.FindByUserIDAndIdentityProviderID(theUserID, externalIDID)
+		require.NoError(t, err)
+		assert.NotEqual(t, sys.Sub, ext.Sub)
 	})
 }
 
@@ -2354,10 +2559,12 @@ func TestFederationServiceProvisionUser_WithDefaultRole(t *testing.T) {
 		userRepo:         userRepo,
 		userIdentityRepo: identityRepo,
 		idpRepo: &mockIdentityProviderRepo{
-			findDefaultByTenantIDFn: func(tenantID int64) (*IdentityProvider, error) {
+			findSystemByTenantIDFn: func(tenantID int64) (*IdentityProvider, error) {
 				return &IdentityProvider{
 					IdentityProviderID: int64(99),
-					Identifier:         "default-idp",
+					Identifier:         "system-idp",
+					IsSystem:           true,
+					ProviderType:       shared.IDPTypeSystem,
 				}, nil
 			},
 		},
@@ -2633,4 +2840,31 @@ func TestEmailDomain_NoAt(t *testing.T) {
 
 func TestEmailDomain_EmptyDomain(t *testing.T) {
 	assert.Empty(t, emailDomain("user@"))
+}
+
+// F3: handleEmailCollision surfaces the collision (never silently merges) and
+// does not panic when no account-link service is wired.
+func TestFederationService_HandleEmailCollision(t *testing.T) {
+	t.Run("collision with nil account-link service surfaces conflict", func(t *testing.T) {
+		svc := &federationService{}
+		err := svc.handleEmailCollision(context.Background(), &errEmailCollision{
+			tenantID:       1,
+			existingUserID: 2,
+			providerName:   "google",
+			providerEmail:  "owner@example.com",
+		})
+		require.Error(t, err)
+		var conflict *apperror.ConflictError
+		require.ErrorAs(t, err, &conflict)
+	})
+
+	t.Run("non-collision error returns nil (handled by caller)", func(t *testing.T) {
+		svc := &federationService{}
+		assert.NoError(t, svc.handleEmailCollision(context.Background(), errors.New("some other error")))
+	})
+
+	t.Run("nil error returns nil", func(t *testing.T) {
+		svc := &federationService{}
+		assert.NoError(t, svc.handleEmailCollision(context.Background(), nil))
+	})
 }

@@ -62,6 +62,19 @@ func (ip *IdentityProvider) DecryptedProviderClientSecret() string {
 	return crypto.SafeDecryptAtRest(*ip.ProviderClientSecretEncrypted)
 }
 
+// DecryptedProviderClientSecretStrict returns the upstream OAuth2 client secret in
+// plaintext, failing closed on any decrypt error. Unlike DecryptedProviderClientSecret
+// (which falls open via SafeDecryptAtRest and returns the raw ciphertext on failure),
+// this variant surfaces the error so security-critical federation/broker exchange
+// paths never POST an undecryptable ciphertext blob upstream. It returns ("", nil)
+// when no secret is configured.
+func (ip *IdentityProvider) DecryptedProviderClientSecretStrict() (string, error) {
+	if ip == nil || ip.ProviderClientSecretEncrypted == nil || *ip.ProviderClientSecretEncrypted == "" {
+		return "", nil
+	}
+	return crypto.DecryptAtRest(*ip.ProviderClientSecretEncrypted)
+}
+
 // IssuerOrEmpty / ProviderClientIDOrEmpty dereference the nullable column pointers.
 func (ip *IdentityProvider) IssuerOrEmpty() string {
 	if ip == nil || ip.Issuer == nil {

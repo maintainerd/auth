@@ -33,6 +33,12 @@ type UserIdentityRepository interface {
 	FindByUserIDAndClientID(userID int64, clientID int64) (*UserIdentity, error)
 	// FindByUserIDAndProvider returns the first identity for a user with the given provider slug.
 	FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error)
+	// FindByUserIDAndIdentityProviderID returns the user's identity linked to a
+	// specific configured IdP. This disambiguates the case where a user holds two
+	// identities sharing the same provider slug (e.g. the built-in system
+	// "maintainerd" and an external federated "maintainerd") — they differ only by
+	// identity_provider_id / sub.
+	FindByUserIDAndIdentityProviderID(userID int64, idpID int64) (*UserIdentity, error)
 	// FindByIdentityProviderID lists all identities linked to a configured IDP.
 	FindByIdentityProviderID(idpID int64) ([]UserIdentity, error)
 	// FindByTenantProviderAndSub resolves an external identity by its
@@ -100,6 +106,18 @@ func (r *userIdentityRepository) FindByTenantProviderAndSub(tenantID int64, prov
 func (r *userIdentityRepository) FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error) {
 	var identity UserIdentity
 	err := r.DB().Where("user_id = ? AND provider = ?", userID, provider).First(&identity).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &identity, nil
+}
+
+func (r *userIdentityRepository) FindByUserIDAndIdentityProviderID(userID int64, idpID int64) (*UserIdentity, error) {
+	var identity UserIdentity
+	err := r.DB().Where("user_id = ? AND identity_provider_id = ?", userID, idpID).First(&identity).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

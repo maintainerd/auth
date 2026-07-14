@@ -72,12 +72,20 @@ CREATE INDEX IF NOT EXISTS idx_identity_providers_provider_type ON identity_prov
 CREATE INDEX IF NOT EXISTS idx_identity_providers_identifier ON identity_providers (identifier);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_identifier ON identity_providers (identifier) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_identity_providers_issuer ON identity_providers (issuer) WHERE issuer IS NOT NULL AND deleted_at IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_issuer ON identity_providers (issuer) WHERE issuer IS NOT NULL AND deleted_at IS NULL;
+-- Issuer uniqueness is scoped per tenant so different tenants may federate to
+-- the same remote issuer (e.g. two orgs pointing at the same external
+-- Maintainerd instance). The built-in system provider has a NULL issuer and is
+-- excluded by the partial predicate, so it is unaffected.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_issuer ON identity_providers (tenant_id, issuer) WHERE issuer IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_identity_providers_status ON identity_providers (status);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_tenant_id ON identity_providers (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_created_at ON identity_providers (created_at);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_deleted_at ON identity_providers (deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_identity_providers_tenant_provider ON identity_providers (tenant_id, provider, provider_type) WHERE deleted_at IS NULL;
+-- Exactly one built-in (system) provider per tenant: the seeded, undeletable
+-- local identity store. Additional maintainerd providers are external (is_system
+-- = false) and are unconstrained by this index.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_tenant_system ON identity_providers (tenant_id) WHERE is_system = true AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_identity_providers_cert_expires ON identity_providers (certificate_expires_at)
     WHERE certificate_expires_at IS NOT NULL AND deleted_at IS NULL;
 `

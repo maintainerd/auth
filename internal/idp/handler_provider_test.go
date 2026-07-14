@@ -1,6 +1,7 @@
 package idp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,9 +9,22 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
 )
+
+// captureAuditLogger is a test ManagementAuditLogger that records every entry it
+// is asked to log so tests can assert on the Changes payload.
+type captureAuditLogger struct {
+	entries []auditlog.LogEntry
+}
+
+func (c *captureAuditLogger) Log(_ context.Context, entry auditlog.LogEntry) error {
+	c.entries = append(c.entries, entry)
+	return nil
+}
 
 func TestIdentityProviderHandler_Get(t *testing.T) {
 	t.Run("no tenant returns 401", func(t *testing.T) {
@@ -69,6 +83,13 @@ func TestIdentityProviderHandler_Get(t *testing.T) {
 
 func TestIdentityProviderHandler_GetByUUID(t *testing.T) {
 	idpUUID := uuid.New()
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withChiParam(jsonReq(t, http.MethodGet, "/", nil), "identity_provider_uuid", idpUUID.String())
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).GetByUUID(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/", nil)
@@ -152,6 +173,20 @@ func TestIdentityProviderHandler_Create(t *testing.T) {
 		"config":        map[string]any{},
 	}
 
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/idps", validBody)
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).Create(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := withTenant(jsonReq(t, http.MethodPost, "/idps", validBody))
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).Create(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("bad json returns 400", func(t *testing.T) {
 		r := withTenantAndUser(badJSONReq(t, http.MethodPost, "/idps"))
 		w := httptest.NewRecorder()
@@ -204,6 +239,20 @@ func TestIdentityProviderHandler_Update(t *testing.T) {
 		"status":        "active",
 		"config":        map[string]any{},
 	}
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withChiParam(jsonReq(t, http.MethodPut, "/", validBody), "identity_provider_uuid", idpUUID.String())
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).Update(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := withTenant(withChiParam(jsonReq(t, http.MethodPut, "/", validBody), "identity_provider_uuid", idpUUID.String()))
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).Update(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodPut, "/", validBody)
@@ -260,6 +309,20 @@ func TestIdentityProviderHandler_Update(t *testing.T) {
 func TestIdentityProviderHandler_SetStatus(t *testing.T) {
 	idpUUID := uuid.New()
 
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "identity_provider_uuid", idpUUID.String())
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).SetStatus(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := withTenant(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "identity_provider_uuid", idpUUID.String()))
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).SetStatus(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "identity_provider_uuid", "bad"))
 		w := httptest.NewRecorder()
@@ -309,6 +372,20 @@ func TestIdentityProviderHandler_SetStatus(t *testing.T) {
 func TestIdentityProviderHandler_Delete(t *testing.T) {
 	idpUUID := uuid.New()
 
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withChiParam(jsonReq(t, http.MethodDelete, "/", nil), "identity_provider_uuid", idpUUID.String())
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).Delete(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := withTenant(withChiParam(jsonReq(t, http.MethodDelete, "/", nil), "identity_provider_uuid", idpUUID.String()))
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(&mockIdentityProviderService{}).Delete(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodDelete, "/", nil)
 		r = withTenantAndUser(r)
@@ -342,5 +419,58 @@ func TestIdentityProviderHandler_Delete(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewIdentityProviderHandler(svc).Delete(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+// TestIdentityProviderHandler_Update_RedactsSecretInAuditLog asserts that the
+// plaintext client secret from the update request never lands in the audit
+// "Changes" payload, while still being handed to the service for persistence.
+func TestIdentityProviderHandler_Update_RedactsSecretInAuditLog(t *testing.T) {
+	idpUUID := uuid.New()
+	const secret = "super-secret-value"
+
+	var gotSecret string
+	svc := &mockIdentityProviderService{
+		updateFn: func(in IdentityProviderUpdateInput) (*IdentityProviderServiceDataResult, error) {
+			gotSecret = in.ProviderClientSecret
+			return &IdentityProviderServiceDataResult{IdentityProviderUUID: in.IdpUUID}, nil
+		},
+	}
+
+	logger := &captureAuditLogger{}
+	h := NewIdentityProviderHandler(svc)
+	h.SetAuditLogger(logger)
+
+	body := map[string]any{
+		"name":                   "upd-idp",
+		"display_name":           "Updated Provider Name",
+		"provider":               "maintainerd",
+		"provider_type":          "system",
+		"status":                 "active",
+		"config":                 map[string]any{},
+		"provider_client_secret": secret,
+	}
+	r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/", body), "identity_provider_uuid", idpUUID.String()))
+	w := httptest.NewRecorder()
+	h.Update(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	// The real secret is still persisted (the service receives it verbatim).
+	assert.Equal(t, secret, gotSecret)
+	// But it must never appear in the recorded audit payload.
+	require.Len(t, logger.entries, 1)
+	assert.NotContains(t, logger.entries[0].Changes, secret)
+	assert.Contains(t, logger.entries[0].Changes, redactedSecretPlaceholder)
+}
+
+func TestRedactUpdateSecret(t *testing.T) {
+	t.Run("masks non-empty secret", func(t *testing.T) {
+		out := redactUpdateSecret(IdentityProviderUpdateRequestDTO{ProviderClientSecret: "plaintext"})
+		assert.Equal(t, redactedSecretPlaceholder, out.ProviderClientSecret)
+	})
+
+	t.Run("leaves empty secret empty", func(t *testing.T) {
+		out := redactUpdateSecret(IdentityProviderUpdateRequestDTO{ProviderClientSecret: ""})
+		assert.Equal(t, "", out.ProviderClientSecret)
 	})
 }
