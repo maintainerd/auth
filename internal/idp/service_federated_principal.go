@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
-	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -99,7 +98,11 @@ func (s *federationService) resolveFederatedPrincipal(
 			}
 		}
 
-		defaultIdentity, txErr := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderMaintainerd)
+		systemIDPID, sysErr := s.systemIdentityProviderID(idp.TenantID)
+		if sysErr != nil {
+			return sysErr
+		}
+		defaultIdentity, txErr := txUserIdentityRepo.FindByUserIDAndIdentityProviderID(user.UserID, systemIDPID)
 		if txErr != nil {
 			return apperror.NewInternal("default identity lookup failed", txErr)
 		}

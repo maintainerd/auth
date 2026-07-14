@@ -607,6 +607,7 @@ type mockUserIdentityRepo struct {
 	findUserIdentitiesPaginatedFn func(GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)
 	findByUserIDAndClientIDFn     func(int64, int64) (*UserIdentity, error)
 	findByUserIDAndProviderFn     func(int64, string) (*UserIdentity, error)
+	findByUserIDAndIDPIDFn        func(int64, int64) (*UserIdentity, error)
 	findByIdentityProviderIDFn    func(int64) ([]UserIdentity, error)
 	findByTenantProviderAndSubFn  func(int64, string, string) (*UserIdentity, error)
 	deleteByUserIDFn              func(int64) error
@@ -641,6 +642,12 @@ func (m *mockUserIdentityRepo) FindByUserIDAndClientID(userID, clientID int64) (
 func (m *mockUserIdentityRepo) FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error) {
 	if m.findByUserIDAndProviderFn != nil {
 		return m.findByUserIDAndProviderFn(userID, provider)
+	}
+	return nil, nil
+}
+func (m *mockUserIdentityRepo) FindByUserIDAndIdentityProviderID(userID int64, idpID int64) (*UserIdentity, error) {
+	if m.findByUserIDAndIDPIDFn != nil {
+		return m.findByUserIDAndIDPIDFn(userID, idpID)
 	}
 	return nil, nil
 }

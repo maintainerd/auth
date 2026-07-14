@@ -33,6 +33,20 @@ import (
 
 const DefaultOIDCUserinfoEndpoint = "/userinfo"
 
+// oidcClockSkewLeeway is the allowed clock skew when verifying upstream provider
+// id_tokens. go-oidc's expiry check (t.Expiry.Before(now)) has no built-in
+// tolerance, so a small clock difference between us and the IdP would spuriously
+// reject freshly-issued tokens. We shift the verifier's notion of "now" slightly
+// into the past via oidc.Config.Now, which the library supports natively. This
+// only tolerates a bounded skew — it never disables the expiry check.
+const oidcClockSkewLeeway = 1 * time.Minute
+
+// oidcSkewedNow returns the clock function passed to oidc.Config.Now so token
+// verification tolerates a small clock skew without weakening expiry enforcement.
+func oidcSkewedNow() func() time.Time {
+	return func() time.Time { return time.Now().Add(-oidcClockSkewLeeway) }
+}
+
 // errEmailCollision is returned by provisionUser when a verified email already
 // belongs to an existing user and the account-link service is wired. The
 // ResolveBrokerUser caller catches it and creates a confirmation request.
@@ -47,6 +61,36 @@ type errEmailCollision struct {
 
 func (e *errEmailCollision) Error() string {
 	return "account link required: email collision detected"
+}
+
+// handleEmailCollision converts an errEmailCollision surfaced from provisionUser
+// into a caller-appropriate error for the direct-token federation flows
+// (ExchangeExternalToken, ExchangeOAuth2Code, HandleSAMLResponse). Those flows
+// return tokens directly and have no redirect surface for the account-link
+// confirmation UI, so they must NOT silently merge. When the account-link
+// service is wired we still create the pending confirmation request (so the user
+// can later confirm and link); either way we return a Conflict so the collision
+// is surfaced for explicit resolution rather than silently linked. Returns nil
+// when err is not a collision (the caller then handles the original error).
+func (s *federationService) handleEmailCollision(ctx context.Context, err error) error {
+	var collision *errEmailCollision
+	if !errors.As(err, &collision) {
+		return nil
+	}
+	if s.accountLinkSvc != nil {
+		if _, initErr := s.accountLinkSvc.Initiate(ctx, authn.InitiateAccountLinkInput{
+			TenantID:        collision.tenantID,
+			ExistingUserID:  collision.existingUserID,
+			ProviderName:    collision.providerName,
+			ProviderSubject: collision.providerSub,
+			ProviderEmail:   collision.providerEmail,
+			ProviderClaims:  collision.providerClaims,
+			IPAddress:       middleware.ClientIPFromContext(ctx),
+		}); initErr != nil {
+			return initErr
+		}
+	}
+	return apperror.NewConflict("this email is already associated with an existing account; sign in and link this provider to continue")
 }
 
 var (
@@ -359,7 +403,11 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 			}
 		}
 
-		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderMaintainerd)
+		systemIDPID, sysErr := s.systemIdentityProviderID(idp.TenantID)
+		if sysErr != nil {
+			return sysErr
+		}
+		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndIdentityProviderID(user.UserID, systemIDPID)
 		if err != nil {
 			return apperror.NewInternal("default identity lookup failed", err)
 		}
@@ -370,7 +418,10 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		return nil
 	})
 	if errors.Is(err, errIdentityCreatedConcurrently) {
-		user, internalSub, err = s.resolveExistingUserIdentity(idp.TenantID, idp.Provider, externalSub, shared.ProviderMaintainerd)
+		user, internalSub, err = s.resolveExistingUserIdentity(idp, externalSub, true)
+	}
+	if collisionErr := s.handleEmailCollision(ctx, err); collisionErr != nil {
+		return nil, collisionErr
 	}
 	if err != nil {
 		return nil, err
@@ -438,7 +489,14 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 	if err != nil {
 		return nil, apperror.NewValidation("identity provider configuration is invalid")
 	}
-	clientSecret := idp.DecryptedProviderClientSecret()
+	// Fail closed: a key/corruption failure must abort the exchange, never POST the
+	// raw ciphertext blob upstream as if it were the client secret.
+	clientSecret, err := idp.DecryptedProviderClientSecretStrict()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "provider client secret unavailable")
+		return nil, apperror.NewInternal("provider client secret unavailable", err)
+	}
 	if idp.ProviderClientIDOrEmpty() == "" || clientSecret == "" {
 		return nil, apperror.NewValidation("identity provider missing OAuth2 client credentials")
 	}
@@ -534,7 +592,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 			_ = isNew
 		}
 
-		identity, txErr := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, idp.Provider)
+		identity, txErr := txUserIdentityRepo.FindByUserIDAndIdentityProviderID(user.UserID, idp.IdentityProviderID)
 		if txErr != nil || identity == nil {
 			return apperror.NewInternal("identity resolution failed", txErr)
 		}
@@ -542,7 +600,10 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		return nil
 	})
 	if errors.Is(err, errIdentityCreatedConcurrently) {
-		user, internalSub, err = s.resolveExistingUserIdentity(idp.TenantID, idp.Provider, externalSub, idp.Provider)
+		user, internalSub, err = s.resolveExistingUserIdentity(idp, externalSub, false)
+	}
+	if collisionErr := s.handleEmailCollision(ctx, err); collisionErr != nil {
+		return nil, collisionErr
 	}
 	if err != nil {
 		return nil, err
@@ -667,7 +728,11 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 	if target == nil {
 		return apperror.NewNotFound("identity not found")
 	}
-	if target.Provider == shared.ProviderMaintainerd {
+	isBuiltin, err := s.isSystemBuiltinIdentity(target)
+	if err != nil {
+		return err
+	}
+	if isBuiltin {
 		return apperror.NewValidation("the built-in identity cannot be unlinked")
 	}
 
@@ -742,7 +807,11 @@ func (s *federationService) AdminUnlinkIdentity(ctx context.Context, tenantID in
 	if targetIdentity.TenantID != tenantID {
 		return apperror.NewNotFound("identity not found")
 	}
-	if targetIdentity.Provider == shared.ProviderMaintainerd {
+	isBuiltin, err := s.isSystemBuiltinIdentity(targetIdentity)
+	if err != nil {
+		return err
+	}
+	if isBuiltin {
 		return apperror.NewValidation("the built-in identity cannot be unlinked")
 	}
 
@@ -906,7 +975,12 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 	if err != nil {
 		return nil, apperror.NewValidation("identity provider configuration is invalid")
 	}
-	clientSecret := idp.DecryptedProviderClientSecret()
+	// Fail closed: a key/corruption failure must abort the exchange, never POST the
+	// raw ciphertext blob upstream as if it were the client secret.
+	clientSecret, err := idp.DecryptedProviderClientSecretStrict()
+	if err != nil {
+		return nil, apperror.NewInternal("provider client secret unavailable", err)
+	}
 	if idp.ProviderClientIDOrEmpty() == "" || clientSecret == "" {
 		return nil, apperror.NewValidation("identity provider missing OAuth2 client credentials")
 	}
@@ -977,7 +1051,7 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 			user = u
 		}
 
-		identity, txErr := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, idp.Provider)
+		identity, txErr := txUserIdentityRepo.FindByUserIDAndIdentityProviderID(user.UserID, idp.IdentityProviderID)
 		if txErr != nil || identity == nil {
 			return apperror.NewInternal("failed to resolve internal identity", txErr)
 		}
@@ -985,10 +1059,16 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 		return nil
 	})
 	if errors.Is(err, errIdentityCreatedConcurrently) {
-		user, identitySub, err = s.resolveExistingUserIdentity(idp.TenantID, idp.Provider, externalSub, idp.Provider)
+		user, identitySub, err = s.resolveExistingUserIdentity(idp, externalSub, false)
 	}
 	var collision *errEmailCollision
 	if errors.As(err, &collision) {
+		// Fail closed: without an account-link service we cannot create a
+		// confirmation request, and we must never silently merge. Surface the
+		// collision as an error instead of dereferencing a nil service.
+		if s.accountLinkSvc == nil {
+			return nil, apperror.NewConflict("this email is already associated with an existing account and account linking is not available")
+		}
 		req, initErr := s.accountLinkSvc.Initiate(ctx, authn.InitiateAccountLinkInput{
 			TenantID:        collision.tenantID,
 			ExistingUserID:  collision.existingUserID,
@@ -1035,7 +1115,7 @@ func (s *federationService) validateOIDCToken(ctx context.Context, issuer, clien
 	if clientID == "" {
 		return nil, fmt.Errorf("OIDC client_id is required")
 	}
-	verifierCfg := &oidclib.Config{ClientID: clientID}
+	verifierCfg := &oidclib.Config{ClientID: clientID, Now: oidcSkewedNow()}
 	verifier := provider.Verifier(verifierCfg)
 
 	idToken, verr := verifier.Verify(ctx, rawToken)
@@ -1093,17 +1173,20 @@ func (s *federationService) provisionUser(
 			return nil, false, apperror.NewInternal("email lookup failed", err)
 		}
 		if existing != nil {
-			if s.accountLinkSvc != nil {
-				return nil, false, &errEmailCollision{
-					tenantID:       idp.TenantID,
-					existingUserID: existing.UserID,
-					providerName:   idp.Provider,
-					providerSub:    externalSub,
-					providerEmail:  email,
-					providerClaims: func() []byte { b, _ := json.Marshal(meta); return b }(),
-				}
+			// Fail closed: a verified-email match with a pre-existing account must
+			// NEVER be silently merged. Always surface the collision so the caller
+			// resolves it explicitly — the broker flow turns it into a confirmation
+			// request, the direct-token flows reject it. Whether the account-link
+			// service happens to be wired only changes how the caller reacts; it can
+			// never downgrade this into an unconfirmed silent link.
+			return nil, false, &errEmailCollision{
+				tenantID:       idp.TenantID,
+				existingUserID: existing.UserID,
+				providerName:   idp.Provider,
+				providerSub:    externalSub,
+				providerEmail:  email,
+				providerClaims: func() []byte { b, _ := json.Marshal(meta); return b }(),
 			}
-			user = existing // fallback: silent link when account link service not wired
 		}
 	}
 
@@ -1131,24 +1214,30 @@ func (s *federationService) provisionUser(
 		}
 	}
 
-	// Create the default (maintainerd) identity if it doesn't exist yet.
-	// This ensures our RBAC system always has a stable sub for the user.
-	defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderMaintainerd)
+	// Create the built-in (system maintainerd) identity if it doesn't exist yet.
+	// This ensures our RBAC system always has a stable sub for the user. The
+	// built-in identity is keyed to the tenant's system IdP — never the provider
+	// string — so it stays distinct from any external "maintainerd" identity
+	// federated in as an enterprise IdP.
+	systemIDP, sysErr := s.idpRepo.FindSystemByTenantID(idp.TenantID)
+	if sysErr != nil {
+		return nil, false, apperror.NewInternal("system identity provider lookup failed", sysErr)
+	}
+	if systemIDP == nil {
+		return nil, false, apperror.NewInternal("tenant has no system identity provider", nil)
+	}
+	defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndIdentityProviderID(user.UserID, systemIDP.IdentityProviderID)
 	if err != nil {
 		return nil, false, apperror.NewInternal("default identity lookup failed", err)
 	}
 	if defaultIdentity == nil {
-		defaultIDP, _ := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
-		var defaultIDPID *int64
-		if defaultIDP != nil {
-			defaultIDPID = &defaultIDP.IdentityProviderID
-		}
+		systemIDPID := systemIDP.IdentityProviderID
 		defIdentity := &UserIdentity{
 			UserIdentityUUID:   uuid.New(),
 			TenantID:           idp.TenantID,
 			UserID:             user.UserID,
 			ClientID:           clientID,
-			IdentityProviderID: defaultIDPID,
+			IdentityProviderID: &systemIDPID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -1186,8 +1275,15 @@ func (s *federationService) provisionUser(
 	return user, isNew, nil
 }
 
-func (s *federationService) resolveExistingUserIdentity(tenantID int64, provider, externalSub, tokenProvider string) (*User, string, error) {
-	existing, err := s.userIdentityRepo.FindByTenantProviderAndSub(tenantID, provider, externalSub)
+// resolveExistingUserIdentity is the fallback taken when the external identity
+// was created concurrently. It resolves the user by the external identity's
+// (tenant, provider, sub) triple — which is unambiguous because sub is unique
+// even when two identities share the "maintainerd" provider slug. When
+// useSystemIdentity is true the returned sub is that of the user's built-in
+// system identity (resolved via the tenant's system IdP id); otherwise it is the
+// external identity's own sub.
+func (s *federationService) resolveExistingUserIdentity(idp *IdentityProvider, externalSub string, useSystemIdentity bool) (*User, string, error) {
+	existing, err := s.userIdentityRepo.FindByTenantProviderAndSub(idp.TenantID, idp.Provider, externalSub)
 	if err != nil {
 		return nil, "", apperror.NewInternal("identity lookup failed", err)
 	}
@@ -1198,14 +1294,57 @@ func (s *federationService) resolveExistingUserIdentity(tenantID int64, provider
 	if err != nil || user == nil {
 		return nil, "", apperror.NewInternal("user lookup failed", err)
 	}
-	if tokenProvider == provider {
+	if !useSystemIdentity {
 		return user, existing.Sub, nil
 	}
-	identity, err := s.userIdentityRepo.FindByUserIDAndProvider(user.UserID, tokenProvider)
+	systemIDPID, err := s.systemIdentityProviderID(idp.TenantID)
+	if err != nil {
+		return nil, "", err
+	}
+	identity, err := s.userIdentityRepo.FindByUserIDAndIdentityProviderID(user.UserID, systemIDPID)
 	if err != nil || identity == nil {
 		return nil, "", apperror.NewInternal("identity resolution failed", err)
 	}
 	return user, identity.Sub, nil
+}
+
+// systemIdentityProviderID resolves the identity_provider_id of the tenant's
+// built-in system IdP. Built-in identity lookups key off this id rather than the
+// "maintainerd" provider string so they never collide with an external
+// (enterprise) maintainerd IdP federated into the same tenant.
+func (s *federationService) systemIdentityProviderID(tenantID int64) (int64, error) {
+	systemIDP, err := s.idpRepo.FindSystemByTenantID(tenantID)
+	if err != nil {
+		return 0, apperror.NewInternal("system identity provider lookup failed", err)
+	}
+	if systemIDP == nil {
+		return 0, apperror.NewInternal("tenant has no system identity provider", nil)
+	}
+	return systemIDP.IdentityProviderID, nil
+}
+
+// isSystemBuiltinIdentity reports whether an identity is the tenant's built-in
+// system identity, which may never be unlinked. It decides via the identity's
+// IdentityProviderID → the tenant's system IdP id, NOT the provider string, so
+// an external federated "maintainerd" identity is correctly treated as
+// unlinkable. An identity with no IdentityProviderID predates configured-IdP
+// linkage and is treated as built-in when its provider is maintainerd, so a
+// legacy built-in row can never be removed (fail safe).
+func (s *federationService) isSystemBuiltinIdentity(identity *UserIdentity) (bool, error) {
+	if identity == nil {
+		return false, nil
+	}
+	if identity.IdentityProviderID == nil {
+		return identity.Provider == shared.ProviderMaintainerd, nil
+	}
+	systemIDP, err := s.idpRepo.FindSystemByTenantID(identity.TenantID)
+	if err != nil {
+		return false, apperror.NewInternal("system identity provider lookup failed", err)
+	}
+	if systemIDP == nil {
+		return identity.Provider == shared.ProviderMaintainerd, nil
+	}
+	return *identity.IdentityProviderID == systemIDP.IdentityProviderID, nil
 }
 
 func (s *federationService) createBrokerSession(ctx context.Context, user *User, clientID int64) (string, error) {

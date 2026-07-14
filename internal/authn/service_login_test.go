@@ -2267,3 +2267,46 @@ func TestLogin_ForcePasswordChange(t *testing.T) {
 	assert.Empty(t, resp.RefreshToken)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+// ---------------------------------------------------------------------------
+// connectedSystemIdentityProviderID — selects the built-in system IdP by its
+// system flag, never by the "maintainerd" provider string, so a connected
+// EXTERNAL maintainerd (enterprise) IdP is never used to anchor a
+// password-authenticated user's local identity.
+// ---------------------------------------------------------------------------
+
+func TestConnectedSystemIdentityProviderID(t *testing.T) {
+	systemIDP := &IdentityProvider{IdentityProviderID: 7, Provider: shared.IDPProviderMaintainerd, ProviderType: shared.IDPTypeSystem, IsSystem: true}
+	externalMaintainerd := &IdentityProvider{IdentityProviderID: 9, Provider: shared.IDPProviderMaintainerd, ProviderType: shared.IDPTypeEnterprise}
+
+	t.Run("picks the system provider, not a connected external maintainerd", func(t *testing.T) {
+		conns := []ClientIdentityProvider{
+			{IdentityProviderID: 9, Enabled: true, IdentityProvider: externalMaintainerd},
+			{IdentityProviderID: 7, Enabled: true, IdentityProvider: systemIDP},
+		}
+		client := &Client{ConnectedProviders: &conns}
+		got := connectedSystemIdentityProviderID(client)
+		require.NotNil(t, got)
+		assert.Equal(t, int64(7), *got)
+	})
+
+	t.Run("ignores a connected external maintainerd when no system provider present", func(t *testing.T) {
+		conns := []ClientIdentityProvider{
+			{IdentityProviderID: 9, Enabled: true, IdentityProvider: externalMaintainerd},
+		}
+		client := &Client{ConnectedProviders: &conns}
+		assert.Nil(t, connectedSystemIdentityProviderID(client))
+	})
+
+	t.Run("falls back to client.IdentityProvider when it is the system provider", func(t *testing.T) {
+		client := &Client{IdentityProviderID: 7, IdentityProvider: systemIDP}
+		got := connectedSystemIdentityProviderID(client)
+		require.NotNil(t, got)
+		assert.Equal(t, int64(7), *got)
+	})
+
+	t.Run("nil when client.IdentityProvider is an external maintainerd", func(t *testing.T) {
+		client := &Client{IdentityProviderID: 9, IdentityProvider: externalMaintainerd}
+		assert.Nil(t, connectedSystemIdentityProviderID(client))
+	})
+}

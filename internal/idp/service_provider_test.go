@@ -197,20 +197,39 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "system idp")
 	})
 
-	t.Run("success → deleted", func(t *testing.T) {
+	t.Run("success → deleted clears child rows", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
 		idp := newIDP(tenantID, "local")
+		var domainsCleared, audiencesCleared bool
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+		}
+		emailRepo := &mockIdentityProviderEmailDomainRepo{
+			replaceForProviderFn: func(_ int64, _ int64, domains []string) error {
+				domainsCleared = domains == nil
+				return nil
+			},
+		}
+		audienceRepo := &mockIdentityProviderAllowedAudienceRepo{
+			replaceForProviderFn: func(_ int64, _ int64, audiences []string) error {
+				audiencesCleared = audiences == nil
+				return nil
+			},
 		}
 		userRepo := &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(gormDB, idpRepo, emailRepo, audienceRepo, &mockTenantRepo{}, userRepo)
 		result, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "local", result.Name)
+		assert.True(t, domainsCleared, "email domains should be cleared on delete")
+		assert.True(t, audiencesCleared, "allowed audiences should be cleared on delete")
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("default idp → cannot delete", func(t *testing.T) {
@@ -231,6 +250,9 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 	})
 
 	t.Run("delete repo error", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn:   func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
@@ -241,7 +263,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
-		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, userRepo)
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, userRepo)
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "del err")
@@ -287,6 +309,48 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", cfg, "active", "invalid-uuid", tenantID, actorUUID))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid tenant UUID")
+	})
+
+	t.Run("system provider type is rejected (reserved for the built-in)", func(t *testing.T) {
+		// The 'system' type is seeded-only; it can never be created via the API,
+		// which guarantees exactly one built-in provider per tenant. The guard
+		// returns before the DB transaction, so no mock expectations are needed.
+		gormDB, _ := newMockGormDB(t)
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, &mockUserRepo{})
+		_, err := svc.Create(context.Background(), createInput("maintainerd", "Built-in", shared.IDPProviderMaintainerd, shared.IDPTypeSystem, cfg, "active", tenantUUID.String(), tenantID, actorUUID))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "reserved for the built-in")
+	})
+
+	// FIX C: an omitted config must be normalized to '{}' so the JSONB NOT NULL
+	// column is never written as SQL NULL.
+	t.Run("empty config is normalized to {} before save", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		tenant := &Tenant{TenantID: tenantID, TenantUUID: tenantUUID, IsSystem: true}
+		tenantRepo := &mockTenantRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return tenant, nil },
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return actorUserWithDefaultTenant(tenantID), nil
+			},
+		}
+		var savedConfig datatypes.JSON
+		idpRepo := &mockIdentityProviderRepo{
+			createOrUpdateFn: func(e *IdentityProvider) (*IdentityProvider, error) {
+				savedConfig = e.Config
+				return e, nil
+			},
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{Name: "idp", TenantID: tenantID, Tenant: tenant}, nil
+			},
+		}
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), createInput("idp", "IDP", "local", "password", nil, "active", tenantUUID.String(), tenantID, actorUUID))
+		require.NoError(t, err)
+		assert.Equal(t, "{}", string(savedConfig))
 	})
 
 	t.Run("tenant not found", func(t *testing.T) {
@@ -776,6 +840,34 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		assert.Equal(t, "new-name", res.Name)
 	})
 
+	// FIX C: config is JSONB NOT NULL. An omitted/empty config must be normalized to
+	// '{}' before the row is saved, otherwise GORM writes SQL NULL and the update 500s.
+	t.Run("empty config is normalized to {} before save", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		idp := newIDP(tenantID, "local")
+		var savedConfig datatypes.JSON
+		idpRepo := &mockIdentityProviderRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+			createOrUpdateFn: func(e *IdentityProvider) (*IdentityProvider, error) {
+				savedConfig = e.Config
+				return e, nil
+			},
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return actorUserWithDefaultTenant(tenantID), nil
+			},
+		}
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, userRepo)
+		// nil config in the input must not reach the DB as NULL.
+		res, err := svc.Update(context.Background(), updateInput(idpUUID, "local", "d", "local", "password", nil, "active", tenantID, actorUUID))
+		require.NoError(t, err)
+		assert.Equal(t, "{}", string(savedConfig))
+		assert.Equal(t, "local", res.Name)
+	})
+
 	t.Run("client secret encryption failure", func(t *testing.T) {
 		orig := crypto.EncryptAtRest
 		defer func() { crypto.EncryptAtRest = orig }()
@@ -961,6 +1053,82 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		res, err := svc.SetStatusByUUID(context.Background(), idpUUID, "inactive", tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "local", res.Name)
+	})
+
+	// FIX B: activating a provider must re-run the structural validation the
+	// create/update DTOs enforce, so a draft can't be flipped ACTIVE unconfigured.
+
+	// draftExternal builds a stored, inactive enterprise google provider missing
+	// its issuer/client_id — a draft that must NOT be activatable as-is.
+	draftExternal := func() *IdentityProvider {
+		idp := newIDP(tenantID, "google-draft")
+		idp.Provider = shared.IDPProviderGoogle
+		idp.ProviderType = shared.IDPTypeEnterprise
+		idp.Status = shared.StatusInactive
+		idp.Issuer = nil
+		idp.ProviderClientID = nil
+		idp.Config = nil
+		return idp
+	}
+
+	t.Run("activate draft missing issuer/config is rejected", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		idpRepo := &mockIdentityProviderRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return draftExternal(), nil },
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return actorUserWithDefaultTenant(tenantID), nil
+			},
+		}
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, userRepo)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, shared.StatusActive, tenantID, actorUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "issuer is required")
+	})
+
+	t.Run("deactivate draft is always allowed", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		idp := draftExternal()
+		idp.Status = shared.StatusActive // pretend it was somehow active; deactivate it
+		idpRepo := &mockIdentityProviderRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return actorUserWithDefaultTenant(tenantID), nil
+			},
+		}
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, userRepo)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, shared.StatusInactive, tenantID, actorUUID)
+		require.NoError(t, err)
+	})
+
+	t.Run("activate fully-configured provider succeeds", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		issuer := "https://accounts.google.com"
+		clientID := "client-abc"
+		idp := draftExternal()
+		idp.Issuer = &issuer
+		idp.ProviderClientID = &clientID
+		idp.Config = datatypes.JSON(`{"scopes":["openid","email"]}`)
+		idpRepo := &mockIdentityProviderRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return actorUserWithDefaultTenant(tenantID), nil
+			},
+		}
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, userRepo)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, shared.StatusActive, tenantID, actorUUID)
+		require.NoError(t, err)
 	})
 }
 

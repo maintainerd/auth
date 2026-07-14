@@ -101,6 +101,15 @@ func (r *idpUserIdentityRepo) FindByUserIDAndProvider(userID int64, provider str
 	return &identity, nil
 }
 
+func (r *idpUserIdentityRepo) FindByUserIDAndIdentityProviderID(userID int64, idpID int64) (*idp.UserIdentity, error) {
+	var identity idp.UserIdentity
+	err := r.DB().Where("user_id = ? AND identity_provider_id = ?", userID, idpID).First(&identity).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &identity, nil
+}
+
 func (r *idpUserIdentityRepo) DeleteByUserID(userID int64) error {
 	return r.DB().Where("user_id = ?", userID).Delete(&idp.UserIdentity{}).Error
 }
@@ -115,6 +124,15 @@ func newIDPClientRepo(db *gorm.DB) idp.ClientRepository {
 
 func (r *idpClientRepo) WithTx(tx *gorm.DB) idp.ClientRepository {
 	return &idpClientRepo{r.BaseRepository.WithTx(tx)}
+}
+
+func (r *idpClientRepo) FindRedirectURIs(clientID int64) ([]idp.ClientURI, error) {
+	var uris []idp.ClientURI
+	err := r.DB().Where("client_id = ?", clientID).Find(&uris).Error
+	if err != nil {
+		return nil, err
+	}
+	return uris, nil
 }
 
 func (r *idpClientRepo) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*idp.Client, error) {

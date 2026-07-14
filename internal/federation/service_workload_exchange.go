@@ -32,6 +32,11 @@ const (
 	// defaultWorkloadTokenTTLSeconds is the fallback access-token lifetime when
 	// the mapped client does not set its own access_token_ttl.
 	defaultWorkloadTokenTTLSeconds = 900
+	// wifClockSkewLeeway is the allowed clock skew when verifying a subject
+	// token's expiry. go-oidc has no built-in expiry tolerance, so a small skew
+	// between us and the issuer would spuriously reject valid tokens. Bounded —
+	// it never disables the expiry check.
+	wifClockSkewLeeway = 1 * time.Minute
 )
 
 // wifGenerateAccessToken is a package var so tests can stub token minting.
@@ -147,7 +152,14 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 		return nil, apperror.NewOAuthInvalidGrant("the token issuer could not be verified")
 	}
 
-	verifier := provider.Verifier(&oidclib.Config{SkipClientIDCheck: true})
+	// Allow a small clock skew when checking token expiry. go-oidc's expiry check
+	// has no built-in tolerance, so shifting "now" slightly into the past via
+	// oidc.Config.Now avoids spuriously rejecting freshly-issued tokens. This
+	// tolerates a bounded skew only — it never disables the expiry check.
+	verifier := provider.Verifier(&oidclib.Config{
+		SkipClientIDCheck: true,
+		Now:               func() time.Time { return time.Now().Add(-wifClockSkewLeeway) },
+	})
 	idToken, verr := verifier.Verify(ctx, in.SubjectToken)
 	if verr != nil {
 		span.SetStatus(codes.Error, "subject token verification failed")

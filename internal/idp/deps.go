@@ -182,6 +182,12 @@ type UserIdentityRepository interface {
 	FindByUserID(userID int64) ([]UserIdentity, error)
 	FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error)
 	FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error)
+	// FindByUserIDAndIdentityProviderID resolves the user's identity that belongs
+	// to a specific configured IdP. Unlike FindByUserIDAndProvider it is
+	// unambiguous when a user holds two identities with the same provider slug
+	// (e.g. the built-in system "maintainerd" and an external federated
+	// "maintainerd"), which differ only by identity_provider_id / sub.
+	FindByUserIDAndIdentityProviderID(userID int64, idpID int64) (*UserIdentity, error)
 	CreateByTenantProviderSubIfAbsent(identity *UserIdentity) (*UserIdentity, bool, error)
 	DeleteByUserID(userID int64) error
 }
@@ -192,6 +198,10 @@ type ClientRepository interface {
 	FindByUUID(uuid any, preloads ...string) (*Client, error)
 	FindByID(id any, preloads ...string) (*Client, error)
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*Client, error)
+	// FindRedirectURIs returns the client's registered URIs (redirect + others)
+	// so SAML flows can validate a requested redirect_uri against them using the
+	// same matcher the OIDC broker uses.
+	FindRedirectURIs(clientID int64) ([]ClientURI, error)
 }
 
 type UserRoleRepository interface {

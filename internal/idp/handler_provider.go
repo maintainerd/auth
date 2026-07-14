@@ -26,6 +26,21 @@ func NewIdentityProviderHandler(idpService IdentityProviderService) *IdentityPro
 
 func (h *IdentityProviderHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
 
+// redactedSecretPlaceholder replaces the plaintext client secret in audit
+// payloads so it is never persisted to the audit log.
+const redactedSecretPlaceholder = "***REDACTED***"
+
+// redactUpdateSecret returns a copy of the update request safe to record in the
+// audit "Changes" payload: the write-only client secret is masked when present.
+// The persisted value is unaffected — the service already applies write-only
+// secret semantics.
+func redactUpdateSecret(req IdentityProviderUpdateRequestDTO) IdentityProviderUpdateRequestDTO {
+	if req.ProviderClientSecret != "" {
+		req.ProviderClientSecret = redactedSecretPlaceholder
+	}
+	return req
+}
+
 func (h *IdentityProviderHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
 	if h.auditLogger == nil {
 		return
@@ -149,6 +164,10 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant context
 	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
@@ -171,7 +190,16 @@ func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Reque
 func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	var req IdentityProviderCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -212,15 +240,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 
 	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
 	idpUUIDVal := idp.IdentityProviderUUID
-	tenantIDVal := int64(0)
-	if tenant != nil {
-		tenantIDVal = tenant.TenantID
-	}
-	var actorUserID *int64
-	if user != nil {
-		actorUserID = &user.UserID
-	}
-	h.logAudit(r, tenantIDVal, actorUserID, "identity_provider.create", "identity_provider", idpUUIDVal.String(), &idpUUIDVal, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "identity_provider.create", "identity_provider", idpUUIDVal.String(), &idpUUIDVal, string(changesJSON), "success")
 
 	resp.Created(w, dtoRes, "Identity provider created successfully")
 }
@@ -229,7 +249,16 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
@@ -274,16 +303,11 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 
 	dtoRes := toIdpDetailResponseDTO(*idp)
 
-	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
-	tenantIDVal := int64(0)
-	if tenant != nil {
-		tenantIDVal = tenant.TenantID
-	}
-	var actorUserID *int64
-	if user != nil {
-		actorUserID = &user.UserID
-	}
-	h.logAudit(r, tenantIDVal, actorUserID, "identity_provider.update", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
+	// Never write the plaintext client secret to the audit log. The service
+	// already handles the write-only secret semantics for persistence; here we
+	// only scrub the "Changes" payload that gets recorded.
+	changesJSON, _ := json.Marshal(map[string]any{"update": redactUpdateSecret(req), "after": dtoRes})
+	h.logAudit(r, tenant.TenantID, &user.UserID, "identity_provider.update", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
 
 	resp.Success(w, dtoRes, "Identity provider updated successfully")
 }
@@ -292,7 +316,16 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
@@ -321,15 +354,7 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 	dtoRes := toIdpDetailResponseDTO(*idp)
 
 	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
-	tenantIDVal := int64(0)
-	if tenant != nil {
-		tenantIDVal = tenant.TenantID
-	}
-	var actorUserID *int64
-	if user != nil {
-		actorUserID = &user.UserID
-	}
-	h.logAudit(r, tenantIDVal, actorUserID, "identity_provider.set_status", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "identity_provider.set_status", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
 
 	resp.Success(w, dtoRes, "Identity provider status updated successfully")
 }
@@ -338,7 +363,16 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
@@ -355,15 +389,7 @@ func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request)
 	dtoRes := toIdpDetailResponseDTO(*idp)
 
 	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": idpUUID.String()}})
-	tenantIDVal := int64(0)
-	if tenant != nil {
-		tenantIDVal = tenant.TenantID
-	}
-	var actorUserID *int64
-	if user != nil {
-		actorUserID = &user.UserID
-	}
-	h.logAudit(r, tenantIDVal, actorUserID, "identity_provider.delete", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "identity_provider.delete", "identity_provider", idpUUID.String(), &idpUUID, string(changesJSON), "success")
 
 	resp.Success(w, dtoRes, "Identity provider deleted successfully")
 }

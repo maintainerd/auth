@@ -79,6 +79,11 @@ type IdentityProviderRepository interface {
 	// secret columns. Used by admin get/read paths so the secret never loads.
 	FindByUUIDSafe(uuidVal any, preloads ...string) (*IdentityProvider, error)
 	FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error)
+	// FindSystemByTenantID returns the tenant's built-in system identity provider
+	// (is_system = true). This is the authoritative way to identify the built-in
+	// maintainerd provider, distinct from any external "maintainerd" provider
+	// federated in as an enterprise IdP. Returns (nil, nil) when none exists.
+	FindSystemByTenantID(tenantID int64) (*IdentityProvider, error)
 	// FindByTenantAndProvider returns the active provider record matching the
 	// tenant and provider slug (e.g. "google", "cognito").
 	FindByTenantAndProvider(tenantID int64, provider string) (*IdentityProvider, error)
@@ -171,6 +176,20 @@ func (r *identityProviderRepository) FindDefaultByTenantID(tenantID int64) (*Ide
 		Where("tenant_id = ? AND is_default = true", tenantID).
 		First(&provider).Error
 	return &provider, err
+}
+
+func (r *identityProviderRepository) FindSystemByTenantID(tenantID int64) (*IdentityProvider, error) {
+	var provider IdentityProvider
+	err := r.DB().
+		Where("tenant_id = ? AND is_system = true", tenantID).
+		First(&provider).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &provider, nil
 }
 
 func (r *identityProviderRepository) FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error) {
