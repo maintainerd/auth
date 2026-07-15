@@ -587,6 +587,7 @@ func toRegistrationFlowResponseDTO(sf RegistrationFlowServiceDataResult) Registr
 	}
 	dto.VerificationRequired = sf.VerificationRequired
 	dto.RequiredFields = sf.RequiredFields
+	dto.IsSystem = sf.IsSystem
 	return dto
 }
 

@@ -132,6 +132,24 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "local", result.Name)
 	})
+
+	// Regression: the detail/edit read must preload BOTH child relations, or a
+	// re-opened provider shows empty email domains / allowed audiences even
+	// though they were saved.
+	t.Run("preloads EmailDomains and AllowedAudiences", func(t *testing.T) {
+		var preloads []string
+		idpRepo := &mockIdentityProviderRepo{
+			findByUUIDSafeFn: func(_ any, p ...string) (*IdentityProvider, error) {
+				preloads = p
+				return newIDP(tenantID, "local"), nil
+			},
+		}
+		svc := NewIdentityProviderService(nil, idpRepo, &mockIdentityProviderEmailDomainRepo{}, nil, &mockTenantRepo{}, &mockUserRepo{})
+		_, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
+		require.NoError(t, err)
+		assert.Contains(t, preloads, "EmailDomains")
+		assert.Contains(t, preloads, "AllowedAudiences")
+	})
 }
 
 // ---------------------------------------------------------------------------
