@@ -202,8 +202,11 @@ func (s *identityProviderService) GetByUUID(ctx context.Context, idpUUID uuid.UU
 		attribute.Int64("tenant.id", tenantID),
 	)
 
-	// Safe read: never loads the encrypted secret columns.
-	idp, err := s.idpRepo.FindByUUIDSafe(idpUUID, "Tenant", "EmailDomains")
+	// Safe read: never loads the encrypted secret columns. Preload the same
+	// relations the create/update paths return so a re-opened provider shows its
+	// saved email domains AND allowed audiences (the detail page + edit form both
+	// load through here).
+	idp, err := s.idpRepo.FindByUUIDSafe(idpUUID, "Tenant", "EmailDomains", "AllowedAudiences")
 	if err != nil || idp == nil {
 		span.SetStatus(codes.Error, "identity provider not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")

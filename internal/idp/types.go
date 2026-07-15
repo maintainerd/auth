@@ -271,6 +271,7 @@ type RegistrationFlowResponseDTO struct {
 	ClientUUID           string         `json:"client_id,omitempty"`
 	VerificationRequired bool           `json:"verification_required"`
 	RequiredFields       datatypes.JSON `json:"required_fields"`
+	IsSystem             bool           `json:"is_system"`
 	CreatedAt            time.Time      `json:"created_at"`
 	UpdatedAt            time.Time      `json:"updated_at"`
 }

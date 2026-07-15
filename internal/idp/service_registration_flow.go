@@ -25,6 +25,7 @@ type RegistrationFlowServiceDataResult struct {
 	ClientUUID           uuid.UUID
 	VerificationRequired bool
 	RequiredFields       datatypes.JSON
+	IsSystem             bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
@@ -454,6 +455,7 @@ func toRegistrationFlowServiceDataResult(sf *RegistrationFlow) *RegistrationFlow
 		ClientUUID:           ClientUUID,
 		VerificationRequired: sf.VerificationRequired,
 		RequiredFields:       sf.RequiredFields,
+		IsSystem:             sf.IsSystem,
 		CreatedAt:            sf.CreatedAt,
 		UpdatedAt:            sf.UpdatedAt,
 	}
