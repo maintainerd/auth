@@ -27,10 +27,10 @@ var secHashPassword = security.HashPassword
 var secHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
 type RegisterService interface {
-	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error)
+	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowName string) (*RegisterResponseDTO, error)
 	RegisterInvitePublic(ctx context.Context, username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error)
 	RegisterInvite(ctx context.Context, username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error)
-	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error)
+	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowName string) (*RegisterResponseDTO, error)
 }
 
 type registerService struct {
@@ -164,24 +164,43 @@ func enforceIdentityProviderRegistrationGate(client *Client) error {
 	return nil
 }
 
-func (s *registerService) registrationFlowByIdentifier(tx *gorm.DB, clientID int64, identifier string) (*RegistrationFlow, error) {
-	identifier = strings.TrimSpace(identifier)
-	if identifier == "" {
+// registrationFlowByName resolves the flow named by a public registration link.
+// This is the highest-privilege unauthenticated path in the service — the
+// resolved flow decides which roles the new user is granted — so it is scoped by
+// client AND tenant, and system flows are refused outright.
+func (s *registerService) registrationFlowByName(tx *gorm.DB, clientID, tenantID int64, name string) (*RegistrationFlow, error) {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
 		return nil, nil
 	}
 	if s.registrationFlowRoleRepo == nil {
 		return nil, apperror.NewInternal("registration flow repository is unavailable", nil)
 	}
 	txRepo := s.registrationFlowRoleRepo.WithTx(tx)
-	flow, err := txRepo.FindByIdentifierAndClientID(identifier, clientID)
+	// Tenant is part of the predicate, not an afterthought: matching the client
+	// alone proves the flow exists, not that it belongs to the tenant this
+	// request resolved to.
+	flow, err := txRepo.FindByNameAndClientTenant(name, clientID, tenantID)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to load registration flow", err)
 	}
-	if flow == nil {
+	if flow == nil || flow.TenantID != tenantID {
 		return nil, apperror.NewNotFoundWithReason("registration flow not found for this client")
 	}
+	// System flows (e.g. owner onboarding, which grants super-admin) are
+	// invite-only by construction: an invite binds its flow by internal id, so a
+	// self-service link must never be able to redeem one. Reported as not-found
+	// so the endpoint does not confirm that a system flow exists.
+	if flow.IsSystem {
+		return nil, apperror.NewNotFoundWithReason("registration flow not found for this client")
+	}
+	// Inactive is reported as not-found, identically to unknown/wrong-tenant/
+	// system. Status is the operator's kill switch for a published link, so a
+	// distinguishable "exists but disabled" response would let whoever holds a
+	// leaked link poll until the switch is lifted — and would confirm which flow
+	// names exist. /oauth/authorize already collapses these for the same reason.
 	if flow.Status != shared.StatusActive {
-		return nil, apperror.NewForbidden("registration flow is inactive")
+		return nil, apperror.NewNotFoundWithReason("registration flow not found for this client")
 	}
 	return flow, nil
 }
@@ -260,7 +279,11 @@ func (s *registerService) assignRegistrationFlowRoles(tx *gorm.DB, userRoleRepo 
 	if flow == nil || s.registrationFlowRoleRepo == nil {
 		return nil
 	}
-	roleIDs, err := s.registrationFlowRoleRepo.WithTx(tx).FindRoleIDsByRegistrationFlowID(flow.RegistrationFlowID)
+	// Tenant comes from the flow itself, which the caller already verified against
+	// the resolved client's tenant. Roles that are cross-tenant, inactive, system
+	// or administrative are filtered out here — the authoritative grant cap.
+	roleIDs, err := s.registrationFlowRoleRepo.WithTx(tx).
+		FindGrantableRoleIDsByRegistrationFlowID(flow.RegistrationFlowID, flow.TenantID)
 	if err != nil {
 		return err
 	}
@@ -297,7 +320,7 @@ func (s *registerService) RegisterPublic(
 	phone *string,
 	clientID,
 	tenantID *string,
-	registrationFlowIdentifier string,
+	registrationFlowName string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.public")
 	defer span.End()
@@ -355,7 +378,7 @@ func (s *registerService) RegisterPublic(
 		if err := enforceIdentityProviderRegistrationGate(Client); err != nil {
 			return err
 		}
-		registrationFlow, txErr = s.registrationFlowByIdentifier(tx, Client.ClientID, registrationFlowIdentifier)
+		registrationFlow, txErr = s.registrationFlowByName(tx, Client.ClientID, tenantId, registrationFlowName)
 		if txErr != nil {
 			return txErr
 		}
@@ -517,7 +540,7 @@ func (s *registerService) Register(
 	phone *string,
 	clientID,
 	tenantID *string,
-	registrationFlowIdentifier string,
+	registrationFlowName string,
 ) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.internal")
 	defer span.End()
@@ -571,7 +594,7 @@ func (s *registerService) Register(
 		if err := enforceIdentityProviderRegistrationGate(Client); err != nil {
 			return err
 		}
-		registrationFlow, txErr = s.registrationFlowByIdentifier(tx, Client.ClientID, registrationFlowIdentifier)
+		registrationFlow, txErr = s.registrationFlowByName(tx, Client.ClientID, tenantId, registrationFlowName)
 		if txErr != nil {
 			return txErr
 		}

@@ -15,17 +15,29 @@ import (
 // handled here — this is the cookie/bearer session path used by the hosted
 // identity surface.
 func bearerOrCookieToken(r *http.Request) string {
+	token, _ := bearerOrCookieTokenWithScheme(r)
+	return token
+}
+
+// bearerOrCookieTokenWithScheme also reports HOW the token was presented, which
+// decides whether a sender-constrained token is acceptable (RFC 9449 §7.1).
+// "DPoP" is accepted as a scheme here so a bound token reaches the binding check
+// rather than looking like no token at all.
+func bearerOrCookieTokenWithScheme(r *http.Request) (token, scheme string) {
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
-		if parts := strings.SplitN(authHeader, " ", 2); len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
-			return parts[1]
+		if parts := strings.SplitN(authHeader, " ", 2); len(parts) == 2 {
+			switch strings.ToLower(parts[0]) {
+			case "bearer", "dpop":
+				return parts[1], strings.ToLower(parts[0])
+			}
 		}
 	}
 	for _, name := range []string{"access_token", "__Host-access_token"} {
 		if cookie, err := r.Cookie(name); err == nil && cookie.Value != "" {
-			return cookie.Value
+			return cookie.Value, "cookie"
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // OptionalUserContextMiddleware populates the request AuthContext when a valid
@@ -40,7 +52,7 @@ func bearerOrCookieToken(r *http.Request) string {
 func OptionalUserContextMiddleware(userProvider UserContextProvider, appCache *cache.Cache) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := bearerOrCookieToken(r)
+			token, scheme := bearerOrCookieTokenWithScheme(r)
 			if token == "" {
 				next.ServeHTTP(w, r)
 				return
@@ -49,6 +61,14 @@ func OptionalUserContextMiddleware(userProvider UserContextProvider, appCache *c
 			rawClaims, err := jwt.ValidateTokenWithContext(r.Context(), token)
 			if err != nil {
 				// Expired or invalid session — treat as unauthenticated.
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// A sender-constrained token presented without a valid proof is not a
+			// session. Treating it as one here would reinstate exactly the bypass the
+			// binding exists to close, on every session-aware endpoint.
+			if err := enforceDPoPBinding(r, scheme, token, rawClaims); err != nil {
 				next.ServeHTTP(w, r)
 				return
 			}

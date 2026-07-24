@@ -619,14 +619,19 @@ func TestOAuthTokenHandler_Token_InvalidDPoPProof(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestOAuthTokenHandler_Token_DPoPHeaderIgnoredWithoutStore(t *testing.T) {
+// A presented proof is always validated, store or not. Skipping validation when no
+// replay store was wired — the shipped configuration — meant a client that asked
+// for DPoP silently received an UNBOUND token: the proof went unread, so
+// req.DPoPThumbprint stayed empty and the token carried no cnf.jkt.
+func TestOAuthTokenHandler_Token_InvalidDPoPProofRejectedWithoutStore(t *testing.T) {
+	exchanged := false
 	svc := &mockOAuthTokenService{
 		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, _ OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
+			exchanged = true
 			return &OAuthTokenResult{AccessToken: "at"}, nil
 		},
 	}
 
-	// No DPoP store — DPoP header should be ignored, handler proceeds normally.
 	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type":    {"authorization_code"},
@@ -635,12 +640,14 @@ func TestOAuthTokenHandler_Token_DPoPHeaderIgnoredWithoutStore(t *testing.T) {
 		"code_verifier": {"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"},
 		"client_id":     {"myapp"},
 	})
-	r.Header.Set("DPoP", "ignored-proof")
+	r.Header.Set("DPoP", "not-a-valid-proof")
 	w := httptest.NewRecorder()
 
 	h.Token(w, r)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_dpop_proof")
+	assert.False(t, exchanged, "no token may be issued for an unverifiable proof")
 }
 
 func TestOAuthTokenHandler_Token_SuccessWithDPoPProof(t *testing.T) {

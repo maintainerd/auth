@@ -18,6 +18,29 @@ func cipRows() *sqlmock.Rows {
 	}).AddRow(1, uuid.New(), 1, 10, 100, true, true, 0, now, now)
 }
 
+// cipTwoEnabledRows returns the client's full connection list with a SECOND
+// enabled connection, so removing or disabling the first still leaves a way to
+// sign in. Needed by the "client stays usable" invariant.
+func cipTwoEnabledRows() *sqlmock.Rows {
+	now := time.Now()
+	return sqlmock.NewRows([]string{
+		"client_identity_provider_id", "client_identity_provider_uuid", "tenant_id", "client_id",
+		"identity_provider_id", "is_default", "enabled", "display_order", "created_at", "updated_at",
+	}).
+		AddRow(1, uuid.New(), 1, 10, 100, true, true, 0, now, now).
+		AddRow(2, uuid.New(), 1, 10, 101, false, true, 1, now, now)
+}
+
+// cipOnlyOneEnabledRow returns a connection list containing ONLY the connection
+// under mutation, so disabling or removing it must be refused.
+func cipOnlyOneEnabledRow() *sqlmock.Rows {
+	now := time.Now()
+	return sqlmock.NewRows([]string{
+		"client_identity_provider_id", "client_identity_provider_uuid", "tenant_id", "client_id",
+		"identity_provider_id", "is_default", "enabled", "display_order", "created_at", "updated_at",
+	}).AddRow(1, uuid.New(), 1, 10, 100, true, true, 0, now, now)
+}
+
 func idpPreloadRows() *sqlmock.Rows {
 	now := time.Now()
 	return sqlmock.NewRows([]string{

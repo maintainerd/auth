@@ -296,6 +296,45 @@ func SanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol string) string 
 	return sanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol)
 }
 
+// SanitizeOrderIn is SanitizeOrder against a caller-supplied allowlist instead of
+// the global one.
+//
+// allowedSortColumns is a union across every table, so a column valid for one
+// resource can be invalid for another — ordering by it then reaches Postgres as
+// an undefined column (42703) and surfaces as a 500. Resources whose columns
+// diverge from the union should pass their own set.
+// SanitizeOrderInPrefixed is SanitizeOrderIn with a table prefix, for queries
+// that JOIN and need an unambiguous ORDER BY column.
+func SanitizeOrderInPrefixed(allowed map[string]struct{}, prefix, sortBy, sortOrder, defaultCol string) string {
+	col := strings.ToLower(strings.TrimSpace(sortBy))
+	if col == "" {
+		return defaultCol
+	}
+	if _, ok := allowed[col]; !ok {
+		return defaultCol
+	}
+	order := "ASC"
+	if strings.ToLower(strings.TrimSpace(sortOrder)) == "desc" {
+		order = "DESC"
+	}
+	return prefix + col + " " + order
+}
+
+func SanitizeOrderIn(allowed map[string]struct{}, sortBy, sortOrder, defaultCol string) string {
+	col := strings.ToLower(strings.TrimSpace(sortBy))
+	if col == "" {
+		return defaultCol
+	}
+	if _, ok := allowed[col]; !ok {
+		return defaultCol
+	}
+	order := "ASC"
+	if strings.ToLower(strings.TrimSpace(sortOrder)) == "desc" {
+		order = "DESC"
+	}
+	return col + " " + order
+}
+
 func PaginateQuery[T any](query *gorm.DB, page, limit int) (*PaginationResult[T], error) {
 	page, limit = normalizePagination(page, limit)
 

@@ -48,7 +48,7 @@ type testClientService struct {
 	removeClientAPIPermissionFn func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
 	getConnectionsFn            func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) ([]ClientIdentityProviderServiceDataResult, error)
 	addConnectionFn             func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, identityProviderUUID uuid.UUID, isDefault, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	updateConnectionFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	updateConnectionFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault, enabled *bool, displayOrder *int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	removeConnectionFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 }
 
@@ -69,7 +69,7 @@ func (m *testClientService) GetConfigByUUID(ctx context.Context, clientUUID uuid
 func (m *testClientService) Create(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error) {
 	return m.createFn(ctx, tenantID, name, displayName, clientType, domain, config, status, isDefault, identityProviderUUID, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actorUserUUID)
 }
-func (m *testClientService) Update(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (m *testClientService) Update(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time) (*ClientServiceDataResult, error) {
 	return m.updateFn(ctx, clientUUID, tenantID, name, displayName, clientType, domain, config, status, isDefault, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actorUserUUID)
 }
 func (m *testClientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error) {
@@ -102,7 +102,7 @@ func (m *testClientService) AddConnection(ctx context.Context, clientUUID uuid.U
 	}
 	return nil, nil
 }
-func (m *testClientService) UpdateConnection(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (m *testClientService) UpdateConnection(ctx context.Context, clientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault, enabled *bool, displayOrder *int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
 	if m.updateConnectionFn != nil {
 		return m.updateConnectionFn(ctx, clientUUID, tenantID, connectionUUID, isDefault, enabled, displayOrder, actorUserUUID)
 	}
@@ -117,19 +117,19 @@ func (m *testClientService) RemoveConnection(ctx context.Context, clientUUID uui
 func (m *testClientService) GetClientAPIs(ctx context.Context, tenantID int64, clientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error) {
 	return m.getClientAPIsFn(ctx, tenantID, clientUUID)
 }
-func (m *testClientService) AddClientAPIs(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUIDs []uuid.UUID) error {
+func (m *testClientService) AddClientAPIs(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUIDs []uuid.UUID, actorUUID uuid.UUID) error {
 	return m.addClientAPIsFn(ctx, tenantID, clientUUID, apiUUIDs)
 }
-func (m *testClientService) RemoveClientAPI(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID) error {
+func (m *testClientService) RemoveClientAPI(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, actorUUID uuid.UUID) error {
 	return m.removeClientAPIFn(ctx, tenantID, clientUUID, apiUUID)
 }
 func (m *testClientService) GetClientAPIPermissions(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error) {
 	return m.getClientAPIPermissionsFn(ctx, tenantID, clientUUID, apiUUID)
 }
-func (m *testClientService) AddClientAPIPermissions(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error {
+func (m *testClientService) AddClientAPIPermissions(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUUID uuid.UUID) error {
 	return m.addClientAPIPermissionsFn(ctx, tenantID, clientUUID, apiUUID, permissionUUIDs)
 }
-func (m *testClientService) RemoveClientAPIPermission(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error {
+func (m *testClientService) RemoveClientAPIPermission(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID, actorUUID uuid.UUID) error {
 	return m.removeClientAPIPermissionFn(ctx, tenantID, clientUUID, apiUUID, permissionUUID)
 }
 
@@ -250,7 +250,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.CreateClient(ctx, &authv1.CreateClientRequest{TenantUuid: tenantUUID.String(), Name: "my-app", DisplayName: "My App", ClientType: "public", Status: "active"})
+		res, err := h.CreateClient(ctx, &authv1.CreateClientRequest{TenantUuid: tenantUUID.String(), Name: "my-app", DisplayName: "My Application", ClientType: "spa", Domain: "app.example.com", Status: "active"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -266,7 +266,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), Name: "my-app", DisplayName: "My App", ClientType: "public", Status: "active"})
+		res, err := h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), Name: "my-app", DisplayName: "My Application", ClientType: "spa", Domain: "app.example.com", Status: "active"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -394,7 +394,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuids: []string{apiUUID.String()}})
+		res, err := h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuids: []string{apiUUID.String()}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -410,7 +410,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String()})
+		res, err := h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -442,7 +442,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
+		res, err := h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -458,7 +458,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
+		res, err := h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -583,15 +583,15 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 		assertGRPCErrCode(t, err, codes.Internal)
 		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{apiUUID.String()}})
+		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{apiUUID.String()}})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
+		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
 		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
+		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
+		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
 	})
 
@@ -619,15 +619,15 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuids: []string{apiUUID.String()}})
+		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuids: []string{apiUUID.String()}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String()})
+		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
+		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
+		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
@@ -723,15 +723,15 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 		assertGRPCErrCode(t, err, codes.Internal)
 		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{apiUUID.String()}})
+		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{apiUUID.String()}})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
+		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
 		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
+		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
+		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
 	})
 
@@ -748,13 +748,13 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("invalid API UUID in AddClientAPIs list", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{"bad-api-uuid"}})
+		_, err := h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{"bad-api-uuid"}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("invalid Permission UUID in AddClientAPIPermissions list", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{"bad-perm-uuid"}})
+		_, err := h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{"bad-perm-uuid"}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
@@ -772,7 +772,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("invalid API UUID in RemoveClientAPI", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: "bad-api-uuid"})
+		_, err := h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: "bad-api-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
@@ -784,7 +784,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("invalid perm UUID in RemoveClientAPIPermission", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: "bad-perm-uuid"})
+		_, err := h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: "bad-perm-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
@@ -1153,10 +1153,10 @@ func TestClientProtoConverters(t *testing.T) {
 	assert.Equal(id.String(), proto.ClientUuid)
 }
 
-func (m *testClientService) AssignClientRole(context.Context, uuid.UUID, uuid.UUID, int64, *int64) (*ClientRole, error) {
+func (m *testClientService) AssignClientRole(context.Context, uuid.UUID, uuid.UUID, int64, uuid.UUID) (*ClientRole, error) {
 	return nil, nil
 }
-func (m *testClientService) RemoveClientRole(context.Context, uuid.UUID, uuid.UUID, int64) error {
+func (m *testClientService) RemoveClientRole(context.Context, uuid.UUID, uuid.UUID, int64, uuid.UUID) error {
 	return nil
 }
 func (m *testClientService) ListClientRoles(context.Context, uuid.UUID, int64) ([]ClientRole, error) {

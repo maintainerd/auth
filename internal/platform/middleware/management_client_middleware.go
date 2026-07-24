@@ -29,7 +29,7 @@ type ManagementClientResolver interface {
 func RequireManagementClient(resolver ManagementClientResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := bearerOrCookieToken(r)
+			token, scheme := bearerOrCookieTokenWithScheme(r)
 
 			// No JWT, or an API key: defer to the per-route auth rules.
 			if token == "" || strings.HasPrefix(token, "ak_") {
@@ -40,6 +40,14 @@ func RequireManagementClient(resolver ManagementClientResolver) func(http.Handle
 			rawClaims, err := jwt.ValidateTokenWithContext(r.Context(), token)
 			if err != nil {
 				// Let the per-route JWT middleware produce the canonical 401.
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// A bound token without a valid proof must not be treated as a valid JWT
+			// for the management-client decision; the per-route JWT middleware will
+			// produce the canonical 401.
+			if err := enforceDPoPBinding(r, scheme, token, rawClaims); err != nil {
 				next.ServeHTTP(w, r)
 				return
 			}

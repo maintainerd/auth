@@ -293,6 +293,9 @@ message AddClientAPIsRequest {
   string tenant_uuid = 1;
   string client_uuid = 2;
   repeated string api_uuids = 3;
+  // Required. The mutation is refused without an actor holding an identity in the
+  // tenant, so a grant change is never anonymous.
+  string actor_user_uuid = 4;
 }
 
 message AddClientAPIsResponse {
@@ -303,6 +306,7 @@ message RemoveClientAPIRequest {
   string tenant_uuid = 1;
   string client_uuid = 2;
   string api_uuid = 3;
+  string actor_user_uuid = 4;
 }
 
 message RemoveClientAPIResponse {
@@ -324,6 +328,7 @@ message AddClientAPIPermissionsRequest {
   string client_uuid = 2;
   string api_uuid = 3;
   repeated string permission_uuids = 4;
+  string actor_user_uuid = 5;
 }
 
 message AddClientAPIPermissionsResponse {
@@ -335,6 +340,7 @@ message RemoveClientAPIPermissionRequest {
   string client_uuid = 2;
   string api_uuid = 3;
   string permission_uuid = 4;
+  string actor_user_uuid = 5;
 }
 
 message RemoveClientAPIPermissionResponse {

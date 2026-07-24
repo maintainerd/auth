@@ -230,8 +230,11 @@ The following were the pre-refactor state. All have been corrected:
 - [x] Complete C2.
 - **Implementation:**
   - [x] Admin response fields: ID/UUID, name, description, identifier, status, `is_system`, client summary, `verification_required`, parsed `required_fields`, timestamps, and role summaries/count where appropriate.
-  - [x] Create/update fields: name, description, identifier, status, client UUID, `verification_required`, `required_fields`, and optional role UUID replacement set.
-  - [x] Allow an admin-supplied stable identifier; normalize and validate it, and enforce tenant-scoped uniqueness.
+  - [x] Create/update fields: name, description, status, client UUID, `verification_required`, `required_fields`, and optional role UUID replacement set.
+  - [x] ~~Allow an admin-supplied stable identifier; normalize and validate it, and enforce tenant-scoped uniqueness.~~
+        **Superseded** — the identifier is server-derived and no longer accepted from
+        the client. Tenant-scoped uniqueness still holds. See
+        [Decision: name vs identifier](#decision-name-vs-identifier).
   - [x] Use a structured string array for `required_fields` at the API boundary even if the first implementation continues storing JSON text internally.
   - [x] Support only fields the registration DTO can actually collect (`email`, `fullname`, and `phone`, plus always-required username/password semantics).
   - [x] Validate that selected roles and client belong to the same tenant as the flow.
@@ -811,3 +814,66 @@ The following were the pre-refactor state. All have been corrected:
   - [x] The implementation satisfies every row in the locked behavior matrix.
   - [x] The old auth/signup-flow contract is absent from schema, runtime, management UI, hosted identity UI, generated contracts, and current documentation.
   - [x] `v0.1.0` can be tagged without carrying a compatibility layer for the abandoned pre-release design.
+
+---
+
+## Decision: the flow name IS the registration-link selector
+
+A registration flow used to carry both a `name` and an `identifier`. It now
+carries only `name`, and that name is the value an external app puts in a
+registration link:
+
+```
+{identityUrl}/register?client_id=<client identifier>&registration_flow=<flow name>
+```
+
+### Why the identifier was removed
+
+The two fields were a false distinction in this domain. `identifier` was
+admin-suppliable *and* auto-generated depending on the code path, so the same
+column held a hand-typed `signup` in one row and a 16-char mixed-case random
+string in the next — a string that the admin-facing validation regex would itself
+have rejected. Operators reasonably read the pair as duplication and asked which
+one mattered. One field, one meaning, is simpler and is what the console now
+presents.
+
+### What that costs, stated plainly
+
+**Renaming a flow changes its registration link.** Resolution is an exact match
+on `(name, client_id, tenant_id)` with no alias table and no redirect, so a
+rename breaks any link a partner app has already baked into its config or printed
+into a QR code. Nothing in the backend prevents a rename; the console warns, and
+the operator owns that call. If link stability under rename later becomes a hard
+requirement, the way to get it is an alias table mapping historical names to the
+flow — not a second column.
+
+### Consequences enforced in code
+
+- `name` is validated as a slug: `^[a-z0-9][a-z0-9]*([-_][a-z0-9]+)*$`, up to 100
+  chars. It appears in a URL, so it may not contain spaces, colons or mixed case.
+- `name` is unique per tenant, enforced by `uq_registration_flows_tenant_name`
+  *and* pre-checked in the service at the same scope, so a collision returns 409
+  rather than a driver-level 500.
+- The lookup on the public path is scoped by client **and** tenant. Matching the
+  client alone proves the flow exists, not that it belongs to the tenant the
+  request resolved to.
+- Seeded system flow names are slug-shaped too (`system-onboarding-owner`).
+
+### The name is not a secret, and must not become one
+
+It travels in URLs, browser history, referrers, and the management audit log.
+Authorization for a flow redemption lives entirely elsewhere:
+
+- the client binding (`client_id` plus the client's own `allow_registration`),
+- the tenant registration policy,
+- the flow's `status`, which is the kill switch for a leaked link,
+- the grantable-role cap — a flow can never attach a system role, and an admin can
+  only attach roles they already hold,
+- the invite requirement for `is_system` flows, which are the only flows granting
+  privileged roles and are resolvable by internal id only.
+
+This matters more now than it did before. A guessable name like `signup` is
+entirely legal, so no control may assume the selector is hard to guess. Anyone
+adding a capability to a flow should add a real control (per-flow redemption caps,
+email-domain binding, or signed links) rather than lean on secrecy the design
+deliberately does not assume.

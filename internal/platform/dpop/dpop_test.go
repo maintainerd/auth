@@ -217,8 +217,22 @@ func TestValidateProof(t *testing.T) {
 			}),
 			method:     testMethod,
 			requestURL: testRequestURL,
-			store:      &memoryJTIStore{denied: map[string]time.Duration{"dpop:jti-replay": replayWindowTTL}},
-			wantErr:    "replay detected",
+			store: &memoryJTIStore{denied: map[string]time.Duration{
+				"dpop:" + ecThumbprint(t, &key.PublicKey) + ":jti-replay": replayWindowTTL,
+			}},
+			wantErr: "replay detected",
+		},
+		{
+			// Accepting a proof the guard could not record leaves it replayable for the
+			// whole window, which is the attack the store exists to stop.
+			name: "a failure to record the jti fails closed",
+			proofHeader: signDPoPProof(t, key, proofOptions{
+				jti: "jti-deny-error", htm: testMethod, htu: testRequestURL, iat: time.Now(), typ: "dpop+jwt", header: ecJWK(t, &key.PublicKey),
+			}),
+			method:     testMethod,
+			requestURL: testRequestURL,
+			store:      &memoryJTIStore{denyErr: errors.New("redis down")},
+			wantErr:    "could not record the proof",
 		},
 	}
 
@@ -236,7 +250,8 @@ func TestValidateProof(t *testing.T) {
 				tt.assertClaims(t, claims)
 			}
 			if tt.store != nil {
-				assert.Contains(t, tt.store.denied, "dpop:"+claims.JTI)
+				// Scoped per key: one client's jti must not collide with another's.
+				assert.Contains(t, tt.store.denied, "dpop:"+claims.Thumbprint+":"+claims.JTI)
 			}
 		})
 	}
@@ -325,10 +340,40 @@ func TestExtractNumericDate(t *testing.T) {
 	}
 }
 
-func TestStripQuery(t *testing.T) {
-	assert.Equal(t, "https://example.com/path", stripQuery("https://example.com/path?a=b"))
-	assert.Equal(t, "https://example.com/path", stripQuery("https://example.com/path"))
-	assert.Equal(t, "https://example.com", stripQuery("https://example.com"))
+// htu binds a proof to one endpoint (RFC 9449 §4.3), so the comparison must ignore
+// query and fragment while keeping the path exact.
+func TestHTUMatches(t *testing.T) {
+	const endpoint = "https://auth.example.com/api/v1/oauth/token"
+
+	t.Run("ignores query and fragment", func(t *testing.T) {
+		assert.True(t, htuMatches(endpoint+"?a=b", endpoint))
+		assert.True(t, htuMatches(endpoint+"#frag", endpoint))
+		assert.True(t, htuMatches(endpoint, endpoint+"?a=b"))
+	})
+
+	t.Run("scheme and host are case-insensitive", func(t *testing.T) {
+		assert.True(t, htuMatches("HTTPS://AUTH.EXAMPLE.COM/api/v1/oauth/token", endpoint))
+	})
+
+	// Folding case across the whole URL let a proof issued for /oauth/Token satisfy a
+	// request to /oauth/token.
+	t.Run("the path is case-sensitive", func(t *testing.T) {
+		assert.False(t, htuMatches("https://auth.example.com/api/v1/oauth/Token", endpoint))
+	})
+
+	t.Run("a different host, scheme or path does not match", func(t *testing.T) {
+		assert.False(t, htuMatches("https://evil.example.com/api/v1/oauth/token", endpoint))
+		assert.False(t, htuMatches("http://auth.example.com/api/v1/oauth/token", endpoint))
+		assert.False(t, htuMatches("https://auth.example.com/api/v1/oauth/revoke", endpoint))
+	})
+
+	t.Run("an empty path equals the root path", func(t *testing.T) {
+		assert.True(t, htuMatches("https://auth.example.com", "https://auth.example.com/"))
+	})
+
+	t.Run("an unparseable value never matches", func(t *testing.T) {
+		assert.False(t, htuMatches("://nonsense", endpoint))
+	})
 }
 
 func TestExtractPublicKeyAndThumbprint_Errors(t *testing.T) {
@@ -511,6 +556,14 @@ func ecJWK(t *testing.T, pub *ecdsa.PublicKey) map[string]any {
 		"x":   base64.RawURLEncoding.EncodeToString(point[1 : 1+size]),
 		"y":   base64.RawURLEncoding.EncodeToString(point[1+size:]),
 	}
+}
+
+// ecThumbprint is the RFC 7638 thumbprint the replay key is scoped to.
+func ecThumbprint(t *testing.T, pub *ecdsa.PublicKey) string {
+	t.Helper()
+	_, thumb, err := extractPublicKeyAndThumbprint(ecJWK(t, pub))
+	require.NoError(t, err)
+	return thumb
 }
 
 func rsaJWK(t *testing.T, pub *rsa.PublicKey) map[string]any {

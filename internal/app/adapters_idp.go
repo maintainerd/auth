@@ -219,3 +219,53 @@ func (r *idpRoleRepo) FindPaginated(filter idp.RoleRepositoryGetFilter) (*idp.Pa
 	}
 	return r.Paginate(conditions, filter.Page, filter.Limit)
 }
+
+// idpRegistrationFlowInviteCounter answers idp's read-only question "is this
+// registration flow still referenced by a pending invite". Invites belong to the
+// invite domain, so idp reaches them through this narrow port rather than
+// querying the table directly from its service layer.
+type idpRegistrationFlowInviteCounter struct {
+	db *gorm.DB
+}
+
+func newIDPRegistrationFlowInviteCounter(db *gorm.DB) idp.RegistrationFlowInviteCounter {
+	return &idpRegistrationFlowInviteCounter{db: db}
+}
+
+func (c *idpRegistrationFlowInviteCounter) WithTx(tx *gorm.DB) idp.RegistrationFlowInviteCounter {
+	return &idpRegistrationFlowInviteCounter{db: tx}
+}
+
+func (c *idpRegistrationFlowInviteCounter) CountPendingByRegistrationFlowID(registrationFlowID int64) (int64, error) {
+	var count int64
+	err := c.db.
+		Table("invites").
+		Where("registration_flow_id = ? AND status = ?", registrationFlowID, "pending").
+		Count(&count).Error
+	return count, err
+}
+
+// idpRolePermissionNameReader lists a role's permission names so idp can apply
+// the grantable-role cap on registration flows. Permissions belong to iam, so
+// idp reaches them through this narrow read-only port.
+type idpRolePermissionNameReader struct {
+	db *gorm.DB
+}
+
+func newIDPRolePermissionNameReader(db *gorm.DB) idp.RolePermissionNameReader {
+	return &idpRolePermissionNameReader{db: db}
+}
+
+func (r *idpRolePermissionNameReader) WithTx(tx *gorm.DB) idp.RolePermissionNameReader {
+	return &idpRolePermissionNameReader{db: tx}
+}
+
+func (r *idpRolePermissionNameReader) FindPermissionNamesByRoleID(roleID int64) ([]string, error) {
+	var names []string
+	err := r.db.
+		Table("role_permissions").
+		Joins("JOIN permissions ON permissions.permission_id = role_permissions.permission_id").
+		Where("role_permissions.role_id = ? AND permissions.deleted_at IS NULL", roleID).
+		Pluck("permissions.name", &names).Error
+	return names, err
+}

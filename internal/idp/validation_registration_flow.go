@@ -10,7 +10,23 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
-var ValidationIdentifierRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9-_]*$`)
+// registrationFlowNamePattern constrains a flow name to a URL-safe slug, because
+// the name IS the public selector in a registration link
+// (?registration_flow=<name>). Lowercase alphanumerics separated by single
+// hyphens or underscores, starting with an alphanumeric.
+var registrationFlowNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9]*([-_][a-z0-9]+)*$`)
+
+const registrationFlowNameMessage = "Name must be lowercase letters, numbers, hyphens and underscores (e.g. partner-signup)"
+
+// maxRegistrationFlowRoles caps a single role-membership payload. Every entry
+// costs a role lookup plus a permission lookup inside the write transaction, so
+// an unbounded list is a cheap way to hold one open. No real flow needs more.
+const maxRegistrationFlowRoles = 50
+
+// maxRegistrationFlowFilterTerm caps free-text filter values. They reach the
+// database as LOWER(col) LIKE '%term%', so an unbounded term is wasted work on a
+// query that cannot use an index anyway.
+const maxRegistrationFlowFilterTerm = 100
 
 func validateRequiredFieldsJSON(raw *[]string) error {
 	if raw == nil || len(*raw) == 0 {
@@ -36,19 +52,23 @@ func (r RegistrationFlowCreateRequestDTO) Validate() error {
 		validation.Field(&r.Name,
 			validation.Required.Error("Registration flow name is required"),
 			validation.Length(1, 100).Error("Registration flow name must be between 1 and 100 characters"),
+			validation.Match(registrationFlowNamePattern).Error(registrationFlowNameMessage),
+		),
+		validation.Field(&r.Description,
+			validation.Length(0, 500).Error("Description must not exceed 500 characters"),
 		),
 		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.When(r.Status != nil,
+				validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			),
 		),
 		validation.Field(&r.ClientUUID,
 			validation.Required.Error("Auth client UUID is required"),
 			is.UUID.Error("Invalid auth client UUID format"),
 		),
-		validation.Field(&r.Identifier,
-			validation.When(r.Identifier != nil && *r.Identifier != "",
-				validation.Length(1, 255).Error("identifier must be between 1 and 255 characters"),
-				validation.Match(ValidationIdentifierRegex).Error("identifier must contain only lowercase letters, numbers, hyphens, and colons"),
-			),
+		validation.Field(&r.RoleIDs,
+			validation.Length(0, maxRegistrationFlowRoles).Error("At most 50 roles can be assigned to a registration flow"),
+			validation.Each(is.UUID.Error("Invalid role UUID provided")),
 		),
 	); err != nil {
 		return err
@@ -59,11 +79,25 @@ func (r RegistrationFlowCreateRequestDTO) Validate() error {
 func (r RegistrationFlowUpdateRequestDTO) Validate() error {
 	if err := validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
-			validation.Required.Error("Registration flow name is required"),
-			validation.Length(1, 100).Error("Registration flow name must be between 1 and 100 characters"),
+			validation.When(r.Name != nil,
+				validation.Required.Error("Registration flow name is required"),
+				validation.Length(1, 100).Error("Registration flow name must be between 1 and 100 characters"),
+				validation.Match(registrationFlowNamePattern).Error(registrationFlowNameMessage),
+			),
+		),
+		validation.Field(&r.Description,
+			validation.When(r.Description != nil,
+				validation.Length(0, 500).Error("Description must not exceed 500 characters"),
+			),
 		),
 		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.When(r.Status != nil,
+				validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			),
+		),
+		validation.Field(&r.RoleIDs,
+			validation.Length(0, maxRegistrationFlowRoles).Error("At most 50 roles can be assigned to a registration flow"),
+			validation.Each(is.UUID.Error("Invalid role UUID provided")),
 		),
 	); err != nil {
 		return err
@@ -80,8 +114,19 @@ func (r RegistrationFlowUpdateStatusRequestDTO) Validate() error {
 	)
 }
 
+// Validate validates the registration flow filter DTO.
 func (f RegistrationFlowFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
+		validation.Field(&f.Name,
+			validation.When(f.Name != nil,
+				validation.Length(0, maxRegistrationFlowFilterTerm).Error("Name filter must not exceed 100 characters"),
+			),
+		),
+		validation.Field(&f.Search,
+			validation.When(f.Search != nil,
+				validation.Length(0, maxRegistrationFlowFilterTerm).Error("Search term must not exceed 100 characters"),
+			),
+		),
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
 				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
@@ -100,7 +145,7 @@ func (r RegistrationFlowAssignRolesRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.RoleUUIDs,
 			validation.Required.Error("Role UUIDs are required"),
-			validation.Length(1, 0).Error("At least one role UUID is required"),
+			validation.Length(1, maxRegistrationFlowRoles).Error("Between 1 and 50 role UUIDs are required"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
 		),
 	)

@@ -151,10 +151,17 @@ func TestAddClientIdentityProviderRequestDto_Validate(t *testing.T) {
 }
 
 func TestUpdateClientIdentityProviderRequestDto_Validate(t *testing.T) {
+	order := func(v int) *int { return &v }
+
 	t.Run("valid", func(t *testing.T) {
-		assert.NoError(t, UpdateClientIdentityProviderRequestDTO{DisplayOrder: 2}.Validate())
+		assert.NoError(t, UpdateClientIdentityProviderRequestDTO{DisplayOrder: order(2)}.Validate())
 	})
 	t.Run("negative display order", func(t *testing.T) {
-		require.Error(t, UpdateClientIdentityProviderRequestDTO{DisplayOrder: -1}.Validate())
+		require.Error(t, UpdateClientIdentityProviderRequestDTO{DisplayOrder: order(-1)}.Validate())
+	})
+	// Every field omitted is valid: it means "change nothing", which is what stops
+	// a partial console toggle from silently demoting the default provider.
+	t.Run("all fields omitted is valid", func(t *testing.T) {
+		assert.NoError(t, UpdateClientIdentityProviderRequestDTO{}.Validate())
 	})
 }

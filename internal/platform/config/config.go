@@ -34,6 +34,13 @@ var (
 	// Application Encryption Key (AES-256)
 	AppEncryptionKey []byte
 
+	// AppEncryptionPreviousKeys are DECRYPT-ONLY keys retired by a rotation.
+	// Ciphertext carries the id of the key that produced it, so during a rotation the
+	// old key stays here until every row has been re-encrypted with the new one.
+	// Without this, rotating APP_ENCRYPTION_KEY makes every stored secret
+	// undecryptable. Set APP_ENCRYPTION_KEYS_PREVIOUS to a comma-separated list.
+	AppEncryptionPreviousKeys [][]byte
+
 	// Logging
 	LogLevel string // "debug", "info", "warn", "error"; defaults "info"
 
@@ -156,6 +163,22 @@ func Init() error {
 	}
 	if len(AppEncryptionKey) != 32 {
 		return fmt.Errorf("APP_ENCRYPTION_KEY must be 32 bytes (AES-256), got %d", len(AppEncryptionKey))
+	}
+
+	// Retired keys, kept only so data written before a rotation still decrypts.
+	AppEncryptionPreviousKeys = nil
+	if previous := GetEnvOrDefault("APP_ENCRYPTION_KEYS_PREVIOUS", ""); previous != "" {
+		for _, entry := range strings.Split(previous, ",") {
+			key := []byte(strings.TrimSpace(entry))
+			if len(key) == 0 {
+				continue
+			}
+			if len(key) != 32 {
+				return fmt.Errorf("each APP_ENCRYPTION_KEYS_PREVIOUS entry must be 32 bytes (AES-256), got %d", len(key))
+			}
+			AppEncryptionPreviousKeys = append(AppEncryptionPreviousKeys, key)
+		}
+		slog.Info("Retired application encryption keys loaded", "count", len(AppEncryptionPreviousKeys))
 	}
 	slog.Info("Application encryption key loaded successfully")
 

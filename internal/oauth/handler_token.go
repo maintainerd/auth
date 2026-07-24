@@ -65,7 +65,12 @@ func (h *OAuthTokenHandler) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dpopProof := r.Header.Get("DPoP")
-	if dpopProof != "" && h.dpopStore != nil {
+	// Validate whenever a proof is presented. The old `&& h.dpopStore != nil` guard
+	// meant that with no store wired — which was the shipped configuration — the
+	// proof was accepted unread and req.DPoPThumbprint stayed empty, so the issued
+	// token carried no cnf.jkt. A client that asked for DPoP got an unbound bearer
+	// token and no error.
+	if dpopProof != "" {
 		requestURL := config.AppPublicHostname + "/api/v1/oauth/token"
 		claims, err := dpop.ValidateProof(r.Context(), dpopProof, "POST", requestURL, "", h.dpopStore)
 		if err != nil {

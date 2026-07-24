@@ -22,7 +22,11 @@ func InitDB(ctx context.Context) (*gorm.DB, error) {
 
 	// gorm.Open with the postgres driver is lazy — it does not dial the server.
 	// The actual connection attempt happens on the first Ping or query.
-	db, err := gorm.Open(postgres.Open(GetDBConnectionString()), &gorm.Config{})
+	// TranslateError maps driver-specific errors onto gorm's portable sentinels
+	// (ErrDuplicatedKey, ErrForeignKeyViolated). Without it a unique-index
+	// violation reaches the transport layer untyped and becomes a 500 — every
+	// table with a unique index depends on this to return 409 instead.
+	db, err := gorm.Open(postgres.Open(GetDBConnectionString()), &gorm.Config{TranslateError: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database driver: %w", err)
 	}

@@ -19,19 +19,28 @@ import (
 )
 
 type registrationFlowRepoStub struct {
-	flow                  *RegistrationFlow
-	roleIDs               []int64
-	roleErr               error
-	findByIdentifierCalls int
+	flow            *RegistrationFlow
+	flowErr         error
+	roleIDs         []int64
+	roleErr         error
+	findByNameCalls int
+	// gotName/gotClientID/gotTenantID record the last lookup arguments so a
+	// test can assert the resolution really is client- AND tenant-scoped.
+	gotName     string
+	gotClientID int64
+	gotTenantID int64
 }
 
 func (r *registrationFlowRepoStub) WithTx(*gorm.DB) RegistrationFlowRoleRepository { return r }
-func (r *registrationFlowRepoStub) FindByID(id int64) (*RegistrationFlow, error)   { return r.flow, nil }
-func (r *registrationFlowRepoStub) FindByIdentifierAndClientID(identifier string, clientID int64) (*RegistrationFlow, error) {
-	r.findByIdentifierCalls++
-	return r.flow, nil
+func (r *registrationFlowRepoStub) FindByID(id int64) (*RegistrationFlow, error) {
+	return r.flow, r.flowErr
 }
-func (r *registrationFlowRepoStub) FindRoleIDsByRegistrationFlowID(int64) ([]int64, error) {
+func (r *registrationFlowRepoStub) FindByNameAndClientTenant(name string, clientID, tenantID int64) (*RegistrationFlow, error) {
+	r.findByNameCalls++
+	r.gotName, r.gotClientID, r.gotTenantID = name, clientID, tenantID
+	return r.flow, r.flowErr
+}
+func (r *registrationFlowRepoStub) FindGrantableRoleIDsByRegistrationFlowID(_, _ int64) ([]int64, error) {
 	return r.roleIDs, r.roleErr
 }
 
@@ -1503,4 +1512,344 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		assert.Equal(t, int64(900), resp.ExpiresIn)
 	})
 
+}
+
+// ---------------------------------------------------------------------------
+// registrationFlowByName
+//
+// This is the highest-privilege unauthenticated path in the service: the flow it
+// resolves decides which roles a brand-new user is granted. Every rejection
+// branch gets its own sub-test.
+// ---------------------------------------------------------------------------
+
+func TestRegisterService_RegistrationFlowByIdentifier(t *testing.T) {
+	const (
+		clientID = int64(1)
+		tenantID = int64(7)
+	)
+
+	activeFlow := func() *RegistrationFlow {
+		return &RegistrationFlow{
+			RegistrationFlowID: 3,
+			TenantID:           tenantID,
+			ClientID:           clientID,
+			Status:             shared.StatusActive,
+		}
+	}
+
+	t.Run("empty identifier resolves to no flow", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{flow: activeFlow()}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "")
+		require.NoError(t, err)
+		assert.Nil(t, flow)
+		assert.Zero(t, repo.findByNameCalls, "no lookup for an absent selector")
+	})
+
+	t.Run("whitespace-only identifier resolves to no flow", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{flow: activeFlow()}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "   ")
+		require.NoError(t, err)
+		assert.Nil(t, flow)
+		assert.Zero(t, repo.findByNameCalls)
+	})
+
+	t.Run("missing repository is an internal error", func(t *testing.T) {
+		svc := &registerService{}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "partner-signup-abcd")
+		require.Error(t, err)
+		assert.Nil(t, flow)
+		assert.Contains(t, err.Error(), "registration flow repository is unavailable")
+	})
+
+	t.Run("lookup is scoped by identifier, client and tenant", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{flow: activeFlow()}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "  partner-signup-abcd  ")
+		require.NoError(t, err)
+		require.NotNil(t, flow)
+		assert.Equal(t, "partner-signup-abcd", repo.gotName, "the selector is trimmed")
+		assert.Equal(t, clientID, repo.gotClientID)
+		assert.Equal(t, tenantID, repo.gotTenantID)
+	})
+
+	t.Run("repository error is an internal error", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{flowErr: errors.New("db error")}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "partner-signup-abcd")
+		require.Error(t, err)
+		assert.Nil(t, flow)
+		assert.Contains(t, err.Error(), "failed to load registration flow")
+	})
+
+	t.Run("unknown identifier is not found", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{flow: nil}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "nope")
+		require.Error(t, err)
+		assert.Nil(t, flow)
+		assert.Contains(t, err.Error(), "registration flow not found for this client")
+	})
+
+	// Belt and braces: even if a repository ever returned a cross-tenant row, the
+	// service re-checks the tenant before trusting the flow's role grants.
+	t.Run("cross-tenant flow is not found", func(t *testing.T) {
+		f := activeFlow()
+		f.TenantID = 999
+		repo := &registrationFlowRepoStub{flow: f}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "partner-signup-abcd")
+		require.Error(t, err)
+		assert.Nil(t, flow)
+		assert.Contains(t, err.Error(), "registration flow not found for this client")
+	})
+
+	// System flows (e.g. owner onboarding, which grants super-admin) are
+	// invite-only by construction: an invite binds its flow by internal id, so a
+	// self-service link must never redeem one. Reported as not-found so the
+	// endpoint does not confirm that a system flow exists.
+	t.Run("system flow is not found (invite-only)", func(t *testing.T) {
+		f := activeFlow()
+		f.IsSystem = true
+		repo := &registrationFlowRepoStub{flow: f}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "owner-onboarding-abcd")
+		require.Error(t, err)
+		assert.Nil(t, flow)
+		assert.Contains(t, err.Error(), "registration flow not found for this client")
+		assert.NotContains(t, err.Error(), "inactive", "must not disclose why")
+	})
+
+	// A system flow that is ALSO inactive still reports not-found, never
+	// "inactive" — the system check runs first on purpose.
+	t.Run("inactive system flow still reports not found", func(t *testing.T) {
+		f := activeFlow()
+		f.IsSystem = true
+		f.Status = shared.StatusInactive
+		repo := &registrationFlowRepoStub{flow: f}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "owner-onboarding-abcd")
+		require.Error(t, err)
+		assert.Nil(t, flow)
+		assert.Contains(t, err.Error(), "registration flow not found for this client")
+	})
+
+	// Status is the operator's kill switch for a published link, so "exists but
+	// disabled" must be indistinguishable from "unknown" — otherwise whoever holds
+	// a leaked link can poll until the switch is lifted, and flow names (which are
+	// deliberately guessable) become enumerable.
+	t.Run("inactive flow is reported as not found, not as forbidden", func(t *testing.T) {
+		f := activeFlow()
+		f.Status = shared.StatusInactive
+		repo := &registrationFlowRepoStub{flow: f}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "partner-signup-abcd")
+		require.Error(t, err)
+		assert.Nil(t, flow)
+		assert.Contains(t, err.Error(), "registration flow not found for this client")
+		assert.NotContains(t, err.Error(), "inactive", "must not disclose that the flow exists")
+	})
+
+	t.Run("active tenant-owned non-system flow resolves", func(t *testing.T) {
+		f := activeFlow()
+		f.VerificationRequired = true
+		f.RequiredFields = datatypes.JSON([]byte(`["email"]`))
+		repo := &registrationFlowRepoStub{flow: f}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		flow, err := svc.registrationFlowByName(nil, clientID, tenantID, "partner-signup-abcd")
+		require.NoError(t, err)
+		require.NotNil(t, flow)
+		assert.Equal(t, int64(3), flow.RegistrationFlowID)
+		assert.True(t, flow.VerificationRequired)
+		assert.Equal(t, 1, repo.findByNameCalls)
+	})
+}
+
+// validateInviteRegistrationFlow is the invite counterpart: it binds by internal
+// id, so system flows ARE allowed here — that asymmetry is the whole point of
+// making system flows invite-only.
+func TestRegisterService_ValidateInviteRegistrationFlow(t *testing.T) {
+	invite := func() *Invite {
+		flowID := int64(3)
+		return &Invite{TenantID: 7, RegistrationFlowID: &flowID}
+	}
+
+	t.Run("invite without a flow resolves to none", func(t *testing.T) {
+		svc := &registerService{registrationFlowRoleRepo: &registrationFlowRepoStub{}}
+		flow, err := svc.validateInviteRegistrationFlow(nil, &Invite{TenantID: 7})
+		require.NoError(t, err)
+		assert.Nil(t, flow)
+	})
+
+	t.Run("nil invite resolves to none", func(t *testing.T) {
+		svc := &registerService{registrationFlowRoleRepo: &registrationFlowRepoStub{}}
+		flow, err := svc.validateInviteRegistrationFlow(nil, nil)
+		require.NoError(t, err)
+		assert.Nil(t, flow)
+	})
+
+	t.Run("missing repository is an internal error", func(t *testing.T) {
+		svc := &registerService{}
+		_, err := svc.validateInviteRegistrationFlow(nil, invite())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "registration flow repository is unavailable")
+	})
+
+	t.Run("repository error is an internal error", func(t *testing.T) {
+		svc := &registerService{registrationFlowRoleRepo: &registrationFlowRepoStub{flowErr: errors.New("db")}}
+		_, err := svc.validateInviteRegistrationFlow(nil, invite())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to load invite registration flow")
+	})
+
+	t.Run("unknown flow is unauthorized", func(t *testing.T) {
+		svc := &registerService{registrationFlowRoleRepo: &registrationFlowRepoStub{flow: nil}}
+		_, err := svc.validateInviteRegistrationFlow(nil, invite())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invite registration flow is invalid")
+	})
+
+	t.Run("cross-tenant flow is unauthorized", func(t *testing.T) {
+		svc := &registerService{registrationFlowRoleRepo: &registrationFlowRepoStub{
+			flow: &RegistrationFlow{RegistrationFlowID: 3, TenantID: 999, Status: shared.StatusActive},
+		}}
+		_, err := svc.validateInviteRegistrationFlow(nil, invite())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invite registration flow is invalid")
+	})
+
+	t.Run("inactive flow is unauthorized", func(t *testing.T) {
+		svc := &registerService{registrationFlowRoleRepo: &registrationFlowRepoStub{
+			flow: &RegistrationFlow{RegistrationFlowID: 3, TenantID: 7, Status: shared.StatusInactive},
+		}}
+		_, err := svc.validateInviteRegistrationFlow(nil, invite())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invite registration flow is inactive")
+	})
+
+	t.Run("system flow is accepted on the invite path", func(t *testing.T) {
+		svc := &registerService{registrationFlowRoleRepo: &registrationFlowRepoStub{
+			flow: &RegistrationFlow{RegistrationFlowID: 3, TenantID: 7, Status: shared.StatusActive, IsSystem: true},
+		}}
+		flow, err := svc.validateInviteRegistrationFlow(nil, invite())
+		require.NoError(t, err)
+		require.NotNil(t, flow)
+		assert.True(t, flow.IsSystem)
+	})
+}
+
+// assignRegistrationFlowRoles grants the flow's extra roles on top of the
+// tenant default. The default is skipped (already granted), roles the user
+// already holds are skipped (idempotent), and any repository failure aborts.
+func TestAssignRegistrationFlowRoles_Branches(t *testing.T) {
+	flow := &RegistrationFlow{RegistrationFlowID: 3}
+
+	t.Run("nil flow is a no-op", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{roleIDs: []int64{20}}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		created := 0
+		userRoles := &mockUserRoleRepo{
+			createFn: func(r *UserRole) (*UserRole, error) { created++; return r, nil },
+		}
+		require.NoError(t, svc.assignRegistrationFlowRoles(nil, userRoles, 7, 10, nil))
+		assert.Zero(t, created)
+	})
+
+	t.Run("missing repository is a no-op", func(t *testing.T) {
+		svc := &registerService{}
+		created := 0
+		userRoles := &mockUserRoleRepo{
+			createFn: func(r *UserRole) (*UserRole, error) { created++; return r, nil },
+		}
+		require.NoError(t, svc.assignRegistrationFlowRoles(nil, userRoles, 7, 10, flow))
+		assert.Zero(t, created)
+	})
+
+	t.Run("role id lookup error aborts", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{roleErr: errors.New("role ids err")}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		err := svc.assignRegistrationFlowRoles(nil, &mockUserRoleRepo{}, 7, 10, flow)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "role ids err")
+	})
+
+	t.Run("existing-grant lookup error aborts", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{roleIDs: []int64{20}}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		created := 0
+		userRoles := &mockUserRoleRepo{
+			findByUserIDAndRoleIDFn: func(int64, int64) (*UserRole, error) { return nil, errors.New("lookup err") },
+			createFn:                func(r *UserRole) (*UserRole, error) { created++; return r, nil },
+		}
+		err := svc.assignRegistrationFlowRoles(nil, userRoles, 7, 10, flow)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "lookup err")
+		assert.Zero(t, created)
+	})
+
+	t.Run("role the user already holds is not granted twice", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{roleIDs: []int64{20}}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		created := 0
+		userRoles := &mockUserRoleRepo{
+			findByUserIDAndRoleIDFn: func(userID, roleID int64) (*UserRole, error) {
+				return &UserRole{UserID: userID, RoleID: roleID}, nil
+			},
+			createFn: func(r *UserRole) (*UserRole, error) { created++; return r, nil },
+		}
+		require.NoError(t, svc.assignRegistrationFlowRoles(nil, userRoles, 7, 10, flow))
+		assert.Zero(t, created)
+	})
+
+	t.Run("grant creation error aborts", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{roleIDs: []int64{20}}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		userRoles := &mockUserRoleRepo{
+			findByUserIDAndRoleIDFn: func(int64, int64) (*UserRole, error) { return nil, nil },
+			createFn:                func(*UserRole) (*UserRole, error) { return nil, errors.New("grant err") },
+		}
+		err := svc.assignRegistrationFlowRoles(nil, userRoles, 7, 10, flow)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "grant err")
+	})
+
+	t.Run("the tenant default role is skipped", func(t *testing.T) {
+		repo := &registrationFlowRepoStub{roleIDs: []int64{10}}
+		svc := &registerService{registrationFlowRoleRepo: repo}
+		lookups, created := 0, 0
+		userRoles := &mockUserRoleRepo{
+			findByUserIDAndRoleIDFn: func(int64, int64) (*UserRole, error) { lookups++; return nil, nil },
+			createFn:                func(r *UserRole) (*UserRole, error) { created++; return r, nil },
+		}
+		require.NoError(t, svc.assignRegistrationFlowRoles(nil, userRoles, 7, 10, flow))
+		assert.Zero(t, lookups, "the default role is never re-examined")
+		assert.Zero(t, created)
+	})
+}
+
+func TestParseRequiredRegistrationFields(t *testing.T) {
+	t.Run("empty json yields no fields", func(t *testing.T) {
+		fields, err := parseRequiredRegistrationFields(nil)
+		require.NoError(t, err)
+		assert.Nil(t, fields)
+	})
+
+	t.Run("empty array yields no fields", func(t *testing.T) {
+		fields, err := parseRequiredRegistrationFields(datatypes.JSON([]byte(`[]`)))
+		require.NoError(t, err)
+		assert.Empty(t, fields)
+	})
+
+	t.Run("string array is parsed", func(t *testing.T) {
+		fields, err := parseRequiredRegistrationFields(datatypes.JSON([]byte(`["email","phone"]`)))
+		require.NoError(t, err)
+		assert.Equal(t, []string{"email", "phone"}, fields)
+	})
+
+	t.Run("non-array json is a validation error", func(t *testing.T) {
+		_, err := parseRequiredRegistrationFields(datatypes.JSON([]byte(`{"email":true}`)))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "required_fields must be a JSON string array")
+	})
 }

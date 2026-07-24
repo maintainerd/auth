@@ -45,7 +45,11 @@ type ClientURIServiceDataResult struct {
 }
 
 type ClientServiceDataResult struct {
-	ClientUUID        uuid.UUID
+	ClientUUID uuid.UUID
+	// Identifier is the OAuth client_id an application presents. Operators need
+	// it to configure their app.
+	Identifier *string
+
 	Name              string
 	DisplayName       string
 	ClientType        string
@@ -65,6 +69,15 @@ type ClientServiceDataResult struct {
 	FrontchannelLogoutURI            *string
 	BackchannelLogoutSessionRequired bool
 	DPoPRequired                     bool
+
+	// OAuth metadata as enforced by the runtime (real columns, not the config blob)
+	TokenEndpointAuthMethod string
+	GrantTypes              []string
+	ResponseTypes           []string
+	AllowedScopes           []string
+	RequireConsent          *bool
+	AccessTokenTTL          *int
+	RefreshTokenTTL         *int
 
 	// Security posture / per-client overrides (nil = inherit tenant default)
 	RequirePKCE            *bool
@@ -118,7 +131,7 @@ type ClientService interface {
 	GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
 	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
 	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
-	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time) (*ClientServiceDataResult, error)
 	// RotateSecret generates a new secret, hashes and persists it, and keeps the old
 	// hash valid for the specified grace period (gracePeriodHours=0 revokes immediately).
 	// Returns the new plaintext secret once — it cannot be retrieved again.
@@ -132,22 +145,22 @@ type ClientService interface {
 	// Auth Client identity provider connection methods
 	GetConnections(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) ([]ClientIdentityProviderServiceDataResult, error)
 	AddConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, identityProviderUUID uuid.UUID, isDefault bool, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	UpdateConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault bool, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	UpdateConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault *bool, enabled *bool, displayOrder *int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	RemoveConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 
 	// Auth Client API methods
 	GetClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error)
-	AddClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error
-	RemoveClientAPI(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) error
+	AddClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID, actorUserUUID uuid.UUID) error
+	RemoveClientAPI(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, actorUserUUID uuid.UUID) error
 
 	// Auth Client API Permission methods
 	GetClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
-	AddClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
-	RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
+	AddClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) error
+	RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) error
 
 	// Client role assignment
-	AssignClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64, createdBy *int64) (*ClientRole, error)
-	RemoveClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) error
+	AssignClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientRole, error)
+	RemoveClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) error
 	ListClientRoles(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) ([]ClientRole, error)
 }
 
@@ -419,7 +432,10 @@ func (s *clientService) GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUI
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return Client.Config, nil
+	// Report the EFFECTIVE config (blob overlaid with the authoritative columns).
+	// Serving the raw blob let the console show stale values and round-trip them
+	// back on save.
+	return effectiveClientConfig(Client), nil
 }
 
 func (s *clientService) resolveBrandingID(tx *gorm.DB, tenantID int64, brandingUUID uuid.UUID) (*int64, error) {
@@ -478,19 +494,27 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		if err != nil {
 			return err
 		}
-		rawSecret, err := generateClientIdentifier(64)
-		if err != nil {
-			return err
+		// Only a confidential client gets a secret. A public client (spa, mobile)
+		// cannot keep one — it ships in code the user can read — so issuing it
+		// would be a false sense of security, and it would leave the client on the
+		// column default of client_secret_basic instead of "none".
+		var secretHashPtr, secretEncryptedPtr *string
+		if !IsPublicClientType(clientType) {
+			rawSecret, err := generateClientIdentifier(64)
+			if err != nil {
+				return err
+			}
+			secretHash, err := hashClientSecret(ctx, rawSecret)
+			if err != nil {
+				return err
+			}
+			secretEncrypted, err := encryptClientSecret(rawSecret)
+			if err != nil {
+				return err
+			}
+			secretHashPtr, secretEncryptedPtr = &secretHash, &secretEncrypted
+			plaintextSecret = rawSecret
 		}
-		secretHash, err := hashClientSecret(ctx, rawSecret)
-		if err != nil {
-			return err
-		}
-		secretEncrypted, err := encryptClientSecret(rawSecret)
-		if err != nil {
-			return err
-		}
-		plaintextSecret = rawSecret
 
 		newClient := &Client{
 			Name:            name,
@@ -498,15 +522,15 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			ClientType:      clientType,
 			Domain:          &domain,
 			Identifier:      &clientID,
-			SecretHash:      &secretHash,
-			SecretEncrypted: &secretEncrypted,
+			SecretHash:      secretHashPtr,
+			SecretEncrypted: secretEncryptedPtr,
 			Config:          config,
 
 			TenantID:          tenantID,
 			Status:            status,
 			IsDefault:         isDefault,
 			IsSystem:          false,
-			AllowRegistration: allowRegistration,
+			AllowRegistration: &allowRegistration,
 
 			BackchannelLogoutURI:  backchannelLogoutURI,
 			FrontchannelLogoutURI: frontchannelLogoutURI,
@@ -529,6 +553,22 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		// Mirror OAuth settings from config into the first-class columns the
 		// authorization and token-issuance paths read at runtime.
 		applyConfigToClientColumns(newClient, config)
+
+		// A public client defaults to "none": the column default is
+		// client_secret_basic, which is wrong for a client with no secret.
+		if IsPublicClientType(newClient.ClientType) && newClient.TokenEndpointAuthMethod == "" {
+			newClient.TokenEndpointAuthMethod = TokenAuthMethodNone
+		}
+		if err := ValidateClientOAuthMatrix(
+			newClient.ClientType,
+			newClient.TokenEndpointAuthMethod,
+			newClient.GrantTypes,
+			newClient.AllowedScopes,
+			newClient.SecretHash != nil,
+			newClient.JWKS != nil || newClient.JWKSUri != nil,
+		); err != nil {
+			return err
+		}
 
 		_, err = txClientRepo.CreateOrUpdate(newClient)
 		if err != nil {
@@ -625,7 +665,7 @@ func (s *clientService) ensureClientIdentityProviderConnection(tx *gorm.DB, clie
 		ClientID:           client.ClientID,
 		IdentityProviderID: identityProvider.IdentityProviderID,
 		IsDefault:          isDefault,
-		Enabled:            enabled,
+		Enabled:            &enabled,
 		DisplayOrder:       displayOrder,
 		CreatedBy:          &actorUserID,
 		UpdatedBy:          &actorUserID,
@@ -636,7 +676,7 @@ func (s *clientService) ensureClientIdentityProviderConnection(tx *gorm.DB, clie
 		First(&existing).Error
 	if err == nil {
 		existing.IsDefault = isDefault
-		existing.Enabled = enabled
+		existing.Enabled = &enabled
 		existing.DisplayOrder = displayOrder
 		existing.UpdatedBy = &actorUserID
 		return tx.Save(&existing).Error
@@ -660,9 +700,12 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 	)
 
 	var plaintextSecret string
+	var capturedActorID int64
+	var rotatedClientName string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
 
 		client, err := txClientRepo.FindByUUIDAndTenantID(clientUUID, tenantID)
 		if err != nil {
@@ -670,6 +713,30 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 		}
 		if client == nil {
 			return apperror.NewNotFoundWithReason("auth client not found or access denied")
+		}
+
+		// Rotating a credential is the most sensitive mutation in this domain, so
+		// the actor is resolved and checked against the tenant like every other one.
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
+		if err != nil || actorUser == nil {
+			return apperror.NewNotFoundWithReason("actor user not found")
+		}
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+			return err
+		}
+		capturedActorID = actorUser.UserID
+		rotatedClientName = client.Name
+
+		// Rotating a system client's secret would break the console or login UI,
+		// which are configured with the seeded value.
+		if client.IsSystem {
+			return apperror.NewValidation("system auth client secret cannot be rotated")
+		}
+
+		// A public client has no secret to rotate, and minting one would imply a
+		// credential it cannot protect.
+		if IsPublicClientType(client.ClientType) {
+			return apperror.NewValidation("a " + client.ClientType + " client has no client secret to rotate")
 		}
 
 		rawSecret, err := generateClientIdentifier(64)
@@ -722,10 +789,23 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// A credential rotation with no audit record would be invisible after the
+	// fact — the one mutation where that matters most.
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzAdmin,
+		Severity:    authevent.AuthEventSeverityWarn,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Client secret rotated: %s (grace %dh)", rotatedClientName, gracePeriodHours)),
+	})
 	return plaintextSecret, nil
 }
 
-func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time) (*ClientServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.update")
 	defer span.End()
 	span.SetAttributes(
@@ -746,6 +826,14 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
+		// Optimistic concurrency. An update replaces the whole client (config
+		// included), so two operators editing the same client silently overwrote each
+		// other and the loser's change vanished behind a 200. When the caller states
+		// which version it loaded, a newer one is a conflict rather than a clobber.
+		if err := assertClientUnchangedSince(Client, expectedUpdatedAt); err != nil {
+			return err
+		}
+
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
@@ -758,9 +846,15 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		}
 		capturedActorID = actorUser.UserID
 
-		// Check if default
+		// System clients back the console and the hosted login UI and are resolved
+		// by name, so renaming, retyping or deactivating one breaks the tenant.
+		// Guarded before is_default because auth-identity is is_system WITHOUT
+		// being is_default, so the is_default check alone let it through.
+		if Client.IsSystem {
+			return apperror.NewValidation("system auth client cannot be updated")
+		}
 		if Client.IsDefault {
-			return apperror.NewValidation("default auth client cannot cannot be updated")
+			return apperror.NewValidation("default auth client cannot be updated")
 		}
 
 		// Check if auth client already exist
@@ -779,18 +873,22 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		Client.DisplayName = displayName
 		Client.ClientType = clientType
 		Client.Domain = &domain
-		Client.Config = config
+		// A nil config means "unchanged". config JSONB is NOT NULL, so assigning nil
+		// unconditionally would violate the column on any caller that omits it.
+		if config != nil {
+			Client.Config = config
+		}
 		Client.Status = status
 		Client.IsDefault = isDefault
 		if allowRegistration != nil {
-			Client.AllowRegistration = *allowRegistration
+			Client.AllowRegistration = allowRegistration
 		}
-		if backchannelLogoutURI != nil {
-			Client.BackchannelLogoutURI = backchannelLogoutURI
-		}
-		if frontchannelLogoutURI != nil {
-			Client.FrontchannelLogoutURI = frontchannelLogoutURI
-		}
+		// A nil pointer means "unchanged"; an EMPTY string means "clear". Without the
+		// empty-string case a logout URI could be set but never removed: JSON null
+		// decodes to the same nil pointer as an omitted key, so the caller had no way
+		// to express removal at all.
+		Client.BackchannelLogoutURI = resolveOptionalString(Client.BackchannelLogoutURI, backchannelLogoutURI)
+		Client.FrontchannelLogoutURI = resolveOptionalString(Client.FrontchannelLogoutURI, frontchannelLogoutURI)
 		if backchannelLogoutSessionRequired != nil {
 			Client.BackchannelLogoutSessionRequired = *backchannelLogoutSessionRequired
 		}
@@ -811,6 +909,17 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		// Mirror OAuth settings from config into the first-class columns the
 		// authorization and token-issuance paths read at runtime.
 		applyConfigToClientColumns(Client, config)
+
+		if err := ValidateClientOAuthMatrix(
+			Client.ClientType,
+			Client.TokenEndpointAuthMethod,
+			Client.GrantTypes,
+			Client.AllowedScopes,
+			Client.SecretHash != nil,
+			Client.JWKS != nil || Client.JWKSUri != nil,
+		); err != nil {
+			return err
+		}
 
 		// Update
 		_, err = txClientRepo.CreateOrUpdate(Client)
@@ -969,9 +1078,36 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 		}
 		capturedActorID = actorUser.UserID
 
-		// Check if default
+		// Deleting a system client is unrecoverable without a re-seed and takes the
+		// tenant's console or login UI with it.
+		if Client.IsSystem {
+			return apperror.NewValidation("system auth client cannot be deleted")
+		}
 		if Client.IsDefault {
 			return apperror.NewValidation("default auth client cannot be deleted")
+		}
+
+		// Clear the client's children BEFORE deleting it.
+		//
+		// clients is soft-deleted, so the ON DELETE CASCADE on these tables never
+		// fires. Without this, client_uris and client_identity_providers keep
+		// deleted_at IS NULL, and client_apis / client_permissions / client_roles —
+		// which have no deleted_at at all — become permanent orphans that still
+		// resolve: ResolvePermissions would keep granting permissions for a deleted
+		// client, and its APIs would keep listing.
+		//
+		// GORM picks the right semantics per model: soft delete where the model has
+		// a DeletedAt field, hard delete where it does not.
+		for _, child := range []any{
+			&ClientURI{},
+			&ClientIdentityProvider{},
+			&ClientPermission{},
+			&ClientAPI{},
+			&ClientRole{},
+		} {
+			if err := tx.Where("client_id = ?", Client.ClientID).Delete(child).Error; err != nil {
+				return err
+			}
 		}
 
 		// Delete
@@ -1039,6 +1175,12 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
+		// The actor must hold an identity in this tenant. Loading the actor only to
+		// stamp an audit id left the middleware-supplied tenant as the sole trust
+		// boundary on these mutations.
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+			return err
+		}
 		capturedActorID = actorUser.UserID
 
 		// Validate tenant ownership
@@ -1046,8 +1188,12 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
+		// Registration-time validation is stricter than the runtime denylist: it
+		// requires an absolute https URI (or http loopback, or a private-use scheme
+		// for a native client) with no fragment and no embedded credentials.
+		// Client type matters — only a mobile client may register com.example.app:/…
 		if uriType == shared.ClientURITypeRedirect || uriType == shared.ClientURITypeLogout || uriType == shared.ClientURITypeLogin {
-			if err := security.ValidateRedirectURI(uri); err != nil {
+			if err := ValidateRegisteredRedirectURI(Client.ClientType, uri); err != nil {
 				return apperror.NewValidation(err.Error())
 			}
 		}
@@ -1124,6 +1270,12 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
+		// The actor must hold an identity in this tenant. Loading the actor only to
+		// stamp an audit id left the middleware-supplied tenant as the sole trust
+		// boundary on these mutations.
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+			return err
+		}
 		capturedActorID = actorUser.UserID
 
 		// Validate tenant ownership
@@ -1143,8 +1295,12 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		}
 
 		// Reject dangerous schemes on redirect/logout/login URIs
+		// Registration-time validation is stricter than the runtime denylist: it
+		// requires an absolute https URI (or http loopback, or a private-use scheme
+		// for a native client) with no fragment and no embedded credentials.
+		// Client type matters — only a mobile client may register com.example.app:/…
 		if uriType == shared.ClientURITypeRedirect || uriType == shared.ClientURITypeLogout || uriType == shared.ClientURITypeLogin {
-			if err := security.ValidateRedirectURI(uri); err != nil {
+			if err := ValidateRegisteredRedirectURI(Client.ClientType, uri); err != nil {
 				return apperror.NewValidation(err.Error())
 			}
 		}
@@ -1217,6 +1373,12 @@ func (s *clientService) DeleteURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
+		}
+		// The actor must hold an identity in this tenant. Loading the actor only to
+		// stamp an audit id left the middleware-supplied tenant as the sole trust
+		// boundary on these mutations.
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+			return err
 		}
 		capturedActorID = actorUser.UserID
 
@@ -1325,6 +1487,12 @@ func (s *clientService) AddConnection(ctx context.Context, ClientUUID uuid.UUID,
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
+		// The actor must hold an identity in this tenant. Loading the actor only to
+		// stamp an audit id left the middleware-supplied tenant as the sole trust
+		// boundary on these mutations.
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+			return err
+		}
 		capturedActorID = actorUser.UserID
 
 		if Client.TenantID != tenantID {
@@ -1359,7 +1527,7 @@ func (s *clientService) AddConnection(ctx context.Context, ClientUUID uuid.UUID,
 			ClientID:           Client.ClientID,
 			IdentityProviderID: identityProvider.IdentityProviderID,
 			IsDefault:          isDefault,
-			Enabled:            enabled,
+			Enabled:            &enabled,
 			DisplayOrder:       displayOrder,
 			CreatedBy:          &capturedActorID,
 			UpdatedBy:          &capturedActorID,
@@ -1399,7 +1567,7 @@ func (s *clientService) AddConnection(ctx context.Context, ClientUUID uuid.UUID,
 
 // UpdateConnection changes the enabled/default/order fields of an existing
 // client→identity-provider connection.
-func (s *clientService) UpdateConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault bool, enabled bool, displayOrder int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) UpdateConnection(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, connectionUUID uuid.UUID, isDefault *bool, enabled *bool, displayOrder *int, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.updateConnection")
 	defer span.End()
 	span.SetAttributes(
@@ -1424,6 +1592,12 @@ func (s *clientService) UpdateConnection(ctx context.Context, ClientUUID uuid.UU
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
+		// The actor must hold an identity in this tenant. Loading the actor only to
+		// stamp an audit id left the middleware-supplied tenant as the sole trust
+		// boundary on these mutations.
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+			return err
+		}
 		capturedActorID = actorUser.UserID
 
 		if Client.TenantID != tenantID {
@@ -1438,16 +1612,37 @@ func (s *clientService) UpdateConnection(ctx context.Context, ClientUUID uuid.UU
 			return apperror.NewValidation("identity provider connection does not belong to the specified auth client")
 		}
 
+		// Omitted means unchanged: fall back to the connection's current values so a
+		// partial payload cannot silently demote the default or reset the ordering.
+		wantEnabled := connection.Enabled == nil || *connection.Enabled
+		if enabled != nil {
+			wantEnabled = *enabled
+		}
+		wantDefault := connection.IsDefault
+		if isDefault != nil {
+			wantDefault = *isDefault
+		}
+		wantOrder := connection.DisplayOrder
+		if displayOrder != nil {
+			wantOrder = *displayOrder
+		}
+
+		if err := s.assertConnectionMutationKeepsClientUsable(
+			tx, Client.ClientID, connection, wantEnabled, wantDefault, false,
+		); err != nil {
+			return err
+		}
+
 		// Clear any other default before promoting this connection.
-		if isDefault {
+		if wantDefault {
 			if err := txConnectionRepo.UnsetDefaultForClient(Client.ClientID, connection.ClientIdentityProviderID); err != nil {
 				return err
 			}
 		}
 
-		connection.IsDefault = isDefault
-		connection.Enabled = enabled
-		connection.DisplayOrder = displayOrder
+		connection.IsDefault = wantDefault
+		connection.Enabled = &wantEnabled
+		connection.DisplayOrder = wantOrder
 		connection.UpdatedBy = &capturedActorID
 		if _, err := txConnectionRepo.CreateOrUpdate(connection); err != nil {
 			return err
@@ -1510,6 +1705,12 @@ func (s *clientService) RemoveConnection(ctx context.Context, ClientUUID uuid.UU
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
+		// The actor must hold an identity in this tenant. Loading the actor only to
+		// stamp an audit id left the middleware-supplied tenant as the sole trust
+		// boundary on these mutations.
+		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+			return err
+		}
 		capturedActorID = actorUser.UserID
 
 		if Client.TenantID != tenantID {
@@ -1523,8 +1724,10 @@ func (s *clientService) RemoveConnection(ctx context.Context, ClientUUID uuid.UU
 		if connection.ClientID != Client.ClientID {
 			return apperror.NewValidation("identity provider connection does not belong to the specified auth client")
 		}
-		if connection.IdentityProvider != nil && connection.IdentityProvider.IsSystem {
-			return apperror.NewValidation("the built-in identity provider connection cannot be removed")
+		if err := s.assertConnectionMutationKeepsClientUsable(
+			tx, Client.ClientID, connection, false, false, true,
+		); err != nil {
+			return err
 		}
 
 		if err := txConnectionRepo.DeleteByUUIDAndTenantID(connectionUUID.String(), tenantID); err != nil {
@@ -1575,7 +1778,15 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 		Status:                           Client.Status,
 		IsDefault:                        Client.IsDefault,
 		IsSystem:                         Client.IsSystem,
-		AllowRegistration:                Client.AllowRegistration,
+		Identifier:                       Client.Identifier,
+		TokenEndpointAuthMethod:          Client.TokenEndpointAuthMethod,
+		GrantTypes:                       []string(Client.GrantTypes),
+		ResponseTypes:                    []string(Client.ResponseTypes),
+		AllowedScopes:                    []string(Client.AllowedScopes),
+		RequireConsent:                   Client.RequireConsent,
+		AccessTokenTTL:                   Client.AccessTokenTTL,
+		RefreshTokenTTL:                  Client.RefreshTokenTTL,
+		AllowRegistration:                boolValue(Client.AllowRegistration, true),
 		BackchannelLogoutURI:             Client.BackchannelLogoutURI,
 		FrontchannelLogoutURI:            Client.FrontchannelLogoutURI,
 		BackchannelLogoutSessionRequired: Client.BackchannelLogoutSessionRequired,
@@ -1619,7 +1830,7 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 				ClientIdentityProviderUUID: connection.ClientIdentityProviderUUID,
 				IdentityProvider:           idp,
 				IsDefault:                  connection.IsDefault,
-				Enabled:                    connection.Enabled,
+				Enabled:                    boolValue(connection.Enabled, true),
 				DisplayOrder:               connection.DisplayOrder,
 				CreatedAt:                  connection.CreatedAt,
 				UpdatedAt:                  connection.UpdatedAt,
@@ -1710,7 +1921,7 @@ func (s *clientService) GetClientAPIs(ctx context.Context, tenantID int64, Clien
 }
 
 // Add APIs to auth client
-func (s *clientService) AddClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error {
+func (s *clientService) AddClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID, actorUserUUID uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "client.addAPIs")
 	defer span.End()
 	span.SetAttributes(
@@ -1722,6 +1933,10 @@ func (s *clientService) AddClientAPIs(ctx context.Context, tenantID int64, Clien
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 		apiRepo := s.apiRepo.WithTx(tx)
+
+		if _, err := s.requireActorTenantAccess(tx, actorUserUUID, tenantID); err != nil {
+			return err
+		}
 
 		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil {
@@ -1783,7 +1998,7 @@ func (s *clientService) AddClientAPIs(ctx context.Context, tenantID int64, Clien
 }
 
 // Remove API from auth client
-func (s *clientService) RemoveClientAPI(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) error {
+func (s *clientService) RemoveClientAPI(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, actorUserUUID uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "client.removeAPI")
 	defer span.End()
 	span.SetAttributes(
@@ -1795,6 +2010,10 @@ func (s *clientService) RemoveClientAPI(ctx context.Context, tenantID int64, Cli
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
+
+		if _, err := s.requireActorTenantAccess(tx, actorUserUUID, tenantID); err != nil {
+			return err
+		}
 
 		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil {
@@ -1873,7 +2092,7 @@ func (s *clientService) GetClientAPIPermissions(ctx context.Context, tenantID in
 }
 
 // Add permissions to a specific API for auth client
-func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error {
+func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "client.addAPIPermissions")
 	defer span.End()
 	span.SetAttributes(
@@ -1887,6 +2106,10 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
+
+		if _, err := s.requireActorTenantAccess(tx, actorUserUUID, tenantID); err != nil {
+			return err
+		}
 
 		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil {
@@ -1962,7 +2185,7 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 }
 
 // Remove permission from a specific API for auth client
-func (s *clientService) RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error {
+func (s *clientService) RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "client.removeAPIPermission")
 	defer span.End()
 	span.SetAttributes(
@@ -1977,6 +2200,10 @@ func (s *clientService) RemoveClientAPIPermission(ctx context.Context, tenantID 
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
+
+		if _, err := s.requireActorTenantAccess(tx, actorUserUUID, tenantID); err != nil {
+			return err
+		}
 
 		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil {
@@ -2029,6 +2256,65 @@ func (s *clientService) RemoveClientAPIPermission(ctx context.Context, tenantID 
 
 // TokenEndpointAuthMethod constants for the token_endpoint_auth_method column.
 
+// requireActorTenantAccess resolves the acting user and asserts it holds an identity
+// in the target tenant, returning the actor's id for audit stamping.
+//
+// The tenant on these mutations comes from the middleware, which made it the sole
+// trust boundary; the actor check is the second one, and it is what makes an
+// unattributed call (an empty actor UUID from the gRPC surface) fail rather than
+// mutate a client's API and role grants anonymously.
+//
+// tx may be nil for a method that does not run in a transaction.
+// assertClientUnchangedSince implements the optimistic-concurrency check for a
+// client update.
+//
+// A nil expectation opts out, so service-to-service callers and the seeder are
+// unaffected; the console always sends the updated_at it loaded. Timestamps are
+// compared at microsecond precision because that is what Postgres stores — an
+// RFC3339 round trip through JSON can carry more digits than the column does, and a
+// naive equality check would then never match.
+// resolveOptionalString applies the "nil = unchanged, empty = clear" convention
+// used by the optional string columns on a client update.
+func resolveOptionalString(current, incoming *string) *string {
+	if incoming == nil {
+		return current
+	}
+	if strings.TrimSpace(*incoming) == "" {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*incoming)
+	return &trimmed
+}
+
+func assertClientUnchangedSince(client *Client, expectedUpdatedAt *time.Time) error {
+	if expectedUpdatedAt == nil {
+		return nil
+	}
+	stored := client.UpdatedAt.UTC().Truncate(time.Microsecond)
+	expected := expectedUpdatedAt.UTC().Truncate(time.Microsecond)
+	if stored.Equal(expected) {
+		return nil
+	}
+	return apperror.NewConflict(
+		"this client was modified by someone else after you loaded it; reload it and reapply your changes")
+}
+
+func (s *clientService) requireActorTenantAccess(tx *gorm.DB, actorUserUUID uuid.UUID, tenantID int64) (int64, error) {
+	userRepo := s.userRepo
+	if tx != nil {
+		userRepo = userRepo.WithTx(tx)
+	}
+
+	actorUser, err := userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
+	if err != nil || actorUser == nil {
+		return 0, apperror.NewNotFoundWithReason("actor user not found")
+	}
+	if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+		return 0, err
+	}
+	return actorUser.UserID, nil
+}
+
 func ValidateTenantAccess(actor *User, target *Tenant) error {
 	if actor == nil {
 		return apperror.NewUnauthorized("actor user not found")
@@ -2051,38 +2337,45 @@ func ValidateTenantAccess(actor *User, target *Tenant) error {
 // Client role assignment
 // ──────────────────────────────────────────────────────────────────────────────
 
-func (s *clientService) AssignClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64, createdBy *int64) (*ClientRole, error) {
-	client, err := s.clientRepo.FindByUUID(ClientUUID)
-	if err != nil || client == nil {
-		return nil, apperror.NewNotFound("client not found")
+func (s *clientService) AssignClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientRole, error) {
+	// The actor id is also the created_by stamp: the handler used to pass nil, so
+	// every client-role grant was recorded with no author.
+	actorID, err := s.requireActorTenantAccess(nil, actorUserUUID, tenantID)
+	if err != nil {
+		return nil, err
 	}
-	if client.TenantID != tenantID {
-		return nil, apperror.NewForbidden("client does not belong to your tenant")
+
+	// 404, not 403: a distinct "belongs to another tenant" answer confirms the UUID
+	// exists, which turns these endpoints into an existence oracle across tenants.
+	// Every other client mutation already answers "not found or access denied".
+	client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+	if err != nil || client == nil {
+		return nil, apperror.NewNotFoundWithReason("client not found or access denied")
 	}
 
 	role, err := s.roleRepo.FindByUUID(roleUUID)
-	if err != nil || role == nil {
-		return nil, apperror.NewNotFound("role not found")
-	}
-	if role.TenantID != tenantID {
-		return nil, apperror.NewForbidden("role does not belong to your tenant")
+	if err != nil || role == nil || role.TenantID != tenantID {
+		return nil, apperror.NewNotFoundWithReason("role not found or access denied")
 	}
 
-	return s.clientRoleRepo.AssignRole(client.ClientID, role.RoleID, createdBy)
+	return s.clientRoleRepo.AssignRole(client.ClientID, role.RoleID, &actorID)
 }
 
-func (s *clientService) RemoveClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) error {
-	client, err := s.clientRepo.FindByUUID(ClientUUID)
-	if err != nil || client == nil {
-		return apperror.NewNotFound("client not found")
-	}
-	if client.TenantID != tenantID {
-		return apperror.NewForbidden("client does not belong to your tenant")
+func (s *clientService) RemoveClientRole(ctx context.Context, ClientUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) error {
+	if _, err := s.requireActorTenantAccess(nil, actorUserUUID, tenantID); err != nil {
+		return err
 	}
 
+	client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+	if err != nil || client == nil {
+		return apperror.NewNotFoundWithReason("client not found or access denied")
+	}
+
+	// The tenant check was missing entirely here: a role UUID from another tenant
+	// reached RemoveRole, and the differing response revealed that it exists.
 	role, err := s.roleRepo.FindByUUID(roleUUID)
-	if err != nil || role == nil {
-		return apperror.NewNotFound("role not found")
+	if err != nil || role == nil || role.TenantID != tenantID {
+		return apperror.NewNotFoundWithReason("role not found or access denied")
 	}
 
 	return s.clientRoleRepo.RemoveRole(client.ClientID, role.RoleID)

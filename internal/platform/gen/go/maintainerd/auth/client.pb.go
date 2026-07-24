@@ -2380,10 +2380,13 @@ func (x *ListClientAPIsResponse) GetApis() []*ClientAPI {
 }
 
 type AddClientAPIsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ApiUuids      []string               `protobuf:"bytes,3,rep,name=api_uuids,json=apiUuids,proto3" json:"api_uuids,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	ClientUuid string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	ApiUuids   []string               `protobuf:"bytes,3,rep,name=api_uuids,json=apiUuids,proto3" json:"api_uuids,omitempty"`
+	// Required. The mutation is refused without an actor holding an identity in the
+	// tenant, so a grant change is never anonymous.
+	ActorUserUuid string `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2439,6 +2442,13 @@ func (x *AddClientAPIsRequest) GetApiUuids() []string {
 	return nil
 }
 
+func (x *AddClientAPIsRequest) GetActorUserUuid() string {
+	if x != nil {
+		return x.ActorUserUuid
+	}
+	return ""
+}
+
 type AddClientAPIsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
@@ -2488,6 +2498,7 @@ type RemoveClientAPIRequest struct {
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
 	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
 	ApiUuid       string                 `protobuf:"bytes,3,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	ActorUserUuid string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2539,6 +2550,13 @@ func (x *RemoveClientAPIRequest) GetClientUuid() string {
 func (x *RemoveClientAPIRequest) GetApiUuid() string {
 	if x != nil {
 		return x.ApiUuid
+	}
+	return ""
+}
+
+func (x *RemoveClientAPIRequest) GetActorUserUuid() string {
+	if x != nil {
+		return x.ActorUserUuid
 	}
 	return ""
 }
@@ -2697,6 +2715,7 @@ type AddClientAPIPermissionsRequest struct {
 	ClientUuid      string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
 	ApiUuid         string                 `protobuf:"bytes,3,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
 	PermissionUuids []string               `protobuf:"bytes,4,rep,name=permission_uuids,json=permissionUuids,proto3" json:"permission_uuids,omitempty"`
+	ActorUserUuid   string                 `protobuf:"bytes,5,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2759,6 +2778,13 @@ func (x *AddClientAPIPermissionsRequest) GetPermissionUuids() []string {
 	return nil
 }
 
+func (x *AddClientAPIPermissionsRequest) GetActorUserUuid() string {
+	if x != nil {
+		return x.ActorUserUuid
+	}
+	return ""
+}
+
 type AddClientAPIPermissionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
@@ -2809,6 +2835,7 @@ type RemoveClientAPIPermissionRequest struct {
 	ClientUuid     string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
 	ApiUuid        string                 `protobuf:"bytes,3,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
 	PermissionUuid string                 `protobuf:"bytes,4,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
+	ActorUserUuid  string                 `protobuf:"bytes,5,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -2867,6 +2894,13 @@ func (x *RemoveClientAPIPermissionRequest) GetApiUuid() string {
 func (x *RemoveClientAPIPermissionRequest) GetPermissionUuid() string {
 	if x != nil {
 		return x.PermissionUuid
+	}
+	return ""
+}
+
+func (x *RemoveClientAPIPermissionRequest) GetActorUserUuid() string {
+	if x != nil {
+		return x.ActorUserUuid
 	}
 	return ""
 }
@@ -4801,21 +4835,23 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\vclient_uuid\x18\x02 \x01(\tR\n" +
 	"clientUuid\"L\n" +
 	"\x16ListClientAPIsResponse\x122\n" +
-	"\x04apis\x18\x01 \x03(\v2\x1e.maintainerd.auth.v1.ClientAPIR\x04apis\"u\n" +
+	"\x04apis\x18\x01 \x03(\v2\x1e.maintainerd.auth.v1.ClientAPIR\x04apis\"\x9d\x01\n" +
 	"\x14AddClientAPIsRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1f\n" +
 	"\vclient_uuid\x18\x02 \x01(\tR\n" +
 	"clientUuid\x12\x1b\n" +
-	"\tapi_uuids\x18\x03 \x03(\tR\bapiUuids\"1\n" +
+	"\tapi_uuids\x18\x03 \x03(\tR\bapiUuids\x12&\n" +
+	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"1\n" +
 	"\x15AddClientAPIsResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"u\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\x9d\x01\n" +
 	"\x16RemoveClientAPIRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1f\n" +
 	"\vclient_uuid\x18\x02 \x01(\tR\n" +
 	"clientUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\"3\n" +
+	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\x12&\n" +
+	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"3\n" +
 	"\x17RemoveClientAPIResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\"~\n" +
 	"\x1fListClientAPIPermissionsRequest\x12\x1f\n" +
@@ -4825,23 +4861,25 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"clientUuid\x12\x19\n" +
 	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\"n\n" +
 	" ListClientAPIPermissionsResponse\x12J\n" +
-	"\vpermissions\x18\x01 \x03(\v2(.maintainerd.auth.v1.ClientAPIPermissionR\vpermissions\"\xa8\x01\n" +
+	"\vpermissions\x18\x01 \x03(\v2(.maintainerd.auth.v1.ClientAPIPermissionR\vpermissions\"\xd0\x01\n" +
 	"\x1eAddClientAPIPermissionsRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1f\n" +
 	"\vclient_uuid\x18\x02 \x01(\tR\n" +
 	"clientUuid\x12\x19\n" +
 	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\x12)\n" +
-	"\x10permission_uuids\x18\x04 \x03(\tR\x0fpermissionUuids\";\n" +
+	"\x10permission_uuids\x18\x04 \x03(\tR\x0fpermissionUuids\x12&\n" +
+	"\x0factor_user_uuid\x18\x05 \x01(\tR\ractorUserUuid\";\n" +
 	"\x1fAddClientAPIPermissionsResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\xa8\x01\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\xd0\x01\n" +
 	" RemoveClientAPIPermissionRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1f\n" +
 	"\vclient_uuid\x18\x02 \x01(\tR\n" +
 	"clientUuid\x12\x19\n" +
 	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\x12'\n" +
-	"\x0fpermission_uuid\x18\x04 \x01(\tR\x0epermissionUuid\"=\n" +
+	"\x0fpermission_uuid\x18\x04 \x01(\tR\x0epermissionUuid\x12&\n" +
+	"\x0factor_user_uuid\x18\x05 \x01(\tR\ractorUserUuid\"=\n" +
 	"!RemoveClientAPIPermissionResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\"\xc8\x02\n" +
 	"\x06APIKey\x12 \n" +

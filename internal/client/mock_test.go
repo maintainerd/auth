@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
@@ -98,7 +99,7 @@ type mockClientService struct {
 	deleteURIFn           func(uuid.UUID, int64, uuid.UUID, uuid.UUID) (*ClientServiceDataResult, error)
 	getConnectionsFn      func(uuid.UUID, int64) ([]ClientIdentityProviderServiceDataResult, error)
 	addConnectionFn       func(uuid.UUID, int64, uuid.UUID, bool, bool, int, uuid.UUID) (*ClientServiceDataResult, error)
-	updateConnectionFn    func(uuid.UUID, int64, uuid.UUID, bool, bool, int, uuid.UUID) (*ClientServiceDataResult, error)
+	updateConnectionFn    func(uuid.UUID, int64, uuid.UUID, *bool, *bool, *int, uuid.UUID) (*ClientServiceDataResult, error)
 	removeConnectionFn    func(uuid.UUID, int64, uuid.UUID, uuid.UUID) (*ClientServiceDataResult, error)
 	getClientAPIsFn       func(int64, uuid.UUID) ([]ClientAPIServiceDataResult, error)
 	addClientAPIsFn       func(int64, uuid.UUID, []uuid.UUID) error
@@ -147,7 +148,7 @@ func (m *mockClientService) Create(_ context.Context, tid int64, n, dn, ct, d st
 	}
 	return nil, nil
 }
-func (m *mockClientService) Update(_ context.Context, id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor uuid.UUID) (*ClientServiceDataResult, error) {
+func (m *mockClientService) Update(_ context.Context, id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor uuid.UUID, expectedUpdatedAt *time.Time) (*ClientServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tid, n, dn, ct, d, cfg, s, isDef, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor)
 	}
@@ -201,7 +202,7 @@ func (m *mockClientService) AddConnection(_ context.Context, id uuid.UUID, tid i
 	}
 	return nil, nil
 }
-func (m *mockClientService) UpdateConnection(_ context.Context, id uuid.UUID, tid int64, connID uuid.UUID, isDefault, enabled bool, displayOrder int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+func (m *mockClientService) UpdateConnection(_ context.Context, id uuid.UUID, tid int64, connID uuid.UUID, isDefault, enabled *bool, displayOrder *int, actor uuid.UUID) (*ClientServiceDataResult, error) {
 	if m.updateConnectionFn != nil {
 		return m.updateConnectionFn(id, tid, connID, isDefault, enabled, displayOrder, actor)
 	}
@@ -219,13 +220,13 @@ func (m *mockClientService) GetClientAPIs(_ context.Context, tid int64, id uuid.
 	}
 	return nil, nil
 }
-func (m *mockClientService) AddClientAPIs(_ context.Context, tid int64, id uuid.UUID, apis []uuid.UUID) error {
+func (m *mockClientService) AddClientAPIs(_ context.Context, tid int64, id uuid.UUID, apis []uuid.UUID, _ uuid.UUID) error {
 	if m.addClientAPIsFn != nil {
 		return m.addClientAPIsFn(tid, id, apis)
 	}
 	return nil
 }
-func (m *mockClientService) RemoveClientAPI(_ context.Context, tid int64, id, api uuid.UUID) error {
+func (m *mockClientService) RemoveClientAPI(_ context.Context, tid int64, id, api uuid.UUID, _ uuid.UUID) error {
 	if m.removeClientAPIFn != nil {
 		return m.removeClientAPIFn(tid, id, api)
 	}
@@ -237,23 +238,23 @@ func (m *mockClientService) GetClientAPIPermissions(_ context.Context, tid int64
 	}
 	return nil, nil
 }
-func (m *mockClientService) AddClientAPIPermissions(_ context.Context, tid int64, id, api uuid.UUID, perms []uuid.UUID) error {
+func (m *mockClientService) AddClientAPIPermissions(_ context.Context, tid int64, id, api uuid.UUID, perms []uuid.UUID, _ uuid.UUID) error {
 	if m.addClientAPIPermsFn != nil {
 		return m.addClientAPIPermsFn(tid, id, api, perms)
 	}
 	return nil
 }
-func (m *mockClientService) RemoveClientAPIPermission(_ context.Context, tid int64, id, api, perm uuid.UUID) error {
+func (m *mockClientService) RemoveClientAPIPermission(_ context.Context, tid int64, id, api, perm uuid.UUID, _ uuid.UUID) error {
 	if m.removeClientAPIPermFn != nil {
 		return m.removeClientAPIPermFn(tid, id, api, perm)
 	}
 	return nil
 }
 
-func (m *mockClientService) AssignClientRole(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ int64, _ *int64) (*ClientRole, error) {
+func (m *mockClientService) AssignClientRole(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ int64, _ uuid.UUID) (*ClientRole, error) {
 	return nil, nil
 }
-func (m *mockClientService) RemoveClientRole(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ int64) error {
+func (m *mockClientService) RemoveClientRole(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ int64, _ uuid.UUID) error {
 	return nil
 }
 func (m *mockClientService) ListClientRoles(_ context.Context, _ uuid.UUID, _ int64) ([]ClientRole, error) {
@@ -722,9 +723,16 @@ func (m *mockClientRoleRepo) ResolvePermissions(clientID int64) ([]int64, error)
 
 type mockRoleRepo struct {
 	mockBaseRepo[Role]
+	findByUUIDFn func(any, ...string) (*Role, error)
 }
 
 func (m *mockRoleRepo) WithTx(tx *gorm.DB) RoleRepository { return m }
+func (m *mockRoleRepo) FindByUUID(id any, p ...string) (*Role, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
+	return nil, nil
+}
 
 // buildConnSvc builds a ClientService for the identity-provider-connection tests.
 // The connection repo is constructed internally over gormDB, so connection

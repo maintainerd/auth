@@ -30,6 +30,10 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	q := RegisterQueryDTO{
 		ClientID: r.URL.Query().Get("client_id"),
 		TenantID: r.URL.Query().Get("tenant_id"),
+		// The registration flow selector an external app puts in its signup
+		// link. Without this the flow's status, required_fields and role grants
+		// are all silently skipped on the self-service path.
+		RegistrationFlow: r.URL.Query().Get("registration_flow"),
 	}
 	clientIDPtr, tenantIDPtr, ok := authenticationContextQuery(r)
 	if !ok {

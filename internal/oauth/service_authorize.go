@@ -417,7 +417,7 @@ func (s *oauthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthA
 	}
 
 	if req.ScreenHint == "signup" && req.RegistrationFlow != "" {
-		if _, oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, req.RegistrationFlow); oerr != nil {
+		if _, oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, client.TenantID, req.RegistrationFlow); oerr != nil {
 			return oerr
 		}
 	}
@@ -426,20 +426,31 @@ func (s *oauthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthA
 	return nil
 }
 
-func (s *oauthAuthorizeService) validateRegistrationFlowForAuthorize(clientID int64, identifier string) (int64, *apperror.OAuthError) {
+// validateRegistrationFlowForAuthorize pre-validates the registration flow named
+// in an /authorize?screen_hint=signup request, so the hosted UI fails fast rather
+// than at the end of the signup form.
+//
+// It must stay in lockstep with authn.registrationFlowByName — this
+// endpoint is unauthenticated, so any check missing here becomes a probe for a
+// flow the register endpoint would refuse: hence the tenant predicate, the
+// system-flow refusal, and a single undifferentiated error for every failure
+// (an "inactive" vs "unknown" split would confirm which flow names exist).
+func (s *oauthAuthorizeService) validateRegistrationFlowForAuthorize(clientID, tenantID int64, name string) (int64, *apperror.OAuthError) {
 	var flow struct {
 		RegistrationFlowID int64
 		Status             string
+		IsSystem           bool
 	}
 	err := s.db.Table("registration_flows").
-		Where("client_id = ? AND identifier = ? AND deleted_at IS NULL", clientID, identifier).
-		Select("registration_flow_id, status").
+		Where("client_id = ? AND tenant_id = ? AND name = ? AND deleted_at IS NULL", clientID, tenantID, name).
+		Select("registration_flow_id, status, is_system").
 		First(&flow).Error
 	if err != nil {
 		return 0, apperror.NewOAuthInvalidRequest("unknown registration flow")
 	}
-	if flow.Status != shared.StatusActive {
-		return 0, apperror.NewOAuthInvalidRequest("registration flow is inactive")
+	// System flows are invite-only; a self-service signup link must never select one.
+	if flow.IsSystem || flow.Status != shared.StatusActive {
+		return 0, apperror.NewOAuthInvalidRequest("unknown registration flow")
 	}
 	return flow.RegistrationFlowID, nil
 }
@@ -849,7 +860,7 @@ func (s *oauthAuthorizeService) PrepareAuthorizeSignup(ctx context.Context, req 
 
 	var flowID int64
 	if req.ScreenHint == "signup" && req.RegistrationFlow != "" {
-		id, oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, req.RegistrationFlow)
+		id, oerr := s.validateRegistrationFlowForAuthorize(client.ClientID, client.TenantID, req.RegistrationFlow)
 		if oerr != nil {
 			return "", "", oerr
 		}

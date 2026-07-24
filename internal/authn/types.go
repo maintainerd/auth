@@ -187,3 +187,21 @@ type SMSLoginVerifyDTO struct {
 	Phone string `json:"phone"`
 	OTP   string `json:"otp"`
 }
+
+// RegistrationContextQueryDTO is the query contract for the public
+// signup-requirements read.
+type RegistrationContextQueryDTO struct {
+	ClientID         string `json:"client_id"`
+	TenantID         string `json:"tenant_id"`
+	RegistrationFlow string `json:"registration_flow"`
+}
+
+// RegistrationContextResponseDTO tells a signup form what to collect.
+//
+// Intentionally minimal — see RegistrationContextHandler.GetPublic for why roles,
+// description, status, is_system, ids and timestamps are all withheld.
+type RegistrationContextResponseDTO struct {
+	RegistrationFlow     string   `json:"registration_flow"`
+	RequiredFields       []string `json:"required_fields"`
+	VerificationRequired bool     `json:"verification_required"`
+}

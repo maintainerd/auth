@@ -502,6 +502,9 @@ func GenerateAccessTokenWithOptionsContext(
 		claims["sub_type"] = opts.SubjectType
 	}
 	if opts != nil {
+		// ExtraClaims is also how this server stamps its own claims (tenant_id), so
+		// it is NOT filtered here. Client-configured mappers are sanitized at the
+		// boundary where they are read — see jwt.SanitizeClientClaimMappers.
 		for k, v := range opts.ExtraClaims {
 			claims[k] = v
 		}
@@ -710,7 +713,8 @@ func generateIDTokenWithContext(ctx context.Context, userUUID, issuer, clientID,
 		}
 	}
 
-	// Merge custom claim mappers last (they may override profile claims).
+	// Merge extra claims last (they may override profile claims). Client-configured
+	// mappers were already stripped of reserved names at the read boundary.
 	if params != nil {
 		for k, v := range params.ExtraClaims {
 			claims[k] = v

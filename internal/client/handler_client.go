@@ -268,6 +268,10 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Get authentication context
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	var req ClientCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -298,10 +302,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	var actorUserIDCreate *int64
-	if user != nil {
-		actorUserIDCreate = &user.UserID
-	}
+	actorUserIDCreate := &user.UserID
 	createdClientUUID := result.Client.ClientUUID
 	changesJSONCreate, _ := json.Marshal(map[string]any{"after": toClientResponseDTO(*result.Client)})
 	h.logAudit(r, tenant.TenantID, actorUserIDCreate, "create", "client", createdClientUUID.String(), &createdClientUUID, string(changesJSONCreate), "success")
@@ -320,6 +321,10 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Get authentication context
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -338,7 +343,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID)
+	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ExpectedUpdatedAt)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update auth client", err)
 		return
@@ -346,10 +351,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	dtoRes := toClientResponseDTO(*Client)
 
-	var actorUserIDUpdate *int64
-	if user != nil {
-		actorUserIDUpdate = &user.UserID
-	}
+	actorUserIDUpdate := &user.UserID
 	changesJSONUpdate, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
 	h.logAudit(r, tenant.TenantID, actorUserIDUpdate, "update", "client", ClientUUID.String(), &ClientUUID, string(changesJSONUpdate), "success")
 
@@ -367,6 +369,10 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	// Get authentication context
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -394,10 +400,7 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	dtoRes := toClientResponseDTO(*Client)
 
-	var actorUserIDStatus *int64
-	if user != nil {
-		actorUserIDStatus = &user.UserID
-	}
+	actorUserIDStatus := &user.UserID
 	changesJSONStatus, _ := json.Marshal(map[string]any{"update": map[string]any{"status": string(newStatus)}})
 	h.logAudit(r, tenant.TenantID, actorUserIDStatus, "set_status", "client", ClientUUID.String(), &ClientUUID, string(changesJSONStatus), "success")
 
@@ -413,6 +416,10 @@ func (h *ClientHandler) RotateSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	clientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -423,6 +430,10 @@ func (h *ClientHandler) RotateSecret(w http.ResponseWriter, r *http.Request) {
 	var req RotateSecretRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		req = RotateSecretRequestDTO{GracePeriodHours: 24}
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
 	}
 
 	newSecret, err := h.ClientService.RotateSecret(r.Context(), clientUUID, tenant.TenantID, user.UserUUID, req.GracePeriodHours)
@@ -442,10 +453,7 @@ func (h *ClientHandler) RotateSecret(w http.ResponseWriter, r *http.Request) {
 		PreviousSecretExpiresAt: expiresAt,
 	}
 
-	var actorUserIDRotate *int64
-	if user != nil {
-		actorUserIDRotate = &user.UserID
-	}
+	actorUserIDRotate := &user.UserID
 	changesJSONRotate, _ := json.Marshal(map[string]any{"update": map[string]any{"secret_rotated": true, "grace_period_hours": req.GracePeriodHours}})
 	h.logAudit(r, tenant.TenantID, actorUserIDRotate, "rotate_secret", "client", clientUUID.String(), &clientUUID, string(changesJSONRotate), "success")
 
@@ -463,6 +471,10 @@ func (h *ClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// Get authentication context
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -478,10 +490,7 @@ func (h *ClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	dtoRes := toClientResponseDTO(*Client)
 
-	var actorUserIDDelete *int64
-	if user != nil {
-		actorUserIDDelete = &user.UserID
-	}
+	actorUserIDDelete := &user.UserID
 	changesJSONDelete, _ := json.Marshal(map[string]any{"before": map[string]any{"id": ClientUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDDelete, "delete", "client", ClientUUID.String(), &ClientUUID, string(changesJSONDelete), "success")
 
@@ -534,6 +543,10 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 
 	// Get authentication context
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -558,18 +571,23 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The service returns the parent client, so index 0 is the client's FIRST URI
+	// — not the one just created — and it panics outright when the slice is empty.
+	// Select the URI that was actually requested.
+	created := findCreatedURI(uri.ClientURIs, req.URI, req.Type)
+	if created == nil {
+		resp.Error(w, http.StatusInternalServerError, "URI was created but could not be read back")
+		return
+	}
 	dtoRes := ClientURIResponseDTO{
-		ClientURIUUID: (*uri.ClientURIs)[0].ClientURIUUID,
-		URI:           (*uri.ClientURIs)[0].URI,
-		Type:          (*uri.ClientURIs)[0].Type,
-		CreatedAt:     (*uri.ClientURIs)[0].CreatedAt,
-		UpdatedAt:     (*uri.ClientURIs)[0].UpdatedAt,
+		ClientURIUUID: created.ClientURIUUID,
+		URI:           created.URI,
+		Type:          created.Type,
+		CreatedAt:     created.CreatedAt,
+		UpdatedAt:     created.UpdatedAt,
 	}
 
-	var actorUserIDCreateURI *int64
-	if user != nil {
-		actorUserIDCreateURI = &user.UserID
-	}
+	actorUserIDCreateURI := &user.UserID
 	createdURIUUID := (*uri.ClientURIs)[0].ClientURIUUID
 	changesJSONCreateURI, _ := json.Marshal(map[string]any{"after": dtoRes})
 	h.logAudit(r, tenant.TenantID, actorUserIDCreateURI, "create", "client_uri", createdURIUUID.String(), &createdURIUUID, string(changesJSONCreateURI), "success")
@@ -587,6 +605,10 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 
 	// Get authentication context
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -641,10 +663,7 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:     updatedURI.UpdatedAt,
 	}
 
-	var actorUserIDUpdateURI *int64
-	if user != nil {
-		actorUserIDUpdateURI = &user.UserID
-	}
+	actorUserIDUpdateURI := &user.UserID
 	changesJSONUpdateURI, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
 	h.logAudit(r, tenant.TenantID, actorUserIDUpdateURI, "update", "client_uri", ClientURIUUID.String(), &ClientURIUUID, string(changesJSONUpdateURI), "success")
 
@@ -661,6 +680,10 @@ func (h *ClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 
 	// Get authentication context
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -682,10 +705,7 @@ func (h *ClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 
 	dtoRes := toClientResponseDTO(*Client)
 
-	var actorUserIDDeleteURI *int64
-	if user != nil {
-		actorUserIDDeleteURI = &user.UserID
-	}
+	actorUserIDDeleteURI := &user.UserID
 	changesJSONDeleteURI, _ := json.Marshal(map[string]any{"before": map[string]any{"id": ClientURIUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDDeleteURI, "delete", "client_uri", ClientURIUUID.String(), &ClientURIUUID, string(changesJSONDeleteURI), "success")
 
@@ -774,6 +794,13 @@ func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The DTO's rules existed but were never run, so an empty list or a nil UUID
+	// reached the service.
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
 	// Get tenant from context
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
@@ -781,8 +808,16 @@ func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The actor is the second trust boundary on a grant mutation: without it the
+	// middleware-supplied tenant is the only one.
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
 	// Add APIs to auth client
-	err = h.ClientService.AddClientAPIs(r.Context(), tenant.TenantID, ClientUUID, req.APIUUIDs)
+	err = h.ClientService.AddClientAPIs(r.Context(), tenant.TenantID, ClientUUID, req.APIUUIDs, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add APIs to auth client", err)
 		return
@@ -825,7 +860,15 @@ func (h *ClientHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove API from auth client
-	err = h.ClientService.RemoveClientAPI(r.Context(), tenant.TenantID, ClientUUID, apiUUID)
+	// The actor is the second trust boundary on a grant mutation: without it the
+	// middleware-supplied tenant is the only one.
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	err = h.ClientService.RemoveClientAPI(r.Context(), tenant.TenantID, ClientUUID, apiUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove API from auth client", err)
 		return
@@ -916,6 +959,11 @@ func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
 	// Get tenant from context
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
@@ -924,7 +972,15 @@ func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Add permissions to auth client API
-	err = h.ClientService.AddClientAPIPermissions(r.Context(), tenant.TenantID, ClientUUID, apiUUID, req.PermissionUUIDs)
+	// The actor is the second trust boundary on a grant mutation: without it the
+	// middleware-supplied tenant is the only one.
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	err = h.ClientService.AddClientAPIPermissions(r.Context(), tenant.TenantID, ClientUUID, apiUUID, req.PermissionUUIDs, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add permissions to auth client API", err)
 		return
@@ -974,7 +1030,15 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Remove permission from auth client API
-	err = h.ClientService.RemoveClientAPIPermission(r.Context(), tenant.TenantID, ClientUUID, apiUUID, permissionUUID)
+	// The actor is the second trust boundary on a grant mutation: without it the
+	// middleware-supplied tenant is the only one.
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	err = h.ClientService.RemoveClientAPIPermission(r.Context(), tenant.TenantID, ClientUUID, apiUUID, permissionUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove permission from auth client API", err)
 		return
@@ -999,6 +1063,7 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 	result := ClientResponseDTO{
 		ClientUUID:                       r.ClientUUID,
+		Identifier:                       r.Identifier,
 		Name:                             r.Name,
 		DisplayName:                      r.DisplayName,
 		ClientType:                       r.ClientType,
@@ -1012,6 +1077,13 @@ func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 		FrontchannelLogoutURI:            r.FrontchannelLogoutURI,
 		BackchannelLogoutSessionRequired: r.BackchannelLogoutSessionRequired,
 		DPoPRequired:                     r.DPoPRequired,
+		TokenEndpointAuthMethod:          r.TokenEndpointAuthMethod,
+		GrantTypes:                       r.GrantTypes,
+		ResponseTypes:                    r.ResponseTypes,
+		AllowedScopes:                    nonNilStrings(r.AllowedScopes),
+		RequireConsent:                   r.RequireConsent,
+		AccessTokenTTL:                   r.AccessTokenTTL,
+		RefreshTokenTTL:                  r.RefreshTokenTTL,
 		RequirePKCE:                      r.RequirePKCE,
 		RequiredACR:                      r.RequiredACR,
 		SessionIdleTimeout:               r.SessionIdleTimeout,
@@ -1132,6 +1204,10 @@ func (h *ClientHandler) AddConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -1168,10 +1244,7 @@ func (h *ClientHandler) AddConnection(w http.ResponseWriter, r *http.Request) {
 
 	dtoRes := toClientResponseDTO(*Client)
 
-	var actorUserIDAddConn *int64
-	if user != nil {
-		actorUserIDAddConn = &user.UserID
-	}
+	actorUserIDAddConn := &user.UserID
 	changesJSONAddConn, _ := json.Marshal(map[string]any{"update": req})
 	h.logAudit(r, tenant.TenantID, actorUserIDAddConn, "add_connection", "client", ClientUUID.String(), &ClientUUID, string(changesJSONAddConn), "success")
 
@@ -1186,6 +1259,10 @@ func (h *ClientHandler) UpdateConnection(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -1208,12 +1285,9 @@ func (h *ClientHandler) UpdateConnection(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
-
-	Client, err := h.ClientService.UpdateConnection(r.Context(), ClientUUID, tenant.TenantID, connectionUUID, req.IsDefault, enabled, req.DisplayOrder, user.UserUUID)
+	// Pass the pointers straight through: the service leaves a nil field at its
+	// current stored value rather than resetting it.
+	Client, err := h.ClientService.UpdateConnection(r.Context(), ClientUUID, tenant.TenantID, connectionUUID, req.IsDefault, req.Enabled, req.DisplayOrder, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update identity provider connection", err)
 		return
@@ -1221,10 +1295,7 @@ func (h *ClientHandler) UpdateConnection(w http.ResponseWriter, r *http.Request)
 
 	dtoRes := toClientResponseDTO(*Client)
 
-	var actorUserIDUpdateConn *int64
-	if user != nil {
-		actorUserIDUpdateConn = &user.UserID
-	}
+	actorUserIDUpdateConn := &user.UserID
 	changesJSONUpdateConn, _ := json.Marshal(map[string]any{"update": req})
 	h.logAudit(r, tenant.TenantID, actorUserIDUpdateConn, "update_connection", "client", ClientUUID.String(), &ClientUUID, string(changesJSONUpdateConn), "success")
 
@@ -1239,6 +1310,10 @@ func (h *ClientHandler) RemoveConnection(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -1259,10 +1334,7 @@ func (h *ClientHandler) RemoveConnection(w http.ResponseWriter, r *http.Request)
 
 	dtoRes := toClientResponseDTO(*Client)
 
-	var actorUserIDRemoveConn *int64
-	if user != nil {
-		actorUserIDRemoveConn = &user.UserID
-	}
+	actorUserIDRemoveConn := &user.UserID
 	changesJSONRemoveConn, _ := json.Marshal(map[string]any{"update": map[string]any{"connection_uuid": connectionUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDRemoveConn, "remove_connection", "client", ClientUUID.String(), &ClientUUID, string(changesJSONRemoveConn), "success")
 
@@ -1293,4 +1365,30 @@ func brandingUUIDToStringPtr(b *uuid.UUID) *string {
 	}
 	s := b.String()
 	return &s
+}
+
+// nonNilStrings keeps a JSON array from serializing as null, which forces every
+// consumer to null-check a list that is conceptually always present.
+func nonNilStrings(v []string) []string {
+	if v == nil {
+		return []string{}
+	}
+	return v
+}
+
+// findCreatedURI picks the URI matching the requested value and type out of the
+// client's full URI list. Matching on the pair rather than taking a position keeps
+// the response correct regardless of ordering, and returns nil instead of
+// panicking when nothing matches.
+func findCreatedURI(uris *[]ClientURIServiceDataResult, uri, uriType string) *ClientURIServiceDataResult {
+	if uris == nil {
+		return nil
+	}
+	for i := range *uris {
+		candidate := &(*uris)[i]
+		if candidate.URI == uri && candidate.Type == uriType {
+			return candidate
+		}
+	}
+	return nil
 }

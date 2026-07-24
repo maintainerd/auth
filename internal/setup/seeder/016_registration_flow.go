@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	model "github.com/maintainerd/maintainerd-auth/internal/idp"
-	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 )
@@ -13,7 +12,7 @@ import (
 const (
 	// SystemRegistrationFlowOwner is the name of the system registration flow that grants the
 	// registered + super-admin roles. Used when inviting a tenant owner.
-	SystemRegistrationFlowOwner = "system:onboarding:owner"
+	SystemRegistrationFlowOwner = "system-onboarding-owner"
 )
 
 // SeedRegistrationFlows seeds the one genuinely special system registration flow:
@@ -51,17 +50,11 @@ func seedRegistrationFlowWithRoleNames(db *gorm.DB, tenantID int64, name, descri
 		return err
 	}
 
-	identifier, err := crypto.GenerateIdentifier(16)
-	if err != nil {
-		return err
-	}
-
 	flow := &model.RegistrationFlow{
 		RegistrationFlowUUID: uuid.New(),
 		TenantID:             tenantID,
 		Name:                 name,
 		Description:          description,
-		Identifier:           identifier,
 		IsSystem:             true,
 		Status:               shared.StatusActive,
 		ClientID:             client.ClientID,

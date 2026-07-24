@@ -220,6 +220,22 @@ type RoleRepository interface {
 	FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[Role], error)
 }
 
+// RegistrationFlowInviteCounter answers "is this registration flow still in use
+// by a pending invite" so a flow cannot be deleted out from under one. Invites
+// are owned by the invite domain; this is the read-only edge idp needs.
+type RegistrationFlowInviteCounter interface {
+	WithTx(tx *gorm.DB) RegistrationFlowInviteCounter
+	CountPendingByRegistrationFlowID(registrationFlowID int64) (int64, error)
+}
+
+// RolePermissionNameReader lists the permission names a role carries, so the
+// grantable-role cap can tell a self-service role from a management-plane one.
+// Permissions are owned by iam; this is the read-only edge idp needs.
+type RolePermissionNameReader interface {
+	WithTx(tx *gorm.DB) RolePermissionNameReader
+	FindPermissionNamesByRoleID(roleID int64) ([]string, error)
+}
+
 func ValidateTenantAccess(actor *User, target *Tenant) error {
 	if actor == nil {
 		return apperror.NewUnauthorized("actor user not found")

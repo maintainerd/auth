@@ -46,7 +46,7 @@ func defaultConnectedIDPFromClient(c *client.Client) *client.IdentityProvider {
 	var first *client.IdentityProvider
 	for i := range *c.ConnectedProviders {
 		conn := &(*c.ConnectedProviders)[i]
-		if !conn.Enabled || conn.IdentityProvider == nil {
+		if conn.Enabled != nil && !*conn.Enabled || conn.IdentityProvider == nil {
 			continue
 		}
 		if first == nil {
@@ -72,7 +72,7 @@ func toAuthnClientIdentityProviders(c *client.Client) *[]authn.ClientIdentityPro
 			TenantID:                   conn.TenantID,
 			ClientID:                   conn.ClientID,
 			IdentityProviderID:         conn.IdentityProviderID,
-			Enabled:                    conn.Enabled,
+			Enabled:                    conn.Enabled == nil || *conn.Enabled,
 			IsDefault:                  conn.IsDefault,
 			IdentityProvider:           toAuthnIDPFromClient(conn.IdentityProvider),
 		})
@@ -98,7 +98,7 @@ func toAuthnClient(c *client.Client) *authn.Client {
 		RequiredACR: c.RequiredACR, RequirePKCE: c.RequirePKCE,
 		SessionIdleTimeout: c.SessionIdleTimeout, SessionAbsoluteTimeout: c.SessionAbsoluteTimeout,
 		BrandingID:         c.BrandingID,
-		AllowRegistration:  c.AllowRegistration,
+		AllowRegistration:  c.AllowRegistration == nil || *c.AllowRegistration,
 		IdentityProvider:   toAuthnIDPFromClient(idp),
 		ConnectedProviders: toAuthnClientIdentityProviders(c),
 		CreatedAt:          c.CreatedAt, UpdatedAt: c.UpdatedAt,
@@ -118,7 +118,7 @@ func toClientClient(c *authn.Client) *client.Client {
 		RequiredACR: c.RequiredACR, RequirePKCE: c.RequirePKCE,
 		SessionIdleTimeout: c.SessionIdleTimeout, SessionAbsoluteTimeout: c.SessionAbsoluteTimeout,
 		BrandingID:        c.BrandingID,
-		AllowRegistration: c.AllowRegistration,
+		AllowRegistration: &c.AllowRegistration,
 		CreatedAt:         c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 }

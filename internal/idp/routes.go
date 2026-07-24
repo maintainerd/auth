@@ -109,11 +109,11 @@ func RegistrationFlowRoute(
 
 		// Get all registration flows with pagination and filtering
 		r.With(middleware.PermissionMiddleware([]string{"registration-flow:read"})).
-			Get("/", registrationFlowHandler.GetAll)
+			Get("/", registrationFlowHandler.Get)
 
 		// Get registration flow by UUID
 		r.With(middleware.PermissionMiddleware([]string{"registration-flow:read"})).
-			Get("/{registration_flow_uuid}", registrationFlowHandler.Get)
+			Get("/{registration_flow_uuid}", registrationFlowHandler.GetByUUID)
 
 		// Create registration flow
 		r.With(middleware.PermissionMiddleware([]string{"registration-flow:create"})).
@@ -125,7 +125,7 @@ func RegistrationFlowRoute(
 
 		// Update registration flow status
 		r.With(middleware.PermissionMiddleware([]string{"registration-flow:update"})).
-			Patch("/{registration_flow_uuid}/status", registrationFlowHandler.UpdateStatus)
+			Patch("/{registration_flow_uuid}/status", registrationFlowHandler.SetStatus)
 
 		// Delete registration flow
 		r.With(middleware.PermissionMiddleware([]string{"registration-flow:delete"})).

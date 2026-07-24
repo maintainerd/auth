@@ -56,7 +56,16 @@ type ClientAPIPermissionsResponseDTO struct {
 
 // Auth client output structure
 type ClientResponseDTO struct {
-	ClientUUID        uuid.UUID                    `json:"client_id"`
+	// ClientUUID is the management handle used in console URLs. Note the json name
+	// is "client_id" for backward compatibility even though the OAuth client_id is
+	// Identifier below — do not confuse the two.
+	ClientUUID uuid.UUID `json:"client_id"`
+	// Identifier is the OAuth 2.0 client_id: the value an application actually
+	// puts in an authorize or token request, and what /oauth/connections resolves
+	// a client by. Without it in the response an operator cannot configure their
+	// app, so it is exposed here even though it is server-generated.
+	Identifier *string `json:"identifier,omitempty"`
+
 	Name              string                       `json:"name"`
 	DisplayName       string                       `json:"display_name"`
 	ClientType        string                       `json:"client_type"`
@@ -76,6 +85,17 @@ type ClientResponseDTO struct {
 	FrontchannelLogoutURI            *string `json:"frontchannel_logout_uri,omitempty"`
 	BackchannelLogoutSessionRequired bool    `json:"backchannel_logout_session_required"`
 	DPoPRequired                     bool    `json:"dpop_required"`
+
+	// OAuth metadata as ENFORCED by the runtime. These live in real columns; the
+	// config blob is only mirrored into them on write, so reading the blob shows
+	// values the server may have rejected.
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
+	GrantTypes              []string `json:"grant_types,omitempty"`
+	ResponseTypes           []string `json:"response_types,omitempty"`
+	AllowedScopes           []string `json:"allowed_scopes"`
+	RequireConsent          *bool    `json:"require_consent,omitempty"`
+	AccessTokenTTL          *int     `json:"access_token_ttl,omitempty"`
+	RefreshTokenTTL         *int     `json:"refresh_token_ttl,omitempty"`
 
 	// Security posture / per-client overrides. The override fields are null when
 	// the client inherits the tenant security_settings default.
@@ -122,10 +142,17 @@ type AddClientIdentityProviderRequestDTO struct {
 }
 
 // Update an identity provider connection request DTO
+// UpdateClientIdentityProviderRequestDTO carries omitted-means-unchanged
+// semantics on every field.
+//
+// These were non-pointers, so a partial payload silently rewrote the fields it
+// did not mention: toggling `enabled` alone cleared `is_default` (demoting the
+// client's default identity provider), and changing `display_order` alone did the
+// same. The console sends exactly those partial payloads.
 type UpdateClientIdentityProviderRequestDTO struct {
-	IsDefault    bool  `json:"is_default"`
+	IsDefault    *bool `json:"is_default"`
 	Enabled      *bool `json:"enabled"`
-	DisplayOrder int   `json:"display_order"`
+	DisplayOrder *int  `json:"display_order"`
 }
 
 // Create auth client request DTO
@@ -163,6 +190,12 @@ type ClientUpdateRequestDTO struct {
 	FrontchannelLogoutURI            *string `json:"frontchannel_logout_uri,omitempty"`
 	BackchannelLogoutSessionRequired *bool   `json:"backchannel_logout_session_required,omitempty"`
 	DPoPRequired                     *bool   `json:"dpop_required,omitempty"`
+
+	// ExpectedUpdatedAt is the optimistic-concurrency token: the `updated_at` the
+	// caller loaded. An update replaces the whole client, so without it two
+	// operators editing at once silently overwrite each other. Omit it to opt out
+	// (service-to-service callers that are not editing a form).
+	ExpectedUpdatedAt *time.Time `json:"expected_updated_at,omitempty"`
 }
 
 // Validation

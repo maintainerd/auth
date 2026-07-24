@@ -17,13 +17,17 @@ type ClientIdentityProvider struct {
 	ClientID                   int64     `gorm:"column:client_id;not null"`
 	IdentityProviderID         int64     `gorm:"column:identity_provider_id;not null"`
 	IsDefault                  bool      `gorm:"column:is_default;default:false"`
-	Enabled                    bool      `gorm:"column:enabled;default:true"`
-	DisplayOrder               int       `gorm:"column:display_order;default:0"`
-	CreatedBy                  *int64    `gorm:"column:created_by"`
-	UpdatedBy                  *int64    `gorm:"column:updated_by"`
-	CreatedAt                  time.Time `gorm:"column:created_at;not null;autoCreateTime"`
-	UpdatedAt                  time.Time `gorm:"column:updated_at;not null;autoUpdateTime"`
-	DeletedAt                  gorm.DeletedAt
+	// Enabled: pointer so an explicit false persists. As a non-pointer bool with
+	// a `default:` tag, GORM omitted the zero value on INSERT and the DB default
+	// (TRUE) won — so a connection staged as disabled came up live, making an
+	// untested federated login path an accepted login method immediately.
+	Enabled      *bool     `gorm:"column:enabled;default:true"`
+	DisplayOrder int       `gorm:"column:display_order;default:0"`
+	CreatedBy    *int64    `gorm:"column:created_by"`
+	UpdatedBy    *int64    `gorm:"column:updated_by"`
+	CreatedAt    time.Time `gorm:"column:created_at;not null;autoCreateTime"`
+	UpdatedAt    time.Time `gorm:"column:updated_at;not null;autoUpdateTime"`
+	DeletedAt    gorm.DeletedAt
 
 	Client           *Client           `gorm:"foreignKey:ClientID;references:ClientID"`
 	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`

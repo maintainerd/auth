@@ -26,3 +26,13 @@ func TestRegistrationFlowRole_BeforeCreate(t *testing.T) {
 		assert.Equal(t, existing, role.RegistrationFlowRoleUUID)
 	})
 }
+
+func TestRegistrationFlowRole_BeforeCreate_LeavesTheRestAlone(t *testing.T) {
+	role := &RegistrationFlowRole{RegistrationFlowID: 3, RoleID: 10}
+	require.NoError(t, role.BeforeCreate(nil))
+	assert.NotEqual(t, uuid.Nil, role.RegistrationFlowRoleUUID)
+	assert.Equal(t, int64(3), role.RegistrationFlowID)
+	assert.Equal(t, int64(10), role.RoleID)
+	assert.Nil(t, role.Role)
+	assert.Nil(t, role.RegistrationFlow)
+}

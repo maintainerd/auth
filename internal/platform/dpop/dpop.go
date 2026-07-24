@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -155,7 +156,7 @@ func ValidateProof(
 	}
 
 	htu, _ := mc["htu"].(string)
-	if !strings.EqualFold(stripQuery(htu), stripQuery(requestURL)) {
+	if !htuMatches(htu, requestURL) {
 		return nil, fmt.Errorf("DPoP proof htu %q does not match request URL %q", htu, requestURL)
 	}
 
@@ -179,7 +180,12 @@ func ValidateProof(
 
 	// Replay prevention: check the JTI has not been used within the replay window.
 	if store != nil {
-		used, checkErr := store.IsJTIDenied(ctx, "dpop:"+jti)
+		// Scoped to the proof's key thumbprint. A bare "dpop:<jti>" key is a single
+		// global namespace: one client's jti would reject another client's identical
+		// jti (RFC 9449 only requires uniqueness per key), and anyone able to guess
+		// or observe a jti could pre-burn it to deny a legitimate proof.
+		replayKey := "dpop:" + thumbprint + ":" + jti
+		used, checkErr := store.IsJTIDenied(ctx, replayKey)
 		if checkErr != nil {
 			span.RecordError(checkErr)
 			// On cache error, fail closed to prevent replay on degraded state.
@@ -188,8 +194,13 @@ func ValidateProof(
 		if used {
 			return nil, errors.New("DPoP proof JTI has already been used (replay detected)")
 		}
-		// Record the JTI as used.
-		_ = store.DenyJTI(ctx, "dpop:"+jti, replayWindowTTL)
+		// Record the JTI as used. A failure here has to fail closed too: the proof
+		// would otherwise be accepted while remaining replayable for the whole
+		// window, which is precisely the attack this store exists to stop.
+		if denyErr := store.DenyJTI(ctx, replayKey, replayWindowTTL); denyErr != nil {
+			span.RecordError(denyErr)
+			return nil, fmt.Errorf("DPoP replay guard could not record the proof: %w", denyErr)
+		}
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -329,12 +340,38 @@ func parseRSAJWK(jwkMap map[string]any, _ []byte) (*rsa.PublicKey, string, error
 	return pub, jwkThumbprint(thumbJSON), nil
 }
 
-// stripQuery removes the query string from a URL for htu comparison.
-func stripQuery(u string) string {
-	if idx := strings.IndexByte(u, '?'); idx >= 0 {
-		return u[:idx]
+// htuMatches compares a proof's htu claim against the actual request URL per
+// RFC 9449 §4.3: query and fragment are excluded, scheme and host are
+// case-insensitive, and the PATH is case-sensitive.
+//
+// The previous implementation folded case across the whole URL, so a proof issued
+// for /oauth/Token satisfied a request to /oauth/token — paths are case-sensitive,
+// and htu is what binds a proof to one endpoint.
+func htuMatches(htu, requestURL string) bool {
+	proofURL, err := url.Parse(strings.TrimSpace(htu))
+	if err != nil {
+		return false
 	}
-	return u
+	actual, err := url.Parse(strings.TrimSpace(requestURL))
+	if err != nil {
+		return false
+	}
+	if !strings.EqualFold(proofURL.Scheme, actual.Scheme) {
+		return false
+	}
+	if !strings.EqualFold(proofURL.Host, actual.Host) {
+		return false
+	}
+	return normalizeHTUPath(proofURL.EscapedPath()) == normalizeHTUPath(actual.EscapedPath())
+}
+
+// normalizeHTUPath treats an empty path and "/" as the same resource, which is the
+// only normalization RFC 3986 §6.2.3 allows without decoding.
+func normalizeHTUPath(path string) string {
+	if path == "" {
+		return "/"
+	}
+	return path
 }
 
 // extractNumericDate extracts a time.Time from a JWT claim that may be stored

@@ -261,26 +261,55 @@ type IdentityProviderFilterDTO struct {
 	PaginationRequestDTO
 }
 
-// Registration flow output structure
-type RegistrationFlowResponseDTO struct {
-	RegistrationFlowUUID string         `json:"registration_flow_id"`
-	Name                 string         `json:"name"`
-	Description          string         `json:"description"`
-	Identifier           string         `json:"identifier"`
-	Status               string         `json:"status"`
-	ClientUUID           string         `json:"client_id,omitempty"`
-	VerificationRequired bool           `json:"verification_required"`
-	RequiredFields       datatypes.JSON `json:"required_fields"`
-	IsSystem             bool           `json:"is_system"`
-	CreatedAt            time.Time      `json:"created_at"`
-	UpdatedAt            time.Time      `json:"updated_at"`
+// RegistrationFlowClientSummaryDTO is the nested client projection on the
+// registration flow detail response. A registration link is only valid for its
+// client, so the detail view resolves the client to a human-readable name
+// rather than making the operator decode a bare UUID.
+type RegistrationFlowClientSummaryDTO struct {
+	ClientUUID  string `json:"client_id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name,omitempty"`
+	Identifier  string `json:"identifier"`
+	Status      string `json:"status"`
 }
 
-// Create registration flow request dto
+// Registration flow list output structure (lean — one row per listing entry).
+type RegistrationFlowResponseDTO struct {
+	RegistrationFlowUUID string    `json:"registration_flow_id"`
+	Name                 string    `json:"name"`
+	Description          string    `json:"description"`
+	Status               string    `json:"status"`
+	ClientUUID           *string   `json:"client_id,omitempty"`
+	VerificationRequired bool      `json:"verification_required"`
+	IsSystem             bool      `json:"is_system"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+}
+
+// Registration flow detail output structure (adds required_fields + the
+// resolved client summary on top of the list shape).
+type RegistrationFlowDetailResponseDTO struct {
+	RegistrationFlowUUID string                            `json:"registration_flow_id"`
+	Name                 string                            `json:"name"`
+	Description          string                            `json:"description"`
+	Status               string                            `json:"status"`
+	ClientUUID           *string                           `json:"client_id,omitempty"`
+	Client               *RegistrationFlowClientSummaryDTO `json:"client,omitempty"`
+	VerificationRequired bool                              `json:"verification_required"`
+	RequiredFields       datatypes.JSON                    `json:"required_fields"`
+	IsSystem             bool                              `json:"is_system"`
+	CreatedAt            time.Time                         `json:"created_at"`
+	UpdatedAt            time.Time                         `json:"updated_at"`
+}
+
+// Create registration flow request dto.
+//
+// Name is the public value that appears in registration links
+// (?registration_flow=<name>), so it is validated as a slug and must be unique
+// within the tenant. There is no separate identifier.
 type RegistrationFlowCreateRequestDTO struct {
 	Name                 string    `json:"name"`
 	Description          string    `json:"description"`
-	Identifier           *string   `json:"identifier,omitempty"`
 	Status               *string   `json:"status,omitempty"`
 	ClientUUID           string    `json:"client_id"`
 	RoleIDs              []string  `json:"role_ids,omitempty"`
@@ -288,16 +317,26 @@ type RegistrationFlowCreateRequestDTO struct {
 	RequiredFields       *[]string `json:"required_fields"`
 }
 
-// Update registration flow request dto. RoleIDs / ClientURIIDs, when present, replace the
-// flow's role / callback-URI membership to exactly the provided set (an empty
-// array clears it; omitting the field leaves it untouched).
+// Update registration flow request dto.
+//
+// Every optional field carries omitted-means-unchanged semantics: a nil pointer
+// leaves the stored value alone. This matters because Status,
+// VerificationRequired and RequiredFields are security controls — a partial PUT
+// must never silently re-activate a disabled flow, turn off verification, or
+// wipe the required-field set.
+//
+// RoleIDs, when present, replaces the flow's role membership with exactly the
+// provided set (an empty array clears it; omitting the field leaves it untouched).
+//
+// Renaming a flow changes its public registration link, so any link an external
+// app has already published stops resolving. Callers should surface that.
 type RegistrationFlowUpdateRequestDTO struct {
-	Name                 string    `json:"name"`
-	Description          string    `json:"description"`
+	Name                 *string   `json:"name,omitempty"`
+	Description          *string   `json:"description,omitempty"`
 	Status               *string   `json:"status,omitempty"`
 	RoleIDs              []string  `json:"role_ids,omitempty"`
 	VerificationRequired *bool     `json:"verification_required,omitempty"`
-	RequiredFields       *[]string `json:"required_fields"`
+	RequiredFields       *[]string `json:"required_fields,omitempty"`
 }
 
 // Update registration flow status request dto
@@ -308,23 +347,13 @@ type RegistrationFlowUpdateStatusRequestDTO struct {
 // Registration flow listing request dto
 type RegistrationFlowFilterDTO struct {
 	Name       *string  `json:"name"`
-	Identifier *string  `json:"identifier"`
+	Search     *string  `json:"search"`
 	Status     []string `json:"status"`
 	ClientUUID *string  `json:"client_id"`
+	IsSystem   *bool    `json:"is_system"`
 
 	// Pagination and sorting
 	PaginationRequestDTO
-}
-
-// Validate validates the registration flow filter DTO.
-
-// Registration flow role output structure
-type RegistrationFlowRoleResponseDTO struct {
-	RegistrationFlowRoleUUID string    `json:"registration_flow_role_id"`
-	RegistrationFlowUUID     string    `json:"registration_flow_id"`
-	RoleUUID                 string    `json:"role_id"`
-	RoleName                 string    `json:"role_name,omitempty"`
-	CreatedAt                time.Time `json:"created_at"`
 }
 
 // Assign roles to registration flow request dto

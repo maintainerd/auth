@@ -59,6 +59,7 @@ type svcs struct {
 	magicLinkService             authn.MagicLinkService
 	setupService                 setup.SetupService
 	registrationFlowService      idp.RegistrationFlowService
+	registrationContextService   authn.RegistrationContextService
 	policyService                iam.PolicyService
 	securitySettingService       secpolicy.SecuritySettingService
 	ipRestrictionRuleService     secpolicy.IPRestrictionRuleService
@@ -272,7 +273,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		clientService:       client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, r.clientRoleRepo, clientRoleRepoAdapter, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
 		roleService:         iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
 		userService:         userSvc,
-		registerService: authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnRegistrationFlowRoleRepoAdapter(r.registrationFlowRoleRepo, r.registrationFlowRepo),
+		registerService: authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnRegistrationFlowRoleRepoAdapter(db, r.registrationFlowRoleRepo, r.registrationFlowRepo),
 			authn.WithEmailVerificationService(emailVerificationSvc),
 			authn.WithConsentRecorder(user.NewUserConsentService(r.userConsentRepo)),
 		),
@@ -295,7 +296,12 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 				ServicePolicyRepo: r.servicePolicyRepo,
 			},
 		),
-		registrationFlowService:      idp.NewRegistrationFlowService(db, r.registrationFlowRepo, r.registrationFlowRoleRepo, idpRoleRepo, idpClientRepo),
+		registrationContextService: authn.NewRegistrationContextService(
+			newAuthnClientRepoAdapter(r.clientRepo),
+			newAuthnRegistrationFlowRoleRepoAdapter(db, r.registrationFlowRoleRepo, r.registrationFlowRepo),
+			r.securitySettingRepo,
+		),
+		registrationFlowService:      idp.NewRegistrationFlowService(db, r.registrationFlowRepo, r.registrationFlowRoleRepo, idpRoleRepo, idpClientRepo, idpUserRepo, idpUserRoleRepo, newIDPRegistrationFlowInviteCounter(db), newIDPRolePermissionNameReader(db)),
 		policyService:                iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo, eventSvc, authEventSvc),
 		securitySettingService:       secpolicy.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
 		ipRestrictionRuleService:     secpolicy.NewIPRestrictionRuleService(db, r.ipRestrictionRuleRepo),

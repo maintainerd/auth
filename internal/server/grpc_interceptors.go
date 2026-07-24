@@ -262,6 +262,16 @@ func grpcJWTClaims(ctx context.Context) (*middleware.JWTClaims, error) {
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "invalid or expired token")
 	}
+
+	// DPoP binds a proof to an HTTP method and URL (RFC 9449 §4.2), so a
+	// sender-constrained token cannot be proven over gRPC. Accepting it as a bearer
+	// token here would leave a bypass for the one token type that is supposed to be
+	// theft-resistant, so it is refused outright.
+	if middleware.IsSenderConstrainedToken(rawClaims) {
+		return nil, status.Error(codes.Unauthenticated,
+			"this access token is bound to a DPoP key and cannot be used over gRPC")
+	}
+
 	sub, _ := rawClaims["sub"].(string)
 	userUUID, _ := uuid.Parse(sub)
 	return &middleware.JWTClaims{
