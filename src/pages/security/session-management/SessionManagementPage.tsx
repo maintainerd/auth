@@ -10,7 +10,23 @@ import { FormPageHeader } from '@/components/header'
 import { FormSwitchField, FormInputField, FormSelectField, FormSubmitButton } from '@/components/form'
 import { useSessionSettings, useUpdateSessionSettings } from '@/hooks/useSessionSettings'
 import { useToast } from '@/hooks/useToast'
+import { ConfirmationDialog } from '@/components/dialog'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import { sessionSettingsSchema, type SessionSettingsFormData } from '@/lib/validations'
+
+const BACKEND_FIELD_MAP: Record<string, string> = {
+  access_token_ttl_minutes: 'access_token_ttl_minutes',
+  refresh_token_ttl_days: 'refresh_token_ttl_days',
+  max_concurrent_sessions: 'max_concurrent_sessions',
+  idle_timeout_minutes: 'idle_timeout_minutes',
+  absolute_timeout_hours: 'absolute_timeout_hours',
+  rotate_refresh_tokens: 'rotate_refresh_tokens',
+  refresh_token_reuse_interval_seconds: 'refresh_token_reuse_interval_seconds',
+  cookie_secure: 'cookie_secure',
+  cookie_http_only: 'cookie_http_only',
+  cookie_same_site: 'cookie_same_site',
+  revoke_sessions_on_password_change: 'revoke_sessions_on_password_change',
+}
 
 const SAME_SITE_OPTIONS = [
   { value: 'Strict', label: 'Strict' },
@@ -20,13 +36,13 @@ const SAME_SITE_OPTIONS = [
 
 export default function SessionManagementPage() {
   const navigate = useNavigate()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError, parseError } = useToast()
   const backTo = `/security?tab=sessions`
 
   const { data: saved, isLoading } = useSessionSettings()
   const updateMutation = useUpdateSessionSettings()
 
-  const { handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<SessionSettingsFormData>({
+  const { handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting, isDirty } } = useForm<SessionSettingsFormData>({
     resolver: yupResolver(sessionSettingsSchema),
     defaultValues: {
       access_token_ttl_minutes: 15,
@@ -76,17 +92,50 @@ export default function SessionManagementPage() {
       showSuccess('Session settings saved successfully')
       navigate(backTo)
     } catch (error) {
+      const parsed = parseError(error)
+      let mappedToField = false
+      if (parsed.fieldErrors) {
+        for (const [field, message] of Object.entries(parsed.fieldErrors)) {
+          const formField = BACKEND_FIELD_MAP[field]
+          if (formField) {
+            setError(formField as never, { type: 'server', message })
+            mappedToField = true
+          }
+        }
+      }
+      if (!mappedToField) {
+        const lower = parsed.message.toLowerCase()
+        const keywordOrder: Array<[string, string]> = [
+          ['refresh_token_reuse_interval_seconds', 'refresh_token_reuse_interval_seconds'],
+          ['revoke_sessions_on_password_change', 'revoke_sessions_on_password_change'],
+          ['absolute_timeout_hours', 'absolute_timeout_hours'],
+          ['idle_timeout_minutes', 'idle_timeout_minutes'],
+          ['refresh_token_ttl_days', 'refresh_token_ttl_days'],
+          ['access_token_ttl_minutes', 'access_token_ttl_minutes'],
+          ['max_concurrent_sessions', 'max_concurrent_sessions'],
+          ['rotate_refresh_tokens', 'rotate_refresh_tokens'],
+          ['cookie_same_site', 'cookie_same_site'],
+          ['cookie_http_only', 'cookie_http_only'],
+          ['cookie_secure', 'cookie_secure'],
+        ]
+        const hit = keywordOrder.find(([keyword]) => lower.includes(keyword))
+        if (hit) {
+          setError(hit[1] as never, { type: 'server', message: parsed.message })
+        }
+      }
       showError(error)
     }
   }
 
   const isBusy = isSubmitting || updateMutation.isPending
 
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
+
   if (isLoading) {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Sessions" title="Configure Sessions" description="Set token lifetimes, timeouts, and cookie settings." />
+          <FormPageHeader backUrl={backTo} onBack={() => guard(() => navigate(backTo))} backLabel="Back to Sessions" title="Configure Sessions" description="Set token lifetimes, timeouts, and cookie settings." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -107,6 +156,7 @@ export default function SessionManagementPage() {
       <div className="flex flex-col gap-6">
         <FormPageHeader
           backUrl={backTo}
+          onBack={() => guard(() => navigate(backTo))}
           backLabel="Back to Sessions"
           title="Configure Sessions"
           description="Configure token lifetimes, idle/absolute timeouts, concurrency, refresh rotation, and cookie flags."
@@ -169,12 +219,23 @@ export default function SessionManagementPage() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate(backTo)} disabled={isBusy}>
+            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
               Cancel
             </Button>
             <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

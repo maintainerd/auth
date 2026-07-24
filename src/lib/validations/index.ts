@@ -52,7 +52,21 @@ export {
 // Client schemas
 export {
   clientSchema,
-  type ClientFormData
+  validateClientOAuthConfig,
+  validateRedirectUri,
+  isPublicClientType,
+  authMethodRequiresSecret,
+  CLIENT_TYPES,
+  PUBLIC_CLIENT_TYPES,
+  CLIENT_AUTH_METHODS,
+  SECRET_BASED_AUTH_METHODS,
+  GRANT_TYPES,
+  RESPONSE_TYPES,
+  REQUIRED_ACR_VALUES,
+  type ClientFormData,
+  type ClientTypeValue,
+  type ClientAuthMethod,
+  type ClientOAuthConfigValues
 } from './clientSchema'
 
 // Role schemas

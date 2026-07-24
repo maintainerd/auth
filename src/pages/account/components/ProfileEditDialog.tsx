@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { FormInputField, FormSelectField, FormDateField } from "@/components/form"
+import { FormUrlField } from "@/components/inputs"
 import { userProfileSchema, type UserProfileFormData } from "@/lib/validations"
 import { genderOptions } from "@/lib/constants"
 import { useToast } from "@/hooks/useToast"
@@ -111,7 +112,7 @@ export function ProfileEditDialog({ open, onOpenChange, profile }: ProfileEditDi
               <Controller name="birthdate" control={control} render={({ field }) => (
                 <FormDateField label="Birthdate" value={field.value || ""} onChange={field.onChange} error={errors.birthdate?.message} />
               )} />
-              <FormInputField label="Profile Picture URL" placeholder="https://example.com/avatar.png" maxLength={1000} error={errors.profile_url?.message} {...register("profile_url")} />
+              <FormUrlField label="Profile Picture URL" placeholder="https://example.com/avatar.png" maxLength={1000} error={errors.profile_url?.message} {...register("profile_url")} />
             </div>
 
           </div>

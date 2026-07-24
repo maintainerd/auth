@@ -10,17 +10,33 @@ import { FormPageHeader } from '@/components/header'
 import { FormSwitchField, FormInputField, FormSubmitButton } from '@/components/form'
 import { useThreatDetectionSettings, useUpdateThreatDetectionSettings } from '@/hooks/useThreatDetectionSettings'
 import { useToast } from '@/hooks/useToast'
+import { ConfirmationDialog } from '@/components/dialog'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import { threatDetectionSettingsSchema, type ThreatDetectionSettingsFormData } from '@/lib/validations'
+
+const BACKEND_FIELD_MAP: Record<string, string> = {
+  brute_force_detection_enabled: 'brute_force_detection_enabled',
+  impossible_travel_detection_enabled: 'impossible_travel_detection_enabled',
+  new_device_notification_enabled: 'new_device_notification_enabled',
+  velocity_check_enabled: 'velocity_check_enabled',
+  risk_based_step_up_enabled: 'risk_based_step_up_enabled',
+  compromised_credential_monitoring_enabled: 'compromised_credential_monitoring_enabled',
+  ip_reputation_check_enabled: 'ip_reputation_check_enabled',
+  block_tor_exit_nodes: 'block_tor_exit_nodes',
+  risk_step_up_threshold: 'risk_step_up_threshold',
+  risk_block_threshold: 'risk_block_threshold',
+  velocity_failures_per_ip_per_hour: 'velocity_failures_per_ip_per_hour',
+}
 
 export default function ThreatDetectionPage() {
   const navigate = useNavigate()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError, parseError } = useToast()
   const backTo = `/security?tab=threat`
 
   const { data: savedSettings, isLoading } = useThreatDetectionSettings()
   const updateMutation = useUpdateThreatDetectionSettings()
 
-  const { handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<ThreatDetectionSettingsFormData>({
+  const { handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting, isDirty } } = useForm<ThreatDetectionSettingsFormData>({
     resolver: yupResolver(threatDetectionSettingsSchema),
     defaultValues: {
       brute_force_detection_enabled: true,
@@ -70,17 +86,50 @@ export default function ThreatDetectionPage() {
       showSuccess('Attack protection settings saved successfully')
       navigate(backTo)
     } catch (error) {
+      const parsed = parseError(error)
+      let mappedToField = false
+      if (parsed.fieldErrors) {
+        for (const [field, message] of Object.entries(parsed.fieldErrors)) {
+          const formField = BACKEND_FIELD_MAP[field]
+          if (formField) {
+            setError(formField as never, { type: 'server', message })
+            mappedToField = true
+          }
+        }
+      }
+      if (!mappedToField) {
+        const lower = parsed.message.toLowerCase()
+        const keywordOrder: Array<[string, string]> = [
+          ['compromised_credential_monitoring_enabled', 'compromised_credential_monitoring_enabled'],
+          ['impossible_travel_detection_enabled', 'impossible_travel_detection_enabled'],
+          ['new_device_notification_enabled', 'new_device_notification_enabled'],
+          ['velocity_failures_per_ip_per_hour', 'velocity_failures_per_ip_per_hour'],
+          ['velocity_check_enabled', 'velocity_check_enabled'],
+          ['risk_based_step_up_enabled', 'risk_based_step_up_enabled'],
+          ['risk_step_up_threshold', 'risk_step_up_threshold'],
+          ['risk_block_threshold', 'risk_block_threshold'],
+          ['ip_reputation_check_enabled', 'ip_reputation_check_enabled'],
+          ['brute_force_detection_enabled', 'brute_force_detection_enabled'],
+          ['block_tor_exit_nodes', 'block_tor_exit_nodes'],
+        ]
+        const hit = keywordOrder.find(([keyword]) => lower.includes(keyword))
+        if (hit) {
+          setError(hit[1] as never, { type: 'server', message: parsed.message })
+        }
+      }
       showError(error)
     }
   }
 
   const isBusy = isSubmitting || updateMutation.isPending
 
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
+
   if (isLoading) {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Threat Protection" title="Configure Threat Protection" description="Set threat detection and risk policies." />
+          <FormPageHeader backUrl={backTo} onBack={() => guard(() => navigate(backTo))} backLabel="Back to Threat Protection" title="Configure Threat Protection" description="Set threat detection and risk policies." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -101,6 +150,7 @@ export default function ThreatDetectionPage() {
       <div className="flex flex-col gap-6">
         <FormPageHeader
           backUrl={backTo}
+          onBack={() => guard(() => navigate(backTo))}
           backLabel="Back to Threat Protection"
           title="Configure Threat Protection"
           description="Configure brute-force detection, velocity checks, risk-based step-up, and compromised credential monitoring."
@@ -156,12 +206,23 @@ export default function ThreatDetectionPage() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate(backTo)} disabled={isBusy}>
+            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
               Cancel
             </Button>
             <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

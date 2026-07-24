@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FormUrlField } from "@/components/inputs"
 
 /** A single URI row, tracking its server-side id when it already exists. */
 export interface UriEntry {
@@ -43,7 +43,10 @@ export function UriListField({
       <p className="text-xs text-muted-foreground">{description}</p>
       {items.map((item, index) => (
         <div key={index} className="flex gap-2">
-          <Input
+          <FormUrlField
+            label={`${label} ${index + 1}`}
+            labelClassName="sr-only"
+            containerClassName="flex-1"
             value={item.uri}
             onChange={(event) => onChange(index, event.target.value)}
             placeholder={placeholder}

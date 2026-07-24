@@ -1,7 +1,8 @@
 import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { FieldGroup } from "@/components/ui/field"
-import { FormInputField, FormPasswordField, FormSubmitButton } from "@/components/form"
+import { FormPasswordField, FormSubmitButton } from "@/components/form"
+import { FormEmailField } from "@/components/inputs"
 import { setupAdminSchema, type SetupAdminFormData } from "@/lib/validations"
 import { useSetupAdmin } from "@/hooks/useSetup"
 
@@ -40,11 +41,9 @@ const SetupAdminForm = () => {
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <FieldGroup>
-          <FormInputField
+          <FormEmailField
             label="Email"
-            type="email"
             placeholder="admin@acme.com"
-            autoComplete="email"
             disabled={isLoading}
             error={errors.email?.message}
             required

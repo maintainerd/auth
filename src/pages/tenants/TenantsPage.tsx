@@ -1,16 +1,14 @@
-import { PageContainer, PageHeader } from "@/components/layout"
-import { Building2 } from "lucide-react"
 import { TenantListing } from "./components/TenantListing"
+import { PageHeader } from "@/components/layout"
 
 export default function TenantsPage() {
   return (
-    <PageContainer>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <PageHeader
-        icon={Building2}
         title="Tenants"
         description="Manage your tenant organizations, their status, and authentication settings."
       />
-      <TenantListing />
-    </PageContainer>
+      <TenantListing tableInCard />
+    </div>
   )
 }

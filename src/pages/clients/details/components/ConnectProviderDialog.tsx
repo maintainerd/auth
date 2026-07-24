@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PROVIDER_LABELS } from "@/components/provider-config"
-import { SelectableOptionRow } from "@/pages/registration-flows/components/SelectableOptionRow"
+import { SelectableOptionRow } from "@/components/inputs"
 import { useAddClientIdentityProvider } from "@/hooks/useClients"
 import { useIdentityProviders } from "@/hooks/useIdentityProviders"
 import { useToast } from "@/hooks/useToast"

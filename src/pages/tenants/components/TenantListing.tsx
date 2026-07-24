@@ -3,29 +3,20 @@ import { ResourceListing, type FilterGroup } from "@/components/data-table"
 import { tenantColumns } from "./TenantColumns"
 import { useTenants } from "@/hooks/useTenants"
 import { useNavigate } from "react-router-dom"
-import { useCallback, useMemo } from "react"
 
-const DEFAULT_SORT: SortingState = [{ id: "created_at", desc: true }]
+const DEFAULT_SORT: SortingState = [{ id: "created_at", desc: false }]
 const SEARCH_FIELDS = ["name", "display_name"]
 const FILTER_GROUPS: readonly FilterGroup[] = [
   { key: "status", label: "Status", options: ["active", "inactive", "suspended"] },
 ]
 
-export function TenantListing() {
+export function TenantListing({ tableInCard }: { tableInCard?: boolean } = {}) {
   const navigate = useNavigate()
-
-  const handleEdit = useCallback(
-    (tenant: import("@/services/api/tenants/types").TenantEntity) => {
-      navigate(`/tenants/${tenant.tenant_id}/edit`)
-    },
-    [navigate],
-  )
-
-  const columns = useMemo(() => tenantColumns(handleEdit), [handleEdit])
 
   return (
     <ResourceListing
-      columns={columns}
+      tableInCard={tableInCard}
+      columns={tenantColumns}
       defaultSort={DEFAULT_SORT}
       searchFields={SEARCH_FIELDS}
       searchPlaceholder="Search tenants by name or display name..."

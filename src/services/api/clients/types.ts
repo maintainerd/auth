@@ -87,6 +87,19 @@ export type Client = {
   is_system: boolean
   branding_id?: string | null
   allow_registration: boolean
+  /**
+   * OAuth metadata as ENFORCED by the runtime. These come from real columns; the
+   * `config` blob is only mirrored into them on write, so reading the blob can show
+   * values the server rejected.
+   */
+  token_endpoint_auth_method?: string
+  grant_types?: string[]
+  response_types?: string[]
+  allowed_scopes?: string[]
+  require_consent?: boolean | null
+  access_token_ttl?: number | null
+  refresh_token_ttl?: number | null
+
   // Security posture / per-client overrides. null = inherits the tenant default.
   require_pkce?: boolean | null
   required_acr?: RequiredAcr | null
@@ -142,7 +155,17 @@ export interface ClientListResponse {
  * Single client response interface
  */
 export interface ClientResponse {
+  /**
+   * The MANAGEMENT handle (clients.client_uuid). Named client_id in JSON for
+   * backward compatibility — it is NOT the OAuth client_id. See `identifier`.
+   */
   client_id: string
+  /**
+   * The OAuth 2.0 client_id: the value an application presents at /authorize and
+   * /oauth/token, and what /oauth/connections resolves a client by. Server
+   * generated, so absent until the client exists.
+   */
+  identifier?: string | null
   name: string
   display_name: string
   client_type: ClientType
@@ -155,6 +178,19 @@ export interface ClientResponse {
   is_system: boolean
   branding_id?: string | null
   allow_registration: boolean
+  /**
+   * OAuth metadata as ENFORCED by the runtime. These come from real columns; the
+   * `config` blob is only mirrored into them on write, so reading the blob can show
+   * values the server rejected.
+   */
+  token_endpoint_auth_method?: string
+  grant_types?: string[]
+  response_types?: string[]
+  allowed_scopes?: string[]
+  require_consent?: boolean | null
+  access_token_ttl?: number | null
+  refresh_token_ttl?: number | null
+
   // Security posture / per-client overrides. null = inherits the tenant default.
   require_pkce?: boolean | null
   required_acr?: RequiredAcr | null
@@ -172,13 +208,21 @@ export interface ClientResponse {
  * Create client response. The backend returns plaintext credentials exactly
  * once at creation, alongside the created client resource.
  */
+export interface ClientCredentialsResponse {
+  client_uuid: string
+  /** The OAuth client_id (clients.identifier). */
+  client_id: string
+  /** Plaintext, returned exactly once. Unrecoverable afterwards. */
+  client_secret: string
+}
+
 export interface ClientCreateResponse {
   client: ClientResponse
-  credentials: {
-    client_uuid: string
-    client_id: string
-    client_secret: string
-  }
+  /**
+   * Absent for a public client (spa/mobile): the backend no longer issues a secret
+   * to a client that cannot keep one.
+   */
+  credentials?: ClientCredentialsResponse
 }
 
 /**
@@ -216,6 +260,12 @@ export interface UpdateClientRequest {
   frontchannel_logout_uri?: string | null
   backchannel_logout_session_required?: boolean
   dpop_required?: boolean
+  /**
+   * Optimistic-concurrency token: the `updated_at` this edit was loaded from. An
+   * update replaces the whole client, so without it two operators editing at once
+   * silently overwrite each other. The server answers 409 when the row moved on.
+   */
+  expected_updated_at?: string
 }
 
 /**

@@ -53,7 +53,7 @@ export default function EmailTemplateForm() {
   const { showSuccess, showError, parseError } = useToast()
 
   const navState = location.state as { from?: string; backLabel?: string } | null
-  const backTo = navState?.from ?? `/branding/email-templates`
+  const backTo = navState?.from ?? `/branding?tab=email-templates`
   const backLabel = navState?.backLabel ?? (backTo.includes("email-templates") ? "Back to Email Templates" : "Back")
 
   const { data: templateData, isLoading: isFetchingTemplate } = useEmailTemplate(templateId || '')
@@ -145,7 +145,7 @@ export default function EmailTemplateForm() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel={backLabel} title="Edit Email Template" description="Update the email template details and content." />
+          <FormPageHeader backUrl={backTo} backLabel={backLabel} onBack={() => guard(() => navigate(backTo))} title="Edit Email Template" description="Update the email template details and content." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -165,7 +165,7 @@ export default function EmailTemplateForm() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel={backLabel} title="Edit Email Template" description="Update the email template details and content." />
+          <FormPageHeader backUrl={backTo} backLabel={backLabel} onBack={() => guard(() => navigate(backTo))} title="Edit Email Template" description="Update the email template details and content." />
           <Card>
             <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
               <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">

@@ -18,6 +18,7 @@ import {
   FormSelectField,
   FormDateField,
 } from "@/components/form"
+import { FormUrlField } from "@/components/inputs"
 import { userProfileSchema } from "@/lib/validations"
 import { genderOptions } from "@/lib/constants"
 import { useCreateUserProfile, useUpdateUserProfile } from "@/hooks/useUsers"
@@ -224,7 +225,7 @@ export function ProfileFormDialog({
                   />
                 )}
               />
-              <FormInputField
+              <FormUrlField
                 label="Profile Picture URL"
                 placeholder="https://example.com/avatar.png"
                 maxLength={1000}

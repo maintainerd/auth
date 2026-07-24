@@ -14,7 +14,7 @@ import {
 import { useRoles } from "@/hooks/useRoles"
 import { useAssignRegistrationFlowRoles } from "@/hooks/useRegistrationFlows"
 import { useToast } from "@/hooks/useToast"
-import { SelectableOptionRow } from "../../components/SelectableOptionRow"
+import { SelectableOptionRow } from "@/components/inputs"
 
 interface AssignRegistrationFlowRolesDialogProps {
   open: boolean
@@ -35,13 +35,17 @@ export function AssignRegistrationFlowRolesDialog({
   const { showSuccess, showError } = useToast()
   const assignRolesMutation = useAssignRegistrationFlowRoles()
 
-  // Fetch all roles
-  const { data: rolesData, isLoading: isLoadingRoles } = useRoles({
-    page: 1,
-    limit: 100,
-    sort_by: 'name',
-    sort_order: 'asc'
-  })
+  // Fetch all roles — only while the dialog is open, so opening the details page
+  // doesn't pull 100 roles nobody asked for (mirrors AssignUserRolesDialog).
+  const { data: rolesData, isLoading: isLoadingRoles } = useRoles(
+    {
+      page: 1,
+      limit: 100,
+      sort_by: 'name',
+      sort_order: 'asc'
+    },
+    { enabled: open }
+  )
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -95,16 +99,22 @@ export function AssignRegistrationFlowRolesDialog({
 
   const isLoading = assignRolesMutation.isPending
 
-  // Filter roles based on search query and exclude already assigned roles
-  const filteredRoles = rolesData?.rows.filter(role =>
-    !existingRoleIds.includes(role.role_id) &&
-    (role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    role.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  // A registration flow is redeemed from a public link, so the backend refuses
+  // system roles, inactive roles, and any role carrying an administrative
+  // permission. System and inactive are visible here, so filter them out rather
+  // than letting the operator pick something that will be rejected on save. The
+  // administrative-permission case needs each role's permission set, so it stays
+  // a server-side refusal whose message names the offending permission.
+  const assignableRoles = rolesData?.rows.filter(
+    role => !existingRoleIds.includes(role.role_id) && !role.is_system && role.status === "active"
   ) || []
 
-  const availableRolesCount = rolesData?.rows.filter(
-    role => !existingRoleIds.includes(role.role_id)
-  ).length || 0
+  const filteredRoles = assignableRoles.filter(role =>
+    role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    role.description.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const availableRolesCount = assignableRoles.length
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -112,7 +122,9 @@ export function AssignRegistrationFlowRolesDialog({
         <DialogHeader>
           <DialogTitle>Assign Roles to Registration Flow</DialogTitle>
           <DialogDescription>
-            Select roles to assign to this registration flow. Already assigned roles are not shown.
+            Anyone who registers through this flow&apos;s public link receives these roles, so only
+            non-administrative roles can be assigned. To grant a privileged role, send an invite
+            instead. Already assigned, system and inactive roles are not shown.
           </DialogDescription>
         </DialogHeader>
 

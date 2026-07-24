@@ -3,6 +3,7 @@ import { Workflow } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import type { RegistrationFlow } from "@/services/api/registration-flows/types"
 import { RegistrationFlowActions } from "./RegistrationFlowActions"
+import { CopyableCode } from "@/components/inputs"
 import { DataTableColumnHeader } from "@/components/data-table"
 import { SystemBadge } from "@/components/badges"
 import { StatusBadge } from "@/components/details/StatusBadge"
@@ -16,9 +17,12 @@ export const registrationFlowColumns: ColumnDef<RegistrationFlow>[] = [
       const flow = row.original
       return (
         <div className="flex flex-col gap-1 px-3 py-1 max-w-xs">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Workflow className="size-4 text-muted-foreground shrink-0" />
-            <span className="font-medium">{flow.name}</span>
+            {/* The name is the public registration-link selector, so it reads as
+                code and is copyable straight from the listing. stopPropagation
+                because the row itself navigates. */}
+            <CopyableCode value={flow.name} label="Flow name" stopPropagation />
             <SystemBadge isSystem={flow.is_system} />
           </div>
           <span className="text-sm text-muted-foreground truncate">{flow.description}</span>
@@ -27,28 +31,14 @@ export const registrationFlowColumns: ColumnDef<RegistrationFlow>[] = [
     },
   },
   {
-    id: "Identifier",
-    accessorKey: "identifier",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Identifier" />,
-    cell: ({ row }) => (
-      <div className="px-3 py-1">
-        <code className="rounded bg-muted px-2 py-1 text-sm">{row.getValue("Identifier")}</code>
-      </div>
-    ),
-  },
-  {
     id: "Status",
     accessorKey: "status",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-    cell: ({ row }) => {
-      const status = row.getValue("Status") as string
-      if (!status) return null
-      return (
-        <div className="px-3 py-1">
-          <StatusBadge status={status} />
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <div className="px-3 py-1">
+        <StatusBadge status={row.original.status} />
+      </div>
+    ),
   },
   {
     id: "Created",

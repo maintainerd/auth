@@ -10,17 +10,31 @@ import { FormPageHeader } from '@/components/header'
 import { FormSwitchField, FormInputField, FormTextareaField, FormSubmitButton } from '@/components/form'
 import { useRegistrationConfig, useUpdateRegistrationConfig } from '@/hooks/useRegistrationConfig'
 import { useToast } from '@/hooks/useToast'
+import { ConfirmationDialog } from '@/components/dialog'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import { registrationConfigSchema, type RegistrationConfigFormData } from '@/lib/validations'
+
+const BACKEND_FIELD_MAP: Record<string, string> = {
+  self_registration_enabled: 'self_registration_enabled',
+  require_email_verification: 'require_email_verification',
+  require_phone_verification: 'require_phone_verification',
+  auto_confirm_enabled: 'auto_confirm_enabled',
+  verification_token_ttl_hours: 'verification_token_ttl_hours',
+  captcha_on_signup: 'captcha_on_signup',
+  registration_rate_limit_per_ip_per_hour: 'registration_rate_limit_per_ip_per_hour',
+  allowed_email_domains: 'allowed_email_domains',
+  blocked_email_domains: 'blocked_email_domains',
+}
 
 export default function RegistrationConfigPage() {
   const navigate = useNavigate()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError, parseError } = useToast()
   const backTo = `/security?tab=registration`
 
   const { data: savedConfig, isLoading } = useRegistrationConfig()
   const updateMutation = useUpdateRegistrationConfig()
 
-  const { handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<RegistrationConfigFormData>({
+  const { handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting, isDirty } } = useForm<RegistrationConfigFormData>({
     resolver: yupResolver(registrationConfigSchema),
     defaultValues: {
       self_registration_enabled: true,
@@ -72,17 +86,48 @@ export default function RegistrationConfigPage() {
       showSuccess('Registration configuration saved successfully')
       navigate(backTo)
     } catch (error) {
+      const parsed = parseError(error)
+      let mappedToField = false
+      if (parsed.fieldErrors) {
+        for (const [field, message] of Object.entries(parsed.fieldErrors)) {
+          const formField = BACKEND_FIELD_MAP[field]
+          if (formField) {
+            setError(formField as never, { type: 'server', message })
+            mappedToField = true
+          }
+        }
+      }
+      if (!mappedToField) {
+        const lower = parsed.message.toLowerCase()
+        const keywordOrder: Array<[string, string]> = [
+          ['registration_rate_limit_per_ip_per_hour', 'registration_rate_limit_per_ip_per_hour'],
+          ['verification_token_ttl_hours', 'verification_token_ttl_hours'],
+          ['self_registration_enabled', 'self_registration_enabled'],
+          ['require_phone_verification', 'require_phone_verification'],
+          ['require_email_verification', 'require_email_verification'],
+          ['auto_confirm_enabled', 'auto_confirm_enabled'],
+          ['captcha_on_signup', 'captcha_on_signup'],
+          ['blocked_email_domains', 'blocked_email_domains'],
+          ['allowed_email_domains', 'allowed_email_domains'],
+        ]
+        const hit = keywordOrder.find(([keyword]) => lower.includes(keyword))
+        if (hit) {
+          setError(hit[1] as never, { type: 'server', message: parsed.message })
+        }
+      }
       showError(error)
     }
   }
 
   const isBusy = isSubmitting || updateMutation.isPending
 
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
+
   if (isLoading) {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Registration" title="Configure Registration" description="Set registration and verification policies." />
+          <FormPageHeader backUrl={backTo} onBack={() => guard(() => navigate(backTo))} backLabel="Back to Registration" title="Configure Registration" description="Set registration and verification policies." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -103,6 +148,7 @@ export default function RegistrationConfigPage() {
       <div className="flex flex-col gap-6">
         <FormPageHeader
           backUrl={backTo}
+          onBack={() => guard(() => navigate(backTo))}
           backLabel="Back to Registration"
           title="Configure Registration"
           description="Configure self-registration, verification, domain rules, and rate limiting."
@@ -156,12 +202,23 @@ export default function RegistrationConfigPage() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate(backTo)} disabled={isBusy}>
+            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
               Cancel
             </Button>
             <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

@@ -1,9 +1,9 @@
 /**
- * Registration Flows Hook
- * Custom hook for fetching registration flows using TanStack Query
+ * Registration Flows Hooks
+ * TanStack Query hooks for the registration-flow resource.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   fetchRegistrationFlows,
   fetchRegistrationFlow,
@@ -17,6 +17,7 @@ import {
 } from '@/services/api/registration-flows'
 import type {
   RegistrationFlowQueryParams,
+  RegistrationFlowRolesQueryParams,
   CreateRegistrationFlowRequest,
   UpdateRegistrationFlowRequest,
   UpdateRegistrationFlowStatusRequest
@@ -32,21 +33,44 @@ export const registrationFlowKeys = {
   details: () => [...registrationFlowKeys.all, 'detail'] as const,
   detail: (id: string) => [...registrationFlowKeys.details(), id] as const,
   rolesList: (id: string) => [...registrationFlowKeys.detail(id), 'roles'] as const,
-  roles: (id: string, params?: RegistrationFlowQueryParams) => [...registrationFlowKeys.rolesList(id), params] as const,
+  roles: (id: string, params?: RegistrationFlowRolesQueryParams) =>
+    [...registrationFlowKeys.rolesList(id), params] as const,
 }
 
 /**
- * Hook to fetch registration flows with optional filters and pagination
+ * Hook to fetch registration flows for the listing page.
+ * Maps the shared listing's human-labelled is_system filter ("system"/"regular")
+ * onto the boolean the backend expects — same shape as useIdentityProvidersList.
+ */
+export function useRegistrationFlowsList(params: Record<string, unknown>) {
+  const { is_system, ...rest } = params
+  const queryParams: RegistrationFlowQueryParams = {
+    ...rest as RegistrationFlowQueryParams,
+  }
+
+  if (typeof is_system === 'string') {
+    if (is_system === 'system') queryParams.is_system = true
+    else if (is_system === 'regular') queryParams.is_system = false
+  }
+
+  return useRegistrationFlows(queryParams)
+}
+
+/**
+ * Hook to fetch registration flows with optional filters and pagination.
+ * `keepPreviousData` keeps the current page visible while the next one loads, so
+ * the table doesn't blank out on every page/filter change.
  */
 export function useRegistrationFlows(params?: RegistrationFlowQueryParams) {
   return useQuery({
     queryKey: registrationFlowKeys.list(params),
     queryFn: () => fetchRegistrationFlows(params),
+    placeholderData: keepPreviousData,
   })
 }
 
 /**
- * Hook to fetch a single registration flow by ID
+ * Hook to fetch a single registration flow by ID (detail projection)
  */
 export function useRegistrationFlow(registrationFlowId: string) {
   return useQuery({
@@ -65,14 +89,15 @@ export function useCreateRegistrationFlow() {
   return useMutation({
     mutationFn: (data: CreateRegistrationFlowRequest) => createRegistrationFlow(data),
     onSuccess: () => {
-      // Invalidate registration flows list to refetch
       queryClient.invalidateQueries({ queryKey: registrationFlowKeys.lists() })
     },
   })
 }
 
 /**
- * Hook to update an existing registration flow
+ * Hook to update an existing registration flow.
+ * A successful update may have replaced the flow's role set (role_ids), so the
+ * nested roles listing is invalidated alongside the flow itself.
  */
 export function useUpdateRegistrationFlow() {
   const queryClient = useQueryClient()
@@ -81,7 +106,6 @@ export function useUpdateRegistrationFlow() {
     mutationFn: ({ registrationFlowId, data }: { registrationFlowId: string; data: UpdateRegistrationFlowRequest }) =>
       updateRegistrationFlow(registrationFlowId, data),
     onSuccess: (_, variables) => {
-      // Invalidate the specific registration flow and the list
       queryClient.invalidateQueries({ queryKey: registrationFlowKeys.detail(variables.registrationFlowId) })
       queryClient.invalidateQueries({ queryKey: registrationFlowKeys.lists() })
     },
@@ -97,7 +121,6 @@ export function useDeleteRegistrationFlow() {
   return useMutation({
     mutationFn: (registrationFlowId: string) => deleteRegistrationFlow(registrationFlowId),
     onSuccess: () => {
-      // Invalidate registration flows list to refetch
       queryClient.invalidateQueries({ queryKey: registrationFlowKeys.lists() })
     },
   })
@@ -113,7 +136,6 @@ export function useUpdateRegistrationFlowStatus() {
     mutationFn: ({ registrationFlowId, data }: { registrationFlowId: string; data: UpdateRegistrationFlowStatusRequest }) =>
       updateRegistrationFlowStatus(registrationFlowId, data),
     onSuccess: (_, variables) => {
-      // Invalidate the specific registration flow and the list
       queryClient.invalidateQueries({ queryKey: registrationFlowKeys.detail(variables.registrationFlowId) })
       queryClient.invalidateQueries({ queryKey: registrationFlowKeys.lists() })
     },
@@ -121,18 +143,27 @@ export function useUpdateRegistrationFlowStatus() {
 }
 
 /**
- * Hook to fetch roles associated with a registration flow
+ * Hook to fetch roles associated with a registration flow.
+ * `options.enabled` lets a caller (e.g. a dialog, or the create form) avoid
+ * fetching until the data is actually needed.
  */
-export function useRegistrationFlowRoles(registrationFlowId: string, params?: RegistrationFlowQueryParams) {
+export function useRegistrationFlowRoles(
+  registrationFlowId: string,
+  params?: RegistrationFlowRolesQueryParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: registrationFlowKeys.roles(registrationFlowId, params),
     queryFn: () => fetchRegistrationFlowRoles(registrationFlowId, params),
-    enabled: !!registrationFlowId,
+    placeholderData: keepPreviousData,
+    enabled: !!registrationFlowId && (options?.enabled ?? true),
   })
 }
 
 /**
- * Hook to assign roles to a registration flow
+ * Hook to assign roles to a registration flow.
+ * Assignment replaces the flow's role set, so both the roles listing and the
+ * flow detail are invalidated.
  */
 export function useAssignRegistrationFlowRoles() {
   const queryClient = useQueryClient()
@@ -141,8 +172,8 @@ export function useAssignRegistrationFlowRoles() {
     mutationFn: ({ registrationFlowId, data }: { registrationFlowId: string; data: { role_uuids: string[] } }) =>
       assignRegistrationFlowRoles(registrationFlowId, data.role_uuids),
     onSuccess: (_, variables) => {
-      // Invalidate the roles list for this registration flow
       queryClient.invalidateQueries({ queryKey: registrationFlowKeys.rolesList(variables.registrationFlowId) })
+      queryClient.invalidateQueries({ queryKey: registrationFlowKeys.detail(variables.registrationFlowId) })
     },
   })
 }
@@ -157,9 +188,8 @@ export function useRemoveRegistrationFlowRole() {
     mutationFn: ({ registrationFlowId, roleId }: { registrationFlowId: string; roleId: string }) =>
       removeRegistrationFlowRole(registrationFlowId, roleId),
     onSuccess: (_, variables) => {
-      // Invalidate the roles list for this registration flow
       queryClient.invalidateQueries({ queryKey: registrationFlowKeys.rolesList(variables.registrationFlowId) })
+      queryClient.invalidateQueries({ queryKey: registrationFlowKeys.detail(variables.registrationFlowId) })
     },
   })
 }
-

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ConfirmationDialog } from "@/components/dialog"
+import { FormEmailField } from "@/components/inputs"
 import { useToast } from "@/hooks/useToast"
 import { beginEmailOtpEnrollment, verifyEmailOtpEnrollment, disableEmailOtp, fetchMFAStatus } from "@/services/api/mfa"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -108,11 +109,14 @@ export default function EmailOtpSetupPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
-              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <p className="text-xs text-muted-foreground">We'll send a 6-digit verification code to this address.</p>
-            </div>
+            <FormEmailField
+              id="email"
+              label="Email address"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              description="We'll send a 6-digit verification code to this address."
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => navigate(hub)}>Cancel</Button>
               <Button onClick={() => sendMutation.mutate({ email: email.trim() })} disabled={!email.trim() || sendMutation.isPending}>

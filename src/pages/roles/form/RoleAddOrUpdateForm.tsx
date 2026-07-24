@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, Controller, type Resolver } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -51,7 +51,7 @@ export default function RoleAddOrUpdateForm() {
     setError,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<RoleFormData>({
-    resolver: yupResolver(roleSchema),
+    resolver: yupResolver(roleSchema) as Resolver<RoleFormData>,
     defaultValues: { name: "", description: "", status: "active" },
     mode: "onTouched",
     reValidateMode: "onChange",
@@ -70,7 +70,7 @@ export default function RoleAddOrUpdateForm() {
 
   const onSubmit = async (data: RoleFormData) => {
     try {
-      const requestData = { name: data.name, description: data.description, status: data.status }
+      const requestData = { name: data.name, description: data.description ?? "", status: data.status }
       if (isCreating) {
         await createRoleMutation.mutateAsync(requestData)
         showSuccess("Role created successfully")

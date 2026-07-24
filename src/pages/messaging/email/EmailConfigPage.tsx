@@ -16,7 +16,10 @@ import {
   FormSubmitButton,
   type SelectOption,
 } from "@/components/form"
+import { FormEmailField, FormUrlField } from "@/components/inputs"
 import { useToast } from "@/hooks/useToast"
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
+import { ConfirmationDialog } from "@/components/dialog"
 import { fetchEmailConfig, updateEmailConfig, type EmailConfigUpdate } from "@/services/api/notifier"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
@@ -84,7 +87,8 @@ export default function EmailConfigPage() {
   } = useForm<FormData>({
     resolver: yupResolver(schema) as Resolver<FormData>,
     defaultValues: { provider: "smtp", from_address: "", encryption: "tls", test_mode: false },
-    mode: "onSubmit",
+    mode: "onTouched",
+    reValidateMode: "onChange",
   })
 
   useEffect(() => {
@@ -113,17 +117,13 @@ export default function EmailConfigPage() {
   const isConfigured = Boolean(data?.provider && data?.from_address)
   const providerChanged = isConfigured && selectedProvider !== data?.provider
 
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
+
   const mutation = useMutation({
     mutationFn: updateEmailConfig,
-    onSuccess: () => {
-      showSuccess("Email delivery settings saved")
-      queryClient.invalidateQueries({ queryKey: ["email-config"] })
-      navigate(backTo)
-    },
-    onError: (e) => showError(e),
   })
 
-  const onSubmit: SubmitHandler<FormData> = (formData) => {
+  const onSubmit: SubmitHandler<FormData> = async (formData) => {
     if (providerChanged && !formData.password) {
       setError("password", {
         type: "manual",
@@ -144,7 +144,14 @@ export default function EmailConfigPage() {
       ...(meta.usernameLabel ? { username: formData.username } : {}),
       ...(formData.password ? { password: formData.password } : {}),
     }
-    mutation.mutate(payload)
+    try {
+      await mutation.mutateAsync(payload)
+      showSuccess("Email delivery settings saved")
+      queryClient.invalidateQueries({ queryKey: ["email-config"] })
+      navigate(backTo)
+    } catch (e) {
+      showError(e)
+    }
   }
 
   const secretDescription = providerChanged
@@ -159,7 +166,7 @@ export default function EmailConfigPage() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Email Delivery" title="Configure Email Delivery" description="Connect an email provider to send platform emails." />
+          <FormPageHeader backUrl={backTo} backLabel="Back to Email Delivery" onBack={() => guard(() => navigate(backTo))} title="Configure Email Delivery" description="Connect an email provider to send platform emails." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -179,7 +186,7 @@ export default function EmailConfigPage() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Email Delivery" title="Configure Email Delivery" description="Connect an email provider to send platform emails." />
+          <FormPageHeader backUrl={backTo} backLabel="Back to Email Delivery" onBack={() => guard(() => navigate(backTo))} title="Configure Email Delivery" description="Connect an email provider to send platform emails." />
           <Card>
             <CardContent className="py-12 text-center text-sm text-destructive">
               Failed to load email configuration. {(error as Error)?.message || ""}
@@ -196,6 +203,7 @@ export default function EmailConfigPage() {
         <FormPageHeader
           backUrl={backTo}
           backLabel="Back to Email Delivery"
+          onBack={() => guard(() => navigate(backTo))}
           title="Configure Email Delivery"
           description="Connect an email provider so the platform can send verification, security, and notification emails."
         />
@@ -280,10 +288,10 @@ export default function EmailConfigPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <FormInputField label="From Address" placeholder="noreply@example.com" disabled={isBusy} error={errors.from_address?.message} required {...register("from_address")} />
+                <FormEmailField label="From Address" placeholder="noreply@example.com" disabled={isBusy} error={errors.from_address?.message} required {...register("from_address")} />
                 <FormInputField label="From Name" placeholder="Your App" disabled={isBusy} error={errors.from_name?.message} {...register("from_name")} />
-                <FormInputField label="Reply-To" placeholder="support@example.com" disabled={isBusy} error={errors.reply_to?.message} {...register("reply_to")} />
-                <FormInputField label="Logo URL" placeholder="https://example.com/logo.png" disabled={isBusy} error={errors.logo_url?.message} {...register("logo_url")} />
+                <FormEmailField label="Reply-To" placeholder="support@example.com" disabled={isBusy} error={errors.reply_to?.message} {...register("reply_to")} />
+                <FormUrlField label="Logo URL" placeholder="https://example.com/logo.png" disabled={isBusy} error={errors.logo_url?.message} {...register("logo_url")} />
               </div>
 
               <Controller
@@ -303,12 +311,23 @@ export default function EmailConfigPage() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate(backTo)} disabled={isBusy}>
+            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
               Cancel
             </Button>
             <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" disabled={!isDirty} />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

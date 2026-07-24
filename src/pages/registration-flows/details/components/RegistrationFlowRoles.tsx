@@ -5,7 +5,6 @@ import { Shield, Plus, Trash2, Eye, Calendar } from "lucide-react"
 import { safeFormat } from "@/lib/formatDate"
 import { Button } from "@/components/ui/button"
 import { InformationCard } from "@/components/card"
-import { SystemBadge } from "@/components/badges"
 import { EmptyState, ListSkeleton, StatusBadge } from "@/components/details"
 import { DataTablePagination, usePaginationTable, RowActions, type RowActionItem } from "@/components/data-table"
 import { useRegistrationFlowRoles, useRemoveRegistrationFlowRole } from "@/hooks/useRegistrationFlows"
@@ -73,7 +72,7 @@ export function RegistrationFlowRoles({ registrationFlowId }: RegistrationFlowRo
             <EmptyState
               icon={Shield}
               title="No roles assigned"
-              description="Assign roles to automatically grant them to users who complete this registration flow."
+              description="Users who complete this flow still receive the default registered role. Assign roles here to grant more on top of it."
             />
           )}
 

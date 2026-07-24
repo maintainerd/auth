@@ -65,7 +65,7 @@ export default function InviteForm() {
     formState: { errors, isSubmitting, isDirty },
   } = useForm<InviteFormData>({
     resolver: yupResolver(inviteSchema) as unknown as Resolver<InviteFormData>,
-    defaultValues: { email: "", callback_url: "" },
+    defaultValues: { email: "" },
     mode: "onTouched",
     reValidateMode: "onChange",
   })

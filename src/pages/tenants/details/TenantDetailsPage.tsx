@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { Users } from "lucide-react"
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DetailTabs } from "@/components/details/DetailTabs"
@@ -6,9 +6,25 @@ import { DetailLayout } from "@/components/details"
 import { useTenantById } from "@/hooks/useTenants"
 import { TenantHeader, TenantMembers } from "./components"
 
+const TABS = [
+  { value: "members", label: "Members", icon: Users },
+] as const
+
+type TenantDetailsTab = typeof TABS[number]["value"]
+
+const TAB_VALUES = new Set<string>(TABS.map((tab) => tab.value))
+
 export default function TenantDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const requestedTab = searchParams.get("tab")
+  const activeTab: TenantDetailsTab = TAB_VALUES.has(requestedTab || "")
+    ? requestedTab as TenantDetailsTab
+    : "members"
+
+  const handleTabChange = (tab: string) => setSearchParams({ tab })
 
   const { data: tenant, isLoading, isError } = useTenantById(id)
 
@@ -23,14 +39,16 @@ export default function TenantDetailsPage() {
     >
       {tenant && (
         <>
-          <TenantHeader tenant={tenant} />
+          <TenantHeader tenant={tenant} tenantId={id!} />
 
-          <DetailTabs defaultValue="members">
-            <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1 md:w-fit">
-              <TabsTrigger value="members" className="h-8 flex-none gap-2 px-3">
-                <Users className="size-4" />
-                Members
-              </TabsTrigger>
+          <DetailTabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList>
+              {TABS.map(({ value, label, icon: Icon }) => (
+                <TabsTrigger key={value} value={value} className="gap-2">
+                  <Icon className="size-4" />
+                  {label}
+                </TabsTrigger>
+              ))}
             </TabsList>
 
             <TabsContent value="members">

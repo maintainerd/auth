@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { CopyableCode } from "@/components/inputs"
 import { DetailsContainer } from "@/components/container"
 import { FormPageHeader } from "@/components/header"
 import {
@@ -15,11 +17,12 @@ import {
   FormSelectField,
   FormSwitchField,
   FormSubmitButton,
+  FormTextareaField,
   type SelectOption
 } from "@/components/form"
-import { FormUrlField, MetadataFieldEditor } from "@/components/inputs"
+import { FormSlugField, FormUrlField, MetadataFieldEditor } from "@/components/inputs"
 import { ConfirmationDialog } from "@/components/dialog"
-import { clientSchema, type ClientFormData } from "@/lib/validations"
+import { clientSchema, validateClientOAuthConfig, type ClientFormData } from "@/lib/validations"
 import { useAppSelector } from "@/store/hooks"
 import {
   useClient,
@@ -27,6 +30,7 @@ import {
   useUpdateClient,
   useClientConfig,
   useCreateClientUri,
+  useDeleteClientUri,
   useUpdateClientUri
 } from "@/hooks/useClients"
 import { useToast } from "@/hooks/useToast"
@@ -38,11 +42,13 @@ import type {
   UpdateClientRequest,
   ClientType,
   ClientStatus,
-  ClientUriType
+  ClientUriType,
+  ClientCredentialsResponse
 } from "@/services/api/clients/types"
 import {
   COMMON_CLIENT_CONFIG_KEYS,
   getClientMetadata,
+  getPassthroughClientConfig,
   parseBooleanConfigValue,
   parseNumberConfigValue,
   parseStringArrayConfigValue,
@@ -59,6 +65,8 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
 ]
+
+const sanitizeClientName = (raw: string) => raw.replace(/[^a-z0-9-_]/g, "").toLowerCase()
 
 // Required authentication level (ACR) override. "inherit" is the sentinel for
 // "no override" — the client follows the tenant security policy. It maps to an
@@ -114,11 +122,20 @@ export default function ClientAddOrUpdateForm() {
 
   // URI mutations (URIs are now included in client response, no need to fetch separately)
   const createClientUriMutation = useCreateClientUri()
+  const deleteClientUriMutation = useDeleteClientUri()
   const updateClientUriMutation = useUpdateClientUri()
 
   // Application URIs state (with IDs for tracking existing URIs)
   const [loginUri, setLoginUri] = useState<UriEntry>({ uri: "" })
   const [redirectUris, setRedirectUris] = useState<UriEntry[]>([{ uri: "" }])
+  // The one-time plaintext credentials from creation. Held so the operator can copy
+  // them before leaving; the secret is unrecoverable afterwards.
+  const [issuedSecret, setIssuedSecret] = useState<ClientCredentialsResponse | null>(null)
+  // URI ids as hydrated from the server, per type, so removals can be diffed and
+  // deleted on save.
+  const originalUriIds = useRef<Record<ClientUriType, string[]>>({
+    redirect_uri: [], login_uri: [], origin_uri: [], logout_uri: [], cors_origin_uri: [],
+  })
   const [allowedOrigins, setAllowedOrigins] = useState<UriEntry[]>([{ uri: "" }])
   const [allowedLogoutUrls, setAllowedLogoutUrls] = useState<UriEntry[]>([{ uri: "" }])
 
@@ -148,6 +165,24 @@ export default function ClientAddOrUpdateForm() {
   ]
   const [refreshTokenRotation, setRefreshTokenRotation] = useState<boolean>(false)
   const [multiResourceRefreshToken, setMultiResourceRefreshToken] = useState<boolean>(false)
+
+  // Sender-constrained tokens (RFC 9449) and the OIDC logout endpoints. These are
+  // first-class client columns, not config keys, so they travel on the request body.
+  const [dpopRequired, setDpopRequired] = useState<boolean>(false)
+  const [backchannelLogoutUri, setBackchannelLogoutUri] = useState<string>("")
+  const [frontchannelLogoutUri, setFrontchannelLogoutUri] = useState<string>("")
+  const [backchannelLogoutSessionRequired, setBackchannelLogoutSessionRequired] = useState<boolean>(false)
+
+  // The client's public keys, used by private_key_jwt to verify client assertions.
+  // Exactly one of the two is stored (RFC 7591 §2).
+  const [jwks, setJwks] = useState<string>("")
+  const [jwksUri, setJwksUri] = useState<string>("")
+
+  // Config keys this form does not edit (mTLS thumbprint, claim mappings, legacy
+  // lists) are carried through verbatim on save. The blob is replaced wholesale and
+  // the server now clears any mirrored column whose key is absent, so dropping them
+  // here would silently revoke settings the operator never saw.
+  const passthroughConfig = useRef<Record<string, unknown>>({})
 
   // Per-client security overrides. Empty / "inherit" means follow the tenant
   // security policy (persisted as an absent key, resolved server-side).
@@ -229,6 +264,10 @@ export default function ClientAddOrUpdateForm() {
         status: clientData.status,
       })
       setAllowRegistration(clientData.allow_registration ?? true)
+      setDpopRequired(clientData.dpop_required ?? false)
+      setBackchannelLogoutUri(clientData.backchannel_logout_uri ?? "")
+      setFrontchannelLogoutUri(clientData.frontchannel_logout_uri ?? "")
+      setBackchannelLogoutSessionRequired(clientData.backchannel_logout_session_required ?? false)
       setBrandingId(clientData.branding_id || NO_BRANDING)
       // Mark the hydrated type as current so the defaults effect doesn't
       // overwrite the loaded OAuth configuration below.
@@ -244,6 +283,14 @@ export default function ClientAddOrUpdateForm() {
       const loginUriData = uris.find(u => u.type === 'login_uri')
       if (loginUriData) {
         setLoginUri({ uri: loginUriData.uri, id: loginUriData.uri_id })
+      }
+
+      // Snapshot the server's ids so removals can be detected on save.
+      for (const type of ['redirect_uri', 'login_uri', 'origin_uri', 'logout_uri', 'cors_origin_uri'] as ClientUriType[]) {
+        originalUriIds.current[type] = uris
+          .filter((u) => u.type === type)
+          .map((u) => u.uri_id)
+          .filter(Boolean)
       }
 
       const redirectUrisData = uris.filter(u => u.type === 'redirect_uri')
@@ -275,10 +322,24 @@ export default function ClientAddOrUpdateForm() {
 
       setGrantTypes(parseStringArrayConfigValue(config.grant_types, ["authorization_code", "refresh_token"]))
       setResponseTypes(parseStringArrayConfigValue(config.response_types, ["code"]))
-      setTokenEndpointAuthMethod(parseStringConfigValue(config.token_endpoint_auth_method, "none"))
+      // Fall back to the client type's own default, NOT "none". The column
+      // default is client_secret_basic, so a confidential client whose config blob
+      // lacks the key would otherwise hydrate as "none" — and saving that
+      // downgraded it to a public client with no credential.
+      // Derive the fallback from the FETCHED client's type rather than the watched
+      // form state: this effect can run before the form reset has applied, so the
+      // watched type may still be the create-mode default.
+      const fetchedCapability = getClientTypeCapability(clientData?.client_type ?? clientType)
+      setTokenEndpointAuthMethod(
+        parseStringConfigValue(config.token_endpoint_auth_method, fetchedCapability.defaultAuthMethod)
+      )
       setAllowedScopes(parseStringArrayConfigValue(config.allowed_scopes).join(", "))
       setRequireConsent(parseBooleanConfigValue(config.require_consent ?? config.consent_required, true))
-      setPkceRequired(parseBooleanConfigValue(config.pkce_required, false))
+      // Default TRUE, matching the DB column default. Falling back to false meant
+      // an absent key silently disabled PKCE on save.
+      setPkceRequired(
+        parseBooleanConfigValue(config.require_pkce ?? config.pkce_required, true)
+      )
 
       if (config.cors_enabled !== undefined) {
         setCorsEnabled(parseBooleanConfigValue(config.cors_enabled))
@@ -307,9 +368,16 @@ export default function ClientAddOrUpdateForm() {
         config.session_absolute_timeout != null ? String(parseNumberConfigValue(config.session_absolute_timeout, 0) || "") : ""
       )
 
+      // The keys endpoint reports the EFFECTIVE config, so these are the values the
+      // runtime is enforcing rather than whatever was last written to the blob.
+      setJwks(config.jwks ? JSON.stringify(config.jwks, null, 2) : "")
+      setJwksUri(parseStringConfigValue(config.jwks_uri, ""))
+
+      passthroughConfig.current = getPassthroughClientConfig(config)
+
       resetFields(getClientMetadata(config))
     }
-  }, [isEditing, clientConfigData, resetFields])
+  }, [isEditing, clientConfigData, clientData?.client_type, clientType, resetFields])
 
   const toggleConfigValue = (
     value: string,
@@ -354,6 +422,7 @@ export default function ClientAddOrUpdateForm() {
   const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty || isLocalDirty)
 
   const onSubmit = async (formData: ClientFormData) => {
+    let issuedCredentials: ClientCredentialsResponse | null = null
     if (!currentTenant) {
       showError("Tenant information not available")
       return
@@ -364,29 +433,47 @@ export default function ClientAddOrUpdateForm() {
       return
     }
 
-    if (grantTypes.length === 0) {
-      showError("Select at least one grant type")
-      return
-    }
-
     if (capability.showResponseTypes && responseTypes.length === 0) {
       showError("Select at least one response type")
       return
     }
 
-    // Validate the optional session-timeout overrides before building config.
     const idleTimeout = sessionIdleTimeout.trim() === "" ? null : Number(sessionIdleTimeout)
     const absoluteTimeout = sessionAbsoluteTimeout.trim() === "" ? null : Number(sessionAbsoluteTimeout)
-    if (idleTimeout !== null && (!Number.isFinite(idleTimeout) || idleTimeout <= 0)) {
-      showError("Session idle timeout must be a positive number of seconds")
+    if (idleTimeout !== null && !Number.isFinite(idleTimeout)) {
+      showError("Session idle timeout must be a number of seconds")
       return
     }
-    if (absoluteTimeout !== null && (!Number.isFinite(absoluteTimeout) || absoluteTimeout <= 0)) {
-      showError("Session absolute timeout must be a positive number of seconds")
+    if (absoluteTimeout !== null && !Number.isFinite(absoluteTimeout)) {
+      showError("Session absolute timeout must be a number of seconds")
       return
     }
-    if (idleTimeout !== null && absoluteTimeout !== null && absoluteTimeout < idleTimeout) {
-      showError("Session absolute timeout must be greater than or equal to the idle timeout")
+
+    // These fields live in component state, so the react-hook-form resolver cannot
+    // see them. validateClientOAuthConfig holds the same cross-field rules the
+    // backend enforces (ValidateClientOAuthMatrix plus the DB CHECK constraints),
+    // so an invalid combination is reported here rather than as a 400 on save.
+    const oauthErrors = validateClientOAuthConfig({
+      clientType: formData.clientType,
+      tokenEndpointAuthMethod: capability.authMethodOptions.length > 0 ? tokenEndpointAuthMethod : undefined,
+      grantTypes,
+      allowedScopes: allowedScopes
+        .split(/[\s,]+/)
+        .map((sc) => sc.trim())
+        .filter(Boolean),
+      accessTokenTtl: accessTokenLifetime,
+      refreshTokenTtl: refreshTokenLifetime,
+      sessionIdleTimeout: idleTimeout ?? undefined,
+      sessionAbsoluteTimeout: absoluteTimeout ?? undefined,
+      backchannelLogoutUri,
+      backchannelLogoutSessionRequired,
+      redirectUris: capability.showRedirectUris ? redirectUris.map((u) => u.uri) : [],
+      jwks,
+      jwksUri,
+    })
+    const firstOAuthError = Object.values(oauthErrors)[0]
+    if (firstOAuthError) {
+      showError(firstOAuthError)
       return
     }
 
@@ -397,16 +484,18 @@ export default function ClientAddOrUpdateForm() {
         .filter(Boolean)
 
       // Build config object. URIs are managed separately via the client URI API.
-      const config: Record<string, string | number | boolean | string[] | Record<string, string>> = {}
+      // Seeded with the keys this form does not edit so saving cannot drop them.
+      const config: Record<string, unknown> = { ...passthroughConfig.current }
 
       config.grant_types = grantTypes
       config.response_types = capability.showResponseTypes ? responseTypes : []
       config.token_endpoint_auth_method = tokenEndpointAuthMethod
       config.require_consent = requireConsent
       config.pkce_required = pkceForced ? true : pkceRequired
-      if (normalizedScopes.length > 0) {
-        config.allowed_scopes = normalizedScopes
-      }
+      // Always sent, including empty: omitting it would leave a previously set
+      // allowlist in place, so the last scope could never be removed. An empty list
+      // means "every scope", which the matrix refuses for client_credentials.
+      config.allowed_scopes = normalizedScopes
 
       config.cors_enabled = capability.showCors ? corsEnabled : false
 
@@ -426,6 +515,15 @@ export default function ClientAddOrUpdateForm() {
         config.session_absolute_timeout = absoluteTimeout
       }
 
+      // Exactly one key source, matching RFC 7591 §2 and the server's mapping.
+      const trimmedJwksUri = jwksUri.trim()
+      const trimmedJwks = jwks.trim()
+      if (trimmedJwks) {
+        config.jwks = JSON.parse(trimmedJwks)
+      } else if (trimmedJwksUri) {
+        config.jwks_uri = trimmedJwksUri
+      }
+
       const customConfig = buildPayload()
       if (customConfig) {
         config.custom = customConfig
@@ -443,6 +541,17 @@ export default function ClientAddOrUpdateForm() {
           branding_id: brandingId !== NO_BRANDING ? brandingId : undefined,
           allow_registration: allowRegistration,
           config,
+          // Always sent, empty included: the server reads an omitted key as
+          // "unchanged" and an empty string as "clear", so sending "" is the only way
+          // to remove a logout URI.
+          backchannel_logout_uri: backchannelLogoutUri.trim(),
+          frontchannel_logout_uri: frontchannelLogoutUri.trim(),
+          backchannel_logout_session_required: backchannelLogoutSessionRequired,
+          dpop_required: dpopRequired,
+          // The version this form was loaded from. The server answers 409 if someone
+          // else changed the client meanwhile, instead of letting this submission
+          // silently overwrite their edit.
+          expected_updated_at: clientData?.updated_at,
         }
 
         await updateClientMutation.mutateAsync({ clientId, data: updatePayload })
@@ -456,10 +565,20 @@ export default function ClientAddOrUpdateForm() {
           branding_id: brandingId !== NO_BRANDING ? brandingId : undefined,
           allow_registration: allowRegistration,
           config,
+          // Always sent, empty included: the server reads an omitted key as
+          // "unchanged" and an empty string as "clear", so sending "" is the only way
+          // to remove a logout URI.
+          backchannel_logout_uri: backchannelLogoutUri.trim(),
+          frontchannel_logout_uri: frontchannelLogoutUri.trim(),
+          backchannel_logout_session_required: backchannelLogoutSessionRequired,
+          dpop_required: dpopRequired,
         }
 
         const createdClient = await createClientMutation.mutateAsync(createPayload)
         targetClientId = createdClient.client.client_id
+        // Held for the one-time panel below rather than discarded: this plaintext
+        // is unrecoverable.
+        issuedCredentials = createdClient.credentials ?? null
       }
 
       // Persist URIs via the URIs API — only the lists relevant to this client type.
@@ -482,24 +601,46 @@ export default function ClientAddOrUpdateForm() {
           }
         }
 
+        // Ids that were hydrated but are no longer present were removed by the
+        // operator; the allowlist has to shrink as well as grow.
+        const deleteRemovedUris = async (current: UriEntry[], originalIds: string[]) => {
+          const keptIds = new Set(current.filter((u) => u.id).map((u) => u.id as string))
+          for (const id of originalIds) {
+            if (!keptIds.has(id)) {
+              await deleteClientUriMutation.mutateAsync({ clientId: targetClientId!, clientUriId: id })
+            }
+          }
+        }
+
         if (capability.showLoginUri) {
           await manageUris([loginUri], 'login_uri')
+          await deleteRemovedUris([loginUri], originalUriIds.current.login_uri)
         }
         if (capability.showRedirectUris) {
           await manageUris(redirectUris, 'redirect_uri')
+          await deleteRemovedUris(redirectUris, originalUriIds.current.redirect_uri)
         }
         if (capability.showAllowedOrigins) {
           await manageUris(allowedOrigins, 'origin_uri')
+          await deleteRemovedUris(allowedOrigins, originalUriIds.current.origin_uri)
         }
         if (capability.showLogoutUrls) {
           await manageUris(allowedLogoutUrls, 'logout_uri')
+          await deleteRemovedUris(allowedLogoutUrls, originalUriIds.current.logout_uri)
         }
         if (capability.showCors && corsEnabled) {
           await manageUris(corsAllowedOrigins, 'cors_origin_uri')
+          await deleteRemovedUris(corsAllowedOrigins, originalUriIds.current.cors_origin_uri)
         }
       }
 
       showSuccess(isEditing ? "Client updated successfully" : "Client created successfully")
+      if (issuedCredentials?.client_secret) {
+        // Stay put until the operator confirms they stored it — the secret cannot
+        // be retrieved again.
+        setIssuedSecret(issuedCredentials)
+        return
+      }
       navigate(backTo)
     } catch (error: unknown) {
       // Route backend errors onto the offending field where we can: structured
@@ -543,6 +684,10 @@ export default function ClientAddOrUpdateForm() {
     : "Configure a new OAuth client for your application"
 
   const showUriCard = hasApplicationUris(capability)
+  // Shown for private_key_jwt (which cannot authenticate without keys) and whenever
+  // keys are already registered, so they stay visible and removable.
+  const showClientKeysCard =
+    tokenEndpointAuthMethod === "private_key_jwt" || !!jwks.trim() || !!jwksUri.trim()
   const isSystemClient = Boolean(clientData?.is_system)
 
   // Loading state while fetching the client to edit
@@ -604,6 +749,56 @@ export default function ClientAddOrUpdateForm() {
     )
   }
 
+  if (issuedSecret) {
+    return (
+      <DetailsContainer>
+        <div className="flex flex-col gap-6">
+          <FormPageHeader
+            backUrl={backTo}
+            backLabel={backLabel}
+            onBack={() => navigate(backTo)}
+            title="Client created"
+            description="Store these credentials now — the secret cannot be retrieved again."
+          />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Client credentials</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <Alert variant="destructive">
+                <AlertCircle className="size-4" />
+                <AlertDescription>
+                  This is the only time the client secret is shown. If you lose it you must rotate
+                  the secret, which invalidates the old one.
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-1">
+                <Label>Client ID</Label>
+                <CopyableCode value={issuedSecret.client_id} label="Client ID" variant="block" />
+              </div>
+              <div className="space-y-1">
+                <Label>Client secret</Label>
+                <CopyableCode
+                  value={issuedSecret.client_secret}
+                  label="Client secret"
+                  variant="block"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="button" onClick={() => navigate(backTo)}>
+                  I have stored these credentials
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DetailsContainer>
+    )
+  }
+
   return (
     <DetailsContainer>
       <div className="flex flex-col gap-6">
@@ -628,10 +823,11 @@ export default function ClientAddOrUpdateForm() {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormInputField
+              <FormSlugField
                 label="Name"
                 placeholder="e.g., medlexer-public"
-                description="Lowercase letters, numbers, and hyphens only"
+                description="Lowercase letters, numbers, hyphens, and underscores only"
+                sanitize={sanitizeClientName}
                 disabled={isSystemClient || isLoading}
                 error={errors.name?.message}
                 required
@@ -869,6 +1065,90 @@ export default function ClientAddOrUpdateForm() {
                 description="Allow one refresh token to receive access tokens for multiple APIs"
                 checked={multiResourceRefreshToken}
                 onCheckedChange={(checked) => { markDirty(); setMultiResourceRefreshToken(checked) }}
+                disabled={isLoading}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Client Keys — required for private_key_jwt, which verifies the client
+              assertion against these keys. */}
+          {showClientKeysCard && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Client Keys</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  The client&apos;s <strong>public</strong> keys, used to verify the signed client
+                  assertion. Provide either a JWKS URL or an inline JWK Set — not both.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormUrlField
+                  label="JWKS URL"
+                  placeholder="https://your-app.com/.well-known/jwks.json"
+                  description="Fetched over https when a client assertion is verified. Preferred, because rotating a key needs no change here."
+                  value={jwksUri}
+                  onChange={(e) => { markDirty(); setJwksUri(e.target.value) }}
+                  disabled={isLoading || !!jwks.trim()}
+                />
+
+                <FormTextareaField
+                  label="Inline JWK Set"
+                  rows={8}
+                  className="font-mono text-xs"
+                  placeholder={'{\n  "keys": [\n    { "kty": "RSA", "kid": "...", "n": "...", "e": "AQAB" }\n  ]\n}'}
+                  description="Paste the public JWK Set. Never paste a private key — the server rejects any JWK containing a private component."
+                  value={jwks}
+                  onChange={(e) => { markDirty(); setJwks(e.target.value) }}
+                  disabled={isLoading || !!jwksUri.trim()}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Token binding & logout endpoints — first-class client settings, not
+              config keys. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Token Binding &amp; Logout</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Sender-constrained tokens and the OIDC logout endpoints this client exposes.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormSwitchField
+                id="dpop-required"
+                label="Require DPoP (sender-constrained tokens)"
+                description="Binds this client's tokens to a key it holds, so a stolen token is useless without the private key. The client must send a DPoP proof on every token and API request."
+                checked={dpopRequired}
+                onCheckedChange={(checked) => { markDirty(); setDpopRequired(checked) }}
+                disabled={isSystemClient || isLoading}
+                containerClassName="rounded-md border p-4"
+              />
+
+              <FormUrlField
+                label="Back-channel Logout URI"
+                placeholder="https://your-app.com/logout/backchannel"
+                description="Server-to-server endpoint notified when the user's session ends. Called without a browser, so it must be reachable from this server."
+                value={backchannelLogoutUri}
+                onChange={(e) => { markDirty(); setBackchannelLogoutUri(e.target.value) }}
+                disabled={isLoading}
+              />
+
+              <FormSwitchField
+                id="backchannel-logout-session-required"
+                label="Include the session ID in back-channel logout"
+                description="Sends the sid claim in the logout token so the client can end one session instead of all of the user's sessions."
+                checked={backchannelLogoutSessionRequired}
+                onCheckedChange={(checked) => { markDirty(); setBackchannelLogoutSessionRequired(checked) }}
+                disabled={isLoading || !backchannelLogoutUri.trim()}
+              />
+
+              <FormUrlField
+                label="Front-channel Logout URI"
+                placeholder="https://your-app.com/logout/frontchannel"
+                description="Loaded in a hidden iframe during logout so the client can clear its own browser session."
+                value={frontchannelLogoutUri}
+                onChange={(e) => { markDirty(); setFrontchannelLogoutUri(e.target.value) }}
                 disabled={isLoading}
               />
             </CardContent>

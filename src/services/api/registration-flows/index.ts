@@ -1,60 +1,42 @@
 /**
- * Registration Flow API Service (backend resource: /registration_flows)
- * Service for managing registration-flow-related API calls.
+ * Registration Flow API (backend resource: /registration_flows)
+ * Handles registration-flow-related API calls.
+ *
+ * The response types are declared truthfully (see ./types.ts) instead of being
+ * re-mapped from `Record<string, unknown>`: the hand-written mappers this file
+ * used to carry cast every payload through `as`, which silently hid the fact
+ * that POST /{uuid}/roles returns a bare array rather than a paginated envelope.
+ * The only normalization left is filling in the two collections the backend may
+ * omit (`rows`, `required_fields`).
  */
 
 import { get, post, put, patch, deleteRequest } from '../client'
 import { API_ENDPOINTS } from '../config'
 import type { ApiResponse } from '../types'
 import type {
-  RegistrationFlowListResponse,
-  RegistrationFlowRolesResponse,
-  RegistrationFlowQueryParams,
   RegistrationFlow,
+  RegistrationFlowDetail,
+  RegistrationFlowListResponse,
+  RegistrationFlowQueryParams,
   RegistrationFlowRole,
+  RegistrationFlowRolesQueryParams,
+  RegistrationFlowRolesResponse,
   CreateRegistrationFlowRequest,
   UpdateRegistrationFlowRequest,
   UpdateRegistrationFlowStatusRequest
 } from './types'
 
-type RawFlow = Record<string, unknown>
-
-function mapFlow(raw: RawFlow): RegistrationFlow {
+/** `required_fields` is JSON on the backend and may arrive as null. */
+function withRequiredFields(flow: RegistrationFlowDetail): RegistrationFlowDetail {
   return {
-    registration_flow_id: raw.registration_flow_id as string,
-    name: raw.name as string,
-    description: raw.description as string,
-    identifier: raw.identifier as string,
-    status: raw.status as RegistrationFlow['status'],
-    client_id: raw.client_id as string,
-    verification_required: Boolean(raw.verification_required),
-    required_fields: (raw.required_fields ?? []) as string[],
-    is_system: Boolean(raw.is_system),
-    created_at: raw.created_at as string,
-    updated_at: raw.updated_at as string,
+    ...flow,
+    required_fields: flow.required_fields ?? [],
   }
 }
 
-function mapRole(raw: RawFlow): RegistrationFlowRole {
-  return {
-    role_id: raw.role_id as string,
-    name: (raw.role_name ?? raw.name ?? '') as string,
-    description: raw.description as string,
-    is_default: Boolean(raw.is_default),
-    is_system: Boolean(raw.is_system),
-    status: raw.status as string,
-    created_at: raw.created_at as string,
-    updated_at: raw.updated_at as string,
-  }
-}
-
-/**
- * Fetch paginated registration flows with optional filters
- */
-export async function fetchRegistrationFlows(
-  params?: RegistrationFlowQueryParams
-): Promise<RegistrationFlowListResponse> {
+function buildQuery(params?: object): string {
   const queryParams = new URLSearchParams()
+
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
@@ -63,13 +45,23 @@ export async function fetchRegistrationFlows(
     })
   }
 
-  const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+  return queryParams.toString() ? `?${queryParams.toString()}` : ''
+}
+
+/**
+ * Fetch registration flows with optional filters and pagination.
+ * List rows are the lean projection — no `required_fields`, no nested client.
+ */
+export async function fetchRegistrationFlows(
+  params?: RegistrationFlowQueryParams
+): Promise<RegistrationFlowListResponse> {
+  const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}${buildQuery(params)}`
   const response = await get<ApiResponse<RegistrationFlowListResponse>>(endpoint)
 
   if (response.success && response.data) {
     return {
       ...response.data,
-      rows: (response.data.rows as unknown as RawFlow[]).map(mapFlow),
+      rows: response.data.rows ?? [],
     }
   }
 
@@ -77,47 +69,48 @@ export async function fetchRegistrationFlows(
 }
 
 /**
- * Fetch a single registration flow by UUID
+ * Fetch a single registration flow by UUID (detail projection).
  */
-export async function fetchRegistrationFlow(registrationFlowId: string): Promise<RegistrationFlow> {
+export async function fetchRegistrationFlow(registrationFlowId: string): Promise<RegistrationFlowDetail> {
   const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}/${registrationFlowId}`
-  const response = await get<ApiResponse<RegistrationFlow>>(endpoint)
+  const response = await get<ApiResponse<RegistrationFlowDetail>>(endpoint)
 
   if (response.success && response.data) {
-    return mapFlow(response.data as unknown as RawFlow)
+    return withRequiredFields(response.data)
   }
 
   throw new Error(response.message || 'Failed to fetch registration flow')
 }
 
 /**
- * Create a new registration flow
+ * Create a new registration flow. The response carries the server-derived,
+ * immutable `identifier`.
  */
 export async function createRegistrationFlow(
   data: CreateRegistrationFlowRequest
-): Promise<RegistrationFlow> {
+): Promise<RegistrationFlowDetail> {
   const endpoint = API_ENDPOINTS.REGISTRATION_FLOW
-  const response = await post<ApiResponse<RegistrationFlow>>(endpoint, data)
+  const response = await post<ApiResponse<RegistrationFlowDetail>>(endpoint, data)
 
   if (response.success && response.data) {
-    return mapFlow(response.data as unknown as RawFlow)
+    return withRequiredFields(response.data)
   }
 
   throw new Error(response.message || 'Failed to create registration flow')
 }
 
 /**
- * Update an existing registration flow
+ * Update an existing registration flow. Omitted fields are left unchanged.
  */
 export async function updateRegistrationFlow(
   registrationFlowId: string,
   data: UpdateRegistrationFlowRequest
-): Promise<RegistrationFlow> {
+): Promise<RegistrationFlowDetail> {
   const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}/${registrationFlowId}`
-  const response = await put<ApiResponse<RegistrationFlow>>(endpoint, data)
+  const response = await put<ApiResponse<RegistrationFlowDetail>>(endpoint, data)
 
   if (response.success && response.data) {
-    return mapFlow(response.data as unknown as RawFlow)
+    return withRequiredFields(response.data)
   }
 
   throw new Error(response.message || 'Failed to update registration flow')
@@ -136,45 +129,37 @@ export async function deleteRegistrationFlow(registrationFlowId: string): Promis
 }
 
 /**
- * Update a registration flow's status
+ * Update a registration flow's status. Deactivating a flow is the kill switch
+ * for its published registration link.
  */
 export async function updateRegistrationFlowStatus(
   registrationFlowId: string,
   data: UpdateRegistrationFlowStatusRequest
-): Promise<RegistrationFlow> {
+): Promise<RegistrationFlowDetail> {
   const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}/${registrationFlowId}/status`
-  const response = await patch<ApiResponse<RegistrationFlow>>(endpoint, data)
+  const response = await patch<ApiResponse<RegistrationFlowDetail>>(endpoint, data)
 
   if (response.success && response.data) {
-    return mapFlow(response.data as unknown as RawFlow)
+    return withRequiredFields(response.data)
   }
 
   throw new Error(response.message || 'Failed to update registration flow status')
 }
 
 /**
- * List roles assigned to a registration flow
+ * List roles assigned to a registration flow (paginated envelope).
  */
 export async function fetchRegistrationFlowRoles(
   registrationFlowId: string,
-  params?: { page?: number; limit?: number }
+  params?: RegistrationFlowRolesQueryParams
 ): Promise<RegistrationFlowRolesResponse> {
-  const queryParams = new URLSearchParams()
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryParams.append(key, String(value))
-      }
-    })
-  }
-
-  const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}/${registrationFlowId}/roles${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+  const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}/${registrationFlowId}/roles${buildQuery(params)}`
   const response = await get<ApiResponse<RegistrationFlowRolesResponse>>(endpoint)
 
   if (response.success && response.data) {
     return {
       ...response.data,
-      rows: (response.data.rows as unknown as RawFlow[]).map(mapRole),
+      rows: response.data.rows ?? [],
     }
   }
 
@@ -182,38 +167,56 @@ export async function fetchRegistrationFlowRoles(
 }
 
 /**
- * Assign roles to a registration flow (full replacement)
+ * Assign roles to a registration flow (full replacement of the flow's role set).
+ *
+ * NOTE: this endpoint returns a BARE ARRAY of the resulting roles, not the
+ * paginated `{rows,total,...}` envelope that GET /{uuid}/roles returns. Treating
+ * it as an envelope made a successful assignment surface as an error.
  */
 export async function assignRegistrationFlowRoles(
   registrationFlowId: string,
   roleUuids: string[]
-): Promise<RegistrationFlowRolesResponse> {
+): Promise<RegistrationFlowRole[]> {
   const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}/${registrationFlowId}/roles`
-  const response = await post<ApiResponse<RegistrationFlowRolesResponse>>(endpoint, {
+  const response = await post<ApiResponse<RegistrationFlowRole[]>>(endpoint, {
     role_uuids: roleUuids,
   })
 
   if (response.success && response.data) {
-    return {
-      ...response.data,
-      rows: (response.data.rows as unknown as RawFlow[]).map(mapRole),
-    }
+    return response.data
   }
 
   throw new Error(response.message || 'Failed to assign roles to registration flow')
 }
 
 /**
- * Remove a single role from a registration flow
+ * Remove a single role from a registration flow. Returns the updated flow.
  */
 export async function removeRegistrationFlowRole(
   registrationFlowId: string,
   roleUuid: string
-): Promise<void> {
+): Promise<RegistrationFlowDetail> {
   const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}/${registrationFlowId}/roles/${roleUuid}`
-  const response = await deleteRequest<ApiResponse<void>>(endpoint)
+  const response = await deleteRequest<ApiResponse<RegistrationFlowDetail>>(endpoint)
 
-  if (!response.success) {
-    throw new Error(response.message || 'Failed to remove role from registration flow')
+  if (response.success && response.data) {
+    return withRequiredFields(response.data)
   }
+
+  throw new Error(response.message || 'Failed to remove role from registration flow')
 }
+
+// Export as registration flow object
+export const registrationFlowService = {
+  fetchRegistrationFlows,
+  fetchRegistrationFlow,
+  createRegistrationFlow,
+  updateRegistrationFlow,
+  deleteRegistrationFlow,
+  updateRegistrationFlowStatus,
+  fetchRegistrationFlowRoles,
+  assignRegistrationFlowRoles,
+  removeRegistrationFlowRole,
+}
+
+export type { RegistrationFlow, RegistrationFlowDetail }

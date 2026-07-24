@@ -1,7 +1,7 @@
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-interface SelectableOptionRowProps {
+export interface SelectableOptionRowProps {
   selected: boolean
   onToggle: () => void
   title: string

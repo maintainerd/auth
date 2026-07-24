@@ -22,6 +22,7 @@ import {
   FormSwitchField,
   FormSubmitButton,
 } from "@/components/form"
+import { FormUrlField } from "@/components/inputs"
 import { EmptyState, ListSkeleton } from "@/components/details"
 import { RowActions, type RowActionItem } from "@/components/data-table"
 import { useToast } from "@/hooks/useToast"
@@ -337,7 +338,7 @@ export default function WorkloadIdentityPage() {
               error={errors.description?.message}
               {...register("description")}
             />
-            <FormInputField
+            <FormUrlField
               label="Issuer URL"
               placeholder="https://token.example.com"
               required

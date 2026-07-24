@@ -7,7 +7,6 @@ import type { TenantEntity, TenantStatus } from "@/services/api/tenants/types"
 
 interface TenantActionsProps {
   tenant: TenantEntity
-  onEdit: (tenant: TenantEntity) => void
 }
 
 interface StatusAction {
@@ -55,7 +54,7 @@ const STATUS_ACTIONS: Record<TenantStatus, StatusAction[]> = {
   ],
 }
 
-export function TenantActions({ tenant, onEdit }: TenantActionsProps) {
+export function TenantActions({ tenant }: TenantActionsProps) {
   const navigate = useNavigate()
   const { showSuccess, showError } = useToast()
   const updateStatusMutation = useUpdateTenantStatus()
@@ -81,18 +80,21 @@ export function TenantActions({ tenant, onEdit }: TenantActionsProps) {
       key: "edit",
       label: "Edit Tenant",
       icon: Edit,
-      onSelect: () => onEdit(tenant),
+      onSelect: () => navigate(`/tenants/${tenant.tenant_id}/edit`),
     },
     ...STATUS_ACTIONS[tenant.status].map(
       (action): RowActionItem => ({
         key: `status-${action.status}`,
         label: action.label,
         icon: action.icon,
+        // Deactivate/Suspend lock users out → destructive (red). Activate is
+        // restorative → default.
+        destructive: action.status !== "active",
         onSelect: () => changeStatus(action.status),
         confirm: {
           title: action.title,
           description: action.description,
-          confirmText: "Confirm",
+          confirmText: action.label,
         },
       }),
     ),

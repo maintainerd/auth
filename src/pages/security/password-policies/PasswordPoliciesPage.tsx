@@ -4,12 +4,13 @@ import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { DetailsContainer } from '@/components/container'
 import { FormPageHeader } from '@/components/header'
 import { FormSwitchField, FormInputField, FormSelectField, FormSubmitButton } from '@/components/form'
+import { ConfirmationDialog } from '@/components/dialog'
 import { usePasswordPolicies, useUpdatePasswordPolicies } from '@/hooks/usePasswordPolicies'
 import { useToast } from '@/hooks/useToast'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import {
   PASSWORD_POLICY_LIMITS,
   passwordPoliciesSchema,
@@ -28,7 +29,7 @@ export default function PasswordPoliciesFormPage() {
   const { showSuccess, showError } = useToast()
   const backTo = `/security?tab=password`
 
-  const { data: savedPolicies, isLoading, isError } = usePasswordPolicies()
+  const { data: savedPolicies, isError } = usePasswordPolicies()
   const updateMutation = useUpdatePasswordPolicies()
 
   const {
@@ -37,7 +38,7 @@ export default function PasswordPoliciesFormPage() {
     watch,
     setValue,
     trigger,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<PasswordPoliciesFormData>({
     resolver: yupResolver(passwordPoliciesSchema),
     defaultValues: {
@@ -91,6 +92,10 @@ export default function PasswordPoliciesFormPage() {
     void trigger()
   }
 
+  const isBusy = isSubmitting || updateMutation.isPending
+
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
+
   const onSubmit = async (data: PasswordPoliciesFormData) => {
     try {
       await updateMutation.mutateAsync(data)
@@ -101,33 +106,11 @@ export default function PasswordPoliciesFormPage() {
     }
   }
 
-  const isBusy = isSubmitting || updateMutation.isPending
-
-  if (isLoading) {
-    return (
-      <DetailsContainer>
-        <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Password Policy" title="Configure Password Policy" description="Set password requirements for your tenant." />
-          <Card>
-            <CardContent className="space-y-4 pt-6">
-              <Skeleton className="h-5 w-40" />
-              <div className="grid gap-4 md:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </DetailsContainer>
-    )
-  }
-
   if (isError) {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Password Policy" title="Configure Password Policy" description="Set password requirements for your tenant." />
+          <FormPageHeader backUrl={backTo} backLabel="Back to Password Policy" onBack={() => guard(() => navigate(backTo))} title="Configure Password Policy" description="Set password requirements for your tenant." />
           <Card>
             <CardContent className="py-12 text-center text-sm text-destructive">
               Failed to load password policy.
@@ -144,6 +127,7 @@ export default function PasswordPoliciesFormPage() {
         <FormPageHeader
           backUrl={backTo}
           backLabel="Back to Password Policy"
+          onBack={() => guard(() => navigate(backTo))}
           title="Configure Password Policy"
           description="Configure password length, complexity, breach screening, history, expiry, and hashing algorithm."
         />
@@ -266,12 +250,23 @@ export default function PasswordPoliciesFormPage() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate(backTo)} disabled={isBusy}>
+            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
               Cancel
             </Button>
             <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

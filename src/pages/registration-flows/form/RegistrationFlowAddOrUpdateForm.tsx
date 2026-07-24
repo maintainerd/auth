@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, Controller, type Resolver } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
-import { ArrowLeft, AlertCircle } from "lucide-react"
+import { ArrowLeft, AlertCircle, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -19,8 +20,9 @@ import {
   FormSubmitButton,
   type SelectOption
 } from "@/components/form"
-import { FormSlugField } from "@/components/inputs"
+import { FormSlugField, SelectableOptionRow } from "@/components/inputs"
 import { registrationFlowSchema, type RegistrationFlowFormData } from "@/lib/validations"
+import { sanitizeFlowName } from "@/lib/validations/regex"
 import {
   useRegistrationFlow,
   useCreateRegistrationFlow,
@@ -32,8 +34,10 @@ import { useRoles } from "@/hooks/useRoles"
 import { useToast } from "@/hooks/useToast"
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
 import { ConfirmationDialog } from "@/components/dialog"
-import { SelectableOptionRow } from "../components/SelectableOptionRow"
+import type { RegistrationFlowStatus } from "@/services/api/registration-flows/types"
 
+// 'active' and 'inactive' are the only statuses the backend accepts (see
+// validation_registration_flow.go). A 'draft' option produced a 400 on save.
 const STATUS_OPTIONS: SelectOption[] = [
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
@@ -43,7 +47,7 @@ const REGISTRATION_FIELDS = [
   { value: "email", label: "Email" },
   { value: "fullname", label: "Full name" },
   { value: "phone", label: "Phone" },
-]
+] as const
 
 export default function RegistrationFlowAddOrUpdateForm() {
   const { registrationFlowId } = useParams<{ registrationFlowId?: string }>()
@@ -56,6 +60,8 @@ export default function RegistrationFlowAddOrUpdateForm() {
 
   const navState = location.state as { from?: string; backLabel?: string } | null
   const listingUrl = `/registration-flows`
+  const backTo = navState?.from ?? listingUrl
+  const backLabel = navState?.backLabel ?? "Back to Registration Flows"
 
   const { data: registrationFlow, isLoading: isFetchingRegistrationFlow } = useRegistrationFlow(registrationFlowId || "")
   const createRegistrationFlowMutation = useCreateRegistrationFlow()
@@ -72,10 +78,6 @@ export default function RegistrationFlowAddOrUpdateForm() {
     sort_order: 'asc',
   })
 
-  const [verificationRequired, setVerificationRequired] = useState<boolean>(false)
-  const [requiredFields, setRequiredFields] = useState<string[]>([])
-  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
-
   const { data: rolesData, isLoading: isLoadingRoles } = useRoles({
     page: 1,
     limit: 100,
@@ -83,6 +85,13 @@ export default function RegistrationFlowAddOrUpdateForm() {
     sort_order: "asc",
   })
   const roleOptions = rolesData?.rows ?? []
+
+  // The flow's currently-assigned roles, needed to hydrate the picker on edit.
+  const { data: existingRolesData, isLoading: isFetchingFlowRoles } = useRegistrationFlowRoles(
+    registrationFlowId || "",
+    { page: 1, limit: 100 },
+    { enabled: isEditing },
+  )
 
   const {
     register,
@@ -93,46 +102,48 @@ export default function RegistrationFlowAddOrUpdateForm() {
     setError,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<RegistrationFlowFormData>({
-    resolver: yupResolver(registrationFlowSchema),
+    resolver: yupResolver(registrationFlowSchema) as Resolver<RegistrationFlowFormData>,
     defaultValues: {
       name: "",
       description: "",
       status: "active",
       clientId: "",
+      verificationRequired: false,
+      requiredFields: [],
+      roleIds: [],
     },
     mode: "onTouched",
     reValidateMode: "onChange",
   })
 
   const selectedClientId = watch("clientId")
+  const nameValue = watch("name")
   const { data: selectedClientData } = useClient(selectedClientId || "")
 
-  const { data: existingRolesData } = useRegistrationFlowRoles(registrationFlowId || "", { limit: 100 })
-
-  const rolesInitialized = useRef(false)
-
-  useEffect(() => {
-    if (isEditing && registrationFlow) {
-      reset({
-        name: registrationFlow.name,
-        description: registrationFlow.description,
-        identifier: registrationFlow.identifier,
-        status: registrationFlow.status,
-        clientId: registrationFlow.client_id,
-      })
-    }
-  }, [isEditing, registrationFlow, reset])
+  // Everything the form owns is hydrated in ONE reset, keyed on the fetched
+  // records. verification_required, required_fields and the role selection used
+  // to live in component state that the edit path never populated — so every
+  // save silently posted `required_fields: []` and `verification_required: false`,
+  // wiping the flow's field requirements and downgrading its verification policy.
+  // Keeping them in the form also lets isDirty (the unsaved-changes guard) see them.
+  const isHydrating = isEditing && (isFetchingRegistrationFlow || isFetchingFlowRoles)
 
   useEffect(() => {
-    if (isEditing && existingRolesData && !rolesInitialized.current) {
-      rolesInitialized.current = true
-      setSelectedRoleIds(existingRolesData.rows.map((r) => r.role_id))
-      setVerificationRequired(registrationFlow?.verification_required ?? false)
-    }
-  }, [isEditing, existingRolesData, registrationFlow?.verification_required])
+    if (!isEditing || !registrationFlow || isFetchingFlowRoles) return
 
-  const toggleRole = (id: string) =>
-    setSelectedRoleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+    reset({
+      name: registrationFlow.name,
+      description: registrationFlow.description ?? "",
+      status: registrationFlow.status,
+      clientId: registrationFlow.client_id ?? "",
+      verificationRequired: registrationFlow.verification_required ?? false,
+      requiredFields: (registrationFlow.required_fields ?? []).filter(
+        (field): field is (typeof REGISTRATION_FIELDS)[number]["value"] =>
+          REGISTRATION_FIELDS.some((option) => option.value === field),
+      ),
+      roleIds: (existingRolesData?.rows ?? []).map((role) => role.role_id),
+    })
+  }, [isEditing, registrationFlow, existingRolesData, isFetchingFlowRoles, reset])
 
   const isLoading =
     isFetchingRegistrationFlow ||
@@ -141,6 +152,8 @@ export default function RegistrationFlowAddOrUpdateForm() {
     isSubmitting
 
   const existingFlow = registrationFlow
+  // A rename changes the flow's public registration link.
+  const isRenamed = Boolean(existingFlow && nameValue && nameValue !== existingFlow.name)
   const pageTitle = isCreating ? "Create Registration Flow" : `Edit ${existingFlow?.name || "Registration Flow"}`
   const submitButtonText = isCreating ? "Create Registration Flow" : "Update Registration Flow"
 
@@ -148,45 +161,70 @@ export default function RegistrationFlowAddOrUpdateForm() {
 
   const onSubmit = async (data: RegistrationFlowFormData) => {
     try {
-      const requestData = {
-        name: data.name,
-        description: data.description,
-        identifier: data.identifier || undefined,
-        status: data.status,
-        client_id: data.clientId,
-        verification_required: verificationRequired,
-        required_fields: requiredFields,
-        role_ids: selectedRoleIds,
-      }
-
+      // There is no `identifier` to submit: the name is the selector, and on
+      // create and refuses to change it afterwards, so a published registration
+      // link keeps resolving after a rename.
       let flowId: string
       if (isEditing) {
-        await updateRegistrationFlowMutation.mutateAsync({ registrationFlowId: registrationFlowId!, data: requestData })
+        await updateRegistrationFlowMutation.mutateAsync({
+          registrationFlowId: registrationFlowId!,
+          data: {
+            name: data.name,
+            description: data.description,
+            status: data.status as RegistrationFlowStatus,
+            verification_required: data.verificationRequired,
+            required_fields: data.requiredFields,
+            role_ids: data.roleIds,
+          },
+        })
         flowId = registrationFlowId!
       } else {
-        const createdFlow = await createRegistrationFlowMutation.mutateAsync(requestData)
+        const createdFlow = await createRegistrationFlowMutation.mutateAsync({
+          name: data.name,
+          description: data.description,
+          status: data.status as RegistrationFlowStatus,
+          client_id: data.clientId,
+          verification_required: data.verificationRequired,
+          required_fields: data.requiredFields,
+          role_ids: data.roleIds,
+        })
         flowId = createdFlow.registration_flow_id
       }
 
       showSuccess(isEditing ? "Registration flow updated successfully" : "Registration flow created successfully")
       navigate(`/registration-flows/${flowId}`)
     } catch (error) {
+      // Route backend errors onto the offending field where we can: structured
+      // field errors first, otherwise keyword-match the message (this is what
+      // surfaces the 409 "registration flow with this name already exists" on the
+      // name field). The backend keys field errors by its snake_case JSON tag.
       const parsed = parseError(error)
-      const known = ["name", "identifier", "description", "status", "clientId", "client_id"] as const
+      const BACKEND_FIELD_MAP: Record<string, keyof RegistrationFlowFormData> = {
+        name: "name",
+        description: "description",
+        status: "status",
+        client_id: "clientId",
+        verification_required: "verificationRequired",
+        required_fields: "requiredFields",
+        role_ids: "roleIds",
+      }
       let mappedToField = false
       if (parsed.fieldErrors) {
         for (const [field, message] of Object.entries(parsed.fieldErrors)) {
-          if ((known as readonly string[]).includes(field)) {
-            setError(field as (typeof known)[number], { type: "server", message })
+          const rhfField = BACKEND_FIELD_MAP[field]
+          if (rhfField) {
+            setError(rhfField, { type: "server", message })
             mappedToField = true
           }
         }
       }
       if (!mappedToField) {
         const lower = parsed.message.toLowerCase()
-        const field = known.find((f) => lower.includes(f))
-        if (field) {
-          setError(field, { type: "server", message: parsed.message })
+        const match = Object.entries(BACKEND_FIELD_MAP).find(
+          ([backendField, rhfField]) => lower.includes(backendField) || lower.includes(rhfField.toLowerCase())
+        )
+        if (match) {
+          setError(match[1], { type: "server", message: parsed.message })
         }
       }
       showError(error)
@@ -197,13 +235,16 @@ export default function RegistrationFlowAddOrUpdateForm() {
     client => client.client_id === selectedClientId
   ) || selectedClientData
 
-  if (isEditing && isFetchingRegistrationFlow) {
+  // Loading state while fetching the flow (and its roles) to edit. Rendering the
+  // skeleton until BOTH have resolved means the single reset above always runs
+  // before the form is interactive, so it can never clobber a user's edit.
+  if (isHydrating) {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
           <FormPageHeader
-            backUrl={`/registration-flows/${registrationFlowId}`}
-            backLabel="Back to Registration"
+            backUrl={backTo}
+            backLabel={backLabel}
             title="Edit Registration Flow"
             description="Update registration flow configuration and settings"
           />
@@ -228,8 +269,8 @@ export default function RegistrationFlowAddOrUpdateForm() {
       <DetailsContainer>
         <div className="flex flex-col gap-6">
           <FormPageHeader
-            backUrl={`/registration-flows/${registrationFlowId}`}
-            backLabel="Back to Registration"
+            backUrl={backTo}
+            backLabel={backLabel}
             title="Edit Registration Flow"
             description="Update registration flow configuration and settings"
           />
@@ -244,9 +285,9 @@ export default function RegistrationFlowAddOrUpdateForm() {
                   The registration flow you're looking for doesn't exist or may have been removed.
                 </p>
               </div>
-              <Button variant="outline" onClick={() => guard(() => navigate(`/registration-flows`))}>
+              <Button variant="outline" onClick={() => guard(() => navigate(backTo))}>
                 <ArrowLeft className="mr-2 size-4" />
-                Back to Registration
+                {backLabel}
               </Button>
             </CardContent>
           </Card>
@@ -259,9 +300,9 @@ export default function RegistrationFlowAddOrUpdateForm() {
     <DetailsContainer>
       <div className="flex flex-col gap-6">
         <FormPageHeader
-          backUrl={listingUrl}
-          backLabel="Back to Registration"
-          onBack={() => guard(() => navigate(listingUrl))}
+          backUrl={backTo}
+          backLabel={backLabel}
+          onBack={() => guard(() => navigate(backTo))}
           title={pageTitle}
           description={
             isCreating
@@ -278,15 +319,20 @@ export default function RegistrationFlowAddOrUpdateForm() {
             <CardHeader>
               <CardTitle className="text-base">Basic Information</CardTitle>
               <p className="text-sm text-muted-foreground">
-                The name, identifier, description, status, and associated client.
+                The name, description, status, and associated client.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
+                {/* The name IS the public registration-link selector, so it is a
+                    slug field. The sanitizer matches the backend pattern exactly
+                    (and turns spaces into hyphens) so the input can never produce
+                    a value validation would reject. */}
                 <FormSlugField
                   label="Name"
-                  placeholder="e.g., seller-signup"
-                  description="A descriptive name for this registration flow"
+                  placeholder="e.g., partner-signup"
+                  description="Used in this flow's registration link. Lowercase letters, numbers, hyphens and underscores."
+                  sanitize={sanitizeFlowName}
                   disabled={isLoading || existingFlow?.is_system}
                   error={errors.name?.message}
                   required
@@ -298,6 +344,7 @@ export default function RegistrationFlowAddOrUpdateForm() {
                   control={control}
                   render={({ field }) => (
                     <FormSelectField
+                      key={`status-${field.value || 'empty'}`}
                       label="Status"
                       placeholder="Select status"
                       options={STATUS_OPTIONS}
@@ -305,20 +352,26 @@ export default function RegistrationFlowAddOrUpdateForm() {
                       onValueChange={field.onChange}
                       disabled={isLoading}
                       error={errors.status?.message}
+                      description="An inactive flow refuses every registration through its link."
                       required
                     />
                   )}
                 />
               </div>
 
-              <FormSlugField
-                label="Identifier"
-                placeholder="e.g., seller-flow (optional)"
-                description="A stable, unique identifier for this flow. Auto-generated if left empty. Once set, it cannot be changed."
-                disabled={isLoading || isEditing}
-                error={errors.identifier?.message}
-                {...register("identifier")}
-              />
+              {/* Renaming changes the flow's public link, so say so plainly
+                  rather than letting an operator discover it from a partner's
+                  bug report. */}
+              {isEditing && isRenamed && (
+                <Alert variant="destructive">
+                  <TriangleAlert className="size-4" />
+                  <AlertDescription>
+                    Renaming this flow changes its registration link. Any link already published by
+                    an external app will stop working until it is updated to use{" "}
+                    <code className="font-mono">{nameValue}</code>.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <FormTextareaField
                 label="Description"
@@ -326,13 +379,16 @@ export default function RegistrationFlowAddOrUpdateForm() {
                 rows={4}
                 disabled={isLoading}
                 error={errors.description?.message}
-                required
                 {...register("description")}
               />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>
+                  {/* role="combobox" takes its accessible name from the author,
+                      not from its content, so the trigger is explicitly labelled
+                      by this Label — otherwise assistive tech announces an
+                      unnamed combobox. */}
+                  <Label id="client-label" htmlFor="client">
                     Client <span className="text-destructive">*</span>
                   </Label>
                   <Controller
@@ -342,11 +398,14 @@ export default function RegistrationFlowAddOrUpdateForm() {
                       <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
                         <PopoverTrigger asChild>
                           <Button
+                            type="button"
+                            id="client"
                             variant="outline"
                             role="combobox"
+                            aria-labelledby="client-label"
                             aria-expanded={clientSearchOpen}
                             className="w-full justify-between"
-                            disabled={isLoading}
+                            disabled={isLoading || isEditing}
                           >
                             {selectedClient?.name || "Select client..."}
                           </Button>
@@ -384,7 +443,9 @@ export default function RegistrationFlowAddOrUpdateForm() {
                     <p className="text-sm text-destructive">{errors.clientId.message}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    The client that provides branding, context, and validated callback URIs for this flow. Selecting a client does not automatically activate this flow.
+                    {isEditing
+                      ? "The client is fixed after creation — the registration link is only valid for this client."
+                      : "The client that provides branding, context, and validated callback URIs for this flow. Selecting a client does not automatically activate this flow."}
                   </p>
                 </div>
               </div>
@@ -399,43 +460,63 @@ export default function RegistrationFlowAddOrUpdateForm() {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormSwitchField
-                id="verification-required"
-                label="Require email verification"
-                description="Require users to verify their email before completing onboarding, even when the tenant-wide policy is less strict."
-                checked={verificationRequired}
-                onCheckedChange={setVerificationRequired}
-                disabled={isLoading}
-                containerClassName="rounded-md border p-4"
+              <Controller
+                name="verificationRequired"
+                control={control}
+                render={({ field }) => (
+                  <FormSwitchField
+                    id="verification-required"
+                    label="Require email verification"
+                    description="Require users to verify their email before completing onboarding, even when the tenant-wide policy is less strict."
+                    checked={Boolean(field.value)}
+                    onCheckedChange={field.onChange}
+                    disabled={isLoading}
+                    containerClassName="rounded-md border p-4"
+                  />
+                )}
               />
 
-              <div className="space-y-3 rounded-md border p-4">
-                <div>
-                  <Label>Required registration fields</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Username and password are always required. Select any additional fields this flow must collect.
-                  </p>
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {REGISTRATION_FIELDS.map((field) => (
-                    <div key={field.value} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`required-${field.value}`}
-                        checked={requiredFields.includes(field.value)}
-                        onCheckedChange={(checked) => {
-                          setRequiredFields((current) => checked === true
-                            ? [...new Set([...current, field.value])]
-                            : current.filter((value) => value !== field.value))
-                        }}
-                        disabled={isLoading}
-                      />
-                      <Label htmlFor={`required-${field.value}`} className="cursor-pointer font-normal">
-                        {field.label}
-                      </Label>
+              <Controller
+                name="requiredFields"
+                control={control}
+                render={({ field }) => {
+                  const value = field.value ?? []
+                  return (
+                    <div className="space-y-3 rounded-md border p-4">
+                      <div>
+                        <Label>Required registration fields</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Username and password are always required. Select any additional fields this flow must collect.
+                        </p>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        {REGISTRATION_FIELDS.map((option) => (
+                          <div key={option.value} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`required-${option.value}`}
+                              checked={value.includes(option.value)}
+                              onCheckedChange={(checked) => {
+                                field.onChange(
+                                  checked === true
+                                    ? [...new Set([...value, option.value])]
+                                    : value.filter((entry) => entry !== option.value),
+                                )
+                              }}
+                              disabled={isLoading}
+                            />
+                            <Label htmlFor={`required-${option.value}`} className="cursor-pointer font-normal">
+                              {option.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                      {errors.requiredFields && (
+                        <p className="text-sm text-destructive">{errors.requiredFields.message}</p>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  )
+                }}
+              />
             </CardContent>
           </Card>
 
@@ -447,29 +528,43 @@ export default function RegistrationFlowAddOrUpdateForm() {
               </p>
             </CardHeader>
             <CardContent>
-              {isLoadingRoles ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">Loading roles...</div>
-              ) : roleOptions.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">No roles available</div>
-              ) : (
-                <div className="border rounded-md divide-y max-h-64 overflow-y-auto">
-                  {roleOptions.map((role) => (
-                    <SelectableOptionRow
-                      key={role.role_id}
-                      selected={selectedRoleIds.includes(role.role_id)}
-                      onToggle={() => toggleRole(role.role_id)}
-                      disabled={isLoading}
-                      title={role.name}
-                      description={role.description}
-                    />
-                  ))}
-                </div>
-              )}
-              {selectedRoleIds.length > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {selectedRoleIds.length} role{selectedRoleIds.length !== 1 ? "s" : ""} selected
-                </p>
-              )}
+              <Controller
+                name="roleIds"
+                control={control}
+                render={({ field }) => {
+                  const value = field.value ?? []
+                  const toggleRole = (id: string) =>
+                    field.onChange(value.includes(id) ? value.filter((entry) => entry !== id) : [...value, id])
+
+                  return (
+                    <>
+                      {isLoadingRoles ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">Loading roles...</div>
+                      ) : roleOptions.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">No roles available</div>
+                      ) : (
+                        <div className="border rounded-md divide-y max-h-64 overflow-y-auto">
+                          {roleOptions.map((role) => (
+                            <SelectableOptionRow
+                              key={role.role_id}
+                              selected={value.includes(role.role_id)}
+                              onToggle={() => toggleRole(role.role_id)}
+                              disabled={isLoading}
+                              title={role.name}
+                              description={role.description}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {value.length > 0 && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {value.length} role{value.length !== 1 ? "s" : ""} selected
+                        </p>
+                      )}
+                    </>
+                  )
+                }}
+              />
             </CardContent>
           </Card>
 
@@ -477,7 +572,7 @@ export default function RegistrationFlowAddOrUpdateForm() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => guard(() => navigate(listingUrl))}
+              onClick={() => guard(() => navigate(backTo))}
               disabled={isLoading}
             >
               Cancel

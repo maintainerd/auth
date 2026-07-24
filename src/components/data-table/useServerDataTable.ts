@@ -79,6 +79,21 @@ export interface UseServerDataTableResult<TRow> {
 const EMPTY_FILTER_GROUPS: readonly FilterGroup[] = []
 
 /**
+ * Resolves a column id to the API field the server can sort on.
+ *
+ * Listing columns carry a human display id ("Created", "Client") so the view-options
+ * menu reads well, but `sort_by` has to be a real column name — the backend
+ * sanitizes against a per-resource allowlist and silently falls back to its default
+ * otherwise, which made every header click look like it did nothing. The column's
+ * own `accessorKey` is that name, so the mapping needs no per-listing config.
+ */
+function resolveSortField<TRow>(columns: ColumnDef<TRow>[], columnId: string): string {
+  const column = columns.find((c) => c.id === columnId)
+  const accessorKey = (column as { accessorKey?: unknown } | undefined)?.accessorKey
+  return typeof accessorKey === "string" ? accessorKey : columnId
+}
+
+/**
  * The shared engine for server-driven listing tables: URL-synced search / filters /
  * sorting / pagination, API-param assembly, and the TanStack table — so a listing
  * page only declares its columns + a small config instead of re-implementing all of it.
@@ -119,7 +134,10 @@ export function useServerDataTable<TRow, TParams = Record<string, unknown>>({
     const params: Record<string, unknown> = {
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
-      sort_by: sorting.length > 0 ? sorting[0].id : defaultSort[0]?.id,
+      sort_by:
+        sorting.length > 0
+          ? resolveSortField(columns, sorting[0].id)
+          : defaultSort[0]?.id && resolveSortField(columns, defaultSort[0].id),
       sort_order: sorting.length > 0 && sorting[0].desc ? "desc" : "asc",
     }
     if (search) {
@@ -130,7 +148,7 @@ export function useServerDataTable<TRow, TParams = Record<string, unknown>>({
       if (values?.length) params[group.apiKey ?? group.key] = values.join(",")
     }
     return params
-  }, [search, filters, sorting, pagination, defaultSort, searchFields, filterGroups])
+  }, [search, filters, sorting, pagination, defaultSort, searchFields, filterGroups, columns])
 
   const { data, isLoading, error } = useData(apiParams as unknown as TParams)
   const rows = React.useMemo(() => data?.rows ?? [], [data])

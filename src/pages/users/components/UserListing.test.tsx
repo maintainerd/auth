@@ -143,6 +143,9 @@ describe("UserListing", () => {
     await waitFor(() => expect(screen.queryByText("Status: active")).not.toBeInTheDocument())
   })
 
+  // The column id is the display label ("Status"); sort_by must be the API column,
+  // because the backend sanitizes against an allowlist and silently ignores anything
+  // else — which made a header click look like a no-op.
   it("clicking a sortable column header toggles sort in the API params", async () => {
     setUsers({ data: { rows: [makeUser()], total: 1 } })
     const user = u()
@@ -151,14 +154,14 @@ describe("UserListing", () => {
     await user.click(screen.getByRole("button", { name: /^status$/i }))
     await waitFor(() =>
       expect(useUsersMock).toHaveBeenCalledWith(
-        expect.objectContaining({ sort_by: "Status", sort_order: "asc" }),
+        expect.objectContaining({ sort_by: "status", sort_order: "asc" }),
       ),
     )
     // Toggle again -> desc
     await user.click(screen.getByRole("button", { name: /^status$/i }))
     await waitFor(() =>
       expect(useUsersMock).toHaveBeenCalledWith(
-        expect.objectContaining({ sort_by: "Status", sort_order: "desc" }),
+        expect.objectContaining({ sort_by: "status", sort_order: "desc" }),
       ),
     )
   })

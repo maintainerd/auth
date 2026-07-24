@@ -15,6 +15,7 @@ import {
   FormSubmitButton,
   type SelectOption,
 } from "@/components/form"
+import { FormUrlField } from "@/components/inputs"
 import { webhookSchema, type WebhookFormData } from "@/lib/validations"
 import {
   useWebhook,
@@ -243,10 +244,9 @@ export default function WebhookAddOrUpdateForm() {
               <CardTitle>Endpoint</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormInputField
+              <FormUrlField
                 label="Payload URL"
                 placeholder="https://example.com/webhooks/maintainerd"
-                type="url"
                 description="Events are delivered as HTTP POST requests to this URL."
                 disabled={isLoading}
                 error={errors.url?.message}

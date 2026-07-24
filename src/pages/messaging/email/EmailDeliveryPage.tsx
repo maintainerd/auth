@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom"
 import { Mail, Server, UserRound, CalendarDays, Settings, FlaskConical } from "lucide-react"
-import { format } from "date-fns"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DetailsContainer } from "@/components/container"
 import { DetailHeaderCard, StatusBadge, EmptyState, type DetailAttribute } from "@/components/details"
+import { safeFormat } from "@/lib/formatDate"
 import { PageHeader } from "@/components/layout"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fetchEmailConfig } from "@/services/api/notifier"
@@ -51,8 +51,8 @@ export default function EmailDeliveryPage({ standalone = true }: { standalone?: 
         { icon: Mail, label: "From Address", value: data.from_address || "—" },
         ...(data.from_name ? [{ icon: UserRound, label: "From Name", value: data.from_name }] : []),
         ...(data.reply_to ? [{ icon: Mail, label: "Reply-To", value: data.reply_to }] : []),
-        { icon: CalendarDays, label: "Created", value: data.created_at ? format(new Date(data.created_at), "PPp") : "—" },
-        { icon: CalendarDays, label: "Last updated", value: data.updated_at ? format(new Date(data.updated_at), "PPp") : "—" },
+        { icon: CalendarDays, label: "Created", value: safeFormat(data.created_at, "PPp") },
+        { icon: CalendarDays, label: "Last updated", value: safeFormat(data.updated_at, "PPp") },
       ]
     : []
 

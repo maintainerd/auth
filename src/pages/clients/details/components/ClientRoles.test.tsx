@@ -94,9 +94,9 @@ describe("ClientRoles", () => {
     expect(screen.getByText("Rows per page")).toBeInTheDocument()
   })
 
-  it("renders a role without status/system/default badges", () => {
+  it("renders a role without system/default badges", () => {
     useClientRolesMock.mockReturnValue({
-      data: [makeRole({ status: "", is_system: false, is_default: false })],
+      data: [makeRole({ is_system: false, is_default: false })],
       isLoading: false,
       isError: false,
     })

@@ -88,6 +88,68 @@ const ADVANCED_KEYS = new Set([
   "claim_mappers",
 ])
 
+/**
+ * Config keys the add/update form OWNS: it rebuilds each one from its own controls
+ * on save, including the legacy aliases the server still accepts. Everything else
+ * has to be carried through verbatim, because the blob is replaced wholesale and the
+ * server clears any mirrored column whose key is absent.
+ *
+ * The aliases matter: the server resolves `require_pkce` before `pkce_required`, so
+ * carrying through a stale alias would override what the form just wrote.
+ */
+const FORM_OWNED_CONFIG_KEYS = new Set([
+  "grant_types",
+  "response_types",
+  "token_endpoint_auth_method",
+  "allowed_scopes",
+  "require_consent",
+  "consent_required",
+  "require_pkce",
+  "pkce_required",
+  "cors_enabled",
+  "access_token_lifetime",
+  "access_token_ttl",
+  "refresh_token_lifetime",
+  "refresh_token_ttl",
+  "refresh_token_rotation",
+  "multi_resource_refresh_token",
+  "required_acr",
+  "session_idle_timeout",
+  "session_idle_timeout_seconds",
+  "session_absolute_timeout",
+  "session_absolute_timeout_seconds",
+  "jwks",
+  "jwks_uri",
+  // Rebuilt by the metadata editor.
+  "custom",
+])
+
+/**
+ * Returns the config entries the form must resend unchanged — the mTLS thumbprint,
+ * claim mappings, and the legacy URI lists. Without this, saving the form silently
+ * revokes them.
+ *
+ * Scoped to KNOWN keys on purpose. An unrecognized key is picked up by
+ * getClientMetadata and re-emitted under `custom` by the metadata editor, so
+ * carrying it through here as well would both duplicate it and make a deleted
+ * metadata field immortal.
+ */
+export function getPassthroughClientConfig(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const passthrough: Record<string, unknown> = {}
+  Object.entries(config).forEach(([key, value]) => {
+    if (
+      COMMON_CLIENT_CONFIG_KEYS.has(key) &&
+      !FORM_OWNED_CONFIG_KEYS.has(key) &&
+      value !== undefined
+    ) {
+      passthrough[key] = value
+    }
+  })
+  return passthrough
+}
+
 function collectEntries(config: Record<string, unknown>, keys: Set<string>): ConfigEntry[] {
   return Object.entries(config).filter(([key]) => keys.has(key))
 }

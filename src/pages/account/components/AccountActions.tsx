@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SettingsCard } from "@/components/card"
+import { FormEmailField } from "@/components/inputs"
 import { useToast } from "@/hooks/useToast"
 import { changeEmail, verifyEmailChange, changeUsername, exportAccountData, deleteAccount } from "@/services/api/account"
 import { useMutation } from "@tanstack/react-query"
@@ -107,7 +108,7 @@ function ChangeEmailDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         </DialogHeader>
         {step === "request" ? (
           <div className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="ce-email">New email</Label><Input id="ce-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" /></div>
+            <FormEmailField id="ce-email" label="New email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" />
             <div className="space-y-2"><Label htmlFor="ce-pw">Current password</Label><Input id="ce-pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
           </div>
         ) : (

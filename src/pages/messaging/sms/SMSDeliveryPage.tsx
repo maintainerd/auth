@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom"
 import { MessageSquare, Server, Phone, Hash, CalendarDays, Settings, FlaskConical } from "lucide-react"
-import { format } from "date-fns"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DetailsContainer } from "@/components/container"
 import { DetailHeaderCard, StatusBadge, EmptyState, type DetailAttribute } from "@/components/details"
+import { safeFormat } from "@/lib/formatDate"
 import { PageHeader } from "@/components/layout"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fetchSMSConfig } from "@/services/api/notifier"
@@ -46,8 +46,8 @@ export default function SMSDeliveryPage({ standalone = true }: { standalone?: bo
           ? [{ icon: Hash, label: "Sender ID", value: data.sender_id }]
           : []),
         { icon: Hash, label: "Daily Send Limit", value: String(data.daily_send_limit ?? 1000) },
-        { icon: CalendarDays, label: "Created", value: data.created_at ? format(new Date(data.created_at), "PPp") : "—" },
-        { icon: CalendarDays, label: "Last updated", value: data.updated_at ? format(new Date(data.updated_at), "PPp") : "—" },
+        { icon: CalendarDays, label: "Created", value: safeFormat(data.created_at, "PPp") },
+        { icon: CalendarDays, label: "Last updated", value: safeFormat(data.updated_at, "PPp") },
       ]
     : []
 

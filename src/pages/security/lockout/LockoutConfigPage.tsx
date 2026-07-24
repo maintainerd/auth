@@ -10,17 +10,32 @@ import { FormPageHeader } from '@/components/header'
 import { FormSwitchField, FormInputField, FormSubmitButton } from '@/components/form'
 import { useLockoutConfig, useUpdateLockoutConfig } from '@/hooks/useLockoutConfig'
 import { useToast } from '@/hooks/useToast'
+import { ConfirmationDialog } from '@/components/dialog'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import { lockoutConfigSchema, type LockoutConfigFormData } from '@/lib/validations'
+
+const BACKEND_FIELD_MAP: Record<string, string> = {
+  enabled: 'enabled',
+  max_failed_attempts: 'max_failed_attempts',
+  lockout_duration_minutes: 'lockout_duration_minutes',
+  progressive_lockout: 'progressive_lockout',
+  auto_unlock: 'auto_unlock',
+  reset_count_on_success: 'reset_count_on_success',
+  observation_window_minutes: 'observation_window_minutes',
+  max_lockout_duration_minutes: 'max_lockout_duration_minutes',
+  progression_reset_hours: 'progression_reset_hours',
+  notify_user_on_lockout: 'notify_user_on_lockout',
+}
 
 export default function LockoutConfigPage() {
   const navigate = useNavigate()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError, parseError } = useToast()
   const backTo = `/security?tab=lockout`
 
   const { data: savedConfig, isLoading, isError } = useLockoutConfig()
   const updateMutation = useUpdateLockoutConfig()
 
-  const { handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<LockoutConfigFormData>({
+  const { handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting, isDirty } } = useForm<LockoutConfigFormData>({
     resolver: yupResolver(lockoutConfigSchema),
     defaultValues: {
       enabled: true,
@@ -68,17 +83,49 @@ export default function LockoutConfigPage() {
       showSuccess('Lockout configuration saved successfully')
       navigate(backTo)
     } catch (error) {
+      const parsed = parseError(error)
+      let mappedToField = false
+      if (parsed.fieldErrors) {
+        for (const [field, message] of Object.entries(parsed.fieldErrors)) {
+          const formField = BACKEND_FIELD_MAP[field]
+          if (formField) {
+            setError(formField as never, { type: 'server', message })
+            mappedToField = true
+          }
+        }
+      }
+      if (!mappedToField) {
+        const lower = parsed.message.toLowerCase()
+        const keywordOrder: Array<[string, string]> = [
+          ['max_lockout_duration_minutes', 'max_lockout_duration_minutes'],
+          ['lockout_duration_minutes', 'lockout_duration_minutes'],
+          ['observation_window_minutes', 'observation_window_minutes'],
+          ['progression_reset_hours', 'progression_reset_hours'],
+          ['notify_user_on_lockout', 'notify_user_on_lockout'],
+          ['reset_count_on_success', 'reset_count_on_success'],
+          ['max_failed_attempts', 'max_failed_attempts'],
+          ['progressive_lockout', 'progressive_lockout'],
+          ['auto_unlock', 'auto_unlock'],
+          ['enabled', 'enabled'],
+        ]
+        const hit = keywordOrder.find(([keyword]) => lower.includes(keyword))
+        if (hit) {
+          setError(hit[1] as never, { type: 'server', message: parsed.message })
+        }
+      }
       showError(error)
     }
   }
 
   const isBusy = isSubmitting || updateMutation.isPending
 
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
+
   if (isLoading) {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Account Lockout" title="Configure Account Lockout" description="Set lockout policies and behavior." />
+          <FormPageHeader backUrl={backTo} onBack={() => guard(() => navigate(backTo))} backLabel="Back to Account Lockout" title="Configure Account Lockout" description="Set lockout policies and behavior." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -98,7 +145,7 @@ export default function LockoutConfigPage() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Account Lockout" title="Configure Account Lockout" description="Set lockout policies and behavior." />
+          <FormPageHeader backUrl={backTo} onBack={() => guard(() => navigate(backTo))} backLabel="Back to Account Lockout" title="Configure Account Lockout" description="Set lockout policies and behavior." />
           <Card>
             <CardContent className="py-12 text-center text-sm text-destructive">
               Failed to load lockout configuration.
@@ -114,6 +161,7 @@ export default function LockoutConfigPage() {
       <div className="flex flex-col gap-6">
         <FormPageHeader
           backUrl={backTo}
+          onBack={() => guard(() => navigate(backTo))}
           backLabel="Back to Account Lockout"
           title="Configure Account Lockout"
           description="Configure failed-login lockout policies, progressive escalation, and auto-unlock behavior."
@@ -171,12 +219,23 @@ export default function LockoutConfigPage() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate(backTo)} disabled={isBusy}>
+            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
               Cancel
             </Button>
             <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

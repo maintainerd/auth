@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAddClientIdentityProvider, useClients } from "@/hooks/useClients"
 import { useToast } from "@/hooks/useToast"
-import { SelectableOptionRow } from "@/pages/registration-flows/components/SelectableOptionRow"
+import { SelectableOptionRow } from "@/components/inputs"
 import type { Client } from "@/services/api/clients/types"
 
 const CLIENT_TYPE_LABELS: Record<string, string> = {

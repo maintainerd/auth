@@ -17,6 +17,8 @@ import {
   type SelectOption,
 } from "@/components/form"
 import { useToast } from "@/hooks/useToast"
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
+import { ConfirmationDialog } from "@/components/dialog"
 import { fetchSMSConfig, updateSMSConfig, type SMSConfigUpdate } from "@/services/api/notifier"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
@@ -75,7 +77,8 @@ export default function SMSConfigPage() {
   } = useForm<FormData>({
     resolver: yupResolver(schema) as Resolver<FormData>,
     defaultValues: { provider: "twilio", daily_send_limit: 1000, test_mode: false },
-    mode: "onSubmit",
+    mode: "onTouched",
+    reValidateMode: "onChange",
   })
 
   useEffect(() => {
@@ -100,17 +103,13 @@ export default function SMSConfigPage() {
   const isConfigured = Boolean(data?.provider)
   const providerChanged = isConfigured && selectedProvider !== data?.provider
 
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
+
   const mutation = useMutation({
     mutationFn: updateSMSConfig,
-    onSuccess: () => {
-      showSuccess("SMS delivery settings saved")
-      queryClient.invalidateQueries({ queryKey: ["sms-config"] })
-      navigate(backTo)
-    },
-    onError: (e) => showError(e),
   })
 
-  const onSubmit: SubmitHandler<FormData> = (formData) => {
+  const onSubmit: SubmitHandler<FormData> = async (formData) => {
     if (providerChanged && meta.authTokenLabel && !formData.auth_token) {
       setError("auth_token", {
         type: "manual",
@@ -127,7 +126,14 @@ export default function SMSConfigPage() {
       ...(meta.showSenderId ? { sender_id: formData.sender_id } : {}),
       ...(meta.authTokenLabel && formData.auth_token ? { auth_token: formData.auth_token } : {}),
     }
-    mutation.mutate(payload)
+    try {
+      await mutation.mutateAsync(payload)
+      showSuccess("SMS delivery settings saved")
+      queryClient.invalidateQueries({ queryKey: ["sms-config"] })
+      navigate(backTo)
+    } catch (e) {
+      showError(e)
+    }
   }
 
   const secretDescription = providerChanged
@@ -142,7 +148,7 @@ export default function SMSConfigPage() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to SMS Delivery" title="Configure SMS Delivery" description="Connect an SMS provider to send platform text messages." />
+          <FormPageHeader backUrl={backTo} backLabel="Back to SMS Delivery" onBack={() => guard(() => navigate(backTo))} title="Configure SMS Delivery" description="Connect an SMS provider to send platform text messages." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -162,7 +168,7 @@ export default function SMSConfigPage() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to SMS Delivery" title="Configure SMS Delivery" description="Connect an SMS provider to send platform text messages." />
+          <FormPageHeader backUrl={backTo} backLabel="Back to SMS Delivery" onBack={() => guard(() => navigate(backTo))} title="Configure SMS Delivery" description="Connect an SMS provider to send platform text messages." />
           <Card>
             <CardContent className="py-12 text-center text-sm text-destructive">
               Failed to load SMS configuration. {(error as Error)?.message || ""}
@@ -179,6 +185,7 @@ export default function SMSConfigPage() {
         <FormPageHeader
           backUrl={backTo}
           backLabel="Back to SMS Delivery"
+          onBack={() => guard(() => navigate(backTo))}
           title="Configure SMS Delivery"
           description="Connect an SMS provider so the platform can send one-time codes and security alerts by text message."
         />
@@ -285,12 +292,23 @@ export default function SMSConfigPage() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate(backTo)} disabled={isBusy}>
+            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
               Cancel
             </Button>
             <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" disabled={!isDirty} />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

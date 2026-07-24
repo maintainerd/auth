@@ -1,7 +1,7 @@
 import { Gauge, FileText, Wrench } from "lucide-react"
 import { useSearchParams } from "react-router-dom"
 import { DetailsContainer } from "@/components/container"
-import { FormPageHeader } from "@/components/header"
+import { PageHeader } from "@/components/layout"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AuditSettingsPanel,
@@ -43,9 +43,7 @@ export function TenantSettingsPage() {
   return (
     <DetailsContainer>
       <div className="flex flex-col gap-6">
-        <FormPageHeader
-          backUrl={`/dashboard`}
-          backLabel="Back"
+        <PageHeader
           title="Tenant Settings"
           description="Manage operational controls for this tenant."
         />

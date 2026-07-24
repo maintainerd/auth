@@ -1,3 +1,5 @@
 export { RegistrationFlowHeader } from './RegistrationFlowHeader'
+export { RegistrationFlowLink } from './RegistrationFlowLink'
 export { RegistrationFlowConfig } from './RegistrationFlowConfig'
 export { RegistrationFlowRoles } from './RegistrationFlowRoles'
+export { AssignRegistrationFlowRolesDialog } from './AssignRegistrationFlowRolesDialog'

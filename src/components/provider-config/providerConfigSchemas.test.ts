@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  PROVIDER_ORDER,
-  PROVIDER_SELECT_OPTIONS,
-  PROVIDER_LABELS,
   getProviderFieldKeys,
   isOAuth2OnlyProvider,
 } from './providerConfigSchemas'

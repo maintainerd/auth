@@ -30,6 +30,7 @@ function makeRule(overrides: Partial<IpRestrictionRule> = {}): IpRestrictionRule
     ipAddress: "203.0.113.0/24",
     status: "active",
     createdAt: "",
+    updatedAt: "",
     ...overrides,
   }
 }

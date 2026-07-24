@@ -1,6 +1,6 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { Edit, Trash2, MoreVertical, Workflow, Fingerprint, Box, CalendarDays, Play, Pause } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
+import { Edit, Trash2, MoreVertical, Workflow, Box, CalendarDays, Play, Pause } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -15,10 +15,11 @@ import { SystemBadge } from "@/components/badges"
 import { useDeleteRegistrationFlow, useUpdateRegistrationFlowStatus } from "@/hooks/useRegistrationFlows"
 import { useToast } from "@/hooks/useToast"
 import { safeFormat } from "@/lib/formatDate"
-import type { RegistrationFlow, RegistrationFlowStatus } from "@/services/api/registration-flows/types"
+import type { RegistrationFlowDetail, RegistrationFlowStatus } from "@/services/api/registration-flows/types"
 
 interface RegistrationFlowHeaderProps {
-  registrationFlow: RegistrationFlow
+  /** The detail projection — the header renders the resolved nested client. */
+  registrationFlow: RegistrationFlowDetail
   registrationFlowId: string
 }
 
@@ -59,17 +60,26 @@ export function RegistrationFlowHeader({ registrationFlow, registrationFlowId }:
   const canDelete = !registrationFlow.is_system
   const hasMenu = canActivate || canDeactivate || canDelete
 
+  // Show the client by its human name (display_name preferred) with the OAuth
+  // identifier as mono secondary text — a bare UUID told the operator nothing,
+  // and the identifier is what actually appears in a registration link.
+  const client = registrationFlow.client
+  const clientLabel = client ? client.display_name || client.name : null
+
   const attributes: DetailAttribute[] = [
-    {
-      icon: Fingerprint,
-      label: "Identifier",
-      value: <span className="font-mono text-xs">{registrationFlow.identifier}</span>,
-    },
     {
       icon: Box,
       label: "Client",
-      value: registrationFlow.client_id ? (
-        <span className="font-mono text-xs">{registrationFlow.client_id}</span>
+      value: client ? (
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <Link
+            to={`/clients/${client.client_id}`}
+            className="truncate font-medium underline underline-offset-4"
+          >
+            {clientLabel}
+          </Link>
+          <span className="break-all font-mono text-xs text-muted-foreground">{client.identifier}</span>
+        </div>
       ) : (
         <span className="text-muted-foreground">—</span>
       ),

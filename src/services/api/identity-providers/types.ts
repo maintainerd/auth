@@ -12,7 +12,7 @@ export type IdentityProviderStatus = Extract<Status, 'active' | 'inactive'>
 /**
  * Identity provider type
  */
-export type ProviderType = 'system' | 'social' | 'enterprise'
+export type ProviderType = 'system' | 'social' | 'enterprise' | 'saml'
 
 /**
  * Provider options

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { Controller, useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
@@ -10,9 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DetailsContainer } from "@/components/container"
 import { FormPageHeader } from "@/components/header"
 import { FormInputField, FormSelectField, FormSubmitButton } from "@/components/form"
+import { FormFileUploadField, FormUrlField } from "@/components/inputs"
+import { ConfirmationDialog } from "@/components/dialog"
 import { brandingSchema, type BrandingFormData } from "@/lib/validations"
 import { useBranding, useCreateBranding, useUpdateBranding } from "@/hooks/useBranding"
 import { useToast } from "@/hooks/useToast"
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
 import {
   THEME_TOKENS,
   DEFAULT_TOKENS,
@@ -29,11 +32,23 @@ const LAYOUT_OPTIONS = [
   { value: "split", label: "Split screen" },
 ]
 
+// Backend snake_case field keys → form field names.
+const BACKEND_FIELD_MAP: Record<string, keyof BrandingFormData> = {
+  name: "name",
+  layout: "layout",
+  company_name: "company_name",
+  logo_url: "logo_url",
+  favicon_url: "favicon_url",
+  support_url: "support_url",
+  privacy_policy_url: "privacy_policy_url",
+  terms_of_service_url: "terms_of_service_url",
+}
+
 export default function BrandingForm() {
   const { brandingId } = useParams<{ brandingId?: string }>()
   const navigate = useNavigate()
   const location = useLocation()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError, parseError } = useToast()
 
   const isEditing = Boolean(brandingId)
   const isCreating = !isEditing
@@ -55,14 +70,14 @@ export default function BrandingForm() {
   const [logoContentType, setLogoContentType] = useState<string | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [logoFileError, setLogoFileError] = useState<string | null>(null)
-  const logoFileRef = useRef<HTMLInputElement | null>(null)
 
   const {
     register,
     control,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    setError,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<BrandingFormData>({
     resolver: yupResolver(brandingSchema),
     defaultValues: {
@@ -75,8 +90,8 @@ export default function BrandingForm() {
       privacy_policy_url: "",
       terms_of_service_url: "",
     },
-    mode: "onSubmit",
-    reValidateMode: "onSubmit",
+    mode: "onTouched",
+    reValidateMode: "onChange",
   })
 
   useEffect(() => {
@@ -102,8 +117,7 @@ export default function BrandingForm() {
 
   const setToken = (id: string, value: string) => setTokens((t) => ({ ...t, [id]: value }))
 
-  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleLogoFile = async (file: File | null) => {
     if (!file) return
     setLogoFileError(null)
     const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
@@ -124,6 +138,11 @@ export default function BrandingForm() {
   }
 
   const isLoading = createMutation.isPending || updateMutation.isPending || isSubmitting
+
+  // Non-RHF state (tokens, logoMode) isn't captured by isDirty — same trade-off
+  // as the legacy client form. The guard still protects against leaving after
+  // editing RHF-tracked fields (name, URLs, layout, etc.).
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
 
   const onSubmit = async (data: BrandingFormData) => {
     const payload = {
@@ -150,6 +169,40 @@ export default function BrandingForm() {
       }
       navigate(backTo)
     } catch (error) {
+      const parsed = parseError(error)
+      let mappedToField = false
+      if (parsed.fieldErrors) {
+        for (const [field, message] of Object.entries(parsed.fieldErrors)) {
+          const formField = BACKEND_FIELD_MAP[field]
+          if (formField) {
+            setError(formField, { type: "server", message })
+            mappedToField = true
+          }
+        }
+      }
+      if (!mappedToField) {
+        const lower = parsed.message.toLowerCase()
+        const keywordOrder: Array<[string, keyof BrandingFormData]> = [
+          ["logo url", "logo_url"],
+          ["logo_url", "logo_url"],
+          ["favicon url", "favicon_url"],
+          ["favicon_url", "favicon_url"],
+          ["support url", "support_url"],
+          ["support_url", "support_url"],
+          ["privacy policy", "privacy_policy_url"],
+          ["privacy_policy_url", "privacy_policy_url"],
+          ["terms of service", "terms_of_service_url"],
+          ["terms_of_service_url", "terms_of_service_url"],
+          ["company name", "company_name"],
+          ["company_name", "company_name"],
+          ["layout", "layout"],
+          ["name", "name"],
+        ]
+        const hit = keywordOrder.find(([keyword]) => lower.includes(keyword))
+        if (hit) {
+          setError(hit[1], { type: "server", message: parsed.message })
+        }
+      }
       showError(error)
     }
   }
@@ -165,6 +218,7 @@ export default function BrandingForm() {
           <FormPageHeader
             backUrl={backTo}
             backLabel={backLabel}
+            onBack={() => guard(() => navigate(backTo))}
             title="Edit Branding Template"
             description="Update the branding theme and its values"
           />
@@ -192,6 +246,7 @@ export default function BrandingForm() {
           <FormPageHeader
             backUrl={backTo}
             backLabel={backLabel}
+            onBack={() => guard(() => navigate(backTo))}
             title="Edit Branding Template"
             description="Update the branding theme and its values"
           />
@@ -206,7 +261,7 @@ export default function BrandingForm() {
                   The branding template you're looking for doesn't exist or may have been removed.
                 </p>
               </div>
-              <Button variant="outline" onClick={() => navigate(backTo)}>
+              <Button variant="outline" onClick={() => guard(() => navigate(backTo))}>
                 <ArrowLeft className="mr-2 size-4" />
                 {backLabel}
               </Button>
@@ -223,6 +278,7 @@ export default function BrandingForm() {
         <FormPageHeader
           backUrl={backTo}
           backLabel={backLabel}
+          onBack={() => guard(() => navigate(backTo))}
           title={pageTitle}
           description={
             isCreating
@@ -309,7 +365,7 @@ export default function BrandingForm() {
                   </div>
                 </div>
                 {logoMode === 'url' ? (
-                  <FormInputField
+                  <FormUrlField
                     label="Logo URL"
                     placeholder="https://…/logo.svg"
                     disabled={isLoading}
@@ -318,17 +374,14 @@ export default function BrandingForm() {
                   />
                 ) : (
                   <div className="flex flex-col gap-2">
-                    <input
-                      ref={logoFileRef}
-                      type="file"
+                    <FormFileUploadField
+                      label="Logo file"
+                      description="PNG, JPEG, or WebP — max 256 KB."
                       accept="image/png,image/jpeg,image/webp"
                       disabled={isLoading}
-                      onChange={handleLogoFileChange}
-                      className="text-sm file:mr-3 file:rounded-md file:border file:border-border file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium file:cursor-pointer cursor-pointer"
+                      error={logoFileError ?? undefined}
+                      onChange={handleLogoFile}
                     />
-                    {logoFileError && (
-                      <p className="text-xs text-destructive">{logoFileError}</p>
-                    )}
                     {logoPreview && (
                       <img
                         src={logoPreview}
@@ -340,28 +393,28 @@ export default function BrandingForm() {
                   </div>
                 )}
               </div>
-              <FormInputField
+              <FormUrlField
                 label="Favicon URL"
                 placeholder="https://…/favicon.ico"
                 disabled={isLoading}
                 error={errors.favicon_url?.message}
                 {...register("favicon_url")}
               />
-              <FormInputField
+              <FormUrlField
                 label="Support URL"
                 placeholder="https://…/support"
                 disabled={isLoading}
                 error={errors.support_url?.message}
                 {...register("support_url")}
               />
-              <FormInputField
+              <FormUrlField
                 label="Privacy policy URL"
                 placeholder="https://…/privacy"
                 disabled={isLoading}
                 error={errors.privacy_policy_url?.message}
                 {...register("privacy_policy_url")}
               />
-              <FormInputField
+              <FormUrlField
                 label="Terms of service URL"
                 placeholder="https://…/terms"
                 disabled={isLoading}
@@ -394,12 +447,23 @@ export default function BrandingForm() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate(backTo)} disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isLoading}>
               Cancel
             </Button>
             <FormSubmitButton isSubmitting={isLoading} submitText={submitButtonText} />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

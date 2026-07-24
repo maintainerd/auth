@@ -11,6 +11,7 @@ const {
   createMutateAsync,
   updateMutateAsync,
   createUriMutateAsync,
+  deleteUriMutateAsync,
   updateUriMutateAsync,
   navigateMock,
   showSuccessMock,
@@ -22,6 +23,7 @@ const {
   createMutateAsync: vi.fn(),
   updateMutateAsync: vi.fn(),
   createUriMutateAsync: vi.fn(),
+  deleteUriMutateAsync: vi.fn(),
   updateUriMutateAsync: vi.fn(),
   navigateMock: vi.fn(),
   showSuccessMock: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock("@/hooks/useClients", () => ({
   useUpdateClient: () => ({ mutateAsync: updateMutateAsync, isPending: false }),
   useClientConfig: (...args: unknown[]) => useClientConfigMock(...args),
   useCreateClientUri: () => ({ mutateAsync: createUriMutateAsync, isPending: false }),
+  useDeleteClientUri: () => ({ mutateAsync: deleteUriMutateAsync, isPending: false }),
   useUpdateClientUri: () => ({ mutateAsync: updateUriMutateAsync, isPending: false }),
 }))
 

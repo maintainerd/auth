@@ -16,6 +16,9 @@ interface Row {
 
 const COLUMNS: ColumnDef<Row>[] = [
   { id: "name", accessorKey: "name", header: "Name" },
+  // Every listing labels this column for display while the API column is created_at.
+  { id: "Created", accessorKey: "created_at", header: "Created" },
+  { id: "actions", header: "" },
 ]
 const DEFAULT_SORT: SortingState = [{ id: "name", desc: false }]
 const SEARCH_FIELDS = ["name"]
@@ -196,5 +199,44 @@ describe("useServerDataTable", () => {
       captured!.clearFilters()
     })
     expect(captured!.activeFilters).toEqual([])
+  })
+})
+
+// Listing columns carry a display id so the view-options menu reads well, but the
+// backend sanitizes sort_by against a per-resource allowlist — sending "Created"
+// made it fall back to its default, so every header click looked like a no-op.
+describe("sort field resolution", () => {
+  it("sends the column's API field, not its display id", () => {
+    const { spy, useData } = makeUseData({ rows: [], total: 0 })
+    renderHarness(
+      { options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, useData } },
+      "/t1?sortBy=Created&sortOrder=desc",
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ sort_by: "created_at", sort_order: "desc" }),
+    )
+  })
+
+  it("resolves the default sort the same way", () => {
+    const { spy, useData } = makeUseData({ rows: [], total: 0 })
+    renderHarness({
+      options: {
+        defaultSort: [{ id: "Created", desc: true }],
+        searchFields: SEARCH_FIELDS,
+        useData,
+      },
+    })
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ sort_by: "created_at" }))
+  })
+
+  // A column with no accessorKey (a composite cell) has nothing to map to, so the id
+  // is passed through and the server's allowlist remains the last word.
+  it("passes an unmapped id through unchanged", () => {
+    const { spy, useData } = makeUseData({ rows: [], total: 0 })
+    renderHarness(
+      { options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, useData } },
+      "/t1?sortBy=actions",
+    )
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ sort_by: "actions" }))
   })
 })

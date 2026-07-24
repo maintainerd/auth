@@ -6,6 +6,8 @@ import { InformationCard } from "@/components/card"
 import { safeFormat } from "@/lib/formatDate"
 import { ConfirmationDialog } from "@/components/dialog"
 import { useToast } from "@/hooks/useToast"
+import { CopyableCode } from "@/components/inputs"
+import { authMethodRequiresSecret } from "@/lib/validations"
 import { useRotateClientSecret } from "@/hooks/useClients"
 import type { ClientResponse } from "@/services/api/clients/types"
 
@@ -20,7 +22,17 @@ export function ClientCredentials({ client }: ClientCredentialsProps) {
   const [rotatedSecret, setRotatedSecret] = useState<string | null>(null)
   const [previousSecretExpiresAt, setPreviousSecretExpiresAt] = useState<string | null>(null)
 
-  const shouldUseSecret = client.client_type === "traditional" || client.client_type === "m2m"
+  // Keyed off the auth method rather than the client type: a traditional client
+  // using private_key_jwt has no shared secret, so a "Rotate Secret" button there
+  // would mint a credential nothing authenticates with. Falls back to client type
+  // when the method is absent from the response.
+  const authMethod = client.token_endpoint_auth_method
+  const shouldUseSecret = authMethod
+    ? authMethodRequiresSecret(authMethod)
+    : client.client_type === "traditional" || client.client_type === "m2m"
+  // Rotating a system client's secret breaks the console or hosted login UI, which
+  // are configured with the seeded value — the backend refuses it outright.
+  const canRotate = shouldUseSecret && !client.is_system
   const credentialModel = shouldUseSecret ? "Confidential client" : "Public client"
 
   const copy = async (value: string, label: string) => {
@@ -49,7 +61,7 @@ export function ClientCredentials({ client }: ClientCredentialsProps) {
         description="Secrets are never retrievable after creation. Rotate the secret to issue a new plaintext value."
         icon={KeyRound}
         action={
-          shouldUseSecret ? (
+          canRotate ? (
             <Button size="sm" className="h-9 gap-2" onClick={() => setShowRotateDialog(true)}>
               <RotateCcw className="size-4" />
               Rotate Secret
@@ -59,6 +71,14 @@ export function ClientCredentials({ client }: ClientCredentialsProps) {
       >
         <div className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
+            {client.identifier && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Client ID <span className="font-normal">(use this in your application)</span>
+                </p>
+                <CopyableCode value={client.identifier} label="Client ID" variant="block" />
+              </div>
+            )}
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Client UUID</p>
               <div className="flex min-w-0 items-center gap-2">

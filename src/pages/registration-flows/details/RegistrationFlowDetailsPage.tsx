@@ -4,28 +4,41 @@ import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DetailTabs } from "@/components/details/DetailTabs"
 import { DetailLayout } from "@/components/details"
 import { useRegistrationFlow } from "@/hooks/useRegistrationFlows"
-import { RegistrationFlowHeader } from "./components/RegistrationFlowHeader"
-import { RegistrationFlowConfig } from "./components/RegistrationFlowConfig"
-import { RegistrationFlowRoles } from "./components/RegistrationFlowRoles"
+import {
+  RegistrationFlowHeader,
+  RegistrationFlowLink,
+  RegistrationFlowConfig,
+  RegistrationFlowRoles,
+} from "./components"
 
 const TABS = [
-  { value: "config", label: "Config", icon: Settings },
+  { value: "config", label: "Overview", icon: Settings },
   { value: "roles", label: "Roles", icon: Shield },
 ] as const
+
+type RegistrationFlowTab = typeof TABS[number]["value"]
+
+const TAB_VALUES = new Set<string>(TABS.map((tab) => tab.value))
 
 export default function RegistrationFlowDetailsPage() {
   const { registrationFlowId } = useParams<{ registrationFlowId: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const activeTab = searchParams.get("tab") || "config"
+  // Validate the requested tab instead of trusting ?tab= verbatim, which would
+  // otherwise render a details page with every tab panel hidden.
+  const requestedTab = searchParams.get("tab")
+  const activeTab: RegistrationFlowTab = TAB_VALUES.has(requestedTab || "")
+    ? (requestedTab as RegistrationFlowTab)
+    : "config"
+
   const handleTabChange = (tab: string) => setSearchParams({ tab })
 
   const { data: registrationFlow, isLoading, isError } = useRegistrationFlow(registrationFlowId || "")
 
   return (
     <DetailLayout
-      backLabel="Back to Registration"
+      backLabel="Back to Registration Flows"
       onBack={() => navigate(`/registration-flows`)}
       isLoading={isLoading}
       isError={isError || !registrationFlow}
@@ -45,7 +58,11 @@ export default function RegistrationFlowDetailsPage() {
         </TabsList>
 
         <TabsContent value="config">
-          <RegistrationFlowConfig registrationFlowId={registrationFlowId!} />
+          {/* The link is the primary artifact of a flow, so it leads the default tab. */}
+          <div className="space-y-4">
+            <RegistrationFlowLink flow={registrationFlow!} />
+            <RegistrationFlowConfig flow={registrationFlow!} />
+          </div>
         </TabsContent>
         <TabsContent value="roles">
           <RegistrationFlowRoles registrationFlowId={registrationFlowId!} />

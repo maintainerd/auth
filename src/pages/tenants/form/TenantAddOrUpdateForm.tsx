@@ -15,9 +15,13 @@ import {
   FormSubmitButton,
   type SelectOption,
 } from "@/components/form"
+import { FormSlugField } from "@/components/inputs"
+import { ConfirmationDialog } from "@/components/dialog"
 import { createTenantSchema, type CreateTenantFormData } from "@/lib/validations"
+import { sanitizeName } from "@/lib/validations/regex"
 import { useTenantById, useCreateTenant, useUpdateTenant } from "@/hooks/useTenants"
 import { useToast } from "@/hooks/useToast"
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
 import type { TenantStatus } from "@/services/api/tenants/types"
 
 const STATUS_OPTIONS: SelectOption[] = [
@@ -26,11 +30,19 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: "suspended", label: "Suspended" },
 ]
 
+// Backend snake_case field keys → form field names.
+const BACKEND_FIELD_MAP: Record<string, keyof CreateTenantFormData> = {
+  name: "name",
+  display_name: "display_name",
+  description: "description",
+  status: "status",
+}
+
 export default function TenantAddOrUpdateForm() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
   const location = useLocation()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError, parseError } = useToast()
 
   const isEditing = Boolean(id)
   const isCreating = !isEditing
@@ -49,7 +61,8 @@ export default function TenantAddOrUpdateForm() {
     handleSubmit,
     control,
     reset,
-    formState: { errors, isSubmitting },
+    setError,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<CreateTenantFormData>({
     resolver: yupResolver(createTenantSchema),
     defaultValues: {
@@ -58,8 +71,8 @@ export default function TenantAddOrUpdateForm() {
       description: "",
       status: "active",
     },
-    mode: "onSubmit",
-    reValidateMode: "onSubmit",
+    mode: "onTouched",
+    reValidateMode: "onChange",
   })
 
   useEffect(() => {
@@ -75,6 +88,8 @@ export default function TenantAddOrUpdateForm() {
 
   const isLoading = createTenantMutation.isPending || updateTenantMutation.isPending || isSubmitting
   const existingTenant = tenantData
+
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
 
   const onSubmit = async (data: CreateTenantFormData) => {
     try {
@@ -98,6 +113,31 @@ export default function TenantAddOrUpdateForm() {
 
       navigate(backTo)
     } catch (error) {
+      const parsed = parseError(error)
+      let mappedToField = false
+      if (parsed.fieldErrors) {
+        for (const [field, message] of Object.entries(parsed.fieldErrors)) {
+          const formField = BACKEND_FIELD_MAP[field]
+          if (formField) {
+            setError(formField, { type: "server", message })
+            mappedToField = true
+          }
+        }
+      }
+      if (!mappedToField) {
+        const lower = parsed.message.toLowerCase()
+        const keywordOrder: Array<[string, keyof CreateTenantFormData]> = [
+          ["display name", "display_name"],
+          ["display_name", "display_name"],
+          ["description", "description"],
+          ["status", "status"],
+          ["name", "name"],
+        ]
+        const hit = keywordOrder.find(([keyword]) => lower.includes(keyword))
+        if (hit) {
+          setError(hit[1], { type: "server", message: parsed.message })
+        }
+      }
       showError(error)
     }
   }
@@ -152,7 +192,7 @@ export default function TenantAddOrUpdateForm() {
                   The tenant you're looking for doesn't exist or may have been removed.
                 </p>
               </div>
-              <Button variant="outline" onClick={() => navigate(backTo)}>
+              <Button variant="outline" onClick={() => guard(() => navigate(backTo))}>
                 <ArrowLeft className="mr-2 size-4" />
                 {backLabel}
               </Button>
@@ -169,6 +209,7 @@ export default function TenantAddOrUpdateForm() {
         <FormPageHeader
           backUrl={backTo}
           backLabel={backLabel}
+          onBack={() => guard(() => navigate(backTo))}
           title={pageTitle}
           description={
             isCreating
@@ -190,10 +231,11 @@ export default function TenantAddOrUpdateForm() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <FormInputField
+                <FormSlugField
                   label="Tenant Name"
                   placeholder="e.g., acme-corp"
                   description="Unique identifier (lowercase letters, numbers, and hyphens only)"
+                  sanitize={sanitizeName}
                   disabled={existingTenant?.is_system || isLoading}
                   error={errors.name?.message}
                   required
@@ -246,7 +288,7 @@ export default function TenantAddOrUpdateForm() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(backTo)}
+              onClick={() => guard(() => navigate(backTo))}
               disabled={isLoading}
             >
               Cancel
@@ -258,6 +300,17 @@ export default function TenantAddOrUpdateForm() {
             />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

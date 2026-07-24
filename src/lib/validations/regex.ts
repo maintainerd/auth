@@ -13,6 +13,18 @@ export function sanitizeName(raw: string): string {
   return raw.replace(/[^a-z0-9-]/g, '').toLowerCase()
 }
 
+// A registration-flow name. The name IS the public registration-link selector
+// (?registration_flow=<name>), so it must satisfy the backend's
+// registrationFlowNamePattern: lowercase alphanumerics separated by single
+// hyphens or underscores. Whitespace becomes a hyphen rather than vanishing, so
+// typing "partner signup" yields "partner-signup" instead of "partnersignup".
+export function sanitizeFlowName(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-_]/g, '')
+}
+
 // An OAuth2 / OIDC scope token. Permits the shapes real providers use — plain
 // (`openid`), namespaced (`read:user`), dotted (`tweet.read`), and URL-style
 // (`https://www.googleapis.com/auth/userinfo.email`) — while rejecting spaces,
