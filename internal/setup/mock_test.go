@@ -663,13 +663,14 @@ func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
 
 type mockUserIdentityRepo struct {
 	mockBaseRepo[UserIdentity]
-	findByUserIDFn             func(int64) ([]UserIdentity, error)
-	findByUserIDAndClientIDFn  func(int64, int64) (*UserIdentity, error)
-	findByProviderAndSubFn     func(string, string) (*UserIdentity, error)
-	findByUserIDAndProviderFn  func(int64, string) (*UserIdentity, error)
-	findByIdentityProviderIDFn func(int64) ([]UserIdentity, error)
-	deleteByUserIDFn           func(int64) error
-	createFn                   func(*UserIdentity) (*UserIdentity, error)
+	findByUserIDFn                      func(int64) ([]UserIdentity, error)
+	findByUserIDAndClientIDFn           func(int64, int64) (*UserIdentity, error)
+	findByProviderAndSubFn              func(string, string) (*UserIdentity, error)
+	findByUserIDAndProviderFn           func(int64, string) (*UserIdentity, error)
+	findByUserIDAndIdentityProviderIDFn func(int64, int64) (*UserIdentity, error)
+	findByIdentityProviderIDFn          func(int64) ([]UserIdentity, error)
+	deleteByUserIDFn                    func(int64) error
+	createFn                            func(*UserIdentity) (*UserIdentity, error)
 }
 
 func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) UserIdentityRepository { return m }
@@ -703,6 +704,15 @@ func (m *mockUserIdentityRepo) FindByProviderAndSub(provider, sub string) (*User
 func (m *mockUserIdentityRepo) FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error) {
 	if m.findByUserIDAndProviderFn != nil {
 		return m.findByUserIDAndProviderFn(userID, provider)
+	}
+	return nil, nil
+}
+
+// FindByUserIDAndIdentityProviderID disambiguates two identities that share a
+// provider slug (the built-in "maintainerd" vs a federated one) by IdP id.
+func (m *mockUserIdentityRepo) FindByUserIDAndIdentityProviderID(userID, idpID int64) (*UserIdentity, error) {
+	if m.findByUserIDAndIdentityProviderIDFn != nil {
+		return m.findByUserIDAndIdentityProviderIDFn(userID, idpID)
 	}
 	return nil, nil
 }

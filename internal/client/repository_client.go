@@ -9,6 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
+// clientSortColumns is this table's own sort allowlist. The global set in
+// platform/database is a union across every table, so it contains columns
+// `clients` does not have — email, username, first_name, event_type, type and
+// others. Ordering by one of those reached Postgres as an undefined column and
+// surfaced as a 500 rather than a 400.
+var clientSortColumns = map[string]struct{}{
+	"created_at": {}, "updated_at": {}, "name": {}, "display_name": {},
+	"client_type": {}, "status": {}, "identifier": {}, "domain": {},
+	"is_default": {}, "is_system": {}, "tenant_id": {},
+}
+
 type ClientRepositoryGetFilter struct {
 	TenantID           int64
 	Name               *string
@@ -269,7 +280,7 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(database.SanitizeOrderPrefixed("clients.", filter.SortBy, filter.SortOrder, "clients.created_at DESC")).
+	query = query.Order(database.SanitizeOrderInPrefixed(clientSortColumns, "clients.", filter.SortBy, filter.SortOrder, "clients.created_at DESC")).
 		Preload("Tenant").
 		Preload("Branding").
 		Preload("ConnectedProviders", "enabled = ?", true).

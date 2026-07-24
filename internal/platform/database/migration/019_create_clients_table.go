@@ -119,6 +119,36 @@ CREATE TABLE IF NOT EXISTS clients (
     CONSTRAINT chk_clients_required_acr CHECK (
         required_acr IS NULL OR required_acr IN ('1', '2')
     ),
+    CONSTRAINT chk_clients_status CHECK (
+        status IN ('active', 'inactive')
+    ),
+    CONSTRAINT chk_clients_access_token_ttl CHECK (
+        access_token_ttl IS NULL OR access_token_ttl > 0
+    ),
+    CONSTRAINT chk_clients_refresh_token_ttl CHECK (
+        refresh_token_ttl IS NULL OR refresh_token_ttl > 0
+    ),
+    -- A refresh token that outlives its access token is the whole point; the
+    -- reverse means refresh can never be used.
+    CONSTRAINT chk_clients_token_ttl_order CHECK (
+        access_token_ttl IS NULL
+        OR refresh_token_ttl IS NULL
+        OR refresh_token_ttl >= access_token_ttl
+    ),
+    -- A public client authenticates with "none" and must therefore hold no
+    -- secret; a stored secret there is a false sense of security.
+    CONSTRAINT chk_clients_public_has_no_secret CHECK (
+        client_type NOT IN ('spa', 'mobile') OR secret_hash IS NULL
+    ),
+    -- "none" is only valid for a public client: client_id is public, so accepting
+    -- it elsewhere makes the token endpoint unauthenticated.
+    CONSTRAINT chk_clients_none_auth_is_public_only CHECK (
+        token_endpoint_auth_method <> 'none' OR client_type IN ('spa', 'mobile')
+    ),
+    -- The grace window is meaningless without a previous secret to grace.
+    CONSTRAINT chk_clients_previous_secret_expiry CHECK (
+        previous_secret_expires_at IS NULL OR previous_secret_hash IS NOT NULL
+    ),
     CONSTRAINT chk_clients_session_idle_timeout CHECK (
         session_idle_timeout IS NULL OR session_idle_timeout > 0
     ),
@@ -178,20 +208,26 @@ END$$;
 -- ADD INDEXES
 -- Composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_status ON clients (tenant_id, status);
-CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_is_default ON clients (tenant_id, is_default) WHERE is_default = TRUE;
+-- UNIQUE, not just indexed: FindDefaultByTenantID takes the first row, so a
+-- second default would make new-user provisioning nondeterministic.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_tenant_default ON clients (tenant_id) WHERE is_default = TRUE AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_clients_service_id ON clients (service_id) WHERE service_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_tenant_name ON clients (tenant_id, name) WHERE deleted_at IS NULL;
 
 -- Single column indexes
-CREATE INDEX IF NOT EXISTS idx_clients_identifier ON clients (identifier) WHERE identifier IS NOT NULL;
+-- uq_clients_identifier below already indexes this column; a second index on it
+-- would only cost writes. Global (not tenant-scoped) is correct: an OAuth
+-- client_id is resolved without a tenant predicate.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_identifier ON clients (identifier) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_clients_is_system ON clients (is_system) WHERE is_system = TRUE;
 CREATE INDEX IF NOT EXISTS idx_clients_branding_id ON clients (branding_id) WHERE branding_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients (created_at);
-CREATE INDEX IF NOT EXISTS idx_clients_deleted_at ON clients (deleted_at) WHERE deleted_at IS NULL;
+-- Every listing is "tenant_id = ? ORDER BY created_at DESC", so the index is
+-- composite rather than created_at alone.
+CREATE INDEX IF NOT EXISTS idx_clients_tenant_created_at ON clients (tenant_id, created_at DESC) WHERE deleted_at IS NULL;
 
 -- OAuth indexes
-CREATE INDEX IF NOT EXISTS idx_clients_grant_types ON clients USING GIN (grant_types);
+-- No query does array containment on grant_types, so a GIN index here is pure
+-- write cost. Reinstate it alongside the first such query.
 `
 	return db.Exec(sql).Error
 }

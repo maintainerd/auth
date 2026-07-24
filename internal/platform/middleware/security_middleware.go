@@ -2,9 +2,12 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
@@ -167,40 +170,137 @@ func IPWhitelistMiddleware(allowedCIDRs []string) func(http.Handler) http.Handle
 	}
 }
 
-// extractClientIP extracts the real client IP, validating each candidate before
-// trusting it to prevent header-injection attacks.
-// Complies with SOC2 CC6.1 and ISO27001 A.13.1.1
-func extractClientIP(r *http.Request) string {
-	// Check X-Forwarded-For — validate every entry before accepting
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		for raw := range strings.SplitSeq(xff, ",") {
-			candidate := strings.TrimSpace(raw)
-			if net.ParseIP(candidate) != nil {
-				return candidate
+// Trusted-proxy configuration for client-IP resolution.
+//
+// TRUSTED_PROXY_CIDRS is a comma-separated list of CIDRs (or bare IPs) that are
+// permitted to speak for the client via forwarding headers — normally just the
+// reverse proxy in front of the app. Defaults to loopback plus the RFC1918 and
+// RFC4193 ranges, which covers the nginx-in-docker topology this project ships
+// with (see CLAUDE.md) while still refusing headers from the public internet.
+//
+// Set TRUST_ALL_PROXIES=true ONLY when the platform guarantees the header (e.g.
+// a managed load balancer that overwrites X-Forwarded-For). It restores the old
+// trust-anything behaviour and is logged as a warning at startup.
+var (
+	trustedProxyNets []*net.IPNet
+	trustAllProxies  bool
+	trustedProxyOnce sync.Once
+)
+
+const defaultTrustedProxyCIDRs = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
+
+func initTrustedProxies() {
+	trustAllProxies = strings.EqualFold(strings.TrimSpace(os.Getenv("TRUST_ALL_PROXIES")), "true")
+	if trustAllProxies {
+		slog.Warn("TRUST_ALL_PROXIES is enabled: forwarding headers are accepted from any peer, " +
+			"so every per-IP rate limit and IP restriction can be bypassed by a spoofed header")
+		return
+	}
+
+	raw := strings.TrimSpace(os.Getenv("TRUSTED_PROXY_CIDRS"))
+	if raw == "" {
+		raw = defaultTrustedProxyCIDRs
+	}
+	for entry := range strings.SplitSeq(raw, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if !strings.Contains(entry, "/") {
+			// Bare IP — treat as a single-host network.
+			if ip := net.ParseIP(entry); ip != nil {
+				bits := 32
+				if ip.To4() == nil {
+					bits = 128
+				}
+				trustedProxyNets = append(trustedProxyNets, &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)})
+				continue
 			}
+			slog.Error("ignoring invalid TRUSTED_PROXY_CIDRS entry", "entry", entry)
+			continue
+		}
+		_, network, err := net.ParseCIDR(entry)
+		if err != nil {
+			slog.Error("ignoring invalid TRUSTED_PROXY_CIDRS entry", "entry", entry, "error", err)
+			continue
+		}
+		trustedProxyNets = append(trustedProxyNets, network)
+	}
+}
+
+func isTrustedProxy(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	for _, network := range trustedProxyNets {
+		if network.Contains(ip) {
+			return true
 		}
 	}
+	return false
+}
 
-	// Check X-Real-IP
-	if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
-		if net.ParseIP(xri) != nil {
-			return xri
+// extractClientIP resolves the client IP that every per-IP control keys on —
+// rate limiting, registration abuse counters, tenant IP restrictions and audit
+// records.
+//
+// Forwarding headers are attacker-controlled unless the immediate peer is a
+// trusted proxy, so they are consulted ONLY when r.RemoteAddr is in
+// TRUSTED_PROXY_CIDRS. Otherwise RemoteAddr wins. Validating a header's *syntax*
+// (net.ParseIP) proves nothing about its provenance: without this check any
+// caller can rotate `X-Forwarded-For` per request and reset every limiter.
+//
+// Within X-Forwarded-For the list is appended left-to-right by each hop, so the
+// rightmost entry is the one our trusted proxy observed. We walk from the right
+// and take the first entry that is not itself a trusted proxy, which yields the
+// real client even behind several trusted hops and cannot be shifted by a
+// client-supplied prefix.
+func extractClientIP(r *http.Request) string {
+	trustedProxyOnce.Do(initTrustedProxies)
+
+	remoteIP := remoteAddrIP(r)
+
+	if !trustAllProxies && !isTrustedProxy(remoteIP) {
+		if remoteIP != nil {
+			return remoteIP.String()
 		}
-	}
-
-	// Check CF-Connecting-IP (Cloudflare)
-	if cfip := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cfip != "" {
-		if net.ParseIP(cfip) != nil {
-			return cfip
-		}
-	}
-
-	// Fall back to RemoteAddr
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
 		return r.RemoteAddr
 	}
-	return ip
+
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		for i := len(parts) - 1; i >= 0; i-- {
+			candidate := net.ParseIP(strings.TrimSpace(parts[i]))
+			if candidate == nil {
+				continue
+			}
+			if isTrustedProxy(candidate) && !trustAllProxies {
+				continue // another hop in our own infrastructure
+			}
+			return candidate.String()
+		}
+	}
+
+	if xri := net.ParseIP(strings.TrimSpace(r.Header.Get("X-Real-IP"))); xri != nil {
+		return xri.String()
+	}
+
+	if cfip := net.ParseIP(strings.TrimSpace(r.Header.Get("CF-Connecting-IP"))); cfip != nil {
+		return cfip.String()
+	}
+
+	if remoteIP != nil {
+		return remoteIP.String()
+	}
+	return r.RemoteAddr
+}
+
+func remoteAddrIP(r *http.Request) net.IP {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return net.ParseIP(strings.TrimSpace(r.RemoteAddr))
+	}
+	return net.ParseIP(host)
 }
 
 // ClientIPFromContext returns the client IP address stored in ctx by

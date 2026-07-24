@@ -53,10 +53,12 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_client_uris_uuid ON client_uris (client_uri_uuid);
+-- client_uri_uuid is declared UNIQUE above, which already indexes it.
 CREATE INDEX IF NOT EXISTS idx_client_uris_tenant_id ON client_uris (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_client_uris_client_id ON client_uris (client_id);
-CREATE INDEX IF NOT EXISTS idx_client_uris_uri ON client_uris (uri);
+-- A redirect-URI allowlist with duplicates is a review hazard, and nothing
+-- de-duplicated on write. Unique per (client, type, uri) among live rows.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_client_uris_client_type_uri ON client_uris (client_id, type, uri) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_client_uris_type ON client_uris (type);
 CREATE INDEX IF NOT EXISTS idx_client_uris_client_id_type ON client_uris (client_id, type);
 CREATE INDEX IF NOT EXISTS idx_client_uris_deleted_at ON client_uris (deleted_at) WHERE deleted_at IS NULL;

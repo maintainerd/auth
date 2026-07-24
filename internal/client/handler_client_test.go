@@ -618,7 +618,7 @@ func TestClientHandler_AddAPIs(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("bad json returns 400", func(t *testing.T) {
-		r := withTenant(withChiParam(badJSONReq(t, http.MethodPost, "/"), "client_uuid", testResourceUUID.String()))
+		r := withTenantAndUser(withChiParam(badJSONReq(t, http.MethodPost, "/"), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(&mockClientService{}).AddAPIs(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -633,13 +633,27 @@ func TestClientHandler_AddAPIs(t *testing.T) {
 		svc := &mockClientService{addClientAPIsFn: func(tid int64, id uuid.UUID, apis []uuid.UUID) error {
 			return errors.New("db error")
 		}}
-		r := withTenant(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}}), "client_uuid", testResourceUUID.String()))
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}}), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(svc).AddAPIs(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
-	t.Run("success", func(t *testing.T) {
+	// A grant change must be attributable, so a tenant alone is not enough.
+	t.Run("no user returns 401", func(t *testing.T) {
 		r := withTenant(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}}), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).AddAPIs(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+	// The DTO rules existed but were never run, so an empty list reached the service.
+	t.Run("empty api list is rejected", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{}}), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).AddAPIs(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("success", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}}), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(&mockClientService{}).AddAPIs(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -671,13 +685,13 @@ func TestClientHandler_RemoveAPI(t *testing.T) {
 		svc := &mockClientService{removeClientAPIFn: func(tid int64, id, api uuid.UUID) error {
 			return errors.New("db error")
 		}}
-		r := withTenant(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
+		r := withTenantAndUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(svc).RemoveAPI(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		r := withTenant(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
+		r := withTenantAndUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(&mockClientService{}).RemoveAPI(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -742,7 +756,7 @@ func TestClientHandler_AddAPIPermissions(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("bad json returns 400", func(t *testing.T) {
-		r := withTenant(withChiParam(withChiParam(badJSONReq(t, http.MethodPost, "/"), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
+		r := withTenantAndUser(withChiParam(withChiParam(badJSONReq(t, http.MethodPost, "/"), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(&mockClientService{}).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -757,13 +771,13 @@ func TestClientHandler_AddAPIPermissions(t *testing.T) {
 		svc := &mockClientService{addClientAPIPermsFn: func(tid int64, id, api uuid.UUID, perms []uuid.UUID) error {
 			return errors.New("db error")
 		}}
-		r := withTenant(withChiParam(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}}), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
+		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}}), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(svc).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		r := withTenant(withChiParam(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}}), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
+		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}}), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(&mockClientService{}).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -835,13 +849,13 @@ func TestClientHandler_RemoveAPIPermission(t *testing.T) {
 		svc := &mockClientService{removeClientAPIPermFn: func(tid int64, id, api, perm uuid.UUID) error {
 			return errors.New("db error")
 		}}
-		r := withTenant(withChiParam(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()), "permission_uuid", permUUID.String()))
+		r := withTenantAndUser(withChiParam(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()), "permission_uuid", permUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(svc).RemoveAPIPermission(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		r := withTenant(withChiParam(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()), "permission_uuid", permUUID.String()))
+		r := withTenantAndUser(withChiParam(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()), "permission_uuid", permUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(&mockClientService{}).RemoveAPIPermission(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -977,7 +991,7 @@ func TestClientHandler_UpdateConnection(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{updateConnectionFn: func(id uuid.UUID, tid int64, conn uuid.UUID, isDefault, enabled bool, order int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+		svc := &mockClientService{updateConnectionFn: func(id uuid.UUID, tid int64, conn uuid.UUID, isDefault, enabled *bool, order *int, actor uuid.UUID) (*ClientServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))
@@ -986,7 +1000,7 @@ func TestClientHandler_UpdateConnection(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{updateConnectionFn: func(id uuid.UUID, tid int64, conn uuid.UUID, isDefault, enabled bool, order int, actor uuid.UUID) (*ClientServiceDataResult, error) {
+		svc := &mockClientService{updateConnectionFn: func(id uuid.UUID, tid int64, conn uuid.UUID, isDefault, enabled *bool, order *int, actor uuid.UUID) (*ClientServiceDataResult, error) {
 			return &ClientServiceDataResult{Name: "c1"}, nil
 		}}
 		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validConnectionBody()), "client_uuid", testResourceUUID.String()), "client_identity_provider_uuid", connUUID.String()))

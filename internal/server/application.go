@@ -44,6 +44,7 @@ type Application struct {
 	UserService                  user.UserService
 	UserLockoutClearer           user.UserLockoutClearer
 	RegisterService              authn.RegisterService
+	RegistrationContextService   authn.RegistrationContextService
 	LoginService                 authn.LoginService
 	ProfileService               user.ProfileService
 	ProfileRepo                  user.ProfileRepository

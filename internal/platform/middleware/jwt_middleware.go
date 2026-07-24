@@ -64,18 +64,26 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		// Get authorization header first
 		authHeader := r.Header.Get("Authorization")
 		var token string
+		var scheme string
 
 		if authHeader != "" {
-			// Use Bearer token if present
 			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
-				token = parts[1]
+			// "DPoP" is the scheme RFC 9449 §7.1 requires for a sender-constrained
+			// token; it was previously unrecognized, so such a token could not be
+			// used at all under its own scheme.
+			if len(parts) == 2 {
+				switch strings.ToLower(parts[0]) {
+				case "bearer", "dpop":
+					scheme = strings.ToLower(parts[0])
+					token = parts[1]
+				}
 			}
 		}
 		if token == "" {
 			for _, name := range []string{"access_token", "__Host-access_token"} {
 				if cookie, err := r.Cookie(name); err == nil {
 					token = cookie.Value
+					scheme = "cookie"
 					break
 				}
 			}
@@ -90,6 +98,13 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		rawClaims, err := jwt.ValidateTokenWithContext(r.Context(), token)
 		if err != nil {
 			resp.Error(w, http.StatusUnauthorized, "Invalid or expired token", err.Error())
+			return
+		}
+
+		// A token carrying cnf.jkt is bound to a key and is only valid alongside a
+		// proof of possession of that key.
+		if err := enforceDPoPBinding(r, scheme, token, rawClaims); err != nil {
+			resp.Error(w, http.StatusUnauthorized, "Invalid token", err.Error())
 			return
 		}
 

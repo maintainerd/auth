@@ -90,10 +90,14 @@ func TestRegistrationFlowRoleRepository_FindByRegistrationFlowIDPaginated(t *tes
 				AddRow(10, uuid.New(), "admin", now, now).
 				AddRow(20, uuid.New(), "user", now, now))
 		repo := NewRegistrationFlowRoleRepository(gdb)
-		result, total, err := repo.FindByRegistrationFlowIDPaginated(1, 1, 10)
+		result, err := repo.FindByRegistrationFlowIDPaginated(1, 1, 10)
 		require.NoError(t, err)
-		assert.Len(t, result, 2)
-		assert.Equal(t, int64(2), total)
+		require.NotNil(t, result)
+		assert.Len(t, result.Data, 2)
+		assert.Equal(t, int64(2), result.Total)
+		assert.Equal(t, 1, result.Page)
+		assert.Equal(t, 10, result.Limit)
+		assert.Equal(t, 1, result.TotalPages)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -103,10 +107,9 @@ func TestRegistrationFlowRoleRepository_FindByRegistrationFlowIDPaginated(t *tes
 			WithArgs(int64(1)).
 			WillReturnError(errors.New("db error"))
 		repo := NewRegistrationFlowRoleRepository(gdb)
-		result, total, err := repo.FindByRegistrationFlowIDPaginated(1, 1, 10)
+		result, err := repo.FindByRegistrationFlowIDPaginated(1, 1, 10)
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.Equal(t, int64(0), total)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -119,10 +122,67 @@ func TestRegistrationFlowRoleRepository_FindByRegistrationFlowIDPaginated(t *tes
 			WithArgs(int64(1), 10).
 			WillReturnError(errors.New("query error"))
 		repo := NewRegistrationFlowRoleRepository(gdb)
-		result, total, err := repo.FindByRegistrationFlowIDPaginated(1, 1, 10)
+		result, err := repo.FindByRegistrationFlowIDPaginated(1, 1, 10)
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.Equal(t, int64(0), total)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("empty page returns a zero-total result", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "registration_flow_roles" WHERE .*registration_flow_id = \$1`).
+			WithArgs(int64(7)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+		mock.ExpectQuery(`SELECT \* FROM "registration_flow_roles" WHERE .*registration_flow_id = \$1.*LIMIT`).
+			WithArgs(int64(7), 10).
+			WillReturnRows(sqlmock.NewRows([]string{"registration_flow_role_id", "registration_flow_role_uuid", "registration_flow_id", "role_id"}))
+		repo := NewRegistrationFlowRoleRepository(gdb)
+		result, err := repo.FindByRegistrationFlowIDPaginated(7, 1, 10)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Empty(t, result.Data)
+		assert.Equal(t, int64(0), result.Total)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// DeleteByRegistrationFlowID clears a flow's whole role membership. It exists
+// because registration_flows is soft-deleted and a soft delete does not fire the
+// FK cascade, so without this the child rows outlive the parent.
+func TestRegistrationFlowRoleRepository_DeleteByRegistrationFlowID(t *testing.T) {
+	t.Run("success deletes every row for the flow", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "registration_flow_roles" WHERE .*registration_flow_id = \$1`).
+			WithArgs(int64(1)).
+			WillReturnResult(sqlmock.NewResult(0, 3))
+		mock.ExpectCommit()
+		repo := NewRegistrationFlowRoleRepository(gdb)
+		require.NoError(t, repo.DeleteByRegistrationFlowID(1))
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("no rows is not an error (idempotent)", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "registration_flow_roles" WHERE .*registration_flow_id = \$1`).
+			WithArgs(int64(99)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectCommit()
+		repo := NewRegistrationFlowRoleRepository(gdb)
+		require.NoError(t, repo.DeleteByRegistrationFlowID(99))
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "registration_flow_roles" WHERE .*registration_flow_id = \$1`).
+			WithArgs(int64(1)).
+			WillReturnError(errors.New("db error"))
+		mock.ExpectRollback()
+		repo := NewRegistrationFlowRoleRepository(gdb)
+		require.Error(t, repo.DeleteByRegistrationFlowID(1))
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

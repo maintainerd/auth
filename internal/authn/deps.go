@@ -361,8 +361,20 @@ type UserLockoutRepository interface {
 type RegistrationFlowRoleRepository interface {
 	WithTx(tx *gorm.DB) RegistrationFlowRoleRepository
 	FindByID(registrationFlowID int64) (*RegistrationFlow, error)
-	FindByIdentifierAndClientID(identifier string, clientID int64) (*RegistrationFlow, error)
-	FindRoleIDsByRegistrationFlowID(registrationFlowID int64) ([]int64, error)
+	// FindByNameAndClientTenant resolves a public registration link by flow name.
+	// The tenant is part of the predicate because this lookup decides which roles
+	// a new user is granted — a client match alone is existence, not ownership.
+	FindByNameAndClientTenant(name string, clientID, tenantID int64) (*RegistrationFlow, error)
+	// FindGrantableRoleIDsByRegistrationFlowID is the AUTHORITATIVE redeem-time
+	// gate on what a registration flow may grant. It returns only roles that are
+	// same-tenant, active, non-system, not soft-deleted, and carry no
+	// management-plane permission.
+	//
+	// The cap is also applied when an admin attaches a role (idp
+	// assertRolesGrantable), but that is a time-of-check test: a role's
+	// permissions can change afterwards. This is the time-of-use test, so a role
+	// that later gained an administrative permission stops being granted.
+	FindGrantableRoleIDsByRegistrationFlowID(registrationFlowID, tenantID int64) ([]int64, error)
 }
 
 // RegistrationFlow is the explicitly selected registration policy. CRUD is
@@ -374,6 +386,10 @@ type RegistrationFlow struct {
 	Status               string
 	VerificationRequired bool
 	RequiredFields       datatypes.JSON
+	// IsSystem marks a seeded, privileged flow (e.g. owner onboarding, which
+	// grants super-admin). Such flows are invite-only and must never be
+	// redeemable from a self-service registration link.
+	IsSystem bool
 }
 
 type UserConsentRecorder interface {

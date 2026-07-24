@@ -54,7 +54,8 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 		{http.MethodPost, "/oauth/ciba"},
 		{http.MethodPost, "/oauth/ciba/approve"},
 		{http.MethodPost, "/oauth/ciba/deny"},
-		{http.MethodPost, "/oauth/register"},
+		// POST /oauth/register (Dynamic Client Registration) is deliberately NOT
+		// mounted — see the rationale in routes.go. It is asserted absent below.
 		{http.MethodGet, "/oauth/callback/" + testResourceUUID.String()},
 		{http.MethodGet, "/oauth/end_session"},
 		{http.MethodPost, "/oauth/end_session"},
@@ -66,6 +67,15 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 			assert.True(t, public.Match(match, tt.method, tt.path))
 		})
 	}
+
+	// Dynamic Client Registration must stay unmounted: unauthenticated client
+	// creation that accepted token_endpoint_auth_method="none" would let anyone
+	// create a client needing no credential to mint tokens.
+	t.Run("POST /oauth/register is not mounted", func(t *testing.T) {
+		match := chi.NewRouteContext()
+		assert.False(t, public.Match(match, http.MethodPost, "/oauth/register"),
+			"re-mounting DCR requires an initial access token and the client matrix first")
+	})
 
 	discovery := chi.NewRouter()
 	OAuthDiscoveryRoute(discovery, NewOAuthDiscoveryHandler(nil))

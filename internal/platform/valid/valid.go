@@ -21,7 +21,11 @@ func IsValidEmail(email string) bool {
 }
 
 // IsValidPhoneNumber validates phone number format.
-// Accepts various international formats: +1234567890, (123) 456-7890, 123-456-7890, etc.
+//
+// The first character after an optional leading '+' must be 1-9, so a number
+// written with a leading parenthesis — "(123) 456-7890" — is REJECTED. Separators
+// (space, hyphen, parenthesis, dot) are permitted only after that first digit.
+// Accepted: +1234567890, 1234567890, 123-456-7890, 123 (456) 7890.
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.2.
 func IsValidPhoneNumber(phone string) bool {
 	// Remove all non-digit characters for digit-count validation

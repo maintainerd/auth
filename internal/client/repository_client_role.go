@@ -52,6 +52,7 @@ func (r *clientRoleRepository) ListRoles(clientID int64) ([]ClientRole, error) {
 	var roles []ClientRole
 	err := r.DB().
 		Where("client_id = ?", clientID).
+		Preload("Role").
 		Find(&roles).Error
 	return roles, err
 }

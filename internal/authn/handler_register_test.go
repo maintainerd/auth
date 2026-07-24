@@ -279,3 +279,71 @@ func TestRegisterHandler_RegisterInvitePublic_Success(t *testing.T) {
 	h.RegisterInvitePublic(w, r)
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
+
+// ---------------------------------------------------------------------------
+// registration_flow query parameter
+//
+// RegisterPublic used to drop ?registration_flow entirely, which made the whole
+// feature inert: the flow's status, required_fields and role grants were all
+// silently skipped on the self-service path. These tests pin the wiring.
+// ---------------------------------------------------------------------------
+
+func TestRegisterHandler_RegisterPublic_ForwardsRegistrationFlow(t *testing.T) {
+	var got string
+	called := false
+	svc := &mockRegisterService{
+		registerPublicFn: func(u, f, p string, e, ph, c, pr *string, registrationFlow string) (*RegisterResponseDTO, error) {
+			called = true
+			got = registrationFlow
+			return &RegisterResponseDTO{}, nil
+		},
+	}
+	h := NewRegisterHandler(svc)
+	r := regRequest(t, "/public/register?client_id=c1&registration_flow=partner-signup-abcd1234", map[string]string{
+		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
+	})
+	w := httptest.NewRecorder()
+	h.RegisterPublic(w, r)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	require.True(t, called)
+	assert.Equal(t, "partner-signup-abcd1234", got)
+}
+
+func TestRegisterHandler_RegisterPublic_OmittedRegistrationFlowIsEmpty(t *testing.T) {
+	got := "sentinel"
+	svc := &mockRegisterService{
+		registerPublicFn: func(u, f, p string, e, ph, c, pr *string, registrationFlow string) (*RegisterResponseDTO, error) {
+			got = registrationFlow
+			return &RegisterResponseDTO{}, nil
+		},
+	}
+	h := NewRegisterHandler(svc)
+	r := regRequest(t, "/public/register?client_id=c1", map[string]string{
+		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
+	})
+	w := httptest.NewRecorder()
+	h.RegisterPublic(w, r)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Empty(t, got, "an absent selector must reach the service as the empty string")
+}
+
+func TestRegisterHandler_Register_ForwardsRegistrationFlow(t *testing.T) {
+	var got string
+	svc := &mockRegisterService{
+		registerFn: func(u, f, p string, e, ph, c, pr *string, registrationFlow string) (*RegisterResponseDTO, error) {
+			got = registrationFlow
+			return &RegisterResponseDTO{}, nil
+		},
+	}
+	h := NewRegisterHandler(svc)
+	r := regRequest(t, "/register?tenant_id=system&registration_flow=internal-flow-abcd1234", map[string]string{
+		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
+	})
+	w := httptest.NewRecorder()
+	h.Register(w, r)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Equal(t, "internal-flow-abcd1234", got)
+}

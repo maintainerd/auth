@@ -196,6 +196,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		authn.EmailVerificationPublicRoute(api, h.emailVerification)
 		authn.MagicLinkPublicRoute(api, h.magicLink)
 		invite.InvitePublicRoute(api, h.invite)
+		authn.RegistrationContextPublicRoute(api, h.registrationContext)
 
 		// Cookie-auth state-changing routes — apply CSRF protection
 		api.Group(func(cookieAuth chi.Router) {

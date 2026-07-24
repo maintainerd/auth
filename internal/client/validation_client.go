@@ -1,10 +1,22 @@
 package client
 
 import (
+	"regexp"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
+
+// maxClientConfigBytes caps the free-form config blob. It mirrors
+// security-relevant columns (grant types, auth method, TTLs), so an unbounded
+// body is both a cheap DoS and a blob nobody can review.
+const maxClientConfigBytes = 16 * 1024
+
+// clientDomainPattern accepts a bare hostname (auth.example.com) or an absolute
+// https URL. The domain becomes the token `iss` and is compared in the
+// private_key_jwt audience check, so arbitrary text there is load-bearing.
+var clientDomainPattern = regexp.MustCompile(`^(https://)?[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?(:[0-9]{1,5})?(/.*)?$`)
 
 func (r ClientCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
@@ -17,14 +29,24 @@ func (r ClientCreateRequestDTO) Validate() error {
 			validation.Length(8, 200).Error("Display Name must be between 8 and 200 characters"),
 		),
 		validation.Field(&r.ClientType,
+			// Required, or an empty string passes In() and only fails at the DB
+			// CHECK constraint — surfacing as a 500 instead of a 400.
+			validation.Required.Error("Client Type is required"),
 			validation.In(shared.ClientTypeTraditional, shared.ClientTypeSPA, shared.ClientTypeMobile, shared.ClientTypeM2M).Error("Invalid client Type"),
 		),
 		validation.Field(&r.Domain,
 			validation.Required.Error("Domain is required"),
-			validation.Length(3, 100).Error("Domain must be between 3 and 100 characters"),
+			// varchar(253) in the DB; it is also used as the token issuer, so it
+			// must be a real host/URL rather than arbitrary text.
+			validation.Length(3, 253).Error("Domain must be between 3 and 253 characters"),
+			validation.Match(clientDomainPattern).Error("Domain must be a hostname or https URL"),
 		),
 		validation.Field(&r.Config,
 			validation.Required.Error("Config is required"),
+			validation.Length(0, maxClientConfigBytes).Error("Config must not exceed 16KB"),
+			// The advanced keys inside config are mirrored into runtime columns; a
+			// malformed one would otherwise be dropped silently.
+			validation.By(validateClientConfig),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -66,14 +88,22 @@ func (r ClientUpdateRequestDTO) Validate() error {
 			validation.Length(8, 200).Error("Display Name must be between 8 and 200 characters"),
 		),
 		validation.Field(&r.ClientType,
-			validation.In(shared.ClientTypeTraditional, shared.ClientTypeSPA, shared.ClientTypeMobile, shared.ClientTypeM2M).Error("Client Type is required"),
+			validation.Required.Error("Client Type is required"),
+			validation.In(shared.ClientTypeTraditional, shared.ClientTypeSPA, shared.ClientTypeMobile, shared.ClientTypeM2M).Error("Invalid client Type"),
 		),
 		validation.Field(&r.Domain,
 			validation.Required.Error("Domain is required"),
-			validation.Length(3, 100).Error("Domain must be between 3 and 100 characters"),
+			// varchar(253) in the DB; it is also used as the token issuer, so it
+			// must be a real host/URL rather than arbitrary text.
+			validation.Length(3, 253).Error("Domain must be between 3 and 253 characters"),
+			validation.Match(clientDomainPattern).Error("Domain must be a hostname or https URL"),
 		),
 		validation.Field(&r.Config,
 			validation.Required.Error("Config is required"),
+			validation.Length(0, maxClientConfigBytes).Error("Config must not exceed 16KB"),
+			// The advanced keys inside config are mirrored into runtime columns; a
+			// malformed one would otherwise be dropped silently.
+			validation.By(validateClientConfig),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -170,6 +200,20 @@ func (r AddClientAPIPermissionsRequestDTO) Validate() error {
 		validation.Field(&r.PermissionUUIDs,
 			validation.Required.Error("Permission UUIDs are required"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
+		),
+	)
+}
+
+// maxSecretGracePeriodHours caps how long a rotated-out client secret stays
+// valid. It was unbounded, so a value like 876000 would keep a compromised
+// secret working for a century — which defeats the point of rotating.
+const maxSecretGracePeriodHours = 168 // 7 days
+
+func (r RotateSecretRequestDTO) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.GracePeriodHours,
+			validation.Min(0).Error("grace_period_hours cannot be negative"),
+			validation.Max(maxSecretGracePeriodHours).Error("grace_period_hours must not exceed 168 (7 days)"),
 		),
 	)
 }

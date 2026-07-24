@@ -1,6 +1,8 @@
 package client
 
 import (
+	"time"
+
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -30,7 +32,11 @@ func (r ClientRoleAssignRequestDTO) Validate() error {
 type ClientRoleResponseDTO struct {
 	ClientRoleUUID string `json:"client_role_uuid"`
 	RoleUUID       string `json:"role_uuid"`
-	CreatedAt      string `json:"created_at"`
+	// Name and Description identify the role for a human; a UUID alone forces the
+	// console into a second lookup per row.
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	CreatedAt   string `json:"created_at"`
 }
 
 // AssignRole adds a role to a client.
@@ -61,7 +67,15 @@ func (h *ClientHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 
 	roleUUID, _ := uuid.Parse(req.RoleUUID)
 
-	result, err := h.ClientService.AssignClientRole(r.Context(), clientUUID, roleUUID, tenant.TenantID, nil)
+	// A role grant decides what the client may do, so it must be attributable: the
+	// actor also becomes the created_by stamp, which used to be nil for every grant.
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	result, err := h.ClientService.AssignClientRole(r.Context(), clientUUID, roleUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to assign role to client", err)
 		return
@@ -78,7 +92,7 @@ func (h *ClientHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 	resp.Created(w, ClientRoleResponseDTO{
 		ClientRoleUUID: result.ClientRoleUUID.String(),
 		RoleUUID:       roleUUID.String(),
-		CreatedAt:      result.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:      result.CreatedAt.Format(time.RFC3339),
 	}, "Role assigned to client successfully")
 }
 
@@ -104,7 +118,13 @@ func (h *ClientHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.ClientService.RemoveClientRole(r.Context(), clientUUID, roleUUID, tenant.TenantID); err != nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	if err := h.ClientService.RemoveClientRole(r.Context(), clientUUID, roleUUID, tenant.TenantID, user.UserUUID); err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove role from client", err)
 		return
 	}
@@ -146,7 +166,14 @@ func (h *ClientHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
 	for i, role := range roles {
 		items[i] = ClientRoleResponseDTO{
 			ClientRoleUUID: role.ClientRoleUUID.String(),
-			CreatedAt:      role.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt:      role.CreatedAt.Format(time.RFC3339),
+		}
+		// role_uuid was declared on the DTO but never populated, so every row came
+		// back with an empty id and the endpoint was unusable.
+		if role.Role != nil {
+			items[i].RoleUUID = role.Role.RoleUUID.String()
+			items[i].Name = role.Role.Name
+			items[i].Description = role.Role.Description
 		}
 	}
 

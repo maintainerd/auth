@@ -53,6 +53,18 @@ func (r *recordingJTIDenylister) IsJTIDenied(_ context.Context, _ string) (bool,
 	return false, nil
 }
 
+// testM2MSecret is the plaintext an m2m fixture authenticates with. An m2m client
+// is confidential: token_endpoint_auth_method "none" on a non-public client is
+// refused, since client_id is public and would otherwise be enough to mint tokens.
+const testM2MSecret = "m2m-client-secret-for-tests"
+
+func testM2MSecretHash(t *testing.T) string {
+	t.Helper()
+	hash, err := security.HashClientSecret(context.Background(), testM2MSecret)
+	require.NoError(t, err)
+	return hash
+}
+
 func mockClientRows() *sqlmock.Rows {
 	return sqlmock.NewRows([]string{
 		"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
@@ -1367,14 +1379,14 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		// Return a client that doesn't have client_credentials grant
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
-			"client_type", "domain", "identifier", "secret", "status",
+			"client_type", "domain", "identifier", "secret_hash", "status",
 			"is_default", "is_system", "token_endpoint_auth_method",
 			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
 			"require_consent", "created_at", "updated_at",
 		}).AddRow(
 			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
-			"m2m", nil, "m2m-client", nil, "active",
-			false, false, "none",
+			"m2m", nil, "m2m-client", testM2MSecretHash(t), "active",
+			false, false, "client_secret_basic",
 			`{authorization_code}`, `{code}`, nil, nil,
 			false, time.Now(), time.Now(),
 		)
@@ -1386,7 +1398,7 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 
 		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "client_credentials",
-		}, OAuthClientCredentials{ClientID: "m2m-client"})
+		}, OAuthClientCredentials{ClientID: "m2m-client", ClientSecret: testM2MSecret})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "unauthorized_client", oerr.Code)
 	})
@@ -1396,14 +1408,14 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		db, mock := newMockDB(t)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
-			"client_type", "domain", "identifier", "secret", "status",
+			"client_type", "domain", "identifier", "secret_hash", "status",
 			"is_default", "is_system", "token_endpoint_auth_method",
 			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
 			"require_consent", "created_at", "updated_at",
 		}).AddRow(
 			10, uuid.New(), 1, int64(100), "m2m-client", "M2M Client",
-			"m2m", "https://auth.example.com", "m2m-client", nil, "active",
-			false, false, "none",
+			"m2m", "https://auth.example.com", "m2m-client", testM2MSecretHash(t), "active",
+			false, false, "client_secret_basic",
 			`{client_credentials}`, `{}`, nil, nil,
 			false, time.Now(), time.Now(),
 		)
@@ -1415,7 +1427,7 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 
 		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "client_credentials",
-		}, OAuthClientCredentials{ClientID: "m2m-client"})
+		}, OAuthClientCredentials{ClientID: "m2m-client", ClientSecret: testM2MSecret})
 		require.Nil(t, oerr)
 		assert.NotEmpty(t, result.AccessToken)
 		assert.Equal(t, "Bearer", result.TokenType)
@@ -1428,14 +1440,14 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		db, mock := newMockDB(t)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "service_id", "identity_provider_id", "name", "display_name",
-			"client_type", "domain", "identifier", "secret", "status",
+			"client_type", "domain", "identifier", "secret_hash", "status",
 			"is_default", "is_system", "token_endpoint_auth_method",
 			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
 			"require_consent", "created_at", "updated_at",
 		}).AddRow(
 			10, uuid.New(), 1, int64(42), int64(100), "m2m-client", "M2M Client",
-			"m2m", "https://auth.example.com", "m2m-client", nil, "active",
-			false, false, "none",
+			"m2m", "https://auth.example.com", "m2m-client", testM2MSecretHash(t), "active",
+			false, false, "client_secret_basic",
 			`{client_credentials}`, `{}`, nil, nil,
 			false, time.Now(), time.Now(),
 		)
@@ -1450,7 +1462,7 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 
 		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "client_credentials",
-		}, OAuthClientCredentials{ClientID: "m2m-client"})
+		}, OAuthClientCredentials{ClientID: "m2m-client", ClientSecret: testM2MSecret})
 		require.Nil(t, oerr)
 		claims, err := jwt.ValidateToken(result.AccessToken)
 		require.NoError(t, err)
@@ -1464,14 +1476,14 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		db, mock := newMockDB(t)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
-			"client_type", "domain", "identifier", "secret", "status",
+			"client_type", "domain", "identifier", "secret_hash", "status",
 			"is_default", "is_system", "token_endpoint_auth_method",
 			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
 			"require_consent", "created_at", "updated_at",
 		}).AddRow(
 			10, uuid.New(), 1, int64(100), "m2m-client", "M2M Client",
-			"m2m", "https://auth.example.com", "m2m-client", nil, "active",
-			false, false, "none",
+			"m2m", "https://auth.example.com", "m2m-client", testM2MSecretHash(t), "active",
+			false, false, "client_secret_basic",
 			`{client_credentials}`, `{}`, 3600, nil,
 			false, time.Now(), time.Now(),
 		)
@@ -1483,7 +1495,7 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 
 		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "client_credentials",
-		}, OAuthClientCredentials{ClientID: "m2m-client"})
+		}, OAuthClientCredentials{ClientID: "m2m-client", ClientSecret: testM2MSecret})
 		require.Nil(t, oerr)
 		assert.Equal(t, int64(900), result.ExpiresIn)
 	})
@@ -1514,14 +1526,14 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		db, mock := newMockDB(t)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
-			"client_type", "domain", "identifier", "secret", "status",
+			"client_type", "domain", "identifier", "secret_hash", "status",
 			"is_default", "is_system", "token_endpoint_auth_method",
 			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
 			"require_consent", "created_at", "updated_at",
 		}).AddRow(
 			10, uuid.New(), 1, int64(100), "m2m-client", "M2M Client",
-			"m2m", "https://auth.example.com", "m2m-client", nil, "active",
-			false, false, "none",
+			"m2m", "https://auth.example.com", "m2m-client", testM2MSecretHash(t), "active",
+			false, false, "client_secret_basic",
 			`{client_credentials}`, `{}`, nil, nil,
 			false, time.Now(), time.Now(),
 		)
@@ -1533,7 +1545,7 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 
 		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "client_credentials",
-		}, OAuthClientCredentials{ClientID: "m2m-client"})
+		}, OAuthClientCredentials{ClientID: "m2m-client", ClientSecret: testM2MSecret})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})

@@ -160,6 +160,27 @@ func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.Create
 	if req.AllowRegistration != nil {
 		allowReg = *req.AllowRegistration
 	}
+
+	// An omitted config is legitimate here — the column default is '{}'. Normalize
+	// before validating so the Required rule catches genuine omissions only.
+	if len(configJSON) == 0 {
+		configJSON = []byte("{}")
+	}
+
+	// Validate with the same DTO the REST handler uses: the two transports must
+	// not disagree about what a valid client is.
+	if err := (ClientCreateRequestDTO{
+		Name:                 req.GetName(),
+		DisplayName:          req.GetDisplayName(),
+		ClientType:           req.GetClientType(),
+		Domain:               req.GetDomain(),
+		Config:               configJSON,
+		Status:               req.GetStatus(),
+		IdentityProviderUUID: req.GetIdentityProviderUuid(),
+	}).Validate(); err != nil {
+		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
+	}
+
 	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, req.GetIdentityProviderUuid(), nil, allowReg, nil, nil, nil, nil, actorUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
@@ -195,7 +216,31 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 	if err != nil {
 		return nil, err
 	}
-	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, nil, req.AllowRegistration, nil, nil, nil, nil, actorUUID)
+	// An omitted config means "leave it unchanged". The DTO requires the field, so
+	// validate against a placeholder and pass nil to the service — mapToJSON
+	// returns nil for an empty map, and config is a NOT NULL jsonb column.
+	configOmitted := len(config) == 0
+	configForValidation := configJSON
+	if configOmitted {
+		configForValidation = []byte("{}")
+	}
+
+	// Same DTO as the REST path — see CreateClient above.
+	if err := (ClientUpdateRequestDTO{
+		Name:        req.GetName(),
+		DisplayName: req.GetDisplayName(),
+		ClientType:  req.GetClientType(),
+		Domain:      req.GetDomain(),
+		Config:      configForValidation,
+		Status:      req.GetStatus(),
+	}).Validate(); err != nil {
+		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
+	}
+	if configOmitted {
+		configJSON = nil
+	}
+
+	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, nil, req.AllowRegistration, nil, nil, nil, nil, actorUUID, nil)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -412,7 +457,11 @@ func (h *ClientGRPCHandler) AddClientAPIs(ctx context.Context, req *authv1.AddCl
 		}
 		apiUUIDs[i] = parsed
 	}
-	if err := h.clientService.AddClientAPIs(ctx, tenant.TenantID, clientUUID, apiUUIDs); err != nil {
+	actorUUID, err := parseUUID(req.GetActorUserUuid(), "Actor user UUID")
+	if err != nil {
+		return nil, err
+	}
+	if err := h.clientService.AddClientAPIs(ctx, tenant.TenantID, clientUUID, apiUUIDs, actorUUID); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.AddClientAPIsResponse{Message: "APIs added to client successfully"}, nil
@@ -431,7 +480,11 @@ func (h *ClientGRPCHandler) RemoveClientAPI(ctx context.Context, req *authv1.Rem
 	if err != nil {
 		return nil, err
 	}
-	if err := h.clientService.RemoveClientAPI(ctx, tenant.TenantID, clientUUID, apiUUID); err != nil {
+	actorUUID, err := parseUUID(req.GetActorUserUuid(), "Actor user UUID")
+	if err != nil {
+		return nil, err
+	}
+	if err := h.clientService.RemoveClientAPI(ctx, tenant.TenantID, clientUUID, apiUUID, actorUUID); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.RemoveClientAPIResponse{Message: "API removed from client successfully"}, nil
@@ -482,7 +535,11 @@ func (h *ClientGRPCHandler) AddClientAPIPermissions(ctx context.Context, req *au
 		}
 		permUUIDs[i] = parsed
 	}
-	if err := h.clientService.AddClientAPIPermissions(ctx, tenant.TenantID, clientUUID, apiUUID, permUUIDs); err != nil {
+	actorUUID, err := parseUUID(req.GetActorUserUuid(), "Actor user UUID")
+	if err != nil {
+		return nil, err
+	}
+	if err := h.clientService.AddClientAPIPermissions(ctx, tenant.TenantID, clientUUID, apiUUID, permUUIDs, actorUUID); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.AddClientAPIPermissionsResponse{Message: "Permissions added to client API successfully"}, nil
@@ -505,7 +562,11 @@ func (h *ClientGRPCHandler) RemoveClientAPIPermission(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	if err := h.clientService.RemoveClientAPIPermission(ctx, tenant.TenantID, clientUUID, apiUUID, permUUID); err != nil {
+	actorUUID, err := parseUUID(req.GetActorUserUuid(), "Actor user UUID")
+	if err != nil {
+		return nil, err
+	}
+	if err := h.clientService.RemoveClientAPIPermission(ctx, tenant.TenantID, clientUUID, apiUUID, permUUID, actorUUID); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.RemoveClientAPIPermissionResponse{Message: "Permission removed from client API successfully"}, nil

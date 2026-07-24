@@ -145,6 +145,9 @@ type IdentityProviderRepository interface {
 	BaseRepositoryMethods[IdentityProvider]
 	WithTx(tx *gorm.DB) IdentityProviderRepository
 	FindByUUID(uuid any, preloads ...string) (*IdentityProvider, error)
+	// FindByID resolves a provider from a connection's foreign key so the
+	// built-in-provider guard can fail closed when the relation was not preloaded.
+	FindByID(id any, preloads ...string) (*IdentityProvider, error)
 }
 
 type TenantRepository interface {

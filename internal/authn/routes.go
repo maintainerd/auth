@@ -269,3 +269,16 @@ func SMSLoginPublicRoute(
 		r.Post("/verify", smsLoginHandler.VerifyOTPPublic)
 	})
 }
+
+// RegistrationContextPublicRoute mounts the public signup-requirements read.
+// Same unauthenticated public-auth surface as RegisterPublicRoute, so client
+// resolution behaves identically on both.
+func RegistrationContextPublicRoute(r chi.Router, handler *RegistrationContextHandler) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+		r.Use(publicAuthSurface)
+
+		r.Get("/registration_context", handler.GetPublic)
+	})
+}

@@ -251,3 +251,101 @@ func TestEncryptBytes_FailingRand(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nonce")
 }
+
+// Rotation is the whole point of tagging a ciphertext with its key id: before this,
+// changing APP_ENCRYPTION_KEY made every stored client secret, webhook signing
+// secret and TOTP seed permanently undecryptable.
+func TestAtRestKeyRotation(t *testing.T) {
+	oldKey := []byte("00000000000000000000000000000001")
+	newKey := []byte("00000000000000000000000000000002")
+
+	origKey, origPrev := config.AppEncryptionKey, config.AppEncryptionPreviousKeys
+	t.Cleanup(func() {
+		config.AppEncryptionKey, config.AppEncryptionPreviousKeys = origKey, origPrev
+	})
+
+	// Written before the rotation.
+	config.AppEncryptionKey = oldKey
+	config.AppEncryptionPreviousKeys = nil
+	oldCiphertext, err := EncryptAtRest("client-secret")
+	require.NoError(t, err)
+	assert.True(t, IsEncryptedAtRest(oldCiphertext), "a stored value must carry its key id")
+
+	t.Run("the retired key still decrypts its own rows", func(t *testing.T) {
+		config.AppEncryptionKey = newKey
+		config.AppEncryptionPreviousKeys = [][]byte{oldKey}
+
+		got, err := DecryptAtRest(oldCiphertext)
+		require.NoError(t, err)
+		assert.Equal(t, "client-secret", got)
+	})
+
+	t.Run("new writes use the current key", func(t *testing.T) {
+		config.AppEncryptionKey = newKey
+		config.AppEncryptionPreviousKeys = [][]byte{oldKey}
+
+		fresh, err := EncryptAtRest("client-secret")
+		require.NoError(t, err)
+		assert.NotEqual(t, oldCiphertext, fresh)
+
+		// Drop the retired key: the new value must still decrypt, the old must not.
+		config.AppEncryptionPreviousKeys = nil
+		got, err := DecryptAtRest(fresh)
+		require.NoError(t, err)
+		assert.Equal(t, "client-secret", got)
+
+		_, err = DecryptAtRest(oldCiphertext)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no configured key matches key id")
+	})
+
+	// A rotation that forgets the old key must fail loudly. Returning the ciphertext
+	// as if it were the plaintext would make a webhook sign with the ciphertext and
+	// fail verification downstream with no diagnosable cause.
+	t.Run("an undecryptable tagged value fails closed", func(t *testing.T) {
+		config.AppEncryptionKey = newKey
+		config.AppEncryptionPreviousKeys = nil
+
+		assert.Empty(t, SafeDecryptAtRest(oldCiphertext))
+	})
+
+	// Rows written before encryption existed hold plaintext and are untagged, so they
+	// keep passing through.
+	t.Run("legacy plaintext still passes through", func(t *testing.T) {
+		config.AppEncryptionKey = newKey
+		config.AppEncryptionPreviousKeys = nil
+
+		assert.Equal(t, "legacy-plaintext", SafeDecryptAtRest("legacy-plaintext"))
+	})
+
+	// Values written by the pre-tag format are a bare base64 blob; they must still
+	// decrypt against whichever configured key produced them.
+	t.Run("legacy untagged ciphertext decrypts against any configured key", func(t *testing.T) {
+		untagged, err := EncryptString("older-secret", oldKey)
+		require.NoError(t, err)
+		require.False(t, IsEncryptedAtRest(untagged))
+
+		config.AppEncryptionKey = newKey
+		config.AppEncryptionPreviousKeys = [][]byte{oldKey}
+
+		got, err := DecryptAtRest(untagged)
+		require.NoError(t, err)
+		assert.Equal(t, "older-secret", got)
+	})
+
+	t.Run("an empty value round-trips as empty", func(t *testing.T) {
+		config.AppEncryptionKey = newKey
+		enc, err := EncryptAtRest("")
+		require.NoError(t, err)
+		assert.Empty(t, enc)
+		dec, err := DecryptAtRest("")
+		require.NoError(t, err)
+		assert.Empty(t, dec)
+	})
+
+	// Two distinct keys must never collide on an id, or the wrong key would be picked.
+	t.Run("key ids differ per key", func(t *testing.T) {
+		assert.NotEqual(t, atRestKeyID(oldKey), atRestKeyID(newKey))
+		assert.Equal(t, atRestKeyID(oldKey), atRestKeyID(oldKey))
+	})
+}

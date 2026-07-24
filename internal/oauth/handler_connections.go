@@ -15,12 +15,17 @@ func NewOAuthConnectionsHandler(connectionsService OAuthConnectionsService) *OAu
 	return &OAuthConnectionsHandler{connectionsService: connectionsService}
 }
 
-// ListConnections handles GET /oauth/connections?client_id=…&registration_flow=…
-// (public,
+// ListConnections handles GET /oauth/connections?client_id=… (public,
 // unauthenticated). It returns the login options for a client — whether
 // username/password is available and the connected OAuth2 providers — so the
 // hosted identity app can render its login page. Provider secrets/config are
 // never returned.
+//
+// It deliberately takes no registration_flow parameter. Flow-derived fields were
+// removed from this response so that adding, removing, activating or
+// deactivating a registration flow can never change the login page's options
+// (docs/planning/registration-flows.md, D1). Signup requirements live on
+// GET /registration_context instead.
 func (h *OAuthConnectionsHandler) ListConnections(w http.ResponseWriter, r *http.Request) {
 	clientID := r.URL.Query().Get("client_id")
 	if clientID == "" {

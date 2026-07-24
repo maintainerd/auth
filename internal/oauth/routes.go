@@ -144,7 +144,22 @@ func OAuthPublicRoute(
 		r.Post("/ciba", cibaHandler.Initiate)
 
 		// Dynamic Client Registration (RFC 7591)
-		r.Post("/register", registerHandler.Register)
+		// Dynamic Client Registration (RFC 7591) is DISABLED.
+		//
+		// As written it was unauthenticated, resolved every registration into the
+		// SYSTEM tenant, accepted arbitrary grant_types, and accepted
+		// token_endpoint_auth_method="none" — i.e. it would let anyone on the
+		// internet create a confidential client that needs no credential to mint
+		// tokens. It also never worked: it wrote a client_type value that violates
+		// chk_clients_client_type, so every call 500'd. Nothing regresses by
+		// unmounting it.
+		//
+		// To re-enable, it needs: an initial access token (RFC 7591 §3), the
+		// caller's real tenant instead of the system tenant, the grant/auth-method
+		// matrix in ValidateClientOAuthMatrix, redirect-URI validation via
+		// security.ValidateRedirectURI, and RFC 7592 management endpoints. Until
+		// then the DCR claim must also stay out of the discovery document.
+		_ = registerHandler
 
 		// Broker callback: the upstream provider returns here after the user
 		// authenticates (OAuth #2 leg). The handler exchanges the code, provisions

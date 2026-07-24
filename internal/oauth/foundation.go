@@ -54,6 +54,10 @@ const (
 
 	TokenAuthMethodPrivateKeyJWT   = "private_key_jwt"
 	TokenAuthMethodClientSecretJWT = "client_secret_jwt"
+	// Accepted by the client registry and its CHECK constraint, but there is no
+	// certificate-binding implementation behind them yet.
+	TokenAuthMethodTLSClientAuth           = "tls_client_auth"
+	TokenAuthMethodSelfSignedTLSClientAuth = "self_signed_tls_client_auth"
 
 	ResponseTypeCode = "code"
 )

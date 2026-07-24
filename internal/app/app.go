@@ -43,6 +43,7 @@ type App struct {
 	RoleService                  iam.RoleService
 	UserService                  user.UserService
 	RegisterService              authn.RegisterService
+	RegistrationContextService   authn.RegistrationContextService
 	LoginService                 authn.LoginService
 	ProfileService               user.ProfileService
 	ProfileRepo                  user.ProfileRepository
@@ -137,6 +138,7 @@ func NewApp(ctx context.Context, db *gorm.DB, redisClient *redis.Client) (*App, 
 		RoleService:                       s.roleService,
 		UserService:                       s.userService,
 		RegisterService:                   s.registerService,
+		RegistrationContextService:        s.registrationContextService,
 		LoginService:                      s.loginService,
 		ProfileService:                    s.profileService,
 		ProfileRepo:                       s.profileRepo,

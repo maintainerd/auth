@@ -120,6 +120,12 @@ func TestIPWhitelistMiddleware(t *testing.T) {
 }
 
 func TestExtractClientIP(t *testing.T) {
+	// These cases send forwarding headers from 127.0.0.1, which is trusted by
+	// default. Reset the cached config so a sibling test's narrower allowlist does
+	// not leak in — see resetTrustedProxies.
+	resetTrustedProxies()
+	t.Cleanup(resetTrustedProxies)
+
 	cases := []struct {
 		name       string
 		xff        string

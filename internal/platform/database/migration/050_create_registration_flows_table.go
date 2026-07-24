@@ -12,10 +12,15 @@ CREATE TABLE IF NOT EXISTS registration_flows (
     registration_flow_uuid UUID NOT NULL UNIQUE,
     tenant_id              BIGINT NOT NULL,
     client_id              BIGINT NOT NULL,
+    -- name doubles as the public registration-link selector
+    -- (?registration_flow=<name>), so it is slug-shaped and tenant-unique.
     name                   VARCHAR(100) NOT NULL,
-    description            TEXT,
-    identifier             VARCHAR(255) NOT NULL,
-    required_fields        JSONB NOT NULL DEFAULT '[]',
+    -- NOT NULL because the GORM model holds a non-pointer string; a NULL here
+    -- would fail to scan.
+    description            TEXT NOT NULL DEFAULT '',
+    -- Always a JSON array of field names; the service unmarshals it into
+    -- []string, so a non-array would be a runtime error rather than a 400.
+    required_fields        JSONB NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(required_fields) = 'array'),
     verification_required  BOOLEAN NOT NULL DEFAULT FALSE,
     is_system              BOOLEAN NOT NULL DEFAULT FALSE,
     status                 VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
@@ -63,10 +68,13 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_registration_flows_uuid ON registration_flows (registration_flow_uuid);
+-- registration_flow_uuid is declared UNIQUE above, which already creates an
+-- index; a second one on the same column would only cost writes.
 CREATE INDEX IF NOT EXISTS idx_registration_flows_tenant_id ON registration_flows (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_registration_flows_name ON registration_flows (name);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_registration_flows_tenant_identifier ON registration_flows (tenant_id, identifier) WHERE deleted_at IS NULL;
+-- Every name lookup is tenant-scoped, so uq_registration_flows_tenant_name below
+-- serves them. A name-only index would be dead weight: the free-text search uses
+-- LOWER(name) LIKE, which a plain btree cannot answer either.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_registration_flows_tenant_name ON registration_flows (tenant_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_registration_flows_status ON registration_flows (status);
 CREATE INDEX IF NOT EXISTS idx_registration_flows_client_id ON registration_flows (client_id);
 CREATE INDEX IF NOT EXISTS idx_registration_flows_created_at ON registration_flows (created_at);

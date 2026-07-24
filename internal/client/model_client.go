@@ -79,12 +79,17 @@ type Client struct {
 	PreviousSecretExpiresAt *time.Time `gorm:"column:previous_secret_expires_at"`
 
 	// Free-form config blob + lifecycle
-	Config            datatypes.JSON `gorm:"column:config;type:jsonb;not null;default:'{}'"`
-	Status            string         `gorm:"column:status;not null;default:'inactive'"`
-	IsDefault         bool           `gorm:"column:is_default;not null;default:false"`
-	IsSystem          bool           `gorm:"column:is_system;not null;default:false"`
-	BrandingID        *int64         `gorm:"column:branding_id" json:"branding_id,omitempty"`
-	AllowRegistration bool           `gorm:"column:allow_registration;not null;default:true" json:"allow_registration"`
+	Config     datatypes.JSON `gorm:"column:config;type:jsonb;not null;default:'{}'"`
+	Status     string         `gorm:"column:status;not null;default:'inactive'"`
+	IsDefault  bool           `gorm:"column:is_default;not null;default:false"`
+	IsSystem   bool           `gorm:"column:is_system;not null;default:false"`
+	BrandingID *int64         `gorm:"column:branding_id" json:"branding_id,omitempty"`
+	// AllowRegistration: pointer for the same reason as RequirePKCE below — a
+	// non-pointer bool with a `default:` tag makes an explicit false
+	// indistinguishable from "unset", and GORM omits zero values for defaulted
+	// fields on INSERT, so the DB default (TRUE) would silently win and
+	// self-registration would stay enabled on a client the operator locked down.
+	AllowRegistration *bool `gorm:"column:allow_registration;not null;default:true" json:"allow_registration"`
 
 	// OIDC Session Management (RP-Initiated / Back-Channel Logout)
 	BackchannelLogoutURI             *string `gorm:"column:backchannel_logout_uri"`
@@ -98,7 +103,10 @@ type Client struct {
 	TokenEndpointAuthMethod string         `gorm:"column:token_endpoint_auth_method;default:'client_secret_basic'"`
 	GrantTypes              pq.StringArray `gorm:"column:grant_types;type:text[];default:'{authorization_code}'"`
 	ResponseTypes           pq.StringArray `gorm:"column:response_types;type:text[];default:'{code}'"`
-	RequireConsent          bool           `gorm:"column:require_consent;default:true"`
+	// RequireConsent: pointer for the same reason as RequirePKCE below. As a
+	// non-pointer bool this silently forced a consent screen onto the seeded
+	// first-party console and identity clients, which set it to false.
+	RequireConsent *bool `gorm:"column:require_consent;default:true"`
 	// RequirePKCE: pointer so an explicit false is distinguishable from "unset"
 	// (unset → DB default TRUE). PKCE is mandatory for public clients.
 	RequirePKCE   *bool          `gorm:"column:require_pkce;default:true"`

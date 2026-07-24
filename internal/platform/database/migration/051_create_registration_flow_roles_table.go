@@ -43,7 +43,7 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_registration_flow_roles_uuid ON registration_flow_roles (registration_flow_role_uuid);
+-- registration_flow_role_uuid is declared UNIQUE above, which already indexes it.
 CREATE INDEX IF NOT EXISTS idx_registration_flow_roles_registration_flow_id ON registration_flow_roles (registration_flow_id);
 CREATE INDEX IF NOT EXISTS idx_registration_flow_roles_role_id ON registration_flow_roles (role_id);
 `

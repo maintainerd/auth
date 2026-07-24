@@ -56,7 +56,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			TokenEndpointAuthMethod: model.TokenAuthMethodNone,
 			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
 			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
-			RequireConsent:          false,
+			RequireConsent:          boolPtr(false), // first-party surface: no consent screen
 			AllowedScopes:           pq.StringArray{},
 			CreatedAt:               time.Now(),
 			UpdatedAt:               time.Now(),
@@ -81,7 +81,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			TokenEndpointAuthMethod: model.TokenAuthMethodNone,
 			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
 			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
-			RequireConsent:          false,
+			RequireConsent:          boolPtr(false), // first-party surface: no consent screen
 			AllowedScopes:           pq.StringArray{},
 			CreatedAt:               time.Now(),
 			UpdatedAt:               time.Now(),
@@ -95,11 +95,24 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			First(&existing).Error
 
 		if err == nil {
-			// Update existing client - preserve existing IDs and UUID
-			client.ClientID = existing.ClientID
-			client.Identifier = existing.Identifier
-			client.ClientUUID = existing.ClientUUID
-			if err := db.Save(&client).Error; err != nil {
+			// Update the LOADED row rather than Saving a literal struct: Save
+			// writes every column, so nil pointers (RequirePKCE) would be written
+			// as NULL into NOT NULL columns and abort re-provisioning, and unset
+			// fields would silently overwrite live values.
+			existing.DisplayName = client.DisplayName
+			existing.ClientType = client.ClientType
+			existing.Domain = client.Domain
+			existing.Config = client.Config
+			existing.Status = client.Status
+			existing.IsDefault = client.IsDefault
+			existing.IsSystem = client.IsSystem
+			existing.TokenEndpointAuthMethod = client.TokenEndpointAuthMethod
+			existing.GrantTypes = client.GrantTypes
+			existing.ResponseTypes = client.ResponseTypes
+			existing.RequireConsent = client.RequireConsent
+			existing.AllowedScopes = client.AllowedScopes
+			existing.UpdatedAt = time.Now()
+			if err := db.Save(&existing).Error; err != nil {
 				return fmt.Errorf("failed to update auth client %q: %w", client.Name, err)
 			}
 			if err := seedClientIdentityProvider(db, existing.ClientID, tenantID, identityProviderID, client.IsDefault); err != nil {
@@ -134,7 +147,7 @@ func seedClientIdentityProvider(db *gorm.DB, clientID, tenantID, identityProvide
 		ClientID:           clientID,
 		IdentityProviderID: identityProviderID,
 		IsDefault:          isDefault,
-		Enabled:            true,
+		Enabled:            boolPtr(true),
 		DisplayOrder:       0,
 	}
 
@@ -144,7 +157,7 @@ func seedClientIdentityProvider(db *gorm.DB, clientID, tenantID, identityProvide
 		First(&existing).Error
 	if err == nil {
 		existing.IsDefault = isDefault
-		existing.Enabled = true
+		existing.Enabled = boolPtr(true)
 		existing.DisplayOrder = 0
 		if err := db.Save(&existing).Error; err != nil {
 			return fmt.Errorf("failed to update client identity provider connection: %w", err)
@@ -182,3 +195,7 @@ func loadTenantHostInfo(db *gorm.DB, tenantID int64) (string, bool, error) {
 	}
 	return t.Name, t.IsSystem, nil
 }
+
+// boolPtr is needed because the client bool columns are pointers: nil means
+// "use the DB default", while an explicit value must persist verbatim.
+func boolPtr(v bool) *bool { return &v }

@@ -18,7 +18,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
-	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -40,6 +39,11 @@ var (
 )
 
 const tenantID int64 = 1
+
+// testActorUserID is the acting user's internal id, mirrored by both the request
+// auth context (withTenantAndUser) and the actor the user repo mock resolves, so
+// audit-actor and created_by/updated_by assertions line up.
+const testActorUserID int64 = 42
 
 var (
 	testTenantUUID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
@@ -77,8 +81,33 @@ func withTenant(r *http.Request) *http.Request {
 func withTenantAndUser(r *http.Request) *http.Request {
 	return middleware.WithAuthContext(r, &authctx.AuthContext{
 		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
-		User:   &authctx.AuthUser{UserUUID: testUserUUID},
+		User:   &authctx.AuthUser{UserID: testActorUserID, UserUUID: testUserUUID},
 	})
+}
+
+// decodeEnvelopeData decodes the "data" member of the standard success envelope
+// ({success, data, message}) into T. Handler success tests must assert the body,
+// not just the status code, so this keeps that one line long.
+func decodeEnvelopeData[T any](t *testing.T, w *httptest.ResponseRecorder) T {
+	t.Helper()
+	var env struct {
+		Success bool            `json:"success"`
+		Data    json.RawMessage `json:"data"`
+		Message string          `json:"message"`
+	}
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&env))
+	require.True(t, env.Success, "expected a success envelope, got: %s", w.Body.String())
+	var out T
+	require.NoError(t, json.Unmarshal(env.Data, &out))
+	return out
+}
+
+// decodeEnvelopeDataMap decodes the envelope's "data" into a generic map so a
+// test can assert on the *absence* of a field (e.g. the lean list projection
+// must not carry required_fields), which a typed decode cannot express.
+func decodeEnvelopeDataMap(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+	return decodeEnvelopeData[map[string]any](t, w)
 }
 
 func withChiParam(r *http.Request, key, val string) *http.Request {
@@ -281,15 +310,15 @@ func (m *mockIdentityProviderAllowedAudienceRepo) ReplaceForProvider(tenantID, i
 
 type mockRegistrationFlowRepo struct {
 	mockBaseRepo[RegistrationFlow]
-	findByUUIDFn                  func(any, ...string) (*RegistrationFlow, error)
-	findPaginatedFn               func(RegistrationFlowRepositoryGetFilter) (*PaginationResult[RegistrationFlow], error)
-	findByUUIDAndTenantIDFn       func(uuid.UUID, int64, ...string) (*RegistrationFlow, error)
-	findByIdentifierAndClientIDFn func(string, int64) (*RegistrationFlow, error)
-	findByNameFn                  func(string) (*RegistrationFlow, error)
-	findByNameAndTenantIDFn       func(string, int64) (*RegistrationFlow, error)
-	createFn                      func(*RegistrationFlow) (*RegistrationFlow, error)
-	createOrUpdateFn              func(*RegistrationFlow) (*RegistrationFlow, error)
-	deleteByUUIDFn                func(any) error
+	findByUUIDFn                func(any, ...string) (*RegistrationFlow, error)
+	findByIDFn                  func(any, ...string) (*RegistrationFlow, error)
+	findPaginatedFn             func(RegistrationFlowRepositoryGetFilter) (*PaginationResult[RegistrationFlow], error)
+	findByUUIDAndTenantIDFn     func(uuid.UUID, int64, ...string) (*RegistrationFlow, error)
+	findByNameAndClientTenantFn func(string, int64, int64) (*RegistrationFlow, error)
+	findByNameAndTenantIDFn     func(string, int64) (*RegistrationFlow, error)
+	createFn                    func(*RegistrationFlow) (*RegistrationFlow, error)
+	createOrUpdateFn            func(*RegistrationFlow) (*RegistrationFlow, error)
+	deleteByUUIDFn              func(any) error
 }
 
 func (m *mockRegistrationFlowRepo) WithTx(_ *gorm.DB) RegistrationFlowRepository { return m }
@@ -329,15 +358,15 @@ func (m *mockRegistrationFlowRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID 
 	}
 	return nil, nil
 }
-func (m *mockRegistrationFlowRepo) FindByIdentifierAndClientID(identifier string, clientID int64) (*RegistrationFlow, error) {
-	if m.findByIdentifierAndClientIDFn != nil {
-		return m.findByIdentifierAndClientIDFn(identifier, clientID)
+func (m *mockRegistrationFlowRepo) FindByID(id any, p ...string) (*RegistrationFlow, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, p...)
 	}
 	return nil, nil
 }
-func (m *mockRegistrationFlowRepo) FindByName(name string) (*RegistrationFlow, error) {
-	if m.findByNameFn != nil {
-		return m.findByNameFn(name)
+func (m *mockRegistrationFlowRepo) FindByNameAndClientTenant(name string, clientID, tenantID int64) (*RegistrationFlow, error) {
+	if m.findByNameAndClientTenantFn != nil {
+		return m.findByNameAndClientTenantFn(name, clientID, tenantID)
 	}
 	return nil, nil
 }
@@ -351,8 +380,9 @@ func (m *mockRegistrationFlowRepo) FindByNameAndTenantID(name string, tenantID i
 type mockRegistrationFlowRoleRepo struct {
 	mockBaseRepo[RegistrationFlowRole]
 	findByRegistrationFlowIDFn            func(int64) ([]RegistrationFlowRole, error)
-	findByRegistrationFlowIDPaginatedFn   func(int64, int, int) ([]RegistrationFlowRole, int64, error)
+	findByRegistrationFlowIDPaginatedFn   func(int64, int, int) (*PaginationResult[RegistrationFlowRole], error)
 	deleteByRegistrationFlowIDAndRoleIDFn func(int64, int64) error
+	deleteByRegistrationFlowIDFn          func(int64) error
 	findByRegistrationFlowIDAndRoleIDFn   func(int64, int64) (*RegistrationFlowRole, error)
 	createFn                              func(*RegistrationFlowRole) (*RegistrationFlowRole, error)
 }
@@ -370,15 +400,21 @@ func (m *mockRegistrationFlowRoleRepo) FindByRegistrationFlowID(registrationFlow
 	}
 	return nil, nil
 }
-func (m *mockRegistrationFlowRoleRepo) FindByRegistrationFlowIDPaginated(registrationFlowID int64, page, limit int) ([]RegistrationFlowRole, int64, error) {
+func (m *mockRegistrationFlowRoleRepo) FindByRegistrationFlowIDPaginated(registrationFlowID int64, page, limit int) (*PaginationResult[RegistrationFlowRole], error) {
 	if m.findByRegistrationFlowIDPaginatedFn != nil {
 		return m.findByRegistrationFlowIDPaginatedFn(registrationFlowID, page, limit)
 	}
-	return nil, 0, nil
+	return &PaginationResult[RegistrationFlowRole]{}, nil
 }
 func (m *mockRegistrationFlowRoleRepo) DeleteByRegistrationFlowIDAndRoleID(registrationFlowID, roleID int64) error {
 	if m.deleteByRegistrationFlowIDAndRoleIDFn != nil {
 		return m.deleteByRegistrationFlowIDAndRoleIDFn(registrationFlowID, roleID)
+	}
+	return nil
+}
+func (m *mockRegistrationFlowRoleRepo) DeleteByRegistrationFlowID(registrationFlowID int64) error {
+	if m.deleteByRegistrationFlowIDFn != nil {
+		return m.deleteByRegistrationFlowIDFn(registrationFlowID)
 	}
 	return nil
 }
@@ -478,6 +514,51 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, identityPro
 	return nil, nil
 }
 
+// mockUserRoleRepo backs the grantable-role cap: assertRolesGrantable asks it
+// whether the acting user already possesses each role being attached to a flow.
+type mockUserRoleRepo struct {
+	mockBaseRepo[UserRole]
+	findByUserIDFn            func(int64) ([]UserRole, error)
+	findByUserIDAndRoleIDFn   func(int64, int64) (*UserRole, error)
+	deleteByUserIDAndRoleIDFn func(int64, int64) error
+}
+
+func (m *mockUserRoleRepo) WithTx(_ *gorm.DB) UserRoleRepository { return m }
+func (m *mockUserRoleRepo) FindByUserID(userID int64) ([]UserRole, error) {
+	if m.findByUserIDFn != nil {
+		return m.findByUserIDFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockUserRoleRepo) FindByUserIDAndRoleID(userID, roleID int64) (*UserRole, error) {
+	if m.findByUserIDAndRoleIDFn != nil {
+		return m.findByUserIDAndRoleIDFn(userID, roleID)
+	}
+	return nil, nil
+}
+func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
+	if m.deleteByUserIDAndRoleIDFn != nil {
+		return m.deleteByUserIDAndRoleIDFn(userID, roleID)
+	}
+	return nil
+}
+
+// mockRegistrationFlowInviteCounter stands in for the invite domain's pending
+// count so flow deletion can be tested without the invite tables.
+type mockRegistrationFlowInviteCounter struct {
+	countPendingByRegistrationFlowIDFn func(int64) (int64, error)
+}
+
+func (m *mockRegistrationFlowInviteCounter) WithTx(_ *gorm.DB) RegistrationFlowInviteCounter {
+	return m
+}
+func (m *mockRegistrationFlowInviteCounter) CountPendingByRegistrationFlowID(registrationFlowID int64) (int64, error) {
+	if m.countPendingByRegistrationFlowIDFn != nil {
+		return m.countPendingByRegistrationFlowIDFn(registrationFlowID)
+	}
+	return 0, nil
+}
+
 type mockRoleRepo struct {
 	mockBaseRepo[Role]
 	findByUUIDFn            func(any, ...string) (*Role, error)
@@ -551,21 +632,26 @@ func (m *mockIdentityProviderService) DeleteByUUID(_ context.Context, id uuid.UU
 	return nil, nil
 }
 
+// mockRegistrationFlowService implements RegistrationFlowService for handler
+// tests. Every method guards its function field and returns a *safe* zero value:
+// the data-returning methods hand back a non-nil empty result because the
+// handler dereferences the result on the success path — a nil would panic
+// instead of failing the assertion, which is how a real defect once hid here.
 type mockRegistrationFlowService struct {
-	getAllFn       func(int64, *string, *string, []string, *uuid.UUID, int, int, string, string) (*RegistrationFlowServiceListResult, error)
-	getByUUIDFn    func(uuid.UUID, int64) (*RegistrationFlowServiceDataResult, error)
-	createFn       func(int64, string, string, string, uuid.UUID) (*RegistrationFlowServiceDataResult, error)
-	updateFn       func(uuid.UUID, int64, string, string, string) (*RegistrationFlowServiceDataResult, error)
-	updateStatusFn func(uuid.UUID, int64, string) (*RegistrationFlowServiceDataResult, error)
-	deleteFn       func(uuid.UUID, int64) (*RegistrationFlowServiceDataResult, error)
-	assignRolesFn  func(uuid.UUID, int64, []uuid.UUID) ([]RegistrationFlowRoleServiceDataResult, error)
-	getRolesFn     func(uuid.UUID, int64, int, int) (*RegistrationFlowRoleServiceListResult, error)
-	removeRoleFn   func(uuid.UUID, int64, uuid.UUID) error
+	getFn         func(RegistrationFlowServiceGetFilter) (*RegistrationFlowServiceListResult, error)
+	getByUUIDFn   func(uuid.UUID, int64) (*RegistrationFlowServiceDataResult, error)
+	createFn      func(RegistrationFlowCreateInput) (*RegistrationFlowServiceDataResult, error)
+	updateFn      func(RegistrationFlowUpdateInput) (*RegistrationFlowServiceDataResult, error)
+	setStatusFn   func(uuid.UUID, int64, uuid.UUID, string) (*RegistrationFlowServiceDataResult, error)
+	deleteFn      func(uuid.UUID, int64, uuid.UUID) (*RegistrationFlowServiceDataResult, error)
+	assignRolesFn func(uuid.UUID, int64, uuid.UUID, []uuid.UUID) ([]RegistrationFlowRoleServiceDataResult, error)
+	getRolesFn    func(uuid.UUID, int64, int, int) (*RegistrationFlowRoleServiceListResult, error)
+	removeRoleFn  func(uuid.UUID, int64, uuid.UUID, uuid.UUID) (*RegistrationFlowServiceDataResult, error)
 }
 
-func (m *mockRegistrationFlowService) GetAll(_ context.Context, tenantID int64, name, identifier *string, status []string, clientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*RegistrationFlowServiceListResult, error) {
-	if m.getAllFn != nil {
-		return m.getAllFn(tenantID, name, identifier, status, clientUUID, page, limit, sortBy, sortOrder)
+func (m *mockRegistrationFlowService) Get(_ context.Context, filter RegistrationFlowServiceGetFilter) (*RegistrationFlowServiceListResult, error) {
+	if m.getFn != nil {
+		return m.getFn(filter)
 	}
 	return &RegistrationFlowServiceListResult{}, nil
 }
@@ -573,34 +659,37 @@ func (m *mockRegistrationFlowService) GetByUUID(_ context.Context, id uuid.UUID,
 	if m.getByUUIDFn != nil {
 		return m.getByUUIDFn(id, tenantID)
 	}
-	return nil, nil
+	return &RegistrationFlowServiceDataResult{}, nil
 }
-func (m *mockRegistrationFlowService) Create(_ context.Context, tenantID int64, name, desc, status string, clientUUID uuid.UUID, _ *string, _ []uuid.UUID, _ bool, _ datatypes.JSON) (*RegistrationFlowServiceDataResult, error) {
-	return m.createFn(tenantID, name, desc, status, clientUUID)
+func (m *mockRegistrationFlowService) Create(_ context.Context, in RegistrationFlowCreateInput) (*RegistrationFlowServiceDataResult, error) {
+	if m.createFn != nil {
+		return m.createFn(in)
+	}
+	return &RegistrationFlowServiceDataResult{}, nil
 }
-func (m *mockRegistrationFlowService) Update(_ context.Context, id uuid.UUID, tenantID int64, name, desc, status string, _ []uuid.UUID, _ bool, _ datatypes.JSON) (*RegistrationFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) Update(_ context.Context, in RegistrationFlowUpdateInput) (*RegistrationFlowServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(id, tenantID, name, desc, status)
+		return m.updateFn(in)
 	}
-	return nil, nil
+	return &RegistrationFlowServiceDataResult{}, nil
 }
-func (m *mockRegistrationFlowService) UpdateStatus(_ context.Context, id uuid.UUID, tenantID int64, status string) (*RegistrationFlowServiceDataResult, error) {
-	if m.updateStatusFn != nil {
-		return m.updateStatusFn(id, tenantID, status)
+func (m *mockRegistrationFlowService) SetStatus(_ context.Context, id uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, status string) (*RegistrationFlowServiceDataResult, error) {
+	if m.setStatusFn != nil {
+		return m.setStatusFn(id, tenantID, actorUserUUID, status)
 	}
-	return nil, nil
+	return &RegistrationFlowServiceDataResult{}, nil
 }
-func (m *mockRegistrationFlowService) Delete(_ context.Context, id uuid.UUID, tenantID int64) (*RegistrationFlowServiceDataResult, error) {
+func (m *mockRegistrationFlowService) Delete(_ context.Context, id uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RegistrationFlowServiceDataResult, error) {
 	if m.deleteFn != nil {
-		return m.deleteFn(id, tenantID)
+		return m.deleteFn(id, tenantID, actorUserUUID)
 	}
-	return nil, nil
+	return &RegistrationFlowServiceDataResult{}, nil
 }
-func (m *mockRegistrationFlowService) AssignRoles(_ context.Context, id uuid.UUID, tenantID int64, roles []uuid.UUID) ([]RegistrationFlowRoleServiceDataResult, error) {
+func (m *mockRegistrationFlowService) AssignRoles(_ context.Context, id uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, roles []uuid.UUID) ([]RegistrationFlowRoleServiceDataResult, error) {
 	if m.assignRolesFn != nil {
-		return m.assignRolesFn(id, tenantID, roles)
+		return m.assignRolesFn(id, tenantID, actorUserUUID, roles)
 	}
-	return nil, nil
+	return []RegistrationFlowRoleServiceDataResult{}, nil
 }
 func (m *mockRegistrationFlowService) GetRoles(_ context.Context, id uuid.UUID, tenantID int64, page, limit int) (*RegistrationFlowRoleServiceListResult, error) {
 	if m.getRolesFn != nil {
@@ -608,9 +697,25 @@ func (m *mockRegistrationFlowService) GetRoles(_ context.Context, id uuid.UUID, 
 	}
 	return &RegistrationFlowRoleServiceListResult{}, nil
 }
-func (m *mockRegistrationFlowService) RemoveRole(_ context.Context, id uuid.UUID, tenantID int64, roleUUID uuid.UUID) error {
+func (m *mockRegistrationFlowService) RemoveRole(_ context.Context, id uuid.UUID, tenantID int64, actorUserUUID, roleUUID uuid.UUID) (*RegistrationFlowServiceDataResult, error) {
 	if m.removeRoleFn != nil {
-		return m.removeRoleFn(id, tenantID, roleUUID)
+		return m.removeRoleFn(id, tenantID, actorUserUUID, roleUUID)
 	}
-	return nil
+	return &RegistrationFlowServiceDataResult{}, nil
+}
+
+// mockRolePermissionNameReader stubs the role→permission-name lookup behind the
+// grantable-role cap. The zero value reports no permissions, i.e. a purely
+// self-service role, which is what most tests want.
+type mockRolePermissionNameReader struct {
+	findPermissionNamesByRoleIDFn func(int64) ([]string, error)
+}
+
+func (m *mockRolePermissionNameReader) WithTx(_ *gorm.DB) RolePermissionNameReader { return m }
+
+func (m *mockRolePermissionNameReader) FindPermissionNamesByRoleID(roleID int64) ([]string, error) {
+	if m.findPermissionNamesByRoleIDFn != nil {
+		return m.findPermissionNamesByRoleIDFn(roleID)
+	}
+	return nil, nil
 }

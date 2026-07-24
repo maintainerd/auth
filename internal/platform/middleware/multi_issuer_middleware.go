@@ -90,10 +90,13 @@ func MultiIssuerAuthMiddleware(
 			}
 
 			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
+			// "DPoP" is recognized alongside "Bearer" so a sender-constrained token
+			// reaches the binding check below instead of falling through unvalidated.
+			if len(parts) != 2 || !(strings.EqualFold(parts[0], "bearer") || strings.EqualFold(parts[0], "dpop")) {
 				next.ServeHTTP(w, r)
 				return
 			}
+			scheme := strings.ToLower(parts[0])
 			rawToken := strings.TrimSpace(parts[1])
 			if rawToken == "" {
 				next.ServeHTTP(w, r)
@@ -105,6 +108,13 @@ func MultiIssuerAuthMiddleware(
 				if err != nil {
 					w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
 					resp.Error(w, http.StatusUnauthorized, "Invalid or expired token")
+					return
+				}
+				// A token bound to a DPoP key needs its proof here too, or this path
+				// becomes the way around the binding.
+				if bindErr := enforceDPoPBinding(r, scheme, rawToken, claims); bindErr != nil {
+					w.Header().Set("WWW-Authenticate", `DPoP error="invalid_token"`)
+					resp.Error(w, http.StatusUnauthorized, "Invalid token", bindErr.Error())
 					return
 				}
 				next.ServeHTTP(w, r.WithContext(ContextWithJWTClaims(r.Context(), buildJWTClaims(claims))))

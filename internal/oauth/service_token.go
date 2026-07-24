@@ -929,7 +929,12 @@ func buildIDTokenParamsWithPolicy(repo secpolicy.SecuritySettingRepository, scop
 	if client.ClaimMappers != nil {
 		var extraClaims map[string]any
 		if err := json.Unmarshal(client.ClaimMappers, &extraClaims); err == nil {
-			params.ExtraClaims = extraClaims
+			// Strip reserved names first. These mappers are operator-configured and
+			// merged into the token last, so without this a mapper of
+			// {"sub":"<victim>","permissions":["*"],"exp":9999999999} would yield a
+			// correctly-signed token impersonating any subject, in any tenant, that
+			// never expires.
+			params.ExtraClaims = jwt.SanitizeClientClaimMappers(extraClaims)
 		}
 	}
 

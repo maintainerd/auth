@@ -10,6 +10,7 @@ import (
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
+	clientpkg "github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"gorm.io/gorm"
@@ -26,8 +27,32 @@ func authenticateOAuthClient(db *gorm.DB, creds OAuthClientCredentials) (*Client
 	if client == nil {
 		return nil, apperror.NewOAuthInvalidClient("client authentication failed")
 	}
+	// token_endpoint_auth_method=none means "this client presents no credential",
+	// which RFC 6749 §2.1 permits ONLY for public clients — a browser or mobile app
+	// that cannot keep a secret. Accepting it for a confidential or m2m client
+	// makes the token endpoint unauthenticated: client_id is public (handed out by
+	// GET /client and present in every authorize URL), so anyone could mint that
+	// client's tokens and receive its resolved permissions.
+	//
+	// Public clients remain constrained by PKCE and exact redirect-URI matching;
+	// an m2m client using client_credentials has neither, which is why this is
+	// refused at runtime and not merely discouraged at registration time.
+	// ValidateClientOAuthMatrix blocks the combination on write; this blocks it for
+	// rows that predate that check.
 	if client.TokenEndpointAuthMethod == TokenAuthMethodNone {
+		if !clientpkg.IsPublicClientType(client.ClientType) {
+			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
+		}
 		return client, nil
+	}
+
+	// Accepted by the registry and the CHECK constraint, but there is no
+	// certificate-binding implementation, so a client configured this way could
+	// otherwise fall through to the generic "unsupported" error below and look
+	// like a transient fault. Fail explicitly.
+	if client.TokenEndpointAuthMethod == TokenAuthMethodTLSClientAuth ||
+		client.TokenEndpointAuthMethod == TokenAuthMethodSelfSignedTLSClientAuth {
+		return nil, apperror.NewOAuthInvalidClient("mutual-TLS client authentication is not supported by this server")
 	}
 	if client.TokenEndpointAuthMethod == TokenAuthMethodSecretBasic || client.TokenEndpointAuthMethod == TokenAuthMethodSecretPost {
 		if !clientSecretMatches(client, creds.ClientSecret) {

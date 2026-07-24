@@ -3,6 +3,7 @@ package idp
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -12,7 +13,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
-	"gorm.io/datatypes"
 )
 
 // RegistrationFlowHandler handles registration flow management operations.
@@ -51,13 +51,13 @@ func (h *RegistrationFlowHandler) logAudit(r *http.Request, tenantID int64, acto
 	})
 }
 
-// GetAll retrieves all registration flows for the tenant with pagination and filters.
+// Get retrieves all registration flows for the tenant with pagination and filters.
 //
-// GET /registration-flows
+// GET /registration_flows
 //
 // Returns a paginated list of registration flows belonging to the authenticated tenant.
-// Supports filtering by name, identifier, status, and auth client UUID.
-func (h *RegistrationFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+// Supports free-text search plus filtering by name, status, client and is_system.
+func (h *RegistrationFlowHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
@@ -65,23 +65,27 @@ func (h *RegistrationFlowHandler) GetAll(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Parse query parameters
 	q := r.URL.Query()
 
-	// Parse pagination parameters
-
-	// Parse status filter
+	// Parse status filter (comma-separated multi-select)
 	var status []string
 	if v := q.Get("status"); v != "" {
-		status = append(status, v)
+		status = strings.Split(strings.ReplaceAll(v, " ", ""), ",")
+	}
+
+	var isSystem *bool
+	if v := q.Get("is_system"); v != "" {
+		parsed := v == "true" || v == "1"
+		isSystem = &parsed
 	}
 
 	// Build filter DTO for validation
 	filter := RegistrationFlowFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
-		Identifier:           ptr.PtrOrNil(q.Get("identifier")),
+		Search:               ptr.PtrOrNil(q.Get("search")),
 		Status:               status,
 		ClientUUID:           ptr.PtrOrNil(q.Get("client_id")),
+		IsSystem:             isSystem,
 		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
@@ -91,16 +95,25 @@ func (h *RegistrationFlowHandler) GetAll(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Parse and validate auth client UUID if provided
-	var ClientUUIDPtr *uuid.UUID
+	// Parse auth client UUID if provided (already validated as UUID by DTO)
+	var clientUUIDPtr *uuid.UUID
 	if filter.ClientUUID != nil {
-		// Already validated as UUID by DTO
-		ClientUUID, _ := uuid.Parse(*filter.ClientUUID)
-		ClientUUIDPtr = &ClientUUID
+		clientUUID, _ := uuid.Parse(*filter.ClientUUID)
+		clientUUIDPtr = &clientUUID
 	}
 
-	// Fetch registration flows from service layer
-	result, err := h.registrationFlowService.GetAll(r.Context(), tenant.TenantID, filter.Name, filter.Identifier, filter.Status, ClientUUIDPtr, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.registrationFlowService.Get(r.Context(), RegistrationFlowServiceGetFilter{
+		TenantID:   tenant.TenantID,
+		Name:       filter.Name,
+		Search:     filter.Search,
+		Status:     filter.Status,
+		ClientUUID: clientUUIDPtr,
+		IsSystem:   filter.IsSystem,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		SortBy:     filter.SortBy,
+		SortOrder:  filter.SortOrder,
+	})
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get registration flows", err)
 		return
@@ -108,7 +121,7 @@ func (h *RegistrationFlowHandler) GetAll(w http.ResponseWriter, r *http.Request)
 
 	// Build paginated response
 	response := PaginatedResponseDTO[RegistrationFlowResponseDTO]{
-		Rows:       toRegistrationFlowResponseDtoList(result.Data),
+		Rows:       toRegistrationFlowListResponseDTOList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
 		Limit:      result.Limit,
@@ -118,49 +131,51 @@ func (h *RegistrationFlowHandler) GetAll(w http.ResponseWriter, r *http.Request)
 	resp.Success(w, response, "Registration flows retrieved successfully")
 }
 
-// Get retrieves a specific registration flow by UUID.
+// GetByUUID retrieves a specific registration flow by UUID.
 //
-// GET /registration-flows/{registration_flow_uuid}
+// GET /registration_flows/{registration_flow_uuid}
 //
 // Returns detailed information about a single registration flow. The service layer
 // validates that the registration flow belongs to the tenant.
-func (h *RegistrationFlowHandler) Get(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context (middleware already validated access)
+func (h *RegistrationFlowHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
-	// Parse and validate registration flow UUID from URL parameter
-	registrationFlowUUIDStr := chi.URLParam(r, "registration_flow_uuid")
-	registrationFlowUUID, err := uuid.Parse(registrationFlowUUIDStr)
+	registrationFlowUUID, err := uuid.Parse(chi.URLParam(r, "registration_flow_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID")
 		return
 	}
 
-	// Fetch registration flow (service validates tenant ownership)
 	registrationFlow, err := h.registrationFlowService.GetByUUID(r.Context(), registrationFlowUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Registration flow not found", err)
 		return
 	}
 
-	resp.Success(w, toRegistrationFlowResponseDTO(*registrationFlow), "Registration flow retrieved successfully")
+	resp.Success(w, toRegistrationFlowDetailResponseDTO(*registrationFlow), "Registration flow retrieved successfully")
 }
 
 // Create creates a new registration flow for the tenant.
 //
-// POST /registration-flows
+// POST /registration_flows
 //
-// Creates a new registration flow defining the user registration process. The flow
-// includes configuration for the signup experience and is linked to an auth client.
+// Creates a new registration flow defining the user registration process. The
+// flow is linked to an auth client, and its name is the public selector used in
+// the flow's registration link.
 func (h *RegistrationFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context (middleware already validated access)
-	tenant := middleware.AuthFromRequest(r).Tenant
+	auth := middleware.AuthFromRequest(r)
+	tenant := auth.Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+	user := auth.User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
 
@@ -177,7 +192,7 @@ func (h *RegistrationFlowHandler) Create(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Parse auth client UUID (already validated as UUID by DTO)
-	ClientUUID, _ := uuid.Parse(req.ClientUUID)
+	clientUUID, _ := uuid.Parse(req.ClientUUID)
 
 	// Set default status if not provided
 	status := shared.StatusActive
@@ -185,52 +200,50 @@ func (h *RegistrationFlowHandler) Create(w http.ResponseWriter, r *http.Request)
 		status = *req.Status
 	}
 
-	// Create registration flow
-	registrationFlow, err := h.registrationFlowService.Create(
-		r.Context(),
-		tenant.TenantID,
-		req.Name,
-		req.Description,
-		status,
-		ClientUUID,
-		req.Identifier,
-		parseUUIDList(req.RoleIDs),
-		boolValue(req.VerificationRequired, false),
-		requiredFieldsJSON(req.RequiredFields),
-	)
+	registrationFlow, err := h.registrationFlowService.Create(r.Context(), RegistrationFlowCreateInput{
+		TenantID:             tenant.TenantID,
+		ActorUserUUID:        user.UserUUID,
+		Name:                 req.Name,
+		Description:          req.Description,
+		Status:               status,
+		ClientUUID:           clientUUID,
+		RoleUUIDs:            parseUUIDList(req.RoleIDs),
+		VerificationRequired: req.VerificationRequired != nil && *req.VerificationRequired,
+		RequiredFields:       req.RequiredFields,
+	})
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create registration flow", err)
 		return
 	}
 
-	dtoRes := toRegistrationFlowResponseDTO(*registrationFlow)
+	dtoRes := toRegistrationFlowDetailResponseDTO(*registrationFlow)
 	flowUUID := registrationFlow.RegistrationFlowUUID
 	changesJSON, _ := json.Marshal(map[string]any{"after": dtoRes})
-	auth := middleware.AuthFromRequest(r)
-	var actorUserID *int64
-	if auth.User != nil {
-		actorUserID = &auth.User.UserID
-	}
-	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.create", "registration_flow", flowUUID.String(), &flowUUID, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "registration_flow.create", "registration_flow", flowUUID.String(), &flowUUID, string(changesJSON), "success")
 
 	resp.Created(w, dtoRes, "Registration flow created successfully")
 }
 
 // Update updates an existing registration flow.
 //
-// PUT /registration-flows/{registration_flow_uuid}
+// PUT /registration_flows/{registration_flow_uuid}
 //
-// Updates the configuration and settings of an existing registration flow.
-// The service layer validates that the registration flow belongs to the tenant.
+// Omitted fields are left unchanged. Renaming a flow changes its public
+// registration link, so links an external app already published stop resolving.
 func (h *RegistrationFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
-	tenant := middleware.AuthFromRequest(r).Tenant
+	auth := middleware.AuthFromRequest(r)
+	tenant := auth.Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
+	user := auth.User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
-	registrationFlowUUIDStr := chi.URLParam(r, "registration_flow_uuid")
-	registrationFlowUUID, err := uuid.Parse(registrationFlowUUIDStr)
+	registrationFlowUUID, err := uuid.Parse(chi.URLParam(r, "registration_flow_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID")
 		return
@@ -247,102 +260,91 @@ func (h *RegistrationFlowHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	status := shared.StatusActive
-	if req.Status != nil {
-		status = *req.Status
-	}
-
-	registrationFlow, err := h.registrationFlowService.Update(
-		r.Context(),
-		registrationFlowUUID,
-		tenant.TenantID,
-		req.Name,
-		req.Description,
-		status,
-		parseUUIDList(req.RoleIDs),
-		boolValue(req.VerificationRequired, false),
-		requiredFieldsJSON(req.RequiredFields),
-	)
+	registrationFlow, err := h.registrationFlowService.Update(r.Context(), RegistrationFlowUpdateInput{
+		RegistrationFlowUUID: registrationFlowUUID,
+		TenantID:             tenant.TenantID,
+		ActorUserUUID:        user.UserUUID,
+		Name:                 req.Name,
+		Description:          req.Description,
+		Status:               req.Status,
+		RoleUUIDs:            parseUUIDList(req.RoleIDs),
+		VerificationRequired: req.VerificationRequired,
+		RequiredFields:       req.RequiredFields,
+	})
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update registration flow", err)
 		return
 	}
 
-	dtoRes := toRegistrationFlowResponseDTO(*registrationFlow)
+	dtoRes := toRegistrationFlowDetailResponseDTO(*registrationFlow)
 	changesJSON, _ := json.Marshal(map[string]any{"update": req, "after": dtoRes})
-	auth := middleware.AuthFromRequest(r)
-	var actorUserID *int64
-	if auth.User != nil {
-		actorUserID = &auth.User.UserID
-	}
-	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.update", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "registration_flow.update", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
 	resp.Success(w, dtoRes, "Registration flow updated successfully")
 }
 
 // Delete deletes a registration flow.
 //
-// DELETE /registration-flows/{registration_flow_uuid}
+// DELETE /registration_flows/{registration_flow_uuid}
 //
-// Permanently deletes a registration flow from the tenant. This will also remove
-// any associated role assignments for the flow.
+// Soft-deletes a registration flow and clears its role membership. Blocked when
+// the flow is still referenced by pending invites, or when it is system-managed.
 func (h *RegistrationFlowHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context (middleware already validated access)
-	tenant := middleware.AuthFromRequest(r).Tenant
+	auth := middleware.AuthFromRequest(r)
+	tenant := auth.Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
+	user := auth.User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
-	// Parse and validate registration flow UUID from URL parameter
-	registrationFlowUUIDStr := chi.URLParam(r, "registration_flow_uuid")
-	registrationFlowUUID, err := uuid.Parse(registrationFlowUUIDStr)
+	registrationFlowUUID, err := uuid.Parse(chi.URLParam(r, "registration_flow_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID")
 		return
 	}
 
-	// Delete registration flow (service validates tenant ownership)
-	registrationFlow, err := h.registrationFlowService.Delete(r.Context(), registrationFlowUUID, tenant.TenantID)
+	registrationFlow, err := h.registrationFlowService.Delete(r.Context(), registrationFlowUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete registration flow", err)
 		return
 	}
 
 	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"id": registrationFlowUUID.String()}})
-	auth := middleware.AuthFromRequest(r)
-	var actorUserID *int64
-	if auth.User != nil {
-		actorUserID = &auth.User.UserID
-	}
-	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.delete", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "registration_flow.delete", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
-	resp.Success(w, toRegistrationFlowResponseDTO(*registrationFlow), "Registration flow deleted successfully")
+	resp.Success(w, toRegistrationFlowDetailResponseDTO(*registrationFlow), "Registration flow deleted successfully")
 }
 
-// UpdateStatus updates the status of a registration flow.
+// SetStatus updates the status of a registration flow.
 //
-// PATCH /registration-flows/{registration_flow_uuid}/status
+// PATCH /registration_flows/{registration_flow_uuid}/status
 //
-// Updates only the status field of a registration flow (e.g., active, inactive).
-// This is a convenience endpoint for status-only updates.
-func (h *RegistrationFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context (middleware already validated access)
-	tenant := middleware.AuthFromRequest(r).Tenant
+// Status is the kill switch for a published registration link, so this is a
+// dedicated endpoint rather than a general update.
+func (h *RegistrationFlowHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.AuthFromRequest(r)
+	tenant := auth.Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
+	user := auth.User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
 
-	// Parse and validate registration flow UUID from URL parameter
-	registrationFlowUUIDStr := chi.URLParam(r, "registration_flow_uuid")
-	registrationFlowUUID, err := uuid.Parse(registrationFlowUUIDStr)
+	registrationFlowUUID, err := uuid.Parse(chi.URLParam(r, "registration_flow_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID")
 		return
 	}
 
-	// Decode and validate request body
 	var req RegistrationFlowUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
@@ -354,52 +356,43 @@ func (h *RegistrationFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Update status (service validates tenant ownership)
-	registrationFlow, err := h.registrationFlowService.UpdateStatus(r.Context(), registrationFlowUUID, tenant.TenantID, req.Status)
+	registrationFlow, err := h.registrationFlowService.SetStatus(r.Context(), registrationFlowUUID, tenant.TenantID, user.UserUUID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update registration flow status", err)
 		return
 	}
 
 	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"status": req.Status}})
-	auth := middleware.AuthFromRequest(r)
-	var actorUserID *int64
-	if auth.User != nil {
-		actorUserID = &auth.User.UserID
-	}
-	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.set_status", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "registration_flow.set_status", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
-	resp.Success(w, toRegistrationFlowResponseDTO(*registrationFlow), "Registration flow status updated successfully")
+	resp.Success(w, toRegistrationFlowDetailResponseDTO(*registrationFlow), "Registration flow status updated successfully")
 }
 
 // AssignRoles assigns roles to a registration flow.
 //
-// POST /registration-flows/{registration_flow_uuid}/roles
+// POST /registration_flows/{registration_flow_uuid}/roles
 //
-// Associates one or more roles with a registration flow. Users who complete registration
-// through this flow will automatically be assigned these roles.
+// Users who register through this flow are automatically granted these roles, so
+// the service caps the set: no system roles, and only roles the actor possesses.
 func (h *RegistrationFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context (middleware already validated access)
-	tenant := middleware.AuthFromRequest(r).Tenant
+	auth := middleware.AuthFromRequest(r)
+	tenant := auth.Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
-
-	// Parse and validate registration flow UUID from URL parameter
-	registrationFlowUUIDStr := chi.URLParam(r, "registration_flow_uuid")
-	if registrationFlowUUIDStr == "" {
-		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID", "UUID parameter is required")
+	user := auth.User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
 
-	registrationFlowUUID, err := uuid.Parse(registrationFlowUUIDStr)
+	registrationFlowUUID, err := uuid.Parse(chi.URLParam(r, "registration_flow_uuid"))
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid UUID format")
+		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID")
 		return
 	}
 
-	// Decode and validate request body
 	var req RegistrationFlowAssignRolesRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
@@ -417,99 +410,48 @@ func (h *RegistrationFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Req
 		roleUUIDs[i], _ = uuid.Parse(roleUUIDStr)
 	}
 
-	// Assign roles to registration flow (service validates tenant ownership)
-	roles, err := h.registrationFlowService.AssignRoles(r.Context(), registrationFlowUUID, tenant.TenantID, roleUUIDs)
+	roles, err := h.registrationFlowService.AssignRoles(r.Context(), registrationFlowUUID, tenant.TenantID, user.UserUUID, roleUUIDs)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to assign roles", err)
 		return
 	}
 
-	// Map service results to DTOs
-	response := make([]RoleResponseDTO, len(roles))
-	for i, role := range roles {
-		response[i] = RoleResponseDTO{
-			RoleUUID:    role.RoleUUID,
-			Name:        role.RoleName,
-			Description: role.RoleDescription,
-			IsDefault:   role.RoleIsDefault,
-			IsSystem:    role.RoleIsSystem,
-			Status:      role.RoleStatus,
-			CreatedAt:   role.CreatedAt,
-			UpdatedAt:   role.UpdatedAt,
-		}
-	}
-
 	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"role_uuids": req.RoleUUIDs}})
-	auth := middleware.AuthFromRequest(r)
-	var actorUserID *int64
-	if auth.User != nil {
-		actorUserID = &auth.User.UserID
-	}
-	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.assign_roles", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "registration_flow.assign_roles", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
-	resp.Success(w, response, "Roles assigned successfully")
+	resp.Success(w, toRegistrationFlowRoleResponseDTOList(roles), "Roles assigned successfully")
 }
 
 // GetRoles retrieves all roles assigned to a registration flow.
 //
-// GET /registration-flows/{registration_flow_uuid}/roles
-//
-// Returns a paginated list of roles that are automatically assigned to users
-// who complete registration through this registration flow.
+// GET /registration_flows/{registration_flow_uuid}/roles
 func (h *RegistrationFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context (middleware already validated access)
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
-	// Parse and validate registration flow UUID from URL parameter
-	registrationFlowUUIDStr := chi.URLParam(r, "registration_flow_uuid")
-	if registrationFlowUUIDStr == "" {
-		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID", "UUID parameter is required")
-		return
-	}
-
-	registrationFlowUUID, err := uuid.Parse(registrationFlowUUIDStr)
+	registrationFlowUUID, err := uuid.Parse(chi.URLParam(r, "registration_flow_uuid"))
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid UUID format")
+		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID")
 		return
 	}
 
-	// Build pagination DTO for validation
 	reqParams := pagination.ParseQuery(r)
-
 	if err := reqParams.Validate(); err != nil {
 		resp.ValidationError(w, err)
 		return
 	}
 
-	// Fetch roles for the registration flow (service validates tenant ownership)
 	result, err := h.registrationFlowService.GetRoles(r.Context(), registrationFlowUUID, tenant.TenantID, reqParams.Page, reqParams.Limit)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to retrieve roles", err)
 		return
 	}
 
-	// Map service results to DTOs
-	rows := make([]RoleResponseDTO, len(result.Data))
-	for i, role := range result.Data {
-		rows[i] = RoleResponseDTO{
-			RoleUUID:    role.RoleUUID,
-			Name:        role.RoleName,
-			Description: role.RoleDescription,
-			IsDefault:   role.RoleIsDefault,
-			IsSystem:    role.RoleIsSystem,
-			Status:      role.RoleStatus,
-			CreatedAt:   role.CreatedAt,
-			UpdatedAt:   role.UpdatedAt,
-		}
-	}
-
-	// Build paginated response
 	response := PaginatedResponseDTO[RoleResponseDTO]{
-		Rows:       rows,
+		Rows:       toRegistrationFlowRoleResponseDTOList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
 		Limit:      result.Limit,
@@ -521,79 +463,125 @@ func (h *RegistrationFlowHandler) GetRoles(w http.ResponseWriter, r *http.Reques
 
 // RemoveRole removes a role from a registration flow.
 //
-// DELETE /registration-flows/{registration_flow_uuid}/roles/{role_uuid}
-//
-// Removes the association between a role and a registration flow. Users who register
-// through this flow will no longer automatically receive this role.
+// DELETE /registration_flows/{registration_flow_uuid}/roles/{role_uuid}
 func (h *RegistrationFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context (middleware already validated access)
-	tenant := middleware.AuthFromRequest(r).Tenant
+	auth := middleware.AuthFromRequest(r)
+	tenant := auth.Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
-
-	// Parse and validate UUIDs from URL parameters
-	registrationFlowUUIDStr := chi.URLParam(r, "registration_flow_uuid")
-	roleUUIDStr := chi.URLParam(r, "role_uuid")
-
-	if registrationFlowUUIDStr == "" || roleUUIDStr == "" {
-		resp.Error(w, http.StatusBadRequest, "Invalid parameters", "Both registration flow UUID and role UUID are required")
+	user := auth.User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
 
-	registrationFlowUUID, err := uuid.Parse(registrationFlowUUIDStr)
+	registrationFlowUUID, err := uuid.Parse(chi.URLParam(r, "registration_flow_uuid"))
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID format")
+		resp.Error(w, http.StatusBadRequest, "Invalid registration flow UUID")
 		return
 	}
 
-	roleUUID, err := uuid.Parse(roleUUIDStr)
+	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid role UUID format")
+		resp.Error(w, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
-	// Remove role from registration flow (service validates tenant ownership)
-	if err := h.registrationFlowService.RemoveRole(r.Context(), registrationFlowUUID, tenant.TenantID, roleUUID); err != nil {
+	registrationFlow, err := h.registrationFlowService.RemoveRole(r.Context(), registrationFlowUUID, tenant.TenantID, user.UserUUID, roleUUID)
+	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove role", err)
 		return
 	}
 
 	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"role_uuid": roleUUID.String()}})
-	auth := middleware.AuthFromRequest(r)
-	var actorUserID *int64
-	if auth.User != nil {
-		actorUserID = &auth.User.UserID
-	}
-	h.logAudit(r, tenant.TenantID, actorUserID, "registration_flow.remove_role", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
+	h.logAudit(r, tenant.TenantID, &user.UserID, "registration_flow.remove_role", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
-	resp.Success(w, nil, "Role removed successfully")
+	resp.Success(w, toRegistrationFlowDetailResponseDTO(*registrationFlow), "Role removed successfully")
 }
 
 // Helper functions for converting service data to response DTOs
 
-// toRegistrationFlowResponseDTO converts a service result to a registration flow response DTO.
-func toRegistrationFlowResponseDTO(sf RegistrationFlowServiceDataResult) RegistrationFlowResponseDTO {
-	dto := RegistrationFlowResponseDTO{
+// toRegistrationFlowListResponseDTO builds the lean list projection.
+// required_fields and the resolved client are detail-only.
+func toRegistrationFlowListResponseDTO(sf RegistrationFlowServiceDataResult) RegistrationFlowResponseDTO {
+	return RegistrationFlowResponseDTO{
 		RegistrationFlowUUID: sf.RegistrationFlowUUID.String(),
 		Name:                 sf.Name,
 		Description:          sf.Description,
-		Identifier:           sf.Identifier,
 		Status:               sf.Status,
-		ClientUUID:           sf.ClientUUID.String(),
+		ClientUUID:           clientUUIDString(sf.ClientUUID),
+		VerificationRequired: sf.VerificationRequired,
+		IsSystem:             sf.IsSystem,
 		CreatedAt:            sf.CreatedAt,
 		UpdatedAt:            sf.UpdatedAt,
 	}
-	dto.VerificationRequired = sf.VerificationRequired
-	dto.RequiredFields = sf.RequiredFields
-	dto.IsSystem = sf.IsSystem
+}
+
+func toRegistrationFlowListResponseDTOList(sfList []RegistrationFlowServiceDataResult) []RegistrationFlowResponseDTO {
+	result := make([]RegistrationFlowResponseDTO, len(sfList))
+	for i, sf := range sfList {
+		result[i] = toRegistrationFlowListResponseDTO(sf)
+	}
+	return result
+}
+
+// toRegistrationFlowDetailResponseDTO builds the full detail projection.
+func toRegistrationFlowDetailResponseDTO(sf RegistrationFlowServiceDataResult) RegistrationFlowDetailResponseDTO {
+	dto := RegistrationFlowDetailResponseDTO{
+		RegistrationFlowUUID: sf.RegistrationFlowUUID.String(),
+		Name:                 sf.Name,
+		Description:          sf.Description,
+		Status:               sf.Status,
+		ClientUUID:           clientUUIDString(sf.ClientUUID),
+		VerificationRequired: sf.VerificationRequired,
+		RequiredFields:       sf.RequiredFields,
+		IsSystem:             sf.IsSystem,
+		CreatedAt:            sf.CreatedAt,
+		UpdatedAt:            sf.UpdatedAt,
+	}
+	if sf.ClientUUID != nil {
+		dto.Client = &RegistrationFlowClientSummaryDTO{
+			ClientUUID:  sf.ClientUUID.String(),
+			Name:        sf.ClientName,
+			DisplayName: sf.ClientDisplayName,
+			Identifier:  sf.ClientIdentifier,
+			Status:      sf.ClientStatus,
+		}
+	}
 	return dto
+}
+
+func toRegistrationFlowRoleResponseDTOList(roles []RegistrationFlowRoleServiceDataResult) []RoleResponseDTO {
+	out := make([]RoleResponseDTO, len(roles))
+	for i, role := range roles {
+		out[i] = RoleResponseDTO{
+			RoleUUID:    role.RoleUUID,
+			Name:        role.RoleName,
+			Description: role.RoleDescription,
+			IsDefault:   role.RoleIsDefault,
+			IsSystem:    role.RoleIsSystem,
+			Status:      role.RoleStatus,
+			CreatedAt:   role.CreatedAt,
+			UpdatedAt:   role.UpdatedAt,
+		}
+	}
+	return out
+}
+
+func clientUUIDString(id *uuid.UUID) *string {
+	if id == nil {
+		return nil
+	}
+	s := id.String()
+	return &s
 }
 
 // parseUUIDList parses a slice of UUID strings, preserving the nil-vs-empty
 // distinction (nil input → nil output, so "field omitted" stays distinguishable
-// from "field set to empty" for replace-semantics on update).
+// from "field set to empty" for replace-semantics on update). Entries are
+// already validated as UUIDs by the request DTO.
 func parseUUIDList(ss []string) []uuid.UUID {
 	if ss == nil {
 		return nil
@@ -605,28 +593,4 @@ func parseUUIDList(ss []string) []uuid.UUID {
 		}
 	}
 	return out
-}
-
-// toRegistrationFlowResponseDtoList converts a list of service results to registration flow response DTOs.
-func toRegistrationFlowResponseDtoList(sfList []RegistrationFlowServiceDataResult) []RegistrationFlowResponseDTO {
-	result := make([]RegistrationFlowResponseDTO, len(sfList))
-	for i, sf := range sfList {
-		result[i] = toRegistrationFlowResponseDTO(sf)
-	}
-	return result
-}
-
-func boolValue(p *bool, def bool) bool {
-	if p == nil {
-		return def
-	}
-	return *p
-}
-
-func requiredFieldsJSON(arr *[]string) datatypes.JSON {
-	if arr == nil {
-		return datatypes.JSON([]byte("[]"))
-	}
-	b, _ := json.Marshal(*arr)
-	return datatypes.JSON(b)
 }

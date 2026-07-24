@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	"gorm.io/gorm"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
@@ -167,6 +169,14 @@ func HandleServiceError(w http.ResponseWriter, r *http.Request, fallbackMsg stri
 	case errors.As(err, &internal):
 		LoggerFromContext(r.Context()).Error("internal service error", "error", internal.Error())
 		Error(w, http.StatusInternalServerError, fallbackMsg)
+	case errors.Is(err, gorm.ErrDuplicatedKey):
+		// A unique index rejected the write. Services pre-check uniqueness and
+		// return a domain Conflict, but a pre-check cannot close the race between
+		// two concurrent writers — this is the backstop so the loser gets 409
+		// rather than 500.
+		Error(w, http.StatusConflict, "A record with these values already exists")
+	case errors.Is(err, gorm.ErrForeignKeyViolated):
+		Error(w, http.StatusBadRequest, "A referenced record does not exist")
 	default:
 		// Untyped error — log it and return the fallback message.
 		LoggerFromContext(r.Context()).Error("unhandled service error", "error", err.Error())
