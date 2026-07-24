@@ -72,8 +72,41 @@ export interface LoginFormData {
 // Register Form Schema (config-driven)
 // Mirrors buildLoginSchema: the password rules come from the tenant's
 // password_config so registration enforces the same policy the backend does.
-export function buildRegisterSchema(cfg?: PasswordConfigPublic) {
+// Which extra fields the resolved registration context demands. Client-side
+// conditionality is UX only — the server enforces required_fields regardless.
+export interface RegisterFieldRequirements {
+  fullname?: boolean
+  phone?: boolean
+}
+
+// Mirrors internal/platform/valid/valid.go IsValidPhoneNumber: the regex plus the
+// 7-15 digit count. A leading zero is rejected there, so the message says how to
+// satisfy it rather than just declaring the value invalid.
+const PHONE_SHAPE = /^[+]?[1-9][\d\s\-().]{6,20}$/
+const PHONE_MESSAGE = 'Enter a phone number with country code, e.g. +1 212 555 1234'
+
+function isBackendValidPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length < 7 || digits.length > 15) return false
+  return PHONE_SHAPE.test(value)
+}
+
+export function buildRegisterSchema(cfg?: PasswordConfigPublic, required?: RegisterFieldRequirements) {
   return yup.object({
+    fullname: required?.fullname
+      ? yup.string().trim().required('Full name is required').max(255, 'Full name must not exceed 255 characters')
+      : yup.string().trim().max(255, 'Full name must not exceed 255 characters').optional(),
+    phone: required?.phone
+      ? yup
+          .string()
+          .trim()
+          .required('Phone number is required')
+          .test('phone-format', PHONE_MESSAGE, (v) => !!v && isBackendValidPhone(v))
+      : yup
+          .string()
+          .trim()
+          .optional()
+          .test('phone-format', PHONE_MESSAGE, (v) => !v || isBackendValidPhone(v)),
     email: yup
       .string()
       .required('Email is required')
@@ -110,7 +143,13 @@ export const registerSchema = yup.object({
   acceptTerms: acceptTermsValidation(),
 })
 
-export type RegisterFormData = yup.InferType<typeof registerSchema>
+// Declared explicitly rather than inferred from `registerSchema`: the static
+// schema is only the back-compat fallback, so inference would silently omit the
+// conditional fields that buildRegisterSchema adds.
+export type RegisterFormData = yup.InferType<typeof registerSchema> & {
+  fullname?: string
+  phone?: string
+}
 
 // Forgot Password Form Schema
 export const forgotPasswordSchema = yup.object({

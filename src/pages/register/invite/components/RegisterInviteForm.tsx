@@ -38,11 +38,12 @@ function buildInviteSchema(cfg?: PasswordConfigPublic) {
 const RegisterInviteForm = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { registerInvite, refreshAccount } = useAuth()
+  const { registerInvite, refreshAccount, isAuthenticated, account, logout } = useAuth()
   const { getCurrentTenant } = useTenant()
   const { showSuccess } = useToast()
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [inviteCallback, setInviteCallback] = useState<string | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
 
   const invitedEmail = searchParams.get('email') || ''
   const inviteToken = searchParams.get('invite_token') || ''
@@ -124,6 +125,41 @@ const RegisterInviteForm = () => {
       const errorMessage = error instanceof Error ? error.message : "Registration failed. Please try again."
       setRegisterError(errorMessage)
     }
+  }
+
+  // An invite is addressed to a specific email. If a different account is already
+  // signed in on this browser, accepting the invite would silently swap sessions —
+  // so make the user sign out first and offer a one-click way to do it.
+  const mismatchedSession = isAuthenticated && !!account && account.email !== invitedEmail
+
+  if (mismatchedSession && invitedEmail) {
+    const handleSignOut = async () => {
+      setSigningOut(true)
+      try {
+        await logout()
+      } catch {
+        setSigningOut(false)
+      }
+    }
+    return (
+      <div className="flex flex-col gap-8 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+            <Mail className="size-7 text-primary" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">Accept your invitation</h1>
+          <p className="max-w-xs text-sm text-muted-foreground">
+            You're signed in as <span className="font-medium text-foreground">{account?.email}</span>.
+            This invitation is for <span className="font-medium text-foreground">{invitedEmail}</span>.
+            Sign out to accept it.
+          </p>
+        </div>
+
+        <Button className="w-full" onClick={handleSignOut} disabled={signingOut}>
+          {signingOut ? 'Signing out…' : 'Sign out to continue'}
+        </Button>
+      </div>
+    )
   }
 
   if (!invitedEmail) {

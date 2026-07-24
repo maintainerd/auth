@@ -25,6 +25,9 @@ const bootstrap: TenantBootstrap = {
     require_lowercase: true,
     require_number: true,
     require_symbol: false,
+    min_strength_score: 0,
+    reject_common_passwords: true,
+    check_hibp: false,
   },
   registration_config: {
     self_registration_enabled: false,
@@ -63,6 +66,9 @@ describe('bootstrapToTenantEntity', () => {
       require_lowercase: true,
       require_number: true,
       require_symbol: false,
+      min_strength_score: 0,
+      reject_common_passwords: true,
+      check_hibp: false,
     })
   })
 

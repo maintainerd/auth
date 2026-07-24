@@ -101,6 +101,22 @@ describe('resolveGuardRedirect OAuth broker routing', () => {
     expect(resolveGuardRedirect({ ...authenticated, pathname: '/login-success' })).toBeNull()
   })
 
+  it('lets an anonymous invitee render the invite registration page', () => {
+    expect(resolveGuardRedirect({
+      ...unauthenticated,
+      pathname: '/register/invite',
+      search: '?client_id=abc&email=invitee%40example.com',
+    })).toBeNull()
+  })
+
+  it('renders the invite page even for an already-signed-in user (does not bounce to the dashboard)', () => {
+    expect(resolveGuardRedirect({
+      ...authenticated,
+      pathname: '/register/invite',
+      search: '?client_id=abc&email=invitee%40example.com',
+    })).toBeNull()
+  })
+
   describe('finishing a registration detour with a pending continuation', () => {
     it('routes a completed user off /register/profile to /login-success when a continuation is pending', () => {
       expect(resolveGuardRedirect({

@@ -24,6 +24,15 @@ import {
 } from '@/store/auth/reducers'
 import { clearTenant } from '@/store/tenant/reducers'
 
+// RegisterInput is the signup payload the form collects. fullname and phone are
+// present only when the resolved registration context requires them.
+export interface RegisterInput {
+  email: string
+  password: string
+  fullname?: string
+  phone?: string
+}
+
 export function useAuth() {
   const dispatch = useAppDispatch()
   const queryClient = useQueryClient()
@@ -72,18 +81,20 @@ export function useAuth() {
     return { account: result.data }
   }, [dispatch])
 
-  const register = useCallback(async (
-    email: string,
-    password: string,
-  ) => {
+  // An object parameter rather than positional args: fullname and phone are
+  // conditional on the registration flow, and two optional trailing strings would
+  // be trivial to transpose.
+  const register = useCallback(async (input: RegisterInput) => {
     const clientId = searchParams.get('client_id')
     // Tenant comes from the domain bootstrap (its slug), never from a query param.
     const tenantId = tenantSlug ?? undefined
     const registrationFlow = searchParams.get('registration_flow')
 
     const result = await dispatch(registerAsync({
-      email,
-      password,
+      email: input.email,
+      password: input.password,
+      fullname: input.fullname,
+      phone: input.phone,
       clientId: clientId || undefined,
       tenantId,
       registrationFlow: registrationFlow || undefined,

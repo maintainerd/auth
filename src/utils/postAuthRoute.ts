@@ -30,10 +30,13 @@ export const LOGIN_SUCCESS_ROUTE = '/login-success'
 export const ACCOUNT_ROUTE = '/account'
 
 // Public auth pages an authenticated, fully-registered user should never sit on.
+// NOTE: /register/invite is deliberately NOT here — an invite is addressed to a
+// specific (possibly different) identity, so it must render regardless of who is
+// currently signed in. It is handled by an explicit early return in
+// resolveGuardRedirect instead of the "bounce authenticated users home" rule.
 const AUTH_PAGES = [
   LOGIN_ROUTE,
   REGISTER_ROUTE,
-  REGISTER_INVITE_ROUTE,
   '/forgot-password',
   '/reset-password',
   MAGIC_LINK_ROUTE,
@@ -102,6 +105,15 @@ export function resolveGuardRedirect(ctx: GuardContext): string | null {
   const { pathname, search = '', isAuthenticated, account, tenant, registrationEnabled, verificationRequired, pendingContinuation } = ctx
 
   if (pathname === NO_ACCESS_ROUTE || pathname === SERVICE_UNAVAILABLE_ROUTE) {
+    return null
+  }
+
+  // An invite link is an explicit onboarding action addressed to a specific
+  // email, which may differ from whoever is currently signed in. Always let it
+  // render — anonymous invitees complete registration here, and a signed-in user
+  // opening an invite for someone else is handled by the form (sign-out prompt)
+  // rather than being silently bounced to their own dashboard.
+  if (pathname === REGISTER_INVITE_ROUTE) {
     return null
   }
 

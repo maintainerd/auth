@@ -102,7 +102,23 @@ export interface RegisterRequest {
   username: string
   email: string
   password: string
+  // Sent only when the resolved registration context requires them. The server
+  // enforces the requirement (enforceRequiredRegistrationFields); these fields
+  // exist so the form can satisfy it rather than 400 with no way forward.
+  fullname?: string
+  phone?: string
 }
+
+// RegistrationContext is what the signup form must collect, resolved from the
+// client and (optionally) the registration flow named in the link.
+export interface RegistrationContext {
+  registration_flow: string
+  required_fields: RegistrationRequiredField[]
+  verification_required: boolean
+}
+
+export type RegistrationRequiredField = 'fullname' | 'email' | 'phone'
+
 
 export type RegisterResponse = ApiResponse<{
   user_id: string

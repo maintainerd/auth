@@ -8,7 +8,7 @@ import { API_ENDPOINTS, TOKEN_DELIVERY_HEADER } from '../config'
 import type { ApiResponse } from '../types'
 import { unwrap } from '../_lib/unwrap'
 import type { WebAuthnAssertionOptions } from '@/lib/webauthn'
-import type { ProfileEntity, AccountEntity, LoginRequest, LoginResponse, MFALoginVerifyRequest, LogoutResponse, RegisterRequest, RegisterResponse, RegisterInviteRequest, RegisterInviteQueryParams, CreateProfileRequest, CreateProfileResponse, ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest, ResetPasswordResponse, ResetPasswordQueryParams, ProfileResponse } from './types'
+import type { ProfileEntity, AccountEntity, LoginRequest, LoginResponse, MFALoginVerifyRequest, LogoutResponse, RegisterRequest, RegisterResponse, RegisterInviteRequest, RegisterInviteQueryParams, CreateProfileRequest, CreateProfileResponse, ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest, ResetPasswordResponse, ResetPasswordQueryParams, ProfileResponse, RegistrationContext } from './types'
 import { appendPublicAuthContext, publicAuthQuery, type PublicAuthContext } from '@/utils/clientContext'
 
 type AccountResponse = ApiResponse<AccountEntity>
@@ -101,6 +101,27 @@ export interface RegisterServiceRequest extends Omit<RegisterRequest, 'username'
 }
 
 /**
+ * Fetch what the signup form must collect for this client and (optional) flow.
+ *
+ * Public and unauthenticated. Deliberately NOT part of /oauth/connections: login
+ * options are a property of the client, and a registration flow must never be
+ * able to change them.
+ */
+export async function fetchRegistrationContext(
+  clientId: string,
+  registrationFlow?: string,
+): Promise<RegistrationContext> {
+  const params = new URLSearchParams({ client_id: clientId })
+  if (registrationFlow) params.set('registration_flow', registrationFlow)
+
+  const response = await get<ApiResponse<RegistrationContext>>(
+    `${API_ENDPOINTS.AUTH.REGISTRATION_CONTEXT}?${params.toString()}`,
+  )
+  if (response.success && response.data) return response.data
+  throw new Error(response.message || 'Failed to load registration context')
+}
+
+/**
  * Register a new user
  * @param data - Registration data (email + password; email is sent as the username)
  * @returns Promise<RegisterResponse>
@@ -111,6 +132,11 @@ export async function register(data: RegisterServiceRequest): Promise<RegisterRe
     email: data.email,
     password: data.password
   }
+
+  // Omit rather than send "" — an empty string only escapes format validation by
+  // accident and is treated as missing anyway, so omission is unambiguous.
+  if (data.fullname?.trim()) registerData.fullname = data.fullname.trim()
+  if (data.phone?.trim()) registerData.phone = data.phone.trim()
 
   // Build endpoint URL with query parameters if provided
   let endpoint = API_ENDPOINTS.AUTH.REGISTER

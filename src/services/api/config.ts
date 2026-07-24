@@ -80,6 +80,9 @@ export const API_ENDPOINTS = {
     SMS_LOGIN_VERIFY: '/sms-login/verify',
     REGISTER: '/register',
     REGISTER_INVITE: '/register/invite',
+    // What the signup form must collect for a client + optional registration
+    // flow. Public read; see maintainerd-auth internal/authn/handler_registration_context.go.
+    REGISTRATION_CONTEXT: '/registration_context',
     LOGOUT: '/logout',
     // POST /api/v1/refresh-token — rotates the session using the httpOnly
     // refresh-token cookie (scoped to this path) and Set-Cookies fresh tokens
@@ -109,7 +112,7 @@ export const API_ENDPOINTS = {
   API_KEY: '/api_keys',
   ROLE: '/roles',
   USER: '/users',
-  REGISTRATION_FLOW: '/registration_flows',
+
   INVITE: '/invite',
   BRANDING: '/branding',
   EMAIL_TEMPLATE: '/email_templates',

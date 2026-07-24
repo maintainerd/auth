@@ -19,6 +19,22 @@ const profileSchema = yup.object({
 
 type ProfileFormData = yup.InferType<typeof profileSchema>
 
+// The signup form may already have collected a full name (when the registration
+// flow required it). Split it on the first space purely as a starting point —
+// both fields stay editable, so mononyms and non-Western name orders are not
+// corrupted by the guess.
+function prefillFromSignup(): { first_name: string; last_name: string; gender: string } {
+  const stored = sessionStorage.getItem("register_fullname")?.trim() || ""
+  if (!stored) return { first_name: "", last_name: "", gender: "" }
+  const space = stored.indexOf(" ")
+  if (space === -1) return { first_name: stored, last_name: "", gender: "" }
+  return {
+    first_name: stored.slice(0, space),
+    last_name: stored.slice(space + 1).trim(),
+    gender: "",
+  }
+}
+
 const RegisterProfileForm = () => {
   const { isLoading, createProfileForRegister } = useProfile()
   const { refreshAccount } = useAuth()
@@ -35,7 +51,7 @@ const RegisterProfileForm = () => {
     formState: { errors, isSubmitting }
   } = useForm<ProfileFormData>({
     resolver: yupResolver(profileSchema),
-    defaultValues: { first_name: "", last_name: "", gender: "" },
+    defaultValues: prefillFromSignup(),
     mode: 'onSubmit',
   })
 
@@ -59,6 +75,7 @@ const RegisterProfileForm = () => {
       const result = await createProfileForRegister(profileData)
       if (result.success) {
         sessionStorage.removeItem('register_email')
+        sessionStorage.removeItem('register_fullname')
         // Sync auth state so the now-complete account (profile present) clears
         // the RouteGuard check when the success screen routes to login-success.
         await refreshAccount()

@@ -28,9 +28,8 @@ export async function authorizeOAuth(queryString: string): Promise<OAuthAuthoriz
   return unwrap(response, 'authorize OAuth request')
 }
 
-export async function fetchOAuthConnections(clientId: string, registrationFlow?: string): Promise<OAuthConnections> {
+export async function fetchOAuthConnections(clientId: string): Promise<OAuthConnections> {
   const params = new URLSearchParams({ client_id: clientId })
-  if (registrationFlow) params.set('registration_flow', registrationFlow)
   const response = await get<ApiResponse<OAuthConnections>>(`${BASE}/connections?${params.toString()}`)
   return unwrap(response, 'fetch OAuth connections')
 }

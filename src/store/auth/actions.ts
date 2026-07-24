@@ -18,6 +18,7 @@ import {
  	type ResetPasswordQueryParams
 } from '@/services'
 import type { AccountEntity } from '@/services/api/auth/types'
+import { ApiError } from '@/services/api/client'
 
 // Extended register request with optional query parameters
 export interface RegisterAsyncRequest extends Omit<RegisterRequest, 'username'> {
@@ -88,7 +89,16 @@ export const registerAsync = createAsyncThunk(
       return { data: response.data }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed'
-      return thunkAPI.rejectWithValue({ message: errorMessage })
+      // Carry the status through. rejectWithValue makes unwrap() throw this plain
+      // object rather than an Error, so a caller testing `instanceof Error` sees
+      // nothing and falls back to a generic string — which discarded every
+      // actionable backend message ("fullname is required by the registration
+      // flow", "username already taken", …). The status also lets the caller tell
+      // an invalid link (404) from a field problem (400).
+      return thunkAPI.rejectWithValue({
+        message: errorMessage,
+        status: error instanceof ApiError ? error.status : undefined,
+      })
     }
   }
 )
