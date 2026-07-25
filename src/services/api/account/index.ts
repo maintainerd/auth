@@ -70,6 +70,28 @@ export const changeUsername = (username: string): Promise<void> =>
   put<ApiResponse<void>>('/account/username', { username }).then(r => assertSuccess(r, 'change username'))
 
 // ---------------------------------------------------------------------------
+// Password change (authenticated self-service)
+// ---------------------------------------------------------------------------
+
+// ChangePasswordResult mirrors the backend ChangePasswordResponseDTO. It reports
+// what happened to the user's OTHER sessions so the UI can tell them, and
+// whether they must re-authenticate (only when the caller's own session could
+// not be identified and everything was revoked).
+export interface ChangePasswordResult {
+  other_sessions_revoked: boolean
+  reauthentication_required: boolean
+}
+
+// changePassword rotates the signed-in user's own password via the authenticated
+// endpoint (PUT /account/password), which enforces the tenant password policy,
+// history, and session revocation. This is distinct from the forgot-password
+// email flow — a logged-in user should not have to go through their inbox.
+export const changePassword = (current_password: string, new_password: string): Promise<ChangePasswordResult> =>
+  put<ApiResponse<ChangePasswordResult>>('/account/password', { current_password, new_password }).then(
+    r => (r.data ?? { other_sessions_revoked: false, reauthentication_required: false }) as ChangePasswordResult,
+  )
+
+// ---------------------------------------------------------------------------
 // Email change
 // ---------------------------------------------------------------------------
 

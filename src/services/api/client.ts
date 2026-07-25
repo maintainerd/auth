@@ -132,7 +132,7 @@ function refreshSession(): Promise<void> {
 // registers a navigation callback here; the interceptor invokes it when the
 // backend returns 423 (account locked) or 429 (rate limited) so the user is
 // taken to the matching screen instead of only seeing a toast.
-export type LimitRedirectKind = 'locked' | 'rate_limited'
+export type LimitRedirectKind = 'locked' | 'rate_limited' | 'maintenance'
 type LimitRedirectHandler = (kind: LimitRedirectKind, retryAfterSeconds?: number) => void
 let limitRedirectHandler: LimitRedirectHandler | null = null
 
@@ -227,6 +227,21 @@ axiosInstance.interceptors.response.use(
           status: 423,
           code: "account_locked",
         }))
+      }
+
+      // Tenant maintenance window: the backend returns 503 with code
+      // "maintenance_mode" (e.g. on login when the tenant is in maintenance).
+      // Route to the service-unavailable page rather than surfacing a raw error.
+      if (error.response.status === 503) {
+        const body = error.response.data as { code?: string; error?: string; message?: string } | undefined
+        if (body?.code === 'maintenance_mode') {
+          limitRedirectHandler?.('maintenance')
+          return Promise.reject(new ApiError({
+            message: body.error ?? body.message ?? 'The system is currently undergoing maintenance.',
+            status: 503,
+            code: 'maintenance_mode',
+          }))
+        }
       }
 
       // Server responded with error status

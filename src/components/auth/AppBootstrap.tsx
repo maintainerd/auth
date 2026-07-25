@@ -52,7 +52,13 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
   // module-level axios interceptor can trigger a navigation.
   useEffect(() => {
     setLimitRedirectHandler((kind, retryAfterSeconds) => {
-      navigate(kind === 'locked' ? '/account-locked' : '/too-many-requests', {
+      const path =
+        kind === 'locked'
+          ? '/account-locked'
+          : kind === 'maintenance'
+            ? '/service-unavailable'
+            : '/too-many-requests'
+      navigate(path, {
         replace: true,
         state: retryAfterSeconds !== undefined ? { retryAfter: retryAfterSeconds } : undefined,
       })

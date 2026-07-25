@@ -62,9 +62,18 @@ export default function MagicLinkPage() {
         const account = await fetchAccount()
         finishAuthentication(account)
       } catch (err) {
+        const msg = err instanceof Error ? err.message : ""
+        // Magic-link proves email but not phone. When the tenant requires phone
+        // verification, route to SMS login (the verification path) instead of a
+        // dead-end error, preserving the auth context.
+        if (msg === "phone is not verified") {
+          sessionStorage.setItem("phone_verification_required", "1")
+          navigate({ pathname: "/sms-login", search: searchParams.toString() }, { replace: true })
+          return
+        }
         setStatus("error")
         setErrorMessage(
-          err instanceof Error ? err.message : "The magic link is invalid or has expired. Please request a new one."
+          msg || "The magic link is invalid or has expired. Please request a new one."
         )
       }
     }

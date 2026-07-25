@@ -161,6 +161,17 @@ const LoginForm = () => {
         return
       }
 
+      // require_phone_verification is enabled for this tenant and the account's
+      // phone is not yet verified. SMS OTP login IS the verification path: a
+      // successful code proves phone possession, marks it verified server-side,
+      // and issues the session — so route there rather than dead-ending. Preserve
+      // the auth context (client_id) so the public SMS flow resolves its client.
+      if (errorMessage === 'phone is not verified') {
+        sessionStorage.setItem('phone_verification_required', '1')
+        navigate({ pathname: '/sms-login', search: searchParams.toString() }, { replace: true })
+        return
+      }
+
       setLoginError(errorMessage)
     }
   }

@@ -22,6 +22,15 @@ export default function SMSLoginPage() {
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
 
+  // Set when the user was routed here from login/magic-link because the tenant
+  // requires phone verification. A successful SMS code verifies the phone and
+  // signs them in. Read once and clear so it doesn't persist across visits.
+  const [phoneVerificationRequired] = useState(() => {
+    const flagged = sessionStorage.getItem("phone_verification_required") === "1"
+    if (flagged) sessionStorage.removeItem("phone_verification_required")
+    return flagged
+  })
+
   // Tenant comes from the domain bootstrap (its slug); client_id (OAuth) still
   // comes from the URL.
   const tenantId = currentTenant?.name
@@ -67,6 +76,13 @@ export default function SMSLoginPage() {
         <Link to="/login" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Back to login
         </Link>
+
+        {phoneVerificationRequired && (
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-foreground">
+            Your phone must be verified before you can sign in. Enter your number
+            to receive a code — verifying it completes sign-in.
+          </div>
+        )}
 
         <div className="space-y-2 text-center">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted">
