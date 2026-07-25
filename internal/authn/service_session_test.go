@@ -369,6 +369,55 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
 		require.NoError(t, err)
 	})
+
+	// Regression for two bugs: (1) the cap never converged because exactly one
+	// session was revoked per login while the caller adds one back; (2) eviction
+	// took sessions[0] from a newest-first list, so it killed the FRESHEST
+	// session and kept stale ones. A user 6-over a limit of 3 must have the 4
+	// oldest revoked (leaving 2, so the incoming login lands at exactly 3), and
+	// the survivors must be the newest.
+	t.Run("converges to the cap by evicting the oldest sessions", func(t *testing.T) {
+		base := time.Now()
+		// Built newest-first, mirroring FindActiveByUserID's ORDER BY created_at DESC.
+		sessions := make([]UserSession, 6)
+		for i := 0; i < 6; i++ {
+			sessions[i] = UserSession{
+				UserSessionUUID: uuid.New(),
+				CreatedAt:       base.Add(time.Duration(-i) * time.Minute), // i=0 newest, i=5 oldest
+			}
+		}
+		oldestFour := map[uuid.UUID]bool{
+			sessions[5].UserSessionUUID: true,
+			sessions[4].UserSessionUUID: true,
+			sessions[3].UserSessionUUID: true,
+			sessions[2].UserSessionUUID: true,
+		}
+		newestTwo := map[uuid.UUID]bool{
+			sessions[1].UserSessionUUID: true,
+			sessions[0].UserSessionUUID: true,
+		}
+
+		var revoked []uuid.UUID
+		repo := &mockUserSessionRepo{
+			countActiveFn:        func(int64) (int64, error) { return 6, nil },
+			findActiveByUserIDFn: func(int64) ([]UserSession, error) { return sessions, nil },
+			revokeByUUIDFn: func(_ int64, id uuid.UUID, reason string) error {
+				assert.Equal(t, "concurrent_limit", reason)
+				revoked = append(revoked, id)
+				return nil
+			},
+		}
+		svc := NewSessionService(repo).(*sessionService)
+		err := svc.EnforceConcurrentLimitWithPolicy(context.Background(), userUUID, 1,
+			secpolicy.EffectiveSessionPolicy{MaxConcurrentSessions: 3})
+		require.NoError(t, err)
+
+		require.Len(t, revoked, 4, "must revoke count-max+1 = 6-3+1 = 4 to make room for the new session")
+		for _, id := range revoked {
+			assert.True(t, oldestFour[id], "only the oldest sessions may be revoked")
+			assert.False(t, newestTwo[id], "the newest sessions must survive")
+		}
+	})
 }
 
 func TestSessionService_ValidateAndTouch(t *testing.T) {

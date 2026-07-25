@@ -64,6 +64,39 @@ func TestNormalizeSecuritySettingConfig(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "preferred_method")
 	})
+
+	// PS256 must remain accepted — it is the one non-default algorithm the RSA
+	// key store can actually sign, so narrowing ES256 out must not catch it.
+	t.Run("token accepts PS256 which the RSA key store can sign", func(t *testing.T) {
+		cfg, err := NormalizeSecuritySettingConfig("token", nil, map[string]any{"signing_algorithm": "PS256"})
+		require.NoError(t, err)
+		assert.Equal(t, "PS256", cfg["signing_algorithm"])
+	})
+
+	// The two survivors — roles and tenant_id — are server-resolved authz/org
+	// context and must stay accepted, and the shipped default (which ships both)
+	// must keep validating so tenants are never forced off defaults.
+	t.Run("token accepts the server-resolved roles and tenant_id claims", func(t *testing.T) {
+		_, err := NormalizeSecuritySettingConfig("token", nil, map[string]any{
+			"additional_access_token_claims": []string{"roles", "tenant_id"},
+			"additional_id_token_claims":     []string{"roles", "tenant_id"},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("shipped default token config still validates", func(t *testing.T) {
+		def := MustDefaultSecuritySettingConfig("token")
+		_, err := NormalizeSecuritySettingConfig("token", def, nil)
+		require.NoError(t, err)
+	})
+
+	// The default threat config leaves the unimplemented toggles off, so it must
+	// keep validating after they are rejected-when-true.
+	t.Run("shipped default threat config still validates", func(t *testing.T) {
+		def := MustDefaultSecuritySettingConfig("threat")
+		_, err := NormalizeSecuritySettingConfig("threat", def, nil)
+		require.NoError(t, err)
+	})
 }
 
 func TestSecuritySettingValidationRules(t *testing.T) {
@@ -86,9 +119,26 @@ func TestSecuritySettingValidationRules(t *testing.T) {
 		{name: "mfa trusted device period has safe upper bound", configType: "mfa", patch: map[string]any{"trusted_device_period_days": 366}, want: "trusted_device_period_days"},
 		{name: "session SameSite None requires secure cookie", configType: "session", patch: map[string]any{"cookie_same_site": "None", "cookie_secure": false}, want: "cookie_secure"},
 		{name: "token rejects unsupported algorithm", configType: "token", patch: map[string]any{"signing_algorithm": "HS256"}, want: "signing_algorithm"},
+		// Auth-context claims must never be operator-configurable — setting acr/amr
+		// without the real auth event forges step-up. These are on jwt.reservedClaims;
+		// the token allowlist must not re-admit them.
+		{name: "token rejects auth-context claim acr", configType: "token", patch: map[string]any{"additional_access_token_claims": []string{"acr"}}, want: "acr"},
+		{name: "token rejects nonce as a static claim", configType: "token", patch: map[string]any{"additional_id_token_claims": []string{"nonce"}}, want: "nonce"},
+		// PII does not belong in access tokens (RFC 9068 §6 least-disclosure); ID-token
+		// identity claims come from scopes, not this list.
+		{name: "token rejects PII claim email", configType: "token", patch: map[string]any{"additional_access_token_claims": []string{"email"}}, want: "email"},
+		// ES256 must be rejected: validation used to accept it, but the RSA-only
+		// key store cannot sign ES256, so saving it bricked all token issuance
+		// for the tenant.
+		{name: "token rejects ES256 the key store cannot sign", configType: "token", patch: map[string]any{"signing_algorithm": "ES256"}, want: "signing_algorithm"},
 		{name: "lockout max duration must cap duration", configType: "lockout", patch: map[string]any{"lockout_duration_minutes": 30, "max_lockout_duration_minutes": 10}, want: "max_lockout_duration_minutes"},
 		{name: "registration disallows auto-confirm with verification", configType: "registration", patch: map[string]any{"auto_confirm_enabled": true}, want: "auto_confirm_enabled"},
 		{name: "threat step up cannot exceed block", configType: "threat", patch: map[string]any{"risk_step_up_threshold": 90}, want: "risk_step_up_threshold"},
+		// Thresholds above the 0-100 score range are inert (can never fire); reject them.
+		{name: "threat block threshold over 100 is inert", configType: "threat", patch: map[string]any{"risk_block_threshold": 150}, want: "risk_block_threshold"},
+		// Unimplemented toggles must not be silently accepted (no provider = no enforcement).
+		{name: "threat ip reputation not supported", configType: "threat", patch: map[string]any{"ip_reputation_check_enabled": true}, want: "not supported"},
+		{name: "threat tor blocking not supported", configType: "threat", patch: map[string]any{"block_tor_exit_nodes": true}, want: "not supported"},
 	}
 
 	for _, tc := range cases {

@@ -210,6 +210,14 @@ func recordRateLimitHits(ctx context.Context, rdb *redis.Client, keys []string, 
 	return counts, true
 }
 
+// defaultRequestsPerWindow mirrors tenant_settings rate_limit defaults. It is a
+// fail-SAFE floor: a config that enables rate limiting but omits (or zeroes)
+// requests_per_window must not degrade to "no limit". Tenant setting updates do
+// whole-object replacement, so a partial PATCH like {"enabled":true} would
+// otherwise parse to requests_per_window=0 and the middleware would treat
+// limit<=0 as pass-through — an enabled limiter that limits nothing.
+const defaultRequestsPerWindow = 100
+
 func mapToRequestRateLimitConfig(cfg map[string]any) *RequestRateLimitConfig {
 	rc := &RequestRateLimitConfig{}
 	rc.Enabled = boolFromAny(cfg["enabled"])
@@ -218,6 +226,11 @@ func mapToRequestRateLimitConfig(cfg map[string]any) *RequestRateLimitConfig {
 	rc.PerIP = boolFromAny(cfg["per_ip"])
 	rc.ExemptIPs = stringSliceFromAny(cfg["exempt_ips"])
 	rc.EndpointOverrides = intMapFromAny(cfg["endpoint_overrides"])
+	// Fail safe: an enabled limiter with no positive window budget falls back to
+	// the default rather than silently allowing unlimited requests.
+	if rc.Enabled && rc.RequestsPerWindow <= 0 {
+		rc.RequestsPerWindow = defaultRequestsPerWindow
+	}
 	return rc
 }
 

@@ -337,8 +337,15 @@ func validateTokenConfig(d TokenConfigDTO) error {
 	if d.ClockSkewLeewaySeconds != nil && (*d.ClockSkewLeewaySeconds < 0 || *d.ClockSkewLeewaySeconds > 300) {
 		return fmt.Errorf("clock_skew_leeway_seconds must be between 0 and 300")
 	}
-	if d.SigningAlgorithm != nil && !oneOf(*d.SigningAlgorithm, "RS256", "ES256", "PS256") {
-		return fmt.Errorf("signing_algorithm must be one of RS256, ES256, PS256")
+	// ES256 is deliberately NOT accepted. The signing key store is RSA-only
+	// (platform/jwt: signingKey returns *rsa.PrivateKey), and token generation
+	// returns an error for ES256 ("requires an ECDSA key store"). Accepting it
+	// here would let a tenant admin save a value that then makes EVERY token
+	// issuance fail — a self-inflicted, settings-blessed auth outage for the
+	// whole tenant. Only advertise what the server can actually sign; restore
+	// ES256 here if and when an ECDSA key store is added.
+	if d.SigningAlgorithm != nil && !oneOf(*d.SigningAlgorithm, "RS256", "PS256") {
+		return fmt.Errorf("signing_algorithm must be one of RS256, PS256")
 	}
 	for _, claim := range append(append([]string{}, d.AdditionalIDTokenClaims...), d.AdditionalAccessTokenClaims...) {
 		if !knownTokenClaim(claim) {
@@ -397,17 +404,32 @@ func validateRegistrationConfig(d RegistrationConfigDTO) error {
 }
 
 func validateThreatConfig(d ThreatConfigDTO) error {
-	if d.RiskStepUpThreshold != nil && *d.RiskStepUpThreshold < 0 {
-		return fmt.Errorf("risk_step_up_threshold must be non-negative")
+	// Risk score is 0-100 (see security.AssessLoginThreat), so a threshold above
+	// 100 can never be reached and silently makes the control inert. Reject it
+	// rather than let an admin configure a block/step-up that never fires.
+	if d.RiskStepUpThreshold != nil && (*d.RiskStepUpThreshold < 0 || *d.RiskStepUpThreshold > 100) {
+		return fmt.Errorf("risk_step_up_threshold must be between 0 and 100")
 	}
-	if d.RiskBlockThreshold != nil && *d.RiskBlockThreshold < 0 {
-		return fmt.Errorf("risk_block_threshold must be non-negative")
+	if d.RiskBlockThreshold != nil && (*d.RiskBlockThreshold < 0 || *d.RiskBlockThreshold > 100) {
+		return fmt.Errorf("risk_block_threshold must be between 0 and 100")
 	}
 	if d.RiskStepUpThreshold != nil && d.RiskBlockThreshold != nil && *d.RiskStepUpThreshold > *d.RiskBlockThreshold {
 		return fmt.Errorf("risk_step_up_threshold must be less than or equal to risk_block_threshold")
 	}
 	if d.VelocityFailuresPerIPPerHour != nil && *d.VelocityFailuresPerIPPerHour < 1 {
 		return fmt.Errorf("velocity_failures_per_ip_per_hour must be at least 1")
+	}
+	// ip_reputation_check_enabled and block_tor_exit_nodes require an external
+	// data source (an IP-reputation feed / a Tor exit-node list) that this
+	// standalone server does not ship. Accepting `true` would be a SILENT
+	// fail-open: the admin believes the control is on while nothing enforces it.
+	// Reject enabling them until a provider is wired — the same "don't advertise
+	// what you can't enforce" rule applied to unsupported signing algorithms.
+	if d.IPReputationCheckEnabled != nil && *d.IPReputationCheckEnabled {
+		return fmt.Errorf("ip_reputation_check_enabled is not supported: no IP reputation provider is configured")
+	}
+	if d.BlockTorExitNodes != nil && *d.BlockTorExitNodes {
+		return fmt.Errorf("block_tor_exit_nodes is not supported: no Tor exit-node source is configured")
 	}
 	return nil
 }
@@ -501,12 +523,36 @@ func oneOf(value string, allowed ...string) bool {
 	return false
 }
 
+// knownTokenClaim is the allowlist of claim names a tenant may add to its access
+// and ID tokens via token_config.additional_*_claims.
+//
+// It is deliberately narrow — only server-resolved organization/authorization
+// context. The previous allowlist admitted three dangerous categories, all now
+// removed:
+//
+//   - Auth-context / computed claims (acr, amr, auth_time, nonce, at_hash, sid).
+//     These are on the jwt.reservedClaims denylist precisely because "forging
+//     them defeats step-up and nonce binding" — an operator setting acr to an
+//     MFA value without MFA, or a static nonce, forges the authentication
+//     context. They must only ever be issuer-stamped from the real auth event,
+//     never operator-configurable. Their presence here directly contradicted
+//     that denylist.
+//   - PII (email, phone, name, given_name, family_name, picture, locale,
+//     fullname). RFC 9068 §6 least-disclosure: access tokens travel to resource
+//     servers and must not carry personal data. For ID tokens these are already
+//     delivered by the OIDC profile/email/phone SCOPES (OIDC Core §5.4), so a
+//     second config path is redundant and divergence-prone.
+//   - permissions. Authorization here is DB-driven (PermissionMiddleware), so a
+//     permissions claim in a token is stale-prone and bloats it; excluded to
+//     keep tokens minimal and avoid anyone enforcing on a stale claim.
+//
+// What remains — roles and tenant_id — are authorization/tenancy context (RFC
+// 9068 §2.2.3.1), always resolved from real per-request values, never operator
+// literals. This set is a strict subset of jwt.reservedClaims, so the allowlist
+// and the denylist no longer disagree.
 func knownTokenClaim(claim string) bool {
 	switch claim {
-	case "roles", "tenant_id", "email", "email_verified", "phone", "phone_verified",
-		"name", "given_name", "family_name", "picture", "locale", "auth_time",
-		"nonce", "at_hash", "acr", "amr", "sid",
-		"permissions", "fullname":
+	case "roles", "tenant_id":
 		return true
 	default:
 		return false

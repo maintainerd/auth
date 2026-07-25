@@ -32,21 +32,22 @@ const (
 	JTILength  = 32   // JTI entropy length
 )
 
-var (
-	// tokenLeewaySeconds is the clock-skew leeway applied to exp/nbf claims
-	// during token validation. Defaults to 0; configurable via SetTokenLeeway.
-	tokenLeewaySeconds int64
-	tokenLeewayMu      sync.RWMutex
-)
-
-// SetTokenLeeway sets the clock-skew leeway (in seconds) for token expiry
-// validation. This is used by ValidateToken to allow for clock drift between
-// servers. Default 0 seconds.
-func SetTokenLeeway(seconds int) {
-	tokenLeewayMu.Lock()
-	defer tokenLeewayMu.Unlock()
-	tokenLeewaySeconds = int64(seconds)
-}
+// tokenValidationLeeway is the clock-skew tolerance applied when THIS server
+// validates exp/nbf on tokens it issued.
+//
+// It is a small FIXED value, not a per-tenant setting. The previous design read
+// the tenant's clock_skew_leeway_seconds into a process-global var per request
+// (SetTokenLeeway) and every validation read that global — last-writer-wins, so
+// one tenant's 300s leeway silently governed another tenant's validation. That
+// is a tenant-isolation break and a nondeterministic weakening of token expiry.
+//
+// The isolation fix is also the compliant one (RFC 7519 §4.1.4: "some small
+// leeway, usually no more than a few minutes"): issuer clock == validator clock
+// here, so real skew is ~0. 30s only absorbs NTP jitter across HA instances of
+// this server. Genuine clock skew is a RESOURCE-SERVER concern — external
+// validators apply their own leeway when validating via JWKS; the tenant's
+// configured value is advisory guidance for THEM, not input to this path.
+const tokenValidationLeeway = 30 * time.Second
 
 // GenerateSecureID generates a cryptographically secure random ID
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
@@ -999,13 +1000,10 @@ func ValidateTokenWithContext(ctx context.Context, tokenString string) (jwtlib.M
 		return nil, errors.New("token cannot be empty")
 	}
 
-	// Parse and validate token
-	tokenLeewayMu.RLock()
-	leeway := time.Duration(tokenLeewaySeconds) * time.Second
-	tokenLeewayMu.RUnlock()
-
+	// Parse and validate token with a small fixed clock-skew tolerance. See
+	// tokenValidationLeeway for why this is not a per-tenant value.
 	parser := jwtlib.NewParser(
-		jwtlib.WithLeeway(leeway),
+		jwtlib.WithLeeway(tokenValidationLeeway),
 	)
 	token, err := parser.Parse(tokenString, func(t *jwtlib.Token) (interface{}, error) {
 		// Validate signing method (prevent algorithm confusion attacks)

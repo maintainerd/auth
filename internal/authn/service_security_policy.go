@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jsonutil"
-	platformjwt "github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 )
 
@@ -42,7 +41,12 @@ func resolveEffectiveTokenPolicy(repo secpolicy.SecuritySettingRepository, clien
 	if err != nil {
 		policy, _ = secpolicy.ResolveEffectiveTokenPolicy(nil, clientSecurityOverrides(client))
 	}
-	platformjwt.SetTokenLeeway(policy.ClockSkewLeewaySeconds)
+	// NOTE: clock_skew_leeway_seconds is intentionally NOT applied to this
+	// server's own token validation. It used to be pushed into a process-global
+	// (SetTokenLeeway), which leaked one tenant's leeway into every other
+	// tenant's validation. This server validates its own tokens with a fixed
+	// small leeway; the tenant value is advisory guidance for external resource
+	// servers validating via JWKS. See platformjwt.tokenValidationLeeway.
 	return policy
 }
 

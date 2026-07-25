@@ -11,6 +11,20 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// OnNewDeviceLogin / OnImpossibleTravel are optional notification hooks fired
+// when the corresponding threat signal is observed and its config toggle is on.
+//
+// LogSecurityEvent alone is a local slog line that notifies nobody — yet the
+// field is literally named new_device_NOTIFICATION_enabled. These hooks let the
+// application route the signal into the auth-event system (which fans out to
+// webhooks and can drive a user notification), so the "notification" is real.
+// Wired at startup in internal/app, mirroring security.OnAccountLockout. Nil is
+// safe (no-op): the slog line still records the signal.
+var (
+	OnNewDeviceLogin   func(ctx context.Context, tenantID, userID int64, ip, userAgent string)
+	OnImpossibleTravel func(ctx context.Context, tenantID, userID int64, ip, userAgent string)
+)
+
 // ThreatConfig is the effective tenant threat-detection runtime policy.
 type ThreatConfig struct {
 	BruteForceDetectionEnabled             bool
@@ -175,6 +189,9 @@ func RecordLoginThreatSuccess(ctx context.Context, tenantID, userID int64, ip, u
 				Details:   "New device fingerprint observed for user",
 				Severity:  "MEDIUM",
 			})
+			if OnNewDeviceLogin != nil {
+				OnNewDeviceLogin(ctx, tenantID, userID, ip, userAgent)
+			}
 		}
 	}
 	if cfg.ImpossibleTravelDetectionEnabled {
@@ -192,6 +209,9 @@ func RecordLoginThreatSuccess(ctx context.Context, tenantID, userID int64, ip, u
 						Details:   "Rapid login from a different IP address",
 						Severity:  "HIGH",
 					})
+					if OnImpossibleTravel != nil {
+						OnImpossibleTravel(ctx, tenantID, userID, ip, userAgent)
+					}
 				}
 			}
 		}

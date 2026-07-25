@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 )
 
 type mockLockoutRepo struct {
@@ -103,5 +106,35 @@ func TestClearLockout_RespectsResetCountOnSuccess(t *testing.T) {
 		svc.clearLockout(context.Background(), 1, "user@x.test",
 			&security.RateLimitConfig{Enabled: true, ResetCountOnSuccess: false})
 		assert.False(t, repo.clearCalled)
+	})
+}
+
+// require_phone_verification is enforced at login for methods that do not
+// themselves prove the phone (password, magic-link). Default is false, so only
+// tenants that opt in are affected.
+func TestEnforceLoginPhoneVerification(t *testing.T) {
+	repo := func(cfg string) *mockSecuritySettingRepo {
+		return &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{RegistrationConfig: datatypes.JSON([]byte(cfg))}, nil
+			},
+		}
+	}
+
+	t.Run("blocks an unverified phone when the tenant requires it", func(t *testing.T) {
+		svc := &loginService{securitySettingRepo: repo(`{"require_phone_verification":true}`)}
+		err := svc.enforceLoginPhoneVerification(&User{IsPhoneVerified: false}, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "phone is not verified")
+	})
+
+	t.Run("allows a verified phone", func(t *testing.T) {
+		svc := &loginService{securitySettingRepo: repo(`{"require_phone_verification":true}`)}
+		assert.NoError(t, svc.enforceLoginPhoneVerification(&User{IsPhoneVerified: true}, 1))
+	})
+
+	t.Run("does not block when the tenant does not require phone verification", func(t *testing.T) {
+		svc := &loginService{securitySettingRepo: repo(`{"require_phone_verification":false}`)}
+		assert.NoError(t, svc.enforceLoginPhoneVerification(&User{IsPhoneVerified: false}, 1))
 	})
 }
