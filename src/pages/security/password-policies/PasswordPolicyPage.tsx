@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom"
 import { KeyRound, Hash, Shield, Clock, Settings, Check, X } from "lucide-react"
-import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +7,7 @@ import { Separator } from "@/components/ui/separator"
 import { DetailsContainer } from "@/components/container"
 import { PageHeader } from "@/components/layout"
 import { Skeleton } from "@/components/ui/skeleton"
-import { fetchPasswordPolicies } from "@/services/api/password-policies"
+import { usePasswordPolicies } from "@/hooks/usePasswordPolicies"
 import type { LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -43,11 +42,18 @@ function SectionLabel({ children }: { children: ReactNode }) {
   return <h3 className="text-sm font-semibold text-foreground">{children}</h3>
 }
 
+// The on/off state was carried by icon shape and colour alone, which a screen
+// reader announces as just the label — "Uppercase" reads identically whether the
+// rule is enforced or not. The state is now in the accessible name.
 function BoolBadge({ value, label }: { value: boolean; label: string }) {
   return (
-    <Badge variant="secondary" className={value ? "gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600" : "gap-1"}>
-      {value ? <Check className="size-3" /> : <X className="size-3" />}
+    <Badge
+      variant="secondary"
+      className={value ? "gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600" : "gap-1"}
+    >
+      {value ? <Check className="size-3" aria-hidden="true" /> : <X className="size-3" aria-hidden="true" />}
       {label}
+      <span className="sr-only">{value ? ": required" : ": not required"}</span>
     </Badge>
   )
 }
@@ -55,10 +61,11 @@ function BoolBadge({ value, label }: { value: boolean; label: string }) {
 export default function PasswordPolicyPage({ standalone = true }: { standalone?: boolean }) {
   const navigate = useNavigate()
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["passwordPolicies", "detail"],
-    queryFn: fetchPasswordPolicies,
-  })
+  // Uses the shared hook rather than an inline useQuery. The inline version
+  // duplicated the query key as a string literal, so it only stayed in sync with
+  // passwordPoliciesKeys.detail() — and therefore only got invalidated after a
+  // save — by coincidence.
+  const { data, isLoading, isError } = usePasswordPolicies()
 
   const configureUrl = `/security/password/configure`
 

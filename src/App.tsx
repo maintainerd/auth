@@ -48,6 +48,8 @@ const EventsAndWebhooksPage = lazy(() => import('./pages/events/EventsAndWebhook
 const WebhookDetailsPage = lazy(() => import('./pages/webhooks/details'))
 const WebhookAddOrUpdateForm = lazy(() => import('./pages/webhooks/form'))
 const WorkloadIdentityPage = lazy(() => import('./pages/workload-identity'))
+const WorkloadIdentityDetailsPage = lazy(() => import('./pages/workload-identity/details'))
+const WorkloadIdentityAddOrUpdateForm = lazy(() => import('./pages/workload-identity/form'))
 const PoliciesPage = lazy(() => import('./pages/policies'))
 const PolicyDetailsPage = lazy(() => import('./pages/policies/details'))
 const PolicyAddOrUpdateForm = lazy(() => import('./pages/policies/form'))
@@ -159,6 +161,9 @@ function App() {
           <Route path="events" element={<EventsAndWebhooksPage />} />
           <Route path="audit-log/:uuid" element={<AuditLogDetailsPage />} />
           <Route path="workload-identity" element={<WorkloadIdentityPage />} />
+          <Route path="workload-identity/create" element={<WorkloadIdentityAddOrUpdateForm />} />
+          <Route path="workload-identity/:federationId" element={<WorkloadIdentityDetailsPage />} />
+          <Route path="workload-identity/:federationId/edit" element={<WorkloadIdentityAddOrUpdateForm />} />
           <Route path="policies" element={<PoliciesPage />} />
           <Route path="policies/create" element={<PolicyAddOrUpdateForm />} />
           <Route path="policies/:policyId" element={<PolicyDetailsPage />} />

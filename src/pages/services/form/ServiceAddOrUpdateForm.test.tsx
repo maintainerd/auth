@@ -130,7 +130,31 @@ describe("ServiceAddOrUpdateForm", () => {
     await u().click(screen.getByRole("button", { name: /create service/i }))
     expect(await screen.findByText("Service name is required")).toBeInTheDocument()
     expect(screen.getByText("Display name is required")).toBeInTheDocument()
-    expect(screen.getByText("Service description is required")).toBeInTheDocument()
+    // Description is optional, matching the backend (Length(0, 255)) and the
+    // NOT NULL DEFAULT '' column. The form used to demand 10+ characters, blocking
+    // a create the server would have accepted.
+    expect(screen.queryByText(/description is required/i)).not.toBeInTheDocument()
+    expect(createMutateAsync).not.toHaveBeenCalled()
+  })
+
+  // Every bound below used to disagree with the server, so the form accepted values
+  // that came back as a 422.
+  it("enforces the backend's field limits", async () => {
+    const user = u()
+    renderWithProviders(<ServiceAddOrUpdateForm />)
+
+    await user.type(screen.getByLabelText(/service name/i), "ab")
+    await user.type(screen.getByLabelText(/display name/i), "ab")
+    await user.type(screen.getByLabelText(/version/i), "v".repeat(21))
+    await user.click(screen.getByRole("button", { name: /create service/i }))
+
+    // "Service name…" and "Display name…" both match /name must be at least/, so
+    // anchor on the distinct prefixes.
+    expect(
+      await screen.findByText(/service name must be at least 3 characters/i),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/display name must be at least 3 characters/i)).toBeInTheDocument()
+    expect(screen.getByText(/version must not exceed 20 characters/i)).toBeInTheDocument()
     expect(createMutateAsync).not.toHaveBeenCalled()
   })
 

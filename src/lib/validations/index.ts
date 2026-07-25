@@ -69,6 +69,21 @@ export {
   type ClientOAuthConfigValues
 } from './clientSchema'
 
+// Workload identity federation schemas
+export {
+  workloadIdentitySchema,
+  validateIssuerUrl,
+  validateSubjectPattern,
+  validateAttributeMapping,
+  validateAllowedScopes,
+  parseAllowedScopes,
+  isReservedClaimName,
+  RESERVED_CLAIM_NAMES,
+  MAX_ATTRIBUTE_MAPPING_ENTRIES,
+  WORKLOAD_LIMITS,
+  type WorkloadIdentityFormData
+} from './workloadIdentitySchema'
+
 // Role schemas
 export {
   roleSchema,
@@ -113,6 +128,7 @@ export {
 
 // Password Policies schemas
 export {
+  PASSWORD_POLICY_DEFAULTS,
   PASSWORD_POLICY_LIMITS,
   passwordPoliciesSchema,
   type PasswordPoliciesFormData

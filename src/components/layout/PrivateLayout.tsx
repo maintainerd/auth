@@ -21,7 +21,7 @@ export function PrivateLayout({ fullWidth = false }: PrivateLayoutProps) {
     <ConsoleBrandingProvider>
       <SidebarProvider style={{ "--sidebar-width": "17rem" } as CSSProperties}>
         <AppSidebar variant="sidebar" />
-        <SidebarInset className="bg-white min-w-0">
+        <SidebarInset className="min-w-0 bg-white">
           <TopNav />
           <main
             className={cn(

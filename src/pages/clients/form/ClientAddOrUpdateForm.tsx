@@ -35,6 +35,7 @@ import {
 } from "@/hooks/useClients"
 import { useToast } from "@/hooks/useToast"
 import { useBrandings } from "@/hooks/useBranding"
+import { useServices } from "@/hooks/useServices"
 import { useMetadataFields } from "@/hooks/useMetadataFields"
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
 import type {
@@ -96,6 +97,8 @@ const BACKEND_FIELD_MAP: Record<string, keyof ClientFormData> = {
   domain: "domain",
   status: "status",
 }
+
+const NO_SERVICE = "__none__"
 
 export default function ClientAddOrUpdateForm() {
   const { clientId } = useParams<{ clientId?: string }>()
@@ -168,6 +171,18 @@ export default function ClientAddOrUpdateForm() {
 
   // Sender-constrained tokens (RFC 9449) and the OIDC logout endpoints. These are
   // first-class client columns, not config keys, so they travel on the request body.
+  // The service this client authenticates AS. Only meaningful for m2m: binding is
+  // what makes the token carry `svc`, the principal the policy bundle resolves.
+  const [serviceId, setServiceId] = useState<string>(NO_SERVICE)
+  const { data: servicesData } = useServices({ page: 1, limit: 100 })
+  const serviceOptions: SelectOption[] = [
+    { value: NO_SERVICE, label: "Not a service credential" },
+    ...(servicesData?.rows ?? []).map((service: { service_id: string; name: string; display_name?: string }) => ({
+      value: service.service_id,
+      label: service.display_name || service.name,
+    })),
+  ]
+
   const [dpopRequired, setDpopRequired] = useState<boolean>(false)
   const [backchannelLogoutUri, setBackchannelLogoutUri] = useState<string>("")
   const [frontchannelLogoutUri, setFrontchannelLogoutUri] = useState<string>("")
@@ -265,6 +280,7 @@ export default function ClientAddOrUpdateForm() {
       })
       setAllowRegistration(clientData.allow_registration ?? true)
       setDpopRequired(clientData.dpop_required ?? false)
+      setServiceId(clientData.service_id ?? NO_SERVICE)
       setBackchannelLogoutUri(clientData.backchannel_logout_uri ?? "")
       setFrontchannelLogoutUri(clientData.frontchannel_logout_uri ?? "")
       setBackchannelLogoutSessionRequired(clientData.backchannel_logout_session_required ?? false)
@@ -548,6 +564,8 @@ export default function ClientAddOrUpdateForm() {
           frontchannel_logout_uri: frontchannelLogoutUri.trim(),
           backchannel_logout_session_required: backchannelLogoutSessionRequired,
           dpop_required: dpopRequired,
+          // "" unbinds; the server refuses a binding on a non-m2m client.
+          service_id: clientType === "m2m" && serviceId !== NO_SERVICE ? serviceId : "",
           // The version this form was loaded from. The server answers 409 if someone
           // else changed the client meanwhile, instead of letting this submission
           // silently overwrite their edit.
@@ -572,6 +590,8 @@ export default function ClientAddOrUpdateForm() {
           frontchannel_logout_uri: frontchannelLogoutUri.trim(),
           backchannel_logout_session_required: backchannelLogoutSessionRequired,
           dpop_required: dpopRequired,
+          // "" unbinds; the server refuses a binding on a non-m2m client.
+          service_id: clientType === "m2m" && serviceId !== NO_SERVICE ? serviceId : "",
         }
 
         const createdClient = await createClientMutation.mutateAsync(createPayload)
@@ -1100,6 +1120,31 @@ export default function ClientAddOrUpdateForm() {
                   value={jwks}
                   onChange={(e) => { markDirty(); setJwks(e.target.value) }}
                   disabled={isLoading || !!jwksUri.trim()}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Service identity — only an m2m client can act as a service principal. */}
+          {clientType === "m2m" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Service Identity</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Bind this client to a service to make it that service&apos;s credential.
+                  Tokens it receives then carry the service as their principal, and the
+                  policies attached to that service decide what it may call.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <FormSelectField
+                  label="Acts as service"
+                  placeholder="Not a service credential"
+                  options={serviceOptions}
+                  value={serviceId}
+                  onValueChange={(value) => { markDirty(); setServiceId(value) }}
+                  disabled={isSystemClient || isLoading}
+                  description="Only machine-to-machine clients can act as a service: a public client cannot keep a credential."
                 />
               </CardContent>
             </Card>

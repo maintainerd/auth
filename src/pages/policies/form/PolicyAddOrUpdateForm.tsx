@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { useForm, Controller, useFieldArray } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
@@ -110,7 +110,14 @@ export default function PolicyAddOrUpdateForm() {
   const existingPolicy = policyData
 
   // Warn before discarding unsaved edits (browser close/refresh + guarded exits).
-  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
+  // Recorded on the version-history row. Edit-only: a create has no prior version to
+  // explain, and the history tab showed a blank author until the backend started
+  // capturing this.
+  const [changeReason, setChangeReason] = useState("")
+
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(
+    isDirty || changeReason.trim() !== "",
+  )
 
   const onSubmit = async (data: PolicyFormData) => {
     try {
@@ -132,7 +139,10 @@ export default function PolicyAddOrUpdateForm() {
       } else {
         await updatePolicyMutation.mutateAsync({
           policyId: policyId!,
-          data: requestData
+          data: {
+            ...requestData,
+            change_reason: changeReason.trim() || undefined,
+          },
         })
         showSuccess("Policy updated successfully")
       }
@@ -369,6 +379,29 @@ export default function PolicyAddOrUpdateForm() {
               disabled={existingPolicy?.is_system && isEditing}
             />
           </div>
+          {!isCreating && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Change Reason</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Recorded against this edit in the policy&apos;s version history, alongside the
+                  previous document. Optional, but it is what lets a reviewer tell why the
+                  policy changed rather than only what changed.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <FormTextareaField
+                  label="Reason for this change"
+                  rows={2}
+                  placeholder="Tightened the billing scope after the access review"
+                  value={changeReason}
+                  onChange={(e) => setChangeReason(e.target.value)}
+                  disabled={isLoading}
+                />
+              </CardContent>
+            </Card>
+          )}
+
         </form>
 
         <ConfirmationDialog

@@ -111,6 +111,13 @@ export type Client = {
   frontchannel_logout_uri?: string | null
   backchannel_logout_session_required?: boolean
   dpop_required?: boolean
+  /**
+   * Binds this client to a service, making it that service's credential. A token
+   * issued to a bound client carries the `svc` claim, which is the principal the
+   * policy bundle and the gRPC authorizer resolve — this is what makes
+   * service-to-service authorization reachable. m2m clients only.
+   */
+  service_id?: string
 }
 
 export type RotateClientSecretRequest = {
@@ -202,6 +209,13 @@ export interface ClientResponse {
   frontchannel_logout_uri?: string | null
   backchannel_logout_session_required?: boolean
   dpop_required?: boolean
+  /**
+   * Binds this client to a service, making it that service's credential. A token
+   * issued to a bound client carries the `svc` claim, which is the principal the
+   * policy bundle and the gRPC authorizer resolve — this is what makes
+   * service-to-service authorization reachable. m2m clients only.
+   */
+  service_id?: string
 }
 
 /**
@@ -242,6 +256,13 @@ export interface CreateClientRequest {
   frontchannel_logout_uri?: string | null
   backchannel_logout_session_required?: boolean
   dpop_required?: boolean
+  /**
+   * Binds this client to a service, making it that service's credential. A token
+   * issued to a bound client carries the `svc` claim, which is the principal the
+   * policy bundle and the gRPC authorizer resolve — this is what makes
+   * service-to-service authorization reachable. m2m clients only.
+   */
+  service_id?: string
 }
 
 /**
@@ -260,6 +281,8 @@ export interface UpdateClientRequest {
   frontchannel_logout_uri?: string | null
   backchannel_logout_session_required?: boolean
   dpop_required?: boolean
+  /** Binds this client to a service. "" unbinds. m2m only. */
+  service_id?: string
   /**
    * Optimistic-concurrency token: the `updated_at` this edit was loaded from. An
    * update replaces the whole client, so without it two operators editing at once

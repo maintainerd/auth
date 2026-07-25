@@ -116,6 +116,12 @@ export interface UpdatePolicyRequest {
   version: string
   status: PolicyStatus
   document: PolicyDocument
+  /**
+   * Recorded on the policy's version-history row. Optional, but it is what turns
+   * "the document changed" into an answerable audit trail — the history tab shows
+   * the before-snapshot, and without a reason nobody can tell why it changed.
+   */
+  change_reason?: string
 }
 
 /**

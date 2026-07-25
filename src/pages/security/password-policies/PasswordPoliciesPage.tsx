@@ -1,4 +1,7 @@
 import { useEffect } from 'react'
+import { AlertTriangle, RotateCcw } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PasswordRequirements } from '@/components/inputs'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -12,6 +15,7 @@ import { usePasswordPolicies, useUpdatePasswordPolicies } from '@/hooks/usePassw
 import { useToast } from '@/hooks/useToast'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import {
+  PASSWORD_POLICY_DEFAULTS,
   PASSWORD_POLICY_LIMITS,
   passwordPoliciesSchema,
   type PasswordPoliciesFormData,
@@ -24,39 +28,51 @@ const HASH_OPTIONS = [
   { value: 'pbkdf2', label: 'PBKDF2' },
 ]
 
+/**
+ * Maps a backend validation message onto the field it belongs to. The API returns
+ * per-field messages (e.g. "min_length must be less than or equal to max_length",
+ * "password_history_count must be at most 24"); without this they all surfaced as an
+ * anonymous toast beside a form that looked valid.
+ */
+const BACKEND_FIELD_MAP: Record<string, keyof PasswordPoliciesFormData> = {
+  min_length: 'min_length',
+  max_length: 'max_length',
+  require_uppercase: 'require_uppercase',
+  require_lowercase: 'require_lowercase',
+  require_number: 'require_number',
+  require_symbol: 'require_symbol',
+  reject_common_passwords: 'reject_common_passwords',
+  check_hibp: 'check_hibp',
+  min_strength_score: 'min_strength_score',
+  password_history_count: 'password_history_count',
+  max_age_days: 'max_age_days',
+  temporary_password_validity_hours: 'temporary_password_validity_hours',
+  hash_algorithm: 'hash_algorithm',
+}
+
 export default function PasswordPoliciesFormPage() {
   const navigate = useNavigate()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError, parseError } = useToast()
   const backTo = `/security?tab=password`
 
-  const { data: savedPolicies, isError } = usePasswordPolicies()
+  const { data: savedPolicies, isLoading, isError } = usePasswordPolicies()
   const updateMutation = useUpdatePasswordPolicies()
 
   const {
     handleSubmit,
     reset,
+    setError,
     watch,
     setValue,
     trigger,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<PasswordPoliciesFormData>({
     resolver: yupResolver(passwordPoliciesSchema),
-    defaultValues: {
-      min_length: 12,
-      max_length: 128,
-      require_uppercase: false,
-      require_lowercase: false,
-      require_number: false,
-      require_symbol: false,
-      reject_common_passwords: true,
-      check_hibp: true,
-      password_history_count: 5,
-      max_age_days: 0,
-      temporary_password_validity_hours: 72,
-      hash_algorithm: 'argon2id',
-      min_strength_score: 2,
-    },
-    mode: 'onChange',
+    defaultValues: { ...PASSWORD_POLICY_DEFAULTS },
+    // Validate on submit, not on every keystroke. With 'onChange' a number field
+    // reports "Must be at least 8" the instant you clear it to type a new value,
+    // so ordinary editing looks like a stream of errors.
+    mode: 'onSubmit',
     reValidateMode: 'onChange',
   })
 
@@ -65,22 +81,35 @@ export default function PasswordPoliciesFormPage() {
   useEffect(() => {
     if (savedPolicies) {
       reset({
-        min_length: savedPolicies.min_length ?? 12,
-        max_length: savedPolicies.max_length ?? 128,
-        require_uppercase: savedPolicies.require_uppercase ?? false,
-        require_lowercase: savedPolicies.require_lowercase ?? false,
-        require_number: savedPolicies.require_number ?? false,
-        require_symbol: savedPolicies.require_symbol ?? false,
-        reject_common_passwords: savedPolicies.reject_common_passwords ?? true,
-        check_hibp: savedPolicies.check_hibp ?? true,
-        password_history_count: savedPolicies.password_history_count ?? 5,
-        max_age_days: savedPolicies.max_age_days ?? 0,
-        temporary_password_validity_hours: savedPolicies.temporary_password_validity_hours ?? 72,
-        hash_algorithm: savedPolicies.hash_algorithm ?? 'argon2id',
-        min_strength_score: savedPolicies.min_strength_score ?? 2,
+        min_length: savedPolicies.min_length ?? PASSWORD_POLICY_DEFAULTS.min_length,
+        max_length: savedPolicies.max_length ?? PASSWORD_POLICY_DEFAULTS.max_length,
+        require_uppercase: savedPolicies.require_uppercase ?? PASSWORD_POLICY_DEFAULTS.require_uppercase,
+        require_lowercase: savedPolicies.require_lowercase ?? PASSWORD_POLICY_DEFAULTS.require_lowercase,
+        require_number: savedPolicies.require_number ?? PASSWORD_POLICY_DEFAULTS.require_number,
+        require_symbol: savedPolicies.require_symbol ?? PASSWORD_POLICY_DEFAULTS.require_symbol,
+        reject_common_passwords:
+          savedPolicies.reject_common_passwords ?? PASSWORD_POLICY_DEFAULTS.reject_common_passwords,
+        check_hibp: savedPolicies.check_hibp ?? PASSWORD_POLICY_DEFAULTS.check_hibp,
+        password_history_count:
+          savedPolicies.password_history_count ?? PASSWORD_POLICY_DEFAULTS.password_history_count,
+        max_age_days: savedPolicies.max_age_days ?? PASSWORD_POLICY_DEFAULTS.max_age_days,
+        temporary_password_validity_hours:
+          savedPolicies.temporary_password_validity_hours ??
+          PASSWORD_POLICY_DEFAULTS.temporary_password_validity_hours,
+        hash_algorithm: savedPolicies.hash_algorithm ?? PASSWORD_POLICY_DEFAULTS.hash_algorithm,
+        min_strength_score: savedPolicies.min_strength_score ?? PASSWORD_POLICY_DEFAULTS.min_strength_score,
       })
     }
   }, [savedPolicies, reset])
+
+  // The saved algorithm, not the watched one — the warning is about changing
+  // away from what is currently in force.
+  const savedHashAlgorithm = savedPolicies?.hash_algorithm ?? PASSWORD_POLICY_DEFAULTS.hash_algorithm
+  const hashAlgorithmChanged = formValues.hash_algorithm !== savedHashAlgorithm
+
+  const restoreDefaults = () => {
+    handleUpdate({ ...PASSWORD_POLICY_DEFAULTS })
+  }
 
   const handleUpdate = (updates: Partial<PasswordPoliciesFormData>) => {
     Object.entries(updates).forEach(([key, value]) => {
@@ -94,6 +123,22 @@ export default function PasswordPoliciesFormPage() {
 
   const isBusy = isSubmitting || updateMutation.isPending
 
+  // Driven by the same watched values as the rest of the form, so the preview
+  // updates as the operator toggles.
+  const previewConfig = {
+    min_length: formValues.min_length,
+    max_length: formValues.max_length,
+    require_uppercase: formValues.require_uppercase,
+    require_lowercase: formValues.require_lowercase,
+    require_number: formValues.require_number,
+    require_symbol: formValues.require_symbol,
+    // buildPasswordRules renders a caveat line for these three rather than a
+    // tickable rule, since they cannot be evaluated client-side.
+    min_strength_score: formValues.min_strength_score,
+    reject_common_passwords: formValues.reject_common_passwords,
+    check_hibp: formValues.check_hibp,
+  }
+
   const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
 
   const onSubmit = async (data: PasswordPoliciesFormData) => {
@@ -102,8 +147,54 @@ export default function PasswordPoliciesFormPage() {
       showSuccess('Password policy saved successfully')
       navigate(backTo)
     } catch (error) {
+      // Pin the message to the offending field where the backend named one.
+      const parsed = parseError(error)
+      const fieldErrors = parsed.fieldErrors ?? {}
+      let mapped = false
+      for (const [backendField, formField] of Object.entries(BACKEND_FIELD_MAP)) {
+        const message = fieldErrors[backendField]
+        if (message) {
+          setError(formField, { message })
+          mapped = true
+        }
+      }
+      if (!mapped && parsed.message) {
+        // Fall back to a keyword match: the API also returns bare validation strings
+        // that name the field inline rather than as a structured key.
+        for (const [backendField, formField] of Object.entries(BACKEND_FIELD_MAP)) {
+          if (parsed.message.includes(backendField)) {
+            setError(formField, { message: parsed.message })
+            break
+          }
+        }
+      }
       showError(error)
     }
+  }
+
+  // Without this the form rendered fully interactive over its DEFAULT values while
+  // the GET was still in flight, with Save enabled. An operator on a slow load who
+  // saved before hydration overwrote the tenant's real policy with the defaults —
+  // the PUT sends all 13 fields, so nothing was spared.
+  if (isLoading) {
+    return (
+      <DetailsContainer>
+        <div className="flex flex-col gap-6">
+          <FormPageHeader backUrl={backTo} backLabel="Back to Password Policy" onBack={() => navigate(backTo)} title="Configure Password Policy" description="Set password requirements for your tenant." />
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <Skeleton className="h-5 w-40" />
+              <div className="grid gap-4 md:grid-cols-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+              <Skeleton className="h-24 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </DetailsContainer>
+    )
   }
 
   if (isError) {
@@ -142,11 +233,14 @@ export default function PasswordPoliciesFormPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField
                   label="Minimum Length"
+                  description={`${PASSWORD_POLICY_DEFAULTS.min_length} or more is recommended. Length matters far more than character rules.`}
                   type="number"
-                  min={1}
+                  min={PASSWORD_POLICY_LIMITS.minLength}
                   max={PASSWORD_POLICY_LIMITS.maxLength}
                   value={formValues.min_length.toString()}
-                  onChange={(e) => handleUpdate({ min_length: parseInt(e.target.value) || 1 })}
+                  onChange={(e) =>
+                    handleUpdate({ min_length: parseInt(e.target.value) || PASSWORD_POLICY_LIMITS.minLength })
+                  }
                   error={errors.min_length?.message}
                   disabled={isBusy}
                   required
@@ -196,7 +290,7 @@ export default function PasswordPoliciesFormPage() {
                 />
                 <FormInputField
                   label="Minimum Strength Score"
-                  description="0–4 zxcvbn-like threshold (2 = good)"
+                  description="0–4 guessability threshold (0 = off, 2 = recommended). Scores how hard the password is to guess; character classes carry no weight."
                   type="number"
                   min={0}
                   max={4}
@@ -246,14 +340,65 @@ export default function PasswordPoliciesFormPage() {
                   disabled={isBusy}
                 />
               </div>
+
+              {/* This setting behaves unlike every other field here: the others
+                  take effect on the next password check, this one only affects
+                  passwords hashed AFTER the change. Nobody is locked out —
+                  verification detects the stored format — but the estate stays
+                  mixed, so the operator should know before saving. */}
+              {hashAlgorithmChanged && (
+                <div
+                  role="status"
+                  className="mt-4 flex gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm"
+                >
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">
+                      Applies to new passwords only
+                    </p>
+                    <p className="text-muted-foreground">
+                      Existing users keep signing in normally — stored passwords are verified with
+                      the algorithm they were hashed with. They are only re-hashed with{' '}
+                      {HASH_OPTIONS.find((o) => o.value === formValues.hash_algorithm)?.label ??
+                        formValues.hash_algorithm}{' '}
+                      the next time each user changes their password, so both algorithms will be in
+                      use until then.
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
-              Cancel
+          {/* What this configuration actually shows a user at signup. This is the
+              affordance a config surface needs and a CRUD form does not: the operator
+              is editing rules that appear somewhere else, so show them here. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Preview</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                How these requirements appear to a user setting their password.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <PasswordRequirements password="" config={previewConfig} />
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+            {/* A config surface needs a way back to the shipped baseline. Without
+                it, an operator who has drifted the policy has to remember 13
+                values to undo it. */}
+            <Button type="button" variant="ghost" onClick={restoreDefaults} disabled={isBusy}>
+              <RotateCcw className="size-4" />
+              Restore recommended defaults
             </Button>
-            <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" />
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>
+                Cancel
+              </Button>
+              <FormSubmitButton isSubmitting={isBusy} submitText="Save Changes" />
+            </div>
           </div>
         </form>
 
