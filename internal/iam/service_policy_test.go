@@ -3,6 +3,7 @@ package iam
 import (
 	"context"
 	"errors"
+	"gorm.io/datatypes"
 	"testing"
 
 	"github.com/google/uuid"
@@ -266,7 +267,7 @@ func TestPolicyService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive, PolicyChangeContext{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -279,7 +280,7 @@ func TestPolicyService_Update(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive, PolicyChangeContext{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -294,7 +295,7 @@ func TestPolicyService_Update(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive, PolicyChangeContext{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system policy")
 	})
@@ -312,7 +313,7 @@ func TestPolicyService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", shared.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", shared.StatusActive, PolicyChangeContext{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "lookup error")
 	})
@@ -333,7 +334,7 @@ func TestPolicyService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", shared.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", shared.StatusActive, PolicyChangeContext{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -351,7 +352,7 @@ func TestPolicyService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", shared.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", shared.StatusActive, PolicyChangeContext{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
 	})
@@ -366,7 +367,7 @@ func TestPolicyService_Update(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
-		result, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", shared.StatusActive)
+		result, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", shared.StatusActive, PolicyChangeContext{})
 		require.NoError(t, err)
 		assert.Equal(t, "read-only", result.Name)
 	})
@@ -381,7 +382,7 @@ func TestPolicyService_Update(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
-		result, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v2", shared.StatusActive)
+		result, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v2", shared.StatusActive, PolicyChangeContext{})
 		require.NoError(t, err)
 		assert.Equal(t, "new-name", result.Name)
 	})
@@ -578,4 +579,52 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, p.Name, result.Name)
 	})
+}
+
+// "What did this policy look like" and "who changed it and why" are the same
+// question for an IAM auditor. The columns existed and were never populated, so the
+// history tab rendered a blank author — and the gRPC control plane, which writes no
+// management_audit_log row either, left changes entirely unattributed.
+func TestPolicyService_Update_RecordsChangeAttribution(t *testing.T) {
+	policyUUID := uuid.New()
+	tenantID := int64(1)
+	actorUserID := int64(42)
+	reason := "tightened billing scope after review"
+
+	var captured *PolicyVersionHistory
+	historyRepo := &mockHistoryRepo{
+		createFn: func(h *PolicyVersionHistory) (*PolicyVersionHistory, error) {
+			captured = h
+			return h, nil
+		},
+		nextVersionFn: func(int64) (int, error) { return 2, nil },
+	}
+
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	svc := NewPolicyService(db, &mockPolicyRepo{
+		findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Policy, error) {
+			return &Policy{
+				PolicyID: 7, PolicyUUID: policyUUID, TenantID: tenantID,
+				Name: "billing", Version: "v1",
+				Document: datatypes.JSON(`{"version":"v1","statement":[]}`),
+			}, nil
+		},
+	}, &mockServiceRepo{}, &mockAPIRepo{}, nil)
+	SetPolicyVersionHistory(svc, historyRepo)
+
+	_, err := svc.Update(context.Background(), policyUUID, tenantID, "billing", nil,
+		datatypes.JSON(`{"version":"v1","statement":[]}`), "v1", "active",
+		PolicyChangeContext{ActorUserID: &actorUserID, Reason: &reason})
+	require.NoError(t, err)
+
+	require.NotNil(t, captured, "an update must write a history row")
+	require.NotNil(t, captured.ChangedByUserID)
+	assert.Equal(t, actorUserID, *captured.ChangedByUserID)
+	require.NotNil(t, captured.ChangeReason)
+	assert.Equal(t, reason, *captured.ChangeReason)
+	// The snapshot is the document BEFORE the change.
+	assert.JSONEq(t, `{"version":"v1","statement":[]}`, string(captured.Document))
 }

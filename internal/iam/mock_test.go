@@ -500,7 +500,7 @@ type mockServiceRepo struct {
 	findByTenantIDFn           func(int64) ([]Service, error)
 	findPaginatedFn            func(ServiceRepositoryGetFilter) (*PaginationResult[Service], error)
 	findServicesByPolicyUUIDFn func(uuid.UUID, ServiceRepositoryGetFilter) (*PaginationResult[Service], error)
-	setStatusByUUIDFn          func(uuid.UUID, string) error
+	setStatusByUUIDFn          func(uuid.UUID, int64, string) error
 	countPoliciesByServiceIDFn func(int64) (int64, error)
 	createOrUpdateFn           func(*Service) (*Service, error)
 	deleteByUUIDFn             func(any) error
@@ -555,9 +555,9 @@ func (m *mockServiceRepo) FindServicesByPolicyUUID(id uuid.UUID, f ServiceReposi
 	}
 	return &PaginationResult[Service]{}, nil
 }
-func (m *mockServiceRepo) SetStatusByUUID(id uuid.UUID, status string) error {
+func (m *mockServiceRepo) SetStatusByUUID(id uuid.UUID, tenantID int64, status string) error {
 	if m.setStatusByUUIDFn != nil {
-		return m.setStatusByUUIDFn(id, status)
+		return m.setStatusByUUIDFn(id, tenantID, status)
 	}
 	return nil
 }
@@ -821,7 +821,7 @@ func (m *mockPolicyService) Create(_ context.Context, tenantID int64, name strin
 	}
 	return &PolicyServiceDataResult{}, nil
 }
-func (m *mockPolicyService) Update(_ context.Context, id uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error) {
+func (m *mockPolicyService) Update(_ context.Context, id uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, _ PolicyChangeContext) (*PolicyServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tenantID, name, description, document, version, status)
 	}

@@ -20,6 +20,10 @@ func (r ServiceCreateOrUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Version,
 			validation.Required.Error("Version is required"),
+			// The column is VARCHAR(20); without this a longer value reached Postgres
+			// as a 22001 string-data-right-truncation and surfaced as a 500. Length
+			// only, no format rule — the seeder writes "v1", which is not semver.
+			validation.Length(1, 20).Error("Version must be between 1 and 20 characters"),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),

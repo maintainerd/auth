@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 )
 
 // AccountHandler handles self-service account management operations.
@@ -242,6 +243,75 @@ func (h *AccountHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) 
 	h.logAudit(r, tenantIDCU, actorUserIDCU, "account.change_username", "account", userUUIDCU.String(), &userUUIDCU, string(changesJSONCU), "success")
 
 	resp.Success(w, nil, "Username updated successfully")
+}
+
+// ChangePassword rotates the authenticated user's own password.
+//
+// PUT /account/password
+func (h *AccountHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var req ChangePasswordDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	// Throttle wrong-current-password attempts per user. Without this the
+	// endpoint is an unmetered password-verification oracle for anyone holding a
+	// stolen access token: /account is not mounted under the strict auth rate
+	// limit group, only the global per-IP one.
+	//
+	// The key is deliberately NOT the login lockout key. Feeding this into login
+	// lockout would let a stolen token lock the victim out of logging in at all,
+	// turning a confidentiality problem into a denial of service.
+	throttleKey := "pwdchange:" + user.UserUUID.String()
+	if err := security.CheckRateLimit(throttleKey); err != nil {
+		resp.Error(w, http.StatusTooManyRequests, "Too many password change attempts. Please try again later.")
+		return
+	}
+
+	// The caller's own session, so it can be spared when the others are revoked.
+	// Absent (no sid claim) means everything gets revoked — see the service.
+	var callerSession *uuid.UUID
+	if claims := middleware.JWTClaimsFromRequest(r); claims != nil && claims.SessionID != "" {
+		if parsed, err := uuid.Parse(claims.SessionID); err == nil {
+			callerSession = &parsed
+		}
+	}
+
+	result, err := h.accountService.ChangePassword(r.Context(), user.UserID, req.CurrentPassword, req.NewPassword, callerSession)
+	if err != nil {
+		security.RecordFailedAttempt(throttleKey)
+		resp.HandleServiceError(w, r, "Failed to change password", err)
+		return
+	}
+	security.ResetFailedAttempts(throttleKey)
+
+	tenantIDCP := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDCP = t.TenantID
+	}
+	actorUserIDCP := &user.UserID
+	// The audit record carries no password material of any kind — not the value,
+	// not its length, not a prefix.
+	changesJSONCP, _ := json.Marshal(map[string]any{"update": map[string]any{"password_changed": true}})
+	userUUIDCP := user.UserUUID
+	h.logAudit(r, tenantIDCP, actorUserIDCP, "account.change_password", "account", userUUIDCP.String(), &userUUIDCP, string(changesJSONCP), "success")
+
+	message := "Password changed successfully"
+	if result.ReauthenticationRequired {
+		message = "Password changed successfully. Please sign in again."
+	}
+	resp.Success(w, result, message)
 }
 
 // DeleteAccount permanently deletes the authenticated user's account.

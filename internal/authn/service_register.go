@@ -22,7 +22,11 @@ import (
 	"gorm.io/gorm"
 )
 
-var secValidatePasswordPolicy = security.ValidatePasswordPolicy
+// Context-aware: the HIBP breach check inside makes an outbound call, so it must
+// join the request trace and honour the request's cancellation. The non-context
+// wrapper hardcodes context.Background(), which detached the span and made the
+// fail-open warning unattributable to a request.
+var secValidatePasswordPolicy = security.ValidatePasswordPolicyWithContext
 var secHashPassword = security.HashPassword
 var secHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
@@ -436,7 +440,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
+		if txErr = secValidatePasswordPolicy(ctx, password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
@@ -470,7 +474,16 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 
-		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+		// Use the transaction-scoped repo: the base repo writes on a separate
+		// connection where the user row is not yet committed, so the
+		// user_password_history FK fails and the entry is lost. Returning the
+		// error rolls the whole registration back rather than creating a user
+		// whose first password is not in their reuse history.
+		if s.passwordHistoryRepo != nil {
+			if txErr = secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), createdUser.UserID, policy.HistoryCount, string(hashed)); txErr != nil {
+				return apperror.NewInternal("failed to record password history", txErr)
+			}
+		}
 
 		userIdentity := &UserIdentity{
 			TenantID:           tenantId,
@@ -645,7 +658,7 @@ func (s *registerService) Register(
 
 		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
+		if txErr = secValidatePasswordPolicy(ctx, password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
@@ -684,7 +697,16 @@ func (s *registerService) Register(
 		}
 
 		// Record password history
-		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+		// Use the transaction-scoped repo: the base repo writes on a separate
+		// connection where the user row is not yet committed, so the
+		// user_password_history FK fails and the entry is lost. Returning the
+		// error rolls the whole registration back rather than creating a user
+		// whose first password is not in their reuse history.
+		if s.passwordHistoryRepo != nil {
+			if txErr = secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), createdUser.UserID, policy.HistoryCount, string(hashed)); txErr != nil {
+				return apperror.NewInternal("failed to record password history", txErr)
+			}
+		}
 
 		// Create user identity
 		userIdentity := &UserIdentity{
@@ -835,7 +857,7 @@ func (s *registerService) RegisterInvitePublic(
 
 		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
+		if txErr = secValidatePasswordPolicy(ctx, password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
@@ -870,7 +892,16 @@ func (s *registerService) RegisterInvitePublic(
 		).Error
 
 		// Record password history
-		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+		// Use the transaction-scoped repo: the base repo writes on a separate
+		// connection where the user row is not yet committed, so the
+		// user_password_history FK fails and the entry is lost. Returning the
+		// error rolls the whole registration back rather than creating a user
+		// whose first password is not in their reuse history.
+		if s.passwordHistoryRepo != nil {
+			if txErr = secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), createdUser.UserID, policy.HistoryCount, string(hashed)); txErr != nil {
+				return apperror.NewInternal("failed to record password history", txErr)
+			}
+		}
 
 		// Create user identity
 		userIdentity := &UserIdentity{
@@ -1018,7 +1049,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
+		if txErr = secValidatePasswordPolicy(ctx, password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
@@ -1043,7 +1074,16 @@ func (s *registerService) RegisterInvite(
 			return txErr
 		}
 
-		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+		// Use the transaction-scoped repo: the base repo writes on a separate
+		// connection where the user row is not yet committed, so the
+		// user_password_history FK fails and the entry is lost. Returning the
+		// error rolls the whole registration back rather than creating a user
+		// whose first password is not in their reuse history.
+		if s.passwordHistoryRepo != nil {
+			if txErr = secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), createdUser.UserID, policy.HistoryCount, string(hashed)); txErr != nil {
+				return apperror.NewInternal("failed to record password history", txErr)
+			}
+		}
 
 		userIdentity := &UserIdentity{
 			TenantID:           tenantId,

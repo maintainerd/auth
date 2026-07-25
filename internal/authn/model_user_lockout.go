@@ -16,9 +16,15 @@ type UserLockout struct {
 	FailedCount     int        `gorm:"column:failed_count;not null;default:0"`
 	LastFailedAt    *time.Time `gorm:"column:last_failed_at"`
 	LockedUntil     *time.Time `gorm:"column:locked_until"`
-	IPAddress       *string    `gorm:"column:ip_address"`
-	CreatedAt       time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
-	UpdatedAt       time.Time  `gorm:"column:updated_at;autoUpdateTime;not null"`
+	// Locked is a PERMANENT lock (auto_unlock=false) with no expiry; released only
+	// by an admin ClearLockout. Distinct from a timed LockedUntil.
+	Locked bool `gorm:"column:locked;not null;default:false"`
+	// LockoutLevel / LastLockedAt drive progressive lockout escalation.
+	LockoutLevel int        `gorm:"column:lockout_level;not null;default:0"`
+	LastLockedAt *time.Time `gorm:"column:last_locked_at"`
+	IPAddress    *string    `gorm:"column:ip_address"`
+	CreatedAt    time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
+	UpdatedAt    time.Time  `gorm:"column:updated_at;autoUpdateTime;not null"`
 }
 
 func (UserLockout) TableName() string { return "user_lockouts" }

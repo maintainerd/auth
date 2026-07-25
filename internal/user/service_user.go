@@ -386,7 +386,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 
 		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, targetTenant.TenantID)
-		if err = security.ValidatePasswordPolicy(password, policy); err != nil {
+		if err = security.ValidatePasswordPolicyWithContext(ctx, password, policy); err != nil {
 			return apperror.NewValidation(err.Error())
 		}
 
@@ -433,7 +433,9 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		// (non-tx) repo here inserts before the user row is committed, so the
 		// user_password_history.user_id FK fails and history is silently dropped.
 		if s.passwordHistoryRepo != nil {
-			secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), newUser.UserID, policy.HistoryCount, hashedPasswordStr)
+			if err := secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), newUser.UserID, policy.HistoryCount, hashedPasswordStr); err != nil {
+				return apperror.NewInternal("failed to record password history", err)
+			}
 		}
 
 		// Find default auth client for this tenant

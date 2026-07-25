@@ -2010,7 +2010,7 @@ func TestMagicLinkMFAChallenge(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "no supported non-email factors")
+		assert.Contains(t, err.Error(), "no supported second factor")
 	})
 
 	t.Run("enforced blocks when no factor is enrolled", func(t *testing.T) {
@@ -2023,7 +2023,7 @@ func TestMagicLinkMFAChallenge(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "no supported non-email factors")
+		assert.Contains(t, err.Error(), "no supported second factor")
 	})
 }
 
@@ -2031,6 +2031,72 @@ func TestReplacePrimaryAMR(t *testing.T) {
 	assert.Equal(t, []string{"magic_link", "otp"}, replacePrimaryAMR([]string{"pwd", "otp"}, "magic_link"))
 	assert.Equal(t, []string{"magic_link", "user", "hwk"}, replacePrimaryAMR([]string{"pwd", "user", "hwk"}, "magic_link"))
 	assert.Equal(t, []string{"magic_link", "otp"}, replacePrimaryAMR([]string{"otp"}, "magic_link"))
+}
+
+// SMSMFAChallenge is what closes the enforced-MFA bypass on SMS login: an SMS
+// OTP is a single possession factor, so an enforced tenant must still be
+// challenged for a distinct second factor instead of walking in at acr=1.
+func TestSMSMFAChallenge(t *testing.T) {
+	settingRepo := func(config string) *mockSecuritySettingRepo {
+		return &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{MFAConfig: datatypes.JSON([]byte(config))}, nil
+			},
+		}
+	}
+	user := &User{UserID: 1, UserUUID: uuid.New(), CreatedAt: time.Now()}
+
+	t.Run("disabled lets SMS login proceed at acr=1", func(t *testing.T) {
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"disabled","allowed_methods":["totp"]}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"totp"}, nil }},
+		}
+		resp, err := svc.SMSMFAChallenge(context.Background(), user, 1)
+		require.NoError(t, err)
+		assert.Nil(t, resp, "disabled mode must not challenge")
+	})
+
+	t.Run("optional with no primary factor lets SMS login proceed", func(t *testing.T) {
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"optional","allowed_methods":["totp"]}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return nil, nil }},
+		}
+		resp, err := svc.SMSMFAChallenge(context.Background(), user, 1)
+		require.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("enforced challenges for a distinct second factor", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"enforced","allowed_methods":["sms","totp"],"allow_sms":true}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"sms", "totp"}, nil }},
+		}
+		resp, err := svc.SMSMFAChallenge(context.Background(), user, 1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.MFARequired)
+		// sms is excluded — it is the same phone the OTP arrived on, not a
+		// distinct factor.
+		assert.Equal(t, []string{"totp"}, resp.MFAAllowedMethods)
+		claims, err := jwt.ValidateStepUpChallengeToken(*resp.MFAChallengeToken)
+		require.NoError(t, err)
+		assert.Equal(t, jwt.AMRSMS, claims["primary_amr"])
+	})
+
+	// SMS is the only enrolled factor and the tenant enforces MFA: because sms
+	// is excluded there is nothing left, so the login must be blocked rather than
+	// silently downgraded to acr=1.
+	t.Run("enforced blocks when SMS is the only factor", func(t *testing.T) {
+		svc := &loginService{
+			securitySettingRepo: settingRepo(`{"mode":"enforced","allowed_methods":["sms"],"allow_sms":true}`),
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"sms"}, nil }},
+		}
+		resp, err := svc.SMSMFAChallenge(context.Background(), user, 1)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "no supported second factor")
+	})
 }
 
 func TestIssueMagicLinkSessionUsesPasswordlessAMR(t *testing.T) {

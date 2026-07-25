@@ -5,6 +5,7 @@ import (
 	"crypto/sha1" // #nosec G505 -- HIBP API requires SHA-1 k-anonymity hashes
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // HIBP HTTP client with reasonable timeouts.
@@ -40,7 +42,7 @@ func CheckHIBPPassword(ctx context.Context, password []byte) bool {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "hibp request failed")
-		return false
+		return hibpUnavailable(span, "request build failed", err)
 	}
 	req.Header.Set("Add-Padding", "true")
 
@@ -48,20 +50,21 @@ func CheckHIBPPassword(ctx context.Context, password []byte) bool {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "hibp request failed")
-		return false
+		return hibpUnavailable(span, "request failed", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		span.SetAttributes(attribute.Int("hibp.status_code", resp.StatusCode))
 		span.SetStatus(codes.Error, "hibp returned non-200")
-		return false
+		return hibpUnavailable(span, "non-200 response",
+			fmt.Errorf("status %d", resp.StatusCode))
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		span.RecordError(err)
-		return false
+		return hibpUnavailable(span, "response read failed", err)
 	}
 
 	for _, line := range strings.Split(string(body), "\n") {
@@ -81,5 +84,22 @@ func CheckHIBPPassword(ctx context.Context, password []byte) bool {
 	}
 
 	span.SetStatus(codes.Ok, "")
+	return false
+}
+
+// hibpUnavailable records that the breach check could not run and returns "not
+// breached".
+//
+// Failing OPEN is the deliberate choice: HIBP is a third-party dependency on the
+// login and password-set hot path, and failing closed would turn their outage into
+// ours. But an unobservable fail-open is indistinguishable from a working check —
+// an egress firewall change or a DNS block would silently disable breach checking
+// for every tenant with no signal at all. The span alone was not enough: every
+// production caller reaches this through the non-context wrapper, so the span is a
+// detached root nobody queries.
+func hibpUnavailable(span trace.Span, reason string, err error) bool {
+	span.SetAttributes(attribute.Bool("hibp.failed_open", true))
+	slog.Warn("breach check unavailable — password accepted WITHOUT a HaveIBeenPwned check",
+		"reason", reason, "error", err)
 	return false
 }

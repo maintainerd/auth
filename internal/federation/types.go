@@ -57,5 +57,10 @@ type WorkloadIdentityFederationUpdateRequestDTO struct {
 // WorkloadIdentityFederationFilterDTO holds filter parameters for listing
 // workload identity federations.
 type WorkloadIdentityFederationFilterDTO struct {
+	// Name is a case-insensitive substring match, powering the listing search box.
+	Name *string `json:"name"`
+	// IsActive filters live vs disabled trust rules.
+	IsActive *bool `json:"is_active"`
+
 	PaginationRequestDTO
 }

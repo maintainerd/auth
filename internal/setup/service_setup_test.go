@@ -752,7 +752,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		Username: "admin",
 		Fullname: ptr.Ptr("Admin User"),
 		Email:    "admin@test.com",
-		Password: "password123",
+		Password: "Tr0ubad0ur-Setup-2026",
 	}
 
 	defaultTenant := &Tenant{TenantID: 1, TenantUUID: uuid.New()}

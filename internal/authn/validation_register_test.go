@@ -153,9 +153,21 @@ func TestRegisterRequestDto_ValidateForRegistration(t *testing.T) {
 		require.Error(t, d.ValidateForRegistration())
 	})
 
-	t.Run("weak password fails strength check", func(t *testing.T) {
+	// The DTO validates SHAPE only. Password strength is the tenant's policy, applied
+	// in the service layer — the DTO used to apply a hardcoded composition policy
+	// that silently overrode whatever the tenant had configured.
+	t.Run("a weak but well-formed password passes the DTO", func(t *testing.T) {
 		d := RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "password1"}
-		require.Error(t, d.ValidateForRegistration())
+		require.NoError(t, d.ValidateForRegistration(),
+			"strength belongs to the tenant policy in the service layer, not to the DTO")
+	})
+
+	t.Run("the DTO still enforces the absolute length bounds", func(t *testing.T) {
+		short := RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "short"}
+		require.Error(t, short.ValidateForRegistration())
+
+		long := RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: strings.Repeat("a", 129)}
+		require.Error(t, long.ValidateForRegistration())
 	})
 }
 

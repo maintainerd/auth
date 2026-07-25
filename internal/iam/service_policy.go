@@ -82,12 +82,21 @@ type PolicyServiceServicesResult struct {
 	TotalPages int
 }
 
+// PolicyChangeContext carries WHO changed a policy and WHY into the version
+// history. All fields are optional: a change made by a service principal has no
+// user, and a reason is only supplied when the caller offers one.
+type PolicyChangeContext struct {
+	ActorUserID   *int64
+	ActorClientID *int64
+	Reason        *string
+}
+
 type PolicyService interface {
 	Get(ctx context.Context, filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error)
 	GetByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
 	GetServicesByPolicyUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error)
 	Create(ctx context.Context, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isSystem bool) (*PolicyServiceDataResult, error)
-	Update(ctx context.Context, policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error)
+	Update(ctx context.Context, policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, change PolicyChangeContext) (*PolicyServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
 	// GetHistory returns a paginated list of version snapshots for a policy.
@@ -354,7 +363,7 @@ func (s *policyService) Create(ctx context.Context, tenantID int64, name string,
 	}, nil
 }
 
-func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error) {
+func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, change PolicyChangeContext) (*PolicyServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "policy.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
@@ -408,8 +417,11 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 
 		// Snapshot the before-state into policy_version_history (append-only,
 		// same transaction) so the prior version can be audited or rolled back.
-		// changed_by is left NULL here — the management_audit_log records who
-		// made the change; this table records what the policy looked like.
+		// Attribution is recorded HERE as well as in management_audit_log. "What did
+		// this policy look like" and "who changed it and why" are the same question
+		// for an IAM auditor, and correlating two tables by timestamp is not an
+		// answer — especially for the gRPC control plane, which writes no audit row
+		// at all. The columns already existed and were never populated.
 		if s.historyRepo != nil {
 			txHistoryRepo := s.historyRepo.WithTx(tx)
 			nextVersion, verr := txHistoryRepo.NextVersionNumber(policy.PolicyID)
@@ -421,13 +433,16 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 				beforeDoc = datatypes.JSON([]byte("{}"))
 			}
 			if _, herr := txHistoryRepo.Create(&PolicyVersionHistory{
-				TenantID:      policy.TenantID,
-				PolicyID:      policy.PolicyID,
-				VersionNumber: nextVersion,
-				Name:          policy.Name,
-				Description:   policy.Description,
-				Document:      beforeDoc,
-				PolicyVersion: policy.Version,
+				TenantID:          policy.TenantID,
+				PolicyID:          policy.PolicyID,
+				VersionNumber:     nextVersion,
+				Name:              policy.Name,
+				Description:       policy.Description,
+				Document:          beforeDoc,
+				PolicyVersion:     policy.Version,
+				ChangedByUserID:   change.ActorUserID,
+				ChangedByClientID: change.ActorClientID,
+				ChangeReason:      change.Reason,
 			}); herr != nil {
 				return herr
 			}

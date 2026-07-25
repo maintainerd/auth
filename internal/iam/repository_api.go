@@ -45,6 +45,15 @@ func NewAPIRepository(db *gorm.DB) APIRepository {
 	}
 }
 
+// apiSortColumns is this table's own sort allowlist. The global set in
+// platform/database is a union across every table, so ordering by a column
+// `apis` does not have reaches Postgres as an undefined column (42703) and
+// surfaces as a 500 rather than a 400.
+var apiSortColumns = map[string]struct{}{
+	"created_at": {}, "updated_at": {}, "name": {}, "display_name": {},
+	"identifier": {}, "status": {}, "is_system": {}, "tenant_id": {}, "service_id": {},
+}
+
 func (r *apiRepository) WithTx(tx *gorm.DB) APIRepository {
 	return &apiRepository{
 		BaseRepository: r.BaseRepository.WithTx(tx),
@@ -117,7 +126,7 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("Service")
+	query = query.Order(database.SanitizeOrderIn(apiSortColumns, filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("Service")
 
 	return database.PaginateQuery[API](query, filter.Page, filter.Limit)
 }

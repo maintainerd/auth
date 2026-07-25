@@ -1,6 +1,8 @@
 package authn
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -105,7 +107,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	if err := req.Validate(); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_validation_failure",
-			UserID:    urlToken,
+			UserID:    resetTokenLogRef(urlToken),
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -126,7 +128,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	if err := security.CheckRateLimit(token); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_rate_limited",
-			UserID:    token,
+			UserID:    resetTokenLogRef(token),
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -145,7 +147,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_service_error",
-			UserID:    token,
+			UserID:    resetTokenLogRef(token),
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -162,7 +164,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	// authevent.Log successful password reset
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "reset_password_success",
-		UserID:    token,
+		UserID:    resetTokenLogRef(token),
 		ClientIP:  clientIPStr,
 		UserAgent: userAgentStr,
 		RequestID: requestIDStr,
@@ -259,7 +261,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	if err := req.Validate(); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_validation_failure",
-			UserID:    token,
+			UserID:    resetTokenLogRef(token),
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -279,7 +281,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	if err := security.CheckRateLimit(token); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_rate_limited",
-			UserID:    token,
+			UserID:    resetTokenLogRef(token),
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -298,7 +300,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_service_error",
-			UserID:    token,
+			UserID:    resetTokenLogRef(token),
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -315,7 +317,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	// authevent.Log successful password reset
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "reset_password_success",
-		UserID:    token,
+		UserID:    resetTokenLogRef(token),
 		ClientIP:  clientIPStr,
 		UserAgent: userAgentStr,
 		RequestID: requestIDStr,
@@ -327,4 +329,18 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	})
 
 	resp.Success(w, response, "Password reset successfully")
+}
+
+// resetTokenLogRef returns a short, non-reversible reference for a reset token.
+//
+// The raw token is a BEARER CREDENTIAL. Logging it — as this file did in four
+// places — hands anyone with log or SIEM access a working account-takeover token
+// while it is still valid. A truncated hash keeps log lines correlatable for a
+// single attempt without being usable to perform the reset.
+func resetTokenLogRef(token string) string {
+	if token == "" {
+		return "none"
+	}
+	sum := sha256.Sum256([]byte(token))
+	return "reset:" + hex.EncodeToString(sum[:4])
 }

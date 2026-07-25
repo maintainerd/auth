@@ -3,6 +3,7 @@ package federation
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,6 +45,16 @@ type WorkloadIdentityFederationServiceListResult struct {
 	TotalPages int
 }
 
+// WorkloadIdentityFederationListFilter carries the resolved list parameters.
+type WorkloadIdentityFederationListFilter struct {
+	Name      *string
+	IsActive  *bool
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
+}
+
 // WorkloadIdentityFederationCreateInput carries the resolved create parameters.
 type WorkloadIdentityFederationCreateInput struct {
 	ClientUUID       uuid.UUID
@@ -55,7 +66,7 @@ type WorkloadIdentityFederationCreateInput struct {
 	SubjectPattern   string
 	AllowedScopes    []string
 	AttributeMapping map[string]string
-	IsActive         bool
+	IsActive         *bool
 	ActorUserID      *int64
 }
 
@@ -69,15 +80,16 @@ type WorkloadIdentityFederationUpdateInput struct {
 	SubjectPattern   string
 	AllowedScopes    []string
 	AttributeMapping map[string]string
-	IsActive         bool
-	ActorUserID      *int64
+	// IsActive nil means "leave unchanged".
+	IsActive    *bool
+	ActorUserID *int64
 }
 
 // WorkloadIdentityFederationService defines business operations on workload
 // identity federations: tenant-scoped CRUD plus the token-exchange flow that
 // converts an external OIDC token into a platform access token.
 type WorkloadIdentityFederationService interface {
-	GetAll(ctx context.Context, tenantID int64, page, limit int, sortBy, sortOrder string) (*WorkloadIdentityFederationServiceListResult, error)
+	GetAll(ctx context.Context, tenantID int64, filter WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error)
 	GetByUUID(ctx context.Context, tenantID int64, federationUUID uuid.UUID) (*WorkloadIdentityFederationServiceDataResult, error)
 	Create(ctx context.Context, tenantID int64, in WorkloadIdentityFederationCreateInput) (*WorkloadIdentityFederationServiceDataResult, error)
 	Update(ctx context.Context, tenantID int64, federationUUID uuid.UUID, in WorkloadIdentityFederationUpdateInput) (*WorkloadIdentityFederationServiceDataResult, error)
@@ -123,7 +135,7 @@ func toServiceResult(f *WorkloadIdentityFederation, clientUUID uuid.UUID) Worklo
 		SubjectPattern:                 f.SubjectPattern,
 		AllowedScopes:                  []string(f.AllowedScopes),
 		AttributeMapping:               decodeAttributeMapping(f.AttributeMapping),
-		IsActive:                       f.IsActive,
+		IsActive:                       f.IsActive == nil || *f.IsActive,
 		CreatedAt:                      f.CreatedAt,
 		UpdatedAt:                      f.UpdatedAt,
 	}
@@ -155,18 +167,54 @@ func (s *workloadIdentityFederationService) resolveClientByID(clientID int64) (*
 	return &client, nil
 }
 
+// resolveClientUUIDs maps every distinct client_id in the page to its public UUID in
+// a single query. A client that no longer resolves is absent from the map rather than
+// an error: a soft-deleted client is a legitimate state, and the response says so by
+// carrying the zero UUID for that row only.
+func (s *workloadIdentityFederationService) resolveClientUUIDs(
+	federations []WorkloadIdentityFederation,
+) (map[int64]uuid.UUID, error) {
+	if len(federations) == 0 {
+		return map[int64]uuid.UUID{}, nil
+	}
+
+	ids := make([]int64, 0, len(federations))
+	seen := map[int64]struct{}{}
+	for i := range federations {
+		id := federations[i].ClientID
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+
+	var clients []Client
+	if err := s.db.Where("client_id IN ?", ids).Find(&clients).Error; err != nil {
+		return nil, err
+	}
+
+	out := make(map[int64]uuid.UUID, len(clients))
+	for i := range clients {
+		out[clients[i].ClientID] = clients[i].ClientUUID
+	}
+	return out, nil
+}
+
 // GetAll retrieves a paginated list of federations for a tenant.
-func (s *workloadIdentityFederationService) GetAll(ctx context.Context, tenantID int64, page, limit int, sortBy, sortOrder string) (*WorkloadIdentityFederationServiceListResult, error) {
+func (s *workloadIdentityFederationService) GetAll(ctx context.Context, tenantID int64, filter WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "workloadIdentityFederation.list")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
 	result, err := s.repo.FindPaginated(WorkloadIdentityFederationRepositoryGetFilter{
 		TenantID:  &tenantID,
-		Page:      page,
-		Limit:     limit,
-		SortBy:    sortBy,
-		SortOrder: sortOrder,
+		Name:      filter.Name,
+		IsActive:  filter.IsActive,
+		Page:      filter.Page,
+		Limit:     filter.Limit,
+		SortBy:    filter.SortBy,
+		SortOrder: filter.SortOrder,
 	})
 	if err != nil {
 		span.RecordError(err)
@@ -174,19 +222,20 @@ func (s *workloadIdentityFederationService) GetAll(ctx context.Context, tenantID
 		return nil, err
 	}
 
-	// Cache client UUID lookups within this page.
-	clientUUIDs := map[int64]uuid.UUID{}
+	// One batched lookup for the whole page. This was a query per row, and each
+	// failure was swallowed — leaving a zero UUID in the response, so a consumer
+	// could not tell "client was deleted" from "the database errored".
+	clientUUIDs, err := s.resolveClientUUIDs(result.Data)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "client lookup failed")
+		return nil, apperror.NewInternal("failed to resolve the clients for these federations", err)
+	}
+
 	data := make([]WorkloadIdentityFederationServiceDataResult, len(result.Data))
 	for i := range result.Data {
 		f := result.Data[i]
-		cu, ok := clientUUIDs[f.ClientID]
-		if !ok {
-			if client, cerr := s.resolveClientByID(f.ClientID); cerr == nil && client != nil {
-				cu = client.ClientUUID
-			}
-			clientUUIDs[f.ClientID] = cu
-		}
-		data[i] = toServiceResult(&f, cu)
+		data[i] = toServiceResult(&f, clientUUIDs[f.ClientID])
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -215,14 +264,29 @@ func (s *workloadIdentityFederationService) GetByUUID(ctx context.Context, tenan
 		return nil, apperror.NewNotFoundWithReason("workload identity federation not found")
 	}
 
-	var clientUUID uuid.UUID
-	if client, cerr := s.resolveClientByID(f.ClientID); cerr == nil && client != nil {
-		clientUUID = client.ClientUUID
+	clientUUID, err := s.clientUUIDFor(f.ClientID)
+	if err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to resolve the client for this federation", err)
 	}
 
 	result := toServiceResult(f, clientUUID)
 	span.SetStatus(codes.Ok, "")
 	return &result, nil
+}
+
+// clientUUIDFor returns the client's public UUID, or the zero UUID when the client no
+// longer resolves (soft-deleted). A genuine DB error is returned rather than
+// flattened into a zero UUID, which used to make the two indistinguishable.
+func (s *workloadIdentityFederationService) clientUUIDFor(clientID int64) (uuid.UUID, error) {
+	client, err := s.resolveClientByID(clientID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if client == nil {
+		return uuid.Nil, nil
+	}
+	return client.ClientUUID, nil
 }
 
 // Create validates the issuer via OIDC discovery, then persists the federation.
@@ -248,7 +312,12 @@ func (s *workloadIdentityFederationService) Create(ctx context.Context, tenantID
 	if err := s.probeIssuer(ctx, in.IssuerURL); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "issuer probe failed")
-		return nil, apperror.NewValidation("issuer_url is not a reachable OIDC issuer: " + err.Error())
+		// The underlying go-oidc error embeds the RAW HTTP RESPONSE BODY of the
+		// fetched URL, which turned this into an arbitrary-GET-with-body-echo
+		// primitive from the server's network position. Log it, never return it.
+		slog.Warn("workload identity federation issuer probe failed",
+			"issuer_url", in.IssuerURL, "error", err)
+		return nil, apperror.NewValidation("issuer_url is not a reachable OIDC issuer")
 	}
 
 	subjectClaim := in.SubjectClaim
@@ -308,7 +377,12 @@ func (s *workloadIdentityFederationService) Update(ctx context.Context, tenantID
 		if err := s.probeIssuer(ctx, in.IssuerURL); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "issuer probe failed")
-			return nil, apperror.NewValidation("issuer_url is not a reachable OIDC issuer: " + err.Error())
+			// The underlying go-oidc error embeds the RAW HTTP RESPONSE BODY of the
+			// fetched URL, which turned this into an arbitrary-GET-with-body-echo
+			// primitive from the server's network position. Log it, never return it.
+			slog.Warn("workload identity federation issuer probe failed",
+				"issuer_url", in.IssuerURL, "error", err)
+			return nil, apperror.NewValidation("issuer_url is not a reachable OIDC issuer")
 		}
 	}
 
@@ -317,18 +391,26 @@ func (s *workloadIdentityFederationService) Update(ctx context.Context, tenantID
 		subjectClaim = "sub"
 	}
 
-	f.Name = in.Name
-	f.Description = ptr.PtrOrNil(in.Description)
-	f.IssuerURL = in.IssuerURL
-	f.Audience = in.Audience
-	f.SubjectClaim = subjectClaim
-	f.SubjectPattern = in.SubjectPattern
-	f.AllowedScopes = pq.StringArray(in.AllowedScopes)
-	f.AttributeMapping = encodeAttributeMapping(in.AttributeMapping)
-	f.IsActive = in.IsActive
-	f.UpdatedBy = in.ActorUserID
+	// An explicit column map, not the loaded struct. GORM's struct-based Updates
+	// skips every zero-valued field, which made `is_active = false` and an emptied
+	// description unwritable — so a live trust rule could not be disabled or have its
+	// description cleared, and a PUT silently behaved differently per field.
+	updates := map[string]any{
+		"name":              in.Name,
+		"description":       ptr.PtrOrNil(in.Description),
+		"issuer_url":        in.IssuerURL,
+		"audience":          in.Audience,
+		"subject_claim":     subjectClaim,
+		"subject_pattern":   in.SubjectPattern,
+		"allowed_scopes":    pq.StringArray(in.AllowedScopes),
+		"attribute_mapping": encodeAttributeMapping(in.AttributeMapping),
+		"updated_by":        in.ActorUserID,
+	}
+	if in.IsActive != nil {
+		updates["is_active"] = *in.IsActive
+	}
 
-	updated, err := s.repo.UpdateByUUID(federationUUID, f)
+	updated, err := s.repo.UpdateByUUID(federationUUID, updates)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "update failed")
@@ -338,9 +420,10 @@ func (s *workloadIdentityFederationService) Update(ctx context.Context, tenantID
 		return nil, err
 	}
 
-	var clientUUID uuid.UUID
-	if client, cerr := s.resolveClientByID(updated.ClientID); cerr == nil && client != nil {
-		clientUUID = client.ClientUUID
+	clientUUID, err := s.clientUUIDFor(updated.ClientID)
+	if err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to resolve the client for this federation", err)
 	}
 
 	result := toServiceResult(updated, clientUUID)
@@ -370,9 +453,10 @@ func (s *workloadIdentityFederationService) Delete(ctx context.Context, tenantID
 		return nil, err
 	}
 
-	var clientUUID uuid.UUID
-	if client, cerr := s.resolveClientByID(f.ClientID); cerr == nil && client != nil {
-		clientUUID = client.ClientUUID
+	clientUUID, err := s.clientUUIDFor(f.ClientID)
+	if err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to resolve the client for this federation", err)
 	}
 
 	result := toServiceResult(f, clientUUID)

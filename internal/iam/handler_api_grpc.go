@@ -152,6 +152,12 @@ func (h *APIGRPCHandler) resolveTenant(ctx context.Context, tenantUUID string) (
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
+	// Third tenant entry point on the IAM gRPC surface (with resolveIAMTenant and the
+	// service handler's own resolver). Each one has to apply the boundary check, or
+	// it becomes the way around the other two.
+	if err := assertCallerMayActOnTenant(ctx, h.tenantService, result.TenantID); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 

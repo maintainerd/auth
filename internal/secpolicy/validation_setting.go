@@ -23,6 +23,28 @@ const (
 	maxPasswordHistoryCount           = 24
 	maxPasswordAgeDays                = 3650
 	maxTemporaryPasswordValidityHours = 720
+
+	// Upper bounds on the MFA bypass windows. A year of trusted-device memory and
+	// a quarter of enrollment grace are past any legitimate policy; the point is
+	// only to stop mode=enforced being neutered by an absurd value. Kept
+	// deliberately generous so no real configuration is rejected. See the
+	// comments in validateMFAConfig.
+	maxTrustedDevicePeriodDays = 365
+	maxMFAGracePeriodDays      = 90
+
+	// minPasswordMinLength is the floor a tenant may configure for min_length.
+	//
+	// DO NOT raise this to the NIST/ASVS recommended minimum. It is tempting,
+	// and it is a breaking change: validatePasswordConfig runs on READ as well
+	// as write — LoadPasswordPolicy → NormalizeSecuritySettingConfig →
+	// decodeSecuritySettingPatch → here. Raising the floor makes every already
+	// stored config below it fail to normalize, so those tenants silently fall
+	// back to the SHIPPED DEFAULTS for all thirteen fields, not just this one.
+	//
+	// The recommended minimum belongs in the shipped default (12) and in the
+	// console's guidance, both of which already say so. A tenant choosing to go
+	// lower is making a policy decision this validator should record, not veto.
+	minPasswordMinLength = 1
 )
 
 func (r SecuritySettingUpdateConfigRequestDTO) Validate() error {
@@ -182,8 +204,8 @@ func validateSecuritySettingDTO(configType string, dto any) error {
 }
 
 func validatePasswordConfig(d PasswordConfigDTO) error {
-	if d.MinLength != nil && *d.MinLength < 1 {
-		return fmt.Errorf("min_length must be at least 1")
+	if d.MinLength != nil && *d.MinLength < minPasswordMinLength {
+		return fmt.Errorf("min_length must be at least %d", minPasswordMinLength)
 	}
 	if d.MaxLength != nil {
 		if *d.MaxLength > 128 {
@@ -255,17 +277,24 @@ func validateMFAConfig(d MFAConfigDTO) error {
 	if d.TOTPPeriodSeconds != nil && (*d.TOTPPeriodSeconds < 30 || *d.TOTPPeriodSeconds > 90) {
 		return fmt.Errorf("totp_period_seconds must be between 30 and 90")
 	}
-	if d.TrustedDevicePeriodDays != nil && *d.TrustedDevicePeriodDays < 0 {
-		return fmt.Errorf("trusted_device_period_days must be non-negative")
+	// These three are all windows during which enforced MFA is bypassed. Left
+	// unbounded above, a tenant admin could set grace_period_days: 100000 and
+	// silently neuter mode=enforced — the sibling fields here (step_up_ttl 1-60,
+	// totp_period 30-90) are already bounded on both ends, so the missing ceilings
+	// were the odd ones out. The ceilings are generous (a year of trusted-device
+	// memory, a quarter of enrollment grace) so no legitimate policy is rejected;
+	// they only stop enforcement being turned off by way of an absurd window.
+	if d.TrustedDevicePeriodDays != nil && (*d.TrustedDevicePeriodDays < 0 || *d.TrustedDevicePeriodDays > maxTrustedDevicePeriodDays) {
+		return fmt.Errorf("trusted_device_period_days must be between 0 and %d", maxTrustedDevicePeriodDays)
 	}
-	if d.GracePeriodDays != nil && *d.GracePeriodDays < 0 {
-		return fmt.Errorf("grace_period_days must be non-negative")
+	if d.GracePeriodDays != nil && (*d.GracePeriodDays < 0 || *d.GracePeriodDays > maxMFAGracePeriodDays) {
+		return fmt.Errorf("grace_period_days must be between 0 and %d", maxMFAGracePeriodDays)
 	}
 	if d.RecoveryCodesCount != nil && *d.RecoveryCodesCount != 0 && (*d.RecoveryCodesCount < 8 || *d.RecoveryCodesCount > 16) {
 		return fmt.Errorf("recovery_codes_count must be 0 or between 8 and 16")
 	}
-	if d.AdminGracePeriodDays != nil && *d.AdminGracePeriodDays < 0 {
-		return fmt.Errorf("admin_grace_period_days must be non-negative")
+	if d.AdminGracePeriodDays != nil && (*d.AdminGracePeriodDays < 0 || *d.AdminGracePeriodDays > maxMFAGracePeriodDays) {
+		return fmt.Errorf("admin_grace_period_days must be between 0 and %d", maxMFAGracePeriodDays)
 	}
 	if d.StepUpTTLMinutes != nil && *d.StepUpTTLMinutes < 1 {
 		return fmt.Errorf("step_up_ttl_minutes must be at least 1")

@@ -249,6 +249,13 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The actor is resolved here rather than inside the service so the history row
+	// and the audit row agree on who made the change.
+	var changeActorUserID *int64
+	if authCtx := middleware.AuthFromRequest(r); authCtx != nil && authCtx.User != nil {
+		changeActorUserID = &authCtx.User.UserID
+	}
+
 	policy, err := h.policyService.Update(
 		r.Context(),
 		policyUUID,
@@ -258,6 +265,7 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		req.Document,
 		req.Version,
 		req.Status,
+		PolicyChangeContext{ActorUserID: changeActorUserID, Reason: req.ChangeReason},
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update policy", err)

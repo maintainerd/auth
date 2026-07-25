@@ -3,6 +3,7 @@ package iam
 import (
 	"context"
 	"errors"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"testing"
 
 	"github.com/google/uuid"
@@ -325,6 +326,9 @@ func TestAPIService_DeleteByUUID(t *testing.T) {
 			db, mock := newMockGormDB(t)
 			if !tc.expectError {
 				mock.ExpectBegin()
+				// Deleting an API cascades to its permissions: the FK carries ON
+				// DELETE CASCADE but the API is soft-deleted, so the FK never fires.
+				expectAnyUpdate(mock, "permissions").WillReturnResult(sqlmock.NewResult(0, 2))
 				mock.ExpectCommit()
 			}
 			svc := NewAPIService(db, tc.apiRepo, &mockServiceRepo{})
@@ -360,6 +364,8 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		// The API delete cascades to its permissions before deleting the API.
+		expectAnyUpdate(mock, "permissions").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{})
 		result, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
@@ -378,6 +384,8 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		// The API delete cascades to its permissions before deleting the API.
+		expectAnyUpdate(mock, "permissions").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectRollback()
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
@@ -759,4 +767,31 @@ func TestAPIService_Create_FetchAfterSaveError(t *testing.T) {
 func TestToAPIServiceDataResult_Nil(t *testing.T) {
 	result := toAPIServiceDataResult(nil)
 	assert.Nil(t, result)
+}
+
+// The ownership chain is service → api → permission, and every level is
+// SOFT-deleted, so the ON DELETE CASCADE on the FKs never fires. Without an explicit
+// cascade the children survive their parent and stay attached to roles, clients and
+// API keys — and (before the resolver fix) kept being written into access tokens.
+func TestAPIService_DeleteByUUID_CascadesToPermissions(t *testing.T) {
+	tenantID := int64(1)
+	apiUUID := uuid.New()
+
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	permissionCascade := expectAnyUpdate(mock, "permissions").WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectCommit()
+
+	svc := NewAPIService(db, &mockAPIRepo{
+		findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*API, error) {
+			return &API{APIID: 42, APIUUID: apiUUID, TenantID: tenantID}, nil
+		},
+	}, &mockServiceRepo{})
+
+	_, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
+	require.NoError(t, err)
+	// The expectation itself is the assertion: ExpectationsWereMet fails if the
+	// permission cascade never ran.
+	require.NoError(t, mock.ExpectationsWereMet())
+	_ = permissionCascade
 }

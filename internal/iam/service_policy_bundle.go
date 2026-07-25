@@ -50,13 +50,15 @@ func NewServiceAuthorizationService(serviceRepo ServiceRepository, servicePolicy
 }
 
 func (s *serviceAuthorizationService) PolicyBundle(ctx context.Context, identity ServiceIdentity) (*PolicyBundle, string, error) {
-	var service *Service
-	var err error
-	if identity.TenantID > 0 {
-		service, err = s.serviceRepo.FindByNameAndTenantID(identity.ServiceName, identity.TenantID)
-	} else {
-		service, err = s.serviceRepo.FindByName(identity.ServiceName)
+	// A service name is unique PER TENANT, not globally — the seeder creates a
+	// service named "auth" in every tenant. Resolving without a tenant fell back to
+	// FindByName, whose First() returns the lowest service_id, i.e. the oldest
+	// (system) tenant. Every tenant-less principal therefore collapsed onto the
+	// system tenant's service and received its policy bundle.
+	if identity.TenantID <= 0 {
+		return nil, "", apperror.NewForbidden("this token is not bound to a tenant")
 	}
+	service, err := s.serviceRepo.FindByNameAndTenantID(identity.ServiceName, identity.TenantID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -77,7 +79,11 @@ func (s *serviceAuthorizationService) PolicyBundle(ctx context.Context, identity
 		}
 		var doc PolicyDocument
 		if err := json.Unmarshal(policy.Document, &doc); err != nil {
-			continue
+			// Fail the whole bundle rather than silently dropping one document: an
+			// unparseable document may have carried a deny, and serving the
+			// remaining allows without it would widen access.
+			return nil, "", apperror.NewInternal(
+				"a policy attached to this service could not be parsed", err)
 		}
 		docs = append(docs, doc)
 		versionInputs = append(versionInputs, policy.PolicyUUID.String()+":"+policy.UpdatedAt.UTC().Format(time.RFC3339Nano)+":"+string(policy.Document))

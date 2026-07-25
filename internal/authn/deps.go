@@ -351,9 +351,37 @@ type UserPasswordHistoryRepository interface {
 	PruneExcess(userID int64, keepCount int) error
 }
 
+// LockoutRules is the effective lockout policy for a single failure, projected
+// from security.RateLimitConfig. Passing it as a value keeps the repository
+// honest about every field it must honor — the previous signature took only
+// max-attempts and a flat duration, silently ignoring the observation window,
+// progressive escalation, permanent-lock and notify settings.
+type LockoutRules struct {
+	MaxAttempts       int
+	BaseDuration      time.Duration
+	ObservationWindow time.Duration
+	Progressive       bool
+	MaxDuration       time.Duration
+	ProgressionReset  time.Duration
+	AutoUnlock        bool
+}
+
+// LockoutResult reports the state after recording a failure. JustLocked is true
+// only on the transition from unlocked to locked, so the caller fires the user
+// notification exactly once per lockout.
+type LockoutResult struct {
+	Locked     bool
+	JustLocked bool
+}
+
 type UserLockoutRepository interface {
-	UpsertOnFailure(ctx context.Context, tenantID int64, identifier string, ip string, maxAttempts int, lockDuration time.Duration) (*UserLockout, error)
-	IsLocked(ctx context.Context, tenantID int64, identifier string, maxAttempts int, lockDuration time.Duration) (bool, error)
+	// RecordFailure records one failed attempt and applies the lockout policy
+	// atomically (row-locked), honoring the observation window, progressive
+	// escalation, and permanent-lock (auto_unlock=false) rules.
+	RecordFailure(ctx context.Context, tenantID int64, identifier, ip string, rules LockoutRules) (LockoutResult, error)
+	// IsLocked reports whether the identifier is currently locked — either a
+	// timed lock still in the future or a permanent lock.
+	IsLocked(ctx context.Context, tenantID int64, identifier string) (bool, error)
 	ClearLockout(ctx context.Context, tenantID int64, identifier string) error
 	ResetExpiredLockouts() (int64, error)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -171,12 +173,23 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 		return nil, apperror.NewOAuthInvalidGrant("subject_token claims could not be parsed")
 	}
 
-	// Find the first federation whose audience and subject_pattern match.
-	fed := s.matchFederation(feds, claims)
+	// Resolve the federation. The request carries NO tenant signal — no client
+	// credentials, no subdomain — so (issuer, aud, subject) is the only thing
+	// separating tenants, and an ambiguous match must never be settled by database
+	// row order.
+	fed, matchErr := s.matchFederation(feds, claims)
+	if matchErr != nil {
+		span.SetStatus(codes.Error, "federation match rejected")
+		return nil, matchErr
+	}
 	if fed == nil {
 		span.SetStatus(codes.Error, "no matching federation")
 		return nil, apperror.NewOAuthInvalidGrant("no workload identity federation matches the presented token")
 	}
+	span.SetAttributes(
+		attribute.String("wif.federation_uuid", fed.WorkloadIdentityFederationUUID.String()),
+		attribute.Int64("wif.tenant_id", fed.TenantID),
+	)
 
 	client, err := s.resolveClientByID(fed.ClientID)
 	if err != nil {
@@ -185,6 +198,18 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 	}
 	if client == nil {
 		return nil, apperror.NewOAuthInvalidGrant("the mapped client no longer exists")
+	}
+	// Create refuses an inactive client, but nothing re-checked it here: deactivating
+	// a client did not stop its federation from minting tokens for it. Deactivation
+	// has to be an effective kill switch on a keyless credential path.
+	if client.Status != shared.StatusActive {
+		return nil, apperror.NewOAuthInvalidGrant("the mapped client is not active")
+	}
+	// Defence in depth against a federation that somehow references another tenant's
+	// client: the issued token's tenant comes from the federation, so a mismatch
+	// would cross the tenant boundary.
+	if client.TenantID != fed.TenantID {
+		return nil, apperror.NewOAuthInvalidGrant("the mapped client does not belong to this federation's tenant")
 	}
 
 	grantedScopes, scopeOK := intersectScopes(in.Scope, []string(fed.AllowedScopes))
@@ -231,7 +256,13 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 	}
 
 	// Best-effort audit: record the exchange in oauth_token_exchanges (3.20).
+	//
+	// The issued jti is recorded so a token found later can be traced back to the
+	// workload that obtained it. Without it the audit row said only "some token was
+	// issued to this client", which is not actionable on an endpoint that takes no
+	// client credentials.
 	if s.auditor != nil {
+		issuedJTI := unverifiedClaim(token, "jti")
 		if aerr := s.auditor.RecordExchange(ctx, ExchangeAuditEntry{
 			TenantID:           fed.TenantID,
 			ActorClientID:      fed.ClientID,
@@ -239,6 +270,7 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 			RequestedTokenType: wifTokenTypeAccessToken,
 			ExchangeType:       "delegation",
 			Scopes:             grantedScopes,
+			IssuedJTI:          ptr.PtrOrNil(issuedJTI),
 			IPAddress:          ptr.PtrOrNil(in.IPAddress),
 			CreatedAt:          time.Now(),
 		}); aerr != nil {
@@ -257,12 +289,26 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 	}, nil
 }
 
-// matchFederation returns the first federation whose audience is present in the
-// token's aud claim and whose subject_pattern matches the configured subject
-// claim value.
-func (s *workloadIdentityFederationService) matchFederation(feds []WorkloadIdentityFederation, claims map[string]interface{}) *WorkloadIdentityFederation {
+// matchFederation resolves the single federation whose audience is present in the
+// token's aud claim and whose subject_pattern matches the configured subject claim
+// value.
+//
+// It returns an error when MORE THAN ONE federation matches and they do not all
+// belong to the same tenant. Taking the first match meant one tenant could
+// register the same issuer and audience with a broad subject_pattern and shadow
+// another tenant's exact-match federation: the victim's workload would then be
+// issued a token for the shadowing tenant's client. Which one won depended on
+// Postgres row order, so it could flip after a routine UPDATE with no config
+// change. On an unauthenticated endpoint that has to fail closed.
+func (s *workloadIdentityFederationService) matchFederation(
+	feds []WorkloadIdentityFederation,
+	claims map[string]interface{},
+) (*WorkloadIdentityFederation, *apperror.OAuthError) {
+	var matches []*WorkloadIdentityFederation
+	tenants := map[int64]struct{}{}
+
 	for i := range feds {
-		fed := feds[i]
+		fed := &feds[i]
 		if !audienceMatches(claims, fed.Audience) {
 			continue
 		}
@@ -274,11 +320,34 @@ func (s *workloadIdentityFederationService) matchFederation(feds []WorkloadIdent
 		if subjectVal == "" {
 			continue
 		}
+		// Fail closed on a stored pattern that is too broad to be a boundary, even
+		// though the validator refuses to write one — see SubjectPatternTooBroad.
+		if SubjectPatternTooBroad(fed.SubjectPattern) {
+			slog.Error("refusing a workload identity federation whose subject_pattern is too broad to be a trust boundary; "+
+				"edit it to anchor on your organisation or namespace",
+				"federation_uuid", fed.WorkloadIdentityFederationUUID.String(),
+				"tenant_id", fed.TenantID,
+				"subject_pattern", fed.SubjectPattern)
+			continue
+		}
 		if matchSubjectPattern(fed.SubjectPattern, subjectVal) {
-			return &fed
+			matches = append(matches, fed)
+			tenants[fed.TenantID] = struct{}{}
 		}
 	}
-	return nil
+
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	if len(tenants) > 1 {
+		// Cross-tenant ambiguity: refuse rather than pick a tenant for the caller.
+		return nil, apperror.NewOAuthInvalidGrant(
+			"this token matches workload identity federations in more than one tenant; " +
+				"the configurations are ambiguous and must be narrowed")
+	}
+	// Within one tenant the caller has already proven the same trust relationship,
+	// so the deterministic first match (ordered by id in the repository) is safe.
+	return matches[0], nil
 }
 
 // ---------------------------------------------------------------------------
@@ -303,6 +372,26 @@ func unverifiedIssuer(token string) (string, bool) {
 	}
 	iss, _ := claims["iss"].(string)
 	return iss, iss != ""
+}
+
+// unverifiedClaim decodes a JWT payload without verifying the signature and returns
+// a string claim. Used only for tokens this server just minted, to recover the jti
+// for the audit trail — the generator does not return it.
+func unverifiedClaim(token, name string) string {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return ""
+	}
+	value, _ := claims[name].(string)
+	return value
 }
 
 // audienceMatches reports whether audience is present in the token's aud claim
@@ -357,6 +446,38 @@ func stringifyClaim(v interface{}) string {
 	default:
 		return fmt.Sprintf("%v", val)
 	}
+}
+
+// minSubjectPatternLiterals is the smallest number of non-wildcard characters an
+// anchored subject_pattern must contain — enough for an org/namespace segment.
+const minSubjectPatternLiterals = 6
+
+// SubjectPatternTooBroad reports whether a pattern is too permissive to be a trust
+// boundary: a bare wildcard, a leading wildcard, or too little literal text to
+// identify an organisation or namespace.
+//
+// Enforced BOTH at write time (validation) and here at match time. Write-time
+// validation alone would leave any row that predates the rule — or one inserted by
+// direct SQL, a restored backup, or a future import path — matching every workload
+// on its issuer forever, because validation never re-runs on read.
+func SubjectPatternTooBroad(pattern string) bool {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return true
+	}
+	if !strings.ContainsAny(pattern, "*?") {
+		return false // an exact pattern cannot over-match
+	}
+	if strings.HasPrefix(pattern, "*") || strings.HasPrefix(pattern, "?") {
+		return true
+	}
+	literals := 0
+	for _, r := range pattern {
+		if r != '*' && r != '?' {
+			literals++
+		}
+	}
+	return literals < minSubjectPatternLiterals
 }
 
 // matchSubjectPattern matches a glob pattern (with '*' and '?' wildcards)
@@ -422,10 +543,25 @@ func clientSubject(client *Client) string {
 
 // buildExtraClaims maps external token claims to internal claim names per the
 // federation's attribute_mapping and records the external subject for audit.
+//
+// SECURITY: the values in attribute_mapping are DESTINATION claim names, and
+// jwt.GenerateAccessTokenWithOptions merges ExtraClaims LAST, over the standard
+// claim set. A mapping onto a reserved name is therefore a token-forgery
+// primitive on an endpoint that requires no client authentication: mapping an
+// attacker-chosen external claim onto `sub` and `client_id` yields a token signed
+// by the real platform key whose identity is the victim's, and
+// UserContextMiddleware resolves the user, tenant and roles from exactly those two
+// claims. Mapping onto `svc` forges a service principal over gRPC.
+//
+// Reserved destinations are dropped rather than rejected because issuance must
+// degrade to a correct token rather than deny service; the create/update
+// validator refuses them up front so an operator learns at configuration time.
+// Note the direction is inverted relative to clients.claim_mappers: here the
+// reserved check applies to the map's VALUE, not its key.
 func buildExtraClaims(claims map[string]interface{}, mapping map[string]string, subjectClaim string) map[string]any {
 	extra := map[string]any{}
 	for externalKey, internalKey := range mapping {
-		if internalKey == "" {
+		if internalKey == "" || jwt.IsReservedClaim(internalKey) {
 			continue
 		}
 		if v := lookupClaim(claims, externalKey); v != nil {
@@ -437,6 +573,9 @@ func buildExtraClaims(claims map[string]interface{}, mapping map[string]string, 
 	}
 	if ext := stringifyClaim(lookupClaim(claims, subjectClaim)); ext != "" {
 		// act.sub records the delegated (workload) principal per RFC 8693 §4.1.
+		// Set AFTER the operator's mapping so a mapping onto "act" cannot forge the
+		// delegation chain — this is the system stamping its own claim, which is why
+		// `act` is reserved above.
 		extra["act"] = map[string]any{"sub": ext}
 	}
 	return extra

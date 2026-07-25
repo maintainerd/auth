@@ -30,7 +30,7 @@ var (
 
 // mockWIFService is a function-field mock of WorkloadIdentityFederationService.
 type mockWIFService struct {
-	getAllFn   func(int64, int, int, string, string) (*WorkloadIdentityFederationServiceListResult, error)
+	getAllFn   func(int64, WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error)
 	getFn      func(int64, uuid.UUID) (*WorkloadIdentityFederationServiceDataResult, error)
 	createFn   func(int64, WorkloadIdentityFederationCreateInput) (*WorkloadIdentityFederationServiceDataResult, error)
 	updateFn   func(int64, uuid.UUID, WorkloadIdentityFederationUpdateInput) (*WorkloadIdentityFederationServiceDataResult, error)
@@ -38,9 +38,9 @@ type mockWIFService struct {
 	exchangeFn func(WorkloadExchangeInput) (*WorkloadExchangeResult, *apperror.OAuthError)
 }
 
-func (m *mockWIFService) GetAll(_ context.Context, tid int64, page, limit int, sortBy, sortOrder string) (*WorkloadIdentityFederationServiceListResult, error) {
+func (m *mockWIFService) GetAll(_ context.Context, tid int64, filter WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error) {
 	if m.getAllFn != nil {
-		return m.getAllFn(tid, page, limit, sortBy, sortOrder)
+		return m.getAllFn(tid, filter)
 	}
 	return &WorkloadIdentityFederationServiceListResult{}, nil
 }
@@ -100,6 +100,13 @@ func withTenant(r *http.Request) *http.Request {
 	tenant := &authctx.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
 	user := &authctx.AuthUser{UserID: testUserID}
 	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant, User: user})
+}
+
+// withTenantOnly attaches a tenant but NO user, which is what an unattributed
+// (service-principal) caller looks like to the write handlers.
+func withTenantOnly(r *http.Request) *http.Request {
+	tenant := &authctx.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant})
 }
 
 func withChiParam(r *http.Request, key, val string) *http.Request {

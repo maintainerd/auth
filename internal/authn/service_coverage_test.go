@@ -325,7 +325,7 @@ func TestResetPasswordService_RemainingBranches(t *testing.T) {
 		}}
 		svc := NewResetPasswordService(db, userRepo, &mockUserTokenRepo{}, &mockClientRepo{
 			findSystemFn: func() (*Client, error) { return &Client{ClientID: 1}, nil },
-		}, nil, nil)
+		}, nil, nil, nil)
 
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 
@@ -420,7 +420,7 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 
 	t.Run("register internal password policy error", func(t *testing.T) {
 		orig := secValidatePasswordPolicy
-		secValidatePasswordPolicy = func(string, security.PasswordPolicy) error {
+		secValidatePasswordPolicy = func(context.Context, string, security.PasswordPolicy) error {
 			return errors.New("policy error")
 		}
 		t.Cleanup(func() { secValidatePasswordPolicy = orig })

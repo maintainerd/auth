@@ -45,12 +45,48 @@ func (h *AuthorizationHandler) Authorize(w http.ResponseWriter, r *http.Request)
 		resp.BadRequestBody(w)
 		return
 	}
-	auth := middleware.AuthFromRequest(r)
-	if auth != nil && auth.Tenant != nil {
+	// The caller supplies only the QUESTION (action + resource). Principal and
+	// tenant are taken from the signed token and overwrite whatever the body said.
+	//
+	// This route runs JWTAuthMiddleware only — no UserContextMiddleware — so
+	// AuthFromRequest().Tenant was always nil and the previous conditional override
+	// never fired. Both fields were therefore mass-assignable from the request body,
+	// letting any valid token probe allow/deny against any principal in any tenant.
+	claims := middleware.JWTClaimsFromRequest(r)
+	if claims == nil {
+		resp.Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+	req.Principal = authorizationPrincipal(claims)
+	req.TenantID = claims.TenantID
+	if auth := middleware.AuthFromRequest(r); auth != nil && auth.Tenant != nil {
 		req.TenantID = auth.Tenant.TenantID
 	}
+	if req.Principal == "" {
+		resp.Error(w, http.StatusForbidden, "This token has no principal to authorize")
+		return
+	}
+	if req.TenantID == 0 {
+		// A tenant-less decision would be evaluated against whichever tenant's
+		// policies happened to be found first.
+		resp.Error(w, http.StatusForbidden, "This token is not bound to a tenant")
+		return
+	}
+
 	decision := h.service.Authorize(r.Context(), req)
 	resp.Success(w, decision, "Authorization decision evaluated")
+}
+
+// authorizationPrincipal derives the principal name from the token: the service
+// claim, or the subject when the token represents a service.
+func authorizationPrincipal(claims *middleware.JWTClaims) string {
+	if claims.Service != "" {
+		return claims.Service
+	}
+	if claims.SubjectType == "service" {
+		return claims.Sub
+	}
+	return ""
 }
 
 func serviceIdentityFromRequest(r *http.Request) (ServiceIdentity, bool) {
@@ -58,16 +94,16 @@ func serviceIdentityFromRequest(r *http.Request) (ServiceIdentity, bool) {
 	if claims == nil {
 		return ServiceIdentity{}, false
 	}
-	serviceName := claims.Service
-	if serviceName == "" && claims.SubjectType == "service" {
-		serviceName = claims.Sub
-	}
+	serviceName := authorizationPrincipal(claims)
 	if serviceName == "" {
 		return ServiceIdentity{}, false
 	}
 	identity := ServiceIdentity{ServiceName: serviceName, ClientID: claims.ClientID}
-	auth := middleware.AuthFromRequest(r)
-	if auth != nil && auth.Tenant != nil {
+	// Tenant comes from the signed `tenant_id` claim. This route does not run
+	// UserContextMiddleware, so AuthFromRequest().Tenant is nil here and relying on
+	// it left the tenant at 0 — which selected the unscoped principal lookup.
+	identity.TenantID = claims.TenantID
+	if auth := middleware.AuthFromRequest(r); auth != nil && auth.Tenant != nil {
 		identity.TenantID = auth.Tenant.TenantID
 	}
 	return identity, true

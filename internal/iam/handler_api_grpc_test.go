@@ -1,7 +1,6 @@
 package iam
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -18,7 +17,7 @@ import (
 )
 
 func TestAPIGRPCHandler_RPCS(t *testing.T) {
-	ctx := context.Background()
+	ctx := grpcCallerCtx(77)
 	tenantUUID := uuid.New()
 	apiUUID := uuid.New()
 	serviceUUID := uuid.New()

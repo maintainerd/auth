@@ -202,7 +202,10 @@ func TestRegisterHandler_RegisterPublic_ValidationError(t *testing.T) {
 	r := regRequest(t, "/public/register?client_id=c1", map[string]string{
 		"username": "user1",
 		"fullname": "User One",
-		"password": "Password1234", // no special char → weak password
+		// Too short for the DTO's absolute bound. Password STRENGTH is the tenant's
+		// policy and is applied in the service layer, so the handler can only reject
+		// a malformed request — it must not re-impose a hardcoded composition rule.
+		"password": "short",
 	})
 	w := httptest.NewRecorder()
 	h.RegisterPublic(w, r)
@@ -217,7 +220,10 @@ func TestRegisterHandler_Register_ValidationError(t *testing.T) {
 	r := regRequest(t, "/register?tenant_id=system", map[string]string{
 		"username": "user1",
 		"fullname": "User One",
-		"password": "Password1234", // no special char → weak password
+		// Too short for the DTO's absolute bound. Password STRENGTH is the tenant's
+		// policy and is applied in the service layer, so the handler can only reject
+		// a malformed request — it must not re-impose a hardcoded composition rule.
+		"password": "short",
 	})
 	w := httptest.NewRecorder()
 	h.Register(w, r)

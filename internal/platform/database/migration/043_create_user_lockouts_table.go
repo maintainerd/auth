@@ -13,6 +13,16 @@ CREATE TABLE IF NOT EXISTS user_lockouts (
     failed_count      INTEGER      NOT NULL DEFAULT 0,
     last_failed_at    TIMESTAMPTZ,
     locked_until      TIMESTAMPTZ,
+    -- locked_until expresses a TIMED lock (auto-unlocks when it passes). The
+    -- locked flag below expresses a PERMANENT lock for the auto_unlock=false
+    -- policy: no expiry, released only by an admin ClearLockout. Distinct states
+    -- a row can be in: timed-locked, permanently-locked, or not locked.
+    locked            BOOLEAN      NOT NULL DEFAULT FALSE,
+    -- lockout_level / last_locked_at drive progressive_lockout: each lock escalates
+    -- the level (duration = level * base, capped at max_lockout_duration), and the
+    -- level resets once progression_reset has elapsed since the last lock.
+    lockout_level     INTEGER      NOT NULL DEFAULT 0,
+    last_locked_at    TIMESTAMPTZ,
     ip_address        INET,
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),

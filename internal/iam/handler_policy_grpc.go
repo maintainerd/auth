@@ -2,6 +2,7 @@ package iam
 
 import (
 	"context"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
@@ -144,7 +145,12 @@ func (h *PolicyGRPCHandler) UpdatePolicy(ctx context.Context, req *authv1.Update
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	result, err := h.policyService.Update(ctx, id, scope.TenantID, dto.Name, dto.Description, dto.Document, dto.Version, dto.Status)
+	// The control plane authenticates as a service, not a user, so the change is
+	// attributed to the calling client. Without this the gRPC path — which writes no
+	// management_audit_log row either — would leave policy changes entirely
+	// unattributed.
+	result, err := h.policyService.Update(ctx, id, scope.TenantID, dto.Name, dto.Description,
+		dto.Document, dto.Version, dto.Status, policyChangeContextFromGRPC(ctx))
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -177,4 +183,14 @@ func (h *PolicyGRPCHandler) DeletePolicy(ctx context.Context, req *authv1.Delete
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.DeletePolicyResponse{Policy: policyProto(result)}, nil
+}
+
+// policyChangeContextFromGRPC attributes a policy change to the calling principal.
+func policyChangeContextFromGRPC(ctx context.Context) PolicyChangeContext {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil {
+		return PolicyChangeContext{}
+	}
+	reason := "changed via the gRPC control plane by " + claims.Service
+	return PolicyChangeContext{Reason: &reason}
 }

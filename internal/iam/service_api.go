@@ -420,6 +420,15 @@ func (s *apiService) DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenant
 	}
 
 	err = s.db.Transaction(func(tx *gorm.DB) error {
+		// Cascade to the API's permissions. The FK carries ON DELETE CASCADE, but the
+		// API is SOFT-deleted, so the FK never fires: the permissions would survive
+		// pointing at a dead API, still attached to roles, clients and API keys, and
+		// still resolvable into tokens.
+		if err := tx.Model(&Permission{}).
+			Where("api_id = ? AND tenant_id = ? AND deleted_at IS NULL", api.APIID, tenantID).
+			Update("deleted_at", time.Now()).Error; err != nil {
+			return err
+		}
 		if err := s.apiRepo.WithTx(tx).DeleteByUUIDAndTenantID(apiUUID, tenantID); err != nil {
 			return err
 		}

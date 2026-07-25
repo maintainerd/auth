@@ -110,8 +110,8 @@ func (m *mockServiceRepo) FindPaginated(ServiceRepositoryGetFilter) (*Pagination
 func (m *mockServiceRepo) FindServicesByPolicyUUID(uuid.UUID, ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
 	return &PaginationResult[Service]{}, nil
 }
-func (m *mockServiceRepo) SetStatusByUUID(uuid.UUID, string) error       { return nil }
-func (m *mockServiceRepo) CountPoliciesByServiceID(int64) (int64, error) { return 0, nil }
+func (m *mockServiceRepo) SetStatusByUUID(uuid.UUID, int64, string) error { return nil }
+func (m *mockServiceRepo) CountPoliciesByServiceID(int64) (int64, error)  { return 0, nil }
 func (m *mockServiceRepo) CreateOrUpdate(service *Service) (*Service, error) {
 	if m.createOrUpdateFn != nil {
 		return m.createOrUpdateFn(service)

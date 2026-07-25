@@ -1,7 +1,6 @@
 package iam
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -18,7 +17,7 @@ import (
 )
 
 func TestPolicyGRPCHandler_RPCS(t *testing.T) {
-	ctx := context.Background()
+	ctx := grpcCallerCtx(77)
 	now := time.Now()
 	tenantUUID := uuid.New()
 	policyUUID := uuid.New()

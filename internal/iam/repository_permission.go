@@ -44,6 +44,15 @@ func NewPermissionRepository(db *gorm.DB) PermissionRepository {
 	}
 }
 
+// permissionSortColumns is this table's own sort allowlist. The global set in
+// platform/database is a union across every table, so ordering by a column
+// `permissions` does not have reaches Postgres as an undefined column (42703) and
+// surfaces as a 500 rather than a 400.
+var permissionSortColumns = map[string]struct{}{
+	"created_at": {}, "updated_at": {}, "name": {}, "status": {},
+	"is_system": {}, "tenant_id": {}, "api_id": {},
+}
+
 func (r *permissionRepository) WithTx(tx *gorm.DB) PermissionRepository {
 	return &permissionRepository{
 		BaseRepository: r.BaseRepository.WithTx(tx),
@@ -116,7 +125,7 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("API")
+	query = query.Order(database.SanitizeOrderIn(permissionSortColumns, filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("API")
 
 	return database.PaginateQuery[Permission](query, filter.Page, filter.Limit)
 }

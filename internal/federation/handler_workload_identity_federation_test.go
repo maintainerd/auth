@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // ---------------------------------------------------------------------------
@@ -30,7 +31,7 @@ func TestWIFHandler_GetAll_ValidationError(t *testing.T) {
 
 func TestWIFHandler_GetAll_ServiceError(t *testing.T) {
 	svc := &mockWIFService{
-		getAllFn: func(int64, int, int, string, string) (*WorkloadIdentityFederationServiceListResult, error) {
+		getAllFn: func(int64, WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -43,7 +44,7 @@ func TestWIFHandler_GetAll_ServiceError(t *testing.T) {
 
 func TestWIFHandler_GetAll_Success(t *testing.T) {
 	svc := &mockWIFService{
-		getAllFn: func(int64, int, int, string, string) (*WorkloadIdentityFederationServiceListResult, error) {
+		getAllFn: func(int64, WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error) {
 			return &WorkloadIdentityFederationServiceListResult{
 				Data:       []WorkloadIdentityFederationServiceDataResult{*wifResult()},
 				Total:      1,
@@ -293,4 +294,102 @@ func TestWIFHandler_Delete_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Delete(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// The listing search box and status filter are only real if the handler actually
+// parses them — shipping a search box the server ignores is worse than none.
+func TestWIFHandler_GetAll_ParsesSearchAndFilter(t *testing.T) {
+	var got WorkloadIdentityFederationListFilter
+	svc := &mockWIFService{
+		getAllFn: func(_ int64, filter WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error) {
+			got = filter
+			return &WorkloadIdentityFederationServiceListResult{}, nil
+		},
+	}
+	h := NewWorkloadIdentityFederationHandler(svc)
+	r := withTenant(httptest.NewRequest(http.MethodGet,
+		"/workload-identity-federations?page=2&limit=25&name=github&is_active=false&sort_by=name&sort_order=asc", nil))
+	w := httptest.NewRecorder()
+
+	h.GetAll(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.NotNil(t, got.Name)
+	assert.Equal(t, "github", *got.Name)
+	require.NotNil(t, got.IsActive)
+	assert.False(t, *got.IsActive, "is_active=false must reach the repository, not be dropped as a zero value")
+	assert.Equal(t, 2, got.Page)
+	assert.Equal(t, 25, got.Limit)
+	assert.Equal(t, "name", got.SortBy)
+}
+
+// The listing filter chips send words, not booleans, matching the is_system
+// ("system"/"regular") convention in the other listings.
+func TestWIFHandler_GetAll_AcceptsHumanStatusValues(t *testing.T) {
+	cases := map[string]bool{"active": true, "inactive": false, "true": true, "false": false}
+	for value, want := range cases {
+		var got WorkloadIdentityFederationListFilter
+		svc := &mockWIFService{
+			getAllFn: func(_ int64, filter WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error) {
+				got = filter
+				return &WorkloadIdentityFederationServiceListResult{}, nil
+			},
+		}
+		h := NewWorkloadIdentityFederationHandler(svc)
+		r := withTenant(httptest.NewRequest(http.MethodGet,
+			"/workload-identity-federations?is_active="+value, nil))
+		w := httptest.NewRecorder()
+
+		h.GetAll(w, r)
+
+		require.NotNil(t, got.IsActive, "is_active=%q was dropped", value)
+		assert.Equal(t, want, *got.IsActive, "is_active=%q", value)
+	}
+}
+
+func TestWIFHandler_GetAll_OmitsAbsentFilters(t *testing.T) {
+	var got WorkloadIdentityFederationListFilter
+	svc := &mockWIFService{
+		getAllFn: func(_ int64, filter WorkloadIdentityFederationListFilter) (*WorkloadIdentityFederationServiceListResult, error) {
+			got = filter
+			return &WorkloadIdentityFederationServiceListResult{}, nil
+		},
+	}
+	h := NewWorkloadIdentityFederationHandler(svc)
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/workload-identity-federations", nil))
+	w := httptest.NewRecorder()
+
+	h.GetAll(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Nil(t, got.Name, "an absent name must not become an empty-string filter")
+	assert.Nil(t, got.IsActive)
+}
+
+// Every write path must be attributable: these mutate a keyless-auth trust rule.
+func TestWIFHandler_Writes_RequireAnActor(t *testing.T) {
+	h := NewWorkloadIdentityFederationHandler(&mockWIFService{})
+
+	t.Run("create", func(t *testing.T) {
+		r := withTenantOnly(jsonReq(t, http.MethodPost, "/", map[string]any{"name": "x"}))
+		w := httptest.NewRecorder()
+		h.Create(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("update", func(t *testing.T) {
+		r := withTenantOnly(withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"name": "x"}),
+			"workload_identity_federation_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		h.Update(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		r := withTenantOnly(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil),
+			"workload_identity_federation_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		h.Delete(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 }

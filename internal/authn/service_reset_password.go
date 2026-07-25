@@ -25,6 +25,10 @@ type resetPasswordService struct {
 	clientRepo          ClientRepository
 	securitySettingRepo secpolicy.SecuritySettingRepository // nil → use defaults
 	passwordHistoryRepo UserPasswordHistoryRepository       // nil → skip history
+	// sessionRepo is the CANONICAL session store (user_sessions), the one
+	// UserContextMiddleware validates every request against. Revoking anywhere
+	// else does not end a login.
+	sessionRepo UserSessionRepository
 }
 
 func NewResetPasswordService(
@@ -34,6 +38,7 @@ func NewResetPasswordService(
 	clientRepo ClientRepository,
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
+	sessionRepo UserSessionRepository,
 ) ResetPasswordService {
 	return &resetPasswordService{
 		db:                  db,
@@ -42,6 +47,7 @@ func NewResetPasswordService(
 		clientRepo:          clientRepo,
 		securitySettingRepo: securitySettingRepo,
 		passwordHistoryRepo: passwordHistoryRepo,
+		sessionRepo:         sessionRepo,
 	}
 }
 
@@ -133,7 +139,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		// Validate password against tenant policy
 		tenantID := clientTenantID(Client)
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantID)
-		if err := security.ValidatePasswordPolicy(newPassword, policy); err != nil {
+		if err := security.ValidatePasswordPolicyWithContext(ctx, newPassword, policy); err != nil {
 			return apperror.NewValidation(err.Error())
 		}
 
@@ -160,13 +166,34 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			return apperror.NewInternal("failed to update password", txErr)
 		}
 
-		// Record new hash in history
-		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, user.UserID, policy.HistoryCount, string(hashedPassword))
+		// Record new hash in history, transaction-scoped and fail-closed. A
+		// dropped entry is invisible and permanent: the row that was supposed
+		// to stop the user cycling straight back to this password would simply
+		// not exist, and nothing would ever report it.
+		historyRepo := s.passwordHistoryRepo
+		if historyRepo != nil {
+			historyRepo = historyRepo.WithTx(tx)
+		}
+		if txErr = secpolicy.RecordPasswordHistory(historyRepo, user.UserID, policy.HistoryCount, string(hashedPassword)); txErr != nil {
+			return apperror.NewInternal("failed to record password history", txErr)
+		}
 
-		// Revoke all sessions so existing logins are invalidated after password change,
-		// unless the tenant policy has opted out via revoke_sessions_on_password_change=false.
+		// Revoke every session so a password reset actually ends the attacker's
+		// access, unless the tenant has opted out via
+		// revoke_sessions_on_password_change=false.
+		//
+		// This used to call txUserTokenRepo.RevokeAllSessionsByUserID, which
+		// updates user_tokens rows of token_type 'user:session'. The login flow
+		// stopped writing those rows when sessions moved to the user_sessions
+		// table, so nothing matched the UPDATE and a reset logged NOBODY out —
+		// the exact opposite of what the control exists for, and silent because
+		// updating zero rows is not an error. It now targets the canonical
+		// session store that UserContextMiddleware actually validates against.
 		if secpolicy.ShouldRevokeSessionsOnPasswordChange(s.securitySettingRepo, tenantID) {
-			if txErr = txUserTokenRepo.RevokeAllSessionsByUserID(user.UserID); txErr != nil {
+			if s.sessionRepo == nil {
+				return apperror.NewInternal("cannot revoke sessions on password reset: no session repository configured", nil)
+			}
+			if txErr = s.sessionRepo.WithTx(tx).RevokeAllByUserID(user.UserID, "password reset"); txErr != nil {
 				return apperror.NewInternal("failed to revoke sessions on password reset", txErr)
 			}
 		}
@@ -197,9 +224,19 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "reset password failed")
 		// authevent.Log security event for failed password reset
+		// NEVER log the raw token. It is a bearer credential, and several failure
+		// paths here leave it VALID and unused — a policy rejection, a history
+		// rejection, or an inactive account. Writing it to the application log handed
+		// anyone with log or SIEM access a working account-takeover token for the
+		// remainder of its TTL. The PII redactor cannot help: it matches on key
+		// names, and this was logged under "user_id".
+		failureSubject := "unknown"
+		if user != nil {
+			failureSubject = user.UserUUID.String()
+		}
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "password_reset_failure",
-			UserID:    token, // Use token as identifier since we might not have user
+			UserID:    failureSubject,
 			Details:   fmt.Sprintf("Password reset failed: %v", err),
 			Severity:  "HIGH",
 			Timestamp: time.Now(),

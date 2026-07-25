@@ -13,7 +13,7 @@ type Service struct {
 	TenantID    int64          `gorm:"column:tenant_id"`
 	Name        string         `gorm:"column:name"`
 	DisplayName string         `gorm:"column:display_name"`
-	Description string         `gorm:"column:description"`
+	Description string         `gorm:"column:description;not null;default:''"`
 	Version     string         `gorm:"column:version"`
 	Status      string         `gorm:"column:status;not null;default:'inactive'"`
 	IsSystem    bool           `gorm:"column:is_system;not null;default:false"`

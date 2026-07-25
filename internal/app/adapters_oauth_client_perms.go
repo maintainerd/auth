@@ -24,7 +24,12 @@ func (r *clientPermissionResolver) ResolvePermissions(ctx context.Context, clien
 		Select("DISTINCT p.name").
 		Joins("JOIN permissions p ON client_permissions.permission_id = p.permission_id").
 		Joins("JOIN client_apis ca ON client_permissions.client_api_id = ca.client_api_id").
-		Where("ca.client_id = ?", clientID).
+		// p.deleted_at IS NULL is REQUIRED: this is a raw Table() join, so GORM's
+		// soft-delete scope does not apply. Without it a deleted permission kept
+		// being written into every access token — deleting a permission did not
+		// revoke it. The sibling resolvers in adapters_idp.go:268 and
+		// adapters_authn_invite.go:94 already filter; this path did not.
+		Where("ca.client_id = ? AND p.deleted_at IS NULL", clientID).
 		Rows()
 	if err != nil {
 		return nil, err
@@ -44,7 +49,7 @@ func (r *clientPermissionResolver) ResolvePermissions(ctx context.Context, clien
 		Select("DISTINCT p.name").
 		Joins("JOIN role_permissions rp ON client_roles.role_id = rp.role_id").
 		Joins("JOIN permissions p ON rp.permission_id = p.permission_id").
-		Where("client_roles.client_id = ?", clientID).
+		Where("client_roles.client_id = ? AND p.deleted_at IS NULL", clientID).
 		Rows()
 	if err != nil {
 		return nil, err

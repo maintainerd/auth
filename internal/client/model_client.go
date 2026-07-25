@@ -57,6 +57,9 @@ type Client struct {
 	ClientUUID uuid.UUID `gorm:"column:client_uuid"`
 	TenantID   int64     `gorm:"column:tenant_id;not null"`
 	ServiceID  *int64    `gorm:"column:service_id"`
+	// Service is the bound service, when this client acts as one. Preloaded only
+	// where a response needs to render the binding; nil otherwise.
+	Service *boundService `gorm:"foreignKey:ServiceID;references:ServiceID"`
 
 	// Legacy read projection for callers that have not migrated to
 	// ConnectedProviders yet. This is populated from client_identity_providers,

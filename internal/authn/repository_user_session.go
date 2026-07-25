@@ -10,6 +10,7 @@ import (
 )
 
 type UserSessionRepository interface {
+	WithTx(tx *gorm.DB) UserSessionRepository
 	FindActiveByUserID(userID int64) ([]UserSession, error)
 	FindActiveByUUID(userID int64, sessionUUID uuid.UUID) (*UserSession, error)
 	CountActive(userID int64) (int64, error)
@@ -17,6 +18,10 @@ type UserSessionRepository interface {
 	Touch(sessionID int64, now time.Time) error
 	RevokeByUUID(userID int64, sessionUUID uuid.UUID, reason string) error
 	RevokeAllByUserID(userID int64, reason string) error
+	// RevokeAllExceptUUID revokes every active session for the user except the
+	// one given. Used by self-service password change, where revoking the
+	// caller's own session would log them out for doing the right thing.
+	RevokeAllExceptUUID(userID int64, keepSessionUUID uuid.UUID, reason string) error
 	DeleteExpired() (int64, error)
 }
 
@@ -28,6 +33,10 @@ func NewUserSessionRepository(db *gorm.DB) UserSessionRepository {
 	return &userSessionRepository{
 		BaseRepository: database.NewBaseRepository[UserSession](db, "user_session_uuid", "user_session_id"),
 	}
+}
+
+func (r *userSessionRepository) WithTx(tx *gorm.DB) UserSessionRepository {
+	return &userSessionRepository{BaseRepository: r.BaseRepository.WithTx(tx)}
 }
 
 func (r *userSessionRepository) FindActiveByUserID(userID int64) ([]UserSession, error) {
@@ -85,6 +94,16 @@ func (r *userSessionRepository) RevokeAllByUserID(userID int64, reason string) e
 	now := time.Now()
 	return r.DB().Model(&UserSession{}).
 		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Updates(map[string]interface{}{
+			"revoked_at":     &now,
+			"revoked_reason": &reason,
+		}).Error
+}
+
+func (r *userSessionRepository) RevokeAllExceptUUID(userID int64, keepSessionUUID uuid.UUID, reason string) error {
+	now := time.Now()
+	return r.DB().Model(&UserSession{}).
+		Where("user_id = ? AND revoked_at IS NULL AND user_session_uuid <> ?", userID, keepSessionUUID).
 		Updates(map[string]interface{}{
 			"revoked_at":     &now,
 			"revoked_reason": &reason,

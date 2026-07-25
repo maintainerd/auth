@@ -221,6 +221,12 @@ func (s *permissionService) Create(ctx context.Context, tenantID int64, name str
 		if api == nil {
 			return apperror.NewNotFoundWithReason("api not found or access denied")
 		}
+		// A system API's permission set is the platform's own control surface; a
+		// tenant-authored permission underneath it would appear in that API's set and
+		// in every client_apis grant derived from it.
+		if api.IsSystem {
+			return apperror.NewValidation("permissions cannot be added to a system API")
+		}
 
 		// Create permission
 		newPermission := &Permission{
@@ -420,6 +426,11 @@ func (s *permissionService) SetStatus(ctx context.Context, permissionUUID uuid.U
 		}
 		if permission == nil {
 			return apperror.NewNotFoundWithReason("permission not found or access denied")
+		}
+		// Update, SetActiveStatusByUUID and DeleteByUUID all guard this; SetStatus was
+		// the one mutation that did not, so a system permission could be deactivated.
+		if permission.IsSystem {
+			return apperror.NewValidation("system permissions cannot be modified")
 		}
 
 		// Set status

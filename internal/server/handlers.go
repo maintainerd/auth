@@ -184,6 +184,9 @@ func initHandlers(application *Application) *handlers {
 	h.account.SetAuditLogger(al)
 	h.invite.SetAuditLogger(al)
 	h.dataErasure.SetAuditLogger(al)
+	// Granting a keyless-auth trust rule is at least as audit-worthy as using one;
+	// this handler was the only write-path handler missing from this block.
+	h.wif.SetAuditLogger(al)
 
 	// Wire resource-side DPoP enforcement (RFC 9449 §7.1). Tokens were already
 	// issued with a cnf.jkt binding, but nothing verified it: a bound token was

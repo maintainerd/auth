@@ -1,7 +1,6 @@
 package iam
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -16,7 +15,7 @@ import (
 )
 
 func TestRoleGRPCHandler_RPCS(t *testing.T) {
-	ctx := context.Background()
+	ctx := grpcCallerCtx(77)
 	now := time.Now()
 	tenantUUID := uuid.New()
 	roleUUID := uuid.New()

@@ -93,7 +93,7 @@ func TestPolicyService_Update_EmitsPolicyUpdatedEvent(t *testing.T) {
 			return policy, nil
 		},
 	}, &mockServiceRepo{}, &mockAPIRepo{}, nil, events)
-	_, err := svc.Update(context.Background(), policyUUID, tenantID, "new", nil, policy.Document, "v1", "active")
+	_, err := svc.Update(context.Background(), policyUUID, tenantID, "new", nil, policy.Document, "v1", "active", PolicyChangeContext{})
 	require.NoError(t, err)
 	require.Len(t, events.events, 1)
 	require.Equal(t, authevent.AuthEventTypeIAMPolicyUpdated, events.events[0].EventType)

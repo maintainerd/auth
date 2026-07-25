@@ -24,6 +24,24 @@ type ChangeUsernameDTO struct {
 	CurrentPassword string `json:"current_password"`
 }
 
+// ChangePasswordDTO is the request to rotate the authenticated user's own
+// password. Both fields are required; no length or composition rules are
+// declared here on purpose — those belong to the tenant's password policy, and
+// duplicating them at the DTO layer is how the two drift apart.
+type ChangePasswordDTO struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// ChangePasswordResponseDTO reports what happened to the user's other sessions,
+// so the client can tell them rather than leaving them to discover it.
+type ChangePasswordResponseDTO struct {
+	OtherSessionsRevoked bool `json:"other_sessions_revoked"`
+	// ReauthenticationRequired is true when the caller's own session could not
+	// be identified and everything was revoked as the safe fallback.
+	ReauthenticationRequired bool `json:"reauthentication_required"`
+}
+
 // AccountDeleteDTO is the request to permanently delete an account.
 type AccountDeleteDTO struct {
 	CurrentPassword string `json:"current_password"`

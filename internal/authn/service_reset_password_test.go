@@ -76,7 +76,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockClientRepo{
 			findSystemFn: func() (*Client, error) { return nil, errors.New("db error") },
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -90,7 +90,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockClientRepo{
 			findSystemFn: func() (*Client, error) { return nil, nil },
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -106,7 +106,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 				return nil, errors.New("client lookup error")
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -122,7 +122,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 				return nil, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -142,7 +142,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -160,7 +160,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -180,7 +180,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -198,7 +198,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -222,7 +222,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -244,7 +244,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -268,7 +268,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -292,7 +292,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, "weak", nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -319,7 +319,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -347,7 +347,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -375,7 +375,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -417,7 +417,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -452,7 +452,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -482,7 +482,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -512,7 +512,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -543,7 +543,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -551,7 +551,51 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("RevokeAllSessionsByUserID error → rollback", func(t *testing.T) {
+	// Session revocation must target the CANONICAL user_sessions store, not the
+	// legacy user_tokens session rows. Those rows stopped being written when
+	// sessions moved, so the old UPDATE matched nothing and a password reset
+	// logged nobody out — silently, because updating zero rows is not an error.
+	// This test fails if revocation is ever pointed back at the token repo.
+	t.Run("session revocation goes through the canonical session store", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
+			WillReturnRows(validTokenRow(tok, userID, tokenUUID))
+		mock.ExpectCommit()
+
+		sessionRevokedFor := int64(0)
+		tokenRepoRevokeCalled := false
+		svc := NewResetPasswordService(db, &mockUserRepo{
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive}, nil
+			},
+		}, &mockUserTokenRepo{
+			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
+				return nil, nil
+			},
+			revokeAllSessionsByUserIDFn: func(_ int64) error {
+				tokenRepoRevokeCalled = true
+				return nil
+			},
+		}, &mockClientRepo{
+			findSystemFn: func() (*Client, error) {
+				return &Client{ClientID: 1}, nil
+			},
+		}, nil, nil, &mockUserSessionRepo{
+			revokeAllByUserIDFn: func(id int64, _ string) error {
+				sessionRevokedFor = id
+				return nil
+			},
+		})
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, userID, sessionRevokedFor, "the canonical session store must be the revocation target")
+		assert.False(t, tokenRepoRevokeCalled, "the legacy user_tokens session rows must not be used")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("session revocation error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
@@ -565,14 +609,15 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
 				return nil, nil
 			},
-			revokeAllSessionsByUserIDFn: func(_ int64) error {
-				return errors.New("revoke sessions failed")
-			},
 		}, &mockClientRepo{
 			findSystemFn: func() (*Client, error) {
 				return &Client{ClientID: 1}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{
+			revokeAllByUserIDFn: func(_ int64, _ string) error {
+				return errors.New("revoke sessions failed")
+			},
+		})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -603,7 +648,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 					},
 				}, nil
 			},
-		}, nil, nil)
+		}, nil, nil, &mockUserSessionRepo{})
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -648,7 +693,7 @@ func TestResetPasswordService_CheckPasswordHistoryError(t *testing.T) {
 				PasswordConfig: datatypes.JSON([]byte(`{"min_length":8,"history_count":5}`)),
 			}, nil
 		},
-	}, historyRepo)
+	}, historyRepo, nil)
 	resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 	require.Error(t, err)
 	assert.Nil(t, resp)

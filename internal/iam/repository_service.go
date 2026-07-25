@@ -33,7 +33,7 @@ type ServiceRepository interface {
 	FindByTenantID(tenantID int64) ([]Service, error)
 	FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error)
 	FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error)
-	SetStatusByUUID(serviceUUID uuid.UUID, status string) error
+	SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, status string) error
 	CountPoliciesByServiceID(serviceID int64) (int64, error)
 }
 
@@ -51,6 +51,17 @@ func (r *serviceRepository) WithTx(tx *gorm.DB) ServiceRepository {
 	return &serviceRepository{
 		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
+}
+
+// serviceSortColumns is this table's own sort allowlist. The global set in
+// platform/database is a union across every table, so it contains columns
+// `services` does not have — email, username, identifier, client_id, type and 15
+// others. Ordering by one of those reached Postgres as an undefined column (42703)
+// and surfaced as a 500 rather than a 400. It also OMITS display_name, which this
+// table does have, so that sort silently fell back to created_at.
+var serviceSortColumns = map[string]struct{}{
+	"created_at": {}, "updated_at": {}, "name": {}, "display_name": {},
+	"version": {}, "status": {}, "is_system": {}, "tenant_id": {},
 }
 
 func (r *serviceRepository) FindByName(serviceName string) (*Service, error) {
@@ -112,7 +123,7 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrderIn(serviceSortColumns, filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	return database.PaginateQuery[Service](query, filter.Page, filter.Limit)
 }
@@ -146,14 +157,18 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 	}
 
 	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(database.SanitizeOrderPrefixed("services.", filter.SortBy, filter.SortOrder, "services.created_at DESC"))
+	query = query.Order(database.SanitizeOrderInPrefixed(serviceSortColumns, "services.", filter.SortBy, filter.SortOrder, "services.created_at DESC"))
 
 	return database.PaginateQuery[Service](query, filter.Page, filter.Limit)
 }
 
-func (r *serviceRepository) SetStatusByUUID(serviceUUID uuid.UUID, status string) error {
+// SetStatusByUUID is tenant-scoped, matching apiRepository and policyRepository.
+// It previously had no tenant predicate — an unscoped cross-tenant writer sitting in
+// the interface. It currently has no caller (the service layer goes through
+// CreateOrUpdate), but an unusable-safely method is worse than an unused one.
+func (r *serviceRepository) SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, status string) error {
 	return r.DB().Model(&Service{}).
-		Where("service_uuid = ?", serviceUUID).
+		Where("service_uuid = ? AND tenant_id = ?", serviceUUID, tenantID).
 		Update("status", status).Error
 }
 

@@ -78,6 +78,12 @@ func TestSecuritySettingValidationRules(t *testing.T) {
 		{name: "password age has safe upper bound", configType: "password", patch: map[string]any{"max_age_days": 3651}, want: "max_age_days"},
 		{name: "temporary password validity has safe upper bound", configType: "password", patch: map[string]any{"temporary_password_validity_hours": 721}, want: "temporary_password_validity_hours"},
 		{name: "mfa sms requires gate", configType: "mfa", patch: map[string]any{"allow_sms": false, "allowed_methods": []string{"sms"}}, want: "allow_sms"},
+		// These three are enforced-MFA bypass windows. An unbounded value silently
+		// neuters mode=enforced, so each has a safe ceiling like its already-bounded
+		// siblings (step_up_ttl, totp_period).
+		{name: "mfa grace period has safe upper bound", configType: "mfa", patch: map[string]any{"grace_period_days": 91}, want: "grace_period_days"},
+		{name: "mfa admin grace period has safe upper bound", configType: "mfa", patch: map[string]any{"admin_grace_period_days": 91}, want: "admin_grace_period_days"},
+		{name: "mfa trusted device period has safe upper bound", configType: "mfa", patch: map[string]any{"trusted_device_period_days": 366}, want: "trusted_device_period_days"},
 		{name: "session SameSite None requires secure cookie", configType: "session", patch: map[string]any{"cookie_same_site": "None", "cookie_secure": false}, want: "cookie_secure"},
 		{name: "token rejects unsupported algorithm", configType: "token", patch: map[string]any{"signing_algorithm": "HS256"}, want: "signing_algorithm"},
 		{name: "lockout max duration must cap duration", configType: "lockout", patch: map[string]any{"lockout_duration_minutes": 30, "max_lockout_duration_minutes": 10}, want: "max_lockout_duration_minutes"},
