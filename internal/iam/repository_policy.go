@@ -112,30 +112,43 @@ func (r *policyRepository) SetSystemStatusByUUID(policyUUID uuid.UUID, tenantID 
 		Update("is_system", isSystem).Error
 }
 
+// policySortColumns is this table's own sort allowlist. The global set in
+// platform/database is a union across every table, so ordering by a column
+// `policies` does not have reaches Postgres as an undefined column (42703) and
+// surfaces as a 500 rather than a 400.
+var policySortColumns = map[string]struct{}{
+	"created_at": {}, "updated_at": {}, "name": {}, "version": {},
+	"status": {}, "is_system": {}, "tenant_id": {},
+}
+
 func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*PaginationResult[Policy], error) {
 	query := r.DB().Model(&Policy{})
 
-	// Filter by tenant_id
-	query = query.Where("tenant_id = ?", filter.TenantID)
+	// EVERY predicate is table-qualified. The service_id filter below joins
+	// `services`, which also has tenant_id, name, description, status and is_system —
+	// so an unqualified predicate becomes "column reference is ambiguous" (42702) and
+	// GET /policies?service_id=… was an unconditional 500.
+	query = query.Where("policies.tenant_id = ?", filter.TenantID)
 
-	// Apply filters
-	query = database.ApplyILike(query, "name", filter.Name)
-	query = database.ApplyILike(query, "description", filter.Description)
-	query = database.ApplyILike(query, "version", filter.Version)
+	query = database.ApplyILike(query, "policies.name", filter.Name)
+	query = database.ApplyILike(query, "policies.description", filter.Description)
+	query = database.ApplyILike(query, "policies.version", filter.Version)
 	if len(filter.Status) > 0 {
-		query = query.Where("status IN ?", filter.Status)
+		query = query.Where("policies.status IN ?", filter.Status)
 	}
 	if filter.IsSystem != nil {
-		query = query.Where("is_system = ?", *filter.IsSystem)
+		query = query.Where("policies.is_system = ?", *filter.IsSystem)
 	}
 	if filter.ServiceID != nil {
-		// Join with service_policies and services tables to filter by service UUID
+		// Join with service_policies and services tables to filter by service UUID.
+		// Scoped to live rows: a soft-deleted service must not keep surfacing its
+		// policies in this filter.
 		query = query.Joins("INNER JOIN service_policies ON policies.policy_id = service_policies.policy_id").
-			Joins("INNER JOIN services ON service_policies.service_id = services.service_id").
+			Joins("INNER JOIN services ON service_policies.service_id = services.service_id AND services.deleted_at IS NULL").
 			Where("services.service_uuid = ?", *filter.ServiceID)
 	}
 
-	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrderInPrefixed(policySortColumns, "policies.", filter.SortBy, filter.SortOrder, "policies.created_at DESC"))
 	return database.PaginateQuery[Policy](query, filter.Page, filter.Limit)
 }
 

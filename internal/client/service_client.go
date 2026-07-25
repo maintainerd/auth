@@ -49,6 +49,8 @@ type ClientServiceDataResult struct {
 	// Identifier is the OAuth client_id an application presents. Operators need
 	// it to configure their app.
 	Identifier *string
+	// ServiceUUID is the service this client authenticates as, when bound.
+	ServiceUUID *string
 
 	Name              string
 	DisplayName       string
@@ -130,8 +132,8 @@ type ClientService interface {
 	// Use RotateSecret to obtain a new secret.
 	GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
 	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
-	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time) (*ClientServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error)
+	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error)
 	// RotateSecret generates a new secret, hashes and persists it, and keeps the old
 	// hash valid for the specified grace period (gracePeriodHours=0 revokes immediately).
 	// Returns the new plaintext secret once — it cannot be retrieved again.
@@ -450,7 +452,7 @@ func (s *clientService) resolveBrandingID(tx *gorm.DB, tenantID int64, brandingU
 	return &b.BrandingID, nil
 }
 
-func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error) {
+func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.create")
 	defer span.End()
 	span.SetAttributes(
@@ -481,6 +483,14 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			return err
 		}
 		capturedActorID = actorUser.UserID
+
+		// Binding this client to a service makes its tokens carry the `svc` claim,
+		// which is the principal the policy bundle and the gRPC authorizer resolve.
+		// It is a privilege grant, so it is validated here rather than trusted.
+		boundServiceID, err := resolveServiceBinding(tx, tenantID, clientType, serviceUUID)
+		if err != nil {
+			return err
+		}
 
 		existingClient, err := txClientRepo.FindByNameAndTenantID(name, tenantID)
 		if err != nil {
@@ -517,6 +527,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		}
 
 		newClient := &Client{
+			ServiceID:       boundServiceID,
 			Name:            name,
 			DisplayName:     displayName,
 			ClientType:      clientType,
@@ -805,7 +816,7 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 	return plaintextSecret, nil
 }
 
-func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time) (*ClientServiceDataResult, error) {
+func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.update")
 	defer span.End()
 	span.SetAttributes(
@@ -880,6 +891,16 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		}
 		Client.Status = status
 		Client.IsDefault = isDefault
+		// nil means "unchanged"; an explicit empty string unbinds. The client type
+		// used for the check is the one the update is applying, so a client cannot be
+		// converted away from m2m while keeping a service binding.
+		if serviceUUID != nil {
+			boundServiceID, bindErr := resolveServiceBinding(tx, tenantID, clientType, serviceUUID)
+			if bindErr != nil {
+				return bindErr
+			}
+			Client.ServiceID = boundServiceID
+		}
 		if allowRegistration != nil {
 			Client.AllowRegistration = allowRegistration
 		}
@@ -1779,6 +1800,7 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 		IsDefault:                        Client.IsDefault,
 		IsSystem:                         Client.IsSystem,
 		Identifier:                       Client.Identifier,
+		ServiceUUID:                      serviceUUIDForClient(Client),
 		TokenEndpointAuthMethod:          Client.TokenEndpointAuthMethod,
 		GrantTypes:                       []string(Client.GrantTypes),
 		ResponseTypes:                    []string(Client.ResponseTypes),

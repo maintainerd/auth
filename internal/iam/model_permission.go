@@ -13,7 +13,7 @@ type Permission struct {
 	TenantID       int64          `gorm:"column:tenant_id;not null"`
 	APIID          int64          `gorm:"column:api_id"`
 	Name           string         `gorm:"column:name"`
-	Description    string         `gorm:"column:description"`
+	Description    string         `gorm:"column:description;not null;default:''"`
 	Status         string         `gorm:"column:status;not null;default:'active'"`
 	IsSystem       bool           `gorm:"column:is_system;not null;default:false"`
 	CreatedBy      *int64         `gorm:"column:created_by"`

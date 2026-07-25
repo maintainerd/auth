@@ -256,7 +256,8 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// canonical user_sessions store (owned by authn), not the legacy user_tokens
 	// session rows the login flow no longer writes. Wrap the token repo so its
 	// session methods are backed by user_sessions while token methods are unchanged.
-	userSessionTokenRepo := newUserSessionBackedTokenRepo(r.userTokenRepo, authn.NewUserSessionRepository(db))
+	userSessionRepo := authn.NewUserSessionRepository(db)
+	userSessionTokenRepo := newUserSessionBackedTokenRepo(r.userTokenRepo, userSessionRepo)
 	userSvc := user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, appCache, userSessionTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc)
 
 	// idpEmailDomainRepo backs the identity_provider_email_domains child table
@@ -286,7 +287,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		userTrustedDeviceService: user.NewUserTrustedDeviceService(r.userTrustedDeviceRepo),
 		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), r.emailTemplateRepo, newInviteRegistrationFlowRepo(db)),
 		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
-		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
+		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), userSessionRepo),
 		emailVerificationService: emailVerificationSvc,
 		magicLinkService:         authn.NewMagicLinkService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.emailTemplateRepo),
 		setupService: setup.NewSetupService(db, r.userRepo, r.tenantRepo, r.tenantMemberRepo, r.clientRepo, r.roleRepo, r.userRoleRepo, r.userIdentityRepo, r.profileRepo,
@@ -324,7 +325,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		oauthSessionService:          oauth.NewOAuthSessionService(db, oauthClientRepo, oauthUserRepo, r.oauthRefreshTokenRepo, authEventSvc),
 		oauthCIBAService:             oauth.NewOAuthCIBAService(db, oauthClientRepo, r.oauthCIBARequestRepo, oauthUserRepo, authEventSvc, r.securitySettingRepo),
 		oauthRegisterService:         oauth.NewOAuthRegisterService(db, oauthClientRepo, oauthClientURIRepo, oauthTenantRepo, authEventSvc),
-		accountService:               user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc, r.securitySettingRepo, r.smsOtpRepo),
+		accountService:               user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc, r.securitySettingRepo, r.smsOtpRepo, r.userPasswordHistoryRepo, userSessionRepo),
 		smsLoginService:              authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo),
 		mfaService:                   mfaSvc,
 		webAuthnService:              webAuthnSvc,
@@ -386,6 +387,9 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// Magic-link possession is the first factor; delegate MFA policy decisions
 	// and policy-aware session issuance to the normal login service.
 	s.magicLinkService.SetLoginCoordinator(s.loginService)
+	// SMS OTP is likewise a single first factor — route it through the same login
+	// service so mode=enforced is honored on SMS login instead of being bypassed.
+	s.smsLoginService.SetMFACoordinator(s.loginService)
 	// Wire the account-lockout notification hook so the event system is notified.
 	security.OnAccountLockout = func(ctx context.Context, identifier string) {
 		s.authEventService.Log(ctx, authevent.AuthEventInput{

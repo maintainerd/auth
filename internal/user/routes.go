@@ -71,6 +71,18 @@ func AccountRoute(
 		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), middleware.RequireStepUp).
 			Put("/username", accountHandler.ChangeUsername)
 
+		// Password change (self-service rotation).
+		//
+		// Gated on the policy-aware step-up, NOT the strict middleware.RequireStepUp
+		// used by /username and DELETE /account. Strict step-up demands acr=2 within
+		// the step-up TTL, which a password-only user can never satisfy — it would
+		// make password rotation impossible for exactly the users who have no second
+		// factor to fall back on. Post-compromise rotation is the one flow that must
+		// not be blockable. The body's current_password requirement is what carries
+		// the proof-of-knowledge here.
+		r.With(middleware.PermissionMiddleware([]string{"account:change-password:self"}), sensitiveActionStepUp).
+			Put("/password", accountHandler.ChangePassword)
+
 		// Account deletion
 		r.With(middleware.PermissionMiddleware([]string{"account:user:delete:self"}), middleware.RequireStepUp).
 			Delete("/", accountHandler.DeleteAccount)

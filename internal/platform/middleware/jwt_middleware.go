@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -33,6 +34,13 @@ type JWTClaims struct {
 	AMR         []string
 	ACR         string
 	Iat         int64
+	// TenantID is the tenant this token was issued for, from the `tenant_id` claim.
+	//
+	// The issuer stamps it and it is a RESERVED claim, so no client-configured or
+	// federation-configured claim mapper can forge it — which makes it a
+	// trustworthy tenant binding even on routes that do not run
+	// UserContextMiddleware. Zero when the token carries no tenant.
+	TenantID int64
 }
 
 // JWTClaimsFromRequest returns the JWTClaims stored in the request context
@@ -152,7 +160,28 @@ func buildJWTClaims(rawClaims map[string]any) *JWTClaims {
 		AMR:         amr,
 		ACR:         acr,
 		Iat:         iat,
+		TenantID:    int64Claim(rawClaims["tenant_id"]),
 	}
+}
+
+// int64Claim reads a numeric claim. JSON numbers decode to float64, but a claim
+// may also arrive as json.Number or an integer depending on the decoder.
+func int64Claim(raw any) int64 {
+	switch v := raw.(type) {
+	case float64:
+		return int64(v)
+	case int64:
+		return v
+	case int:
+		return int64(v)
+	case json.Number:
+		n, err := v.Int64()
+		if err != nil {
+			return 0
+		}
+		return n
+	}
+	return 0
 }
 
 func stringSliceClaim(raw any) []string {

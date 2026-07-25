@@ -31,6 +31,18 @@ func (r *ChangeUsernameDTO) Validate() error {
 	)
 }
 
+// Validate checks only presence. SanitizeInput is deliberately NOT applied to
+// either password — it strips and rewrites characters, which would silently
+// mutate the secret being set. Length and composition are the tenant policy's
+// job (security.ValidatePasswordPolicyForUser); declaring them here too would
+// give two sources of truth that drift.
+func (r *ChangePasswordDTO) Validate() error {
+	return validation.ValidateStruct(r,
+		validation.Field(&r.CurrentPassword, validation.Required),
+		validation.Field(&r.NewPassword, validation.Required),
+	)
+}
+
 func (r *AccountDeleteDTO) Validate() error {
 	return validation.ValidateStruct(r,
 		validation.Field(&r.CurrentPassword, validation.Required),

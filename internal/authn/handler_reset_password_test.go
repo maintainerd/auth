@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -265,4 +266,25 @@ func TestResetPasswordHandler_ResetPassword_RateLimit(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.ResetPassword(w, r)
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+}
+
+// A reset token is a bearer credential. It was logged verbatim in four places,
+// including on failure paths that leave the token STILL VALID — handing anyone with
+// log or SIEM access a working account-takeover token for the rest of its TTL.
+func TestResetTokenLogRef_NeverExposesTheToken(t *testing.T) {
+	const token = "5f4dcc3b5aa765d61d8327deb882cf99deadbeefcafebabe"
+
+	ref := resetTokenLogRef(token)
+	assert.NotContains(t, ref, token, "the raw token must never appear in a log field")
+	assert.NotEqual(t, token, ref)
+	assert.True(t, strings.HasPrefix(ref, "reset:"), "refs are namespaced so they read as non-credentials")
+
+	// Stable, so the lines of one attempt still correlate.
+	assert.Equal(t, ref, resetTokenLogRef(token))
+	// Distinct per token, so two attempts do not merge.
+	assert.NotEqual(t, ref, resetTokenLogRef(token+"x"))
+	// Short enough to be non-reversible by lookup, long enough not to collide.
+	assert.Len(t, ref, len("reset:")+8)
+
+	assert.Equal(t, "none", resetTokenLogRef(""))
 }

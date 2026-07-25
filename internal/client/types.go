@@ -65,6 +65,8 @@ type ClientResponseDTO struct {
 	// a client by. Without it in the response an operator cannot configure their
 	// app, so it is exposed here even though it is server-generated.
 	Identifier *string `json:"identifier,omitempty"`
+	// ServiceUUID is the service this client authenticates as, when bound.
+	ServiceUUID *string `json:"service_id,omitempty"`
 
 	Name              string                       `json:"name"`
 	DisplayName       string                       `json:"display_name"`
@@ -167,6 +169,13 @@ type ClientCreateRequestDTO struct {
 	BrandingUUID         *string        `json:"branding_id,omitempty"`
 	AllowRegistration    *bool          `json:"allow_registration,omitempty"`
 
+	// ServiceUUID binds this client to a service, making it that service's
+	// credential. A token issued to a bound client carries the `svc` claim, which is
+	// what the policy bundle and the gRPC authorizer resolve a principal from — so
+	// this field is what makes service-to-service authorization reachable at all.
+	// Only an m2m client may be bound; see validateClientServiceBinding.
+	ServiceUUID *string `json:"service_id,omitempty"`
+
 	BackchannelLogoutURI             *string `json:"backchannel_logout_uri,omitempty"`
 	FrontchannelLogoutURI            *string `json:"frontchannel_logout_uri,omitempty"`
 	BackchannelLogoutSessionRequired *bool   `json:"backchannel_logout_session_required,omitempty"`
@@ -185,6 +194,10 @@ type ClientUpdateRequestDTO struct {
 	Status            string         `json:"status"`
 	BrandingUUID      *string        `json:"branding_id,omitempty"`
 	AllowRegistration *bool          `json:"allow_registration,omitempty"`
+
+	// ServiceUUID binds this client to a service (see the create DTO). Sending an
+	// empty string unbinds it; omitting the field leaves the binding unchanged.
+	ServiceUUID *string `json:"service_id,omitempty"`
 
 	BackchannelLogoutURI             *string `json:"backchannel_logout_uri,omitempty"`
 	FrontchannelLogoutURI            *string `json:"frontchannel_logout_uri,omitempty"`

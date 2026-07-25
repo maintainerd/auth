@@ -42,6 +42,7 @@ type LoginService interface {
 	SetTokenRevoker(r AccessTokenRevoker)
 	MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
 	IssueMagicLinkSession(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error)
+	SMSMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
 }
 
 // MFAFactorAuthenticator verifies a login second factor and drives the SMS /
@@ -286,7 +287,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
 		s.recordFailedLogin(ctx, rateLimitIdentifier, clientIDStr, client, startTime, lockoutPolicy)
-		s.upsertLockout(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy)
+		s.recordLockoutFailure(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -329,7 +330,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 
 	// Reset failed attempts on successful authentication.
 	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
-	s.clearLockout(ctx, tenantIDForRL, usernameOrEmail)
+	s.clearLockout(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy)
 
 	// Check for compromised credentials at login (post-auth HIBP).
 	s.checkCompromisedPassword(ctx, user, password, clientTenantID(client))
@@ -498,7 +499,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
 		s.recordFailedLogin(ctx, rateLimitIdentifier, "internal", client, startTime, lockoutPolicy)
-		s.upsertLockout(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy)
+		s.recordLockoutFailure(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -541,7 +542,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 
 	// Reset failed attempts on successful authentication
 	security.ResetFailedAttemptsWithConfig(rateLimitIdentifier, lockoutPolicy)
-	s.clearLockout(ctx, tenantIDForRL, usernameOrEmail)
+	s.clearLockout(ctx, tenantIDForRL, usernameOrEmail, lockoutPolicy)
 
 	// Check for compromised credentials at login (post-auth HIBP).
 	s.checkCompromisedPassword(ctx, user, password, clientTenantID(client))
@@ -907,6 +908,32 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 // factor. Enforced mode never bypasses MFA through a grace or trusted-device
 // shortcut; users without a usable non-email factor are blocked.
 func (s *loginService) MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error) {
+	// email_otp is excluded: it reuses the same mailbox the magic link arrived
+	// in, so it proves no distinct second factor.
+	return s.passwordlessMFAChallenge(ctx, user, tenantID, "email_otp", platformjwt.AMRMagicLink)
+}
+
+// SMSMFAChallenge applies the tenant's login MFA policy after an SMS one-time
+// code has established the first factor. It mirrors MagicLinkMFAChallenge: an
+// SMS passwordless login is a single possession factor, so when the tenant
+// enforces MFA it must still be challenged for a SECOND factor rather than
+// walking straight in at acr=1 — the gap that let mode=enforced be bypassed on
+// this entry point entirely.
+func (s *loginService) SMSMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error) {
+	// sms is excluded: it reuses the same phone the OTP arrived on, so offering
+	// it as the "second" factor proves nothing new (same reasoning as email_otp
+	// on the magic-link path).
+	return s.passwordlessMFAChallenge(ctx, user, tenantID, "sms", platformjwt.AMRSMS)
+}
+
+// passwordlessMFAChallenge is the shared MFA-policy gate for passwordless
+// first-factor logins (magic link, SMS). It returns a challenge when a second
+// factor is required, (nil, nil) when the login may proceed at acr=1, or an
+// error when the tenant enforces MFA but the user has no usable second factor.
+//
+// excludedMethod is the channel already used as the first factor, dropped from
+// the allowed methods so it cannot masquerade as a distinct second factor.
+func (s *loginService) passwordlessMFAChallenge(ctx context.Context, user *User, tenantID int64, excludedMethod, primaryAMR string) (*LoginResponseDTO, error) {
 	if user == nil {
 		return nil, apperror.NewUnauthorized("authentication failed")
 	}
@@ -933,17 +960,17 @@ func (s *loginService) MagicLinkMFAChallenge(ctx context.Context, user *User, te
 	}
 
 	allowedMethods := filterMFAMethodsByPolicy(enrolled, normalizeLoginMFAPolicyMethods(policy.AllowedMethods))
-	allowedMethods = removeMFAMethod(allowedMethods, "email_otp")
+	allowedMethods = removeMFAMethod(allowedMethods, excludedMethod)
 	allowedMethods = preferLoginMFAMethodFirst(allowedMethods, policy.PreferredMethod)
 	if len(allowedMethods) == 0 {
-		return nil, apperror.NewUnauthorized("MFA is required but no supported non-email factors are enrolled")
+		return nil, apperror.NewUnauthorized("MFA is required but no supported second factor is enrolled")
 	}
 
 	challengeToken, err := platformjwt.GenerateStepUpChallengeTokenForAuthMethodWithContext(
 		ctx,
 		user.UserUUID.String(),
 		time.Duration(mfaStepUpTTLSeconds(policy))*time.Second,
-		platformjwt.AMRMagicLink,
+		primaryAMR,
 		allowedMethods,
 	)
 	if err != nil {
@@ -1492,7 +1519,7 @@ func (s *loginService) checkLockout(ctx context.Context, tenantID int64, identif
 	if !lockoutPolicy.Enabled {
 		return nil
 	}
-	locked, err := s.lockoutRepo.IsLocked(ctx, tenantID, identifier, lockoutPolicy.MaxFailedAttempts, lockoutPolicy.LockoutDuration)
+	locked, err := s.lockoutRepo.IsLocked(ctx, tenantID, identifier)
 	if err != nil {
 		return nil
 	}
@@ -1502,21 +1529,47 @@ func (s *loginService) checkLockout(ctx context.Context, tenantID int64, identif
 	return nil
 }
 
-func (s *loginService) upsertLockout(ctx context.Context, tenantID int64, identifier string, policy *security.RateLimitConfig) {
+// recordLockoutFailure records one failed login and applies the tenant's full
+// lockout policy through the DB path. When the failure tips the account into a
+// fresh lock and the policy asks for it, the user notification fires exactly
+// once via the same OnAccountLockout hook the settings wired for lockout.
+func (s *loginService) recordLockoutFailure(ctx context.Context, tenantID int64, identifier string, policy *security.RateLimitConfig) {
+	if s.lockoutRepo == nil || policy == nil || !policy.Enabled {
+		return
+	}
+	result, err := s.lockoutRepo.RecordFailure(ctx, tenantID, identifier, middleware.ClientIPFromContext(ctx), lockoutRulesFromPolicy(policy))
+	if err != nil {
+		return
+	}
+	if result.JustLocked && policy.NotifyUserOnLockout && security.OnAccountLockout != nil {
+		security.OnAccountLockout(ctx, identifier)
+	}
+}
+
+func lockoutRulesFromPolicy(policy *security.RateLimitConfig) UserLockoutRules {
+	return UserLockoutRules{
+		MaxAttempts:       policy.MaxFailedAttempts,
+		BaseDuration:      policy.LockoutDuration,
+		ObservationWindow: policy.ObservationWindow,
+		Progressive:       policy.ProgressiveLockout,
+		MaxDuration:       policy.MaxLockoutDuration,
+		ProgressionReset:  policy.ProgressionReset,
+		AutoUnlock:        policy.AutoUnlock,
+	}
+}
+
+// UserLockoutRules aliases the repository's LockoutRules so callers in this file
+// read naturally. It is the same type.
+type UserLockoutRules = LockoutRules
+
+// clearLockout resets an identifier's lockout state on successful login, unless
+// the tenant has opted out via reset_count_on_success=false — in which case the
+// accumulated failure count is left to persist across successful logins.
+func (s *loginService) clearLockout(ctx context.Context, tenantID int64, identifier string, policy *security.RateLimitConfig) {
 	if s.lockoutRepo == nil {
 		return
 	}
-	var maxAttempts int
-	var lockDuration time.Duration
-	if policy != nil {
-		maxAttempts = policy.MaxFailedAttempts
-		lockDuration = policy.LockoutDuration
-	}
-	_, _ = s.lockoutRepo.UpsertOnFailure(ctx, tenantID, identifier, middleware.ClientIPFromContext(ctx), maxAttempts, lockDuration)
-}
-
-func (s *loginService) clearLockout(ctx context.Context, tenantID int64, identifier string) {
-	if s.lockoutRepo == nil {
+	if policy != nil && !policy.ResetCountOnSuccess {
 		return
 	}
 	_ = s.lockoutRepo.ClearLockout(ctx, tenantID, identifier)

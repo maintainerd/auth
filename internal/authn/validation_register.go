@@ -68,10 +68,15 @@ func (r *RegisterRequestDTO) ValidateForRegistration() error {
 		return err
 	}
 
-	// Additional password strength validation for registration
-	if err := security.ValidatePasswordStrength(r.Password); err != nil {
-		return err
-	}
+	// Deliberately NO password-strength check here.
+	//
+	// This used to call security.ValidatePasswordStrength, which applies the
+	// hardcoded security.DefaultPasswordPolicy (upper+lower+digit+special, min 8).
+	// That silently overrode the TENANT's policy: a tenant that correctly disabled
+	// composition rules still had them enforced on /register, and a tenant that
+	// raised its minimum to 16 still only had 8 enforced at this layer. The service
+	// layer loads and applies the tenant's real policy — that is the single
+	// authoritative check, and every other password path already relies on it alone.
 
 	return nil
 }

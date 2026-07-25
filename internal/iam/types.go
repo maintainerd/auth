@@ -184,6 +184,9 @@ type PolicyUpdateRequestDTO struct {
 	Document    datatypes.JSON `json:"document"`
 	Version     string         `json:"version"`
 	Status      string         `json:"status"`
+	// ChangeReason is recorded on the version-history row. Optional, but it is what
+	// turns "the document changed" into an answerable audit trail.
+	ChangeReason *string `json:"change_reason,omitempty"`
 }
 
 // Policy listing / filter DTO

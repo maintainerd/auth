@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 type mockUserSessionRepo struct {
@@ -20,6 +21,16 @@ type mockUserSessionRepo struct {
 	touchFn              func(int64, time.Time) error
 	revokeByUUIDFn       func(int64, uuid.UUID, string) error
 	revokeAllByUserIDFn  func(int64, string) error
+	revokeAllExceptFn    func(int64, uuid.UUID, string) error
+}
+
+func (m *mockUserSessionRepo) WithTx(*gorm.DB) UserSessionRepository { return m }
+
+func (m *mockUserSessionRepo) RevokeAllExceptUUID(id int64, keep uuid.UUID, reason string) error {
+	if m.revokeAllExceptFn != nil {
+		return m.revokeAllExceptFn(id, keep, reason)
+	}
+	return nil
 }
 
 func (m *mockUserSessionRepo) FindActiveByUserID(id int64) ([]UserSession, error) {

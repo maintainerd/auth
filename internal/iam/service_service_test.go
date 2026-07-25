@@ -3,6 +3,7 @@ package iam
 import (
 	"context"
 	"errors"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"testing"
 
 	"github.com/google/uuid"
@@ -254,7 +255,7 @@ func TestServiceService_Update(t *testing.T) {
 		assert.Contains(t, err.Error(), "system service cannot be updated")
 	})
 
-	t.Run("name change → FindByName error → rollback", func(t *testing.T) {
+	t.Run("name change → lookup error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -262,7 +263,7 @@ func TestServiceService_Update(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return &Service{ServiceID: 1, ServiceUUID: id, Name: "old", TenantID: tid}, nil
 			},
-			findByNameFn: func(_ string) (*Service, error) {
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Service, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -280,7 +281,7 @@ func TestServiceService_Update(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return &Service{ServiceID: 1, ServiceUUID: id, Name: "old", TenantID: tid}, nil
 			},
-			findByNameFn: func(_ string) (*Service, error) {
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Service, error) {
 				return &Service{ServiceUUID: otherUUID, Name: "new"}, nil
 			},
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -297,7 +298,7 @@ func TestServiceService_Update(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return &Service{ServiceID: 1, ServiceUUID: id, Name: "old", TenantID: tid}, nil
 			},
-			findByNameFn: func(_ string) (*Service, error) {
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Service, error) {
 				return &Service{ServiceUUID: id, Name: "new"}, nil
 			},
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -306,7 +307,7 @@ func TestServiceService_Update(t *testing.T) {
 		assert.Equal(t, "new", res.Name)
 	})
 
-	t.Run("name change → FindByName nil → allowed", func(t *testing.T) {
+	t.Run("name change → no conflict in this tenant → allowed", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
@@ -314,7 +315,7 @@ func TestServiceService_Update(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return &Service{ServiceID: 1, ServiceUUID: id, Name: "old", TenantID: tid}, nil
 			},
-			findByNameFn: func(_ string) (*Service, error) {
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Service, error) {
 				return nil, nil
 			},
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -479,6 +480,10 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 	t.Run("DeleteByUUID repo error", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		// Deleting a service cascades: it plucks its api_ids, then soft-deletes those
+		// APIs and their permissions, because the soft delete never fires the FKs.
+		mock.ExpectQuery(`SELECT "api_id" FROM "apis".*`).
+			WillReturnRows(sqlmock.NewRows([]string{"api_id"}))
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
@@ -494,6 +499,10 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		// Deleting a service cascades: it plucks its api_ids, then soft-deletes those
+		// APIs and their permissions, because the soft delete never fires the FKs.
+		mock.ExpectQuery(`SELECT "api_id" FROM "apis".*`).
+			WillReturnRows(sqlmock.NewRows([]string{"api_id"}))
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
@@ -840,5 +849,70 @@ func TestServiceService_toServiceServiceDataResult(t *testing.T) {
 		assert.Equal(t, "v1", res.Version)
 		assert.True(t, res.IsSystem)
 		assert.Equal(t, "active", res.Status)
+	})
+}
+
+// The unique index is (tenant_id, name), so the duplicate check must be
+// tenant-scoped. A global check refused a legitimate rename whenever ANOTHER tenant
+// used the name, and the resulting 409 leaked that tenant's service names.
+func TestServiceService_Update_DuplicateNameCheckIsTenantScoped(t *testing.T) {
+	id := uuid.New()
+	tid := int64(7)
+
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	var gotTenantID int64
+	svc := NewServiceService(db, &mockServiceRepo{
+		findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+			return &Service{ServiceID: 1, ServiceUUID: id, Name: "old", TenantID: tid}, nil
+		},
+		findByNameAndTenantIDFn: func(_ string, tenantID int64) (*Service, error) {
+			gotTenantID = tenantID
+			// Another tenant owns this name — it must NOT block this rename.
+			return nil, nil
+		},
+		findByNameFn: func(string) (*Service, error) {
+			t.Fatal("the duplicate check must be tenant-scoped, not global")
+			return nil, nil
+		},
+	}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
+
+	res, err := svc.Update(context.Background(), id, tid, "billing", "Billing", "d", "v1", false, "active")
+	require.NoError(t, err)
+	assert.Equal(t, "billing", res.Name)
+	assert.Equal(t, tid, gotTenantID)
+}
+
+// A system service carries the platform's control policies. The tenant check does
+// not cover it inside the owning tenant, so re-policying one would grant or strip
+// authority for every principal that resolves to it.
+func TestServiceService_PolicyMutations_RefuseSystemServices(t *testing.T) {
+	serviceUUID := uuid.New()
+	policyUUID := uuid.New()
+	tid := int64(1)
+
+	buildSvc := func(t *testing.T) ServiceService {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		return NewServiceService(db, &mockServiceRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: serviceUUID, TenantID: tid, IsSystem: true}, nil
+			},
+		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
+	}
+
+	t.Run("assign", func(t *testing.T) {
+		err := buildSvc(t).AssignPolicy(context.Background(), serviceUUID, policyUUID, tid)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "system service")
+	})
+
+	t.Run("remove", func(t *testing.T) {
+		err := buildSvc(t).RemovePolicy(context.Background(), serviceUUID, policyUUID, tid)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "system service")
 	})
 }

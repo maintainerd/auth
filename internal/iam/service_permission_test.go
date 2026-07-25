@@ -826,3 +826,44 @@ func TestToPermissionServiceDataResult_Nil(t *testing.T) {
 	result := toPermissionServiceDataResult(nil)
 	assert.Nil(t, result)
 }
+
+// Update, SetActiveStatusByUUID and DeleteByUUID all guarded system permissions;
+// SetStatus was the one mutation that did not.
+func TestPermissionService_SetStatus_RefusesSystemPermissions(t *testing.T) {
+	permUUID := uuid.New()
+	tid := int64(1)
+
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	svc := NewPermissionService(db, &mockPermissionRepo{
+		findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Permission, error) {
+			return &Permission{PermissionID: 1, PermissionUUID: permUUID, TenantID: tid, IsSystem: true}, nil
+		},
+	}, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
+
+	_, err := svc.SetStatus(context.Background(), permUUID, tid, "inactive")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "system permission")
+}
+
+// A system API's permission set is the platform's own control surface.
+func TestPermissionService_Create_RefusesSystemAPIs(t *testing.T) {
+	apiUUID := uuid.New()
+	tid := int64(1)
+
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	svc := NewPermissionService(db, &mockPermissionRepo{}, &mockAPIRepo{
+		findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*API, error) {
+			return &API{APIID: 1, APIUUID: apiUUID, TenantID: tid, IsSystem: true}, nil
+		},
+	}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
+
+	_, err := svc.Create(context.Background(), tid, "custom:read", "", "active", false, apiUUID.String())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "system API")
+}

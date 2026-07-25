@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"time"
 
 	"github.com/google/uuid"
@@ -293,6 +294,19 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 		}
 		if existingUser != nil {
 			return apperror.NewConflict("user with this email already exists")
+		}
+
+		// The bootstrap super-admin is the highest-privilege account in the system, and
+		// it was the ONE creation path that skipped the password policy entirely — no
+		// blocklist, no breach check, no strength floor, and a weaker minimum length
+		// than every tenant user. "password" was accepted, on an unauthenticated route.
+		//
+		// The tenant's own settings do not exist yet at this point in setup, so the
+		// shipped default policy is the correct standard to hold it to.
+		if perr := security.ValidatePasswordPolicyWithContext(
+			ctx, req.Password, secpolicy.DefaultPasswordPolicy(),
+		); perr != nil {
+			return apperror.NewValidation(perr.Error())
 		}
 
 		// Hash password

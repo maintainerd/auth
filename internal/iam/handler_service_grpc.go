@@ -95,7 +95,15 @@ func serviceIdentityFromContext(ctx context.Context) (ServiceIdentity, bool) {
 	if serviceName == "" {
 		return ServiceIdentity{}, false
 	}
-	return ServiceIdentity{ServiceName: serviceName, ClientID: claims.ClientID}, true
+	// TenantID is REQUIRED by PolicyBundle: a service name is unique per tenant, so
+	// resolving without one used to fall back to a global lookup that returned the
+	// system tenant's service. This path builds the identity by hand (the REST twin
+	// is in handler_authorization.go), so the claim has to be mapped here too.
+	return ServiceIdentity{
+		ServiceName: serviceName,
+		ClientID:    claims.ClientID,
+		TenantID:    claims.TenantID,
+	}, true
 }
 
 func servicePolicyBundleProto(bundle *PolicyBundle) *authv1.ServicePolicyBundle {
@@ -240,6 +248,12 @@ func (h *ServiceGRPCHandler) resolveTenant(ctx context.Context, tenantUUID strin
 	result, err := h.tenantService.GetByUUID(ctx, parsed)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
+	}
+	// This handler resolves the tenant itself rather than through resolveIAMTenant,
+	// so the boundary check has to be applied here too — otherwise the service RPCs
+	// would be the one IAM surface where a caller can still name any tenant.
+	if err := assertCallerMayActOnTenant(ctx, h.tenantService, result.TenantID); err != nil {
+		return nil, err
 	}
 	return result, nil
 }

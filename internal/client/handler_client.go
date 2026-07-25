@@ -284,7 +284,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.ClientService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, parseOptionalUUID(req.BrandingUUID), boolValue(req.AllowRegistration, true), req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID)
+	result, err := h.ClientService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, parseOptionalUUID(req.BrandingUUID), boolValue(req.AllowRegistration, true), req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create auth client", err)
 		return
@@ -343,7 +343,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ExpectedUpdatedAt)
+	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ExpectedUpdatedAt, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update auth client", err)
 		return
@@ -1064,6 +1064,7 @@ func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 	result := ClientResponseDTO{
 		ClientUUID:                       r.ClientUUID,
 		Identifier:                       r.Identifier,
+		ServiceUUID:                      r.ServiceUUID,
 		Name:                             r.Name,
 		DisplayName:                      r.DisplayName,
 		ClientType:                       r.ClientType,

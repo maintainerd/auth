@@ -19,7 +19,7 @@ import (
 )
 
 func TestServiceGRPCHandler_RPCS(t *testing.T) {
-	ctx := context.Background()
+	ctx := grpcCallerCtx(77)
 	tenantUUID := uuid.New()
 	serviceUUID := uuid.New()
 	policyUUID := uuid.New()

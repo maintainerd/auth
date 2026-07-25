@@ -78,7 +78,12 @@ DECLARE
     tables TEXT[] := ARRAY[
         'tenants', 'branding', 'email_config', 'sms_config',
         'services', 'policies', 'apis', 'permissions',
-        'identity_providers', 'clients', 'client_uris', 'roles'
+        'identity_providers', 'clients', 'client_uris', 'roles',
+        -- Created in 028, immediately before users, so its audit FKs belong here.
+        -- It was the only pre-users table with created_by/updated_by that this list
+        -- missed, leaving the attribution columns on a keyless-auth trust rule with
+        -- no referential integrity.
+        'workload_identity_federations'
         -- webhook_endpoints is created AFTER users (migration 056, grouped with
         -- the event tables), so it attaches its own created_by/updated_by FKs there.
     ];

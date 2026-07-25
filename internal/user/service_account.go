@@ -8,12 +8,15 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/notifier"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/email"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/sms"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
@@ -59,6 +62,7 @@ type AccountService interface {
 	InitiateEmailChange(ctx context.Context, userID int64, newEmail, currentPassword string) error
 	VerifyEmailChange(ctx context.Context, userID int64, otp string) error
 	ChangeUsername(ctx context.Context, userID int64, newUsername, currentPassword string) error
+	ChangePassword(ctx context.Context, userID int64, currentPassword, newPassword string, callerSessionUUID *uuid.UUID) (*ChangePasswordResponseDTO, error)
 	DeleteAccount(ctx context.Context, userID int64, currentPassword string) error
 	ExportAccountData(ctx context.Context, userID int64) (*AccountExportDTO, error)
 	GenerateBackupCodes(ctx context.Context, userID int64) (*GenerateBackupCodesResponseDTO, error)
@@ -81,6 +85,21 @@ type accountService struct {
 	authEventService     authevent.AuthEventService
 	securitySettingRepo  secpolicy.SecuritySettingRepository
 	smsOtpRepo           notifier.UserOTPRepository
+	// passwordHistoryRepo enforces PasswordPolicy.HistoryCount on self-service
+	// password change. Nil is only tolerated when the tenant's HistoryCount is
+	// 0 — see ChangePassword, which fails closed rather than skipping the check.
+	passwordHistoryRepo UserPasswordHistoryRepository
+	// sessionRepo is the canonical session store (user_sessions). Revoking
+	// anywhere else does not end a login.
+	sessionRepo SessionRevoker
+}
+
+// SessionRevoker is the slice of the canonical session store this service needs.
+// Declared here rather than importing authn's repository interface so the user
+// package keeps its existing dependency direction.
+type SessionRevoker interface {
+	RevokeAllByUserID(userID int64, reason string) error
+	RevokeAllExceptUUID(userID int64, keepSessionUUID uuid.UUID, reason string) error
 }
 
 func NewAccountService(
@@ -97,8 +116,12 @@ func NewAccountService(
 	authEventService authevent.AuthEventService,
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	smsOtpRepo notifier.UserOTPRepository,
+	passwordHistoryRepo UserPasswordHistoryRepository,
+	sessionRepo SessionRevoker,
 ) AccountService {
 	return &accountService{
+		passwordHistoryRepo:  passwordHistoryRepo,
+		sessionRepo:          sessionRepo,
 		db:                   db,
 		userRepo:             userRepo,
 		userTokenRepo:        userTokenRepo,
@@ -285,6 +308,200 @@ func (s *accountService) ChangeUsername(ctx context.Context, userID int64, newUs
 
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+// ChangePassword rotates the authenticated user's own password.
+//
+// Until this existed the ONLY way to change a password was the unauthenticated
+// emailed reset link, which meant checkPasswordHistory ran on exactly one code
+// path and a signed-in user had no way to rotate a credential they believed was
+// exposed without going through their inbox. The seeded permission
+// "account:change-password:self" had been sitting there with nothing behind it.
+//
+// It deliberately mirrors the reset path's rules (tenant policy, history, hash,
+// force_password_change clearing, temp-password clearing, session revocation)
+// so the two cannot drift into enforcing different things. The one intentional
+// difference is session handling — see below.
+func (s *accountService) ChangePassword(
+	ctx context.Context,
+	userID int64,
+	currentPassword, newPassword string,
+	callerSessionUUID *uuid.UUID,
+) (*ChangePasswordResponseDTO, error) {
+	ctx, span := otel.Tracer("service").Start(ctx, "account.changePassword")
+	defer span.End()
+
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		return nil, apperror.NewNotFound("user not found")
+	}
+
+	// A federated or passwordless account has nothing to rotate. 400, not 500.
+	if user.Password == nil {
+		return nil, apperror.NewValidation("account has no password set")
+	}
+	if !security.ComparePassword([]byte(*user.Password), []byte(currentPassword)) {
+		s.logPasswordChangeEvent(ctx, user, false, "current password did not match")
+		return nil, apperror.NewUnauthorized("invalid current password")
+	}
+
+	// Reject a no-op rotation explicitly. A tenant with HistoryCount = 0 would
+	// otherwise happily "change" the password to itself and report success.
+	if currentPassword == newPassword {
+		return nil, apperror.NewValidation("new password must be different from the current password")
+	}
+
+	tenantID := user.TenantID
+	policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantID)
+
+	// Identity-aware validation: this is the one password flow that always knows
+	// exactly whose password it is, so it can reject a password that merely
+	// restates the account's own username or email.
+	if err := security.ValidatePasswordPolicyForUser(ctx, newPassword, policy, security.PasswordUserContext{
+		Username: user.Username,
+		Email:    user.Email,
+	}); err != nil {
+		s.logPasswordChangeEvent(ctx, user, false, "new password rejected by policy")
+		return nil, apperror.NewValidation(err.Error())
+	}
+
+	// Fail CLOSED. A nil history repo used to mean "skip the check", so a wiring
+	// mistake would silently disable reuse protection for every tenant that
+	// configured it.
+	if policy.HistoryCount > 0 && s.passwordHistoryRepo == nil {
+		return nil, apperror.NewInternal("password history is required by policy but is not configured", nil)
+	}
+	if s.passwordHistoryRepo != nil {
+		if err := s.checkPasswordReuse(userID, policy.HistoryCount, newPassword); err != nil {
+			s.logPasswordChangeEvent(ctx, user, false, "new password was recently used")
+			return nil, err
+		}
+	}
+
+	// Hashing is deliberately OUTSIDE the transaction below: argon2id is tuned to
+	// take real time, and holding a row lock across it serializes every
+	// concurrent password change on the same table.
+	hashed, err := security.HashPasswordWithPolicy(ctx, []byte(newPassword), policy)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to hash password", err)
+	}
+
+	// Session handling — the one place this intentionally differs from reset.
+	//
+	// ASVS V3 and NIST 800-63B require OTHER sessions to be invalidated on a
+	// password change; neither requires logging out the session doing the
+	// changing. Revoking the caller's own session punishes the user for
+	// rotating, which is exactly the behaviour that stops people rotating. The
+	// tenant knob (session config: revoke_sessions_on_password_change) still
+	// decides WHETHER to revoke; it just applies to the others.
+	revokeSessions := secpolicy.ShouldRevokeSessionsOnPasswordChange(s.securitySettingRepo, tenantID)
+	if revokeSessions && s.sessionRepo == nil {
+		return nil, apperror.NewInternal("cannot revoke sessions on password change: no session store configured", nil)
+	}
+	// No identifiable caller session means we cannot preserve one, so revoke
+	// everything and tell the client to re-authenticate. Never silently skip.
+	reauthRequired := revokeSessions && callerSessionUUID == nil
+
+	now := time.Now()
+	txErr := s.db.Transaction(func(tx *gorm.DB) error {
+		if _, err := s.userRepo.WithTx(tx).UpdateByID(user.UserID, map[string]any{
+			"password":              string(hashed),
+			"force_password_change": false,
+			"password_changed_at":   now,
+			// Mirrors the reset path: a temp password that has been replaced
+			// must stop being subject to temp-password expiry.
+			"temporary_password_expires_at": nil,
+		}); err != nil {
+			return apperror.NewInternal("failed to update password", err)
+		}
+
+		if s.passwordHistoryRepo != nil {
+			if err := secpolicy.RecordPasswordHistory(
+				s.passwordHistoryRepo.WithTx(tx), user.UserID, policy.HistoryCount, string(hashed),
+			); err != nil {
+				return apperror.NewInternal("failed to record password history", err)
+			}
+		}
+
+		if !revokeSessions {
+			return nil
+		}
+		if callerSessionUUID == nil {
+			if err := s.sessionRepo.RevokeAllByUserID(user.UserID, "password changed"); err != nil {
+				return apperror.NewInternal("failed to revoke sessions on password change", err)
+			}
+			return nil
+		}
+		if err := s.sessionRepo.RevokeAllExceptUUID(user.UserID, *callerSessionUUID, "password changed"); err != nil {
+			return apperror.NewInternal("failed to revoke other sessions on password change", err)
+		}
+		return nil
+	})
+	if txErr != nil {
+		s.logPasswordChangeEvent(ctx, user, false, "password update failed")
+		return nil, txErr
+	}
+
+	s.logPasswordChangeEvent(ctx, user, true, "password changed by the account owner")
+
+	span.SetStatus(codes.Ok, "")
+	return &ChangePasswordResponseDTO{
+		OtherSessionsRevoked:     revokeSessions,
+		ReauthenticationRequired: reauthRequired,
+	}, nil
+}
+
+// checkPasswordReuse compares the candidate against the user's recent hashes.
+func (s *accountService) checkPasswordReuse(userID int64, historyCount int, newPassword string) error {
+	if historyCount <= 0 {
+		return nil
+	}
+	hashes, err := s.passwordHistoryRepo.FindRecentHashes(userID, historyCount)
+	if err != nil {
+		// Fail closed: an unreadable history is not an empty history.
+		return apperror.NewInternal("failed to read password history", err)
+	}
+	for _, h := range hashes {
+		if security.ComparePassword([]byte(h), []byte(newPassword)) {
+			return apperror.NewValidation("password was used recently and cannot be reused")
+		}
+	}
+	return nil
+}
+
+// logPasswordChangeEvent emits the auth event for a password change attempt.
+//
+// It routes through authevent rather than sending an email: the two existing
+// user-facing security notifications in this service (notify_user_on_lockout and
+// new_device_notification_enabled) both emit auth events too, and the event
+// system is what fans out to webhooks. Adding a bespoke email here would be a
+// second, parallel notification mechanism.
+//
+// The description NEVER contains the password, its length, or any fragment.
+func (s *accountService) logPasswordChangeEvent(ctx context.Context, user *User, success bool, description string) {
+	if s.authEventService == nil || user == nil {
+		return
+	}
+	eventType := authevent.AuthEventTypePasswordChange
+	severity := authevent.AuthEventSeverityInfo
+	result := authevent.AuthEventResultSuccess
+	if !success {
+		eventType = authevent.AuthEventTypePasswordChangeFail
+		severity = authevent.AuthEventSeverityWarn
+		result = authevent.AuthEventResultFailure
+	}
+	userID := user.UserID
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    user.TenantID,
+		ActorUserID: &userID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   eventType,
+		Severity:    severity,
+		Result:      result,
+		Description: ptr.Ptr(description),
+	})
 }
 
 // DeleteAccount verifies the current password, anonymizes direct PII, and

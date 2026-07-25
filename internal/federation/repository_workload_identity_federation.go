@@ -9,10 +9,23 @@ import (
 	"gorm.io/gorm"
 )
 
+// workloadIdentityFederationSortColumns is this table's own sort allowlist. The
+// global set in platform/database is a union across every table, so it contains
+// columns this table does not have — status, email, identifier, is_default,
+// event_type and 16 others. Ordering by one of those reached Postgres as an
+// undefined column and surfaced as a 500 rather than a 400.
+var workloadIdentityFederationSortColumns = map[string]struct{}{
+	"created_at": {}, "updated_at": {}, "name": {}, "is_active": {},
+	"issuer_url": {}, "audience": {}, "subject_claim": {},
+	"subject_pattern": {}, "tenant_id": {}, "client_id": {},
+}
+
 // WorkloadIdentityFederationRepositoryGetFilter holds query parameters for
 // paginated workload identity federation lookups.
 type WorkloadIdentityFederationRepositoryGetFilter struct {
 	TenantID  *int64
+	Name      *string
+	IsActive  *bool
 	Page      int
 	Limit     int
 	SortBy    string
@@ -78,8 +91,14 @@ func (r *workloadIdentityFederationRepository) FindPaginated(filter WorkloadIden
 	}
 
 	query := r.DB().Model(&WorkloadIdentityFederation{}).
-		Where("tenant_id = ?", *filter.TenantID).
-		Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+		Where("tenant_id = ?", *filter.TenantID)
+
+	query = database.ApplyILike(query, "name", filter.Name)
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+
+	query = query.Order(database.SanitizeOrderIn(workloadIdentityFederationSortColumns, filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	return database.PaginateQuery[WorkloadIdentityFederation](query, filter.Page, filter.Limit)
 }
@@ -88,8 +107,13 @@ func (r *workloadIdentityFederationRepository) FindPaginated(filter WorkloadIden
 // given issuer_url.
 func (r *workloadIdentityFederationRepository) FindActiveByIssuer(issuerURL string) ([]WorkloadIdentityFederation, error) {
 	var federations []WorkloadIdentityFederation
+	// Deterministic order. The exchange path resolves a tenant from these rows, so
+	// leaving the order to Postgres meant the winning federation could change after
+	// a routine UPDATE rewrote a tuple — a silent, config-free change of behaviour
+	// on an unauthenticated endpoint.
 	err := r.DB().
 		Where("issuer_url = ? AND is_active = ?", issuerURL, true).
+		Order("workload_identity_federation_id ASC").
 		Find(&federations).Error
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockPasswordHistoryRecorder struct {
@@ -126,7 +127,11 @@ func TestRecordPasswordHistory(t *testing.T) {
 		assert.True(t, pruneCalled)
 	})
 
-	t.Run("addEntry error does not panic", func(t *testing.T) {
+	// A failed AddEntry used to be swallowed and pruning carried on regardless.
+	// The entry that was supposed to stop password reuse simply would not exist
+	// and nothing would report it, so the error is now surfaced and pruning is
+	// skipped — there is nothing new to prune down to.
+	t.Run("addEntry error is returned and pruning is skipped", func(t *testing.T) {
 		pruneCalled := false
 		recorder := &mockPasswordHistoryRecorder{
 			addEntryFn: func(userID int64, passwordHash string) error {
@@ -137,11 +142,13 @@ func TestRecordPasswordHistory(t *testing.T) {
 				return nil
 			},
 		}
-		RecordPasswordHistory(recorder, 1, 5, "hash")
-		assert.True(t, pruneCalled)
+		err := RecordPasswordHistory(recorder, 1, 5, "hash")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to record password history")
+		assert.False(t, pruneCalled)
 	})
 
-	t.Run("pruneExcess error does not panic", func(t *testing.T) {
+	t.Run("pruneExcess error is returned", func(t *testing.T) {
 		recorder := &mockPasswordHistoryRecorder{
 			addEntryFn: func(userID int64, passwordHash string) error {
 				return nil
@@ -150,6 +157,41 @@ func TestRecordPasswordHistory(t *testing.T) {
 				return errors.New("prune error")
 			},
 		}
-		RecordPasswordHistory(recorder, 1, 5, "hash")
+		err := RecordPasswordHistory(recorder, 1, 5, "hash")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to prune password history")
 	})
+
+	t.Run("best-effort variant swallows the error for already-committed callers", func(t *testing.T) {
+		recorder := &mockPasswordHistoryRecorder{
+			addEntryFn: func(userID int64, passwordHash string) error {
+				return errors.New("add error")
+			},
+		}
+		assert.NotPanics(t, func() {
+			RecordPasswordHistoryBestEffort(recorder, 1, 5, "hash")
+		})
+	})
+}
+
+// Password config is validated on READ as well as write: LoadPasswordPolicy →
+// NormalizeSecuritySettingConfig → decodeSecuritySettingPatch →
+// validatePasswordConfig. So tightening a bound retroactively invalidates every
+// already-stored config that sits outside it, and those tenants silently fall
+// back to the shipped defaults for ALL thirteen fields — a far bigger change
+// than the one bound that was tightened.
+//
+// This test pins that read path. If it starts failing, a validation bound was
+// tightened without accounting for stored data.
+func TestNormalizeSecuritySettingConfig_StoredConfigOutsideRecommendedBoundsStillLoads(t *testing.T) {
+	stored := map[string]any{
+		"min_length":         float64(6),
+		"min_strength_score": float64(0),
+		"check_hibp":         false,
+	}
+
+	cfg, err := NormalizeSecuritySettingConfig("password", stored, nil)
+	require.NoError(t, err, "a stored config below the recommended minimum must still load, not fall back to defaults")
+	assert.Equal(t, float64(6), cfg["min_length"], "the tenant's own value must survive normalization")
+	assert.Equal(t, false, cfg["check_hibp"])
 }

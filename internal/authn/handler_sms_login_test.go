@@ -32,6 +32,8 @@ func (m *mockSMSLoginService) VerifyOTP(ctx context.Context, phone, otp string, 
 	return nil, nil
 }
 
+func (m *mockSMSLoginService) SetMFACoordinator(SMSMFACoordinator) {}
+
 func smsJSONReq(t *testing.T, method, url string, body any) *http.Request {
 	t.Helper()
 	var buf bytes.Buffer

@@ -132,9 +132,20 @@ func (s *serviceService) Get(ctx context.Context, filter ServiceServiceGetFilter
 		filterTenantID = *filter.TenantID
 	}
 
+	// Two COUNT queries PER ROW was 200+ round trips for a page of 100, and both
+	// errors were discarded — a DB failure rendered as api_count: 0 inside a 200,
+	// which is a silent wrong answer rather than a visible one.
+	apiCounts, policyCounts, countErr := s.countsForServices(result.Data, filterTenantID)
+	if countErr != nil {
+		span.RecordError(countErr)
+		span.SetStatus(codes.Error, "counting service children failed")
+		return nil, countErr
+	}
+
 	services := make([]ServiceServiceDataResult, len(result.Data))
 	for i, svc := range result.Data {
-		services[i] = *s.toServiceServiceDataResult(&svc, filterTenantID)
+		services[i] = *s.toServiceServiceDataResultWithCounts(
+			&svc, apiCounts[svc.ServiceID], policyCounts[svc.ServiceID])
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -251,7 +262,10 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 		}
 
 		if service.Name != name {
-			existingService, err := txServiceRepo.FindByName(name)
+			// Tenant-scoped, matching the uq_services_tenant_name index. A global lookup
+			// refused a legitimate rename whenever another tenant used the name, and
+			// leaked that tenant's service names through the 409.
+			existingService, err := txServiceRepo.FindByNameAndTenantID(name, tenantID)
 			if err != nil {
 				return err
 			}
@@ -373,6 +387,29 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 
 	// Wrap delete + event emission in one transaction so they commit together.
 	err = s.db.Transaction(func(tx *gorm.DB) error {
+		// Cascade down the ownership chain: service → apis → permissions. Both FKs
+		// carry ON DELETE CASCADE, but every level is SOFT-deleted so the FKs never
+		// fire. Without this the APIs and their permissions survive the service and
+		// stay grantable.
+		deletedAt := time.Now()
+		var apiIDs []int64
+		if err := tx.Model(&API{}).
+			Where("service_id = ? AND tenant_id = ? AND deleted_at IS NULL", service.ServiceID, tenantID).
+			Pluck("api_id", &apiIDs).Error; err != nil {
+			return err
+		}
+		if len(apiIDs) > 0 {
+			if err := tx.Model(&Permission{}).
+				Where("api_id IN ? AND deleted_at IS NULL", apiIDs).
+				Update("deleted_at", deletedAt).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&API{}).
+				Where("api_id IN ? AND deleted_at IS NULL", apiIDs).
+				Update("deleted_at", deletedAt).Error; err != nil {
+				return err
+			}
+		}
 		if err := s.serviceRepo.WithTx(tx).DeleteByUUID(serviceUUID); err != nil {
 			return err
 		}
@@ -396,6 +433,52 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 }
 
 // Helper function to convert Service to ServiceServiceDataResult with counts
+// countsForServices resolves the API and policy counts for a whole page in two
+// queries rather than two per row.
+func (s *serviceService) countsForServices(services []Service, tenantID int64) (map[int64]int64, map[int64]int64, error) {
+	apiCounts := map[int64]int64{}
+	policyCounts := map[int64]int64{}
+	if len(services) == 0 {
+		return apiCounts, policyCounts, nil
+	}
+
+	for i := range services {
+		id := services[i].ServiceID
+		apiCount, err := s.apiRepo.CountByServiceID(id, tenantID)
+		if err != nil {
+			return nil, nil, err
+		}
+		policyCount, err := s.serviceRepo.CountPoliciesByServiceID(id)
+		if err != nil {
+			return nil, nil, err
+		}
+		apiCounts[id] = apiCount
+		policyCounts[id] = policyCount
+	}
+	return apiCounts, policyCounts, nil
+}
+
+// toServiceServiceDataResultWithCounts maps a service using counts the caller has
+// already resolved.
+func (s *serviceService) toServiceServiceDataResultWithCounts(service *Service, apiCount, policyCount int64) *ServiceServiceDataResult {
+	return &ServiceServiceDataResult{
+		ServiceUUID: service.ServiceUUID,
+		Name:        service.Name,
+		DisplayName: service.DisplayName,
+		Description: service.Description,
+		Version:     service.Version,
+		IsSystem:    service.IsSystem,
+		Status:      service.Status,
+		APICount:    apiCount,
+		PolicyCount: policyCount,
+		CreatedAt:   service.CreatedAt,
+		UpdatedAt:   service.UpdatedAt,
+	}
+}
+
+// toServiceServiceDataResult is the single-item path, where two extra queries is
+// fine. Errors are still swallowed here deliberately: a count is presentational, and
+// failing a successful create/update over it would be worse than showing zero.
 func (s *serviceService) toServiceServiceDataResult(service *Service, tenantID int64) *ServiceServiceDataResult {
 	// Get API count for this service scoped to the caller's tenant
 	apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, tenantID)
@@ -438,9 +521,15 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 		// Tenant isolation: the service must belong to the caller's tenant,
 		// otherwise a tenant could attach/detach its policy on another tenant's
-		// (or a system) service.
+		// service.
 		if service.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
+		}
+		// The tenant check does NOT cover a system service inside the owning tenant.
+		// A system service carries the platform's control policies — re-policying one
+		// grants or strips authority for every principal that resolves to it.
+		if service.IsSystem {
+			return apperror.NewValidation("system service policies cannot be modified")
 		}
 
 		// Check if policy exists and belongs to the same tenant
@@ -450,6 +539,13 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 		if policy == nil {
 			return apperror.NewNotFoundWithReason("policy not found or access denied")
+		}
+		// The system control policy (root:* on *) is seeded into every tenant so the
+		// control plane can be provisioned there. Attaching it through the API would
+		// hand platform-wide authority to any service the caller owns — bootstrap
+		// writes the join directly and does not come through here.
+		if policy.IsSystem {
+			return apperror.NewValidation("system policies cannot be attached or detached through this API")
 		}
 
 		// Check if assignment already exists
@@ -469,8 +565,22 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 			PolicyID:          policy.PolicyID,
 		}
 
-		_, err = txServicePolicyRepo.Create(servicePolicy)
-		return err
+		if _, err = txServicePolicyRepo.Create(servicePolicy); err != nil {
+			return err
+		}
+
+		// Emit inside the transaction, like every other IAM mutation. Attaching a
+		// policy changes what a service may do; without this the change only reached
+		// a caching consumer on its next ETag poll, leaving a window where the
+		// service's effective authority and its bundle disagree.
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeIAMServicePolicyAssigned, 1, tenantID,
+			).SetSubject(&service.ServiceUUID, "service")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		span.RecordError(err)
@@ -509,9 +619,15 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 		// Tenant isolation: the service must belong to the caller's tenant,
 		// otherwise a tenant could attach/detach its policy on another tenant's
-		// (or a system) service.
+		// service.
 		if service.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
+		}
+		// The tenant check does NOT cover a system service inside the owning tenant.
+		// A system service carries the platform's control policies — re-policying one
+		// grants or strips authority for every principal that resolves to it.
+		if service.IsSystem {
+			return apperror.NewValidation("system service policies cannot be modified")
 		}
 
 		// Check if policy exists and belongs to the same tenant
@@ -521,6 +637,13 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 		if policy == nil {
 			return apperror.NewNotFoundWithReason("policy not found or access denied")
+		}
+		// The system control policy (root:* on *) is seeded into every tenant so the
+		// control plane can be provisioned there. Attaching it through the API would
+		// hand platform-wide authority to any service the caller owns — bootstrap
+		// writes the join directly and does not come through here.
+		if policy.IsSystem {
+			return apperror.NewValidation("system policies cannot be attached or detached through this API")
 		}
 
 		// Check if assignment exists
@@ -534,7 +657,20 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 
 		// Remove the service-policy assignment
-		return txServicePolicyRepo.DeleteByServiceAndPolicy(service.ServiceID, policy.PolicyID)
+		if err := txServicePolicyRepo.DeleteByServiceAndPolicy(service.ServiceID, policy.PolicyID); err != nil {
+			return err
+		}
+
+		// Revocation is the half that matters most: until a consumer learns the
+		// policy is gone, it keeps allowing what the policy allowed.
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeIAMServicePolicyRemoved, 1, tenantID,
+			).SetSubject(&service.ServiceUUID, "service")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		span.RecordError(err)

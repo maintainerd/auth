@@ -317,7 +317,7 @@ func TestRegisterPublic_RateLimited(t *testing.T) {
 	m := defaultRegPublicMocks()
 	svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 		m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-	resp, err := svc.RegisterPublic(context.Background(), "ratelimited-user", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+	resp, err := svc.RegisterPublic(context.Background(), "ratelimited-user", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 	require.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Contains(t, err.Error(), "locked")
@@ -336,7 +336,7 @@ func TestRegister_RateLimited(t *testing.T) {
 	m := defaultRegInternalMocks()
 	svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 		m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-	resp, err := svc.Register(context.Background(), "ratelimited-user2", "F", "P@ssW0rd!2026", nil, nil, nil, nil, "")
+	resp, err := svc.Register(context.Background(), "ratelimited-user2", "F", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
 	require.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Contains(t, err.Error(), "locked")
@@ -356,7 +356,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		secRepo := registrationPolicyRepo(`{"self_registration_enabled":false}`)
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "self-registration is disabled for this tenant")
@@ -373,7 +373,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid or inactive auth client")
@@ -390,7 +390,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -417,7 +417,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "auth client tenant could not be resolved")
@@ -434,7 +434,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid or inactive auth client")
@@ -451,7 +451,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "username already taken")
@@ -469,7 +469,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		email := "dup@test.com"
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		// H8: public path returns a generic message (no PII-field disclosure).
@@ -488,7 +488,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		phone := "+1234567890"
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, &phone, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, &phone, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		// H8: public path returns a generic message (no PII-field disclosure).
@@ -520,7 +520,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -536,7 +536,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -552,7 +552,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -568,7 +568,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -584,7 +584,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		m.user.createFn = func(u *User) (*User, error) { u.UserID = 1; u.UserUUID = uuid.New(); return u, nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -610,7 +610,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		email := "test@example.com"
 		phone := "+1234567890"
-		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "P@ssW0rd!2026", &email, &phone, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "vault-crimson-ledger-92", &email, &phone, &cid, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -669,7 +669,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.RegisterPublic(context.Background(), "tenant-user", "Tenant User", "P@ssW0rd!2026", nil, nil, &cid, nil, "")
+		resp, err := svc.RegisterPublic(context.Background(), "tenant-user", "Tenant User", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -695,7 +695,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -724,7 +724,7 @@ func TestRegisterService_Register(t *testing.T) {
 			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, WithEmailVerificationService(emailSvc))
 
 		email := "verify@example.com"
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, nil, &cid, &pid, "")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.True(t, called, "expected verification email to be sent")
@@ -753,7 +753,7 @@ func TestRegisterService_Register(t *testing.T) {
 			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, WithEmailVerificationService(emailSvc))
 
 		email := "noverify@example.com"
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, nil, &cid, &pid, "")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.False(t, called, "expected no verification email when policy does not require it")
@@ -768,7 +768,7 @@ func TestRegisterService_Register(t *testing.T) {
 		secRepo := registrationPolicyRepo(`{"self_registration_enabled":false}`)
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "self-registration is disabled for this tenant")
@@ -785,7 +785,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, nil, nil, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -799,7 +799,7 @@ func TestRegisterService_Register(t *testing.T) {
 		m.client.findSystemFn = func() (*Client, error) { return nil, nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, nil, nil, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "auth client not found or inactive")
@@ -816,7 +816,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -833,7 +833,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		// With the userIdentitySub bug fixed, token response now succeeds.
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
@@ -851,7 +851,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "user already exists")
@@ -869,7 +869,7 @@ func TestRegisterService_Register(t *testing.T) {
 		email := "existing@example.com"
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "email already registered")
@@ -887,7 +887,7 @@ func TestRegisterService_Register(t *testing.T) {
 		phone := "+1234567890"
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, &phone, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, &phone, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "phone already registered")
@@ -904,7 +904,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -920,7 +920,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -935,7 +935,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -951,7 +951,7 @@ func TestRegisterService_Register(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -967,7 +967,7 @@ func TestRegisterService_Register(t *testing.T) {
 		m := defaultRegInternalMocks()
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -983,7 +983,7 @@ func TestRegisterService_Register(t *testing.T) {
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 		email := "a@b.com"
 		phone := "+1234567890"
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", &email, &phone, &cid, &pid, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, &phone, &cid, &pid, "")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -998,7 +998,7 @@ func TestRegisterService_Register(t *testing.T) {
 		m := defaultRegInternalMocks()
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!2026", nil, nil, nil, nil, "")
+		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -1054,7 +1054,7 @@ func TestRegisterService_Register(t *testing.T) {
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.Register(context.Background(), "system-user", "System User", "P@ssW0rd!2026", nil, nil, nil, nil, "")
+		resp, err := svc.Register(context.Background(), "system-user", "System User", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
@@ -1088,7 +1088,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1106,7 +1106,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "does not belong")
@@ -1123,7 +1123,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid or inactive auth client")
@@ -1150,7 +1150,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "auth client tenant could not be resolved")
@@ -1168,7 +1168,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid or inactive auth client")
@@ -1185,7 +1185,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid invite token")
@@ -1202,7 +1202,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invite not found")
@@ -1219,7 +1219,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invite has already been used or is no longer valid")
@@ -1237,7 +1237,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invite has expired")
@@ -1255,7 +1255,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1272,7 +1272,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "username already taken")
@@ -1290,7 +1290,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1307,7 +1307,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invited email already registered")
@@ -1325,7 +1325,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1342,7 +1342,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1358,7 +1358,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1375,7 +1375,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1392,7 +1392,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1409,7 +1409,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1424,7 +1424,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!2026", "c", "", "token")
+		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "vault-crimson-ledger-92", "c", "", "token")
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)

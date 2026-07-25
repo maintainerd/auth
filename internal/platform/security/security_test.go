@@ -20,7 +20,6 @@ import (
 
 func TestValidatePasswordStrength_Valid(t *testing.T) {
 	validPasswords := []string{
-		"Abcdef1!",
 		"Str0ng@Pass",
 		"C0mpl3x!Secure",
 		"!Upper1lowercase",
@@ -30,6 +29,16 @@ func TestValidatePasswordStrength_Valid(t *testing.T) {
 			assert.NoError(t, ValidatePasswordStrength(pw))
 		})
 	}
+}
+
+// "Abcdef1!" satisfies every composition rule and is still a blocklist entry
+// wearing the suffix composition rules push people into adding. This case used
+// to be asserted VALID, which is exactly the weakness the normalized blocklist
+// lookup exists to close.
+func TestValidatePasswordStrength_RejectsCompositionCompliantBlocklistEntry(t *testing.T) {
+	err := ValidatePasswordStrength("Abcdef1!")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "common weak password")
 }
 
 func TestValidatePasswordStrength_TooShort(t *testing.T) {

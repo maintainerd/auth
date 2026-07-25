@@ -33,6 +33,14 @@ var newSMSProvider = sms.NewProviderFromDB
 type SMSLoginService interface {
 	SendOTP(ctx context.Context, phone string, clientID, tenantID *string) error
 	VerifyOTP(ctx context.Context, phone, otp string, clientID, tenantID *string) (*LoginResponseDTO, error)
+	SetMFACoordinator(coordinator SMSMFACoordinator)
+}
+
+// SMSMFACoordinator applies the tenant login MFA policy after SMS OTP has
+// established the first factor. It is the login service (see SMSMFAChallenge),
+// injected to avoid a package cycle — the same shape magic-link uses.
+type SMSMFACoordinator interface {
+	SMSMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
 }
 
 type smsLoginService struct {
@@ -45,6 +53,11 @@ type smsLoginService struct {
 	authEventService     authevent.AuthEventService
 	sessionService       SessionService
 	securitySettingRepo  secpolicy.SecuritySettingRepository
+	mfaCoordinator       SMSMFACoordinator
+}
+
+func (s *smsLoginService) SetMFACoordinator(coordinator SMSMFACoordinator) {
+	s.mfaCoordinator = coordinator
 }
 
 func NewSMSLoginService(
@@ -258,6 +271,19 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, phone, otp string, clie
 	// Record threat success for SMS login — marks device/last-login for future assessments.
 	tenantIDVal := clientTenantID(client)
 	security.RecordLoginThreatSuccess(ctx, tenantIDVal, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), secpolicy.LoadThreatPolicy(s.securitySettingRepo, tenantIDVal))
+
+	// Apply the tenant's MFA policy before issuing a session. SMS OTP is a single
+	// possession factor; when the tenant enforces MFA this login must still be
+	// challenged for a distinct second factor. Without this gate mode=enforced was
+	// fully bypassable via SMS login — every other passwordless path (magic link)
+	// already runs this check. A nil coordinator or (nil, nil) means MFA is not
+	// required and the acr=1 session proceeds.
+	if s.mfaCoordinator != nil {
+		mfaResponse, mfaErr := s.mfaCoordinator.SMSMFAChallenge(ctx, user, tenantIDVal)
+		if mfaErr != nil || mfaResponse != nil {
+			return mfaResponse, mfaErr
+		}
+	}
 	return s.generateSMSTokenResponse(ctx, userIdentitySub, user, client)
 }
 

@@ -19,6 +19,7 @@ type mockAccountService struct {
 	initiateEmailChangeFn func(userID int64, newEmail, currentPassword string) error
 	verifyEmailChangeFn   func(userID int64, otp string) error
 	changeUsernameFn      func(userID int64, newUsername, currentPassword string) error
+	changePasswordFn      func(userID int64, currentPassword, newPassword string, callerSessionUUID *uuid.UUID) (*ChangePasswordResponseDTO, error)
 	deleteAccountFn       func(userID int64, currentPassword string) error
 	exportAccountDataFn   func(userID int64) (*AccountExportDTO, error)
 	generateBackupCodesFn func(userID int64) (*GenerateBackupCodesResponseDTO, error)
@@ -44,6 +45,12 @@ func (m *mockAccountService) ChangeUsername(_ context.Context, userID int64, new
 		return m.changeUsernameFn(userID, newUsername, currentPassword)
 	}
 	return nil
+}
+func (m *mockAccountService) ChangePassword(_ context.Context, userID int64, currentPassword, newPassword string, callerSessionUUID *uuid.UUID) (*ChangePasswordResponseDTO, error) {
+	if m.changePasswordFn != nil {
+		return m.changePasswordFn(userID, currentPassword, newPassword, callerSessionUUID)
+	}
+	return &ChangePasswordResponseDTO{OtherSessionsRevoked: true}, nil
 }
 func (m *mockAccountService) DeleteAccount(_ context.Context, userID int64, currentPassword string) error {
 	if m.deleteAccountFn != nil {

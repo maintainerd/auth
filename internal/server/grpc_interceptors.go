@@ -78,6 +78,9 @@ func grpcUnaryInterceptors(application *Application) []grpc.UnaryServerIntercept
 		grpcLoggingUnaryInterceptor(),
 		grpcTimeoutUnaryInterceptor(defaultGRPCTimeout),
 		grpcAuthUnaryInterceptor(application, limiter),
+		// After auth so the claims are in context, and outermost of the business
+		// handlers so it sees the final outcome.
+		grpcAuditUnaryInterceptor(application),
 	}
 }
 
@@ -211,10 +214,18 @@ func authenticateAndAuthorizeGRPC(ctx context.Context, application *Application,
 		return ctx, status.Error(codes.PermissionDenied, "step-up authentication required")
 	}
 	if permission != "" && application.AuthorizationService != nil {
+		// TenantID must be carried: without it the policy lookup resolves the
+		// principal by name across all tenants and returns the lowest service_id,
+		// which is the system tenant's service — collapsing every service principal
+		// onto the platform's own policies.
+		if claims.TenantID == 0 {
+			return ctx, status.Error(codes.PermissionDenied, "service token is not bound to a tenant")
+		}
 		decision := application.AuthorizationService.Authorize(ctx, iam.AuthzRequest{
 			Principal: claims.Service,
 			Action:    permission,
 			Resource:  method,
+			TenantID:  claims.TenantID,
 		})
 		if !decision.Allowed {
 			return ctx, status.Error(codes.PermissionDenied, decision.Reason)
@@ -288,7 +299,23 @@ func grpcJWTClaims(ctx context.Context) (*middleware.JWTClaims, error) {
 		SessionID:   stringClaim(rawClaims, "sid"),
 		ACR:         stringClaim(rawClaims, "acr"),
 		AMR:         stringSliceClaim(rawClaims["amr"]),
+		// This path builds JWTClaims by hand rather than through
+		// middleware.buildJWTClaims, so every claim it needs must be mapped here.
+		TenantID: int64Claim(rawClaims["tenant_id"]),
 	}, nil
+}
+
+// int64Claim reads a numeric claim; JSON numbers decode to float64.
+func int64Claim(raw any) int64 {
+	switch v := raw.(type) {
+	case float64:
+		return int64(v)
+	case int64:
+		return v
+	case int:
+		return int64(v)
+	}
+	return 0
 }
 
 func stringClaim(claims map[string]any, key string) string {

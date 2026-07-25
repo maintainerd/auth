@@ -26,6 +26,13 @@ var reservedClaims = map[string]struct{}{
 	"tenant_id": {}, "permissions": {}, "roles": {}, "sid": {},
 	// Sender-constrained token binding (RFC 9449 / RFC 8705).
 	"cnf": {},
+	// Service-principal identity. The gRPC interceptor admits a token when
+	// sub_type=="service" and then authorizes on `svc` as the principal name,
+	// resolving its policies WITHOUT tenant scoping — so a forged `svc` is an
+	// arbitrary service principal in any tenant. `provider_id` and `token_type`
+	// are stamped by the issuer and read back by middleware; `act` is the RFC 8693
+	// delegation chain, which must record who actually delegated.
+	"svc": {}, "provider_id": {}, "token_type": {}, "act": {}, "token_use": {},
 }
 
 // IsReservedClaim reports whether a claim name is protected from client-supplied

@@ -7,8 +7,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/datatypes"
@@ -60,6 +63,19 @@ func iamOptionalString(value string) *string {
 	return &value
 }
 
+// resolveIAMTenant resolves the target tenant from the request AND checks the caller
+// is allowed to act on it.
+//
+// The gRPC surface takes the target tenant from the request body, and the interceptor
+// authorizes an ACTION only — it never compares the requested tenant against the
+// token. Existence was therefore the only check: any principal holding, say,
+// `service:update` in its own tenant could pass another tenant's UUID and mutate
+// that tenant's services.
+//
+// The rule: a caller may act on its own tenant, and a caller whose token is bound to
+// the SYSTEM tenant may act on any tenant. The latter is what lets the control plane
+// configure a tenant remotely without a human in this app's frontend; it is not a
+// blanket grant, because a tenant principal is now pinned to its own tenant.
 func resolveIAMTenant(ctx context.Context, tenantService TenantResolver, tenantUUID string) (*tenantScope, error) {
 	parsed, err := iamParseUUID(tenantUUID, "Tenant UUID")
 	if err != nil {
@@ -69,7 +85,53 @@ func resolveIAMTenant(ctx context.Context, tenantService TenantResolver, tenantU
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
+	if err := assertCallerMayActOnTenant(ctx, tenantService, result.TenantID); err != nil {
+		return nil, err
+	}
 	return &tenantScope{TenantID: result.TenantID, TenantUUID: result.TenantUUID}, nil
+}
+
+// assertCallerMayActOnTenant enforces the tenant boundary described above.
+func assertCallerMayActOnTenant(ctx context.Context, tenantService TenantResolver, targetTenantID int64) error {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil || claims.TenantID == 0 {
+		// A token with no tenant cannot prove it may act anywhere. The interceptor
+		// already refuses these for permission-gated methods; this is defence in depth.
+		return status.Error(codes.PermissionDenied, "this token is not bound to a tenant")
+	}
+	if claims.TenantID == targetTenantID {
+		return nil
+	}
+	// Cross-tenant is reserved for the control plane, which lives in the system tenant.
+	callerIsSystem, err := callerTenantIsSystem(ctx, tenantService, claims.TenantID)
+	if err != nil {
+		return err
+	}
+	if !callerIsSystem {
+		return status.Error(codes.PermissionDenied,
+			"this token may only act on its own tenant")
+	}
+	return nil
+}
+
+// callerTenantIsSystem reports whether the caller's own tenant is the system tenant.
+//
+// Resolved through GetSystem rather than by loading the caller's tenant, so the
+// check needs no new repository method and compares ids directly.
+func callerTenantIsSystem(ctx context.Context, tenantService TenantResolver, callerTenantID int64) (bool, error) {
+	resolver, ok := tenantService.(interface {
+		GetSystem(ctx context.Context) (*tenant.TenantServiceDataResult, error)
+	})
+	if !ok {
+		// Fail closed: without a way to identify the system tenant, cross-tenant
+		// access cannot be justified.
+		return false, status.Error(codes.PermissionDenied, "cross-tenant access cannot be verified")
+	}
+	systemTenant, err := resolver.GetSystem(ctx)
+	if err != nil || systemTenant == nil {
+		return false, status.Error(codes.PermissionDenied, "cross-tenant access cannot be verified")
+	}
+	return systemTenant.TenantID == callerTenantID, nil
 }
 
 func resolveIAMTenantAndUUID(ctx context.Context, tenantService TenantResolver, tenantUUID string, value string, label string) (*tenantScope, uuid.UUID, error) {

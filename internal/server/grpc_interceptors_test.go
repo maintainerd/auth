@@ -191,6 +191,9 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		token, err := jwt.GenerateAccessTokenWithOptions("svc-auth", "read", "https://auth.example.com", "auth", "client-1", "provider-1", &jwt.AccessTokenOptions{
 			Service:     "auth",
 			SubjectType: "service",
+			// A service token must carry its tenant: the policy lookup resolves the
+			// principal by name, which is unique per tenant, not globally.
+			ExtraClaims: map[string]any{"tenant_id": 1},
 		})
 		require.NoError(t, err)
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
@@ -200,6 +203,24 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		authCtx, err := authenticateAndAuthorizeGRPC(ctx, &Application{AuthorizationService: mockGRPCAuthz{allowed: true}}, newGRPCLimiter(2, time.Minute), "/test.Service/NeedsPermission")
 		require.NoError(t, err)
 		assert.NotNil(t, middleware.JWTClaimsFromContext(authCtx))
+	})
+
+	// Without a tenant the policy lookup resolved the principal across all tenants
+	// and returned the lowest service_id — the system tenant's service — collapsing
+	// every service principal onto the platform's own policies.
+	t.Run("authz denies a service token with no tenant", func(t *testing.T) {
+		initServerTestJWTKeys(t)
+		token, err := jwt.GenerateAccessTokenWithOptions("svc-auth", "read", "https://auth.example.com", "auth", "client-1", "provider-1", &jwt.AccessTokenOptions{
+			Service:     "auth",
+			SubjectType: "service",
+		})
+		require.NoError(t, err)
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
+		grpcServicePermissions["/test.Service/NeedsPermission"] = "tenant:read"
+		t.Cleanup(func() { delete(grpcServicePermissions, "/test.Service/NeedsPermission") })
+
+		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{AuthorizationService: mockGRPCAuthz{allowed: true}}, newGRPCLimiter(2, time.Minute), "/test.Service/NeedsPermission")
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
 	t.Run("step-up denies protected method without elevated acr", func(t *testing.T) {

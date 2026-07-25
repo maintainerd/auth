@@ -170,10 +170,10 @@ type trustedDeviceRecord struct {
 	Location              *string    `gorm:"column:location"`
 	IPAddress             *string    `gorm:"column:ip_address"`
 	UserAgent             *string    `gorm:"column:user_agent"`
-	TrustedUntil          time.Time      `gorm:"column:trusted_until"`
-	LastSeenAt            *time.Time     `gorm:"column:last_seen_at"`
-	CreatedAt             time.Time      `gorm:"column:created_at"`
-	UpdatedAt             time.Time      `gorm:"column:updated_at"`
+	TrustedUntil          time.Time  `gorm:"column:trusted_until"`
+	LastSeenAt            *time.Time `gorm:"column:last_seen_at"`
+	CreatedAt             time.Time  `gorm:"column:created_at"`
+	UpdatedAt             time.Time  `gorm:"column:updated_at"`
 	// DeletedAt makes revocation a soft delete, consistent with the canonical
 	// user.UserTrustedDevice model and the admin/self revoke paths.
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`

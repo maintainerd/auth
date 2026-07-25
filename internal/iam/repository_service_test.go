@@ -122,7 +122,7 @@ func TestServiceRepository(t *testing.T) {
 		expectAnyCount(mock, "service_policies").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
 		repo := NewServiceRepository(db)
-		require.NoError(t, repo.SetStatusByUUID(testResourceUUID, "active"))
+		require.NoError(t, repo.SetStatusByUUID(testResourceUUID, tenantID, "active"))
 		count, err := repo.CountPoliciesByServiceID(1)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), count)

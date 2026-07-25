@@ -17,11 +17,13 @@ type AuthzRequest struct {
 }
 
 const (
-	policyVersionV1       = "v1"
-	decisionExplicitDeny  = "explicit deny"
-	decisionMatchedAllow  = "matched allow"
-	decisionNoMatching    = "no matching allow"
-	decisionInvalidAction = "missing action or resource"
+	policyVersionV1            = "v1"
+	decisionExplicitDeny       = "explicit deny"
+	decisionUnsupportedVersion = "policy document version is not supported"
+	decisionUnknownEffect      = "policy statement has an unrecognised effect"
+	decisionMatchedAllow       = "matched allow"
+	decisionNoMatching         = "no matching allow"
+	decisionInvalidAction      = "missing action or resource"
 )
 
 // Evaluate applies AWS-style identity-policy semantics over the supplied
@@ -34,18 +36,26 @@ func Evaluate(docs []PolicyDocument, req AuthzRequest) Decision {
 
 	allowed := false
 	for _, doc := range docs {
+		// An unrecognised document version is refused, not skipped. Skipping is
+		// asymmetric: dropping an allow is safe, but dropping a DENY silently
+		// removes a guardrail while sibling allows still apply. A document written
+		// as "v2" or "1" must never be able to widen access by being ignored.
 		if doc.Version != policyVersionV1 {
-			continue
+			return Decision{Allowed: false, Reason: decisionUnsupportedVersion}
 		}
 		for _, stmt := range doc.Statement {
 			if !statementMatches(stmt, req) {
 				continue
 			}
-			if strings.EqualFold(stmt.Effect, "deny") {
+			switch {
+			case strings.EqualFold(stmt.Effect, "deny"):
 				return Decision{Allowed: false, Reason: decisionExplicitDeny}
-			}
-			if strings.EqualFold(stmt.Effect, "allow") {
+			case strings.EqualFold(stmt.Effect, "allow"):
 				allowed = true
+			default:
+				// Same reasoning: an effect that is neither allow nor deny may have
+				// been INTENDED as a deny, so it must not be discarded.
+				return Decision{Allowed: false, Reason: decisionUnknownEffect}
 			}
 		}
 	}

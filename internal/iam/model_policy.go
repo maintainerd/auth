@@ -13,7 +13,7 @@ type Policy struct {
 	PolicyUUID  uuid.UUID      `gorm:"column:policy_uuid;unique"`
 	TenantID    int64          `gorm:"column:tenant_id;not null"`
 	Name        string         `gorm:"column:name"`
-	Description *string        `gorm:"column:description"`
+	Description *string        `gorm:"column:description;not null;default:''"`
 	Document    datatypes.JSON `gorm:"column:document"`
 	Version     string         `gorm:"column:version"`
 	Status      string         `gorm:"column:status;not null;default:'inactive'"`

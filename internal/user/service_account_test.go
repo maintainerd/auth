@@ -63,7 +63,7 @@ func TestNewAccountService(t *testing.T) {
 	db, _ := newMockGormDB(t)
 	svc := NewAccountService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockProfileRepo{},
 		&mockUserSettingRepo{}, &mockRoleRepo{}, &mockClientRepo{}, &mockUserMFABackupCodeRepo{},
-		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService(), nil, &mockUserOTPRepo{})
+		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService(), nil, &mockUserOTPRepo{}, nil, nil)
 	assert.NotNil(t, svc)
 }
 

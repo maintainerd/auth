@@ -268,6 +268,10 @@ func (m *mockLoginService) MagicLinkMFAChallenge(context.Context, *User, int64) 
 	return nil, nil
 }
 
+func (m *mockLoginService) SMSMFAChallenge(context.Context, *User, int64) (*LoginResponseDTO, error) {
+	return nil, nil
+}
+
 func (m *mockLoginService) IssueMagicLinkSession(context.Context, string, *User, *Client) (*LoginResponseDTO, error) {
 	return nil, nil
 }
