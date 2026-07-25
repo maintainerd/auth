@@ -195,9 +195,13 @@ export default function ThreatDetectionPage() {
               <p className="text-sm text-muted-foreground">IP reputation checks, Tor blocking, and per-IP velocity limits.</p>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* IP reputation and Tor blocking require an external data feed the
+                  server does not yet ship, so the API rejects enabling them. The
+                  switches are forced off + disabled so an admin can't toggle into
+                  a validation error; re-enable once a provider is wired. */}
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="IP Reputation Check" description="Query external IP reputation feeds" checked={formValues.ip_reputation_check_enabled} onCheckedChange={(v) => handleUpdate({ ip_reputation_check_enabled: v })} disabled={isBusy} />
-                <FormSwitchField label="Block Tor Exit Nodes" description="Reject logins originating from known Tor exit nodes" checked={formValues.block_tor_exit_nodes} onCheckedChange={(v) => handleUpdate({ block_tor_exit_nodes: v })} disabled={isBusy} />
+                <FormSwitchField label="IP Reputation Check" description="Requires an IP reputation provider (not yet available)" checked={false} onCheckedChange={() => {}} disabled />
+                <FormSwitchField label="Block Tor Exit Nodes" description="Requires a Tor exit-node source (not yet available)" checked={false} onCheckedChange={() => {}} disabled />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Velocity Limit (failures/IP/hour)" type="number" value={formValues.velocity_failures_per_ip_per_hour.toString()} onChange={(e) => handleUpdate({ velocity_failures_per_ip_per_hour: parseInt(e.target.value) || 1 })} error={errors.velocity_failures_per_ip_per_hour?.message} disabled={isBusy} />

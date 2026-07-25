@@ -22,22 +22,23 @@ const BACKEND_FIELD_MAP: Record<string, string> = {
   additional_access_token_claims: 'additional_access_token_claims',
 }
 
+// ES256 is intentionally absent: the server's key store is RSA-only and rejects
+// ES256, so only RS256/PS256 are offered here to match what can actually sign.
 const SIGNING_OPTIONS = [
   { value: 'RS256', label: 'RS256' },
-  { value: 'ES256', label: 'ES256' },
   { value: 'PS256', label: 'PS256' },
 ]
 
+// Only roles and tenant_id are offered — these are the server-resolved
+// authorization/tenancy claims the backend accepts. Identity claims (email,
+// name, phone, …) are delivered to ID tokens by the OIDC profile/email/phone
+// scopes, not this list, and do not belong in access tokens (RFC 9068 §6
+// least-disclosure). Auth-context claims (acr/amr/nonce/…) must never be
+// operator-set. The backend rejects anything outside this set, so offering more
+// here would only let an operator pick a value the API refuses.
 const KNOWN_CLAIMS = [
   { value: 'roles', label: 'roles' },
   { value: 'tenant_id', label: 'tenant_id' },
-  { value: 'permissions', label: 'permissions' },
-  { value: 'email', label: 'email' },
-  { value: 'email_verified', label: 'email_verified' },
-  { value: 'phone', label: 'phone' },
-  { value: 'phone_verified', label: 'phone_verified' },
-  { value: 'name', label: 'name' },
-  { value: 'fullname', label: 'fullname' },
 ]
 
 export default function TokenConfigPage() {

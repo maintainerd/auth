@@ -9,7 +9,10 @@ export const tokenConfigSchema = yup.object({
   signing_algorithm: yup
     .string()
     .required()
-    .oneOf(['RS256', 'ES256', 'PS256']),
+    // ES256 is intentionally omitted: the server signs with an RSA key store and
+    // rejects ES256, so offering it here only lets an operator pick a value that
+    // the API refuses (and would break token issuance if it slipped through).
+    .oneOf(['RS256', 'PS256']),
   require_pkce: yup.boolean().required(),
   additional_id_token_claims: yup.array().of(yup.string().defined()).required(),
   additional_access_token_claims: yup.array().of(yup.string().defined()).required(),
