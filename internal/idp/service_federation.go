@@ -1191,6 +1191,28 @@ func (s *federationService) provisionUser(
 	}
 
 	if user == nil {
+		// Social/federated JIT provisioning creates a brand-new account, so the
+		// tenant's registration policy applies here exactly as it does to
+		// self-signup — otherwise these controls are trivially bypassed by
+		// logging in through any enabled social IdP. Existing-user federated
+		// LOGIN (handled above) is unaffected; only the CREATE is gated.
+		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, idp.TenantID)
+		if regPolicy != nil {
+			// blocked_email_domains is a hard org policy ("this org will never
+			// hold an identity at these domains") and must hold regardless of the
+			// provisioning mechanism.
+			if regPolicy.EmailDomainBlocked(email) {
+				return nil, false, apperror.NewValidation("email domain is not permitted")
+			}
+			// A closed directory (self_registration_enabled=false) must not be
+			// openable via social login. The allowlist is intentionally NOT
+			// applied — it is a self-signup gate, whereas federated identity is a
+			// separate, admin-configured trust path.
+			if !regPolicy.SelfRegistrationEnabled {
+				return nil, false, apperror.NewUnauthorized("registration is disabled for this tenant")
+			}
+		}
+
 		// Create a new user from the external profile.
 		username := deriveUsername(meta, email)
 		newUser := &User{

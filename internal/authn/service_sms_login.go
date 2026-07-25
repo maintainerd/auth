@@ -251,6 +251,21 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, phone, otp string, clie
 			return apperror.NewInternal("failed to invalidate OTP", txErr)
 		}
 
+		// A successful SMS OTP IS proof of phone possession, so it satisfies the
+		// tenant's require_phone_verification gate — mirroring how magic-link
+		// auto-verifies email on use. This is the canonical, non-duplicated way a
+		// user verifies their phone; no separate pre-auth phone-verification flow
+		// is introduced.
+		if !user.IsPhoneVerified {
+			if _, txErr := txUserRepo.UpdateByID(user.UserID, map[string]any{
+				"is_phone_verified": true,
+				"phone_verified_at": time.Now(),
+			}); txErr != nil {
+				return apperror.NewInternal("failed to update phone verification status", txErr)
+			}
+			user.IsPhoneVerified = true
+		}
+
 		// Resolve user identity sub for token issuance.
 		userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, client.ClientID)
 		if txErr != nil || userIdentity == nil {

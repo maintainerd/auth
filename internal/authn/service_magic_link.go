@@ -33,6 +33,10 @@ type MagicLinkService interface {
 }
 
 type MagicLinkLoginCoordinator interface {
+	// EnforcePhoneVerification blocks the login when the tenant requires phone
+	// verification and the user's phone is unverified. Magic-link proves email,
+	// not phone, so this gate applies here just as it does to password login.
+	EnforcePhoneVerification(ctx context.Context, user *User, tenantID int64) error
 	MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
 	IssueMagicLinkSession(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error)
 }
@@ -295,6 +299,11 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 	span.SetStatus(codes.Ok, "")
 	if s.loginCoordinator != nil {
 		tenantID := clientTenantID(Client)
+		// Magic-link proved email above; it does not prove phone, so honor the
+		// tenant's require_phone_verification gate before issuing anything.
+		if err := s.loginCoordinator.EnforcePhoneVerification(ctx, user, tenantID); err != nil {
+			return nil, err
+		}
 		mfaResponse, mfaErr := s.loginCoordinator.MagicLinkMFAChallenge(ctx, user, tenantID)
 		if mfaErr != nil || mfaResponse != nil {
 			return mfaResponse, mfaErr

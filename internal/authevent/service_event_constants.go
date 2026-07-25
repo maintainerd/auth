@@ -39,6 +39,7 @@ const (
 	AuthEventTypeTokenReuse            = "authn_token_reuse"
 	AuthEventTypeTokenDelete           = "authn_token_delete"
 	AuthEventTypeImpossibleTravel      = "authn_impossible_travel"
+	AuthEventTypeNewDevice             = "authn_new_device"
 	AuthEventTypeOAuthAuthorize        = "authn_oauth_authorize"
 	AuthEventTypeOAuthConsent          = "authn_oauth_consent"
 	AuthEventTypeOAuthConsentDeny      = "authn_oauth_consent_deny"

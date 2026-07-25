@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -154,13 +155,17 @@ func (s *sessionService) EnforceConcurrentLimitWithPolicy(ctx context.Context, u
 	_, span := otel.Tracer("service").Start(ctx, "session.enforceConcurrentLimit")
 	defer span.End()
 
+	maxSessions := policy.MaxConcurrentSessions
+	if maxSessions <= 0 {
+		return nil
+	}
+
 	count, err := s.sessionRepo.CountActive(userID)
 	if err != nil {
 		span.RecordError(err)
 		return err
 	}
-
-	if policy.MaxConcurrentSessions <= 0 || count < int64(policy.MaxConcurrentSessions) {
+	if count < int64(maxSessions) {
 		return nil
 	}
 
@@ -173,10 +178,30 @@ func (s *sessionService) EnforceConcurrentLimitWithPolicy(ctx context.Context, u
 		return nil
 	}
 
-	oldest := sessions[0]
-	if err := s.sessionRepo.RevokeByUUID(userID, oldest.UserSessionUUID, "concurrent_limit"); err != nil {
-		span.RecordError(err)
-		return err
+	// Evict the OLDEST sessions. FindActiveByUserID returns newest-first, so
+	// sort ascending and revoke from the front — the previous code took
+	// sessions[0] and called it "oldest", which was actually the NEWEST session,
+	// so it killed the user's freshest login and kept the stale ones.
+	sort.Slice(sessions, func(i, j int) bool {
+		return sessions[i].CreatedAt.Before(sessions[j].CreatedAt)
+	})
+
+	// Revoke enough of the oldest sessions that, once the caller creates the new
+	// session, the user is left at exactly maxSessions. The previous code revoked
+	// exactly one per login while the caller added one back — net zero — so a
+	// user already over the limit stayed over it forever and the cap never
+	// converged. Trimming (count - max + 1) makes room for the incoming session.
+	// count is the eviction target (we only get here when count >= max, so this
+	// is >= 1); the slice length bounds how many we can actually revoke.
+	toRevoke := int(count) - maxSessions + 1
+	if toRevoke > len(sessions) {
+		toRevoke = len(sessions)
+	}
+	for i := 0; i < toRevoke; i++ {
+		if err := s.sessionRepo.RevokeByUUID(userID, sessions[i].UserSessionUUID, "concurrent_limit"); err != nil {
+			span.RecordError(err)
+			return err
+		}
 	}
 
 	span.SetStatus(codes.Ok, "")

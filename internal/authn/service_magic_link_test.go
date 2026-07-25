@@ -43,6 +43,14 @@ func validEmailTemplate() *branding.EmailTemplate {
 type mockMagicLinkLoginCoordinator struct {
 	challengeFn func(*User, int64) (*LoginResponseDTO, error)
 	issueFn     func(string, *User, *Client) (*LoginResponseDTO, error)
+	enforceFn   func(*User, int64) error
+}
+
+func (m *mockMagicLinkLoginCoordinator) EnforcePhoneVerification(_ context.Context, user *User, tenantID int64) error {
+	if m.enforceFn != nil {
+		return m.enforceFn(user, tenantID)
+	}
+	return nil
 }
 
 func (m *mockMagicLinkLoginCoordinator) MagicLinkMFAChallenge(_ context.Context, user *User, tenantID int64) (*LoginResponseDTO, error) {

@@ -74,18 +74,26 @@ func mapToRegistrationPolicy(cfg map[string]any) *RegistrationPolicy {
 	return p
 }
 
-// EmailVerified reports whether a freshly-registered account should be treated
-// as email-verified given this policy. Auto-confirm short-circuits verification;
-// otherwise an account is verified only when verification is not required.
-func (p *RegistrationPolicy) EmailVerified() bool {
+// activatesWithoutEmailConfirmation reports whether a freshly-registered account
+// may become active WITHOUT first confirming its email. auto_confirm lets a
+// tenant admit users immediately; otherwise the account waits only when the
+// tenant requires email verification.
+//
+// This governs ACCOUNT STATUS only. It is deliberately NOT the email_verified
+// claim: activating an account without a verification step (auto_confirm, or a
+// tenant that does not require verification) does not PROVE the address, so
+// IsEmailVerified must stay false until the address is actually confirmed (OIDC
+// Core §5.1 — email_verified=true MUST mean verified). See where callers set
+// IsEmailVerified at registration.
+func (p *RegistrationPolicy) activatesWithoutEmailConfirmation() bool {
 	if p == nil {
-		return false
+		return true
 	}
 	return p.AutoConfirmEnabled || !p.RequireEmailVerification
 }
 
 func (p *RegistrationPolicy) InitialUserStatus(email string) string {
-	if p == nil || p.EmailVerified() || strings.TrimSpace(email) == "" {
+	if p == nil || p.activatesWithoutEmailConfirmation() || strings.TrimSpace(email) == "" {
 		return "active"
 	}
 	return "pending"
@@ -108,7 +116,7 @@ func (p *RegistrationPolicy) EmailDomainAllowed(email string) bool {
 		return true
 	}
 	for _, blocked := range p.BlockedEmailDomains {
-		if domainMatches(blocked, domain) {
+		if domainBlocked(blocked, domain) {
 			return false
 		}
 	}
@@ -117,6 +125,34 @@ func (p *RegistrationPolicy) EmailDomainAllowed(email string) bool {
 	}
 	for _, allowed := range p.AllowedEmailDomains {
 		if domainMatches(allowed, domain) {
+			return true
+		}
+	}
+	return false
+}
+
+// EmailDomainBlocked reports whether an email's domain is on the blocklist —
+// the hard "this org will never hold an identity at these domains" policy.
+//
+// Unlike the allowlist (which is a self-signup gate), the blocklist must be
+// enforced on EVERY account-provisioning path: self-signup, invite, and
+// social/federated JIT provisioning. Exposing it separately lets those paths
+// apply the hard block without inheriting the allowlist's self-signup meaning.
+// An empty email, no "@", or an empty blocklist all pass (not blocked).
+func (p *RegistrationPolicy) EmailDomainBlocked(email string) bool {
+	if p == nil || len(p.BlockedEmailDomains) == 0 {
+		return false
+	}
+	at := strings.LastIndex(email, "@")
+	if at < 0 {
+		return false
+	}
+	domain := strings.ToLower(strings.TrimSpace(email[at+1:]))
+	if domain == "" {
+		return false
+	}
+	for _, blocked := range p.BlockedEmailDomains {
+		if domainBlocked(blocked, domain) {
 			return true
 		}
 	}
@@ -133,4 +169,21 @@ func domainMatches(pattern, domain string) bool {
 		return domain == suffix || strings.HasSuffix(domain, "."+suffix)
 	}
 	return domain == pattern
+}
+
+// domainBlocked matches a blocklist entry against a domain. Unlike domainMatches
+// (used for the allowlist, where exact-match is the safer default), a bare
+// blocklist entry ALSO matches its subdomains: blocking "competitor.com" must
+// also block "mail.competitor.com", or the block is trivially evaded by using a
+// subdomain. Explicit wildcards ("*.competitor.com") still work via domainMatches
+// semantics for the apex+subdomain case.
+func domainBlocked(pattern, domain string) bool {
+	pattern = strings.ToLower(strings.TrimSpace(pattern))
+	if pattern == "" {
+		return false
+	}
+	if strings.HasPrefix(pattern, "*.") {
+		return domainMatches(pattern, domain)
+	}
+	return domain == pattern || strings.HasSuffix(domain, "."+pattern)
 }

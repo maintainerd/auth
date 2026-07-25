@@ -59,6 +59,32 @@ func ResolveRequestTenant(r *http.Request) RequestTenant {
 	return RequestTenant{}
 }
 
+// ResolveRequestTenantTrusted is ResolveRequestTenant hardened for use as a
+// SECURITY decision (IP restriction on the login surface). It trusts the
+// forwarded host headers (Origin, X-Forwarded-Host) ONLY when the peer is a
+// trusted proxy — the same discipline extractClientIP applies to
+// X-Forwarded-For. Direct-to-origin, only the real Host is honored, so an
+// attacker who can reach the origin cannot spoof a different (unrestricted)
+// tenant via a forged X-Forwarded-Host header. The plain ResolveRequestTenant
+// stays for non-security tenant hints (e.g. branding) where a spoofed host is
+// harmless.
+func ResolveRequestTenantTrusted(r *http.Request) RequestTenant {
+	var candidates []string
+	if trustAllProxies || isTrustedProxy(remoteAddrIP(r)) {
+		candidates = append(candidates, hostFromOrigin(r.Header.Get("Origin")), r.Header.Get("X-Forwarded-Host"))
+	}
+	candidates = append(candidates, r.Host)
+	for _, h := range candidates {
+		if h == "" {
+			continue
+		}
+		if surface, slug, isSystem, ok := shared.ResolveTenantHost(h); ok {
+			return RequestTenant{Surface: surface, Slug: slug, IsSystem: isSystem, OK: true}
+		}
+	}
+	return RequestTenant{}
+}
+
 // hostFromOrigin extracts the host component from an Origin header value
 // (scheme://host[:port]). Returns "" when the value is empty or unparseable.
 func hostFromOrigin(origin string) string {

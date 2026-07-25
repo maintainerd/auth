@@ -399,6 +399,38 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 			Description: ptr.Ptr("Account locked due to too many failed login attempts: " + identifier),
 		})
 	}
+	// Route threat signals into the auth-event system so new_device_notification
+	// and impossible_travel actually notify (fan out to webhooks) instead of only
+	// writing a local log line. Both are gated by their tenant config toggles in
+	// the threat engine before these fire.
+	security.OnNewDeviceLogin = func(ctx context.Context, tenantID, userID int64, ip, userAgent string) {
+		uid := userID
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			TenantID:    tenantID,
+			ActorUserID: &uid,
+			IPAddress:   ip,
+			UserAgent:   ptr.PtrOrNil(userAgent),
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeNewDevice,
+			Severity:    authevent.AuthEventSeverityInfo,
+			Result:      authevent.AuthEventResultSuccess,
+			Description: ptr.Ptr("Sign-in from a new device"),
+		})
+	}
+	security.OnImpossibleTravel = func(ctx context.Context, tenantID, userID int64, ip, userAgent string) {
+		uid := userID
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			TenantID:    tenantID,
+			ActorUserID: &uid,
+			IPAddress:   ip,
+			UserAgent:   ptr.PtrOrNil(userAgent),
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeImpossibleTravel,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultSuccess,
+			Description: ptr.Ptr("Rapid sign-in from a different location"),
+		})
+	}
 	return s, nil
 }
 

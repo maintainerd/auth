@@ -9,6 +9,7 @@ import (
 	"time"
 
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 const (
@@ -49,6 +50,57 @@ func TenantMaintenanceMiddleware(reader TenantMaintenanceReader) func(http.Handl
 			if cfg.ScheduledEnd != nil && time.Now().Before(*cfg.ScheduledEnd) {
 				retryAfter := int(time.Until(*cfg.ScheduledEnd).Seconds())
 				if retryAfter > 0 {
+					w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+				}
+			}
+			resp.ErrorWithCode(w, http.StatusServiceUnavailable, "maintenance_mode", cfg.Message)
+		})
+	}
+}
+
+// AuthEndpointMaintenanceMiddleware applies a tenant's maintenance window to the
+// PRE-AUTH credential surface (login, register, password reset, SMS, magic
+// link), keyed on the request's subdomain tenant — the same host-based resolver
+// the pre-auth IP-restriction middleware uses. Without this, a tenant in
+// maintenance could still authenticate and would only hit the 503 wall on the
+// first authenticated call; during a DB migration the login writes themselves
+// (sessions, lockout, refresh tokens) are exactly what the window means to
+// freeze.
+//
+// It enforces ONLY on the identity (end-user) surface. Admin logins on the
+// console surface are never blocked, so an operator can always sign in to the
+// console to lift maintenance — the toggle itself lives on the VPN-only internal
+// API, but this keeps the console login path clear regardless.
+func AuthEndpointMaintenanceMiddleware(reader TenantMaintenanceReader, resolver TenantSlugResolver) func(http.Handler) http.Handler {
+	configCache := newTenantMaintenanceConfigCache(tenantMaintenanceConfigCacheTTL)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if reader == nil || resolver == nil || isMaintenanceExcludedPath(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			rt := ResolveRequestTenantTrusted(r)
+			// Only end-user (identity) logins are gated; console/admin logins are
+			// never blocked so operators can always reach the console.
+			if !rt.OK || rt.Surface != shared.FrontendSurfaceIdentity {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			tenantID, ok, err := resolver.ResolveTenantIDBySlug(r.Context(), rt.Slug)
+			if err != nil || !ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			cfg := configCache.get(r.Context(), reader, tenantID)
+			if cfg == nil || !cfg.isActive(time.Now()) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if cfg.ScheduledEnd != nil && time.Now().Before(*cfg.ScheduledEnd) {
+				if retryAfter := int(time.Until(*cfg.ScheduledEnd).Seconds()); retryAfter > 0 {
 					w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 				}
 			}

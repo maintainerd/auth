@@ -128,6 +128,11 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		RequestedScopes: strings.Fields(DefaultTokenScope),
 		AMR:             authCtx.AMR,
 		ACR:             authCtx.ACR,
+		// Honor the tenant's signing_algorithm here too. The access and refresh
+		// tokens above already pass it; without this line the first-party ID
+		// token was always RS256, so a tenant on PS256 got an inconsistently
+		// signed token set.
+		SigningAlgorithm: authCtx.SigningAlgorithm,
 	}
 
 	idToken, err = jwtGenIDToken(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client), profile, "", params)

@@ -42,7 +42,9 @@ func oauthEffectiveTokenPolicy(repo secpolicy.SecuritySettingRepository, client 
 		slog.Warn("oauth: token policy resolution failed, falling back to defaults", "err", err)
 		policy, _ = secpolicy.ResolveEffectiveTokenPolicy(nil, oauthClientOverrides(client))
 	}
-	jwt.SetTokenLeeway(policy.ClockSkewLeewaySeconds)
+	// clock_skew_leeway_seconds is advisory for external resource servers only;
+	// this server validates its own tokens with a fixed small leeway and never a
+	// per-tenant global. See platformjwt.tokenValidationLeeway.
 	return policy
 }
 

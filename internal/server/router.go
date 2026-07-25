@@ -144,6 +144,24 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 	tenantIPRestriction := securityMiddleware.TenantIPRestrictionMiddleware(&ipRestrictionAdapter{repo: application.IPRestrictionRuleRepo})
 	tenantRuntimeMiddleware := []securityMiddleware.Middleware{tenantMaintenance, tenantIPRestriction, tenantRateLimit}
 
+	// Pre-auth IP restriction for the credential surface (login, register,
+	// password reset, SMS, magic link). Keyed on the request's subdomain tenant
+	// (never the request body), so a tenant's "authenticate only from these IPs"
+	// policy is actually enforced at the point of authentication. Fails closed
+	// per-tenant when a resolved tenant's rules cannot be loaded.
+	authEndpointIPRestriction := securityMiddleware.AuthEndpointIPRestrictionMiddleware(
+		&ipRestrictionAdapter{repo: application.IPRestrictionRuleRepo},
+		&tenantSlugResolverAdapter{svc: application.TenantService},
+	)
+
+	// Pre-auth maintenance gate for the credential surface: an end-user cannot
+	// authenticate while their tenant is in a maintenance window (keyed on the
+	// subdomain tenant; identity surface only, so console/admin logins stay open).
+	authEndpointMaintenance := securityMiddleware.AuthEndpointMaintenanceMiddleware(
+		application.TenantSettingService,
+		&tenantSlugResolverAdapter{svc: application.TenantService},
+	)
+
 	mountCommonMiddleware(r)
 
 	// Global IP rate limit — 100 req/min per IP on the public port
@@ -183,18 +201,26 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		// resolve client_id → tenant for branding and auth context)
 		client.ClientPublicRoute(api, h.client)
 
-		// Rate-limited credential endpoints
+		// Rate-limited credential endpoints, IP-restricted per the request's
+		// subdomain tenant.
 		api.Group(func(rl chi.Router) {
 			rl.Use(authRateLimit)
+			rl.Use(authEndpointIPRestriction)
+			rl.Use(authEndpointMaintenance)
 			authn.RegisterPublicRoute(rl, h.register)
 			authn.LoginPublicRoute(rl, h.login)
 			authn.ForgotPasswordPublicRoute(rl, h.forgotPassword)
 			authn.ResetPasswordPublicRoute(rl, h.resetPassword)
 		})
 
-		// Remaining public authentication routes
+		// Remaining public authentication routes. Magic-link is a credential
+		// entry point too, so it is IP-restricted alongside the group above.
 		authn.EmailVerificationPublicRoute(api, h.emailVerification)
-		authn.MagicLinkPublicRoute(api, h.magicLink)
+		api.Group(func(ml chi.Router) {
+			ml.Use(authEndpointIPRestriction)
+			ml.Use(authEndpointMaintenance)
+			authn.MagicLinkPublicRoute(ml, h.magicLink)
+		})
 		invite.InvitePublicRoute(api, h.invite)
 		authn.RegistrationContextPublicRoute(api, h.registrationContext)
 
@@ -214,8 +240,13 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 
 		// Federation HRD (public, no cookie auth)
 		idp.FederationPublicRoute(api, h.federation)
-		// SMS login (unauthenticated, client-scoped)
-		authn.SMSLoginPublicRoute(api, h.smsLogin)
+		// SMS login (unauthenticated, client-scoped) — a credential entry point,
+		// so IP-restricted per the request's subdomain tenant.
+		api.Group(func(sms chi.Router) {
+			sms.Use(authEndpointIPRestriction)
+			sms.Use(authEndpointMaintenance)
+			authn.SMSLoginPublicRoute(sms, h.smsLogin)
+		})
 		// Account-link confirmation (authenticated: user re-auths as the existing account)
 		authn.AccountLinkConfirmRoute(api, h.accountLink, userProvider, application.Cache, tenantRuntimeMiddleware...)
 		// Account recovery via backup code (unauthenticated)
@@ -269,6 +300,28 @@ func (a *stepUpTTLAdapter) StepUpTTLSecondsByTenant(ctx context.Context, tenantI
 
 type ipRestrictionAdapter struct {
 	repo secpolicy.IPRestrictionRuleRepository
+}
+
+// tenantSlugResolverAdapter resolves a subdomain slug to its tenant ID for the
+// pre-auth IP-restriction middleware. It returns ok=false (not an error) when
+// the slug names no tenant, so the middleware treats "unknown tenant" as
+// "nothing to enforce" rather than a load failure.
+type tenantSlugResolverAdapter struct {
+	svc tenant.TenantService
+}
+
+func (a *tenantSlugResolverAdapter) ResolveTenantIDBySlug(ctx context.Context, slug string) (int64, bool, error) {
+	if a.svc == nil || slug == "" {
+		return 0, false, nil
+	}
+	res, err := a.svc.GetByName(ctx, slug)
+	if err != nil {
+		return 0, false, err
+	}
+	if res == nil {
+		return 0, false, nil
+	}
+	return res.TenantID, true, nil
 }
 
 func (a *ipRestrictionAdapter) GetActiveIPRestrictions(ctx context.Context, tenantID int64) ([]securityMiddleware.IPRestriction, error) {

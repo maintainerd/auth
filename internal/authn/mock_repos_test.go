@@ -272,6 +272,10 @@ func (m *mockLoginService) SMSMFAChallenge(context.Context, *User, int64) (*Logi
 	return nil, nil
 }
 
+func (m *mockLoginService) EnforcePhoneVerification(context.Context, *User, int64) error {
+	return nil
+}
+
 func (m *mockLoginService) IssueMagicLinkSession(context.Context, string, *User, *Client) (*LoginResponseDTO, error) {
 	return nil, nil
 }

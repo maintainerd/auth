@@ -451,12 +451,17 @@ func (s *registerService) RegisterPublic(
 
 		now := time.Now()
 		newUser := &User{
-			TenantID:          tenantId,
-			Username:          username,
-			Fullname:          fullname,
-			Password:          ptr.Ptr(string(hashed)),
-			Status:            registrationInitialStatus(regPolicy, email),
-			IsEmailVerified:   regPolicy.EmailVerified(),
+			TenantID: tenantId,
+			Username: username,
+			Fullname: fullname,
+			Password: ptr.Ptr(string(hashed)),
+			Status:   registrationInitialStatus(regPolicy, email),
+			// email_verified reflects PROVEN control, never policy. A tenant that
+			// auto-confirms or does not require verification still has an
+			// unproven address, so this stays false until the address is actually
+			// confirmed via the verification flow (OIDC Core §5.1). Account
+			// activation is handled separately by registrationInitialStatus above.
+			IsEmailVerified:   false,
 			IsPhoneVerified:   false,
 			PasswordChangedAt: &now,
 		}
@@ -671,12 +676,17 @@ func (s *registerService) Register(
 		now := time.Now()
 		// Email-verified state follows the tenant registration policy.
 		newUser := &User{
-			TenantID:          tenantId,
-			Username:          username,
-			Fullname:          fullname,
-			Password:          ptr.Ptr(string(hashed)),
-			Status:            registrationInitialStatus(regPolicy, email),
-			IsEmailVerified:   regPolicy.EmailVerified(),
+			TenantID: tenantId,
+			Username: username,
+			Fullname: fullname,
+			Password: ptr.Ptr(string(hashed)),
+			Status:   registrationInitialStatus(regPolicy, email),
+			// email_verified reflects PROVEN control, never policy. A tenant that
+			// auto-confirms or does not require verification still has an
+			// unproven address, so this stays false until the address is actually
+			// confirmed via the verification flow (OIDC Core §5.1). Account
+			// activation is handled separately by registrationInitialStatus above.
+			IsEmailVerified:   false,
 			IsPhoneVerified:   false,
 			PasswordChangedAt: &now,
 		}
@@ -844,6 +854,14 @@ func (s *registerService) RegisterInvitePublic(
 		}
 		if existingUser != nil {
 			return apperror.NewConflict("username already taken")
+		}
+
+		// blocked_email_domains is a hard org policy and must hold even for
+		// invites — an invite is an explicit grant that legitimately overrides the
+		// self-signup allowlist and self_registration_enabled, but it must not be
+		// able to provision an identity at a domain the tenant has hard-blocked.
+		if secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId).EmailDomainBlocked(invite.InvitedEmail) {
+			return apperror.NewValidation("email domain is not permitted")
 		}
 
 		// Check if invited email already exists (scoped to the invite's tenant)
@@ -1038,6 +1056,12 @@ func (s *registerService) RegisterInvite(
 		}
 		if existingUser != nil {
 			return apperror.NewConflict("username already taken")
+		}
+
+		// blocked_email_domains is a hard org policy enforced on every
+		// provisioning path, invites included (see RegisterInvitePublic).
+		if secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId).EmailDomainBlocked(invite.InvitedEmail) {
+			return apperror.NewValidation("email domain is not permitted")
 		}
 
 		existingEmailUser, txErr := txUserRepo.FindByEmailAndTenantID(invite.InvitedEmail, tenantId)

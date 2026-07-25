@@ -42,6 +42,7 @@ type LoginService interface {
 	SetTokenRevoker(r AccessTokenRevoker)
 	MagicLinkMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
 	IssueMagicLinkSession(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error)
+	EnforcePhoneVerification(ctx context.Context, user *User, tenantID int64) error
 	SMSMFAChallenge(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error)
 }
 
@@ -160,6 +161,34 @@ func (s *loginService) enforceLoginEmailVerification(user *User, tenantID int64)
 		return apperror.NewUnauthorized("email is not verified")
 	}
 	return nil
+}
+
+// enforceLoginPhoneVerification blocks a login when the tenant requires phone
+// verification and the user's phone is not yet verified. It mirrors the email
+// gate and makes require_phone_verification a real control rather than the
+// presence-only check it was before.
+//
+// It is applied to login methods that do NOT themselves prove the phone
+// (password, magic-link). SMS OTP login is exempt and instead SETS
+// IsPhoneVerified on success — a successful OTP IS proof of phone possession, so
+// SMS login is the canonical way a user satisfies this requirement (no separate
+// pre-auth phone-verification flow is introduced; the existing SMS OTP flow is
+// reused).
+func (s *loginService) enforceLoginPhoneVerification(user *User, tenantID int64) error {
+	if user == nil || user.IsPhoneVerified || s.securitySettingRepo == nil {
+		return nil
+	}
+	regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantID)
+	if regPolicy.RequirePhoneVerification {
+		return apperror.NewUnauthorized("phone is not verified")
+	}
+	return nil
+}
+
+// EnforcePhoneVerification exposes the phone-verification gate to the magic-link
+// coordinator (magic-link proves email but not phone).
+func (s *loginService) EnforcePhoneVerification(_ context.Context, user *User, tenantID int64) error {
+	return s.enforceLoginPhoneVerification(user, tenantID)
 }
 
 // LoginPublic authenticates users for public-facing applications.
@@ -320,6 +349,9 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		return nil, apperror.NewUnauthorized("account is not active")
 	}
 	if err := s.enforceLoginEmailVerification(user, clientTenantID(client)); err != nil {
+		return nil, err
+	}
+	if err := s.enforceLoginPhoneVerification(user, clientTenantID(client)); err != nil {
 		return nil, err
 	}
 	identity, err := s.ensureUserIdentityForClient(ctx, user, client)
@@ -532,6 +564,9 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		return nil, apperror.NewUnauthorized("account is not active")
 	}
 	if err := s.enforceLoginEmailVerification(user, clientTenantID(client)); err != nil {
+		return nil, err
+	}
+	if err := s.enforceLoginPhoneVerification(user, clientTenantID(client)); err != nil {
 		return nil, err
 	}
 	identity, err := s.ensureUserIdentityForClient(ctx, user, client)
