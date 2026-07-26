@@ -230,6 +230,24 @@ func InitMetrics(ctx context.Context) (shutdown func(context.Context) error, err
 		return mp.Shutdown, fmt.Errorf("telemetry: register auth_events_total counter: %w", err)
 	}
 
+	// Register the access-denial counter (permission-denied / rate-limited /
+	// IP-blocked), the primary signal for probing / brute-force alerting.
+	if securityDenialCounter, err = meter.Int64Counter(
+		"security_denials_total",
+		metric.WithDescription("Count of access denials at the middleware boundary by denial type"),
+	); err != nil {
+		return mp.Shutdown, fmt.Errorf("telemetry: register security_denials_total counter: %w", err)
+	}
+
+	// Register the audit-write-failure counter — the only reliable signal that the
+	// (best-effort) audit trail has gaps.
+	if auditWriteFailureCounter, err = meter.Int64Counter(
+		"audit_write_failures_total",
+		metric.WithDescription("Count of management audit-log writes that failed"),
+	); err != nil {
+		return mp.Shutdown, fmt.Errorf("telemetry: register audit_write_failures_total counter: %w", err)
+	}
+
 	slog.Info("OpenTelemetry metrics enabled (Prometheus exporter)",
 		"service", serviceName,
 		"version", appVersion,

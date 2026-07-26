@@ -1,11 +1,21 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
 )
+
+// OnAccessDenied, when set at startup, records a durable AUTHZ/failure auth event
+// for an authenticated-but-unauthorized request. It is a package-level hook (like
+// security.OnAccountLockout) so the boundary check does not have to thread the
+// auth-event service through every route's PermissionMiddleware call. Nil is safe
+// (no-op). Denials are also always metered via telemetry.RecordSecurityDenial so
+// alerting works even when the durable hook is not wired.
+var OnAccessDenied func(ctx context.Context, tenantID, actorUserID int64, ip string, requiredPermissions []string)
 
 // PermissionMiddleware ensures the user has at least one of the required permissions
 func PermissionMiddleware(requiredPermissions []string) func(http.Handler) http.Handler {
@@ -19,6 +29,17 @@ func PermissionMiddleware(requiredPermissions []string) func(http.Handler) http.
 
 			// Check user permission
 			if !hasAnyPermission(auth.User, requiredPermissions) {
+				// Failed authorization is a security-relevant event (NIST AU-2 /
+				// PCI 10.2.4): meter it for alerting on privilege probing, and record
+				// a durable AUTHZ/failure auth event with the actor + required perms.
+				telemetry.RecordSecurityDenial(r.Context(), telemetry.DenialPermission)
+				if OnAccessDenied != nil {
+					var tenantID int64
+					if auth.Tenant != nil {
+						tenantID = auth.Tenant.TenantID
+					}
+					OnAccessDenied(r.Context(), tenantID, auth.User.UserID, ClientIPFromContext(r.Context()), requiredPermissions)
+				}
 				resp.Error(w, http.StatusForbidden, "Insufficient permissions")
 				return
 			}

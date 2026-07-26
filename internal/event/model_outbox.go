@@ -26,8 +26,12 @@ type Outbox struct {
 	RequestID     string         `gorm:"column:request_id;type:varchar(255)" json:"request_id"`
 	IsPublished   bool           `gorm:"column:is_published;not null;default:false" json:"is_published"`
 	PublishedAt   *time.Time     `gorm:"column:published_at" json:"published_at"`
-	ClaimedAt     *time.Time     `gorm:"column:claimed_at" json:"claimed_at"`
-	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	// Per-arm delivery state (nil until that arm completes). Decouples the webhook
+	// and broker arms so a failure in one never re-drives the other on re-claim.
+	WebhookDeliveredAt *time.Time `gorm:"column:webhook_delivered_at" json:"webhook_delivered_at"`
+	BrokerPublishedAt  *time.Time `gorm:"column:broker_published_at" json:"broker_published_at"`
+	ClaimedAt          *time.Time `gorm:"column:claimed_at" json:"claimed_at"`
+	CreatedAt          time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
 func (Outbox) TableName() string { return "integration_event_outbox" }

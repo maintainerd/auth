@@ -874,7 +874,16 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 	if policy.Mode == "disabled" {
 		return nil, nil
 	}
-	if policy.Mode == "enforced" || forceStepUp {
+	// Capture the TENANT's own hard requirement (mode=enforced, the enforce_mfa
+	// flag, or the explicit required flag) BEFORE folding in forceStepUp — a user
+	// with no usable factor is blocked only for these. Risk-based step-up
+	// (forceStepUp) is a best-effort ELEVATION, not a hard requirement: it must
+	// challenge a user who can step up, but must never lock out a user who has no
+	// factor to step up with. Blocking the latter would let an attacker trip the
+	// risk signal to deny a non-MFA victim, and would strand every non-MFA user on
+	// any flagged login.
+	hardRequireMFA := policy.Mode == "enforced" || policy.EnforceMFA || policy.Required
+	if hardRequireMFA || forceStepUp {
 		policy.Required = true
 	}
 	policy.AllowedMethods = normalizeLoginMFAPolicyMethods(policy.AllowedMethods)
@@ -911,10 +920,14 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 	allowedMethods := filterMFAMethodsByPolicy(enrolled, policy.AllowedMethods)
 	allowedMethods = preferLoginMFAMethodFirst(allowedMethods, policy.PreferredMethod)
 	if len(allowedMethods) == 0 {
-		// Tenant forces MFA but the user has nothing usable enrolled → block.
-		// For a self-enrolled user with no usable factor, fall through to a
-		// normal (acr=1) login rather than locking them out.
-		if policy.Required || policy.EnforceMFA {
+		// Tenant HARD-requires MFA but the user has nothing usable enrolled →
+		// block. A risk-based step-up (forceStepUp) with no usable factor instead
+		// falls through to a normal (acr=1) login rather than locking the user out:
+		// the login was flagged for elevation, not denial (the tenant's block
+		// threshold sits above the step-up band and is enforced upstream in
+		// AssessLoginThreat), and the risk event is already logged/emitted by the
+		// threat layer.
+		if hardRequireMFA {
 			return nil, apperror.NewUnauthorized("MFA is required but no supported factors are enrolled")
 		}
 		return nil, nil
@@ -1088,7 +1101,7 @@ func (s *loginService) recordFailedLogin(ctx context.Context, rateLimitIdentifie
 
 	if client != nil {
 		threatPolicy := secpolicy.LoadThreatPolicy(s.securitySettingRepo, clientTenantID(client))
-		security.RecordLoginThreatFailure(ctx, clientTenantID(client), middleware.ClientIPFromContext(ctx), threatPolicy)
+		security.RecordLoginThreatFailure(ctx, clientTenantID(client), middleware.ClientIPFromContext(ctx), rateLimitIdentifier, threatPolicy)
 		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    clientTenantID(client),
 			IPAddress:   middleware.ClientIPFromContext(ctx),

@@ -128,16 +128,21 @@ func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter)
 
 	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
+	// Exact, TENANT-SCOPED total, counted before keyset pagination adds its
+	// cursor/limit conditions (Count-then-paginate is GORM-safe, mirroring
+	// PaginateQuery). This replaces a whole-table reltuples estimate that ignored
+	// the tenant filter — which was both wrong per-tenant and a cross-tenant
+	// volume disclosure (every tenant saw the global row count).
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
 	afterID := int64(0)
 	if filter.Cursor != nil {
 		afterID = *filter.Cursor
 	}
 	rows, nextCursor, err := database.PaginateKeyset[AuthEvent](query, afterID, filter.Limit, "auth_event_id", func(e AuthEvent) int64 { return e.AuthEventID })
-	if err != nil {
-		return nil, err
-	}
-
-	total, err := r.estimatedCount(query)
 	if err != nil {
 		return nil, err
 	}
@@ -148,15 +153,6 @@ func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter)
 		Limit:      filter.Limit,
 		NextCursor: nextCursor,
 	}, nil
-}
-
-func (r *authEventRepository) estimatedCount(query *gorm.DB) (int64, error) {
-	session := query.Session(&gorm.Session{NewDB: true})
-	var total int64
-	if err := session.Model(&AuthEvent{}).Select("COALESCE(reltuples::bigint, 0)").Table("pg_class").Where("relname = 'auth_events'").Scan(&total).Error; err != nil {
-		return 0, nil
-	}
-	return total, nil
 }
 
 // FindByUUIDAndTenantID retrieves a single auth event by UUID scoped to a tenant.

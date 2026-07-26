@@ -279,22 +279,21 @@ func TestTenantRequestRateLimitMiddleware_ExemptIPPasses(t *testing.T) {
 	}
 }
 
-func TestTenantRequestRateLimitMiddleware_PerAPIKeyLimit(t *testing.T) {
+func TestTenantRequestRateLimitMiddleware_TenantWideLimitWhenNotPerIP(t *testing.T) {
 	rdb := newTestRedisClient(t)
 	handler := tenantRateLimitedHandler(t, rdb, map[string]any{
 		"enabled":             true,
 		"requests_per_window": 1,
-		"per_api_key":         true,
 	})
 
+	// per_ip defaults to false → the limiter keys per tenant+path, so the counter
+	// is shared across clients regardless of source IP.
 	req := tenantRateLimitRequest(http.MethodGet, "/tenant-settings/rate-limit", "10.0.0.5:1234")
-	req.Header.Set("Authorization", "Bearer ak_test_123")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
 	req = tenantRateLimitRequest(http.MethodGet, "/tenant-settings/rate-limit", "10.0.0.99:1234")
-	req.Header.Set("Authorization", "Bearer ak_test_123")
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 

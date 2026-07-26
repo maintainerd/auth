@@ -115,47 +115,45 @@ func (r *Relay) processBatch(ctx context.Context) {
 }
 
 func (r *Relay) deliverOne(ctx context.Context, row *Outbox) {
-	var webhookErr, brokerErr error
+	// The two arms are INDEPENDENT and each runs at most once to completion. A row
+	// carries per-arm state (webhook_delivered_at / broker_published_at), so an
+	// arm already done is skipped on re-claim. This is what prevents a broker
+	// outage from re-running the webhook arm and fanning out duplicate deliveries
+	// (and growing delivery_history) every claim while the broker is down.
+	webhookDone := row.WebhookDeliveredAt != nil || r.deliverWebhook == nil
+	brokerDone := row.BrokerPublishedAt != nil || r.deliverBroker == nil
 
-	if r.deliverWebhook != nil {
-		webhookErr = r.deliverWebhook(ctx, row)
-		if webhookErr != nil {
+	if !webhookDone {
+		if err := r.deliverWebhook(ctx, row); err != nil {
 			slog.Error("relay: webhook delivery failed",
-				"event_type", row.EventType,
-				"tenant_id", row.TenantID,
-				"outbox_id", row.OutboxID,
-				"err", webhookErr,
-			)
+				"event_type", row.EventType, "tenant_id", row.TenantID, "outbox_id", row.OutboxID, "err", err)
+		} else if mErr := r.outboxRepo.MarkWebhookDelivered(row.OutboxID); mErr != nil {
+			slog.Error("relay: mark webhook delivered failed", "outbox_id", row.OutboxID, "err", mErr)
+		} else {
+			webhookDone = true
 		}
 	}
 
-	if r.deliverBroker != nil {
-		brokerErr = r.deliverBroker(ctx, row)
-		if brokerErr != nil {
+	if !brokerDone {
+		if err := r.deliverBroker(ctx, row); err != nil {
 			slog.Error("relay: broker delivery failed",
-				"event_type", row.EventType,
-				"tenant_id", row.TenantID,
-				"outbox_id", row.OutboxID,
-				"err", brokerErr,
-			)
+				"event_type", row.EventType, "tenant_id", row.TenantID, "outbox_id", row.OutboxID, "err", err)
+		} else if mErr := r.outboxRepo.MarkBrokerPublished(row.OutboxID); mErr != nil {
+			slog.Error("relay: mark broker published failed", "outbox_id", row.OutboxID, "err", mErr)
+		} else {
+			brokerDone = true
 		}
 	}
 
-	// Mark published only when the hand-off to BOTH channels succeeded. A
-	// hand-off failure leaves the row unpublished; its claim expires and a relay
-	// worker re-claims it on a later poll (at-least-once). Per-endpoint HTTP
-	// outcomes are NOT a hand-off failure — those are durably recorded in
-	// delivery_history and retried by the BackgroundRetrier, so a failed POST
-	// does not block the outbox row from being marked published.
-	if webhookErr != nil || brokerErr != nil {
-		return
-	}
-
-	if err := r.outboxRepo.MarkPublished(row.OutboxID); err != nil {
-		slog.Error("relay: mark published failed",
-			"outbox_id", row.OutboxID,
-			"err", err,
-		)
+	// The row is fully published only when BOTH arms are done. Otherwise it stays
+	// unpublished; its claim expires and a later poll re-runs ONLY the arm that is
+	// still incomplete (at-least-once, per-arm). Per-endpoint HTTP outcomes are
+	// owned by delivery_history + the BackgroundRetrier, not the outbox row — the
+	// webhook arm reports success once the fan-out is durably recorded.
+	if webhookDone && brokerDone {
+		if err := r.outboxRepo.MarkPublished(row.OutboxID); err != nil {
+			slog.Error("relay: mark published failed", "outbox_id", row.OutboxID, "err", err)
+		}
 	}
 }
 

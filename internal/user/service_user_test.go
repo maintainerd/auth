@@ -1483,6 +1483,28 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		assert.Contains(t, err.Error(), "fetch err")
 	})
 
+	t.Run("cannot revoke super-admin from the tenant owner", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
+		}
+		// "super-admin" == shared.RoleSuperAdmin — the role whose removal from an
+		// owner is forbidden (ownership must be transferred first).
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) {
+			return &Role{RoleID: 5, TenantID: 1, Name: "super-admin"}, nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectBegin()
+		// The guard queries tenant_members; this user IS the tenant owner (count 1),
+		// so the revoke is refused and the tx rolled back with no DELETE.
+		mock.ExpectQuery(`tenant_members`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectRollback()
+		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "transfer ownership first")
+	})
+
 	t.Run("DeleteByUserIDAndRoleID error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {

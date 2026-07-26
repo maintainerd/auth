@@ -12,6 +12,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,6 +28,10 @@ const (
 	// (counted per endpoint, reset on any success) before an endpoint is
 	// auto-quarantined so a dead endpoint is not retried for every event forever.
 	quarantineThreshold = 10
+	// maxInlineDeliveryConcurrency bounds the parallel first-attempt fan-out for a
+	// single outbox event so a slow/hostile endpoint set cannot serialize the
+	// relay and stall other tenants' events.
+	maxInlineDeliveryConcurrency = 8
 )
 
 // deliverToWebhooks is the relay hand-off for one outbox event. It creates a
@@ -61,30 +66,52 @@ func deliverToWebhooks(
 		return nil
 	}
 
+	// Create the durable delivery_history row for each subscribed endpoint first
+	// (fast, O(n) DB writes), collecting the work items.
+	type deliveryJob struct {
+		ep      webhook.WebhookEndpoint
+		history *webhook.DeliveryHistory
+	}
+	jobs := make([]deliveryJob, 0, len(endpoints))
 	for i := range endpoints {
 		ep := endpoints[i]
 		if !endpointMatchesEvent(ep, endpointEventRepo, outbox.EventType) {
 			continue
 		}
-
-		history := &webhook.DeliveryHistory{
+		created, err := historyRepo.Create(&webhook.DeliveryHistory{
 			WebhookEndpointID: ep.WebhookEndpointID,
 			EventID:           outbox.EventID,
 			EventType:         outbox.EventType,
 			TenantID:          outbox.TenantID,
 			AttemptCount:      0,
 			FinalStatus:       "pending",
-		}
-		created, err := historyRepo.Create(history)
+		})
 		if err != nil {
 			slog.Error("webhook: create delivery history failed",
 				"endpoint_id", ep.WebhookEndpointID, "err", err)
 			continue
 		}
-
-		attemptOnce(ctx, &ep, outbox.EventID, outbox.EventType, body, created, historyRepo, endpointRepo)
-		_ = endpointRepo.UpdateLastTriggeredAt(ep.WebhookEndpointID, time.Now())
+		jobs = append(jobs, deliveryJob{ep: ep, history: created})
 	}
+
+	// Run the first attempts with BOUNDED concurrency. A sequential loop lets one
+	// slow or hostile endpoint (up to TimeoutSeconds each) serialize the whole
+	// fan-out and hold a scarce relay slot for sum(timeouts) — a cross-tenant
+	// noisy-neighbor stall. Bounding it caps the relay hold near a single timeout.
+	sem := make(chan struct{}, maxInlineDeliveryConcurrency)
+	var wg sync.WaitGroup
+	for i := range jobs {
+		j := jobs[i]
+		sem <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			attemptOnce(ctx, &j.ep, outbox.EventID, outbox.EventType, body, j.history, historyRepo, endpointRepo)
+			_ = endpointRepo.UpdateLastTriggeredAt(j.ep.WebhookEndpointID, time.Now())
+		}()
+	}
+	wg.Wait()
 
 	return nil
 }
@@ -160,6 +187,16 @@ func attemptOnce(
 			slog.Error("webhook: quarantine failed", "endpoint_id", ep.WebhookEndpointID, "err", qErr)
 			return
 		}
+		// A quarantined endpoint becomes inactive, and the retrier skips inactive
+		// endpoints — so any still-pending deliveries for it would be orphaned
+		// (never retried, never dead-lettered) until purge. Dead-letter them now so
+		// their terminal state is explicit and observable.
+		if n, dErr := historyRepo.DeadLetterPendingByEndpoint(ep.WebhookEndpointID, "endpoint quarantined after sustained delivery failures"); dErr != nil {
+			slog.Error("webhook: dead-letter pending on quarantine failed", "endpoint_id", ep.WebhookEndpointID, "err", dErr)
+		} else if n > 0 {
+			slog.Warn("webhook: dead-lettered orphaned pending deliveries for quarantined endpoint",
+				"endpoint_id", ep.WebhookEndpointID, "count", n)
+		}
 		slog.Warn("webhook: endpoint quarantined after sustained failures",
 			"endpoint_id", ep.WebhookEndpointID, "consecutive_failures", failures)
 	}
@@ -192,12 +229,9 @@ func doDeliveryRequest(
 	req.Header.Set("X-Maintainerd-Timestamp", strconv.FormatInt(timestamp, 10))
 	req.Header.Set("X-Maintainerd-Signature-256", sig)
 
-	client := &http.Client{
-		CheckRedirect: func(r *http.Request, _ []*http.Request) error {
-			return webhook.ValidateDeliveryURL(r.Context(), r.URL.String())
-		},
-	}
-	resp, err := client.Do(req)
+	// Shared SSRF-hardened client: pins the resolved IP at dial time (closes the
+	// DNS-rebinding TOCTOU) and re-validates https on every redirect hop.
+	resp, err := webhook.SafeDeliveryClient.Do(req)
 	if err != nil {
 		return 0, "", err
 	}

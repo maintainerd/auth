@@ -91,6 +91,24 @@ func (h *AuthEventHandler) Export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// PCI 10.2.3: exporting the audit trail is itself a security-relevant access
+	// event (a bulk dump of security data with actor/IP/PII) — record it durably.
+	auth := middleware.AuthFromRequest(r)
+	var actorID *int64
+	if auth.User != nil {
+		actorID = &auth.User.UserID
+	}
+	h.authEventService.Log(r.Context(), AuthEventInput{
+		TenantID:    tenant.TenantID,
+		ActorUserID: actorID,
+		IPAddress:   middleware.ClientIPFromContext(r.Context()),
+		Category:    AuthEventCategorySystem,
+		EventType:   AuthEventTypeAuditExport,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
+		Description: ptr.Ptr("Auth-event audit trail exported"),
+	})
+
 	w.Header().Set("Content-Type", export.ContentType)
 	w.Header().Set("Content-Disposition", `attachment; filename="`+export.Filename+`"`)
 	w.WriteHeader(http.StatusOK)

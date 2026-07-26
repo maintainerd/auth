@@ -28,6 +28,58 @@ func buildSetupService(t *testing.T,
 		clientRepo, roleRepo, userRoleRepo, userIdentityRepo, profileRepo)
 }
 
+func TestSetupService_CreateProfile(t *testing.T) {
+	admin := &User{UserID: 7, UserUUID: uuid.New()}
+	pending := func() (*Tenant, error) { return &Tenant{TenantID: 1, Status: "pending"}, nil }
+
+	t.Run("creates default profile for super-admin", func(t *testing.T) {
+		var createdWith *Profile
+		svc := buildSetupService(t,
+			&mockTenantRepo{findSystemFn: pending},
+			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return admin, nil }},
+			&mockProfileRepo{
+				findByUserIDFn: func(int64) (*Profile, error) { return nil, nil },
+				createFn:       func(p *Profile) (*Profile, error) { createdWith = p; p.ProfileUUID = uuid.New(); return p, nil },
+			},
+			&mockClientRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
+		)
+		res, err := svc.CreateProfile(context.Background(), CreateProfileRequestDTO{FirstName: "Admin"})
+		require.NoError(t, err)
+		require.NotNil(t, createdWith)
+		assert.Equal(t, int64(7), createdWith.UserID)
+		assert.True(t, createdWith.IsDefault, "bootstrap profile must be the default")
+		assert.Equal(t, "Admin", res.Profile.FirstName)
+	})
+
+	t.Run("locked once setup is complete", func(t *testing.T) {
+		svc := buildSetupService(t,
+			&mockTenantRepo{findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1, Status: "active"}, nil }},
+			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
+		)
+		_, err := svc.CreateProfile(context.Background(), CreateProfileRequestDTO{FirstName: "Admin"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "setup is complete")
+	})
+
+	t.Run("idempotent when a profile already exists", func(t *testing.T) {
+		existing := &Profile{ProfileID: 3, ProfileUUID: uuid.New(), UserID: 7, FirstName: "Existing"}
+		created := false
+		svc := buildSetupService(t,
+			&mockTenantRepo{findSystemFn: pending},
+			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return admin, nil }},
+			&mockProfileRepo{
+				findByUserIDFn: func(int64) (*Profile, error) { return existing, nil },
+				createFn:       func(p *Profile) (*Profile, error) { created = true; return p, nil },
+			},
+			&mockClientRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
+		)
+		res, err := svc.CreateProfile(context.Background(), CreateProfileRequestDTO{FirstName: "Admin"})
+		require.NoError(t, err)
+		assert.False(t, created, "must not create a second profile")
+		assert.Equal(t, "Existing", res.Profile.FirstName)
+	})
+}
+
 func TestSetupService_RegisterControlService(t *testing.T) {
 	validReq := RegisterControlServiceRequestDTO{Name: "core", DisplayName: "Core"}
 	tenant := &Tenant{TenantID: 1, TenantUUID: uuid.New(), Name: "maintainerd"}

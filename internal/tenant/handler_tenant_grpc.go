@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -20,6 +21,79 @@ type TenantGRPCHandler struct {
 
 func NewTenantGRPCHandler(tenantService TenantService, tenantMemberService TenantMemberService) *TenantGRPCHandler {
 	return &TenantGRPCHandler{tenantService: tenantService, tenantMemberService: tenantMemberService}
+}
+
+// requireSystemTenantActor authorizes an operation that only the system tenant
+// may perform (creating tenants). The caller's tenant binding comes from the
+// issuer-stamped, unforgeable `tenant_id` claim, so a regular-tenant principal —
+// user OR service (e.g. the control plane bound to a regular tenant) — is
+// rejected. System-tenant service principals (the provisioning control plane)
+// are allowed, mirroring rule #10.
+func (h *TenantGRPCHandler) requireSystemTenantActor(ctx context.Context) error {
+	return grpcRequireSystemTenantActor(ctx, h.tenantService)
+}
+
+func (h *TenantGRPCHandler) authorizeTenantManagement(ctx context.Context, tenantUUID uuid.UUID) error {
+	return grpcAuthorizeTenantManagement(ctx, h.tenantService, h.tenantMemberService, tenantUUID)
+}
+
+// grpcRequireSystemTenantActor authorizes an operation only the system tenant may
+// perform (creating tenants). The caller's tenant binding comes from the
+// issuer-stamped, unforgeable `tenant_id` claim, so a regular-tenant principal —
+// user OR service (e.g. the control plane bound to a regular tenant) — is
+// rejected. System-tenant service principals (the provisioning control plane)
+// are allowed.
+func grpcRequireSystemTenantActor(ctx context.Context, ts TenantService) error {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil || claims.TenantID == 0 {
+		return apperror.ToGRPCError(apperror.NewUnauthorized("authenticated actor is required"))
+	}
+	systemTenant, err := ts.GetSystem(ctx)
+	if err != nil {
+		return apperror.ToGRPCError(err)
+	}
+	if systemTenant == nil || claims.TenantID != systemTenant.TenantID {
+		return apperror.ToGRPCError(apperror.NewForbidden("only members of the system tenant can create tenants"))
+	}
+	return nil
+}
+
+// grpcAuthorizeTenantManagement authorizes a tenant-management operation (info,
+// status, or settings) on the target tenant. A system-tenant principal (user or
+// the control-plane service) may manage any tenant; otherwise the caller must be
+// a user who is a member of the target tenant (CanManageTenant). Enforces that a
+// principal bound to tenant A cannot mutate tenant B. Shared by the tenant and
+// tenant-setting gRPC handlers so the boundary check lives in exactly one place.
+func grpcAuthorizeTenantManagement(ctx context.Context, ts TenantService, ms TenantMemberService, tenantUUID uuid.UUID) error {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil || claims.TenantID == 0 {
+		return apperror.ToGRPCError(apperror.NewUnauthorized("authenticated actor is required"))
+	}
+	systemTenant, err := ts.GetSystem(ctx)
+	if err != nil {
+		return apperror.ToGRPCError(err)
+	}
+	if systemTenant != nil && claims.TenantID == systemTenant.TenantID {
+		return nil
+	}
+	if claims.UserUUID == uuid.Nil {
+		return apperror.ToGRPCError(apperror.NewForbidden("only system-tenant principals or tenant members can manage this tenant"))
+	}
+	if ms == nil {
+		return apperror.ToGRPCError(apperror.NewInternal("tenant member service is unavailable", nil))
+	}
+	actorUserID, err := ms.ResolveUserID(ctx, claims.UserUUID)
+	if err != nil {
+		return apperror.ToGRPCError(err)
+	}
+	canManage, err := ms.CanManageTenant(ctx, actorUserID, tenantUUID)
+	if err != nil {
+		return apperror.ToGRPCError(err)
+	}
+	if !canManage {
+		return apperror.ToGRPCError(apperror.NewForbidden("you do not have access to manage this tenant"))
+	}
+	return nil
 }
 
 func (h *TenantGRPCHandler) GetDefaultTenant(ctx context.Context, _ *authv1.GetDefaultTenantRequest) (*authv1.GetDefaultTenantResponse, error) {
@@ -78,6 +152,13 @@ func (h *TenantGRPCHandler) GetTenant(ctx context.Context, req *authv1.GetTenant
 }
 
 func (h *TenantGRPCHandler) CreateTenant(ctx context.Context, req *authv1.TenantServiceCreateTenantRequest) (*authv1.TenantServiceCreateTenantResponse, error) {
+	// Boundary parity with the HTTP handler: only system-tenant principals may
+	// create tenants. Without this the gRPC surface let any tenant's principal
+	// (every tenant's super-admin is seeded with tenant:create) create tenants,
+	// bypassing the rule enforced on HTTP.
+	if err := h.requireSystemTenantActor(ctx); err != nil {
+		return nil, err
+	}
 	dto := TenantCreateRequestDTO{
 		Name:        req.GetName(),
 		DisplayName: req.GetDisplayName(),
@@ -99,6 +180,12 @@ func (h *TenantGRPCHandler) UpdateTenant(ctx context.Context, req *authv1.Tenant
 	if err != nil {
 		return nil, err
 	}
+	// Boundary parity with the HTTP handler: the target tenant must be one the
+	// caller may manage. Without this a principal from tenant A could rewrite
+	// tenant B's name (the DNS subdomain slug) or status over gRPC.
+	if err := h.authorizeTenantManagement(ctx, tenantUUID); err != nil {
+		return nil, err
+	}
 	dto := TenantUpdateRequestDTO{
 		Name:        req.GetName(),
 		DisplayName: req.GetDisplayName(),
@@ -118,6 +205,9 @@ func (h *TenantGRPCHandler) UpdateTenant(ctx context.Context, req *authv1.Tenant
 func (h *TenantGRPCHandler) SetTenantStatus(ctx context.Context, req *authv1.SetTenantStatusRequest) (*authv1.SetTenantStatusResponse, error) {
 	tenantUUID, err := parseGRPCUUID(req.GetTenantUuid(), "Tenant UUID")
 	if err != nil {
+		return nil, err
+	}
+	if err := h.authorizeTenantManagement(ctx, tenantUUID); err != nil {
 		return nil, err
 	}
 	dto := TenantSetStatusRequestDTO{Status: req.GetStatus()}

@@ -70,6 +70,7 @@ func toTenantMemberUser(u *user.User) *tenant.MemberUser {
 	return &tenant.MemberUser{
 		UserID:          u.UserID,
 		UserUUID:        u.UserUUID,
+		TenantID:        u.TenantID,
 		Username:        u.Username,
 		Fullname:        u.Fullname,
 		Email:           u.Email,

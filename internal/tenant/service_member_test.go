@@ -134,7 +134,7 @@ func TestTenantMemberService_CreateByUserUUID(t *testing.T) {
 			},
 		}, &mockUserRepo{
 			findByUUIDFn: func(_ uuid.UUID) (*MemberUser, error) {
-				return &MemberUser{UserID: 5}, nil
+				return &MemberUser{UserID: 5, TenantID: 999}, nil // 999 = mock system tenant (source pool)
 			},
 		}, &mockTenantRepo{})
 		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member", 99)
@@ -150,7 +150,7 @@ func TestTenantMemberService_CreateByUserUUID(t *testing.T) {
 			},
 		}, &mockUserRepo{
 			findByUUIDFn: func(_ uuid.UUID) (*MemberUser, error) {
-				return &MemberUser{UserID: 5}, nil
+				return &MemberUser{UserID: 5, TenantID: 999}, nil // 999 = mock system tenant (source pool)
 			},
 		}, &mockTenantRepo{})
 		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member", 99)
@@ -170,12 +170,28 @@ func TestTenantMemberService_CreateByUserUUID(t *testing.T) {
 			},
 		}, &mockUserRepo{
 			findByUUIDFn: func(_ uuid.UUID) (*MemberUser, error) {
-				return &MemberUser{UserID: 5}, nil
+				return &MemberUser{UserID: 5, TenantID: 999}, nil // 999 = mock system tenant (source pool)
 			},
 		}, &mockTenantRepo{})
 		res, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member", 99)
 		require.NoError(t, err)
 		assert.Equal(t, int64(5), res.UserID)
+	})
+
+	t.Run("source user not in system tenant is rejected (cross-tenant copy blocked)", func(t *testing.T) {
+		db, _ := newMockGormDB(t)
+		// Source user lives in some OTHER tenant (55), not the system tenant (999).
+		// Copying it into the target would leak another tenant's credentials/PII.
+		svc := newTenantMemberServiceForTest(db, &mockTenantMemberRepo{
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) { return nil, nil },
+		}, &mockUserRepo{
+			findByUUIDFn: func(_ uuid.UUID) (*MemberUser, error) {
+				return &MemberUser{UserID: 5, TenantID: 55}, nil
+			},
+		}, &mockTenantRepo{})
+		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member", 99)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must exist in the system tenant")
 	})
 }
 
@@ -373,7 +389,7 @@ func TestTenantMemberService_CreateByUserUUID_Extra(t *testing.T) {
 			},
 		}, &mockUserRepo{
 			findByUUIDFn: func(_ uuid.UUID) (*MemberUser, error) {
-				return &MemberUser{UserID: 5, UserUUID: userUUID}, nil
+				return &MemberUser{UserID: 5, UserUUID: userUUID, TenantID: 999}, nil // 999 = mock system tenant
 			},
 		}, &mockTenantRepo{})
 		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member", 99)

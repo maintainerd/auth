@@ -419,6 +419,9 @@ func validateThreatConfig(d ThreatConfigDTO) error {
 	if d.VelocityFailuresPerIPPerHour != nil && *d.VelocityFailuresPerIPPerHour < 1 {
 		return fmt.Errorf("velocity_failures_per_ip_per_hour must be at least 1")
 	}
+	if d.DistinctAccountsPerIPPerHour != nil && *d.DistinctAccountsPerIPPerHour < 1 {
+		return fmt.Errorf("distinct_accounts_per_ip_per_hour must be at least 1")
+	}
 	// ip_reputation_check_enabled and block_tor_exit_nodes require an external
 	// data source (an IP-reputation feed / a Tor exit-node list) that this
 	// standalone server does not ship. Accepting `true` would be a SILENT

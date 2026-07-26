@@ -27,6 +27,7 @@ type TenantSeeder interface {
 type MemberUser struct {
 	UserID          int64
 	UserUUID        uuid.UUID
+	TenantID        int64
 	Username        string
 	Fullname        string
 	Email           string

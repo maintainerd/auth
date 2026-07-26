@@ -66,13 +66,36 @@ func ConnectAMQP(ctx context.Context, cfg *AMQPConfig) (func(ctx context.Context
 		return nil, nil, fmt.Errorf("amqp: declare exchange: %w", err)
 	}
 
+	// Put the channel in publisher-confirm mode so a publish only reports success
+	// once the broker has durably accepted the message. Without this, a publish
+	// returns as soon as the frame hits the socket buffer, so a broker crash
+	// before persistence would be silently lost while the relay marks the outbox
+	// row published.
+	if err := ch.Confirm(false); err != nil {
+		_ = ch.Close()
+		_ = conn.Close()
+		return nil, nil, fmt.Errorf("amqp: enable publisher confirms: %w", err)
+	}
+
+	// Surface unroutable messages. With mandatory=true the broker returns a
+	// message that matched no queue; log it loudly (it means a tenant has an
+	// enabled event route but no consumer queue bound — a deployment gap).
+	returns := ch.NotifyReturn(make(chan amqp.Return, 16))
+	go func() {
+		for r := range returns {
+			slog.Error("amqp: message returned as unroutable",
+				"exchange", r.Exchange, "routing_key", r.RoutingKey,
+				"message_id", r.MessageId, "reply_text", r.ReplyText)
+		}
+	}()
+
 	slog.Info("amqp: connected to RabbitMQ", "url", cfg.URL)
 
 	publish := func(ctx context.Context, exchange, routingKey string, body []byte, messageID, eventType string) error {
-		return ch.PublishWithContext(ctx,
+		dConf, err := ch.PublishWithDeferredConfirmWithContext(ctx,
 			exchange,
 			routingKey,
-			false, // mandatory
+			true,  // mandatory — return (and log) unroutable messages
 			false, // immediate
 			amqp.Publishing{
 				ContentType:  "application/json",
@@ -82,6 +105,20 @@ func ConnectAMQP(ctx context.Context, cfg *AMQPConfig) (func(ctx context.Context
 				Body:         body,
 			},
 		)
+		if err != nil {
+			return err
+		}
+		// Block until the broker confirms (or the context/connection ends). A
+		// non-ack (broker nack / channel drop) is a real failure: return an error
+		// so the relay leaves the outbox row unpublished for re-claim.
+		acked, err := dConf.WaitContext(ctx)
+		if err != nil {
+			return fmt.Errorf("amqp: await publish confirm: %w", err)
+		}
+		if !acked {
+			return fmt.Errorf("amqp: publish nacked by broker (message_id=%s)", messageID)
+		}
+		return nil
 	}
 
 	closeFn := func() {

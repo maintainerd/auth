@@ -13,10 +13,12 @@ import authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/
 //   - CORE provisioning: tenant, service, api, permission, policy, role, client.
 //   - Peer services / BFF: user + profile reads, authorization (PDP), introspection.
 //
-// Tenant admin/UX/comms operations (branding, templates, email/SMS config,
-// webhooks, IdP, registration flows, invites, security settings, IP rules, audit
-// browsing, tenant settings) are REST control-plane only — no gRPC handler is
-// registered for them (see grpc.go and grpcUnauthenticatedServices).
+// Tenant OPERATIONAL settings (rate limit, audit, maintenance) ARE exposed to
+// core via TenantSettingService — core owns tenant lifecycle and these are
+// management, not security, concerns. SECURITY settings (password, MFA, lockout,
+// session, token, threat, IP rules) remain REST/console-only with no gRPC
+// handler, as do tenant admin/UX/comms operations (branding, templates,
+// email/SMS config, webhooks, IdP, registration flows, invites, audit browsing).
 var grpcServicePermissions = map[string]string{
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "GetDefaultTenant"):       "",
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "ListTenants"):            "tenant:read",
@@ -117,6 +119,13 @@ var grpcServicePermissions = map[string]string{
 	grpcMethod(authv1.UserProfileService_ServiceDesc.ServiceName, "DeleteUserProfile"):     "user:delete",
 
 	grpcMethod(authv1.OAuthIntrospectionService_ServiceDesc.ServiceName, "Introspect"): "",
+
+	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "GetRateLimitConfig"):      "tenant-setting:read",
+	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "UpdateRateLimitConfig"):   "tenant-setting:update",
+	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "GetAuditConfig"):          "tenant-setting:read",
+	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "UpdateAuditConfig"):       "tenant-setting:update",
+	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "GetMaintenanceConfig"):    "tenant-setting:read",
+	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "UpdateMaintenanceConfig"): "tenant-setting:update",
 }
 
 var grpcStepUpMethods = map[string]struct{}{

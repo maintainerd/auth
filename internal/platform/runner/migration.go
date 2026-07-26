@@ -61,10 +61,6 @@ var migrations = []migrationEntry{
 	{"022_create_client_permissions_table", migration.CreateClientPermissionTable},
 	{"023_create_client_identity_providers_table", migration.CreateClientIdentityProvidersTable},
 	{"024_create_client_roles_table", migration.CreateClientRolesTable},
-	// Block 6: API keys
-	{"025_create_api_keys_table", migration.CreateAPIKeysTable},
-	{"026_create_api_key_apis_table", migration.CreateAPIKeyAPITable},
-	{"027_create_api_key_permissions_table", migration.CreateAPIKeyPermissionsTable},
 	// Block 7: Workload identity
 	{"028_create_workload_identity_federations_table", migration.CreateWorkloadIdentityFederationsTable},
 	// Block 8: Users — core + all user-scoped tables grouped together

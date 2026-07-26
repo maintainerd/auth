@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,15 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		Metadata:    datatypes.JSON(`{"plan":"pro"}`),
 		CreatedAt:   now,
 		UpdatedAt:   now,
+	}
+
+	// Tenant create/update/status now require an authenticated actor. A
+	// system-tenant principal is authorized for all of them (parity with HTTP);
+	// build a matching claims context and a GetSystem stub that agrees on the ID.
+	const sysTID = int64(1)
+	sysCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{TenantID: sysTID, UserUUID: uuid.New()})
+	getSys := func() (*TenantServiceDataResult, error) {
+		return &TenantServiceDataResult{TenantID: sysTID, IsSystem: true}, nil
 	}
 
 	t.Run("get default success and error", func(t *testing.T) {
@@ -92,29 +102,42 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 	})
 
 	t.Run("create tenant validates request and maps service", func(t *testing.T) {
-		h := NewTenantGRPCHandler(&mockTenantService{createFn: func(name, displayName, description, status string) (*TenantServiceDataResult, error) {
-			assert.Equal(t, "tenant-one", name)
-			return sample, nil
-		}}, nil)
-		resp, err := h.CreateTenant(context.Background(), &authv1.TenantServiceCreateTenantRequest{
+		h := NewTenantGRPCHandler(&mockTenantService{
+			getSystemFn: getSys,
+			createFn: func(name, displayName, description, status string) (*TenantServiceDataResult, error) {
+				assert.Equal(t, "tenant-one", name)
+				return sample, nil
+			}}, nil)
+		resp, err := h.CreateTenant(sysCtx, &authv1.TenantServiceCreateTenantRequest{
 			Name: "tenant-one", DisplayName: "Tenant One", Description: "Long enough description", Status: shared.StatusActive,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "tenant-one", resp.Tenant.Name)
 
-		_, err = h.CreateTenant(context.Background(), &authv1.TenantServiceCreateTenantRequest{Name: "x"})
+		_, err = h.CreateTenant(sysCtx, &authv1.TenantServiceCreateTenantRequest{Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
-		_, err = NewTenantGRPCHandler(&mockTenantService{createFn: func(string, string, string, string) (*TenantServiceDataResult, error) {
-			return nil, apperror.NewConflict("exists")
-		}}, nil).CreateTenant(context.Background(), &authv1.TenantServiceCreateTenantRequest{
+		_, err = NewTenantGRPCHandler(&mockTenantService{
+			getSystemFn: getSys,
+			createFn: func(string, string, string, string) (*TenantServiceDataResult, error) {
+				return nil, apperror.NewConflict("exists")
+			}}, nil).CreateTenant(sysCtx, &authv1.TenantServiceCreateTenantRequest{
 			Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive,
 		})
 		assert.Equal(t, codes.AlreadyExists, status.Code(err))
+
+		// Boundary: a NON-system principal is refused at the gRPC surface even
+		// though it may hold tenant:create in its own tenant (the closed hole).
+		regularCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{TenantID: 777})
+		_, err = h.CreateTenant(regularCtx, &authv1.TenantServiceCreateTenantRequest{
+			Name: "tenant-one", DisplayName: "Tenant One", Description: "Long enough description", Status: shared.StatusActive,
+		})
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
 	t.Run("update status public and delete", func(t *testing.T) {
 		h := NewTenantGRPCHandler(&mockTenantService{
+			getSystemFn: getSys,
 			updateFn: func(id uuid.UUID, name, displayName, description, status string) (*TenantServiceDataResult, error) {
 				assert.Equal(t, tenantUUID, id)
 				return sample, nil
@@ -129,13 +152,13 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 			},
 		}, &mockTenantMemberService{})
 
-		updateResp, err := h.UpdateTenant(context.Background(), &authv1.TenantServiceUpdateTenantRequest{
+		updateResp, err := h.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{
 			TenantUuid: tenantUUID.String(), Name: "tenant-one", DisplayName: "Tenant One", Description: "Long enough description", Status: shared.StatusActive,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, sample.Name, updateResp.Tenant.Name)
 
-		statusResp, err := h.SetTenantStatus(context.Background(), &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: shared.StatusSuspended})
+		statusResp, err := h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: shared.StatusSuspended})
 		require.NoError(t, err)
 		assert.Equal(t, sample.Name, statusResp.Tenant.Name)
 
@@ -143,18 +166,28 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, sample.Name, deleteResp.Tenant.Name)
 
-		_, err = h.UpdateTenant(context.Background(), &authv1.TenantServiceUpdateTenantRequest{TenantUuid: "bad"})
+		_, err = h.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantUuid: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateTenant(context.Background(), &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "x"})
+		_, err = h.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetTenantStatus(context.Background(), &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: "deleted"})
+		_, err = h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: "deleted"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetTenantStatus(context.Background(), &authv1.SetTenantStatusRequest{TenantUuid: "bad", Status: shared.StatusActive})
+		_, err = h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantUuid: "bad", Status: shared.StatusActive})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.DeleteTenant(context.Background(), &authv1.DeleteTenantRequest{TenantUuid: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
+		// Boundary: a principal bound to another tenant (not a member of the target,
+		// not system) cannot manage this tenant.
+		deniedH := NewTenantGRPCHandler(&mockTenantService{getSystemFn: getSys}, &mockTenantMemberService{
+			canManageTenantFn: func(int64, uuid.UUID) (bool, error) { return false, nil },
+		})
+		regularCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{TenantID: 777, UserUUID: uuid.New()})
+		_, err = deniedH.UpdateTenant(regularCtx, &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive})
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+
 		errorSvc := &mockTenantService{
+			getSystemFn: getSys,
 			updateFn: func(uuid.UUID, string, string, string, string) (*TenantServiceDataResult, error) {
 				return nil, errors.New("db")
 			},
@@ -162,9 +195,9 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 			deleteByUUIDFn:    func(uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("db") },
 		}
 		errHandler := NewTenantGRPCHandler(errorSvc, &mockTenantMemberService{})
-		_, err = errHandler.UpdateTenant(context.Background(), &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive})
+		_, err = errHandler.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = errHandler.SetTenantStatus(context.Background(), &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: shared.StatusActive})
+		_, err = errHandler.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = errHandler.DeleteTenant(context.Background(), &authv1.DeleteTenantRequest{TenantUuid: tenantUUID.String(), ActorUserUuid: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))

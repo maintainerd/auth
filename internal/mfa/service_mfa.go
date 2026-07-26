@@ -1027,7 +1027,7 @@ func (s *mfaService) SendStepUpSMS(ctx context.Context, userID int64) error {
 	tenantID := mfaUserTenantID(ctx, s.db, userID)
 	provider, smsErr := sms.NewProviderFromDB(ctx, s.db, tenantID)
 	if smsErr != nil {
-		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phoneRecord.Phone, "otp", otpCode)
+		slog.Warn("SMS provider init failed; MFA step-up OTP not delivered", "err", smsErr, "phone", phoneRecord.Phone, "otp", security.RedactedOTP(otpCode))
 	} else if provider != nil {
 		data := struct{ OTP string }{OTP: otpCode}
 		msg, tplErr := sms.RenderTemplate(s.db, "sms:mfa:stepup", tenantID, data)
@@ -1085,7 +1085,7 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 	tenantID := mfaUserTenantID(ctx, s.db, userID)
 	provider, smsErr := sms.NewProviderFromDB(ctx, s.db, tenantID)
 	if smsErr != nil {
-		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phone, "otp", otpCode)
+		slog.Warn("SMS provider init failed; MFA enrollment OTP not delivered", "err", smsErr, "phone", phone, "otp", security.RedactedOTP(otpCode))
 	} else if provider != nil {
 		data := struct{ OTP string }{OTP: otpCode}
 		msg, tplErr := sms.RenderTemplate(s.db, "sms:mfa:enroll", tenantID, data)
@@ -1094,10 +1094,10 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 			msg = fmt.Sprintf("Your MFA verification code is: %s", otpCode)
 		}
 		if sendErr := provider.Send(ctx, phone, msg); sendErr != nil {
-			slog.Error("SMS enrollment send failed — logging OTP for dev", "err", sendErr, "phone", phone, "otp", otpCode)
+			slog.Error("SMS enrollment send failed", "err", sendErr, "phone", phone, "otp", security.RedactedOTP(otpCode))
 		}
 	} else {
-		slog.Info("SMS OTP (no provider) — use for dev", "phone", phone, "otp", otpCode)
+		slog.Warn("no SMS provider configured; MFA enrollment OTP not delivered", "phone", phone, "otp", security.RedactedOTP(otpCode))
 	}
 
 	existing, _ := s.mfaPhoneRepo.FindByUserID(userID)

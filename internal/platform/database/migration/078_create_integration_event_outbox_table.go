@@ -26,6 +26,12 @@ CREATE TABLE IF NOT EXISTS integration_event_outbox (
     request_id          VARCHAR(255),
     is_published        BOOLEAN NOT NULL DEFAULT false,
     published_at        TIMESTAMPTZ,
+    -- Per-arm delivery state. The relay hands each event to two independent arms
+    -- (webhook fan-out, broker publish); tracking them separately means a failure
+    -- in one arm never re-runs the other on re-claim. is_published flips true only
+    -- once both arms are done. NULL = that arm not yet completed.
+    webhook_delivered_at TIMESTAMPTZ,
+    broker_published_at  TIMESTAMPTZ,
     claimed_at          TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );

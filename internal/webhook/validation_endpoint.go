@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
@@ -13,7 +14,16 @@ var webhookURLRule = validation.By(func(value any) error {
 	if raw == "" {
 		return nil
 	}
-	if err := validateWebhookURL(context.TODO(), raw, false, nil); err != nil {
+	// Structural checks always apply: https-only + literal-IP blocklist.
+	if err := validateWebhookURL(context.Background(), raw, false, nil); err != nil {
+		return validation.NewError("validation_webhook_url", err.Error())
+	}
+	// Best-effort DNS check for early rejection of internal hostnames. Bounded so
+	// it cannot become a DoS vector, and non-blocking on DNS failure (the
+	// delivery-time pinned dial is the authoritative SSRF guard).
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := ValidateResolvedHostSafe(ctx, raw); err != nil {
 		return validation.NewError("validation_webhook_url", err.Error())
 	}
 	return nil

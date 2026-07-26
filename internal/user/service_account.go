@@ -757,7 +757,7 @@ func (s *accountService) SendPhoneVerification(ctx context.Context, userID int64
 	tenantID := user.TenantID
 	provider, smsErr := accountNewSMSProvider(ctx, s.db, tenantID)
 	if smsErr != nil {
-		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phone, "otp", otpCode)
+		slog.Warn("SMS provider init failed; phone-verification OTP not delivered", "err", smsErr, "phone", phone, "otp", security.RedactedOTP(otpCode))
 	} else if provider != nil {
 		data := struct{ OTP string }{OTP: otpCode}
 		msg, tplErr := sms.RenderTemplate(s.db, "sms:phone:verify", tenantID, data)
@@ -766,10 +766,10 @@ func (s *accountService) SendPhoneVerification(ctx context.Context, userID int64
 			msg = fmt.Sprintf("Your phone verification code is: %s", otpCode)
 		}
 		if sendErr := provider.Send(ctx, phone, msg); sendErr != nil {
-			slog.Error("SMS phone verification send failed — logging OTP for dev", "err", sendErr, "phone", phone, "otp", otpCode)
+			slog.Error("SMS phone verification send failed", "err", sendErr, "phone", phone, "otp", security.RedactedOTP(otpCode))
 		}
 	} else {
-		slog.Info("SMS OTP (no provider) — use for dev", "phone", phone, "otp", otpCode)
+		slog.Warn("no SMS provider configured; phone-verification OTP not delivered", "phone", phone, "otp", security.RedactedOTP(otpCode))
 	}
 
 	span.SetStatus(codes.Ok, "")
