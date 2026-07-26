@@ -79,7 +79,7 @@ export default function MagicLinkPage() {
     }
 
     verify()
-  }, [finishAuthentication, searchParams])
+  }, [finishAuthentication, searchParams, navigate])
 
   useEffect(() => {
     if (status !== "success" || !successPath) return
