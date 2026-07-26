@@ -168,11 +168,15 @@ export async function removeWebhookSubscription(
   }
 }
 
+// Delivery lifecycle states emitted by the backend: `pending` (queued/awaiting
+// retry), `success`, or `dead_letter` (retries exhausted or endpoint quarantined).
+export type DeliveryFinalStatus = 'pending' | 'success' | 'dead_letter'
+
 export interface DeliveryHistoryItem {
   delivery_history_uuid: string
   event_type: string
   attempt_count: number
-  final_status: string
+  final_status: DeliveryFinalStatus
   response_status?: number | null
   response_summary?: string
   is_replay: boolean

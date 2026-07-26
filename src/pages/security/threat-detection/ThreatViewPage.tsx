@@ -96,6 +96,7 @@ export default function ThreatViewPage({ standalone = true }: { standalone?: boo
               <Attr icon={data.ip_reputation_check_enabled ? Check : X} label="IP Reputation Check" value={data.ip_reputation_check_enabled ? "Enabled" : "Disabled"} />
               <Attr icon={data.block_tor_exit_nodes ? Check : X} label="Block Tor Exit Nodes" value={data.block_tor_exit_nodes ? "Blocked" : "Allowed"} />
               <Attr icon={Hash} label="Velocity Limit" value={`${data.velocity_failures_per_ip_per_hour} failures/IP/hour`} />
+              <Attr icon={Hash} label="Distinct Accounts Limit" value={`${data.distinct_accounts_per_ip_per_hour} accounts/IP/hour`} />
             </div>
           </CardContent>
         </Card>

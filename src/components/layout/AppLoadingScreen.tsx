@@ -12,7 +12,7 @@ type Props = {
  * mark: tenant logo when configured, otherwise the Maintainerd icon.
  */
 const AppLoadingScreen = ({ branding }: Props) => {
-  const companyName = branding?.company_name || 'Maintainerd-Auth'
+  const companyName = branding?.company_name || 'Maintainerd IAM'
   const logoUrl = branding?.logo_url
 
   return (

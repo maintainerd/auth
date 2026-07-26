@@ -10,6 +10,7 @@ export interface ThreatDetectionSettings {
   risk_step_up_threshold: number
   risk_block_threshold: number
   velocity_failures_per_ip_per_hour: number
+  distinct_accounts_per_ip_per_hour: number
 }
 
 export interface ThreatDetectionSettingsPayload {
@@ -24,6 +25,7 @@ export interface ThreatDetectionSettingsPayload {
   risk_step_up_threshold?: number
   risk_block_threshold?: number
   velocity_failures_per_ip_per_hour?: number
+  distinct_accounts_per_ip_per_hour?: number
 }
 
 export interface ThreatDetectionSettingsResponse {

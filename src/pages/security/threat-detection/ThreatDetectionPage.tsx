@@ -26,6 +26,7 @@ const BACKEND_FIELD_MAP: Record<string, string> = {
   risk_step_up_threshold: 'risk_step_up_threshold',
   risk_block_threshold: 'risk_block_threshold',
   velocity_failures_per_ip_per_hour: 'velocity_failures_per_ip_per_hour',
+  distinct_accounts_per_ip_per_hour: 'distinct_accounts_per_ip_per_hour',
 }
 
 export default function ThreatDetectionPage() {
@@ -50,6 +51,7 @@ export default function ThreatDetectionPage() {
       risk_step_up_threshold: 21,
       risk_block_threshold: 81,
       velocity_failures_per_ip_per_hour: 50,
+      distinct_accounts_per_ip_per_hour: 10,
     },
     mode: 'onSubmit',
   })
@@ -70,6 +72,7 @@ export default function ThreatDetectionPage() {
         risk_step_up_threshold: savedSettings.risk_step_up_threshold ?? 21,
         risk_block_threshold: savedSettings.risk_block_threshold ?? 81,
         velocity_failures_per_ip_per_hour: savedSettings.velocity_failures_per_ip_per_hour ?? 50,
+        distinct_accounts_per_ip_per_hour: savedSettings.distinct_accounts_per_ip_per_hour ?? 10,
       })
     }
   }, [savedSettings, reset])
@@ -103,6 +106,7 @@ export default function ThreatDetectionPage() {
           ['compromised_credential_monitoring_enabled', 'compromised_credential_monitoring_enabled'],
           ['impossible_travel_detection_enabled', 'impossible_travel_detection_enabled'],
           ['new_device_notification_enabled', 'new_device_notification_enabled'],
+          ['distinct_accounts_per_ip_per_hour', 'distinct_accounts_per_ip_per_hour'],
           ['velocity_failures_per_ip_per_hour', 'velocity_failures_per_ip_per_hour'],
           ['velocity_check_enabled', 'velocity_check_enabled'],
           ['risk_based_step_up_enabled', 'risk_based_step_up_enabled'],
@@ -204,7 +208,8 @@ export default function ThreatDetectionPage() {
                 <FormSwitchField label="Block Tor Exit Nodes" description="Requires a Tor exit-node source (not yet available)" checked={false} onCheckedChange={() => {}} disabled />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <FormInputField label="Velocity Limit (failures/IP/hour)" type="number" value={formValues.velocity_failures_per_ip_per_hour.toString()} onChange={(e) => handleUpdate({ velocity_failures_per_ip_per_hour: parseInt(e.target.value) || 1 })} error={errors.velocity_failures_per_ip_per_hour?.message} disabled={isBusy} />
+                <FormInputField label="Velocity Limit (failures/IP/hour)" description="Raw failures from one IP; high volume triggers step-up" type="number" value={formValues.velocity_failures_per_ip_per_hour.toString()} onChange={(e) => handleUpdate({ velocity_failures_per_ip_per_hour: parseInt(e.target.value) || 1 })} error={errors.velocity_failures_per_ip_per_hour?.message} disabled={isBusy} />
+                <FormInputField label="Distinct Accounts Limit (accounts/IP/hour)" description="Distinct accounts one IP fails against; high fan-out signals credential stuffing" type="number" value={formValues.distinct_accounts_per_ip_per_hour.toString()} onChange={(e) => handleUpdate({ distinct_accounts_per_ip_per_hour: parseInt(e.target.value) || 1 })} error={errors.distinct_accounts_per_ip_per_hour?.message} disabled={isBusy} />
               </div>
             </CardContent>
           </Card>

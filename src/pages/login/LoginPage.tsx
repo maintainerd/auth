@@ -36,7 +36,7 @@ const LoginPage = () => {
   }, [currentTenant?.name, initializeFromHost])
 
   const tenantIdentifier = currentTenant?.name
-  const companyName = currentTenant?.branding?.company_name || 'Maintainerd Auth'
+  const companyName = currentTenant?.branding?.company_name || 'Maintainerd IAM'
 
   const handleLogin = async () => {
     if (!tenantIdentifier) return

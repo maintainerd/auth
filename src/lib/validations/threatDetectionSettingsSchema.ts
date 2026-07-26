@@ -23,6 +23,10 @@ export const threatDetectionSettingsSchema = yup.object({
     .number()
     .required()
     .min(1, 'Must be at least 1'),
+  distinct_accounts_per_ip_per_hour: yup
+    .number()
+    .required()
+    .min(1, 'Must be at least 1'),
 }).required()
 
 export type ThreatDetectionSettingsFormData = yup.InferType<typeof threatDetectionSettingsSchema>

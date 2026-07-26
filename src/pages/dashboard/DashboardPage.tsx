@@ -15,6 +15,7 @@ import {
   Lock,
   Clock,
   Globe,
+  Activity,
   CheckCircle,
   BookOpen,
   ExternalLink,
@@ -30,10 +31,10 @@ import { useDashboardSummary } from "@/hooks/useDashboard"
 const fmt = (n: number) => n.toLocaleString()
 
 const QUICK_ACTIONS = [
-  { icon: Users, title: "Manage Users", desc: "Add users and assign roles", to: "/users" },
-  { icon: Shield, title: "Security Settings", desc: "Configure security policies", to: "/security" },
-  { icon: Server, title: "Manage Services", desc: "Register application services", to: "/services" },
-  { icon: KeyRound, title: "Identity Providers", desc: "Connect external providers", to: "/providers/identity" },
+  { icon: Users, title: "Users & Roles", desc: "Manage identities and access grants", to: "/users" },
+  { icon: Shield, title: "Security Policies", desc: "Review MFA, sessions, and threat controls", to: "/security" },
+  { icon: Server, title: "Services & APIs", desc: "Register protected resources", to: "/services" },
+  { icon: KeyRound, title: "Identity Providers", desc: "Connect enterprise and social IdPs", to: "/providers/identity" },
 ]
 
 // Security areas that exist in the backend (/security-settings/*, /ip-restriction-rules)
@@ -63,7 +64,7 @@ function NavRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-accent"
+      className="flex items-center justify-between rounded-lg border bg-white p-3 text-left transition-colors hover:border-slate-300 hover:bg-accent"
     >
       <div className="flex items-center gap-3">
         <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -138,10 +139,31 @@ const DashboardPage = () => {
   const to = (path: string) => navigate(`${path}`)
 
   const stats = [
-    { label: "Total Users", value: summary ? fmt(summary.users.total) : undefined, icon: Users, hero: true },
-    { label: "Applications", value: summary ? fmt(summary.clients.total) : undefined, icon: Layers },
-    { label: "Services", value: summary ? fmt(summary.services.total) : undefined, icon: Server },
-    { label: "Identity Providers", value: summary ? fmt(summary.identity_providers.total) : undefined, icon: KeyRound },
+    {
+      label: "Users",
+      value: summary ? fmt(summary.users.total) : undefined,
+      detail: summary ? `${fmt(summary.users.active)} active / ${fmt(summary.users.pending)} pending` : undefined,
+      icon: Users,
+      hero: true,
+    },
+    {
+      label: "Applications",
+      value: summary ? fmt(summary.clients.total) : undefined,
+      detail: summary ? `${fmt(summary.clients.active)} active clients` : undefined,
+      icon: Layers,
+    },
+    {
+      label: "Sign-ins (24h)",
+      value: summary ? fmt(summary.recent_logins_24h) : undefined,
+      detail: summary ? "Successful authentication events" : undefined,
+      icon: Activity,
+    },
+    {
+      label: "Failed sign-ins (24h)",
+      value: summary ? fmt(summary.failed_logins_24h) : undefined,
+      detail: summary ? "Watch for brute-force activity" : undefined,
+      icon: ShieldAlert,
+    },
   ]
 
   return (
@@ -149,9 +171,9 @@ const DashboardPage = () => {
       <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Get Started</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-sm text-muted-foreground">
-          Welcome to your M9d-Auth dashboard. Manage your authentication services, users, and security settings.
+          Monitor tenant identity posture, application access, and authentication activity for Maintainerd IAM.
         </p>
       </div>
 
@@ -179,6 +201,11 @@ const DashboardPage = () => {
                 ) : (
                   <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>
                 )}
+                {stat.detail && (
+                  <p className={cn("text-xs", stat.hero ? "text-blue-50/90" : "text-muted-foreground")}>
+                    {stat.detail}
+                  </p>
+                )}
               </div>
               <div
                 className={cn(
@@ -198,10 +225,10 @@ const DashboardPage = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Settings className="h-4 w-4" />
-            Quick Actions
+            IAM Shortcuts
           </CardTitle>
           <CardDescription>
-            Essential setup tasks to get your authentication system ready
+            Common control-plane workflows for identity and access administration
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -224,10 +251,10 @@ const DashboardPage = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BookOpen className="h-4 w-4" />
-            Application Integration
+            Application Access
           </CardTitle>
           <CardDescription>
-            Connect your applications to M9d-Auth using standard protocols
+            Connect applications to Maintainerd IAM using standard protocols
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -255,7 +282,7 @@ const DashboardPage = () => {
             </Button>
             <Button variant="ghost">
               <ExternalLink className="mr-2 h-4 w-4" />
-              Documentation
+              View Documentation
             </Button>
           </div>
         </CardContent>
@@ -266,10 +293,10 @@ const DashboardPage = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Shield className="h-4 w-4" />
-            Security
+            Security Posture
           </CardTitle>
           <CardDescription>
-            Configure your security policies and access protections
+            Configure authentication policy, session controls, and access protections
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -10,7 +10,7 @@ type Props = {
 }
 
 const LoginLayout = ({ children, branding }: Props) => {
-  const companyName = branding?.company_name || 'Maintainerd-Auth'
+  const companyName = branding?.company_name || 'Maintainerd IAM'
   const logoUrl = branding?.logo_url
 
   const year = new Date().getFullYear()

@@ -17,7 +17,7 @@ const MaintainedAuthIcon = ({
 			height={height}
 			className={className}
 			role="img"
-			aria-label="Maintainerd Auth dual-color shield"
+			aria-label="Maintainerd IAM dual-color shield"
 		>
 			<defs>
 				<clipPath id="left-half">

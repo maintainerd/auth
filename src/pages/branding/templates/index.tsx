@@ -26,7 +26,7 @@ export default function BrandingTemplatesPage({ standalone = true }: { standalon
   }, [data, search])
 
   const content = (
-    <>
+    <div className="flex flex-col gap-4">
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -75,7 +75,7 @@ export default function BrandingTemplatesPage({ standalone = true }: { standalon
           ))}
         </div>
       )}
-    </>
+    </div>
   )
 
   if (!standalone) return content

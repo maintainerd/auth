@@ -40,7 +40,7 @@ function clearBranding() {
   root.style.removeProperty("--branding-font")
   root.style.removeProperty("--branding-background")
   document.body.style.fontFamily = ""
-  document.title = "Maintainerd"
+  document.title = "Maintainerd IAM"
 }
 
 export function ConsoleBrandingProvider({ children }: Props) {

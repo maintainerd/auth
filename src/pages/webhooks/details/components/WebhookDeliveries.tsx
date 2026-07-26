@@ -59,8 +59,8 @@ export function WebhookDeliveries({ webhookId }: Props) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{d.event_type}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${d.final_status === "success" ? "bg-green-100 text-green-700" : d.final_status === "failed" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
-                    {d.final_status}
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${d.final_status === "success" ? "bg-green-100 text-green-700" : d.final_status === "dead_letter" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
+                    {d.final_status === "dead_letter" ? "dead-lettered" : d.final_status}
                   </span>
                   {d.is_replay && <span className="text-xs text-muted-foreground">(replay)</span>}
                 </div>
