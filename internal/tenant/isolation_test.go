@@ -33,11 +33,11 @@ func TestTenantIsolationInvariant(t *testing.T) {
 		{userTenantIDs: []int64{10, 20, 30}, targetTenantID: 20, wantAllowed: true, label: "multi-identity one match"},
 		// ---- multiple identities, none match ----
 		{userTenantIDs: []int64{10, 20, 30}, targetTenantID: 40, wantAllowed: false, label: "multi-identity no match"},
-		// ---- system tenant bypass ----
-		{userTenantIDs: []int64{1}, targetTenantID: 99, systemTenantID: 1, wantAllowed: true, label: "system user any tenant"},
+		// ---- system tenant: NO resource-access bypass (strict isolation) ----
+		{userTenantIDs: []int64{1}, targetTenantID: 99, systemTenantID: 1, wantAllowed: false, label: "system identity does not bypass resource access"},
 		{userTenantIDs: []int64{1}, targetTenantID: 1, systemTenantID: 1, wantAllowed: true, label: "system user own system tenant"},
 		// ---- system tenant user alongside non-system identity ----
-		{userTenantIDs: []int64{10, 1}, targetTenantID: 99, systemTenantID: 1, wantAllowed: true, label: "mixed identities system grants bypass"},
+		{userTenantIDs: []int64{10, 1}, targetTenantID: 99, systemTenantID: 1, wantAllowed: false, label: "mixed identities: system does not grant cross-tenant access"},
 		// ---- large tenant ID gap ----
 		{userTenantIDs: []int64{1000}, targetTenantID: 9999, wantAllowed: false, label: "large id gap blocked"},
 		// ---- target == 0 (invalid) ----
@@ -87,23 +87,28 @@ func TestTenantIsolation_CrossTenantNeverLeaks(t *testing.T) {
 	}
 }
 
-// TestTenantIsolation_SystemBypassIsScoped verifies that the system-tenant
-// bypass is tied to the identity's tenant being a system tenant, not to any
-// arbitrary tenant with a low ID.
-func TestTenantIsolation_SystemBypassIsScoped(t *testing.T) {
-	// Tenant ID 2 with IsSystem=false should NOT grant bypass.
+// TestTenantIsolation_SystemIdentityDoesNotBypassResourceAccess verifies that a
+// system-tenant identity does NOT grant cross-tenant access to another tenant's
+// records. The system tenant's only cross-tenant power (tenant-management:
+// create/update/members) is authorized separately by CanManageTenant, never
+// through this resource-access gate (rules #9/#10). This guards against a future
+// refactor silently re-enabling system god-mode over every tenant's users.
+func TestTenantIsolation_SystemIdentityDoesNotBypassResourceAccess(t *testing.T) {
+	// A non-system identity cannot reach another tenant.
 	user := buildUserWithIdentities([]AccessIdentity{
-		buildIdentity(2, false), // non-system despite low ID
+		buildIdentity(2, false),
 	})
-	err := ValidateTenantAccessByID(user, 99)
-	require.Error(t, err, "non-system tenant must not bypass access control")
+	require.Error(t, ValidateTenantAccessByID(user, 99), "non-system tenant must not bypass access control")
 
-	// Same tenant ID 2 with IsSystem=true should grant bypass.
+	// A system-tenant identity ALSO cannot reach another tenant's records.
 	userSystem := buildUserWithIdentities([]AccessIdentity{
-		buildIdentity(2, true),
+		buildIdentity(1, true),
 	})
-	err = ValidateTenantAccessByID(userSystem, 99)
-	require.NoError(t, err, "system tenant identity must bypass access control")
+	require.Error(t, ValidateTenantAccessByID(userSystem, 99),
+		"system identity must not bypass resource-level tenant isolation")
+
+	// But it can still reach its OWN tenant.
+	require.NoError(t, ValidateTenantAccessByID(userSystem, 1))
 }
 
 // TestTenantIsolation_NilUser verifies that a nil user is handled safely.

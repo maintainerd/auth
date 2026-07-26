@@ -11,6 +11,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -92,6 +93,7 @@ func IPRateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) f
 					Details:   fmt.Sprintf("IP exceeded %d req/%v limit", limit, window),
 					Severity:  "HIGH",
 				})
+				telemetry.RecordSecurityDenial(r.Context(), telemetry.DenialRateLimit)
 				w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 				resp.Error(w, http.StatusTooManyRequests, "rate limit exceeded — try again later")
 				return
@@ -163,6 +165,7 @@ func TenantRequestRateLimitMiddleware(rdb *redis.Client, reader TenantRateLimitR
 						),
 						Severity: "HIGH",
 					})
+					telemetry.RecordSecurityDenial(r.Context(), telemetry.DenialRateLimit)
 					w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 					resp.Error(w, http.StatusTooManyRequests, "rate limit exceeded — try again later")
 					return

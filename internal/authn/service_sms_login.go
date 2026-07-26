@@ -169,7 +169,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, phone string, clientID, t
 
 	provider, smsErr := newSMSProvider(ctx, s.db, tenantIDVal)
 	if smsErr != nil {
-		slog.Warn("SMS provider init failed — logging OTP for dev", "err", smsErr, "phone", phone, "otp", otp)
+		slog.Warn("SMS provider init failed; login OTP not delivered", "err", smsErr, "phone", phone, "otp", security.RedactedOTP(otp))
 	} else if provider != nil {
 		data := struct{ OTP string }{OTP: otp}
 		msg, tplErr := sms.RenderTemplate(s.db, "sms:login:otp", tenantIDVal, data)

@@ -15,6 +15,10 @@ type OutboxRepository interface {
 	ClaimUnpublished(batchSize int) ([]Outbox, error)
 	FindByTenantID(tenantID int64) ([]Outbox, error)
 	FindByEventID(eventID uuid.UUID) (*Outbox, error)
+	// MarkWebhookDelivered / MarkBrokerPublished record per-arm completion so the
+	// relay never re-runs an arm that already succeeded (decouples the arms).
+	MarkWebhookDelivered(outboxID int64) error
+	MarkBrokerPublished(outboxID int64) error
 	MarkPublished(outboxID int64) error
 	DeleteOlderThan(cutoff time.Time) (int64, error)
 	DeleteBySubjectUUID(subjectUUID uuid.UUID) (int64, error)
@@ -90,6 +94,18 @@ func (r *outboxRepository) FindByEventID(eventID uuid.UUID) (*Outbox, error) {
 		return nil, err
 	}
 	return &row, nil
+}
+
+func (r *outboxRepository) MarkWebhookDelivered(outboxID int64) error {
+	return r.DB().Model(&Outbox{}).
+		Where("outbox_id = ?", outboxID).
+		Update("webhook_delivered_at", time.Now().UTC()).Error
+}
+
+func (r *outboxRepository) MarkBrokerPublished(outboxID int64) error {
+	return r.DB().Model(&Outbox{}).
+		Where("outbox_id = ?", outboxID).
+		Update("broker_published_at", time.Now().UTC()).Error
 }
 
 func (r *outboxRepository) MarkPublished(outboxID int64) error {

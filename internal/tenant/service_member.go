@@ -94,17 +94,13 @@ func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID
 	if err != nil {
 		return nil, err
 	}
+	// Assigning the OWNER role is reserved to system-tenant administrators.
+	// Managing a regular member requires only that the actor be a member of the
+	// target tenant (or the system tenant) — authorizeManager verified that, and
+	// the route already gates the required permission, so any member holding it
+	// (not just the owner) may add/remove members of their own tenant.
 	if role == shared.TenantRoleOwner && !actorIsSystem {
 		return nil, apperror.NewForbidden("only system tenant administrators can assign a tenant owner")
-	}
-	if !actorIsSystem {
-		actorMember, aErr := s.tenantMemberRepo.FindByTenantAndUser(tenantID, actorUserID)
-		if aErr != nil {
-			return nil, apperror.NewInternal("failed to verify actor role", aErr)
-		}
-		if actorMember == nil || actorMember.Role != shared.TenantRoleOwner {
-			return nil, apperror.NewForbidden("only system tenant administrators or the tenant owner can manage members")
-		}
 	}
 
 	var created *TenantMember
@@ -189,17 +185,11 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 	if err != nil {
 		return nil, err
 	}
+	// Assigning the OWNER role is reserved to system-tenant administrators; adding
+	// a regular member only requires target-tenant (or system) membership, which
+	// authorizeManager verified, plus the route-gated permission.
 	if role == shared.TenantRoleOwner && !actorIsSystem {
 		return nil, apperror.NewForbidden("only system tenant administrators can assign a tenant owner")
-	}
-	if !actorIsSystem {
-		actorMember, aErr := s.tenantMemberRepo.FindByTenantAndUser(tenantID, actorUserID)
-		if aErr != nil {
-			return nil, apperror.NewInternal("failed to verify actor role", aErr)
-		}
-		if actorMember == nil || actorMember.Role != shared.TenantRoleOwner {
-			return nil, apperror.NewForbidden("only system tenant administrators or the tenant owner can manage members")
-		}
 	}
 
 	// First get the user to retrieve the user_id
@@ -210,6 +200,23 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 		}
 		span.SetStatus(codes.Error, "user not found")
 		return nil, apperror.NewNotFound("user not found")
+	}
+
+	// Cross-tenant isolation: members/owners are always sourced from the SYSTEM
+	// tenant's shared user pool (rules #4/#7). Refuse to copy a user that lives in
+	// another tenant — otherwise an actor could name any user's UUID and have that
+	// user's credentials + PII copied across the tenant boundary into the target
+	// tenant (a cross-tenant credential-exfiltration / account-existence oracle).
+	systemTenant, err := s.tenantRepo.FindSystem()
+	if err != nil {
+		return nil, apperror.NewInternal("failed to resolve system tenant", err)
+	}
+	if systemTenant == nil {
+		return nil, apperror.NewInternal("system tenant not found", nil)
+	}
+	if user.TenantID != systemTenant.TenantID {
+		span.SetStatus(codes.Error, "source user is not in the system tenant")
+		return nil, apperror.NewForbidden("user must exist in the system tenant before being added to a tenant")
 	}
 
 	// Ensure the user has a record in the target tenant (copy credentials if needed)
@@ -366,9 +373,20 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, te
 			return apperror.NewValidation("cannot demote a tenant owner directly — transfer ownership instead")
 		}
 
+		ownershipTransferred := false
 		if role == shared.TenantRoleOwner && tu.Role != shared.TenantRoleOwner {
-			if !actorIsSystem {
-				return apperror.NewForbidden("only system tenant administrators can transfer tenant ownership")
+			ownershipTransferred = true
+			existingOwner, oErr := repo.FindOwnerByTenantID(tenantID)
+			if oErr != nil {
+				return apperror.NewInternal("failed to check existing owner", oErr)
+			}
+			// Rule #11: the CURRENT owner may transfer their ownership; a system-tenant
+			// administrator may also do so (they provision ownership). The transfer
+			// target (tu) is already a member of this tenant — it was looked up by
+			// tenant_member UUID scoped to the tenant above.
+			actorIsOwner := existingOwner != nil && existingOwner.UserID == actorUserID
+			if !actorIsSystem && !actorIsOwner {
+				return apperror.NewForbidden("only the tenant owner or a system tenant administrator can transfer tenant ownership")
 			}
 			tenantRecord, tErr := tx.TenantRepository().FindByID(tenantID)
 			if tErr != nil {
@@ -395,10 +413,6 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, te
 					}
 				}
 			}
-			existingOwner, oErr := repo.FindOwnerByTenantID(tenantID)
-			if oErr != nil {
-				return apperror.NewInternal("failed to check existing owner", oErr)
-			}
 			if existingOwner != nil {
 				existingOwner.Role = shared.TenantRoleMember
 				if _, oErr = repo.CreateOrUpdate(existingOwner); oErr != nil {
@@ -419,7 +433,22 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, te
 
 		tu.Role = role
 		updated, err = repo.CreateOrUpdate(tu)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Audit the privileged ownership transfer — whether owner-initiated or a
+		// system-tenant break-glass — so it is never a silent change. Emitted inside
+		// the transaction so it commits atomically with the role and super-admin
+		// reassignment.
+		if ownershipTransferred && s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+				event.EventTypeTenantOwnershipTransferred, 1, tenantID,
+			).SetSubject(&updated.TenantMemberUUID, "tenant_member")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		span.RecordError(err)
@@ -444,18 +473,12 @@ func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantID int64, 
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
 
-	_, actorIsSystem, err := s.authorizeManager(tenantID, actorUserID)
-	if err != nil {
+	// A member of the target tenant (or a system-tenant member), holding the
+	// route-gated permission, may remove members — authorizeManager verifies the
+	// actor belongs to the target or system tenant. Removing the OWNER is still
+	// blocked below (ownership must be transferred first).
+	if _, _, err := s.authorizeManager(tenantID, actorUserID); err != nil {
 		return err
-	}
-	if !actorIsSystem {
-		actorMember, aErr := s.tenantMemberRepo.FindByTenantAndUser(tenantID, actorUserID)
-		if aErr != nil {
-			return apperror.NewInternal("failed to verify actor role", aErr)
-		}
-		if actorMember == nil || actorMember.Role != shared.TenantRoleOwner {
-			return apperror.NewForbidden("only system tenant administrators or the tenant owner can manage members")
-		}
 	}
 
 	tu, err := s.tenantMemberRepo.FindByTenantMemberUUID(tenantMemberUUID)

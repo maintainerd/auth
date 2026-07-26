@@ -55,12 +55,6 @@ type AuthEventServiceDataResult struct {
 	CreatedAt     time.Time
 }
 
-// WebhookDispatcher delivers a persisted auth event to subscribed webhook endpoints.
-type WebhookDispatcher interface {
-	Dispatch(ctx context.Context, event *AuthEvent)
-	Shutdown()
-}
-
 // AuthEventService defines business operations on security auth events.
 type AuthEventService interface {
 	// Log records a new auth event. The trace ID is extracted from the context
@@ -81,28 +75,28 @@ type AuthEventService interface {
 	// of rows deleted. Used by the retention background job.
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 
-	// Shutdown waits for all in-flight webhook dispatches to complete.
+	// Shutdown is retained for lifecycle symmetry; auth-event logging is now
+	// synchronous and durable (persisted before return), so there is nothing to
+	// drain. Auth events are deliberately NOT fanned out to webhooks — they are
+	// not integration events (see the event catalog).
 	Shutdown()
 }
 
 type authEventService struct {
 	authEventRepo     AuthEventRepository
-	dispatcher        WebhookDispatcher
 	auditConfigReader AuditConfigReader
 	auditConfigCache  map[int64]auditConfigCacheEntry
 	auditConfigMu     sync.RWMutex
 }
 
 // NewAuthEventService creates a new AuthEventService.
-// Pass nil for dispatcher to disable webhook delivery (e.g. in tests).
-func NewAuthEventService(authEventRepo AuthEventRepository, dispatcher WebhookDispatcher, readers ...AuditConfigReader) AuthEventService {
+func NewAuthEventService(authEventRepo AuthEventRepository, readers ...AuditConfigReader) AuthEventService {
 	var reader AuditConfigReader
 	if len(readers) > 0 {
 		reader = readers[0]
 	}
 	return &authEventService{
 		authEventRepo:     authEventRepo,
-		dispatcher:        dispatcher,
 		auditConfigReader: reader,
 		auditConfigCache:  map[int64]auditConfigCacheEntry{},
 	}
@@ -184,15 +178,10 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 		Metadata:     metadata,
 	}
 
-	created, err := s.authEventRepo.Create(event)
-	if err != nil {
+	if _, err := s.authEventRepo.Create(event); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to persist auth event")
 		return
-	}
-
-	if s.dispatcher != nil {
-		s.dispatcher.Dispatch(ctx, created)
 	}
 }
 
@@ -332,12 +321,9 @@ func (s *authEventService) Export(ctx context.Context, filter AuthEventRepositor
 	}
 }
 
-// Shutdown waits for all in-flight webhook dispatches to complete.
-func (s *authEventService) Shutdown() {
-	if s.dispatcher != nil {
-		s.dispatcher.Shutdown()
-	}
-}
+// Shutdown is a no-op: auth-event logging is synchronous and durable, so there
+// is no in-flight async work to drain.
+func (s *authEventService) Shutdown() {}
 
 func (s *authEventService) getAuditConfig(ctx context.Context, tenantID int64) auditConfig {
 	if s.auditConfigReader == nil || tenantID == 0 {

@@ -1151,6 +1151,24 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
+		// The tenant owner's super-admin role is inseparable from ownership: it must
+		// not be revocable while they remain owner. Ownership must be transferred
+		// first (which reassigns super-admin atomically in the tenant member
+		// service). Without this guard, anyone holding user:role:assign could strip
+		// super-admin from the owner via the parallel user_roles table, bypassing
+		// the tenant_members owner protections and locking the owner out.
+		if role.Name == shared.RoleSuperAdmin {
+			var ownerCount int64
+			if cErr := tx.Table("tenant_members").
+				Where("tenant_id = ? AND user_id = ? AND role = ?", tenantID, user.UserID, shared.TenantRoleOwner).
+				Count(&ownerCount).Error; cErr != nil {
+				return apperror.NewInternal("failed to verify tenant ownership", cErr)
+			}
+			if ownerCount > 0 {
+				return apperror.NewValidation("cannot revoke the super-admin role from the tenant owner — transfer ownership first")
+			}
+		}
+
 		// Remove user-role association
 		err = txUserRoleRepo.DeleteByUserIDAndRoleID(user.UserID, role.RoleID)
 		if err != nil {

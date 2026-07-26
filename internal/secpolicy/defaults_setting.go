@@ -93,6 +93,7 @@ var defaultSecuritySettingConfigs = map[string]map[string]any{
 		"risk_step_up_threshold":                    21,
 		"risk_block_threshold":                      81,
 		"velocity_failures_per_ip_per_hour":         50,
+		"distinct_accounts_per_ip_per_hour":         10,
 	},
 }
 

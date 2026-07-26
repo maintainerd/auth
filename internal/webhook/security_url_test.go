@@ -83,7 +83,12 @@ func TestIsUnsafeWebhookIP(t *testing.T) {
 		{name: "link local multicast", ip: "224.0.0.1", want: true},
 		{name: "unspecified", ip: "0.0.0.0", want: true},
 		{name: "multicast", ip: "ff02::1", want: true},
+		{name: "cgnat shared address space", ip: "100.64.1.1", want: true},
+		{name: "ietf protocol assignment", ip: "192.0.0.1", want: true},
+		{name: "benchmarking range", ip: "198.18.0.1", want: true},
+		{name: "nat64 well-known prefix", ip: "64:ff9b::1", want: true},
 		{name: "public", ip: "93.184.216.34", want: false},
+		{name: "public cloudflare dns", ip: "1.1.1.1", want: false},
 	}
 
 	for _, tt := range tests {

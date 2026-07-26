@@ -722,12 +722,13 @@ func TestValidateTenantAccess(t *testing.T) {
 			errContains: "no identities",
 		},
 		{
-			name: "user from default tenant → allowed on any tenant",
+			name: "system tenant user → denied on other tenant (strict isolation, no resource bypass)",
 			user: buildUserWithIdentities([]AccessIdentity{
 				buildIdentity(1, true),
 			}),
 			target:      buildTenant(99, false),
-			expectError: false,
+			expectError: true,
+			errContains: "access denied",
 		},
 		{
 			name: "user from same tenant → allowed",
@@ -793,12 +794,13 @@ func TestValidateTenantAccessByID(t *testing.T) {
 			errContains:    "no identities",
 		},
 		{
-			name: "default tenant user → allowed on any tenant",
+			name: "system tenant user → denied on other tenant (strict isolation, no resource bypass)",
 			user: buildUserWithIdentities([]AccessIdentity{
 				buildIdentity(1, true),
 			}),
 			targetTenantID: 99,
-			expectError:    false,
+			expectError:    true,
+			errContains:    "access denied",
 		},
 		{
 			name: "matching tenant ID → allowed",

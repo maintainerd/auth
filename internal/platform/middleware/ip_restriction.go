@@ -9,6 +9,7 @@ import (
 	"time"
 
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
 )
 
 type IPRestriction struct {
@@ -125,6 +126,7 @@ func enforceIPRules(w http.ResponseWriter, r *http.Request, rules []IPRestrictio
 		return true
 	}
 	if !ipAllowed(extractClientIP(r), rules) {
+		telemetry.RecordSecurityDenial(r.Context(), telemetry.DenialIPBlocked)
 		resp.Error(w, http.StatusForbidden, "Access denied by IP restriction policy")
 		return false
 	}

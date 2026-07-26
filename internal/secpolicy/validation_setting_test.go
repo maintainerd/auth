@@ -139,6 +139,7 @@ func TestSecuritySettingValidationRules(t *testing.T) {
 		// Unimplemented toggles must not be silently accepted (no provider = no enforcement).
 		{name: "threat ip reputation not supported", configType: "threat", patch: map[string]any{"ip_reputation_check_enabled": true}, want: "not supported"},
 		{name: "threat tor blocking not supported", configType: "threat", patch: map[string]any{"block_tor_exit_nodes": true}, want: "not supported"},
+		{name: "threat distinct-account limit must be at least 1", configType: "threat", patch: map[string]any{"distinct_accounts_per_ip_per_hour": 0}, want: "distinct_accounts_per_ip_per_hour"},
 	}
 
 	for _, tc := range cases {

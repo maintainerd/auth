@@ -57,6 +57,9 @@ const (
 	AuthEventTypeAuthzChange = "authz_change"
 	AuthEventTypeAuthzAdmin  = "authz_admin"
 
+	// SYSTEM category: access to the audit trail itself (PCI 10.2.3).
+	AuthEventTypeAuditExport = "system_audit_export"
+
 	AuthEventTypeIAMPolicyUpdated         = "iam.policy.updated"
 	AuthEventTypeIAMServicePolicyAssigned = "iam.service.policy.assigned"
 	AuthEventTypeIAMServicePolicyRemoved  = "iam.service.policy.removed"

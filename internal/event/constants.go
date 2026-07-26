@@ -38,12 +38,13 @@ const (
 	EventTypeIAMServicePolicyRemoved  = "iam.service.policy.removed"
 
 	// Group 3 — Tenant / organization
-	EventTypeTenantCreated       = "tenant.created"
-	EventTypeTenantUpdated       = "tenant.updated"
-	EventTypeTenantStatusChanged = "tenant.status_changed"
-	EventTypeTenantDeleted       = "tenant.deleted"
-	EventTypeTenantMemberAdded   = "tenant_member.added"
-	EventTypeTenantMemberRemoved = "tenant_member.removed"
+	EventTypeTenantCreated              = "tenant.created"
+	EventTypeTenantUpdated              = "tenant.updated"
+	EventTypeTenantStatusChanged        = "tenant.status_changed"
+	EventTypeTenantDeleted              = "tenant.deleted"
+	EventTypeTenantMemberAdded          = "tenant_member.added"
+	EventTypeTenantMemberRemoved        = "tenant_member.removed"
+	EventTypeTenantOwnershipTransferred = "tenant_member.ownership_transferred"
 
 	// Group 4 — OAuth clients & credentials
 	EventTypeClientCreated       = "client.created"
@@ -99,6 +100,7 @@ func AllEventTypes() []EventTypeSpec {
 		{Key: EventTypeTenantDeleted, Category: CategoryTenant, Description: "Tenant deleted", Version: 1},
 		{Key: EventTypeTenantMemberAdded, Category: CategoryTenant, Description: "Member added to tenant", Version: 1},
 		{Key: EventTypeTenantMemberRemoved, Category: CategoryTenant, Description: "Member removed from tenant", Version: 1},
+		{Key: EventTypeTenantOwnershipTransferred, Category: CategoryTenant, Description: "Tenant ownership transferred", Version: 1},
 
 		// Group 4 — OAuth clients & credentials
 		{Key: EventTypeClientCreated, Category: CategoryClient, Description: "Client created", Version: 1},

@@ -3,7 +3,6 @@ package authevent
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
@@ -29,26 +28,8 @@ type mockAuthEventRepo struct {
 	countByEventTypeFn           func(eventType string, tenantID int64) (int64, error)
 }
 
-type mockWebhookDispatcher struct {
-	mu             sync.Mutex
-	dispatched     []*AuthEvent
-	shutdownCalled bool
-}
-
 type mockAuditConfigReader struct {
 	getFn func(ctx context.Context, tenantID int64) (map[string]any, error)
-}
-
-func (m *mockWebhookDispatcher) Dispatch(_ context.Context, event *AuthEvent) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.dispatched = append(m.dispatched, event)
-}
-
-func (m *mockWebhookDispatcher) Shutdown() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.shutdownCalled = true
 }
 
 func (m *mockAuthEventRepo) WithTx(_ *gorm.DB) AuthEventRepository { return m }
@@ -135,7 +116,7 @@ func TestAuthEventService_Log(t *testing.T) {
 				return e, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		svc.Log(context.Background(), AuthEventInput{
 			TenantID:  1,
 			IPAddress: "10.0.0.1",
@@ -157,7 +138,7 @@ func TestAuthEventService_Log(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		// Should not panic — errors are swallowed
 		svc.Log(context.Background(), AuthEventInput{
 			TenantID:  1,
@@ -182,7 +163,7 @@ func TestAuthEventService_Log(t *testing.T) {
 				return e, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		svc.Log(context.Background(), AuthEventInput{
 			TenantID:     1,
 			ActorUserID:  &actorID,
@@ -214,7 +195,7 @@ func TestAuthEventService_Log(t *testing.T) {
 				return e, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 
 		traceID, _ := trace.TraceIDFromHex("0102030405060708090a0b0c0d0e0f10")
 		spanID, _ := trace.SpanIDFromHex("0102030405060708")
@@ -238,30 +219,6 @@ func TestAuthEventService_Log(t *testing.T) {
 		assert.Equal(t, "0102030405060708090a0b0c0d0e0f10", *created.TraceID)
 	})
 
-	t.Run("dispatcher receives persisted event", func(t *testing.T) {
-		eventUUID := uuid.New()
-		dispatcher := &mockWebhookDispatcher{}
-		repo := &mockAuthEventRepo{
-			createFn: func(e *AuthEvent) (*AuthEvent, error) {
-				e.AuthEventUUID = eventUUID
-				return e, nil
-			},
-		}
-		svc := NewAuthEventService(repo, dispatcher)
-
-		svc.Log(context.Background(), AuthEventInput{
-			TenantID:  1,
-			IPAddress: "10.0.0.1",
-			Category:  AuthEventCategoryAuthn,
-			EventType: AuthEventTypeLoginSuccess,
-			Severity:  AuthEventSeverityInfo,
-			Result:    AuthEventResultSuccess,
-		})
-
-		require.Len(t, dispatcher.dispatched, 1)
-		assert.Equal(t, eventUUID, dispatcher.dispatched[0].AuthEventUUID)
-	})
-
 	t.Run("tenant audit config disabled skips persistence", func(t *testing.T) {
 		repo := &mockAuthEventRepo{
 			createFn: func(_ *AuthEvent) (*AuthEvent, error) {
@@ -274,7 +231,7 @@ func TestAuthEventService_Log(t *testing.T) {
 				return map[string]any{"enabled": false}, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil, reader)
+		svc := NewAuthEventService(repo, reader)
 
 		svc.Log(context.Background(), AuthEventInput{
 			TenantID:  1,
@@ -301,7 +258,7 @@ func TestAuthEventService_Log(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil, reader)
+		svc := NewAuthEventService(repo, reader)
 
 		svc.Log(context.Background(), AuthEventInput{
 			TenantID:  1,
@@ -333,7 +290,7 @@ func TestAuthEventService_Log(t *testing.T) {
 				return map[string]any{"enabled": true, "pii_masking": false}, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil, reader)
+		svc := NewAuthEventService(repo, reader)
 
 		svc.Log(context.Background(), AuthEventInput{
 			TenantID:    1,
@@ -369,7 +326,7 @@ func TestAuthEventService_FindPaginated(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		tid := int64(1)
 		result, err := svc.FindPaginated(context.Background(), AuthEventRepositoryGetFilter{TenantID: &tid})
 		require.NoError(t, err)
@@ -383,7 +340,7 @@ func TestAuthEventService_FindPaginated(t *testing.T) {
 				return nil, errors.New("query failed")
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		_, err := svc.FindPaginated(context.Background(), AuthEventRepositoryGetFilter{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to query auth events")
@@ -410,7 +367,7 @@ func TestAuthEventService_FindByUUID(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		result, err := svc.FindByUUID(context.Background(), 1, eventUUID)
 		require.NoError(t, err)
 		require.NotNil(t, result)
@@ -423,7 +380,7 @@ func TestAuthEventService_FindByUUID(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		_, err := svc.FindByUUID(context.Background(), 1, uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -435,7 +392,7 @@ func TestAuthEventService_FindByUUID(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		_, err := svc.FindByUUID(context.Background(), 1, uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to find auth event")
@@ -453,7 +410,7 @@ func TestAuthEventService_CountByEventType(t *testing.T) {
 				return 42, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		count, err := svc.CountByEventType(context.Background(), AuthEventTypeLoginFail, 1)
 		require.NoError(t, err)
 		assert.Equal(t, int64(42), count)
@@ -465,7 +422,7 @@ func TestAuthEventService_CountByEventType(t *testing.T) {
 				return 0, errors.New("count failed")
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		_, err := svc.CountByEventType(context.Background(), AuthEventTypeLoginFail, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to count auth events by type")
@@ -483,7 +440,7 @@ func TestAuthEventService_DeleteOlderThan(t *testing.T) {
 				return 100, nil
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		count, err := svc.DeleteOlderThan(context.Background(), time.Now().Add(-365*24*time.Hour))
 		require.NoError(t, err)
 		assert.Equal(t, int64(100), count)
@@ -495,7 +452,7 @@ func TestAuthEventService_DeleteOlderThan(t *testing.T) {
 				return 0, errors.New("delete failed")
 			},
 		}
-		svc := NewAuthEventService(repo, nil)
+		svc := NewAuthEventService(repo)
 		_, err := svc.DeleteOlderThan(context.Background(), time.Now())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to delete old auth events")
@@ -511,7 +468,7 @@ func TestAuthEventService_DeleteExpiredByAuditConfig(t *testing.T) {
 			return 7, nil
 		},
 	}
-	svc := NewAuthEventService(repo, nil)
+	svc := NewAuthEventService(repo)
 	deleter := svc.(interface {
 		DeleteExpiredByAuditConfig(context.Context, time.Time) (int64, error)
 	})
@@ -523,17 +480,8 @@ func TestAuthEventService_DeleteExpiredByAuditConfig(t *testing.T) {
 }
 
 func TestAuthEventService_Shutdown(t *testing.T) {
-	t.Run("dispatcher shutdown called", func(t *testing.T) {
-		dispatcher := &mockWebhookDispatcher{}
-		svc := NewAuthEventService(&mockAuthEventRepo{}, dispatcher)
-
-		svc.Shutdown()
-
-		assert.True(t, dispatcher.shutdownCalled)
-	})
-
-	t.Run("nil dispatcher is no-op", func(t *testing.T) {
-		svc := NewAuthEventService(&mockAuthEventRepo{}, nil)
+	t.Run("shutdown is a safe no-op", func(t *testing.T) {
+		svc := NewAuthEventService(&mockAuthEventRepo{})
 		assert.NotPanics(t, func() { svc.Shutdown() })
 	})
 }

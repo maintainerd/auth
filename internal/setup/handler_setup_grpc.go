@@ -67,6 +67,44 @@ func (h *SetupGRPCHandler) CreateAdmin(ctx context.Context, req *authv1.CreateAd
 	}, nil
 }
 
+func (h *SetupGRPCHandler) CreateProfile(ctx context.Context, req *authv1.CreateProfileRequest) (*authv1.CreateProfileResponse, error) {
+	dto := CreateProfileRequestDTO{
+		FirstName:   req.GetFirstName(),
+		MiddleName:  optionalString(req.GetMiddleName()),
+		LastName:    optionalString(req.GetLastName()),
+		Suffix:      optionalString(req.GetSuffix()),
+		DisplayName: optionalString(req.GetDisplayName()),
+		Birthdate:   optionalString(req.GetBirthdate()),
+		Gender:      optionalString(req.GetGender()),
+		Bio:         optionalString(req.GetBio()),
+		Phone:       optionalString(req.GetPhone()),
+		Email:       optionalString(req.GetEmail()),
+		Address:     optionalString(req.GetAddress()),
+		City:        optionalString(req.GetCity()),
+		Country:     optionalString(req.GetCountry()),
+		Timezone:    optionalString(req.GetTimezone()),
+		Language:    optionalString(req.GetLanguage()),
+		ProfileURL:  optionalString(req.GetProfileUrl()),
+		Metadata:    structMap(req.GetMetadata()),
+	}
+	if err := dto.Validate(); err != nil {
+		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
+	}
+	resp, err := h.setupService.CreateProfile(ctx, dto)
+	if err != nil {
+		return nil, apperror.ToGRPCError(err)
+	}
+	displayName := ""
+	if resp.Profile.DisplayName != nil {
+		displayName = *resp.Profile.DisplayName
+	}
+	return &authv1.CreateProfileResponse{
+		ProfileUuid: resp.Profile.ProfileUUID,
+		FirstName:   resp.Profile.FirstName,
+		DisplayName: displayName,
+	}, nil
+}
+
 func (h *SetupGRPCHandler) RegisterControlService(ctx context.Context, req *authv1.RegisterControlServiceRequest) (*authv1.RegisterControlServiceResponse, error) {
 	resp, err := h.setupService.RegisterControlService(ctx, RegisterControlServiceRequestDTO{
 		Name:        req.GetName(),

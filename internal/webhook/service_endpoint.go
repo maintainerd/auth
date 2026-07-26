@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -205,6 +206,10 @@ func (s *webhookEndpointService) Update(ctx context.Context, tenantID int64, web
 		return nil, apperror.NewNotFoundWithReason("webhook endpoint not found")
 	}
 
+	// Reactivating a quarantined/inactive endpoint must clear the failure counter,
+	// otherwise the counter is still at the quarantine threshold and the endpoint
+	// re-quarantines on the very next failed delivery — a no-op re-arm.
+	reactivating := status == shared.StatusActive && ep.Status != shared.StatusActive
 	ep.URL = url
 	ep.SubscribeAll = subscribeAll
 	ep.Description = description
@@ -237,6 +242,11 @@ func (s *webhookEndpointService) Update(ctx context.Context, tenantID int64, web
 		span.SetStatus(codes.Error, "update webhook endpoint failed")
 		return nil, err
 	}
+	if reactivating {
+		if rErr := s.webhookEndpointRepo.ResetConsecutiveFailures(updated.WebhookEndpointID); rErr != nil {
+			span.RecordError(rErr)
+		}
+	}
 
 	span.SetStatus(codes.Ok, "")
 	result := toWebhookEndpointServiceDataResult(updated)
@@ -263,6 +273,7 @@ func (s *webhookEndpointService) UpdateStatus(ctx context.Context, tenantID int6
 		return nil, apperror.NewNotFoundWithReason("webhook endpoint not found")
 	}
 
+	reactivating := status == shared.StatusActive && ep.Status != shared.StatusActive
 	ep.Status = status
 
 	updated, err := s.webhookEndpointRepo.UpdateByUUID(webhookEndpointUUID, ep)
@@ -270,6 +281,13 @@ func (s *webhookEndpointService) UpdateStatus(ctx context.Context, tenantID int6
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "update webhook endpoint status failed")
 		return nil, err
+	}
+	// Clear the failure counter on reactivation so a re-armed endpoint gets a
+	// clean slate instead of re-quarantining on the next failure.
+	if reactivating {
+		if rErr := s.webhookEndpointRepo.ResetConsecutiveFailures(updated.WebhookEndpointID); rErr != nil {
+			span.RecordError(rErr)
+		}
 	}
 
 	span.SetStatus(codes.Ok, "")

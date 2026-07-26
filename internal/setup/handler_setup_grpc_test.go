@@ -132,6 +132,36 @@ func TestSetupGRPCHandler_CreateAdmin(t *testing.T) {
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
+func TestSetupGRPCHandler_CreateProfile(t *testing.T) {
+	profileUUID := uuid.New()
+	display := "Admin User"
+	h := NewSetupGRPCHandler(&mockSetupService{
+		createProfileFn: func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
+			assert.Equal(t, "Admin", req.FirstName)
+			return &CreateProfileResponseDTO{
+				Profile: ProfileResponseDTO{
+					ProfileUUID: profileUUID.String(),
+					FirstName:   req.FirstName,
+					DisplayName: &display,
+				},
+			}, nil
+		},
+	})
+
+	resp, err := h.CreateProfile(context.Background(), &authv1.CreateProfileRequest{
+		FirstName:   "Admin",
+		DisplayName: "Admin User",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, profileUUID.String(), resp.ProfileUuid)
+	assert.Equal(t, "Admin", resp.FirstName)
+	assert.Equal(t, "Admin User", resp.DisplayName)
+
+	// FirstName is required by CreateProfileRequestDTO.Validate → InvalidArgument.
+	_, err = h.CreateProfile(context.Background(), &authv1.CreateProfileRequest{})
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
 func TestSetupGRPCHandler_RegisterControlService(t *testing.T) {
 	h := NewSetupGRPCHandler(&mockSetupService{
 		registerControlServiceFn: func(req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error) {

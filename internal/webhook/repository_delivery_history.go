@@ -16,6 +16,11 @@ type DeliveryHistoryRepository interface {
 	FindByEndpointID(endpointID int64, limit int) ([]DeliveryHistory, error)
 	FindByTenantID(tenantID int64, page, limit int) (*PaginationResult[DeliveryHistory], error)
 	MoveToDeadLetter(deliveryHistoryID int64, errorReason string) error
+	// DeadLetterPendingByEndpoint transitions all still-pending deliveries for an
+	// endpoint to dead_letter. Called when an endpoint is quarantined so its
+	// orphaned pending rows (which the retrier would skip as inactive) are not
+	// left pending until purge. Returns the number of rows transitioned.
+	DeadLetterPendingByEndpoint(endpointID int64, errorReason string) (int64, error)
 	UpdateAttempt(deliveryHistoryID int64, attemptCount int, responseStatus *int, responseSummary string, errorReason string, nextRetry *time.Time, finalStatus string) error
 	DeleteOlderThan(cutoff time.Time) (int64, error)
 	DeleteBySubjectUUID(subjectUUID uuid.UUID) (int64, error)
@@ -79,6 +84,17 @@ func (r *deliveryHistoryRepository) MoveToDeadLetter(deliveryHistoryID int64, er
 			"error_reason": errorReason,
 			"updated_at":   time.Now().UTC(),
 		}).Error
+}
+
+func (r *deliveryHistoryRepository) DeadLetterPendingByEndpoint(endpointID int64, errorReason string) (int64, error) {
+	res := r.DB().Model(&DeliveryHistory{}).
+		Where("webhook_endpoint_id = ? AND final_status = ?", endpointID, "pending").
+		Updates(map[string]any{
+			"final_status": "dead_letter",
+			"error_reason": errorReason,
+			"updated_at":   time.Now().UTC(),
+		})
+	return res.RowsAffected, res.Error
 }
 
 func (r *deliveryHistoryRepository) UpdateAttempt(deliveryHistoryID int64, attemptCount int, responseStatus *int, responseSummary string, errorReason string, nextRetry *time.Time, finalStatus string) error {

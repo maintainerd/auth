@@ -469,9 +469,12 @@ func toTenantServiceDataResult(tenant *Tenant) *TenantServiceDataResult {
 }
 
 // ValidateTenantAccess validates if an actor can access the target tenant.
-// Rules:
-//   - Actors with an identity in a system/default tenant can access any tenant
-//   - Otherwise the actor may only access tenants they have an identity in
+// Rules (strict isolation — no system-tenant override):
+//   - The actor may only access tenants they have an identity in
+//   - A system-tenant identity does NOT grant access to other tenants' records
+//     (users/roles/clients/idps). The system tenant's ONLY cross-tenant power is
+//     tenant-management (create/update/members), which is authorized separately
+//     by TenantMemberService.CanManageTenant — deliberately not here.
 //   - The actor must have at least one identity
 //
 // The actor is supplied as a consumer-defined interface so this package does
@@ -504,10 +507,11 @@ func validateTenantAccessByID(actor AccessActor, targetTenantID int64) error {
 
 	hasAccessToTargetTenant := false
 	for _, identity := range identities {
-		// An identity in a system/default tenant grants access to any tenant.
-		if identity.TenantIsSystem {
-			return nil
-		}
+		// Strict isolation: access is granted ONLY to the actor's own tenant(s).
+		// A system-tenant identity is intentionally NOT a cross-tenant override
+		// here — that would let a compromised system-admin token read every
+		// tenant's records, which rules #9/#10 forbid. The tenant-management
+		// override lives in CanManageTenant, scoped to tenant-management only.
 		if identity.TenantID == targetTenantID {
 			hasAccessToTargetTenant = true
 		}

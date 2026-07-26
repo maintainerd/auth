@@ -15,18 +15,15 @@ import (
 // here ONLY when no handler is registered for it (the server returns UNIMPLEMENTED
 // before any interceptor runs — zero exposure). This list must stay tiny.
 //
-// APIKeyService is decommissioned (replaced by M2M OAuth client credentials); the
-// proto is retained for wire compat but no handler is registered.
-//
-// The following are admin/UX/comms operations that were REMOVED from the gRPC
-// surface (they live on the REST control plane consumed by the console). Their
-// proto/handlers are retained in-package but no gRPC handler is registered, so
-// they return UNIMPLEMENTED before any interceptor runs.
+// The following are admin/UX/comms operations that live on the REST control
+// plane consumed by the console. Their proto/handlers are retained in-package
+// but no gRPC handler is registered, so they return UNIMPLEMENTED before any
+// interceptor runs.
 //
 // SetupService is NOT here: it is bootstrap-token gated via grpcBootstrapMethods.
+// TenantSettingService is NOT here either: it IS registered and PDP-gated
+// (tenant-setting:read/update) so core can manage tenant operational settings.
 var grpcUnauthenticatedServices = map[string]struct{}{
-	authv1.APIKeyService_ServiceDesc.ServiceName:            {},
-	authv1.TenantSettingService_ServiceDesc.ServiceName:     {},
 	authv1.IdentityProviderService_ServiceDesc.ServiceName:  {},
 	authv1.RegistrationFlowService_ServiceDesc.ServiceName:  {},
 	authv1.InviteService_ServiceDesc.ServiceName:            {},

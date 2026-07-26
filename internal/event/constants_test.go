@@ -8,7 +8,7 @@ import (
 
 func TestAllEventTypes(t *testing.T) {
 	specs := AllEventTypes()
-	assert.Len(t, specs, 41, "should have 41 event types in the v1.0.0 catalog")
+	assert.Len(t, specs, 42, "should have 42 event types in the v1.0.0 catalog")
 
 	seen := make(map[string]bool)
 	for _, s := range specs {

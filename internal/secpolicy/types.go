@@ -150,6 +150,7 @@ type ThreatConfigDTO struct {
 	RiskStepUpThreshold                    *int  `json:"risk_step_up_threshold,omitempty"`
 	RiskBlockThreshold                     *int  `json:"risk_block_threshold,omitempty"`
 	VelocityFailuresPerIPPerHour           *int  `json:"velocity_failures_per_ip_per_hour,omitempty"`
+	DistinctAccountsPerIPPerHour           *int  `json:"distinct_accounts_per_ip_per_hour,omitempty"`
 }
 
 type SecuritySettingClientOverrides struct {

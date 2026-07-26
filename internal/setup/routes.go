@@ -30,5 +30,9 @@ func SetupRoute(r chi.Router, setupHandler *SetupHandler) {
 
 		// Admin setup (one-time only, requires tenant to exist)
 		r.Post("/setup/create_admin", setupHandler.CreateAdmin)
+
+		// Admin profile setup (one-time only, requires admin to exist) — required
+		// before /setup/complete, which gates on IsProfileSetup.
+		r.Post("/setup/create_profile", setupHandler.CreateProfile)
 	})
 }

@@ -25,5 +25,6 @@ func LoadThreatPolicy(repo SecuritySettingRepository, tenantID int64) *security.
 		RiskStepUpThreshold:                    intValue(cfg["risk_step_up_threshold"]),
 		RiskBlockThreshold:                     intValue(cfg["risk_block_threshold"]),
 		VelocityFailuresPerIPPerHour:           intValue(cfg["velocity_failures_per_ip_per_hour"]),
+		DistinctAccountsPerIPPerHour:           intValue(cfg["distinct_accounts_per_ip_per_hour"]),
 	}
 }

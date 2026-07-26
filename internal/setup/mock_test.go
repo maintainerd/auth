@@ -54,6 +54,7 @@ type mockSetupService struct {
 	getSetupStatusFn         func() (*SetupStatusResponseDTO, error)
 	createTenantFn           func(req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
 	createAdminFn            func(req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
+	createProfileFn          func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
 	registerControlServiceFn func(req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error)
 	completeSetupFn          func() (*CompleteSetupResponseDTO, error)
 }
@@ -75,6 +76,12 @@ func (m *mockSetupService) CreateAdmin(_ context.Context, req CreateAdminRequest
 		return m.createAdminFn(req)
 	}
 	return &CreateAdminResponseDTO{}, nil
+}
+func (m *mockSetupService) CreateProfile(_ context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
+	if m.createProfileFn != nil {
+		return m.createProfileFn(req)
+	}
+	return &CreateProfileResponseDTO{}, nil
 }
 func (m *mockSetupService) RegisterControlService(_ context.Context, req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error) {
 	if m.registerControlServiceFn != nil {

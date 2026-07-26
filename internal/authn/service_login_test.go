@@ -1946,6 +1946,50 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, resp)
 	})
+
+	t.Run("risk step-up with no usable factor falls through instead of locking out", func(t *testing.T) {
+		// Tenant does NOT hard-require MFA (mode=optional, required flag unset), but
+		// the login was flagged risky (forceStepUp=true) and the user has no factor
+		// to step up with. This must fall through to acr=1, never hard-deny — else
+		// an attacker could trip the risk signal to lock out a non-MFA victim.
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte(`{"mode":"optional","allowed_methods":["totp"]}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{
+			securitySettingRepo: settingRepo,
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return nil, nil }},
+		}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1, true)
+		require.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("risk step-up still challenges a user who has a usable factor", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		// Same non-enforcing tenant, but this user HAS totp — a risk-flagged login
+		// must still be challenged (best-effort elevation succeeds here).
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte(`{"mode":"optional","allowed_methods":["totp"]}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{
+			securitySettingRepo: settingRepo,
+			mfaAuthenticator:    &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) { return []string{"totp"}, nil }},
+		}
+		user := &User{UserID: 1, UserUUID: uuid.New(), IsTOTPEnabled: true}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1, true)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.MFARequired)
+		require.NotNil(t, resp.MFAChallengeToken)
+	})
 }
 
 func TestMagicLinkMFAChallenge(t *testing.T) {

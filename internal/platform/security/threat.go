@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -38,6 +39,7 @@ type ThreatConfig struct {
 	RiskStepUpThreshold                    int
 	RiskBlockThreshold                     int
 	VelocityFailuresPerIPPerHour           int
+	DistinctAccountsPerIPPerHour           int
 }
 
 // ThreatDecision is returned by AssessLoginThreat before password validation.
@@ -84,6 +86,22 @@ func threatFailureKey(tenantID int64, ip string) string {
 	return fmt.Sprintf("threat:failures:%d:%s", tenantID, strings.TrimSpace(ip))
 }
 
+// threatDistinctAccountsKey is a per-IP HyperLogLog of the DISTINCT accounts
+// that saw a failed login from this IP within the window. Cardinality — not raw
+// volume — is the credential-stuffing fingerprint (one host spraying many
+// usernames), and HLL keeps it to ~12KB regardless of how many usernames an
+// attacker sprays.
+func threatDistinctAccountsKey(tenantID int64, ip string) string {
+	return fmt.Sprintf("threat:distinct_accts:%d:%s", tenantID, strings.TrimSpace(ip))
+}
+
+// threatIdentifierHash normalizes and hashes a login identifier before it is
+// used as an HLL element, so raw emails/usernames never land in Redis.
+func threatIdentifierHash(identifier string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(identifier))))
+	return hex.EncodeToString(sum[:])
+}
+
 func threatDeviceKey(tenantID, userID int64, fingerprint string) string {
 	return fmt.Sprintf("threat:device:%d:%d:%s", tenantID, userID, fingerprint)
 }
@@ -110,30 +128,71 @@ func AssessLoginThreat(ctx context.Context, tenantID int64, ip, userAgent string
 	}
 	limit := cfg.VelocityFailuresPerIPPerHour
 	if limit <= 0 {
-		limit = 20
+		limit = 50
 	}
-	score := 0
-	reason := ""
+	distinctLimit := cfg.DistinctAccountsPerIPPerHour
+	if distinctLimit <= 0 {
+		distinctLimit = 10
+	}
+
+	// The risk model reads two independent per-IP signals and takes the higher
+	// score. They deliberately do different jobs, and neither overlaps the
+	// per-account lockout (which owns "one account hammered many times"):
+	//
+	//   VOLUME (raw per-IP failure count) is an AMBIGUOUS signal — a busy shared
+	//   NAT/CGNAT/VPN egress produces volume just like an attacker does — so on
+	//   its own it only ever elevates to the step-up band, never a hard block. A
+	//   legitimate user behind a hammered IP is merely asked to prove a second
+	//   factor; a bot cannot.
+	//
+	//   DISTINCT-ACCOUNT FAN-OUT (how many distinct accounts one IP has failed
+	//   against) is the credential-stuffing fingerprint that lockout structurally
+	//   cannot see — each account gets too few tries to lock. High fan-out is what
+	//   justifies escalating to a hard block.
+	volumeScore, volumeReason := 0, ""
+	distinctScore, distinctReason := 0, ""
 	if cfg.BruteForceDetectionEnabled || cfg.VelocityCheckEnabled {
-		count, err := rateLimiterClient.Get(ctx, threatFailureKey(tenantID, ip)).Int()
-		if err == nil && count > 0 {
+		if count, err := rateLimiterClient.Get(ctx, threatFailureKey(tenantID, ip)).Int(); err == nil && count > 0 {
 			switch {
 			case count >= limit:
-				score = max(score, 100)
-				reason = "velocity threshold exceeded"
+				volumeScore, volumeReason = 60, "elevated failure velocity from this IP"
 			case count >= limit/2:
-				score = max(score, 50)
-				reason = "elevated failure velocity"
+				volumeScore, volumeReason = 40, "elevated failure velocity from this IP"
 			}
+		} else if err != nil && err != redis.Nil {
+			logVelocityDegraded(ctx, tenantID, err)
+		}
+
+		if distinct, err := rateLimiterClient.PFCount(ctx, threatDistinctAccountsKey(tenantID, ip)).Result(); err == nil && distinct > 0 {
+			half := int64(distinctLimit) / 2
+			switch {
+			case distinct >= int64(distinctLimit)*2:
+				distinctScore, distinctReason = 100, "credential stuffing: many distinct accounts targeted from one IP"
+			case distinct >= int64(distinctLimit):
+				distinctScore, distinctReason = 75, "many distinct accounts targeted from one IP"
+			case half > 0 && distinct >= half:
+				distinctScore, distinctReason = 50, "elevated distinct-account failures from one IP"
+			}
+		} else if err != nil && err != redis.Nil {
+			logVelocityDegraded(ctx, tenantID, err)
 		}
 	}
+	// Take the higher of the two signals; on a tie prefer the distinct-account
+	// reason — it is the more specific and actionable of the two.
+	score, reason := volumeScore, volumeReason
+	if distinctScore >= score {
+		score, reason = distinctScore, distinctReason
+	}
+
+	// Fallbacks mirror the seeded config defaults (see secpolicy threat defaults)
+	// so an unconfigured policy behaves identically to the shipped one.
 	blockThreshold := cfg.RiskBlockThreshold
 	if blockThreshold <= 0 {
-		blockThreshold = 90
+		blockThreshold = 81
 	}
 	stepUpThreshold := cfg.RiskStepUpThreshold
 	if stepUpThreshold <= 0 {
-		stepUpThreshold = 50
+		stepUpThreshold = 21
 	}
 	return ThreatDecision{
 		RiskScore:      score,
@@ -143,32 +202,58 @@ func AssessLoginThreat(ctx context.Context, tenantID int64, ip, userAgent string
 	}
 }
 
-// RecordLoginThreatFailure increments the per-IP failure velocity counter.
-func RecordLoginThreatFailure(ctx context.Context, tenantID int64, ip string, cfg *ThreatConfig) {
+// logVelocityDegraded records that a per-IP velocity signal could not be read
+// from the store, so this login is being assessed as low-risk purely because
+// the counter is invisible — a fail-open worth surfacing to operators.
+func logVelocityDegraded(ctx context.Context, tenantID int64, err error) {
+	slog.WarnContext(ctx, "login threat velocity check degraded: failure-velocity store unavailable, failing open",
+		"tenant_id", tenantID, "error", err)
+}
+
+// RecordLoginThreatFailure records a failed login against both per-IP signals:
+// the raw failure-VOLUME counter and the DISTINCT-ACCOUNT fan-out set (see
+// AssessLoginThreat for how each is scored). identifier is the account the login
+// was attempted against; it is hashed before use so no raw email/username is
+// stored. Both keys carry a rolling one-hour TTL and are never reset by a
+// success (an aggregate abuse signal must decay on its own, not be cleared by a
+// single valid login — see RecordLoginThreatSuccess).
+func RecordLoginThreatFailure(ctx context.Context, tenantID int64, ip, identifier string, cfg *ThreatConfig) {
 	if cfg == nil || rateLimiterClient == nil || (!cfg.BruteForceDetectionEnabled && !cfg.VelocityCheckEnabled) {
 		return
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	key := threatFailureKey(tenantID, ip)
 	pipe := rateLimiterClient.Pipeline()
-	pipe.Incr(ctx, key)
-	pipe.Expire(ctx, key, time.Hour)
+	volumeKey := threatFailureKey(tenantID, ip)
+	pipe.Incr(ctx, volumeKey)
+	pipe.Expire(ctx, volumeKey, time.Hour)
+	if id := strings.TrimSpace(identifier); id != "" {
+		distinctKey := threatDistinctAccountsKey(tenantID, ip)
+		pipe.PFAdd(ctx, distinctKey, threatIdentifierHash(id))
+		pipe.Expire(ctx, distinctKey, time.Hour)
+	}
 	_, _ = pipe.Exec(ctx)
 }
 
-// RecordLoginThreatSuccess clears velocity failures and records device/last
-// login signals used by new-device and impossible-travel detections.
+// RecordLoginThreatSuccess records device/last-login signals used by
+// new-device and impossible-travel detections after a successful login.
+//
+// It deliberately does NOT clear the per-IP failure-velocity counter. That
+// counter is an aggregate credential-stuffing signal (many accounts, one IP),
+// so a single successful login must not reset it: an attacker only needs ONE
+// valid credential of their own to zero the shared counter and un-flag every
+// other account they are stuffing from the same host. The counter instead
+// decays naturally via its rolling one-hour TTL (see RecordLoginThreatFailure).
+// Rewarding a legitimate user's success is the per-ACCOUNT lockout's job (it
+// clears that user's own failure state), which is a separate, account-scoped
+// signal from this IP-scoped one.
 func RecordLoginThreatSuccess(ctx context.Context, tenantID, userID int64, ip, userAgent string, cfg *ThreatConfig) {
 	if cfg == nil || rateLimiterClient == nil {
 		return
 	}
 	if ctx == nil {
 		ctx = context.Background()
-	}
-	if cfg.BruteForceDetectionEnabled || cfg.VelocityCheckEnabled {
-		_ = rateLimiterClient.Del(ctx, threatFailureKey(tenantID, ip)).Err()
 	}
 	if cfg.NewDeviceNotificationEnabled {
 		fingerprint := threatDeviceFingerprint(ip, userAgent)

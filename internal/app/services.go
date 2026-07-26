@@ -202,8 +202,10 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 
 	// Create authEventService — it is injected into other services that
 	// need structured audit logging.
-	// The old webhook dispatcher is deprecated; integration events are now delivered via outbox.
-	authEventSvc := authevent.NewAuthEventService(r.authEventRepo, webhook.NewDispatcher(r.webhookEndpointRepo), tenantSettingSvc)
+	// Auth events are persisted durably and are NOT fanned out to webhooks (they
+	// are not integration events). Integration events are delivered via the
+	// outbox → relay → {webhook, broker} plane wired above.
+	authEventSvc := authevent.NewAuthEventService(r.authEventRepo, tenantSettingSvc)
 
 	sessionSvc := authn.NewSessionService(r.userSessionRepo)
 	iamClientRepo := newIAMClientRepo(db)
@@ -429,6 +431,22 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 			Severity:    authevent.AuthEventSeverityWarn,
 			Result:      authevent.AuthEventResultSuccess,
 			Description: ptr.Ptr("Rapid sign-in from a different location"),
+		})
+	}
+	// Durable AUTHZ/failure record for an authenticated-but-unauthorized request
+	// (NIST AU-2 / PCI 10.2.4). Fired by PermissionMiddleware on a 403; the denial
+	// is also always metered (security_denials_total) for alerting.
+	middleware.OnAccessDenied = func(ctx context.Context, tenantID, actorUserID int64, ip string, requiredPermissions []string) {
+		uid := actorUserID
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			TenantID:    tenantID,
+			ActorUserID: &uid,
+			IPAddress:   ip,
+			Category:    authevent.AuthEventCategoryAuthz,
+			EventType:   authevent.AuthEventTypeAuthzFail,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultFailure,
+			Description: ptr.Ptr(fmt.Sprintf("Access denied: missing one of required permissions %v", requiredPermissions)),
 		})
 	}
 	return s, nil

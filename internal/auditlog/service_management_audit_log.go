@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -89,6 +90,9 @@ func (l *managementAuditLogger) Log(ctx context.Context, entry LogEntry) error {
 	if err := l.repo.Create(record); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "audit log write failed")
+		// Audit writes are best-effort (the business action already succeeded), so
+		// this metric is the only reliable signal that the audit trail has a gap.
+		telemetry.RecordAuditWriteFailure(ctx)
 		slog.ErrorContext(ctx, "failed to write management audit log",
 			"action", entry.Action,
 			"resource_type", entry.ResourceType,

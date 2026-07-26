@@ -27,6 +27,7 @@ type SetupService interface {
 	GetSetupStatus(ctx context.Context) (*SetupStatusResponseDTO, error)
 	CreateTenant(ctx context.Context, req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
 	CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
+	CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
 	RegisterControlService(ctx context.Context, req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error)
 	CompleteSetup(ctx context.Context) (*CompleteSetupResponseDTO, error)
 }
@@ -557,6 +558,88 @@ func (s *setupService) RegisterControlService(ctx context.Context, req RegisterC
 		AlreadyExisted:    alreadyExisted,
 		PolicyWasAttached: policyWasAttached,
 	}, nil
+}
+
+// CreateProfile creates the initial profile for the bootstrapped super-admin.
+// It is the third first-run step (tenant → admin → profile → control service →
+// complete): CompleteSetup requires IsProfileSetup, and this is the only path
+// that satisfies it during bootstrap, where no service principal yet exists to
+// call the authenticated UserProfileService. It is idempotent so a retried
+// bootstrap sequence does not fail, and locked once setup completes.
+func (s *setupService) CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "setup.createProfile")
+	defer span.End()
+
+	if err := s.ensureSetupOpen(); err != nil {
+		return nil, err
+	}
+
+	superAdmin, err := s.userRepo.FindSuperAdmin()
+	if err != nil {
+		return nil, err
+	}
+	if superAdmin == nil {
+		return nil, apperror.NewValidation("admin must be created before the profile")
+	}
+
+	// Idempotent: setup steps may be retried. If the admin already has a profile,
+	// return it rather than failing, so a re-run of the bootstrap unblocks.
+	if existing, ferr := s.profileRepo.FindByUserID(superAdmin.UserID); ferr == nil && existing != nil {
+		span.SetStatus(codes.Ok, "")
+		return &CreateProfileResponseDTO{Profile: toSetupProfileResponseDTO(existing)}, nil
+	}
+
+	profile := &Profile{
+		UserID:      superAdmin.UserID,
+		FirstName:   req.FirstName,
+		MiddleName:  req.MiddleName,
+		LastName:    req.LastName,
+		DisplayName: req.DisplayName,
+		Gender:      req.Gender,
+		ProfileURL:  req.ProfileURL,
+		IsDefault:   true,
+		CreatedBy:   &superAdmin.UserID,
+	}
+	if req.Birthdate != nil && *req.Birthdate != "" {
+		if bd, perr := time.Parse("2006-01-02", *req.Birthdate); perr == nil {
+			profile.Birthdate = &bd
+		}
+	}
+	if len(req.Metadata) > 0 {
+		if raw, merr := json.Marshal(req.Metadata); merr == nil {
+			profile.Metadata = datatypes.JSON(raw)
+		}
+	}
+
+	created, err := s.profileRepo.Create(profile)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create profile failed")
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return &CreateProfileResponseDTO{Profile: toSetupProfileResponseDTO(created)}, nil
+}
+
+func toSetupProfileResponseDTO(p *Profile) ProfileResponseDTO {
+	dto := ProfileResponseDTO{
+		ProfileUUID: p.ProfileUUID.String(),
+		FirstName:   p.FirstName,
+		MiddleName:  p.MiddleName,
+		LastName:    p.LastName,
+		DisplayName: p.DisplayName,
+		Birthdate:   p.Birthdate,
+		Gender:      p.Gender,
+		ProfileURL:  p.ProfileURL,
+		IsDefault:   p.IsDefault,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
+	}
+	if len(p.Metadata) > 0 {
+		_ = json.Unmarshal(p.Metadata, &dto.Metadata)
+	}
+	return dto
 }
 
 func (s *setupService) CompleteSetup(ctx context.Context) (*CompleteSetupResponseDTO, error) {

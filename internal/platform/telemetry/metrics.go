@@ -31,3 +31,43 @@ func RecordAuthEvent(ctx context.Context, category, eventType, result string) {
 		attribute.String("result", result),
 	))
 }
+
+// securityDenialCounter counts access denials at the middleware boundary
+// (security_denials_total), labeled by denial type. It is the signal a
+// monitoring consumer alerts on for probing / brute-force / policy-violation
+// activity. Nil until InitMetrics runs (no-op in tests).
+var securityDenialCounter metric.Int64Counter
+
+// Denial-type labels for RecordSecurityDenial (kept low-cardinality on purpose —
+// no per-tenant/per-IP labels, which would explode Prometheus cardinality).
+const (
+	DenialPermission = "permission_denied"
+	DenialRateLimit  = "rate_limited"
+	DenialIPBlocked  = "ip_blocked"
+)
+
+// RecordSecurityDenial increments the access-denial counter for the given type.
+// Safe before InitMetrics and under concurrency.
+func RecordSecurityDenial(ctx context.Context, denialType string) {
+	if securityDenialCounter == nil {
+		return
+	}
+	securityDenialCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("type", denialType),
+	))
+}
+
+// auditWriteFailureCounter counts management-audit writes that failed
+// (audit_write_failures_total). Audit writes are best-effort and do not block
+// the business action, so this counter is the ONLY reliable signal that the
+// audit trail has gaps — a monitoring consumer must alert on any non-zero rate.
+var auditWriteFailureCounter metric.Int64Counter
+
+// RecordAuditWriteFailure increments the audit-write-failure counter. Safe before
+// InitMetrics and under concurrency.
+func RecordAuditWriteFailure(ctx context.Context) {
+	if auditWriteFailureCounter == nil {
+		return
+	}
+	auditWriteFailureCounter.Add(ctx, 1)
+}
