@@ -5,6 +5,8 @@ import { SystemBadge } from "@/components/badges"
 import { BrandingActions } from "./BrandingActions"
 import { tokensFromMetadata, isHex } from "../themeTokens"
 import type { Branding } from "@/services/api/branding/types"
+import { authUiTemplateIdFromMetadata, getAuthUiTemplate } from "@/lib/branding/authUiTemplates"
+import { BRANDING_THEMES_BACK_STATE } from "../brandingNavigation"
 
 // The swatches shown in the card's preview band — a representative slice of the
 // theme's palette.
@@ -21,8 +23,9 @@ export function BrandingCard({ branding }: { branding: Branding }) {
   const navigate = useNavigate()
 
   const tokens = tokensFromMetadata(branding.metadata)
+  const uiTemplate = getAuthUiTemplate(authUiTemplateIdFromMetadata(branding.metadata, branding.layout))
   const palette = PREVIEW_KEYS.map((k) => tokens[k]).filter(isHex)
-  const open = () => navigate(`/branding/templates/${branding.branding_id}`)
+  const open = () => navigate(`/branding/templates/${branding.branding_id}`, { state: BRANDING_THEMES_BACK_STATE })
 
   return (
     <Card
@@ -55,6 +58,7 @@ export function BrandingCard({ branding }: { branding: Branding }) {
             <SystemBadge isSystem={branding.is_system} />
           </div>
           <p className="truncate text-sm text-muted-foreground">{branding.company_name || "—"}</p>
+          <p className="truncate text-xs text-muted-foreground">{uiTemplate.label}</p>
           <div className="pt-1">
             <StatusBadge status={branding.is_active ? "active" : "inactive"} />
           </div>

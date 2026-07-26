@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +9,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { TenantSwitcher } from "@/components/navigation/TenantSwitcher"
+import { CreateMenu } from "@/components/navigation/CreateMenu"
+import { useAppSelector } from "@/store/hooks"
+import { logout } from "@/services/api/auth"
 import {
   BookOpen,
   ChevronDown,
@@ -20,10 +24,6 @@ import {
   User,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { logout } from "@/services/api/auth"
-import { useAppSelector } from "@/store/hooks"
-import { Breadcrumbs } from "@/components/navigation/Breadcrumbs"
-import { CreateMenu } from "@/components/navigation/CreateMenu"
 
 const resourceLinks = [
   { title: "Documentation", icon: BookOpen, href: "#" },
@@ -31,10 +31,7 @@ const resourceLinks = [
   { title: "Community", icon: MessageSquare, href: "#" },
 ]
 
-// Slim content header (Coolify-style). The brand and tenant switcher live at the
-// top of the sidebar; this bar keeps the sidebar collapse toggle, the breadcrumb,
-// and the right-side actions (help resources + user menu).
-export function TopNav() {
+export function AppTopNav() {
   const navigate = useNavigate()
   const profile = useAppSelector((state) => state.auth.profile)
 
@@ -42,21 +39,30 @@ export function TopNav() {
   const initials = displayName.slice(0, 2).toUpperCase()
 
   return (
-    <header className="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-slate-200 bg-[#fcfcfc] px-4 sm:px-6">
-      {/* Mobile-only drawer toggle (desktop keeps the sidebar always visible). */}
-      <SidebarTrigger className="md:hidden size-9 text-slate-600" />
+    <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center border-b border-[#1e293b] bg-[#0f172a] px-4 text-white sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <SidebarTrigger className="size-10 text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white" />
+        <img src="/logo.png" alt="Maintainerd" className="h-7 w-auto shrink-0" />
+        <span className="min-w-0">
+          <div className="text-base font-semibold leading-none text-white" style={{ fontFamily: "system-ui, sans-serif" }}>
+            Maintainerd-IAM
+          </div>
+        </span>
+        <TenantSwitcher className="ml-4 hidden w-56 sm:block" />
+      </div>
 
-      {/* Breadcrumb — where we are now */}
-      <Breadcrumbs />
-
-      {/* Right actions: create + help resources + profile */}
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-3 flex shrink-0 items-center gap-1.5">
         <CreateMenu />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Help & resources">
-              <HelpCircle className="size-5 text-slate-500" />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Help & resources"
+              className="text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
+            >
+              <HelpCircle className="size-5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-48" align="end">
@@ -77,15 +83,18 @@ export function TopNav() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 px-2">
-              <Avatar className="h-7 w-7 shrink-0">
+            <Button
+              variant="ghost"
+              className="flex items-center gap-2 px-2 text-white hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
+            >
+              <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={undefined} alt={displayName} />
-                <AvatarFallback className="bg-slate-200 text-slate-700 text-xs">
+                <AvatarFallback className="bg-slate-700 text-xs text-white">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden sm:inline text-sm font-medium">{displayName}</span>
-              <ChevronDown className="h-4 w-4 text-slate-400" />
+              <span className="hidden max-w-40 truncate text-sm font-medium lg:inline">{displayName}</span>
+              <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end">

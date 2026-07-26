@@ -45,12 +45,12 @@ const LoginLayout = ({ children, branding }: Props) => {
             <MaintainedAuthIcon width={48} height={48} />
           )}
           {companyName && (
-            <span className="text-lg font-semibold tracking-tight text-slate-900">{companyName}</span>
+            <span className="text-lg font-semibold tracking-tight text-foreground">{companyName}</span>
           )}
         </div>
 
         {/* Form card */}
-        <Card className="border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_-20px_rgba(15,23,42,0.25)]">
+        <Card className="border-border">
           <CardContent className="p-7 sm:p-9">{children}</CardContent>
         </Card>
 
@@ -58,14 +58,14 @@ const LoginLayout = ({ children, branding }: Props) => {
         {(legalLinks.length > 0 || companyName) && (
           <div className="mt-8 flex flex-col items-center gap-3 text-center">
             {legalLinks.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-5 text-sm text-slate-500">
+              <div className="flex flex-wrap justify-center gap-5 text-sm text-muted-foreground">
                 {legalLinks.map((link) => (
                   <a
                     key={link.label}
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 transition-colors hover:text-slate-900"
+                    className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
                   >
                     {link.label} <ExternalLink className="size-3" />
                   </a>
@@ -73,7 +73,7 @@ const LoginLayout = ({ children, branding }: Props) => {
               </div>
             )}
             {companyName && (
-              <span className="text-xs text-slate-400">© {year} {companyName}</span>
+              <span className="text-xs text-muted-foreground">© {year} {companyName}</span>
             )}
           </div>
         )}

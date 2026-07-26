@@ -9,11 +9,13 @@ import { PageHeader } from "@/components/layout"
 import { EmptyState } from "@/components/details"
 import { useBrandings } from "@/hooks/useBranding"
 import { BrandingCard } from "./components/BrandingCard"
+import { BRANDING_THEMES_BACK_STATE } from "./brandingNavigation"
 
 export default function BrandingTemplatesPage({ standalone = true }: { standalone?: boolean }) {
   const navigate = useNavigate()
   const { data, isLoading, isError } = useBrandings()
   const [search, setSearch] = useState("")
+  const createTemplate = () => navigate("/branding/templates/create", { state: BRANDING_THEMES_BACK_STATE })
 
   const brandings = useMemo(() => {
     const all = data ?? []
@@ -27,14 +29,20 @@ export default function BrandingTemplatesPage({ standalone = true }: { standalon
 
   const content = (
     <div className="flex flex-col gap-4">
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search templates by name or company..."
-          className="pl-9"
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search templates by name or company..."
+            className="pl-9"
+          />
+        </div>
+        <Button className="w-full gap-2 sm:w-auto" onClick={createTemplate}>
+          <Plus className="size-4" />
+          New Template
+        </Button>
       </div>
 
       {isLoading && (
@@ -65,6 +73,14 @@ export default function BrandingTemplatesPage({ standalone = true }: { standalon
               ? "No templates match your search. Try a different name or company."
               : "Create a branding template to customize the look of your auth experience."
           }
+          action={
+            !search ? (
+              <Button size="sm" className="gap-2" onClick={createTemplate}>
+                <Plus className="size-4" />
+                New Template
+              </Button>
+            ) : undefined
+          }
         />
       )}
 
@@ -85,17 +101,8 @@ export default function BrandingTemplatesPage({ standalone = true }: { standalon
       <div className="flex items-start justify-between gap-4">
         <PageHeader
           title="Themes"
-          description="Create and manage branding themes. The active template is the style loaded across the auth experience."
+          description="Create and manage branding themes. The active theme styles the console and identity surfaces, while clients may choose their own branding."
         />
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 shrink-0 gap-2"
-          onClick={() => navigate(`/branding/templates/create`)}
-        >
-          <Plus className="size-4" />
-          New Template
-        </Button>
       </div>
       {content}
     </div>

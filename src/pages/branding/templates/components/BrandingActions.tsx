@@ -4,6 +4,7 @@ import { RowActions, type RowActionItem } from "@/components/data-table"
 import { useActivateBranding, useDeleteBranding } from "@/hooks/useBranding"
 import { useToast } from "@/hooks/useToast"
 import type { Branding } from "@/services/api/branding/types"
+import { BRANDING_THEMES_BACK_STATE } from "../brandingNavigation"
 
 interface BrandingActionsProps {
   branding: Branding
@@ -20,13 +21,14 @@ export function BrandingActions({ branding }: BrandingActionsProps) {
       key: "view",
       label: "View Details",
       icon: Eye,
-      onSelect: () => navigate(`/branding/templates/${branding.branding_id}`),
+      onSelect: () => navigate(`/branding/templates/${branding.branding_id}`, { state: BRANDING_THEMES_BACK_STATE }),
     },
     {
       key: "edit",
       label: "Edit Branding",
       icon: Edit,
-      onSelect: () => navigate(`/branding/templates/${branding.branding_id}/edit`),
+      onSelect: () =>
+        navigate(`/branding/templates/${branding.branding_id}/edit`, { state: BRANDING_THEMES_BACK_STATE }),
     },
     // System themes can be edited and activated but never deleted.
     ...(!branding.is_active

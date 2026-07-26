@@ -31,7 +31,7 @@ function ResultBadge({ result }: { result: string }) {
   const key = result.toUpperCase()
   return (
     <span className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-0.5 text-xs font-medium capitalize">
-      <span className={cn("size-1.5 rounded-full", RESULT_DOT[key] ?? "bg-slate-400")} />
+      <span className={cn("size-1.5 rounded-full", RESULT_DOT[key] ?? "bg-muted-foreground")} />
       {result.toLowerCase()}
     </span>
   )

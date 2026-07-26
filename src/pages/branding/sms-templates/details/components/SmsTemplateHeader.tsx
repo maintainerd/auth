@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Edit, MoreVertical, Play, Pause, MessageSquare, CalendarDays } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { Button } from "@/components/ui/button"
@@ -17,12 +17,14 @@ interface PendingStatusAction { status: SmsTemplateStatus; title: string; descri
 
 export function SmsTemplateHeader({ template, templateId }: SmsTemplateHeaderProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { showError } = useToast()
   const updateStatusMutation = useUpdateSmsTemplateStatus()
   const [showStatusDialog, setShowStatusDialog] = useState(false)
   const [pendingStatusAction, setPendingStatusAction] = useState<PendingStatusAction | null>(null)
 
   const canEditStatus = !template.isSystem
+  const detailPath = `${location.pathname}${location.search}`
 
   const attributes: DetailAttribute[] = [
     { icon: CalendarDays, label: "Created", value: formatDistanceToNow(new Date(template.createdAt), { addSuffix: true }) },
@@ -43,8 +45,18 @@ export function SmsTemplateHeader({ template, templateId }: SmsTemplateHeaderPro
         attributes={attributes}
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-9 gap-2" onClick={() => navigate(`/branding/sms-templates/${templateId}/edit`)}>
-              <Edit className="size-4" />Edit
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-2"
+              onClick={() =>
+                navigate(`/branding/sms-templates/${templateId}/edit`, {
+                  state: { from: detailPath, backLabel: "Back to SMS Template Details" },
+                })
+              }
+            >
+              <Edit className="size-4" />
+              Edit
             </Button>
             {canEditStatus && (
               <DropdownMenu>
@@ -56,12 +68,33 @@ export function SmsTemplateHeader({ template, templateId }: SmsTemplateHeaderPro
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {template.status === 'inactive' ? (
-                    <DropdownMenuItem onClick={() => { setPendingStatusAction({ status: 'active', title: 'Activate SMS Template', description: 'Activate this SMS template?' }); setShowStatusDialog(true) }}>
-                      <Play className="mr-2 size-4" />Activate
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setPendingStatusAction({
+                          status: 'active',
+                          title: 'Activate SMS Template',
+                          description: 'Are you sure you want to activate this SMS template? It will be used for SMS delivery.',
+                        })
+                        setShowStatusDialog(true)
+                      }}
+                    >
+                      <Play className="mr-2 size-4" />
+                      Activate Template
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem onClick={() => { setPendingStatusAction({ status: 'inactive', title: 'Deactivate SMS Template', description: 'Deactivate this SMS template?' }); setShowStatusDialog(true) }}>
-                      <Pause className="mr-2 size-4" />Deactivate
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setPendingStatusAction({
+                          status: 'inactive',
+                          title: 'Deactivate SMS Template',
+                          description: 'Are you sure you want to deactivate this SMS template? It will no longer be used for SMS delivery.',
+                        })
+                        setShowStatusDialog(true)
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Pause className="mr-2 size-4" />
+                      Deactivate Template
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -72,17 +105,23 @@ export function SmsTemplateHeader({ template, templateId }: SmsTemplateHeaderPro
       />
 
       <ConfirmationDialog
-        open={showStatusDialog} onOpenChange={setShowStatusDialog}
+        open={showStatusDialog}
+        onOpenChange={setShowStatusDialog}
         onConfirm={async () => {
           if (!pendingStatusAction) return
           try {
             await updateStatusMutation.mutateAsync({ id: templateId, data: { status: pendingStatusAction.status } })
-            setShowStatusDialog(false); setPendingStatusAction(null)
-          } catch (error) { showError(error) }
+            setShowStatusDialog(false)
+            setPendingStatusAction(null)
+          } catch (error) {
+            showError(error)
+          }
         }}
         title={pendingStatusAction?.title || "Change Status"}
         description={pendingStatusAction?.description || ""}
-        confirmText="Confirm" cancelText="Cancel" variant="default"
+        confirmText={pendingStatusAction?.status === "active" ? "Activate" : "Deactivate"}
+        cancelText="Cancel"
+        variant={pendingStatusAction?.status === "inactive" ? "destructive" : "default"}
         isLoading={updateStatusMutation.isPending}
       />
     </>

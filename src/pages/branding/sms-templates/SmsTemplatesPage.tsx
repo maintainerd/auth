@@ -8,7 +8,7 @@ export default function SmsTemplatesPage({ standalone = true }: { standalone?: b
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <PageHeader
         title="SMS Templates"
-        description="Create and manage SMS templates for authentication, notifications, and system communications."
+        description="Review and edit the system-managed SMS templates used for authentication, notifications, and platform communications."
       />
       <SmsTemplateListing tableInCard />
     </div>

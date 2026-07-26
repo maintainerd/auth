@@ -16,6 +16,8 @@ import {
   FormSubmitButton,
   type SelectOption,
 } from "@/components/form"
+import { FormPhoneFieldWithCountry } from "@/components/inputs"
+import { isValidPhone } from "@/lib/validations/regex"
 import { useToast } from "@/hooks/useToast"
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
 import { ConfirmationDialog } from "@/components/dialog"
@@ -46,7 +48,10 @@ const schema = yup.object({
   provider: yup.string().required("Provider is required"),
   account_sid: yup.string().max(255, "Must not exceed 255 characters"),
   auth_token: yup.string(),
-  from_number: yup.string().max(50, "Must not exceed 50 characters"),
+  from_number: yup
+    .string()
+    .max(50, "Must not exceed 50 characters")
+    .test("phone-format", "Invalid phone number format", (value) => !value || isValidPhone(value)),
   sender_id: yup.string().max(50, "Must not exceed 50 characters"),
   daily_send_limit: yup.number().transform((v) => (isNaN(v) ? undefined : v)).min(0, "Must be zero or greater"),
   test_mode: yup.boolean(),
@@ -255,7 +260,21 @@ export default function SMSConfigPage() {
               {(meta.showFromNumber || meta.showSenderId) && (
                 <div className="grid gap-4 md:grid-cols-2">
                   {meta.showFromNumber && (
-                    <FormInputField label="From Number" placeholder="+1234567890" disabled={isBusy} error={errors.from_number?.message} {...register("from_number")} />
+                    <Controller
+                      name="from_number"
+                      control={control}
+                      render={({ field }) => (
+                        <FormPhoneFieldWithCountry
+                          label="From Number"
+                          description="Optional sender phone number shown to recipients"
+                          disabled={isBusy}
+                          error={errors.from_number?.message}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                        />
+                      )}
+                    />
                   )}
                   {meta.showSenderId && (
                     <FormInputField label="Sender ID" placeholder="MyApp" disabled={isBusy} error={errors.sender_id?.message} {...register("sender_id")} />

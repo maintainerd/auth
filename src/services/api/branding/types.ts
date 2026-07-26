@@ -2,7 +2,7 @@
  * Branding API types
  *
  * Branding records are per-tenant themes. Exactly one is active (the loaded
- * style). System records (seeded maintainerd-light / maintainerd-dark) can be
+ * style). System records (seeded default / light / dark) can be
  * edited and activated but never deleted. Theme tokens (colors, font) live in
  * the freeform `metadata` JSON; only logo/favicon/support/legal URLs and
  * company name are dedicated fields.

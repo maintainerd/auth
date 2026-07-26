@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { AppWindow, Radio, History } from "lucide-react"
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DetailTabs } from "@/components/details/DetailTabs"
@@ -6,6 +6,7 @@ import { DetailLayout } from "@/components/details"
 import { useWebhook } from "@/hooks/useWebhooks"
 import { WebhookHeader, WebhookInformation, WebhookEvents } from "./components"
 import { WebhookDeliveries } from "./components/WebhookDeliveries"
+import { WEBHOOKS_LIST_URL } from "../webhookNavigation"
 
 const TABS = [
   { value: "overview", label: "Overview", icon: AppWindow },
@@ -20,7 +21,12 @@ const TAB_VALUES = new Set<string>(TABS.map((tab) => tab.value))
 export default function WebhookDetailsPage() {
   const { webhookId } = useParams<{ webhookId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const navState = location.state as { from?: string; backLabel?: string } | null
+  const backTo = navState?.from ?? WEBHOOKS_LIST_URL
+  const backLabel = navState?.backLabel ?? "Back to Webhooks"
 
   const requestedTab = searchParams.get("tab")
   const activeTab: WebhookDetailsTab = TAB_VALUES.has(requestedTab || "")
@@ -35,8 +41,8 @@ export default function WebhookDetailsPage() {
 
   return (
     <DetailLayout
-      backLabel="Back to Webhooks"
-      onBack={() => navigate(`/events?tab=webhooks`)}
+      backLabel={backLabel}
+      onBack={() => navigate(backTo)}
       isLoading={isLoading}
       isError={isError || !webhook}
       notFoundTitle="Webhook not found"
@@ -44,12 +50,12 @@ export default function WebhookDetailsPage() {
     >
       {webhook && (
         <>
-          <WebhookHeader webhook={webhook} webhookId={webhookId!} />
+          <WebhookHeader webhook={webhook} webhookId={webhookId!} afterDeleteTo={backTo} />
 
           <DetailTabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1 md:w-fit">
+            <TabsList>
               {TABS.map(({ value, label, icon: Icon }) => (
-                <TabsTrigger key={value} value={value} className="h-8 flex-none gap-2 px-3">
+                <TabsTrigger key={value} value={value} className="gap-2">
                   <Icon className="size-4" />
                   {label}
                 </TabsTrigger>

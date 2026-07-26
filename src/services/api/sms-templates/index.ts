@@ -50,7 +50,7 @@ export async function fetchSmsTemplates(
 
   const endpoint = `${API_ENDPOINTS.SMS_TEMPLATE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   const response = await get<ApiResponse<{
-    rows: SmsTemplatePayload[]
+    rows: SmsTemplatePayload[] | null
     total: number
     page: number
     limit: number
@@ -59,7 +59,7 @@ export async function fetchSmsTemplates(
 
   if (response.success && response.data) {
     return {
-      rows: response.data.rows.map(transformPayloadToSmsTemplate),
+      rows: (response.data.rows ?? []).map(transformPayloadToSmsTemplate),
       total: response.data.total,
       page: response.data.page,
       limit: response.data.limit,

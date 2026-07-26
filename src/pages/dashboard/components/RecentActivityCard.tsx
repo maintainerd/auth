@@ -32,7 +32,7 @@ function ActivityRow({ event }: { event: AuthEvent }) {
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex items-center gap-2">
           <span
-            className={cn("size-1.5 shrink-0 rounded-full", RESULT_DOT[event.result?.toUpperCase()] ?? "bg-slate-400")}
+            className={cn("size-1.5 shrink-0 rounded-full", RESULT_DOT[event.result?.toUpperCase()] ?? "bg-muted-foreground")}
           />
           <p className="truncate font-medium">{humanizeEventType(event.event_type)}</p>
         </div>

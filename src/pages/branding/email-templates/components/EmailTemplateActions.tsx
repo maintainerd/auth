@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Eye, Edit, Play, Pause } from "lucide-react"
 import { RowActions, type RowActionItem } from "@/components/data-table"
 import { useUpdateEmailTemplateStatus } from "@/hooks/useEmailTemplates"
@@ -11,8 +11,11 @@ interface EmailTemplateActionsProps {
 
 export function EmailTemplateActions({ template }: EmailTemplateActionsProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { showSuccess, showError } = useToast()
   const updateStatusMutation = useUpdateEmailTemplateStatus()
+  const from = `${location.pathname}${location.search}` || "/branding?tab=email-templates"
+  const listState = { from, backLabel: "Back to Email Templates" }
 
   const changeStatus = async (status: "active" | "inactive") => {
     try {
@@ -29,21 +32,22 @@ export function EmailTemplateActions({ template }: EmailTemplateActionsProps) {
   }
 
   const isActive = template.status === "active"
+  const canEditStatus = !template.isSystem
 
   const items: RowActionItem[] = [
     {
       key: "view",
       label: "View Details",
       icon: Eye,
-      onSelect: () => navigate(`/branding/email-templates/${template.emailTemplateId}`),
+      onSelect: () => navigate(`/branding/email-templates/${template.emailTemplateId}`, { state: listState }),
     },
     {
       key: "edit",
       label: "Edit Template",
       icon: Edit,
-      onSelect: () => navigate(`/branding/email-templates/${template.emailTemplateId}/edit`),
+      onSelect: () => navigate(`/branding/email-templates/${template.emailTemplateId}/edit`, { state: listState }),
     },
-    ...(isActive
+    ...(canEditStatus && isActive
       ? [
           {
             key: "deactivate",
@@ -59,7 +63,9 @@ export function EmailTemplateActions({ template }: EmailTemplateActionsProps) {
             },
           } satisfies RowActionItem,
         ]
-      : [
+      : []),
+    ...(canEditStatus && !isActive
+      ? [
           {
             key: "activate",
             label: "Activate Template",
@@ -72,7 +78,8 @@ export function EmailTemplateActions({ template }: EmailTemplateActionsProps) {
               confirmText: "Activate Template",
             },
           } satisfies RowActionItem,
-        ]),
+        ]
+      : []),
   ]
 
   return <RowActions items={items} />

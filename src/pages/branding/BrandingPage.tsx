@@ -32,7 +32,7 @@ export default function BrandingPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <PageHeader
         title="Branding"
-        description="Customize the look and feel of your auth experience with themes, email templates, and SMS templates."
+        description="Configure themes, hosted-auth login templates, previews, and messaging templates for the auth experience."
       />
 
       <DetailTabs value={activeTab} onValueChange={handleTabChange}>

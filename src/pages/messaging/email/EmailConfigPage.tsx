@@ -48,6 +48,17 @@ const ENCRYPTION_OPTIONS: SelectOption[] = [
   { value: "none", label: "None" },
 ]
 
+const optionalUrl = (label: string) =>
+  yup
+    .string()
+    .trim()
+    .max(2048, `${label} must not exceed 2048 characters`)
+    .matches(/^https?:\/\//, {
+      excludeEmptyString: true,
+      message: `${label} must start with http:// or https://`,
+    })
+    .default("")
+
 const schema = yup.object({
   provider: yup.string().required("Provider is required"),
   host: yup.string(),
@@ -58,7 +69,7 @@ const schema = yup.object({
   from_name: yup.string(),
   reply_to: yup.string().email("Enter a valid email address"),
   encryption: yup.string(),
-  logo_url: yup.string(),
+  logo_url: optionalUrl("Logo URL"),
   test_mode: yup.boolean(),
 })
 

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Edit, MoreVertical, Play, Pause, Mail, Activity, CalendarDays } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ interface PendingStatusAction {
 
 export function EmailTemplateHeader({ template, templateId }: EmailTemplateHeaderProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { showError } = useToast()
   const updateStatusMutation = useUpdateEmailTemplateStatus()
 
@@ -54,6 +55,7 @@ export function EmailTemplateHeader({ template, templateId }: EmailTemplateHeade
   }
 
   const canEditStatus = !template.isSystem
+  const detailPath = `${location.pathname}${location.search}`
 
   const attributes: DetailAttribute[] = [
     { icon: Activity, label: "Subject", value: template.subject },
@@ -79,7 +81,11 @@ export function EmailTemplateHeader({ template, templateId }: EmailTemplateHeade
               variant="outline"
               size="sm"
               className="h-9 gap-2"
-              onClick={() => navigate(`/branding/email-templates/${templateId}/edit`)}
+              onClick={() =>
+                navigate(`/branding/email-templates/${templateId}/edit`, {
+                  state: { from: detailPath, backLabel: "Back to Email Template Details" },
+                })
+              }
             >
               <Edit className="size-4" />
               Edit
@@ -94,14 +100,31 @@ export function EmailTemplateHeader({ template, templateId }: EmailTemplateHeade
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {template.status === 'inactive' ? (
-                    <DropdownMenuItem onClick={() => handleStatusChange('active', 'Activate Email Template', 'Are you sure you want to activate this email template?')}>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleStatusChange(
+                          'active',
+                          'Activate Email Template',
+                          'Are you sure you want to activate this email template? It will be used for email delivery.',
+                        )
+                      }
+                    >
                       <Play className="mr-2 size-4" />
-                      Activate
+                      Activate Template
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem onClick={() => handleStatusChange('inactive', 'Deactivate Email Template', 'Are you sure you want to deactivate this email template?')}>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleStatusChange(
+                          'inactive',
+                          'Deactivate Email Template',
+                          'Are you sure you want to deactivate this email template? It will no longer be used for email delivery.',
+                        )
+                      }
+                      className="text-destructive focus:text-destructive"
+                    >
                       <Pause className="mr-2 size-4" />
-                      Deactivate
+                      Deactivate Template
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -117,9 +140,9 @@ export function EmailTemplateHeader({ template, templateId }: EmailTemplateHeade
         onConfirm={handleConfirmStatusChange}
         title={pendingStatusAction?.title || "Change Status"}
         description={pendingStatusAction?.description || "Are you sure you want to change the template status?"}
-        confirmText="Confirm"
+        confirmText={pendingStatusAction?.status === "active" ? "Activate" : "Deactivate"}
         cancelText="Cancel"
-        variant="default"
+        variant={pendingStatusAction?.status === "inactive" ? "destructive" : "default"}
         isLoading={updateStatusMutation.isPending}
       />
     </>

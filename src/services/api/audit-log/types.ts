@@ -3,7 +3,7 @@ export interface AuditLogEntry {
   action: string
   resource_type: string
   resource_id: string
-  changes: Record<string, unknown> | null
+  changes: Record<string, unknown> | string | null
   ip_address: string | null
   actor_user_id?: number | null
   actor_user_name?: string | null

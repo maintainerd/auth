@@ -34,17 +34,16 @@ export function DataTable<TData>({
   onRowClick,
 }: DataTableProps<TData>) {
   return (
-    <Table className="border-b border-slate-200 text-sm [&_tr]:border-slate-200">
+    <Table className="border-b border-border text-sm [&_tr]:border-border">
       <colgroup>
         {table.getAllLeafColumns().map((col) => (
           <col key={col.id} style={col.id === "actions" ? { width: 56 } : undefined} />
         ))}
       </colgroup>
       {/* On mobile the header is hidden and each row stacks into one column;
-          the normal table layout returns at md+. The header carries a single 1px
-          bottom rule, slightly darker (slate-300) than the row separators so it
-          still reads as the header divider without being heavy. */}
-      <TableHeader className="hidden md:table-header-group [&_tr]:border-b [&_tr]:bg-slate-50 [&_tr]:hover:bg-slate-50">
+          the normal table layout returns at md+. The header uses the shared
+          neutral muted surface so tables match the surrounding chrome. */}
+      <TableHeader className="hidden md:table-header-group [&_tr]:border-b [&_tr]:bg-muted [&_tr]:hover:bg-muted">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
@@ -158,4 +157,3 @@ export function DataTable<TData>({
       </Table>
   )
 }
-

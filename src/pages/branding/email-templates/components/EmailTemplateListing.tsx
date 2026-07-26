@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import type { SortingState } from "@tanstack/react-table"
 import { ResourceListing, type FilterGroup } from "@/components/data-table"
 import { emailTemplateColumns } from "./EmailTemplateColumns"
@@ -12,6 +12,9 @@ const FILTER_GROUPS: readonly FilterGroup[] = [
 
 export function EmailTemplateListing({ tableInCard }: { tableInCard?: boolean } = {}) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = `${location.pathname}${location.search}` || "/branding?tab=email-templates"
+  const navState = { from, backLabel: "Back to Email Templates" }
 
   return (
     <ResourceListing
@@ -22,9 +25,11 @@ export function EmailTemplateListing({ tableInCard }: { tableInCard?: boolean } 
       searchPlaceholder="Search templates by name or subject..."
       useData={useEmailTemplatesList}
       filterGroups={FILTER_GROUPS}
-      onRowClick={(template) => navigate(`/branding/email-templates/${template.emailTemplateId}`)}
+      onRowClick={(template) =>
+        navigate(`/branding/email-templates/${template.emailTemplateId}`, { state: navState })
+      }
       emptyTitle="No email templates"
-      emptyDescription="Email templates are seeded automatically when a tenant is created."
+      emptyDescription="Email templates are seeded automatically and can be edited after creation."
     />
   )
 }

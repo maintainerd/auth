@@ -90,4 +90,32 @@ describe("AuditLogDetailsPage", () => {
     await u.click(screen.getByRole("button", { name: /back to audit log/i }))
     expect(navigateMock).toHaveBeenCalledWith("/monitoring?tab=audit")
   })
+
+  it("parses stringified JSON changes into multiline formatted JSON", () => {
+    useAuditLogEntryMock.mockReturnValue({
+      data: makeAuditEntry({
+        changes: JSON.stringify({
+          display_name: { old: "Old Tenant", new: "New Tenant" },
+          security: {
+            mfa_required: { before: false, after: true },
+          },
+          allowed_scopes: ["openid", "profile"],
+        }),
+      }),
+      isLoading: false,
+      isError: false,
+    })
+
+    const { container } = renderWithProviders(<AuditLogDetailsPage />, {
+      route: "/audit-log/audit-1",
+      path: "/audit-log/:uuid",
+    })
+
+    const changesBlock = container.querySelector("pre")
+
+    expect(changesBlock?.textContent).toContain('{\n  "display_name": {\n    "old": "Old Tenant"')
+    expect(changesBlock?.textContent).toContain('"after": true')
+    expect(changesBlock?.textContent).toContain('"new": "New Tenant"')
+    expect(changesBlock?.textContent).toContain('"openid"')
+  })
 })

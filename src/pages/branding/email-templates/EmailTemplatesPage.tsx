@@ -8,7 +8,7 @@ export default function EmailTemplatesPage({ standalone = true }: { standalone?:
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <PageHeader
         title="Email Templates"
-        description="Create and manage email templates for authentication, notifications, and system communications."
+        description="Review and edit the system-managed email templates used for authentication, notifications, and platform communications."
       />
       <EmailTemplateListing tableInCard />
     </div>

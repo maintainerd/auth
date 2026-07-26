@@ -7,7 +7,7 @@ describe("StatusBadge", () => {
   const cases: { status: string; dot: string }[] = [
     { status: "active", dot: "bg-emerald-500" },
     { status: "pending", dot: "bg-amber-500" },
-    { status: "inactive", dot: "bg-slate-400" },
+    { status: "inactive", dot: "bg-muted-foreground" },
     { status: "suspended", dot: "bg-red-500" },
   ]
 
@@ -21,10 +21,10 @@ describe("StatusBadge", () => {
     })
   }
 
-  it("falls back to the slate dot for an unknown status", () => {
+  it("falls back to the neutral dot for an unknown status", () => {
     const { container } = render(<StatusBadge status="mystery" />)
     expect(screen.getByText("mystery")).toBeInTheDocument()
-    expect(container.querySelector(".bg-slate-400")).toBeInTheDocument()
+    expect(container.querySelector(".bg-muted-foreground")).toBeInTheDocument()
   })
 
   it("matches statuses case-insensitively and merges a custom className", () => {

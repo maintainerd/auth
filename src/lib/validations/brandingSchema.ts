@@ -5,6 +5,7 @@
  */
 
 import * as yup from 'yup'
+import { AUTH_UI_TEMPLATE_IDS } from "@/lib/branding/authUiTemplates"
 
 const optionalUrl = (label: string) =>
   yup
@@ -29,6 +30,11 @@ export const brandingSchema = yup.object({
     .oneOf(['centered', 'full_page', 'split'], 'Select a valid login layout')
     .required('Login layout is required')
     .default('centered'),
+  ui_template: yup
+    .string()
+    .oneOf([...AUTH_UI_TEMPLATE_IDS], 'Select a valid login template')
+    .required('Login template is required')
+    .default('centered-card'),
   company_name: yup
     .string()
     .trim()

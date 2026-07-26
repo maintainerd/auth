@@ -64,7 +64,7 @@ function NavRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-between rounded-lg border bg-white p-3 text-left transition-colors hover:border-slate-300 hover:bg-accent"
+      className="flex items-center justify-between rounded-lg border bg-card p-3 text-left transition-colors hover:border-border hover:bg-accent"
     >
       <div className="flex items-center gap-3">
         <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">

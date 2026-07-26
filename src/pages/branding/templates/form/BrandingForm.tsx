@@ -25,17 +25,18 @@ import {
   metadataFromTokens,
   type ThemeToken,
 } from "../themeTokens"
-
-const LAYOUT_OPTIONS = [
-  { value: "centered", label: "Centered card" },
-  { value: "full_page", label: "Full page" },
-  { value: "split", label: "Split screen" },
-]
+import {
+  authUiTemplateIdFromMetadata,
+  authUiTemplateOptions,
+  getAuthUiTemplate,
+} from "@/lib/branding/authUiTemplates"
+import { BRANDING_THEMES_LIST_URL } from "../brandingNavigation"
 
 // Backend snake_case field keys → form field names.
 const BACKEND_FIELD_MAP: Record<string, keyof BrandingFormData> = {
   name: "name",
   layout: "layout",
+  ui_template: "ui_template",
   company_name: "company_name",
   logo_url: "logo_url",
   favicon_url: "favicon_url",
@@ -55,7 +56,7 @@ export default function BrandingForm() {
 
   // Honour where the user came from so the back button and post-submit
   // navigation return there. Falls back to the listing.
-  const listUrl = `/branding?tab=themes`
+  const listUrl = BRANDING_THEMES_LIST_URL
   const navState = location.state as { from?: string; backLabel?: string } | null
   const backTo = navState?.from ?? listUrl
   const backLabel = navState?.backLabel ?? "Back to Themes"
@@ -75,6 +76,7 @@ export default function BrandingForm() {
     register,
     control,
     handleSubmit,
+    watch,
     reset,
     setError,
     formState: { errors, isSubmitting, isDirty },
@@ -83,6 +85,7 @@ export default function BrandingForm() {
     defaultValues: {
       name: "",
       layout: "centered",
+      ui_template: "centered-card",
       company_name: "",
       logo_url: "",
       favicon_url: "",
@@ -99,6 +102,7 @@ export default function BrandingForm() {
       reset({
         name: branding.name ?? "",
         layout: branding.layout ?? "centered",
+        ui_template: authUiTemplateIdFromMetadata(branding.metadata, branding.layout),
         company_name: branding.company_name ?? "",
         logo_url: branding.logo_url ?? "",
         favicon_url: branding.favicon_url ?? "",
@@ -138,6 +142,7 @@ export default function BrandingForm() {
   }
 
   const isLoading = createMutation.isPending || updateMutation.isPending || isSubmitting
+  const selectedUiTemplate = getAuthUiTemplate(watch("ui_template"))
 
   // Non-RHF state (tokens, logoMode) isn't captured by isDirty — same trade-off
   // as the legacy client form. The guard still protects against leaving after
@@ -147,14 +152,18 @@ export default function BrandingForm() {
   const onSubmit = async (data: BrandingFormData) => {
     const payload = {
       name: data.name.trim(),
-      layout: data.layout,
+      layout: selectedUiTemplate.layout,
       company_name: (data.company_name ?? "").trim(),
       logo_url: logoMode === 'url' ? (data.logo_url ?? "").trim() : "",
       favicon_url: (data.favicon_url ?? "").trim(),
       support_url: (data.support_url ?? "").trim(),
       privacy_policy_url: (data.privacy_policy_url ?? "").trim(),
       terms_of_service_url: (data.terms_of_service_url ?? "").trim(),
-      metadata: metadataFromTokens(tokens),
+      metadata: {
+        ...(branding?.metadata ?? {}),
+        ...metadataFromTokens(tokens),
+        auth_ui_template: selectedUiTemplate.id,
+      },
       logo_data: logoMode === 'file' && logoData ? logoData : undefined,
       logo_content_type: logoMode === 'file' && logoContentType ? logoContentType : undefined,
     }
@@ -313,23 +322,54 @@ export default function BrandingForm() {
                   error={errors.company_name?.message}
                   {...register("company_name")}
                 />
-                <Controller
-                  name="layout"
-                  control={control}
-                  render={({ field }) => (
-                    <FormSelectField
-                      label="Login layout"
-                      options={LAYOUT_OPTIONS}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={isLoading}
-                      error={errors.layout?.message}
-                      description="Choose how every hosted authentication page is arranged."
-                      required
-                      containerClassName="md:col-span-2"
-                    />
-                  )}
-                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Login Template</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Select the hosted login page structure for login, registration, MFA, and account-linking flows.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Controller
+                name="ui_template"
+                control={control}
+                render={({ field }) => (
+                  <FormSelectField
+                    label="Login template"
+                    options={authUiTemplateOptions()}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={isLoading}
+                    error={errors.ui_template?.message}
+                    description="Saved as configuration for the hosted login experience."
+                    required
+                  />
+                )}
+              />
+              <div className="rounded-md border bg-muted/30 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">{selectedUiTemplate.label}</p>
+                    <p className="text-sm text-muted-foreground">{selectedUiTemplate.summary}</p>
+                  </div>
+                  <span className="w-fit rounded-md border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
+                    {selectedUiTemplate.layout.replace("_", " ")}
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Best for</p>
+                    <p className="mt-1 text-sm">{selectedUiTemplate.bestFor}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Flow treatment</p>
+                    <p className="mt-1 text-sm">{selectedUiTemplate.flowTreatment}</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

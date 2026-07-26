@@ -44,44 +44,41 @@
 }
 
 /*
- * shadcn theme — style: radix-vega, base color: slate, theme: blue, charts: blue.
- * Base grays are slate (cool blue-gray tint); the accent (--primary), focus ring, and
- * sidebar-primary are blue (blue-600 light / blue-500 dark); charts are a
- * monochrome blue ramp. Change the accent app-wide by editing --primary / --ring /
- * --sidebar-* below — components consume the tokens (bg-primary, ring-ring, etc.).
+ * Maintainerd console theme. The supporting palette stays neutral, with only a
+ * slight cool cast so shared surfaces sit comfortably beside the blue primary.
  */
 :root {
   --radius: 3px;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);        /* slate-950 */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);   /* slate-950 */
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695); /* slate-950 */
+  --background: #f6f7f9;
+  --foreground: #1f252e;
+  --card: #ffffff;
+  --card-foreground: #1f252e;
+  --popover: #ffffff;
+  --popover-foreground: #1f252e;
   --primary: oklch(0.546 0.245 262.881); /* blue-600 */
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.968 0.007 247.896);          /* slate-100 */
-  --secondary-foreground: oklch(0.208 0.042 264.695); /* slate-900 */
-  --muted: oklch(0.968 0.007 247.896);              /* slate-100 */
-  --muted-foreground: oklch(0.554 0.046 257.417);  /* slate-500 */
-  --accent: oklch(0.968 0.007 247.896);             /* slate-100 */
-  --accent-foreground: oklch(0.208 0.042 264.695); /* slate-900 */
+  --secondary: #eef1f5;
+  --secondary-foreground: #2d3748;
+  --muted: #f0f2f5;
+  --muted-foreground: #647084;
+  --accent: #e9edf3;
+  --accent-foreground: #1f2937;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);             /* slate-200 */
-  --input: oklch(0.929 0.013 255.508);              /* slate-200 */
+  --border: #dce1e8;
+  --input: #d1d8e2;
   --ring: oklch(0.546 0.245 262.881); /* blue focus ring */
   --chart-1: oklch(0.546 0.245 262.881); /* blue ramp: blue-600 → blue-200 */
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.707 0.165 254.624);
   --chart-4: oklch(0.809 0.105 251.813);
   --chart-5: oklch(0.882 0.059 254.128);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.129 0.042 264.695); /* slate-950 */
+  --sidebar: #f6f7f9;
+  --sidebar-foreground: #1f252e;
   --sidebar-primary: oklch(0.546 0.245 262.881); /* blue-600 */
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.968 0.007 247.896);     /* slate-100 */
-  --sidebar-accent-foreground: oklch(0.208 0.042 264.695); /* slate-900 */
-  --sidebar-border: oklch(0.929 0.013 255.508);     /* slate-200 */
+  --sidebar-accent: #eef2f7;
+  --sidebar-accent-foreground: #1f2937;
+  --sidebar-border: #cfd6e0;
   --sidebar-ring: oklch(0.546 0.245 262.881); /* blue-600 */
 }
 

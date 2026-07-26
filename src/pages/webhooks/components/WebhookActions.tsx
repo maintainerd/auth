@@ -4,6 +4,7 @@ import { RowActions, type RowActionItem } from "@/components/data-table"
 import { useUpdateWebhookStatus, useDeleteWebhook } from "@/hooks/useWebhooks"
 import { useToast } from "@/hooks/useToast"
 import type { Webhook } from "@/services/api/webhooks/types"
+import { WEBHOOKS_BACK_STATE } from "../webhookNavigation"
 
 interface WebhookActionsProps {
   webhook: Webhook
@@ -34,20 +35,23 @@ export function WebhookActions({ webhook }: WebhookActionsProps) {
       key: "view",
       label: "View Details",
       icon: Eye,
-      onSelect: () => navigate(`/webhooks/${webhook.webhook_endpoint_id}`),
+      onSelect: () =>
+        navigate(`/webhooks/${webhook.webhook_endpoint_id}`, { state: WEBHOOKS_BACK_STATE }),
     },
     {
       key: "edit",
       label: "Edit Webhook",
       icon: Edit,
-      onSelect: () => navigate(`/webhooks/${webhook.webhook_endpoint_id}/edit`),
+      onSelect: () =>
+        navigate(`/webhooks/${webhook.webhook_endpoint_id}/edit`, { state: WEBHOOKS_BACK_STATE }),
     },
     ...(isActive
       ? [
           {
             key: "deactivate",
-            label: "Deactivate",
+            label: "Deactivate Webhook",
             icon: Pause,
+            destructive: true,
             onSelect: () => changeStatus("inactive"),
             confirm: {
               title: "Deactivate Webhook",
@@ -60,7 +64,7 @@ export function WebhookActions({ webhook }: WebhookActionsProps) {
       : [
           {
             key: "activate",
-            label: "Activate",
+            label: "Activate Webhook",
             icon: Play,
             onSelect: () => changeStatus("active"),
             confirm: {

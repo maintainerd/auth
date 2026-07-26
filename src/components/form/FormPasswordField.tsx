@@ -53,7 +53,7 @@ export const FormPasswordField = forwardRef<HTMLInputElement, FormPasswordFieldP
     const fieldId = id || label.toLowerCase().replace(/\s+/g, '-')
 
     return (
-      <Field className={cn("space-y-2", containerClassName)}>
+      <Field className={cn(containerClassName)}>
         <FieldLabel 
           htmlFor={fieldId} 
           className={cn(labelClassName)}

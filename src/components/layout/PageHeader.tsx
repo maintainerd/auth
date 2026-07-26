@@ -9,7 +9,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, icon: Icon }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         {Icon && <Icon className="size-5 shrink-0 text-foreground" />}
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
@@ -20,4 +20,3 @@ export function PageHeader({ title, description, icon: Icon }: PageHeaderProps) 
     </div>
   )
 }
-

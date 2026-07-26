@@ -75,7 +75,7 @@ export default function AuditLogDetailsPage() {
           {entry.changes && (
             <InformationCard title="Changes" icon={FileText}>
               <pre className="overflow-auto rounded-md bg-muted p-3 text-xs">
-                {JSON.stringify(entry.changes, null, 2)}
+                {formatChangesJson(entry.changes)}
               </pre>
             </InformationCard>
           )}
@@ -83,6 +83,37 @@ export default function AuditLogDetailsPage() {
       )}
     </DetailLayout>
   )
+}
+
+function formatChangesJson(changes: unknown): string {
+  const parsed = parseJsonStrings(changes)
+  const formatted = JSON.stringify(parsed, null, 2)
+  return formatted ?? String(parsed)
+}
+
+function parseJsonStrings(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(parseJsonStrings)
+
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, parseJsonStrings(nestedValue)]),
+    )
+  }
+
+  if (typeof value !== "string") return value
+
+  const trimmed = value.trim()
+  if (!trimmed || !["{", "["].includes(trimmed[0])) return value
+
+  try {
+    return parseJsonStrings(JSON.parse(trimmed))
+  } catch {
+    return value
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function OutcomeBadge({ outcome }: { outcome: string }) {

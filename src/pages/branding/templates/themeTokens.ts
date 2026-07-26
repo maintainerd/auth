@@ -27,15 +27,15 @@ export const THEME_TOKENS: ThemeToken[] = [
 
 export const DEFAULT_TOKENS: Record<string, string> = {
   "colors.primary": "#2563eb",
-  "colors.secondary": "#64748b",
+  "colors.secondary": "#2d3748",
   "colors.accent": "#0ea5e9",
-  "colors.appBackground": "#f8fafc",
-  "colors.topPanelBackground": "#ffffff",
-  "colors.sidePanelBackground": "#0f172a",
+  "colors.appBackground": "#f6f7f9",
+  "colors.topPanelBackground": "#0f172a",
+  "colors.sidePanelBackground": "#f6f7f9",
   "colors.cardBackground": "#ffffff",
-  "colors.textPrimary": "#0f172a",
-  "colors.textMuted": "#64748b",
-  "colors.border": "#e2e8f0",
+  "colors.textPrimary": "#1f252e",
+  "colors.textMuted": "#647084",
+  "colors.border": "#dce1e8",
   "font.family": "Inter, system-ui, sans-serif",
 }
 

@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils"
 
 // Canonical status pill for the whole app. Common status keywords → dot colour;
 // any entity's status string maps through here and unknown values fall back to a
-// neutral slate dot. Colour is carried by a small dot (not a pastel block), which
+// neutral dot. Colour is carried by a small dot (not a pastel block), which
 // reads enterprise rather than "vibecoded". This is the single StatusBadge — the
 // pastel/icon variant was retired so every listing, header, and tab matches.
 const STATUS_DOT: Record<string, string> = {
@@ -14,10 +14,10 @@ const STATUS_DOT: Record<string, string> = {
   draft: "bg-amber-500",
   configuring: "bg-amber-500",
   maintenance: "bg-amber-500",
-  inactive: "bg-slate-400",
-  disabled: "bg-slate-400",
-  archived: "bg-slate-400",
-  expired: "bg-slate-400",
+  inactive: "bg-muted-foreground",
+  disabled: "bg-muted-foreground",
+  archived: "bg-muted-foreground",
+  expired: "bg-muted-foreground",
   suspended: "bg-red-500",
   blocked: "bg-red-500",
   revoked: "bg-red-500",
@@ -27,7 +27,7 @@ const STATUS_DOT: Record<string, string> = {
 
 /** A restrained, entity-agnostic status pill: a small coloured dot + label. */
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
-  const dot = STATUS_DOT[status?.toLowerCase()] ?? "bg-slate-400"
+  const dot = STATUS_DOT[status?.toLowerCase()] ?? "bg-muted-foreground"
   return (
     <span
       className={cn(

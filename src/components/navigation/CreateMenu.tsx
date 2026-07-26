@@ -71,7 +71,7 @@ export function CreateMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="gap-1.5">
+        <Button>
           <Plus className="h-4 w-4" />
           Create
           <ChevronDown className="h-4 w-4 opacity-80" />

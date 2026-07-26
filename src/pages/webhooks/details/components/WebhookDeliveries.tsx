@@ -1,14 +1,30 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { RefreshCw, RotateCcw } from "lucide-react"
+import { CheckCircle2, Clock3, RefreshCw, RotateCcw, TriangleAlert } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { InformationCard } from "@/components/card"
+import { EmptyState, ListSkeleton } from "@/components/details"
 import { useToast } from "@/hooks/useToast"
+import { safeFormat } from "@/lib/formatDate"
 import { fetchDeliveryHistory, replayDelivery, type DeliveryHistoryItem } from "@/services/api/webhooks"
 
 interface Props {
   webhookId: string
+}
+
+function deliveryStatusVariant(
+  status: DeliveryHistoryItem["final_status"],
+): "default" | "destructive" | "secondary" {
+  if (status === "success") return "default"
+  if (status === "dead_letter") return "destructive"
+  return "secondary"
+}
+
+function DeliveryStatusIcon({ status }: { status: DeliveryHistoryItem["final_status"] }) {
+  if (status === "success") return <CheckCircle2 className="size-4" />
+  if (status === "dead_letter") return <TriangleAlert className="size-4" />
+  return <Clock3 className="size-4" />
 }
 
 export function WebhookDeliveries({ webhookId }: Props) {
@@ -34,53 +50,90 @@ export function WebhookDeliveries({ webhookId }: Props) {
 
   const deliveries = Array.isArray(data) ? data : []
 
-  if (isLoading) return <Skeleton className="h-48 w-full" />
-  if (isError) return <p className="text-muted-foreground p-4">Failed to load delivery history.</p>
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{deliveries.length} deliveries</p>
-        <Button variant="ghost" size="sm" onClick={() => refetch()}>
+    <InformationCard
+      title="Delivery History"
+      description="Recent delivery attempts for this webhook endpoint."
+      icon={RefreshCw}
+      action={
+        <Button variant="outline" size="sm" className="h-9 gap-2" onClick={() => refetch()}>
           <RefreshCw className="h-3 w-3 mr-1" /> Refresh
         </Button>
-      </div>
+      }
+    >
+      <div className="space-y-4">
+        {isLoading && <ListSkeleton />}
 
-      {deliveries.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No delivery history yet.
-          </CardContent>
-        </Card>
-      ) : (
-        deliveries.map((d: DeliveryHistoryItem) => (
-          <Card key={d.delivery_history_uuid}>
-            <CardContent className="flex items-center justify-between py-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm">{d.event_type}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${d.final_status === "success" ? "bg-green-100 text-green-700" : d.final_status === "dead_letter" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
-                    {d.final_status === "dead_letter" ? "dead-lettered" : d.final_status}
-                  </span>
-                  {d.is_replay && <span className="text-xs text-muted-foreground">(replay)</span>}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Response: {d.response_status ?? "N/A"} · Attempt {d.attempt_count} · {new Date(d.created_at).toLocaleString()}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={replayingId === d.delivery_history_uuid}
-                onClick={() => { setReplayingId(d.delivery_history_uuid); replayMut.mutate(d.delivery_history_uuid) }}
+        {isError && (
+          <p className="py-8 text-center text-sm text-destructive">
+            Failed to load delivery history.
+          </p>
+        )}
+
+        {!isLoading && !isError && deliveries.length === 0 && (
+          <EmptyState
+            icon={RefreshCw}
+            title="No deliveries"
+            description="Delivery attempts will appear here after subscribed events are emitted."
+          />
+        )}
+
+        {deliveries.length > 0 && (
+          <div className="space-y-3">
+            {deliveries.map((d: DeliveryHistoryItem) => (
+              <div
+                key={d.delivery_history_uuid}
+                className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start sm:justify-between"
               >
-                <RotateCcw className="h-3 w-3 mr-1" />
-                Replay
-              </Button>
-            </CardContent>
-          </Card>
-        ))
-      )}
-    </div>
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <DeliveryStatusIcon status={d.final_status} />
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">{d.event_type}</span>
+                      <Badge
+                        variant={deliveryStatusVariant(d.final_status)}
+                        className="font-normal capitalize"
+                      >
+                        {d.final_status === "dead_letter" ? "Dead-lettered" : d.final_status}
+                      </Badge>
+                      {d.is_replay && (
+                        <Badge variant="outline" className="font-normal">
+                          Replay
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span>Response: {d.response_status ?? "N/A"}</span>
+                      <span>Attempt {d.attempt_count}</span>
+                      <span>{safeFormat(d.created_at, "PPpp")}</span>
+                    </div>
+                    {d.response_summary && (
+                      <p className="break-words text-sm text-muted-foreground">
+                        {d.response_summary}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-fit gap-2"
+                  disabled={replayingId === d.delivery_history_uuid}
+                  onClick={() => {
+                    setReplayingId(d.delivery_history_uuid)
+                    replayMut.mutate(d.delivery_history_uuid)
+                  }}
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Replay
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </InformationCard>
   )
 }

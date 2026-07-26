@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { useForm, Controller } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
-import { Copy, KeyRound, ShieldAlert } from "lucide-react"
+import { AlertCircle, ArrowLeft, Copy, KeyRound, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { DetailsContainer } from "@/components/container"
 import { FormPageHeader } from "@/components/header"
 import {
@@ -16,6 +17,7 @@ import {
   type SelectOption,
 } from "@/components/form"
 import { FormUrlField } from "@/components/inputs"
+import { ConfirmationDialog } from "@/components/dialog"
 import { webhookSchema, type WebhookFormData } from "@/lib/validations"
 import {
   useWebhook,
@@ -23,20 +25,35 @@ import {
   useUpdateWebhook,
 } from "@/hooks/useWebhooks"
 import { useToast } from "@/hooks/useToast"
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
 import type { CreateWebhookRequest, UpdateWebhookRequest } from "@/services/api/webhooks/types"
+import { WEBHOOKS_BACK_STATE, WEBHOOKS_LIST_URL } from "../webhookNavigation"
 
 const STATUS_OPTIONS: SelectOption[] = [
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
 ]
 
+const BACKEND_FIELD_MAP: Record<string, keyof WebhookFormData> = {
+  url: "url",
+  description: "description",
+  subscribe_all: "subscribeAll",
+  max_retries: "maxRetries",
+  timeout_seconds: "timeoutSeconds",
+  status: "status",
+}
+
 export default function WebhookAddOrUpdateForm() {
   const { webhookId } = useParams<{ webhookId?: string }>()
   const navigate = useNavigate()
-  const { showSuccess, showError } = useToast()
+  const location = useLocation()
+  const { showSuccess, showError, parseError } = useToast()
 
   const isEditing = Boolean(webhookId)
-  const webhooksListUrl = `/events?tab=webhooks`
+  const navState = location.state as { from?: string; backLabel?: string } | null
+  const detailUrl = webhookId ? `/webhooks/${webhookId}` : WEBHOOKS_LIST_URL
+  const backTo = navState?.from ?? (isEditing ? detailUrl : WEBHOOKS_LIST_URL)
+  const backLabel = navState?.backLabel ?? (isEditing ? "Back to Webhook Details" : "Back to Webhooks")
 
   const { data: webhookData, isLoading: isFetchingWebhook } = useWebhook(webhookId || "")
   const createWebhookMutation = useCreateWebhook()
@@ -54,7 +71,8 @@ export default function WebhookAddOrUpdateForm() {
     handleSubmit,
     control,
     reset,
-    formState: { errors, isSubmitting },
+    setError,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<WebhookFormData>({
     resolver: yupResolver(webhookSchema),
     defaultValues: {
@@ -65,15 +83,12 @@ export default function WebhookAddOrUpdateForm() {
       timeoutSeconds: 30,
       status: "active",
     },
-    mode: "onSubmit",
-    reValidateMode: "onSubmit",
+    mode: "onTouched",
+    reValidateMode: "onChange",
   })
 
-  // Populate the form from the existing webhook exactly once when editing.
-  const initialized = useRef(false)
   useEffect(() => {
-    if (isEditing && webhookData && !initialized.current) {
-      initialized.current = true
+    if (isEditing && webhookData) {
       reset({
         url: webhookData.url,
         description: webhookData.description ?? "",
@@ -84,6 +99,16 @@ export default function WebhookAddOrUpdateForm() {
       })
     }
   }, [isEditing, webhookData, reset])
+
+  const isLoading =
+    isFetchingWebhook || createWebhookMutation.isPending || updateWebhookMutation.isPending || isSubmitting
+  const existingWebhook = webhookData
+  const pageTitle = isEditing ? `Edit ${existingWebhook?.url || "Webhook"}` : "Create Webhook"
+  const submitButtonText = isEditing ? "Update Webhook" : "Create Webhook"
+
+  const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(
+    !revealedSecret && (isDirty || rotateSecret),
+  )
 
   const onSubmit = async (data: WebhookFormData) => {
     try {
@@ -105,7 +130,7 @@ export default function WebhookAddOrUpdateForm() {
           setRevealedSecret(updated.signing_secret)
           return
         }
-        navigate(`/webhooks/${webhookId}`)
+        navigate(backTo)
       } else {
         const createData: CreateWebhookRequest = {
           url: data.url,
@@ -123,18 +148,44 @@ export default function WebhookAddOrUpdateForm() {
           setRevealedSecret(created.signing_secret)
           return
         }
-        navigate(`/webhooks/${created.webhook_endpoint_id}`)
+        navigate(backTo)
       }
     } catch (error) {
+      const parsed = parseError(error)
+      let mappedToField = false
+      if (parsed.fieldErrors) {
+        for (const [field, message] of Object.entries(parsed.fieldErrors)) {
+          const formField = BACKEND_FIELD_MAP[field]
+          if (formField) {
+            setError(formField, { type: "server", message })
+            mappedToField = true
+          }
+        }
+      }
+      if (!mappedToField) {
+        const lower = parsed.message.toLowerCase()
+        const keywordOrder: Array<[string, keyof WebhookFormData]> = [
+          ["timeout", "timeoutSeconds"],
+          ["retry", "maxRetries"],
+          ["subscribe", "subscribeAll"],
+          ["description", "description"],
+          ["status", "status"],
+          ["url", "url"],
+        ]
+        const hit = keywordOrder.find(([keyword]) => lower.includes(keyword))
+        if (hit) {
+          setError(hit[1], { type: "server", message: parsed.message })
+        }
+      }
       showError(error, "Failed to save webhook")
     }
   }
 
   const handleCancel = () => {
     if (isEditing && webhookId) {
-      navigate(`/webhooks/${webhookId}`)
+      guard(() => navigate(backTo))
     } else {
-      navigate(webhooksListUrl)
+      guard(() => navigate(WEBHOOKS_LIST_URL))
     }
   }
 
@@ -148,17 +199,70 @@ export default function WebhookAddOrUpdateForm() {
     }
   }
 
-  const isLoading =
-    isFetchingWebhook || createWebhookMutation.isPending || updateWebhookMutation.isPending
+  const continueAfterSecretReveal = () => {
+    if (!savedWebhookId) {
+      navigate(WEBHOOKS_LIST_URL)
+      return
+    }
+
+    navigate(`/webhooks/${savedWebhookId}`, {
+      state: WEBHOOKS_BACK_STATE,
+    })
+  }
 
   if (isEditing && isFetchingWebhook) {
     return (
       <DetailsContainer>
-        <div className="flex min-h-[400px] flex-col items-center justify-center gap-4">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold">Loading...</h2>
-            <p className="mt-2 text-muted-foreground">Fetching webhook details</p>
-          </div>
+        <div className="flex flex-col gap-6">
+          <FormPageHeader
+            backUrl={backTo}
+            backLabel={backLabel}
+            title="Edit Webhook"
+            description="Update webhook endpoint configuration"
+          />
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <Skeleton className="h-5 w-40" />
+              <div className="grid gap-4 md:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+              <Skeleton className="h-24 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </DetailsContainer>
+    )
+  }
+
+  if (isEditing && !isFetchingWebhook && !webhookData) {
+    return (
+      <DetailsContainer>
+        <div className="flex flex-col gap-6">
+          <FormPageHeader
+            backUrl={backTo}
+            backLabel={backLabel}
+            title="Edit Webhook"
+            description="Update webhook endpoint configuration"
+          />
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+              <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <AlertCircle className="size-6" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">Webhook not found</h2>
+                <p className="text-sm text-muted-foreground">
+                  The webhook you're trying to edit doesn't exist or may have been removed.
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => navigate(backTo)}>
+                <ArrowLeft className="mr-2 size-4" />
+                {backLabel}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </DetailsContainer>
     )
@@ -170,8 +274,8 @@ export default function WebhookAddOrUpdateForm() {
       <DetailsContainer>
         <div className="flex flex-col gap-6">
           <FormPageHeader
-            backUrl={webhooksListUrl}
-            backLabel="Back to Webhooks"
+            backUrl={backTo}
+            backLabel={backLabel}
             title="Save your signing secret"
             description="This is the only time the signing secret will be shown."
           />
@@ -203,16 +307,7 @@ export default function WebhookAddOrUpdateForm() {
               </div>
 
               <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={() =>
-                    navigate(
-                      savedWebhookId
-                        ? `/webhooks/${savedWebhookId}`
-                        : webhooksListUrl,
-                    )
-                  }
-                >
+                <Button type="button" onClick={continueAfterSecretReveal}>
                   I've saved it — continue
                 </Button>
               </div>
@@ -227,21 +322,24 @@ export default function WebhookAddOrUpdateForm() {
     <DetailsContainer>
       <div className="flex flex-col gap-6">
         <FormPageHeader
-          backUrl={isEditing ? `/webhooks/${webhookId}` : webhooksListUrl}
-          backLabel="Back to Webhooks"
-          title={isEditing ? "Edit Webhook" : "Create New Webhook"}
+          backUrl={backTo}
+          backLabel={backLabel}
+          onBack={() => guard(() => navigate(backTo))}
+          title={pageTitle}
           description={
             isEditing
-              ? "Update this webhook endpoint's configuration"
+              ? "Update webhook endpoint configuration"
               : "Register an endpoint to receive signed event notifications"
           }
         />
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Endpoint */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" key={webhookId || "create"}>
           <Card>
             <CardHeader>
-              <CardTitle>Endpoint</CardTitle>
+              <CardTitle className="text-base">Endpoint</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                The receiving URL, status, and event subscription behavior.
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormUrlField
@@ -280,10 +378,9 @@ export default function WebhookAddOrUpdateForm() {
             </CardContent>
           </Card>
 
-          {/* Delivery settings */}
           <Card>
             <CardHeader>
-              <CardTitle>Delivery settings</CardTitle>
+              <CardTitle className="text-base">Delivery Settings</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Control retry behavior and the per-attempt request timeout.
               </p>
@@ -352,10 +449,21 @@ export default function WebhookAddOrUpdateForm() {
             <FormSubmitButton
               isSubmitting={isSubmitting || isLoading}
               submittingText="Saving..."
-              submitText={isEditing ? "Update Webhook" : "Create Webhook"}
+              submitText={submitButtonText}
             />
           </div>
         </form>
+
+        <ConfirmationDialog
+          open={isPromptOpen}
+          onOpenChange={(open) => { if (!open) cancelLeave() }}
+          onConfirm={confirmLeave}
+          title="Discard changes?"
+          description="You have unsaved changes. If you leave now, they will be lost."
+          confirmText="Discard changes"
+          cancelText="Keep editing"
+          variant="destructive"
+        />
       </div>
     </DetailsContainer>
   )

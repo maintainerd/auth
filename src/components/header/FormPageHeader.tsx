@@ -67,7 +67,7 @@ export function FormPageHeader({
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
             
@@ -100,4 +100,3 @@ export function FormPageHeader({
     </>
   )
 }
-

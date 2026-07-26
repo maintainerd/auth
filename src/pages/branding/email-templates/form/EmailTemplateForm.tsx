@@ -16,6 +16,7 @@ import {
   FormSubmitButton,
   type SelectOption
 } from "@/components/form"
+import { TemplateParametersCard } from "@/pages/branding/components/TemplateParametersCard"
 import { ConfirmationDialog } from "@/components/dialog"
 import { useEmailTemplate, useUpdateEmailTemplate } from "@/hooks/useEmailTemplates"
 import { useToast } from "@/hooks/useToast"
@@ -145,7 +146,7 @@ export default function EmailTemplateForm() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel={backLabel} onBack={() => guard(() => navigate(backTo))} title="Edit Email Template" description="Update the email template details and content." />
+          <FormPageHeader backUrl={backTo} backLabel={backLabel} onBack={() => guard(() => navigate(backTo))} title="Edit Email Template" description="Update this existing email template." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -165,7 +166,7 @@ export default function EmailTemplateForm() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel={backLabel} onBack={() => guard(() => navigate(backTo))} title="Edit Email Template" description="Update the email template details and content." />
+          <FormPageHeader backUrl={backTo} backLabel={backLabel} onBack={() => guard(() => navigate(backTo))} title="Edit Email Template" description="Update this existing email template." />
           <Card>
             <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
               <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -196,7 +197,7 @@ export default function EmailTemplateForm() {
           backLabel={backLabel}
           onBack={() => guard(() => navigate(backTo))}
           title="Edit Email Template"
-          description="Update the email template details, content, and status."
+          description="Update the content and status for this existing email template."
         />
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" key={templateId}>
@@ -275,43 +276,10 @@ export default function EmailTemplateForm() {
             </CardContent>
           </Card>
 
-          {templateData?.parametersDoc && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Template Parameters</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Use these variables in the HTML and plain text content. They will be replaced with actual values when the email is sent.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto rounded-md border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="px-4 py-2 text-left font-medium">Parameter</th>
-                        <th className="px-4 py-2 text-left font-medium">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {templateData.parametersDoc
-                        .split('\n')
-                        .filter((line) => line.startsWith('|') && !line.includes('---'))
-                        .slice(1)
-                        .map((line, i) => {
-                          const cells = line.split('|').map((c) => c.trim()).filter(Boolean)
-                          return (
-                            <tr key={i} className="border-b last:border-0">
-                              <td className="px-4 py-2 font-mono text-xs">{cells[0]?.replace(/`/g, '')}</td>
-                              <td className="px-4 py-2 text-muted-foreground">{cells[1]}</td>
-                            </tr>
-                          )
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <TemplateParametersCard
+            parametersDoc={templateData?.parametersDoc}
+            description="Use these variables in the HTML and plain text content. They will be replaced with actual values when the email is sent."
+          />
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => guard(() => navigate(backTo))} disabled={isBusy}>

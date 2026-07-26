@@ -54,7 +54,7 @@ export async function fetchEmailTemplates(
   }`
   const response = await get<
     ApiResponse<{
-      rows: EmailTemplatePayload[]
+      rows: EmailTemplatePayload[] | null
       total: number
       page: number
       limit: number
@@ -64,7 +64,7 @@ export async function fetchEmailTemplates(
 
   if (response.success && response.data) {
     return {
-      rows: response.data.rows.map(transformPayloadToEmailTemplate),
+      rows: (response.data.rows ?? []).map(transformPayloadToEmailTemplate),
       total: response.data.total,
       page: response.data.page,
       limit: response.data.limit,

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Eye, Edit, Play, Pause } from "lucide-react"
 import { RowActions, type RowActionItem } from "@/components/data-table"
 import { useUpdateSmsTemplateStatus } from "@/hooks/useSmsTemplates"
@@ -11,8 +11,11 @@ interface SmsTemplateActionsProps {
 
 export function SmsTemplateActions({ template }: SmsTemplateActionsProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { showSuccess, showError } = useToast()
   const updateStatusMutation = useUpdateSmsTemplateStatus()
+  const from = `${location.pathname}${location.search}` || "/branding?tab=sms-templates"
+  const listState = { from, backLabel: "Back to SMS Templates" }
 
   const changeStatus = async (status: "active" | "inactive") => {
     try {
@@ -29,21 +32,22 @@ export function SmsTemplateActions({ template }: SmsTemplateActionsProps) {
   }
 
   const isActive = template.status === "active"
+  const canEditStatus = !template.isSystem
 
   const items: RowActionItem[] = [
     {
       key: "view",
       label: "View Details",
       icon: Eye,
-      onSelect: () => navigate(`/branding/sms-templates/${template.smsTemplateId}`),
+      onSelect: () => navigate(`/branding/sms-templates/${template.smsTemplateId}`, { state: listState }),
     },
     {
       key: "edit",
       label: "Edit Template",
       icon: Edit,
-      onSelect: () => navigate(`/branding/sms-templates/${template.smsTemplateId}/edit`),
+      onSelect: () => navigate(`/branding/sms-templates/${template.smsTemplateId}/edit`, { state: listState }),
     },
-    ...(isActive
+    ...(canEditStatus && isActive
       ? [
           {
             key: "deactivate",
@@ -59,7 +63,9 @@ export function SmsTemplateActions({ template }: SmsTemplateActionsProps) {
             },
           } satisfies RowActionItem,
         ]
-      : [
+      : []),
+    ...(canEditStatus && !isActive
+      ? [
           {
             key: "activate",
             label: "Activate Template",
@@ -72,7 +78,8 @@ export function SmsTemplateActions({ template }: SmsTemplateActionsProps) {
               confirmText: "Activate Template",
             },
           } satisfies RowActionItem,
-        ]),
+        ]
+      : []),
   ]
 
   return <RowActions items={items} />

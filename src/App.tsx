@@ -22,35 +22,30 @@ const ServiceUnavailablePage = lazy(() => import('./pages/service-unavailable/Se
 const SetupTenantPage = lazy(() => import('./pages/setup/tenant'))
 const SetupAdminPage = lazy(() => import('./pages/setup/admin'))
 const DashboardPage = lazy(() => import('./pages/dashboard'))
-const UsersPage = lazy(() => import('./pages/users'))
-const RolesPage = lazy(() => import('./pages/roles'))
-const InvitationsPage = lazy(() => import('./pages/invitations'))
+const UserManagementPage = lazy(() => import('./pages/user-management'))
 const UserDetailsPage = lazy(() => import('./pages/users/details'))
 const InviteForm = lazy(() => import('./pages/invitations/form/InviteForm'))
 const InviteDetailsPage = lazy(() => import('./pages/invitations/details/InviteDetailsPage'))
 const UserAddOrUpdateForm = lazy(() => import('./pages/users/form'))
-const ServicesPage = lazy(() => import('./pages/services'))
+const AuthenticationPage = lazy(() => import('./pages/authentication'))
+const ApplicationsPage = lazy(() => import('./pages/applications'))
+const ApisResourcesPage = lazy(() => import('./pages/apis-resources'))
 const ServiceDetailsPage = lazy(() => import('./pages/services/details'))
 const ServiceAddOrUpdateForm = lazy(() => import('./pages/services/form'))
-const ApisPage = lazy(() => import('./pages/apis'))
 const ApiDetailsPage = lazy(() => import('./pages/apis/details'))
 const ApiAddOrUpdateForm = lazy(() => import('./pages/apis/form'))
 const PermissionsPage = lazy(() => import('./pages/permissions/PermissionsPage'))
 const RoleDetailsPage = lazy(() => import('./pages/roles/details'))
 const RoleAddOrUpdateForm = lazy(() => import('./pages/roles/form'))
-const IdentityProvidersPage = lazy(() => import('./pages/identity-providers'))
 const IdentityProviderDetailsPage = lazy(() => import('./pages/identity-providers/details'))
 const IdentityProviderAddOrUpdateForm = lazy(() => import('./pages/identity-providers/form'))
-const ClientsPage = lazy(() => import('./pages/clients'))
 const ClientDetailsPage = lazy(() => import('./pages/clients/details'))
 const ClientAddOrUpdateForm = lazy(() => import('./pages/clients/form'))
 const EventsAndWebhooksPage = lazy(() => import('./pages/events/EventsAndWebhooksPage'))
 const WebhookDetailsPage = lazy(() => import('./pages/webhooks/details'))
 const WebhookAddOrUpdateForm = lazy(() => import('./pages/webhooks/form'))
-const WorkloadIdentityPage = lazy(() => import('./pages/workload-identity'))
 const WorkloadIdentityDetailsPage = lazy(() => import('./pages/workload-identity/details'))
 const WorkloadIdentityAddOrUpdateForm = lazy(() => import('./pages/workload-identity/form'))
-const PoliciesPage = lazy(() => import('./pages/policies'))
 const PolicyDetailsPage = lazy(() => import('./pages/policies/details'))
 const PolicyAddOrUpdateForm = lazy(() => import('./pages/policies/form'))
 const MfaConfigPage = lazy(() => import('./pages/security/mfa/MfaConfigPage'))
@@ -65,7 +60,6 @@ const SecurityPage = lazy(() => import('./pages/security/SecurityPage'))
 const TenantsPage = lazy(() => import('./pages/tenants'))
 const TenantDetailsPage = lazy(() => import('./pages/tenants/details'))
 const TenantAddOrUpdateForm = lazy(() => import('./pages/tenants/form'))
-const RegistrationFlowsPage = lazy(() => import('./pages/registration-flows'))
 const RegistrationFlowDetailsPage = lazy(() => import('./pages/registration-flows/details'))
 const RegistrationFlowAddOrUpdateForm = lazy(() => import('./pages/registration-flows/form'))
 const MonitoringPage = lazy(() => import('./pages/monitoring/MonitoringPage'))
@@ -73,6 +67,7 @@ const AuditLogDetailsPage = lazy(() => import('./pages/audit-log/details/AuditLo
 const AuthEventDetailsPage = lazy(() => import('./pages/log-monitoring/details/AuthEventDetailsPage'))
 const BrandingDetailsPage = lazy(() => import('./pages/branding/templates/details/BrandingDetailsPage'))
 const BrandingForm = lazy(() => import('./pages/branding/templates/form/BrandingForm'))
+const LoginTemplateFormsPage = lazy(() => import('./pages/branding/templates/forms/LoginTemplateFormsPage'))
 const BrandingPage = lazy(() => import('./pages/branding/BrandingPage'))
 const EmailTemplateDetailsPage = lazy(() => import('./pages/branding/email-templates/details'))
 const EmailTemplateForm = lazy(() => import('./pages/branding/email-templates/form'))
@@ -126,32 +121,36 @@ function App() {
           <Route path="tenants/create" element={<TenantAddOrUpdateForm />} />
           <Route path="tenants/:id" element={<TenantDetailsPage />} />
           <Route path="tenants/:id/edit" element={<TenantAddOrUpdateForm />} />
-          <Route path="users" element={<UsersPage />} />
+          <Route path="user-management" element={<UserManagementPage />} />
+          <Route path="users" element={<UserManagementPage defaultTab="users" />} />
           <Route path="users/create" element={<UserAddOrUpdateForm />} />
           <Route path="users/:userId" element={<UserDetailsPage />} />
           <Route path="users/:userId/edit" element={<UserAddOrUpdateForm />} />
-          <Route path="invites" element={<InvitationsPage />} />
+          <Route path="invites" element={<UserManagementPage defaultTab="invitations" />} />
           <Route path="invites/create" element={<InviteForm />} />
           <Route path="invites/:inviteId" element={<InviteDetailsPage />} />
-          <Route path="roles" element={<RolesPage />} />
+          <Route path="roles" element={<UserManagementPage defaultTab="roles" />} />
           <Route path="roles/create" element={<RoleAddOrUpdateForm />} />
           <Route path="roles/:roleId" element={<RoleDetailsPage />} />
           <Route path="roles/:roleId/edit" element={<RoleAddOrUpdateForm />} />
 
-          <Route path="services" element={<ServicesPage />} />
+          <Route path="authentication" element={<AuthenticationPage />} />
+          <Route path="applications" element={<ApplicationsPage />} />
+          <Route path="apis-resources" element={<ApisResourcesPage />} />
+          <Route path="services" element={<ApisResourcesPage defaultTab="services" />} />
           <Route path="services/create" element={<ServiceAddOrUpdateForm />} />
           <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
           <Route path="services/:serviceId/edit" element={<ServiceAddOrUpdateForm />} />
-          <Route path="apis" element={<ApisPage />} />
+          <Route path="apis" element={<ApisResourcesPage defaultTab="apis" />} />
           <Route path="apis/create" element={<ApiAddOrUpdateForm />} />
           <Route path="apis/:apiId" element={<ApiDetailsPage />} />
           <Route path="apis/:apiId/edit" element={<ApiAddOrUpdateForm />} />
           <Route path="permissions" element={<PermissionsPage />} />
-          <Route path="providers/identity" element={<IdentityProvidersPage />} />
+          <Route path="providers/identity" element={<AuthenticationPage defaultTab="identity-providers" />} />
           <Route path="providers/identity/create" element={<IdentityProviderAddOrUpdateForm />} />
           <Route path="providers/identity/:providerId" element={<IdentityProviderDetailsPage />} />
           <Route path="providers/identity/:providerId/edit" element={<IdentityProviderAddOrUpdateForm />} />
-          <Route path="clients" element={<ClientsPage />} />
+          <Route path="clients" element={<ApplicationsPage defaultTab="clients" />} />
           <Route path="clients/create" element={<ClientAddOrUpdateForm />} />
           <Route path="clients/:clientId" element={<ClientDetailsPage />} />
           <Route path="clients/:clientId/edit" element={<ClientAddOrUpdateForm />} />
@@ -160,15 +159,15 @@ function App() {
           <Route path="webhooks/:webhookId/edit" element={<WebhookAddOrUpdateForm />} />
           <Route path="events" element={<EventsAndWebhooksPage />} />
           <Route path="audit-log/:uuid" element={<AuditLogDetailsPage />} />
-          <Route path="workload-identity" element={<WorkloadIdentityPage />} />
+          <Route path="workload-identity" element={<ApplicationsPage defaultTab="workload-identity" />} />
           <Route path="workload-identity/create" element={<WorkloadIdentityAddOrUpdateForm />} />
           <Route path="workload-identity/:federationId" element={<WorkloadIdentityDetailsPage />} />
           <Route path="workload-identity/:federationId/edit" element={<WorkloadIdentityAddOrUpdateForm />} />
-          <Route path="policies" element={<PoliciesPage />} />
+          <Route path="policies" element={<ApisResourcesPage defaultTab="policies" />} />
           <Route path="policies/create" element={<PolicyAddOrUpdateForm />} />
           <Route path="policies/:policyId" element={<PolicyDetailsPage />} />
           <Route path="policies/:policyId/edit" element={<PolicyAddOrUpdateForm />} />
-          <Route path="registration-flows" element={<RegistrationFlowsPage />} />
+          <Route path="registration-flows" element={<AuthenticationPage defaultTab="registration-flows" />} />
           <Route path="registration-flows/create" element={<RegistrationFlowAddOrUpdateForm />} />
           <Route path="registration-flows/:registrationFlowId" element={<RegistrationFlowDetailsPage />} />
           <Route path="registration-flows/:registrationFlowId/edit" element={<RegistrationFlowAddOrUpdateForm />} />
@@ -176,6 +175,7 @@ function App() {
           <Route path="branding/templates/create" element={<BrandingForm />} />
           <Route path="branding/templates/:brandingId" element={<BrandingDetailsPage />} />
           <Route path="branding/templates/:brandingId/edit" element={<BrandingForm />} />
+          <Route path="branding/templates/:brandingId/forms" element={<LoginTemplateFormsPage />} />
           <Route path="branding/email-templates/:templateId" element={<EmailTemplateDetailsPage />} />
           <Route path="branding/email-templates/:templateId/edit" element={<EmailTemplateForm />} />
           <Route path="branding/sms-templates/:templateId" element={<SmsTemplateDetailsPage />} />

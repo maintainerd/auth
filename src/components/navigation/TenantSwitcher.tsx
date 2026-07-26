@@ -25,22 +25,13 @@ import { logoutAndRedirect } from "@/services/api/auth"
 import { tenantConsoleUrl } from "@/utils/tenant"
 import type { TenantEntity } from "@/services/api/tenants/types"
 
-/** Small square initial tile, used as a lightweight tenant avatar. */
-function TenantTile({ name, className }: { name?: string; className?: string }) {
-  const initial = (name?.trim()?.[0] ?? "?").toUpperCase()
-  return (
-    <span
-      className={cn(
-        "flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold",
-        className,
-      )}
-    >
-      {initial}
-    </span>
-  )
-}
-
-export function TenantSwitcher({ className }: { className?: string }) {
+export function TenantSwitcher({
+  className,
+  size = "default",
+}: {
+  className?: string
+  size?: "default" | "compact"
+}) {
   const [open, setOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<TenantEntity | null>(null)
@@ -92,14 +83,27 @@ export function TenantSwitcher({ className }: { className?: string }) {
             role="combobox"
             aria-expanded={open}
             aria-label="Switch tenant"
-            className="h-10 w-full justify-start gap-2 rounded-md border border-slate-200 bg-white px-2 text-foreground hover:bg-slate-50"
+            className={cn(
+              size === "compact"
+                ? "h-9 gap-1.5 border border-slate-700 bg-slate-800 px-2 text-xs text-white hover:bg-slate-700 hover:text-white active:!bg-slate-700 active:!text-white data-[state=open]:!bg-slate-700 data-[state=open]:!text-white"
+                : "h-10 gap-2 border border-slate-700 bg-slate-800 px-2 text-sm text-white hover:bg-slate-700 hover:text-white active:!bg-slate-700 active:!text-white data-[state=open]:!bg-slate-700 data-[state=open]:!text-white",
+            )}
           >
             {showSkeleton ? (
-              <Skeleton className="h-4 w-24 bg-muted" />
+              <Skeleton
+                className={cn(
+                  size === "compact" ? "h-3.5 w-20" : "h-4 w-24",
+                )}
+              />
             ) : (
-              <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">{label}</span>
+              <span className="min-w-0 flex-1 truncate text-left font-medium">{label}</span>
             )}
-            <ChevronsUpDown className="ml-auto size-4 shrink-0 opacity-60" />
+            <ChevronsUpDown
+              className={cn(
+                "ml-auto shrink-0",
+                size === "compact" ? "size-3.5 text-slate-400" : "size-4 text-slate-400",
+              )}
+            />
           </Button>
         </PopoverTrigger>
 
@@ -129,7 +133,6 @@ export function TenantSwitcher({ className }: { className?: string }) {
                           onSelect={() => handleSelect(tenant)}
                           className="cursor-pointer gap-2"
                         >
-                          <TenantTile name={tenant.name} className="bg-muted text-foreground" />
                           <div className="flex min-w-0 flex-col">
                             <div className="flex items-center gap-1.5">
                               <span className="truncate font-medium">{tenant.name}</span>
@@ -148,7 +151,7 @@ export function TenantSwitcher({ className }: { className?: string }) {
                           </div>
                           <Check
                             className={cn(
-                              "ml-auto size-4 text-blue-600",
+                              "ml-auto size-4 text-primary",
                               isActive ? "opacity-100" : "opacity-0",
                             )}
                           />
@@ -165,7 +168,7 @@ export function TenantSwitcher({ className }: { className?: string }) {
               <button
                 type="button"
                 onClick={handleCreate}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm font-medium text-blue-600 transition-colors hover:bg-accent"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-accent"
               >
                 <Plus className="size-4" />
                 Create New Tenant

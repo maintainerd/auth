@@ -198,7 +198,7 @@ export function AuditSettingsPanel() {
             <select
               value={formValues.log_level}
               onChange={(e) => handleUpdate({ log_level: e.target.value })}
-              className="flex h-11 w-full rounded-lg border border-input bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {LOG_LEVELS.map((level) => <option key={level.value} value={level.value}>{level.label}</option>)}
             </select>
