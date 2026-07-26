@@ -1,6 +1,7 @@
 package seeder
 
 import (
+	"errors"
 	"log/slog"
 	"time"
 
@@ -30,10 +31,26 @@ type Branding struct {
 
 func (Branding) TableName() string { return "branding" }
 
-// Two system themes are seeded — captures the app's current look (blue primary).
-// Both are is_system (undeletable); maintainerd-light is the active default.
+// Three system themes are seeded. They are is_system (undeletable); default is
+// the active tenant baseline, while light and dark are switchable presets.
 // Wired but not yet consumed by the login page; the active one is the loaded
 // style and admins can switch/extend via the branding API.
+const defaultBrandingMetadata = `{
+  "colors": {
+    "primary": "#2563eb",
+    "secondary": "#525252",
+    "accent": "#0ea5e9",
+    "appBackground": "#f4f4f4",
+    "topPanelBackground": "#161616",
+    "sidePanelBackground": "#161616",
+    "cardBackground": "#ffffff",
+    "textPrimary": "#171717",
+    "textMuted": "#737373",
+    "border": "#e5e5e5"
+  },
+  "font": { "family": "Inter, system-ui, sans-serif" }
+}`
+
 const lightBrandingMetadata = `{
   "colors": {
     "primary": "#2563eb",
@@ -66,27 +83,64 @@ const darkBrandingMetadata = `{
   "font": { "family": "Inter, system-ui, sans-serif" }
 }`
 
+type systemBrandingTheme struct {
+	name     string
+	metadata string
+	active   bool
+}
+
+type legacySystemBrandingTheme struct {
+	name            string
+	replacementName string
+	metadata        string
+}
+
+func systemBrandingThemes() []systemBrandingTheme {
+	return []systemBrandingTheme{
+		{name: "default", metadata: defaultBrandingMetadata, active: true},
+		{name: "light", metadata: lightBrandingMetadata, active: false},
+		{name: "dark", metadata: darkBrandingMetadata, active: false},
+	}
+}
+
+func legacySystemBrandingThemes() []legacySystemBrandingTheme {
+	return []legacySystemBrandingTheme{
+		{name: "maintainerd-light", replacementName: "light", metadata: lightBrandingMetadata},
+		{name: "maintainerd-dark", replacementName: "dark", metadata: darkBrandingMetadata},
+	}
+}
+
 func SeedBranding(db *gorm.DB, tenantID int64) error {
-	// Two immutable system themes: maintainerd-light (active default) and
-	// maintainerd-dark (inactive). The active one is the loaded style; admins
-	// can switch between them or add their own. Idempotent — seeded by name.
-	systemThemes := []struct {
-		name     string
-		metadata string
-		active   bool
-	}{
-		{name: "maintainerd-light", metadata: lightBrandingMetadata, active: true},
-		{name: "maintainerd-dark", metadata: darkBrandingMetadata, active: false},
+	// Immutable system themes: default (active), light, and dark. The active one
+	// is the loaded style; admins can switch between them or add their own.
+	// Idempotent — seeded by name.
+	if err := normalizeLegacySystemBranding(db, tenantID); err != nil {
+		return err
 	}
 
-	for _, t := range systemThemes {
+	hasActive, err := tenantHasActiveBranding(db, tenantID)
+	if err != nil {
+		return err
+	}
+
+	for _, t := range systemBrandingThemes() {
 		var existing Branding
 		err := db.Where("tenant_id = ? AND name = ?", tenantID, t.name).First(&existing).Error
 		if err == nil {
+			if t.active && !hasActive && !existing.IsActive {
+				if err := db.Model(&existing).Update("is_active", true).Error; err != nil {
+					return err
+				}
+				hasActive = true
+			}
 			slog.Info("System branding already seeded", "tenant_id", tenantID, "name", t.name)
 			continue
 		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
 
+		isActive := t.active && !hasActive
 		b := Branding{
 			BrandingUUID: uuid.New(),
 			TenantID:     tenantID,
@@ -94,14 +148,80 @@ func SeedBranding(db *gorm.DB, tenantID int64) error {
 			Layout:       "centered",
 			CompanyName:  "Maintainerd-Auth",
 			IsSystem:     true,
-			IsActive:     t.active,
+			IsActive:     isActive,
 			Metadata:     datatypes.JSON([]byte(t.metadata)),
 		}
 		if err := db.Create(&b).Error; err != nil {
 			return err
 		}
+		if isActive {
+			hasActive = true
+		}
 		slog.Info("Seeded system branding", "tenant_id", tenantID, "name", t.name)
 	}
 
 	return nil
+}
+
+func normalizeLegacySystemBranding(db *gorm.DB, tenantID int64) error {
+	for _, legacy := range legacySystemBrandingThemes() {
+		var existing Branding
+		err := db.Where(
+			"tenant_id = ? AND name = ? AND is_system = ?",
+			tenantID,
+			legacy.name,
+			true,
+		).First(&existing).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+
+		var replacement Branding
+		err = db.Where(
+			"tenant_id = ? AND name = ? AND is_system = ?",
+			tenantID,
+			legacy.replacementName,
+			true,
+		).First(&replacement).Error
+		if err == nil {
+			if existing.IsActive {
+				return db.Model(&existing).Update("is_active", false).Error
+			}
+			continue
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		if err := db.Model(&existing).Updates(map[string]any{
+			"name":      legacy.replacementName,
+			"is_active": false,
+			"metadata":  datatypes.JSON([]byte(legacy.metadata)),
+		}).Error; err != nil {
+			return err
+		}
+		slog.Info(
+			"Normalized legacy system branding",
+			"tenant_id",
+			tenantID,
+			"name",
+			legacy.name,
+			"replacement",
+			legacy.replacementName,
+		)
+	}
+	return nil
+}
+
+func tenantHasActiveBranding(db *gorm.DB, tenantID int64) (bool, error) {
+	var count int64
+	if err := db.Model(&Branding{}).
+		Where("tenant_id = ? AND is_active = ?", tenantID, true).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
