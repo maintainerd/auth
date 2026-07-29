@@ -25,8 +25,11 @@ function formatValue(value: unknown): string {
  * overrides, attribute mapping, and extra provider-specific config keys.
  */
 export function IdentityProviderConfigurationTab({ provider }: IdentityProviderConfigurationTabProps) {
-  const schema = getProviderConfigSchema(provider.provider)
+  const schema = provider.is_system || provider.provider_type === "system"
+    ? undefined
+    : getProviderConfigSchema(provider.provider)
   const config = provider.config || {}
+  const allowedAudiences = provider.allowed_audiences ?? []
   const knownKeys = [
     ...getProviderFieldKeys(provider.provider),
     ...getPromotedProviderFieldKeys(),
@@ -68,11 +71,11 @@ export function IdentityProviderConfigurationTab({ provider }: IdentityProviderC
           </div>
         </div>
 
-        {provider.allow_token_federation && provider.allowed_audiences.length > 0 && (
+        {provider.allow_token_federation && allowedAudiences.length > 0 && (
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Allowed audiences</p>
             <div className="flex flex-wrap gap-1.5">
-              {provider.allowed_audiences.map((aud) => (
+              {allowedAudiences.map((aud) => (
                 <span key={aud} className="rounded bg-muted px-2 py-1 font-mono text-xs">
                   {aud}
                 </span>
@@ -81,7 +84,7 @@ export function IdentityProviderConfigurationTab({ provider }: IdentityProviderC
           </div>
         )}
 
-        {provider.allow_token_federation && provider.allowed_audiences.length === 0 && (
+        {provider.allow_token_federation && allowedAudiences.length === 0 && (
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Allowed audiences</p>
             <p className="text-xs text-muted-foreground">—</p>

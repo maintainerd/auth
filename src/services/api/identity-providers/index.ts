@@ -10,11 +10,29 @@ import type {
   IdentityProviderListResponse,
   IdentityProviderQueryParams,
   IdentityProviderResponse,
+  IdentityProviderConfig,
   IdentityProviderDetailResponse,
   CreateIdentityProviderRequest,
   UpdateIdentityProviderRequest,
   UpdateIdentityProviderStatusRequest
 } from './types'
+
+function normalizeConfig(config: unknown): IdentityProviderConfig | null {
+  if (config === null || config === undefined) return null
+  if (typeof config === 'object' && !Array.isArray(config)) {
+    return config as IdentityProviderConfig
+  }
+  return {}
+}
+
+function normalizeIdentityProviderDetail(provider: IdentityProviderDetailResponse): IdentityProviderDetailResponse {
+  return {
+    ...provider,
+    allowed_audiences: provider.allowed_audiences ?? [],
+    email_domains: provider.email_domains ?? [],
+    config: normalizeConfig(provider.config),
+  }
+}
 
 /**
  * Fetch identity providers with optional filters and pagination
@@ -51,7 +69,7 @@ export async function fetchIdentityProviderById(identityProviderId: string): Pro
   const response = await get<ApiResponse<IdentityProviderDetailResponse>>(endpoint)
 
   if (response.success && response.data) {
-    return response.data
+    return normalizeIdentityProviderDetail(response.data)
   }
 
   throw new Error(response.message || 'Failed to fetch identity provider')

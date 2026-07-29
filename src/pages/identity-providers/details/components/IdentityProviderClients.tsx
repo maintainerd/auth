@@ -50,7 +50,7 @@ export function IdentityProviderClients({ providerId, providerName }: IdentityPr
 
   const getProviderConnection = (client: Client) => {
     return client.connections?.find(
-      (connection) => connection.identity_provider.identity_provider_id === providerId,
+      (connection) => connection.identity_provider?.identity_provider_id === providerId,
     )
   }
 
@@ -98,7 +98,7 @@ export function IdentityProviderClients({ providerId, providerName }: IdentityPr
 
         {data && connectedClients.length > 0 && connectedClients.map((client) => {
           const connection = getProviderConnection(client)
-          const canDisconnect = !connection?.identity_provider.is_system
+          const canDisconnect = Boolean(connection?.identity_provider && !connection.identity_provider.is_system)
           const actions: RowActionItem[] = [
             {
               key: "view",

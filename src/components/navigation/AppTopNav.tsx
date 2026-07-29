@@ -48,7 +48,7 @@ export function AppTopNav() {
             Maintainerd-IAM
           </div>
         </span>
-        <TenantSwitcher className="ml-4 hidden w-56 sm:block" />
+        <TenantSwitcher className="ml-4 hidden w-48 sm:block" size="compact" />
       </div>
 
       <div className="ml-3 flex shrink-0 items-center gap-1.5">
@@ -58,11 +58,11 @@ export function AppTopNav() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               aria-label="Help & resources"
-              className="text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
+              className="size-8 text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
             >
-              <HelpCircle className="size-5" />
+              <HelpCircle className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-48" align="end">
@@ -85,16 +85,17 @@ export function AppTopNav() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="flex items-center gap-2 px-2 text-white hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
+              size="sm"
+              className="flex h-8 items-center gap-1.5 px-1.5 text-white hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
             >
-              <Avatar className="h-8 w-8 shrink-0">
+              <Avatar className="h-6 w-6 shrink-0">
                 <AvatarImage src={undefined} alt={displayName} />
-                <AvatarFallback className="bg-slate-700 text-xs text-white">
+                <AvatarFallback className="bg-slate-700 text-[10px] text-white">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden max-w-40 truncate text-sm font-medium lg:inline">{displayName}</span>
-              <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
+              <span className="hidden max-w-36 truncate text-xs font-medium lg:inline">{displayName}</span>
+              <ChevronDown className="hidden h-3.5 w-3.5 text-slate-400 sm:block" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end">

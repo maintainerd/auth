@@ -36,43 +36,48 @@ export default function IdentityProviderDetailsPage() {
   const handleTabChange = (tab: string) => setSearchParams({ tab })
 
   const { data: provider, isLoading, isError } = useIdentityProvider(providerId || "")
+  const hasProvider = Boolean(provider)
 
   return (
     <DetailLayout
       backLabel="Back to Identity Providers"
       onBack={() => navigate(`/providers/identity`)}
       isLoading={isLoading}
-      isError={isError || !provider}
+      isError={isError || (!isLoading && !hasProvider)}
       notFoundTitle="Identity Provider not found"
       notFoundDescription="The identity provider you're looking for doesn't exist or may have been removed."
     >
-      <IdentityProviderHeader provider={provider!} providerId={providerId!} />
+      {provider && (
+        <>
+          <IdentityProviderHeader provider={provider} providerId={providerId!} />
 
-      <DetailTabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          {TABS.map(({ value, label, icon: Icon }) => (
-            <TabsTrigger key={value} value={value} className="gap-2">
-              <Icon className="size-4" />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+          <DetailTabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList>
+              {TABS.map(({ value, label, icon: Icon }) => (
+                <TabsTrigger key={value} value={value} className="gap-2">
+                  <Icon className="size-4" />
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-        <TabsContent value="connection">
-          <IdentityProviderConnectionTab provider={provider!} />
-        </TabsContent>
+            <TabsContent value="connection">
+              <IdentityProviderConnectionTab provider={provider} />
+            </TabsContent>
 
-        <TabsContent value="configuration">
-          <IdentityProviderConfigurationTab provider={provider!} />
-        </TabsContent>
+            <TabsContent value="configuration">
+              <IdentityProviderConfigurationTab provider={provider} />
+            </TabsContent>
 
-        <TabsContent value="connected-clients">
-          <IdentityProviderClients
-            providerId={providerId!}
-            providerName={provider!.display_name}
-          />
-        </TabsContent>
-      </DetailTabs>
+            <TabsContent value="connected-clients">
+              <IdentityProviderClients
+                providerId={providerId!}
+                providerName={provider.display_name}
+              />
+            </TabsContent>
+          </DetailTabs>
+        </>
+      )}
     </DetailLayout>
   )
 }

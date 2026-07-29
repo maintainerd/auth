@@ -36,7 +36,9 @@ function connectionValue(provider: IdentityProviderDetail, key: string): unknown
  * because the backend stores them write-only.
  */
 export function IdentityProviderConnectionTab({ provider }: IdentityProviderConnectionTabProps) {
-  const connectionSchema = getProviderConnectionSchema(provider.provider)
+  const connectionSchema = provider.is_system || provider.provider_type === "system"
+    ? undefined
+    : getProviderConnectionSchema(provider.provider)
   const providerLabel = PROVIDER_LABELS[provider.provider] ?? provider.provider
 
   return (

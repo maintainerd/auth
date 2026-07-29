@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Route, Routes, Navigate } from 'react-router-dom'
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { StepUpProvider } from './components/stepup/StepUpProvider'
 import { ToastContainer } from 'react-toastify'
@@ -87,13 +87,15 @@ const SettingsPage = lazy(() => import('./pages/account/SettingsPage'))
 const NotFoundPage = lazy(() => import('./pages/not-found/NotFoundPage'))
 
 function App() {
+  const location = useLocation()
+
   // Auth + tenant initialization and all redirect gating now live in
   // AppBootstrap → RouteGuard, which wrap the route tree below.
   return (
     <QueryClientProvider client={queryClient}>
       <StepUpProvider>
       <AppBootstrap>
-      <ErrorBoundary>
+      <ErrorBoundary resetKey={`${location.pathname}${location.search}`}>
       <Suspense fallback={<AppLoadingScreen />}>
       <Routes>
         <Route path="/" element={<LoginPage />} />

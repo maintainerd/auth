@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface ErrorBoundaryProps {
   children: ReactNode
+  resetKey?: string
 }
 
 interface ErrorBoundaryState {
@@ -27,6 +28,12 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   componentDidCatch(error: Error, info: ErrorInfo): void {
     // Surface the error for diagnostics; a real telemetry sink can hook in here.
     console.error('Unhandled application error:', error, info.componentStack)
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps): void {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false })
+    }
   }
 
   private readonly handleReload = (): void => {

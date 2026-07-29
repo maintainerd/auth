@@ -102,7 +102,7 @@ describe("ServicePoliciesTab", () => {
     }))
   })
 
-  it("hides the remove action for system policies", async () => {
+  it("shows the remove relationship action for system policies", async () => {
     const u = user()
     useServicePoliciesMock.mockReturnValue({
       data: response([makePolicy({ is_system: true })]),
@@ -112,7 +112,7 @@ describe("ServicePoliciesTab", () => {
     renderWithProviders(<ServicePoliciesTab serviceId="s1" />)
     await u.click(getMenuButton())
     expect(await screen.findByText("View Details")).toBeInTheDocument()
-    expect(screen.queryByText("Remove from Service")).not.toBeInTheDocument()
+    expect(screen.getByText("Remove from Service")).toBeInTheDocument()
   })
 
   it("removes a policy from the service and shows success", async () => {

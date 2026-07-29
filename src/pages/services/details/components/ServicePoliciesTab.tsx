@@ -64,21 +64,19 @@ export function ServicePoliciesTab({ serviceId }: ServicePoliciesTabProps) {
       },
     ]
 
-    if (!policy.is_system) {
-      items.push({
-        key: "remove",
-        label: "Remove from Service",
-        icon: Trash2,
-        destructive: true,
-        separatorBefore: true,
-        onSelect: () => removePolicy(policy),
-        confirm: {
-          title: "Remove Policy from Service",
-          description: "This removes the policy from this service. The policy itself will not be deleted.",
-          confirmText: "Remove",
-        },
-      })
-    }
+    items.push({
+      key: "remove",
+      label: "Remove from Service",
+      icon: Trash2,
+      destructive: true,
+      separatorBefore: true,
+      onSelect: () => removePolicy(policy),
+      confirm: {
+        title: "Remove Policy from Service",
+        description: "This removes the policy from this service. The policy itself will not be deleted.",
+        confirmText: "Remove",
+      },
+    })
 
     return items
   }
