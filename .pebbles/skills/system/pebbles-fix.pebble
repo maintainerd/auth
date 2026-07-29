@@ -3,31 +3,31 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "7d0560ce-f45a-4606-9581-c18c2e4067bf",
+        "id": "6b162cf5-0993-4427-be0d-2b38a779d551",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "3bf5ef0a-ddc2-4054-adf0-90599241917a",
+        "id": "8e1edcf8-1c9c-4f0e-842b-333838b1e49f",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "570144ee-4a11-4020-ac65-e0f45d8b33c1",
+        "id": "8776241b-b6eb-472d-a04c-8695199a5136",
         "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
       },
       {
-        "id": "7ed6670d-0598-4517-aa4d-7b3e4f16a16e",
+        "id": "a3529486-bb8d-47cf-aa4a-bf5242798078",
         "text": "Bound by system rule: Findings are the append-only evidence log (rules/system/findings-as-evidence)"
       },
       {
-        "id": "adf3d8a5-5594-43ec-ba28-606cf0b8118b",
+        "id": "0e95cc6d-8900-48f0-8668-5ece1399048a",
         "text": "Bound by system rule: Implementation standard (rules/system/implementation-standard)"
       },
       {
-        "id": "f7f0021b-95d7-4e41-a7c3-9a17b520496a",
+        "id": "1033644e-523c-4231-9e4f-ec83ec79a211",
         "text": "Bound by system rule: Requirement fidelity (rules/system/requirement-fidelity)"
       },
       {
-        "id": "b2ec8b4f-87da-453f-802f-d2bcf092e56b",
+        "id": "c118c649-583a-44eb-9bf5-6b4cca4db51a",
         "text": "Bound by system rule: Command discipline (rules/system/command-discipline)"
       }
     ],
@@ -35,71 +35,71 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "d4cda87b-45c4-40d0-9f35-1e55c2d23037",
+        "id": "356549b0-d371-4719-a604-1991e86158e6",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "04c4444d-6561-47eb-b7f5-f71ffe3bd21e",
+        "id": "d4cf64d4-b3c6-4710-ba1a-f0f80593b632",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "e827ce91-3bc3-4149-b7f6-d4b9834d39fa",
+        "id": "9c6374a6-f696-42a0-bc6f-e22ba18ee126",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
     "output": "The fix in code, statuses updated truthfully, and a finding documenting what was broken and what changed.",
     "prerequisites": [
       {
-        "id": "add9819b-e829-44dc-a0a3-3f5792bd2c54",
+        "id": "0f63f9be-81f6-4f80-aaba-397f5d537fb5",
         "text": "A saved map — locate the code via the graph, not grep"
       },
       {
-        "id": "f48ed8e7-3b76-4482-93c4-660b94da61d9",
+        "id": "e1b2dc33-4f40-4c89-818e-79ce75f84708",
         "text": "The failing pebble/unit and the spec↔code gap are identified before editing"
       }
     ],
     "purpose": "Fix the code so it satisfies a spec (records the fix)",
     "steps": [
       {
-        "id": "25bcd184-9d4e-400f-9376-c66c0b1a3cc3",
+        "id": "aef15493-8723-4e54-9c50-720f1d7b38b8",
         "text": "Fix the implementation so it satisfies this spec: $ARGUMENTS"
       },
       {
-        "id": "a3ad6bd9-d772-4f44-9df8-3a85510997e8",
+        "id": "d1150a1e-3664-43cd-afaf-2715153bc07a",
         "text": "SCOPE FIRST (echo before editing): the pebble/unit that is failing, the exact gap between spec and code, and the files you will touch. Fixing the wrong gap is wasted work."
       },
       {
-        "id": "06d59c11-a16d-4e4a-a5df-ddab4a72d41a",
-        "text": "STEP 1 — GROUND IT: `get` the pebble + its refs (honor model/contract shapes exactly); locate the code via the graph (map-symbol/map-search/map-callers), read the FULL surrounding context, and cite a precedent file for any pattern you introduce."
+        "id": "5201d7e6-1b91-402a-82ad-852917d6fa8b",
+        "text": "STEP 1 — GROUND IT: `get` the pebble + its refs (honor model/structure/api shapes exactly); locate the code via the graph (map-symbol/map-search/map-callers), read the FULL surrounding context, and cite a precedent file for any pattern you introduce."
       },
       {
-        "id": "fcb8ccaf-11bf-4101-bbcd-c4afd18d5610",
+        "id": "8e4c252f-a0a2-49f9-8044-bba8bdf419ae",
         "text": "STEP 2 — FIX MINIMALLY: change only what the spec requires, following the codebase's own conventions. Do NOT redesign the spec — a spec that is itself wrong becomes an assumption/spec-violation finding for the user, never a silent code decision."
       },
       {
-        "id": "24a09d2b-6123-478d-824d-1498367253c3",
+        "id": "1a34c3c7-7f18-4fac-bd16-69201f7f7ecc",
         "text": "STEP 3 — PROVE IT: run the relevant gates (build/lint/tests) in the project's sanctioned runtime; judge by EXIT CODE, not log text; re-run after your LAST edit. A gate you did not run is a gate that did not pass."
       },
       {
-        "id": "b7468212-bd47-4886-a998-2ee0f43761e0",
-        "text": "STEP 4 — RECORD: set truthful statuses (implemented = code exists; leave verified to the verifier unless you proved behavior), then \"{PEBBLES_CLI}\" add-finding <path> --title \"...\" [--unit <id>] --category bug --observation \"what was broken\" --evidence \"file:line\" --solution \"what you changed\"."
+        "id": "bb9a2681-b9f7-43b1-94f1-12b9814fa96b",
+        "text": "STEP 4 — RECORD: set truthful statuses (implemented = code exists; leave verified to the verifier unless you proved behavior), then \"{PEBBLES_CLI}\" add-finding <path> --title \"...\" [--unit <id>] --category bug --body \"## Observation\\n\\nwhat was broken\\n\\n## Evidence\\n\\n- file:line\\n\\n## Solution\\n\\nwhat you changed\"."
       },
       {
-        "id": "f8898672-fbdf-4166-b285-8e9b73d83346",
+        "id": "ae6e8d2a-d85e-4e05-abd2-1e720f4bafe6",
         "text": "Report: what you changed, which gates passed (with their exit results), and any spec gap you flagged rather than guessed."
       }
     ],
     "verify": [
       {
-        "id": "33d86019-45e9-4a4a-893a-05629a1ba880",
+        "id": "8597b74a-a508-410b-936a-46a978bb5cc6",
         "text": "The relevant gates passed by EXIT CODE, re-run after the last edit"
       },
       {
-        "id": "f312b410-7d70-4a49-8383-d3da739a5416",
+        "id": "590e4cb9-2ef0-45c1-8932-07f6c435414a",
         "text": "Only the spec's gap was changed; any wrong-spec was flagged as a finding, not silently redesigned"
       },
       {
-        "id": "de8a392f-cf55-4dbc-89af-1aedfd8f289c",
+        "id": "1f4ef426-0f0e-4e82-b358-766394defa24",
         "text": "Statuses updated truthfully and a finding records what was broken and what changed"
       }
     ],
@@ -111,7 +111,7 @@
   "name": "pebbles-fix",
   "refs": [
     {
-      "id": "940d2150-942e-4fc2-9167-05aeb90b9728",
+      "id": "8c067125-17db-43fa-a48e-3435efe3807a",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -119,7 +119,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "b56def2b-593a-4bfc-89ce-66b17f647bb4",
+      "id": "e34a773e-da99-4d4a-8a1e-b03b38cd7386",
       "label": "Status discipline",
       "path": ".pebbles/rules/system/status-discipline.pebble",
       "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
@@ -127,7 +127,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "9b25dbbb-7b81-4831-a22c-03be31ce0717",
+      "id": "c91d011b-926d-478e-88d0-8c621c46b0c4",
       "label": "Findings are the append-only evidence log",
       "path": ".pebbles/rules/system/findings-as-evidence.pebble",
       "pebbleId": "468bc1e3-c8ac-4495-8166-f6dd6ed9b469",
@@ -135,7 +135,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "feb110d5-49be-4d90-9b9b-c531fb19eb6b",
+      "id": "fe779598-8111-40a1-8ef9-24af030474ab",
       "label": "Implementation standard",
       "path": ".pebbles/rules/system/implementation-standard.pebble",
       "pebbleId": "f4ec7510-7bfa-4a74-92fa-954f8efb95a4",
@@ -143,7 +143,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "84f23966-2675-4d6b-b81e-a916ca079841",
+      "id": "5aa06c69-f9e5-4424-8a1f-9ab7d61fa693",
       "label": "Requirement fidelity",
       "path": ".pebbles/rules/system/requirement-fidelity.pebble",
       "pebbleId": "4e4afae6-8bf7-4310-b541-a26b7e3bd37d",
@@ -151,7 +151,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "07f0892e-8ebc-4e8c-a2cd-195929ec1524",
+      "id": "df30cb5d-35d4-4cb4-9b1c-6c4685cbc630",
       "label": "Command discipline",
       "path": ".pebbles/rules/system/command-discipline.pebble",
       "pebbleId": "197d289c-06cc-4cd5-b560-2efd427ed161",
@@ -159,7 +159,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "c0153675-4bc4-4f19-8584-3824272dfc28",
+      "id": "dd511fc3-251d-4b16-adb8-81cf15cc2bff",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -167,7 +167,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "882635d6-9b57-44fb-925f-2c38da85af99",
+      "id": "794cbcc6-491c-4e57-9892-047ebc89215d",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -180,6 +180,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.785Z",
+  "updatedAt": "2026-07-28T03:27:29.264Z",
   "version": 1
 }

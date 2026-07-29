@@ -3,23 +3,23 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "5339a8cb-e913-4bdf-b445-eaa71f42e127",
+        "id": "36a958ae-773e-4ae8-b2bf-0cda924607be",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "1732515e-e154-4bc1-bbb1-3ce58a2be676",
+        "id": "58f6bb7f-a629-4e6a-a99f-7cc4b5ab2018",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "b5bd395c-9c94-4ffe-a400-627eb2557d35",
+        "id": "de8b637a-f867-48d8-8171-cc080cf6441f",
         "text": "Bound by system rule: Findings are the append-only evidence log (rules/system/findings-as-evidence)"
       },
       {
-        "id": "8d64ac27-3665-47fe-8b87-9460e99a6e3d",
+        "id": "3cf92dfb-37b6-41e8-b52f-44a55cb640a1",
         "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
       },
       {
-        "id": "0a271f66-d366-45dd-b7ef-76111dfc705a",
+        "id": "1d214b81-f4b3-41e3-9da3-575fe4139867",
         "text": "Bound by system rule: Analysis standard (rules/system/analysis-standard)"
       }
     ],
@@ -27,63 +27,75 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "abe782a3-e192-481a-a8e6-f174093ddba2",
+        "id": "f3d8f49c-8d3a-476a-acd8-d810c031881a",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "40678c49-db72-4f99-af1e-58dff1419855",
+        "id": "5744ff3a-0797-468f-9a91-60840948899f",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "64e5cc74-7435-4b7b-8af2-796b721084b0",
+        "id": "f3bec63c-5175-4711-8ff2-2ae921eb5d42",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
     "output": "Dated findings (bug, verified-working, performance, tech-debt…) and corrected statuses where reality differs.",
     "prerequisites": [
       {
-        "id": "f93d31f0-82cf-465a-b7cf-e194c2cd1f1c",
+        "id": "5fa2fb13-c616-433c-940d-08e44d66b9b7",
         "text": "A saved map — trace via the graph"
       },
       {
-        "id": "f2841a64-f151-499f-acb3-5abd0e0ec66e",
+        "id": "269d362a-0ccf-4482-a3ae-fc486acdfc5c",
         "text": "The question and the search boundary are stated before digging"
       }
     ],
     "purpose": "Investigate an area deeply (records findings)",
     "steps": [
       {
-        "id": "4a31ea95-7b87-4118-8143-b3c30de1514e",
+        "id": "32ad5535-f868-488c-a209-bf6e168aeb37",
         "text": "Investigate this area and report evidence — not opinions: $ARGUMENTS"
       },
       {
-        "id": "1ceb339f-e8f9-4578-bf2e-0877235d0ca4",
+        "id": "52f280a2-a508-4bef-a4c0-868990dbf05f",
         "text": "SCOPE FIRST (echo before digging): the question you are answering and the boundary of the search (which files/subsystem). An open-ended \"look around\" produces nothing auditable."
       },
       {
-        "id": "dcef2578-3d3c-48bd-8fcb-9b21e16c6b33",
+        "id": "4fbcb8ad-503e-4514-9161-b80dd50dc0ab",
         "text": "STEP 1 — TRACE: reach the relevant code via the graph (map-search/map-symbol/map-neighbors/map-callers), then READ it — whole functions, not excerpts — following references to their definitions before concluding."
       },
       {
-        "id": "277b04c5-82a9-4004-b953-0f01482b5f4c",
+        "id": "edaeb64b-1568-4144-a37e-85179c0ef7fc",
         "text": "STEP 2 — WEIGH: label every claim EVIDENCE (file:line) or INFERENCE (say so); try to REFUTE your leading hypothesis at least once before reporting it; state coverage — what you read, what you did not, and why the gap is safe."
       },
       {
-        "id": "a3361184-d18d-48ac-8051-e2d512989296",
-        "text": "STEP 3 — RECORD EVERY CONCLUSION as a finding: \"{PEBBLES_CLI}\" add-finding <target> --title \"...\" [--unit <id>] --category bug|verified-working|research|measurement|performance|tech-debt|security --observation \"...\" --evidence \"file:line\". An investigation with no findings is unauditable. Never edit a prior finding — supersede it (--supersedes). Set statuses truthfully where reality differs from the spec."
+        "id": "daa30cf9-4f26-4a52-9f40-e851044604a3",
+        "text": "STEP 3 — RECORD EVERY CONCLUSION as a finding: \"{PEBBLES_CLI}\" add-finding <target> --title \"...\" [--unit <id>] --category bug|verified-working|research|measurement|performance|tech-debt|security --body \"## Observation"
       },
       {
-        "id": "77725229-908a-4c21-b64b-f27aab151224",
+        "id": "beae261a-12c5-4028-a1c9-6a8454e5580f",
+        "text": "..."
+      },
+      {
+        "id": "6811dbc7-21fd-4505-a832-820d1fd5bc91",
+        "text": "## Evidence"
+      },
+      {
+        "id": "10b9ffc6-af5c-48f9-a5e0-122e515b214c",
+        "text": "- file:line\". An investigation with no findings is unauditable. Never edit a prior finding — supersede it (--supersedes). Set statuses truthfully where reality differs from the spec."
+      },
+      {
+        "id": "b0e280fc-c96a-4b73-9150-1527142e922d",
         "text": "Report: the answer with its evidence, and the open questions that remain."
       }
     ],
     "verify": [
       {
-        "id": "95d6b10a-3963-46fd-980e-2720a361009a",
+        "id": "39119b47-86a7-456c-98c8-17210c6f7938",
         "text": "Every conclusion is recorded as a finding (research/bug/measurement as fits) — an investigation with no findings is unauditable"
       },
       {
-        "id": "edc2dd83-16c0-4c55-b3a9-98c7a11398eb",
+        "id": "63d47e5f-9a0d-4e1d-9d3a-93336fa5897c",
         "text": "Prior findings on the same question are superseded, not edited"
       }
     ],
@@ -95,7 +107,7 @@
   "name": "pebbles-investigate",
   "refs": [
     {
-      "id": "8481518d-3850-4f86-a4a4-5edc1586a881",
+      "id": "b6f4dca8-eedd-48dd-862d-e6cc326af024",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -103,7 +115,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "f6d3d965-f6e6-43c5-9f8d-c07622315555",
+      "id": "ce4b4237-01d2-4e4c-b182-92d7e4089eb5",
       "label": "Findings are the append-only evidence log",
       "path": ".pebbles/rules/system/findings-as-evidence.pebble",
       "pebbleId": "468bc1e3-c8ac-4495-8166-f6dd6ed9b469",
@@ -111,7 +123,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "32beb464-60fe-4e65-a3c2-ade8ee6a067b",
+      "id": "4bf3b9f4-292e-4b04-b54e-e86f4621661d",
       "label": "Graph-first navigation",
       "path": ".pebbles/rules/system/graph-first-navigation.pebble",
       "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
@@ -119,7 +131,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "48ecb021-5c16-46cb-9c2b-b2c9d18a83e0",
+      "id": "66b01dcb-a431-44ba-8577-dda087dc2186",
       "label": "Analysis standard",
       "path": ".pebbles/rules/system/analysis-standard.pebble",
       "pebbleId": "8b8e366f-5ede-47df-a887-ca721e3f51d0",
@@ -127,7 +139,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "80d187ad-adec-43a1-bc3e-71605370a755",
+      "id": "f1c93f68-dcf8-4d69-9d9e-fbf871b00fcd",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -135,7 +147,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "2e056a1b-2090-4ee0-af4c-cf6cecb0ca09",
+      "id": "2452e87d-c799-4b97-86ac-70fdcbea9390",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -148,6 +160,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.788Z",
+  "updatedAt": "2026-07-28T03:27:29.269Z",
   "version": 1
 }

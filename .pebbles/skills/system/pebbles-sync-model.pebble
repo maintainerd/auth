@@ -3,27 +3,27 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "2a5933fa-959f-443c-a0cb-d4f4b70b0dd3",
+        "id": "b585c3bb-04fe-48d4-9630-a9c6b7e58685",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "18a60770-8654-45e7-9ef6-abd0ba14ac30",
+        "id": "6b4b6b12-fbf4-48fc-8614-f8950445849f",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "b28a77cb-9a68-4298-a813-d8ad7ee6c485",
+        "id": "c703b41b-5e4f-4fb5-81a0-7d049b88c44d",
         "text": "Bound by system rule: Table completeness (rules/system/table-completeness)"
       },
       {
-        "id": "cbdee5e1-9c8c-4bea-8b44-1e5ab2b51818",
+        "id": "9a488cf3-7c57-4b85-9725-f721f53caf6e",
         "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
       },
       {
-        "id": "9cbec4b9-647c-4d20-83cd-695902a47543",
+        "id": "6075880a-289b-4dd5-ad06-8318fd6c0548",
         "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
       },
       {
-        "id": "300afa9b-6d22-44fa-8b84-bcfe8e41a799",
+        "id": "bc7f0c24-e29f-4237-8d8a-0dedbc3e522a",
         "text": "Bound by system rule: Extraction — completeness standard (rules/system/extraction-standard)"
       }
     ],
@@ -31,55 +31,55 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "ba80452c-22ad-4de1-b53f-ca37d1748c7e",
+        "id": "c397b839-8f85-4077-8567-f06b9ac6db9d",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "36a03238-3d69-45a0-bec7-7d30fc0b6deb",
+        "id": "77d0e25f-9049-4738-be4b-c29ee7acc2d4",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "98bf7310-c8d7-4ff1-8cc5-6518c1c7d78b",
+        "id": "5ecd5ab5-2ab1-4874-8f74-9f5b1e07a237",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
     "output": "The diff between spec and code, and the side that changed — never a direct .pebble edit.",
     "prerequisites": [
       {
-        "id": "b7c7c1da-9f72-4310-bc73-70ece35f204c",
+        "id": "c84182b7-763a-4fad-b93d-e29e8e3c2e0c",
         "text": "A saved map — find the model file via the graph"
       },
       {
-        "id": "f946d0f3-f047-4388-bdc4-dc3a19116b0a",
+        "id": "31463316-e45d-4f86-aa75-5591e7be02be",
         "text": "The DIRECTION is chosen: code→spec or spec→code (confirm if ambiguous)"
       }
     ],
     "purpose": "Fill a model pebble from the real code (or vice-versa)",
     "steps": [
       {
-        "id": "8653395c-af35-4b40-a3b1-3bd0b15c70ef",
+        "id": "87b4239c-394e-4ef2-9ee3-ec9399d686b1",
         "text": "Reconcile a model/table pebble with the real code, in the direction the user needs: $ARGUMENTS"
       },
       {
-        "id": "dc827d58-a52b-4c2d-95df-493d5c855678",
+        "id": "2db685ab-d5f2-455c-9204-94ff9a52e446",
         "text": "SCOPE FIRST (echo): which model pebble, and WHICH DIRECTION — code→spec (extract fields from code) or spec→code (edit source to match spec). Confirm the direction if the ask is ambiguous."
       },
       {
-        "id": "5dbeb677-cafc-4444-bede-ba76bd204d52",
+        "id": "14515e11-7c51-488c-9eff-4ae9b1e66a6e",
         "text": "CODE → SPEC: \"{PEBBLES_CLI}\" map-symbol <ModelName> --kind class to find the model file, read it, COUNT the columns first, then \"{PEBBLES_CLI}\" update <pebble> --patch with a fields object — every field with a description (its purpose) + status implemented, required=NOT NULL and defaults verbatim, refKey for FKs whose target exists — and link-code the model file. Reconcile counts (table has N, pebble shows N) before finishing."
       },
       {
-        "id": "9a4c6e7f-573c-4e9a-8b22-d80bb65a39e1",
+        "id": "01f3877d-7060-4d5b-b30d-83b6c2a44cb8",
         "text": "SPEC → CODE: `get` the pebble, then edit the actual SOURCE files (never the .pebble) so the code matches the spec — migrations/models the way the codebase does it."
       },
       {
-        "id": "f377a509-7ead-44ec-9172-987c64088266",
+        "id": "b3fb4b45-c619-4bf9-9764-b2e918d532a6",
         "text": "Report: the diff between spec and code and which side you changed."
       }
     ],
     "verify": [
       {
-        "id": "bebe857d-f673-4d9e-8838-0fe709032b61",
+        "id": "297afd64-2c3c-479d-861e-28f704b7101b",
         "text": "The spec and code now agree — state the remaining diff if any"
       }
     ],
@@ -91,7 +91,7 @@
   "name": "pebbles-sync-model",
   "refs": [
     {
-      "id": "8c34f693-9b48-42f9-9a5a-ebc9cf118267",
+      "id": "dacc93c6-add9-473a-9901-c3e4d03fc8ba",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -99,7 +99,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "957eb70d-a481-4225-9bae-2f77ce82474e",
+      "id": "d9b2bb8f-1b27-431e-9c7f-171b5f4caaaf",
       "label": "Table completeness",
       "path": ".pebbles/rules/system/table-completeness.pebble",
       "pebbleId": "d374da94-58db-4e58-8fc0-c42ec2e62c69",
@@ -107,7 +107,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "8ac1a380-752c-4538-815d-8949c95833f0",
+      "id": "d6da44b7-25a9-4030-883b-01cb9635ebca",
       "label": "Reference integrity",
       "path": ".pebbles/rules/system/reference-integrity.pebble",
       "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
@@ -115,7 +115,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "8d58aa24-04d4-4e0b-bf44-7747834aa7d6",
+      "id": "e82d4ddd-0f50-47b3-9d50-a4ed24e49786",
       "label": "Status discipline",
       "path": ".pebbles/rules/system/status-discipline.pebble",
       "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
@@ -123,7 +123,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "50b4d7dd-21e5-423b-8a17-9684d074736c",
+      "id": "2816affe-8aa4-4186-ba9c-7f78354a8d94",
       "label": "Extraction — completeness standard",
       "path": ".pebbles/rules/system/extraction-standard.pebble",
       "pebbleId": "c191b26f-080b-4cae-9387-e3249e02393a",
@@ -131,7 +131,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "86958d98-3161-45ea-a602-e13eeaf42882",
+      "id": "d1207c89-b602-4332-9401-2aee8f02ef9b",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -139,7 +139,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "430cf633-cfe1-476c-8c4d-605072cac14a",
+      "id": "73686379-c341-418b-8393-08819ec824c5",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -147,7 +147,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "8b37d9e3-bafa-45ae-b494-2a08dc3afbcf",
+      "id": "e24bc695-05da-4aad-accd-4100a651bf84",
       "label": "Extraction — standards by pebble type",
       "path": ".pebbles/knowledge/system/extraction-by-kind.pebble",
       "pebbleId": "23577b1f-7856-41f1-b757-85ff70323ab3",
@@ -160,6 +160,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.790Z",
+  "updatedAt": "2026-07-28T03:27:29.276Z",
   "version": 1
 }

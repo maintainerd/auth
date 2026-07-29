@@ -2,72 +2,72 @@
   "content": {
     "items": [
       {
-        "description": "Persisted table → models (DDL is truth; PK/FK/NOT NULL/defaults). In-code shape (DTO/payload/config) → structures (code types; NO DB semantics). Wire surface (endpoint/event/webhook) → contracts, whose payloads REFERENCE structures via typeRef instead of redefining them. Never extract a DTO as a model or a table as a structure.",
+        "description": "Persisted table → models (DDL is truth; PK/FK/NOT NULL/defaults). In-code shape (DTO/payload/config/wire body) → structures (code types; NO DB semantics). Wire endpoint (method/path/params/headers/request/responses) → apis, whose payloads are inline or REFERENCE a structure via structureRef instead of redefining them. Never extract a DTO as a model or a table as a structure.",
         "enforcement": "strict",
-        "id": "6dde6501-37e3-47e2-a92c-0cd285556952",
+        "id": "8c5cdc03-4da5-4d80-bc67-a8cc7716f5ee",
         "status": "verified",
-        "text": "Classify before you extract: model vs structure vs contract"
+        "text": "Classify before you extract: model vs structure vs api"
       },
       {
         "description": "Count the columns/endpoints/states in the SOURCE before extracting; a count mismatch at the end blocks completion.",
         "enforcement": "strict",
-        "id": "8fc35084-d481-4f3f-93eb-5c4333c94557",
+        "id": "8358ebc4-c9c1-4e19-b525-3beef6cc9987",
         "status": "verified",
         "text": "Count source units first, extract, then reconcile"
       },
       {
         "description": "Timestamps, soft-deletes, audit columns, flags — capture every column, not the interesting ones.",
         "enforcement": "strict",
-        "id": "5b7f6bc6-a6ea-4f71-ac2a-c4628060d157",
+        "id": "ec65433f-5475-40e1-88fa-00212d6c1d8e",
         "status": "verified",
         "text": "Boring fields are still fields"
       },
       {
         "description": "Indexes, uniques, casts, enum values, defaults — they are spec.",
         "enforcement": "strict",
-        "id": "57bec9fa-31c0-4a24-a0ea-54794843508b",
+        "id": "6e7f7ecd-a0db-4ed3-bbc5-94163f539d22",
         "status": "verified",
         "text": "Capture constraints, not just name+type"
       },
       {
         "description": "Never from guesswork or the ORM's implicit behavior.",
         "enforcement": "strict",
-        "id": "22694ed6-2d9a-4701-9763-a3471f31f155",
+        "id": "6baecc6a-7d39-41a5-92de-7a56f050c4d2",
         "status": "verified",
         "text": "Nullability and defaults come from the DDL/migration"
       },
       {
         "description": "After extraction, walk every field again asking \"does its FK target exist?\" and wire the refKey — or name it in the unlinked list with why.",
         "enforcement": "strict",
-        "id": "842afcac-21f4-478f-8407-dfe903b7590a",
+        "id": "7f821c1f-5a1d-4eae-872f-9d7ea560982d",
         "status": "verified",
         "text": "Second pass solely for cross-links"
       },
       {
         "description": "Present partial extraction as partial with the remainder named — never a subset as the table.",
         "enforcement": "strict",
-        "id": "3a38377d-740e-4051-9a6f-e6b7e4ef642a",
+        "id": "8ea7e06f-907f-4c0f-8337-c63354735ce5",
         "status": "verified",
         "text": "An unextracted remainder is marked, never hidden"
       },
       {
         "description": "Every unit/pebble DESCRIPTION is written for a MIXED audience, in this order: (1) PLAIN LANGUAGE first — 1-3 sentences any stakeholder (product owner, QA, non-engineer) can read: what this is and how it works, in plain English, no jargon; (2) TECHNICAL last, as a SEPARATE final paragraph — the developer detail: file:line, symbols/signatures, types, rules, constraints. So product/QA read the top and understand the context, developers read the bottom for the how. Never lead with jargon; never omit the technical paragraph.",
         "enforcement": "strict",
-        "id": "5e001ab9-e47e-466e-8ac7-b02dd127ba8a",
+        "id": "d5e0536e-ac1b-4063-bc13-c5894be8d686",
         "status": "verified",
         "text": "Write descriptions in TWO tiers — plain-language first, technical last"
       },
       {
         "description": "A unit/pebble description (and the pebble itself) contains ONLY what the thing is and its technical details — NEVER an issue, bug, verdict, 'this is wrong', TODO, or suspicion. Anything wrong (a bug, drift, violation, mismatch, gap, risk) belongs ONLY in a FINDING, never in a description. This keeps the spec a clean statement of intent and puts every problem where the reader looks for problems.",
         "enforcement": "strict",
-        "id": "238ab554-1dc3-476c-ace5-4d441040a22c",
+        "id": "2918776f-f1f5-4e27-8ff8-1ae26c2fc6ea",
         "status": "verified",
         "text": "Descriptions state WHAT IT IS — issues live ONLY in findings"
       },
       {
-        "description": "Every node/unit carries a real, complete description — never a bare label or empty stub. An external/boundary node in particular states its FULL contract: direction (in/out), communication type, and the COMPLETE payload/data shape with requirements (every field, required/optional, type, constraints, auth), ref-linking the contract/structure pebble. A thin description is a drift waiting to be caught — capture the detail at extraction time.",
+        "description": "Every node/unit carries a real, complete description — never a bare label or empty stub. An external/boundary node in particular states its FULL contract: direction (in/out), communication type, and the COMPLETE payload/data shape with requirements (every field, required/optional, type, constraints, auth), ref-linking the api/structure pebble. A thin description is a drift waiting to be caught — capture the detail at extraction time.",
         "enforcement": "strict",
-        "id": "2ca5fda9-5859-4c91-ae93-220de2a24f0f",
+        "id": "9d8eaa53-5697-4f0c-a531-b5317403d3e6",
         "status": "verified",
         "text": "Be DETAILED — no stub descriptions"
       }
@@ -75,12 +75,12 @@
     "kind": "checklist"
   },
   "createdAt": "2026-07-21T14:32:38.699Z",
-  "description": "The UNIVERSAL completeness bar for reverse mode — EVERY pebble type (model, structure, contract, requirement, test, architecture, knowledge, workflow, …) captures EVERYTHING the source shows and drops nothing; the observed failure is extracting SOME columns and presenting the subset as the table. Each type has its OWN method — see the by-type extraction standards (workflows carry their own graph standard) — but this rigor is shared by all.",
+  "description": "The UNIVERSAL completeness bar for reverse mode — EVERY pebble type (model, structure, api, requirement, test, architecture, knowledge, workflow, …) captures EVERYTHING the source shows and drops nothing; the observed failure is extracting SOME columns and presenting the subset as the table. Each type has its OWN method — see the by-type extraction standards (workflows carry their own graph standard) — but this rigor is shared by all.",
   "id": "c191b26f-080b-4cae-9387-e3249e02393a",
   "name": "Extraction — completeness standard",
   "refs": [
     {
-      "id": "80de887c-ec82-4deb-8750-dc0bd918033a",
+      "id": "c8de66c2-dff1-4bb2-ac11-ee4758c3ebce",
       "label": "Extraction — standards by pebble type",
       "path": ".pebbles/knowledge/system/extraction-by-kind.pebble",
       "pebbleId": "23577b1f-7856-41f1-b757-85ff70323ab3",
@@ -93,6 +93,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.699Z",
+  "updatedAt": "2026-07-28T03:27:29.175Z",
   "version": 1
 }

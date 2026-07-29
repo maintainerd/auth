@@ -2,39 +2,39 @@
   "content": {
     "boundaries": [
       {
-        "id": "56739bab-a808-4b6b-9a7d-913229a3ee4d",
+        "id": "85bd489f-2b55-4078-834a-d5f287555425",
         "text": "Writes code and tests, plus link-code/set-status/findings — never redesigns the spec it implements"
       },
       {
-        "id": "e5a953a2-8fd2-4c23-a583-4a30b17ef37c",
+        "id": "adcf9211-e3fc-462e-9bf1-f12f95a6456b",
         "text": "Spec gaps or contradictions become assumption/spec-violation findings, not silent decisions"
       }
     ],
     "constraints": [
       {
-        "id": "9cdab691-aae6-425d-9017-eb8a8a3c2f98",
+        "id": "782f2426-34d3-4ad1-af56-4611e14c00aa",
         "text": "implemented means the code exists; verified is the verifier's word, not yours"
       },
       {
-        "id": "6753f549-5476-4210-b23f-4eb8a89d5a03",
+        "id": "0febfe54-a9e9-49a2-aa7d-334aba7f1125",
         "text": "Run gates in the sanctioned runtime; judge by exit codes; re-run after the LAST edit"
       },
       {
-        "id": "86ddbb2f-159b-43ab-819c-59a980abd91d",
+        "id": "37f7d773-1420-432a-8a96-3d3d78e2b431",
         "text": "Never mark a requirement done to finish a session"
       }
     ],
     "escalation": [
       {
-        "id": "b1e59501-a7ff-4b02-a823-369250ab2772",
+        "id": "cfec1318-afda-4be3-b928-85a4f93d983c",
         "text": "Ambiguous or conflicting requirements → record an assumption finding and flag the user"
       },
       {
-        "id": "8169bbb6-83b7-4a08-bb47-fa5f18efa065",
+        "id": "4ea9b9a0-9e90-4c6c-af9e-ff8fefec7f10",
         "text": "Schema changes needed → data-modeler"
       },
       {
-        "id": "20d1a06a-cf2f-490b-b47c-95e67b1df724",
+        "id": "912c48da-3338-4357-8547-aba4eed7cd1d",
         "text": "Independent acceptance → verifier (never self-certify verified)"
       }
     ],
@@ -48,7 +48,7 @@
   "name": "Implementer",
   "refs": [
     {
-      "id": "a13f03c3-7f59-4694-9195-763e874fbf0e",
+      "id": "a5cc24a4-d65a-45bf-9ed8-d3d90feea90e",
       "label": "/pebbles-get",
       "path": ".pebbles/skills/system/pebbles-get.pebble",
       "pebbleId": "a88b88c9-6229-4b3e-a788-405407924090",
@@ -56,7 +56,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "431f9a97-49e5-4c3b-a610-4f2bc52f7edc",
+      "id": "2c3ba9ec-b775-4c25-983d-69361e786d0b",
       "label": "/pebbles-refs",
       "path": ".pebbles/skills/system/pebbles-refs.pebble",
       "pebbleId": "e9c0be9e-b3e0-4473-aeb9-47429e114a3b",
@@ -64,7 +64,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "9ad8c125-973a-4929-954c-25b63d604714",
+      "id": "71806ffe-c94d-4c7e-bf54-84991273a8d5",
       "label": "/pebbles-find-code",
       "path": ".pebbles/skills/system/pebbles-find-code.pebble",
       "pebbleId": "fa659395-d911-4d05-bfc7-85a501432c67",
@@ -72,7 +72,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "f600da82-11fb-48d5-ac78-a66df40880ca",
+      "id": "a6e8b945-0b75-4b1e-bba2-79b4d5aab44c",
       "label": "/pebbles-plan",
       "path": ".pebbles/skills/system/pebbles-plan.pebble",
       "pebbleId": "fa4bf5de-e11f-42fc-9845-3919d58cf24a",
@@ -80,7 +80,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "f740290a-88b0-4c62-b877-032317aadd79",
+      "id": "bf7a5dda-79ee-4d85-9122-51e0a76976c5",
       "label": "/pebbles-fix",
       "path": ".pebbles/skills/system/pebbles-fix.pebble",
       "pebbleId": "0e507660-ad3f-4918-b6aa-86886616c77d",
@@ -88,7 +88,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "aa2882f5-da79-4883-a102-258556e44fd5",
+      "id": "622bd103-2235-4bda-8a77-f8560893923b",
       "label": "/pebbles-link-code",
       "path": ".pebbles/skills/system/pebbles-link-code.pebble",
       "pebbleId": "19c775a9-0850-440a-98ec-63f8bac0ca92",
@@ -96,7 +96,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "b5d44509-9f1e-4728-9400-f825918663a9",
+      "id": "eb0e5dd5-223d-4edf-8d60-52562b76179c",
       "label": "/pebbles-set-status",
       "path": ".pebbles/skills/system/pebbles-set-status.pebble",
       "pebbleId": "be000177-de31-4e31-80d7-a5e07ef4f41f",
@@ -104,7 +104,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "8718f2a4-ac60-4f86-bfa5-473dd8bc0e89",
+      "id": "cae58cb9-e62d-4c0c-8417-dc97bb161287",
       "label": "/pebbles-validate",
       "path": ".pebbles/skills/system/pebbles-validate.pebble",
       "pebbleId": "4973a6ba-ceb9-4768-aae0-9cf41490842f",
@@ -112,7 +112,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "152a6b41-b9f0-491b-ab9c-fc0fb6359c2c",
+      "id": "23c36843-9159-44a0-9291-bde38f47d8ac",
       "label": "Implementation standard",
       "path": ".pebbles/rules/system/implementation-standard.pebble",
       "pebbleId": "f4ec7510-7bfa-4a74-92fa-954f8efb95a4",
@@ -120,7 +120,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "5da8f4ff-94e6-4cbf-9ea2-174fb470a7e2",
+      "id": "b5d226f2-fa1d-4769-aa88-5c2c49c7f4a9",
       "label": "Requirement fidelity",
       "path": ".pebbles/rules/system/requirement-fidelity.pebble",
       "pebbleId": "4e4afae6-8bf7-4310-b541-a26b7e3bd37d",
@@ -128,7 +128,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "2ffa3883-37d2-4828-8b84-c3f602d396ab",
+      "id": "cae6a197-1e2f-428c-b28e-1ef48904fe75",
       "label": "Command discipline",
       "path": ".pebbles/rules/system/command-discipline.pebble",
       "pebbleId": "197d289c-06cc-4cd5-b560-2efd427ed161",
@@ -136,7 +136,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "5b46666a-e0ce-496c-a08f-4e783b3dd6c9",
+      "id": "641537e0-faa7-49bb-8ba8-89675efe6b5b",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -144,7 +144,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "71ce9553-7c3f-42f9-ae34-1c663a1b238b",
+      "id": "48db2199-0150-4465-bbcd-32939dbc799e",
       "label": "Skills and agents",
       "path": ".pebbles/knowledge/system/skills-and-agents.pebble",
       "pebbleId": "d972e483-be17-4e83-afb7-f15b26a762db",
@@ -152,7 +152,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "5d0a8200-06bd-413f-bcbf-0120b16ea51c",
+      "id": "9bda01f3-7a66-46c1-a887-867f0bd41fef",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -165,6 +165,6 @@
     "system"
   ],
   "type": "agent",
-  "updatedAt": "2026-07-21T14:32:38.799Z",
+  "updatedAt": "2026-07-28T03:27:29.291Z",
   "version": 1
 }

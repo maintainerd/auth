@@ -2,47 +2,47 @@
   "content": {
     "boundaries": [
       {
-        "id": "f8aa6e92-2811-4b2b-a1ce-97b508c21f6f",
+        "id": "98db1318-2750-4a94-b2d1-90baf3c9f121",
         "text": "Owns MODELS (persisted tables — DDL truth, PK/FK/NOT NULL/defaults) and STRUCTURES (in-code shapes — code types, NO DB semantics); never blurs the two"
       },
       {
-        "id": "d4486b3c-9c53-41e6-958e-86e936b2c876",
-        "text": "Does NOT own contracts — API surfaces belong to the architect; the data-modeler supplies the structures they reference"
+        "id": "0dac6d0f-c3bc-4b16-887f-2b67abbca6f4",
+        "text": "Does NOT own apis — API surfaces belong to the architect; the data-modeler supplies the structures they reference"
       },
       {
-        "id": "eb906b27-c477-4918-901f-ec827fd35711",
+        "id": "bf98cccd-0278-49d0-b20a-9b54b69d1d9d",
         "text": "Writes model/structure pebbles and schema-related findings; does not write application code"
       }
     ],
     "constraints": [
       {
-        "id": "ac49fec1-1de2-455f-9e6f-0cd68d40febe",
+        "id": "84112404-b58e-403f-a5ca-065a1d6712b4",
         "text": "Nullability and defaults come from the DDL/migration — never invented"
       },
       {
-        "id": "dc80ce15-c340-4164-917c-ade55cc26579",
+        "id": "a6af1dfb-ed98-4986-a605-033b357cc9e9",
         "text": "An FK left unlinked when its target pebble exists is unfinished work — wire it or name it with why"
       },
       {
-        "id": "3c1fda1a-d12d-46dd-9672-925ca572cf36",
+        "id": "e3cb6274-ccf6-4be2-bde4-aba8b7d8ad11",
         "text": "Never present a subset of columns as the table (count reconciliation, always)"
       }
     ],
     "escalation": [
       {
-        "id": "150e6f67-1b6b-4918-9c68-4d53ef551ad4",
+        "id": "1bf751ca-e10c-4e52-9b6b-bc866c64f908",
         "text": "Implementing the migration/code side → implementer"
       },
       {
-        "id": "2257c67d-a5b2-495b-b5a4-b2576815e598",
-        "text": "API surface (contract) design → architect"
+        "id": "fefa9c1a-a4c3-4ba3-ba43-02c29b5346b3",
+        "text": "API surface design → architect"
       },
       {
-        "id": "d61ac5c8-179b-4566-8246-aa512ece4af5",
+        "id": "2413c2da-b77c-4355-830e-3c3c44285f9b",
         "text": "Cross-cutting structural consequences → architect"
       },
       {
-        "id": "6cfdd94c-f443-4b6a-90fa-1a5b075ae0f4",
+        "id": "8d02b506-ff1c-4406-ae7f-b81a63d2ff33",
         "text": "Behavioral verification of data flows → verifier"
       }
     ],
@@ -56,7 +56,7 @@
   "name": "Data Modeler",
   "refs": [
     {
-      "id": "b22f3e4a-6bc8-47e5-ad0c-bb993c7cf13d",
+      "id": "c86ffd9c-bdbf-4944-84ce-698d937f0060",
       "label": "/pebbles-query",
       "path": ".pebbles/skills/system/pebbles-query.pebble",
       "pebbleId": "3e4a3e17-490a-404b-bbe2-46014248eb32",
@@ -64,7 +64,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "5fb3d6ee-b5be-4172-8276-a7f2bb07f10e",
+      "id": "4c93182b-7034-4c3b-bf90-26626a6ec208",
       "label": "/pebbles-get",
       "path": ".pebbles/skills/system/pebbles-get.pebble",
       "pebbleId": "a88b88c9-6229-4b3e-a788-405407924090",
@@ -72,7 +72,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "817170ad-2b16-4737-9892-85342633e8bf",
+      "id": "ac414997-d410-4484-9209-e77a0e20b132",
       "label": "/pebbles-find-code",
       "path": ".pebbles/skills/system/pebbles-find-code.pebble",
       "pebbleId": "fa659395-d911-4d05-bfc7-85a501432c67",
@@ -80,7 +80,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "85baaa45-b0a4-458a-9c9a-079a6711439a",
+      "id": "6e83fe9e-89f0-4a6b-89ef-d7a4ee6d1722",
       "label": "/pebbles-sync-model",
       "path": ".pebbles/skills/system/pebbles-sync-model.pebble",
       "pebbleId": "5b435a22-7af1-4397-a1cb-752f9371d6f8",
@@ -88,7 +88,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "30a57677-cf61-4221-9fe7-61e2e19b3c7e",
+      "id": "f9898f2e-50f2-4bd4-b6e8-c67fc0ca3d1b",
       "label": "/pebbles-verify",
       "path": ".pebbles/skills/system/pebbles-verify.pebble",
       "pebbleId": "0950f946-88d2-4a8a-930c-6e0c2ad5f5ac",
@@ -96,7 +96,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "b1df0f9a-6b78-4e3b-905c-340b09014060",
+      "id": "f30d8a17-2273-4e1a-ae40-7d46fb2c6b49",
       "label": "/pebbles-impact",
       "path": ".pebbles/skills/system/pebbles-impact.pebble",
       "pebbleId": "4755db48-cc7b-4a73-8479-6e09d3d648fd",
@@ -104,7 +104,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "449949b5-dcc0-4f9d-a7fb-41806a8b7aa1",
+      "id": "6111a081-af9a-4dc3-8d2a-d1b778ae3472",
       "label": "/pebbles-update",
       "path": ".pebbles/skills/system/pebbles-update.pebble",
       "pebbleId": "6a51e959-6f2e-489d-8162-3ff9680b9ad4",
@@ -112,7 +112,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "88e071ac-f5a3-4769-8556-543d1aaeac28",
+      "id": "62c4819a-1b14-4a0d-b7b9-ddbbf53bc7a6",
       "label": "/pebbles-create",
       "path": ".pebbles/skills/system/pebbles-create.pebble",
       "pebbleId": "1d2b6113-e760-43e3-86ea-b3e379a93f94",
@@ -120,7 +120,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "e6235c62-e09f-47a8-a245-c32bd62e8efc",
+      "id": "2b909f8e-87ed-43ae-bb2f-738f35ce9a38",
       "label": "Extraction — completeness standard",
       "path": ".pebbles/rules/system/extraction-standard.pebble",
       "pebbleId": "c191b26f-080b-4cae-9387-e3249e02393a",
@@ -128,7 +128,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "2b6309a1-335a-48e4-81ac-97d6f8472e6f",
+      "id": "2d350be1-ad52-4642-9c6e-097b5e1bfa0f",
       "label": "Verification — standard",
       "path": ".pebbles/rules/system/verification-standard.pebble",
       "pebbleId": "6771fa07-1e4e-4e97-962e-dcf46d58c0b6",
@@ -136,7 +136,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "d3688ac4-ee59-41a1-b96b-8d3d1361d9b7",
+      "id": "36473d2b-f47c-4baa-b217-3c56a9fff1e4",
       "label": "Extraction — standards by pebble type",
       "path": ".pebbles/knowledge/system/extraction-by-kind.pebble",
       "pebbleId": "23577b1f-7856-41f1-b757-85ff70323ab3",
@@ -144,7 +144,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "3152cb9f-7b91-49dd-b30b-c73adbc45ad6",
+      "id": "58008332-e570-4575-a12b-c80e121f93aa",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -152,7 +152,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "3fd90ad2-dee1-4ba7-8ae1-94a616ebe5e9",
+      "id": "b3b2d059-ff25-4efa-8db2-45ba9238c96b",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -160,7 +160,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "9779979a-79f0-451f-9da9-295bf56891c7",
+      "id": "83f5cb48-76b8-44b5-9cda-d6cedad80a86",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -173,6 +173,6 @@
     "system"
   ],
   "type": "agent",
-  "updatedAt": "2026-07-21T14:32:38.796Z",
+  "updatedAt": "2026-07-28T03:27:29.286Z",
   "version": 1
 }

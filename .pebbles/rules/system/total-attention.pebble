@@ -4,42 +4,42 @@
       {
         "description": "Before working any pebble, table or checklist, list every unit (field, ref, requirement, step) with a count. Processing before enumeration is a violation — it is where skipping hides.",
         "enforcement": "strict",
-        "id": "0a8a9713-9fdc-406f-b113-71491d72892a",
+        "id": "a8c7ff70-8237-4d18-a419-14e01b257781",
         "status": "verified",
         "text": "Enumerate before processing"
       },
       {
         "description": "done · n/a (reason) · blocked (reason). Silence is not a disposition; a unit you didn't mention is a unit you skipped.",
         "enforcement": "strict",
-        "id": "b09b0dba-4687-4e5b-97b7-4f8eea7765bc",
+        "id": "80656c58-2771-4ce2-bb84-5f2bacb1e295",
         "status": "verified",
         "text": "Every unit gets an explicit disposition"
       },
       {
         "description": "End with \"covered N of M enumerated units\". If N < M, name the gap and continue or escalate — never report success over a gap.",
         "enforcement": "strict",
-        "id": "ca88471f-e933-40f1-a318-494a883893c6",
+        "id": "57191631-6131-4afa-985d-187ac9422460",
         "status": "verified",
         "text": "Reconcile counts before finishing"
       },
       {
         "description": "Read the full pebble plus its outbound refs before forming conclusions, and cite which refs you actually opened. No judgment from the first half.",
         "enforcement": "strict",
-        "id": "3696dfe9-4833-4480-8dfb-cfd73fd8070a",
+        "id": "eb995ce1-b367-4e32-94b4-de7339834b0d",
         "status": "verified",
         "text": "Read artifacts whole, refs included"
       },
       {
         "description": "If size forces batching, declare the chunk plan up front and reconcile per chunk. Chunking is fine; invisible truncation is not.",
         "enforcement": "strict",
-        "id": "6912da27-e97a-4df4-ac01-1d3be24ac441",
+        "id": "185a2759-ba4b-4686-a410-c91ce4d09a4d",
         "status": "verified",
         "text": "Chunk honestly"
       },
       {
         "description": "\"etc.\", \"and others\", or an elided list in output is a violation — expand it or count it explicitly.",
         "enforcement": "strict",
-        "id": "04496389-c585-4a27-8d0b-8914a9846594",
+        "id": "366097e2-61d5-4312-9d44-de9e36f9b7f4",
         "status": "verified",
         "text": "No ellipsis in results"
       }
@@ -52,7 +52,7 @@
   "name": "Total attention — no skipping",
   "refs": [
     {
-      "id": "199c9c27-c3cb-4660-8215-b4375634aa3e",
+      "id": "45f94989-35dc-4f9a-80c2-50dd2a7e56b5",
       "label": "Pebbles platform overview",
       "path": ".pebbles/knowledge/system/platform-overview.pebble",
       "pebbleId": "0666d6bf-0891-49a1-93f8-b4cac16ecd57",
@@ -65,6 +65,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.686Z",
+  "updatedAt": "2026-07-28T03:27:29.168Z",
   "version": 1
 }

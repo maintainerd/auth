@@ -4,35 +4,35 @@
       {
         "description": "No Edit/Write tools, no sed, no heredocs, no shell redirection into .pebbles/. The CLI validates and writes atomically; direct edits corrupt ids, refs and statuses. Reading spec files is always fine.",
         "enforcement": "strict",
-        "id": "d953ab71-8c32-4445-8043-763794fb4fed",
+        "id": "e9514b09-f336-436b-91ab-15ef74cd2ba9",
         "status": "verified",
         "text": "Never create, edit or delete .pebble files directly"
       },
       {
         "description": "Ask the user where pebbles-cli lives — never fall back to editing files by hand.",
         "enforcement": "strict",
-        "id": "3231ecef-2c54-46f3-9753-76fe3fc84b92",
+        "id": "583de7c8-b731-49bd-b1b3-3158c97acebb",
         "status": "verified",
         "text": "If the CLI is unavailable, treat the spec graph as read-only"
       },
       {
         "description": "Plain pebbles-cli calls are pre-approved and run without prompting. Mixing in other programs, && or | chaining, redirects, or $(…) forces a manual permission prompt.",
         "enforcement": "strict",
-        "id": "4b877115-aada-4864-aeb2-5354fd72b80b",
+        "id": "fe8ef5e3-bd0e-4ad5-a6b0-34805c9de43b",
         "status": "verified",
         "text": "Call the CLI purely — one binary, no chaining"
       },
       {
         "description": "Validation errors are written to be actionable: wrong status vocabularies list the allowed values, missing targets name the path, incomplete fields name the field.",
         "enforcement": "strict",
-        "id": "bf1925f4-70e2-4fea-b0aa-5bc579992f76",
+        "id": "0bbcfc18-2b7b-48d2-af67-b3d79ae5de14",
         "status": "verified",
         "text": "On an error, READ the message — it tells you the fix"
       },
       {
         "description": "Removing spec is a human decision made in the Pebbles app. Mark superseded things `deprecated` instead.",
         "enforcement": "strict",
-        "id": "de1f5fdb-ae2e-43b1-9cb0-75c4c52db0ed",
+        "id": "38d2fd92-05dd-4ef2-8f79-3dce5a26a53b",
         "status": "verified",
         "text": "There is deliberately no delete"
       }
@@ -45,7 +45,7 @@
   "name": "Spec mutation contract",
   "refs": [
     {
-      "id": "815932d7-230f-40cd-ad3a-30bf1d036f09",
+      "id": "06de106a-778b-4b6c-a8a6-e5bd64e18a31",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -58,6 +58,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.676Z",
+  "updatedAt": "2026-07-28T03:27:29.161Z",
   "version": 1
 }

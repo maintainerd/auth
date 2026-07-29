@@ -8,8 +8,10 @@ CREATE TABLE IF NOT EXISTS user_mfa_totp_secrets (
     totp_secret_id   BIGSERIAL PRIMARY KEY,
     totp_secret_uuid UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     user_id          BIGINT      NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    -- Base32-encoded TOTP secret. At rest this should be encrypted via KMS
-    -- in production; for now stored as plaintext pending KMS integration.
+    -- TOTP seed, ENCRYPTED AT REST: the service envelope-encrypts the base32
+    -- secret via crypto.EncryptAtRest (same KEK path as signing_keys and client
+    -- secrets) before persisting, and decrypts only when validating a code. This
+    -- column never holds the plaintext seed.
     secret           TEXT        NOT NULL,
     is_enabled       BOOLEAN     NOT NULL DEFAULT FALSE,
     -- Set to now() when the user completes enrollment (verifies first code).

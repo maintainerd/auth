@@ -43,15 +43,37 @@ func runTenantRetentionLoop(ctx context.Context, db *gorm.DB, retentionPeriod ti
 
 func runTenantRetention(ctx context.Context, db *gorm.DB, retentionPeriod time.Duration) {
 	cutoff := time.Now().Add(-retentionPeriod)
-	result := db.WithContext(ctx).
-		Unscoped().
-		Where("deleted_at IS NOT NULL AND deleted_at < ? AND is_system = false", cutoff).
-		Delete(&Tenant{})
-	if result.Error != nil {
-		slog.Error("tenant retention purge failed", "error", result.Error)
+
+	// The physical purge hard-deletes the tenant row, which cascades ON DELETE to
+	// every tenant-scoped table — including the append-only audit tables
+	// (auth_events, management_audit_log) whose immutability triggers block
+	// deletes unless a sanctioned-lifecycle GUC is set. Run the purge in one
+	// transaction that sets both GUCs (transaction-local) so the cascade can
+	// complete; without them the cascade raises and NO tenant is ever purged
+	// (soft-deleted tenants + their PII would accumulate forever — a retention /
+	// GDPR-erasure failure).
+	var purged int64
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT set_config('maintainerd.allow_auth_event_delete', 'tenant_delete', true)").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("SELECT set_config('maintainerd.allow_management_audit_log_delete', 'tenant_delete', true)").Error; err != nil {
+			return err
+		}
+		result := tx.Unscoped().
+			Where("deleted_at IS NOT NULL AND deleted_at < ? AND is_system = false", cutoff).
+			Delete(&Tenant{})
+		if result.Error != nil {
+			return result.Error
+		}
+		purged = result.RowsAffected
+		return nil
+	})
+	if err != nil {
+		slog.Error("tenant retention purge failed", "error", err)
 		return
 	}
-	if result.RowsAffected > 0 {
-		slog.Info("tenant retention purged deleted tenants", "count", result.RowsAffected)
+	if purged > 0 {
+		slog.Info("tenant retention purged deleted tenants", "count", purged)
 	}
 }

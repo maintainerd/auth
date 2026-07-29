@@ -4,28 +4,28 @@
       {
         "description": "planned (not built) · in-progress · implemented (exists in code) · verified (behavior proven) · drift (code moved, spec stale) · broken (proven failing) · missing (spec claims it, code lacks it) · deprecated.",
         "enforcement": "strict",
-        "id": "7e62c43d-63f2-41f6-891e-f2eb39e97a94",
+        "id": "ee2167a8-d84a-4327-bfec-e63975ea74d2",
         "status": "verified",
         "text": "Vocabulary — use exactly these meanings"
       },
       {
         "description": "After implementing or verifying ANYTHING, set-status --unit each touched unit. Unit statuses are the feature checklist the user reads.",
         "enforcement": "strict",
-        "id": "c993374e-8701-42a3-a448-03b2ce4d7196",
+        "id": "e5ab7276-8082-4677-80d1-2cfcf87a5da5",
         "status": "verified",
         "text": "Set statuses at both levels, never only the pebble"
       },
       {
         "description": "implemented requires the code to exist; verified requires proven behavior (a run, a test). When reality differs from the spec, set drift/missing/broken truthfully.",
         "enforcement": "strict",
-        "id": "b8826989-bd12-4878-983c-09e34c987046",
+        "id": "90d24020-465e-4752-8aac-10bd7a90069a",
         "status": "verified",
         "text": "Only claim what you verified"
       },
       {
         "description": "query --status <s> at pebble level; query --unit-status <s> matches checklist items / table fields / workflow nodes and returns the matching units.",
         "enforcement": "strict",
-        "id": "1120508e-026b-420b-9a16-a6546fba4f18",
+        "id": "46c1255b-ff7a-4c48-8e61-c1c7b1886714",
         "status": "verified",
         "text": "Find work by status"
       }
@@ -38,7 +38,7 @@
   "name": "Status discipline",
   "refs": [
     {
-      "id": "3e6205d8-a800-4640-a524-de390e7b7c0c",
+      "id": "6e569bc0-dff0-411e-8c46-bc6e2b315530",
       "label": "Pebbles platform overview",
       "path": ".pebbles/knowledge/system/platform-overview.pebble",
       "pebbleId": "0666d6bf-0891-49a1-93f8-b4cac16ecd57",
@@ -51,6 +51,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.681Z",
+  "updatedAt": "2026-07-28T03:27:29.164Z",
   "version": 1
 }

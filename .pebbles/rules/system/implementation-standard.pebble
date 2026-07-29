@@ -4,49 +4,49 @@
       {
         "description": "Every referenced model, requirement and workflow — and list what you loaded. Coding from the pebble title alone is a violation.",
         "enforcement": "strict",
-        "id": "9fcc62e0-986b-4f5a-acce-7b9b333190e5",
+        "id": "349709ed-635c-4eeb-a5d3-f6a910966bbb",
         "status": "verified",
         "text": "Read the full spec including every ref before writing code"
       },
       {
         "description": "The final report pairs each checklist item with the code/test satisfying it. An untraceable requirement is an unimplemented requirement.",
         "enforcement": "strict",
-        "id": "a14900a9-5965-4afe-879b-416015b998c0",
+        "id": "3adfafef-aa62-4fc4-928f-5b34be902027",
         "status": "verified",
         "text": "Map every requirement item to code and test, 1:1"
       },
       {
         "description": "Nullability, defaults and types per the model pebble. Silent divergence on nullable/default is the #1 implementation defect.",
         "enforcement": "strict",
-        "id": "9041eaa2-35ac-4433-8019-5ba61b1a087e",
+        "id": "81ab22f9-d625-46f0-aae8-9e0fd1f295ef",
         "status": "verified",
         "text": "Honor field spec exactly — no invented defaults"
       },
       {
         "description": "Null FK, empty list, invalid state transition — not just the happy path.",
         "enforcement": "strict",
-        "id": "fffd8bfa-093f-4b7f-9140-7c834c045549",
+        "id": "4bc79344-8d7c-4313-9c80-a7a56d1d007a",
         "status": "verified",
         "text": "Cover the error paths the spec implies"
       },
       {
         "description": "Name the test per requirement so the mapping is checkable.",
         "enforcement": "strict",
-        "id": "a7a6848b-7a24-4f65-9a84-10efd848af17",
+        "id": "c837f6a5-3e16-4773-b8b5-feca11a88c26",
         "status": "verified",
         "text": "Write or update a test for every changed behavior"
       },
       {
         "description": "Find the codebase's way via graph queries and cite one precedent file per pattern you followed.",
         "enforcement": "strict",
-        "id": "c50e9c4e-91a8-4631-b62f-116fa03c6665",
+        "id": "55891272-78a0-47f7-b78f-7b6cf39a4ae1",
         "status": "verified",
         "text": "Follow existing conventions, cite a precedent"
       },
       {
         "description": "With a finding. Never mark a requirement done to finish the session.",
         "enforcement": "strict",
-        "id": "66f6b23c-0a2b-49c1-8259-1705b147e44a",
+        "id": "2b965d8b-f8ad-4bb9-9aaf-c7fd412a36e0",
         "status": "verified",
         "text": "Report incomplete work as incomplete"
       }
@@ -59,7 +59,7 @@
   "name": "Implementation standard",
   "refs": [
     {
-      "id": "8703b1fa-e094-4874-bd69-f670089bf783",
+      "id": "0887365b-81bb-43a1-935a-ef43ace560b6",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -72,6 +72,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.690Z",
+  "updatedAt": "2026-07-28T03:27:29.171Z",
   "version": 1
 }

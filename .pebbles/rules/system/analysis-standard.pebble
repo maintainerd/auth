@@ -4,42 +4,42 @@
       {
         "description": "No verdicts from excerpts.",
         "enforcement": "strict",
-        "id": "d3985151-a2ae-4fd1-b066-9c925fe4b230",
+        "id": "2b50ac09-f8ac-4412-b22a-5e88e80ec52d",
         "status": "verified",
         "text": "Read the entire artifact before any judgment"
       },
       {
         "description": "Callers, configs, schemas — names deceive.",
         "enforcement": "strict",
-        "id": "6b455c56-658e-43eb-9500-8e08f3717551",
+        "id": "312c8e1d-4de5-4625-b4e8-00494269cad5",
         "status": "verified",
         "text": "Trace every reference to its definition before concluding"
       },
       {
         "description": "What was read, what wasn't, and why the gap is safe to leave.",
         "enforcement": "strict",
-        "id": "3b32b860-c9dd-4d40-8f57-17ee5a334759",
+        "id": "60807846-ad84-45b4-9509-cb7943318506",
         "status": "verified",
         "text": "State coverage explicitly"
       },
       {
         "description": "Evidence cites file:line; inference says so. Presenting inference as fact is a violation.",
         "enforcement": "strict",
-        "id": "ee859fdf-4c5c-42fb-a115-29883aafd05d",
+        "id": "4d7d46f0-7ef2-49f6-a8e7-a623b4dcafe4",
         "status": "verified",
         "text": "Label every claim: evidence or inference"
       },
       {
         "description": "Try to refute your leading hypothesis at least once before reporting it.",
         "enforcement": "strict",
-        "id": "691bde8b-b17e-420d-8872-0977687dbca7",
+        "id": "6d19a586-e4d6-4555-b44a-8379d3dcd248",
         "status": "verified",
         "text": "Seek disconfirming evidence before committing"
       },
       {
         "description": "\"not found where I looked\" is a finding; \"doesn't exist\" requires an exhaustive search you can describe.",
         "enforcement": "strict",
-        "id": "893ba1f8-4f38-4830-b5a4-cb1a2f5c63d2",
+        "id": "c43cc04e-6b66-4b16-a804-a2de07f65c5f",
         "status": "verified",
         "text": "Report absence honestly"
       }
@@ -52,7 +52,7 @@
   "name": "Analysis standard",
   "refs": [
     {
-      "id": "3a23a450-5348-4c9c-869b-ddb8ea3ee4b4",
+      "id": "f42706f4-25bb-4bcb-9fcc-ce386fed8e05",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -65,6 +65,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.706Z",
+  "updatedAt": "2026-07-28T03:27:29.177Z",
   "version": 1
 }

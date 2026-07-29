@@ -3,15 +3,15 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "2fefe81d-6123-489c-9f0b-816785c32ad1",
+        "id": "d287048a-4891-4f8a-8bd1-0244d2d6fc9f",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "b97df6e4-c050-4825-b065-ac2ab613ccb2",
+        "id": "8c17abbf-a0aa-42b9-8fd8-f0afd870d579",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "4a248727-d25c-4e0a-877b-57f4cf1e4c33",
+        "id": "fadbace1-e49d-4bbb-905b-ef9d5c2a9a81",
         "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
       }
     ],
@@ -19,15 +19,15 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "640287b4-61d1-4f5a-9ede-7f4cb46c40b4",
+        "id": "88755f9b-abe2-4fe1-8bb7-f869299ca7c8",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "18da9dc5-46ed-47f4-82a7-67e334e13ecb",
+        "id": "7fcc5c94-2c70-4a2e-b1bd-e2c727f0ef30",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "2c75e33c-cce3-44f8-871d-4686f9a16703",
+        "id": "5de07b7b-f08e-401a-9a2d-8316591ea2b0",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
@@ -36,11 +36,11 @@
     "purpose": "Map the project's files (honors .pebblesignore)",
     "steps": [
       {
-        "id": "42653359-ba98-485c-9b82-2c7e828bf0ce",
+        "id": "b5a5ce49-e8af-48ba-82c2-3ab297bf00b9",
         "text": "Run: \"{PEBBLES_CLI}\" map"
       },
       {
-        "id": "5770f1f1-a563-4f26-aa81-17f95e543868",
+        "id": "4601672f-fffa-4285-8916-ffaeccda87fc",
         "text": "Summarize the layout for the user: main directories, dominant languages, notable files. Mention if the output says truncated. $ARGUMENTS"
       }
     ],
@@ -53,7 +53,7 @@
   "name": "pebbles-map",
   "refs": [
     {
-      "id": "d62820fc-4f1e-4123-9554-357e2281335d",
+      "id": "c17abdd2-70b2-4860-9572-44b49723fe18",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -61,7 +61,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "684a5ac7-c023-414b-bb2e-e5dab94ec6ac",
+      "id": "49a08b9f-5d4e-4f0c-a130-774e631a2c03",
       "label": "Graph-first navigation",
       "path": ".pebbles/rules/system/graph-first-navigation.pebble",
       "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
@@ -69,7 +69,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "31dfdc7e-06f6-404e-bad8-f73a8ed801cb",
+      "id": "0e8390aa-3334-44d9-ae19-0627679de70e",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -77,7 +77,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "78451489-d061-4537-8367-4377536e3f4a",
+      "id": "abb276e9-dda7-40d1-a568-fee7e5953406",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -90,6 +90,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.732Z",
+  "updatedAt": "2026-07-28T03:27:29.187Z",
   "version": 1
 }

@@ -3,11 +3,11 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "72e5675c-a25b-4d87-ae34-40a6a64c7786",
+        "id": "c1fddb2e-64ac-4f10-a920-66e1a797a9e8",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "3eaa72aa-ed53-4b68-9ee5-d182e1a3e445",
+        "id": "0bc5dd0f-bc83-4f6c-9c01-9de5f23ffd07",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       }
     ],
@@ -15,15 +15,15 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "4f104551-e4d7-4f24-ae81-2199ebe5b5cd",
+        "id": "0d81060c-9cff-464b-b586-f11f4a2c051e",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "bb87914b-762f-4644-a8e6-80879665cb61",
+        "id": "89658f8c-bef6-4a22-9c8a-996f35868f88",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "70a7cf50-0e5d-4fc4-b3cb-2f63ad1524d0",
+        "id": "cfe33191-fbed-47c2-8655-9000b7c43c76",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
@@ -32,11 +32,11 @@
     "purpose": "Tree of one section (titles + status)",
     "steps": [
       {
-        "id": "c18fba1f-d6b6-4ae3-a275-11a73537632e",
+        "id": "81aacae1-068e-4b1f-97e7-5b068e475411",
         "text": "Run: \"{PEBBLES_CLI}\" list $ARGUMENTS"
       },
       {
-        "id": "c48e574b-4deb-4827-bf83-5723697a01a6",
+        "id": "a816bcf6-082f-4428-9a48-ae2df009f62a",
         "text": "(Argument: a section key — run `sections` first if unsure.) Report the tree readably."
       }
     ],
@@ -49,7 +49,7 @@
   "name": "pebbles-list",
   "refs": [
     {
-      "id": "45694373-1d13-46d9-b695-49b2071c7e3c",
+      "id": "450fbc26-a2c9-45d0-bb8f-00cfaa8dc1b9",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -57,7 +57,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "93251023-c328-4fdc-a0fc-53faafdec975",
+      "id": "f6cdf64d-e38b-4057-bac9-9f8f9c51c6f6",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -70,6 +70,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.736Z",
+  "updatedAt": "2026-07-28T03:27:29.191Z",
   "version": 1
 }

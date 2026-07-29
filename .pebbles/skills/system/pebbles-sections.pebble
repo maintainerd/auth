@@ -2,11 +2,11 @@
   "content": {
     "constraints": [
       {
-        "id": "8291e5f9-3e0c-46bb-903a-fbc44dfe2cae",
+        "id": "f2a31f77-c3f8-4375-9526-b7fe7fcd0265",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "515b9c8c-b5c8-4cd7-9c65-5ad8a05a5c78",
+        "id": "fe7c5089-cd4e-4080-8cba-fe0eb66f5efa",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       }
     ],
@@ -14,15 +14,15 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "15cbbe1f-4146-4770-a08b-50e25ab9993e",
+        "id": "3fa21403-ba18-4fd5-b824-797496fd275b",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "04148ec5-38c6-40bf-8cb5-1666fc83936d",
+        "id": "919cd287-91ef-404a-8a0a-ee8cd89bc80c",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "371f94c5-2232-4fe0-b856-3fc30f22c4eb",
+        "id": "6b4b0fb8-8f90-4f8f-9e5b-2787b8e3a005",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
@@ -31,7 +31,7 @@
     "purpose": "List the spec-graph sections",
     "steps": [
       {
-        "id": "0614a373-17e9-41eb-96e7-5bc9eb5661dd",
+        "id": "643370f1-099d-44fb-83f6-20a09409757f",
         "text": "Run: \"{PEBBLES_CLI}\" sections and list them with one line on what each holds."
       }
     ],
@@ -44,7 +44,7 @@
   "name": "pebbles-sections",
   "refs": [
     {
-      "id": "b88c0959-3992-4984-ad6e-f7acb447daae",
+      "id": "7441677f-0d49-47a9-81ab-d11668d2a471",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -52,7 +52,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "0ccaf1b9-7dd7-4880-b25d-7d7a6031fc06",
+      "id": "7ef2d8a3-848f-4f66-aa02-90b5e1cc7b8d",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -65,6 +65,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.754Z",
+  "updatedAt": "2026-07-28T03:27:29.213Z",
   "version": 1
 }

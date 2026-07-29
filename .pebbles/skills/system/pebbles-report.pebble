@@ -3,19 +3,19 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "6346812b-f806-46a3-a2d9-02b7ec3c8700",
+        "id": "1bcf39b6-c9f1-4031-9d67-2450463adff7",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "5266b8d2-b098-45ac-8610-58a3a3dd8ffa",
+        "id": "03cd2ce4-27fa-4ae6-9355-ad9ca577e324",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "7c9c019c-96fe-41f2-8f15-8fc0852bafd8",
+        "id": "d0f129e4-15ee-426d-bf57-ccda93f73515",
         "text": "Bound by system rule: Findings are the append-only evidence log (rules/system/findings-as-evidence)"
       },
       {
-        "id": "6f69aeb3-43e4-4231-abb5-a977d384117c",
+        "id": "d2fa7f2c-0fbb-4e88-86ac-7f68e3da050d",
         "text": "Bound by system rule: Analysis standard (rules/system/analysis-standard)"
       }
     ],
@@ -23,55 +23,55 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "1e15c7a2-e2db-4cda-8b08-91a5eac112d5",
+        "id": "96b5b6c3-c377-4deb-8462-157c469b5a9d",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "b8f872cb-f9bf-4db9-b713-15081e8a437e",
+        "id": "f396c511-93e4-4dc7-89a0-2bb453fe3bf5",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "7468c905-671b-4fab-ac69-ffb4d90e6801",
+        "id": "c1c9077c-1ad3-45e2-8422-e03cf48d0076",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
     "output": "A digest grouped by category, newest first, each finding with its linked pebble; stale verdicts flagged.",
     "prerequisites": [
       {
-        "id": "0693aed1-34eb-45d8-9068-ac742841879f",
+        "id": "1dcc6d77-a120-40c5-b9b9-5647ccd53efa",
         "text": "Findings exist to digest — query --section findings first"
       }
     ],
     "purpose": "Digest the dated findings: what changed lately",
     "steps": [
       {
-        "id": "24736c80-ac14-4a7f-963c-6050f1ae1c8c",
+        "id": "89d7753f-1f50-4e8b-88c6-50f544c1d4fc",
         "text": "Digest the findings log — what changed lately: $ARGUMENTS"
       },
       {
-        "id": "4b2772e1-5cf9-4806-a1e1-25e758127909",
+        "id": "612fc42d-c7a2-41b9-bc61-8a00de9d9606",
         "text": "STEP 1 — GATHER: \"{PEBBLES_CLI}\" query --section findings; read the recent ones by createdAt."
       },
       {
-        "id": "b625b796-bede-41f6-921f-03bd56462ad9",
+        "id": "bc2c1fbd-afd2-488b-bd95-05a87d9e621c",
         "text": "STEP 2 — FOLLOW SUPERSEDES CHAINS: only chain TIPS are current truth — a superseded finding is history, not a live claim. Flag open chain-tips older than the latest map as UNCONFIRMED."
       },
       {
-        "id": "4a6253b6-1c54-4b30-8941-bb425537c11e",
+        "id": "5f7a934c-c6cc-4d47-93f4-b5fc15ce76b9",
         "text": "STEP 3 — GROUP by category, newest first: verified-working / bugs / fixes / tech-debt / decisions — each with its linked pebble."
       },
       {
-        "id": "20449abc-b29f-4cd5-8657-c2c9ceac1d9f",
+        "id": "663b2386-d5c8-4f9a-acdd-bd84c5329051",
         "text": "Do NOT create findings from this digest (it is a READ of the log). Report the grouped digest with unconfirmed items flagged."
       }
     ],
     "verify": [
       {
-        "id": "eabf676e-a251-49c6-b2a4-e69004052e0e",
+        "id": "5049ee22-621a-4399-a1cc-c99fd3146990",
         "text": "Only supersedes-chain TIPS are presented as current truth; stale open tips flagged UNCONFIRMED"
       },
       {
-        "id": "32152445-f4a0-4cbe-afab-4938b992c848",
+        "id": "68fe8a9e-791d-43aa-92d9-f7a21746a9f2",
         "text": "No findings were created — this is a read of the log"
       }
     ],
@@ -83,7 +83,7 @@
   "name": "pebbles-report",
   "refs": [
     {
-      "id": "632a3bd2-ba38-4dd6-9692-202ba64deb80",
+      "id": "39e82413-648a-49c2-aca3-4cdbe5f4cf23",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -91,7 +91,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "86cedc09-6c54-41c4-9fcd-28bfd1693c3a",
+      "id": "6336f2a8-eddc-4785-b83f-09743de091a6",
       "label": "Findings are the append-only evidence log",
       "path": ".pebbles/rules/system/findings-as-evidence.pebble",
       "pebbleId": "468bc1e3-c8ac-4495-8166-f6dd6ed9b469",
@@ -99,7 +99,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "ee439b04-8673-4f5b-a433-cb7dabbe9ba3",
+      "id": "e1f823e9-c9af-49bf-a9bf-b461c2c6266e",
       "label": "Analysis standard",
       "path": ".pebbles/rules/system/analysis-standard.pebble",
       "pebbleId": "8b8e366f-5ede-47df-a887-ca721e3f51d0",
@@ -107,7 +107,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "46ae1a7f-eaef-4954-a7d5-3e214a092f2a",
+      "id": "37635595-533c-4f1c-b10e-5aa65a2a5090",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -115,7 +115,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "10187721-f3fe-4ae1-9c84-9f04854479bb",
+      "id": "97b98e3a-1922-44e9-b934-87671ebaab09",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -128,6 +128,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.772Z",
+  "updatedAt": "2026-07-28T03:27:29.234Z",
   "version": 1
 }

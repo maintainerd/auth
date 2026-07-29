@@ -33,7 +33,22 @@ CREATE TABLE IF NOT EXISTS management_audit_log (
 
 CREATE OR REPLACE FUNCTION prevent_management_audit_log_mutation() RETURNS TRIGGER AS $$
 BEGIN
-    RAISE EXCEPTION 'management_audit_log rows are immutable';
+    IF TG_OP = 'UPDATE' THEN
+        RAISE EXCEPTION 'management_audit_log rows are immutable and cannot be updated';
+    END IF;
+
+    -- DELETE is permitted ONLY for sanctioned lifecycle operations (retention
+    -- purge or full tenant deletion), signalled by a transaction-local GUC. This
+    -- keeps the trail append-only in normal operation while allowing a tenant
+    -- purge (GDPR/erasure) to cascade-delete the tenant's audit rows — without
+    -- this exemption the ON DELETE CASCADE from tenants raises here and the whole
+    -- purge transaction rolls back, so soft-deleted tenants can never be purged.
+    IF TG_OP = 'DELETE'
+       AND COALESCE(current_setting('maintainerd.allow_management_audit_log_delete', true), '') NOT IN ('retention', 'tenant_delete') THEN
+        RAISE EXCEPTION 'management_audit_log rows are immutable and can only be deleted by retention or tenant deletion';
+    END IF;
+
+    RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
 
