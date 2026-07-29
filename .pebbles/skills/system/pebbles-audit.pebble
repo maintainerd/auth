@@ -3,31 +3,31 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "59113b72-a288-4386-be89-a64305d4f471",
+        "id": "bfa6f3d4-9bbd-4c74-af21-822c2ff94360",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "e4d96286-3752-4da8-9b65-a7ee12905856",
+        "id": "22209154-d99e-42c2-9873-12dc3e0a2224",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "d36e3643-28f3-4491-88ab-9b471972d545",
+        "id": "0009f607-e577-41b9-a874-3b6ef9aa4b99",
         "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
       },
       {
-        "id": "81b3a637-f22f-4214-bae6-8cae9edc50e6",
+        "id": "22a68917-bc66-4cca-95de-ee632e84ef78",
         "text": "Bound by system rule: Findings are the append-only evidence log (rules/system/findings-as-evidence)"
       },
       {
-        "id": "9df6127e-9d02-498c-b7bd-fa2811e5bd83",
+        "id": "b09895a4-fec5-4fd5-bf73-c756596cbf9a",
         "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
       },
       {
-        "id": "f87d0068-8076-4a93-93f2-bbccf67a1c2c",
+        "id": "d9bf58de-29ff-4e91-a0d6-cf73eb3a163b",
         "text": "Bound by system rule: Verification — standard (rules/system/verification-standard)"
       },
       {
-        "id": "19371c79-ef28-478a-9039-4089f92c59cf",
+        "id": "7a5ccf82-d248-48b7-967c-4e1f3675bc8b",
         "text": "Bound by system rule: Command discipline (rules/system/command-discipline)"
       }
     ],
@@ -35,63 +35,63 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "d732dbfb-394d-4d4d-9f4f-a9f3351a9107",
+        "id": "b70a9299-64d8-4177-bcb6-e0d74dfae1a1",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "7720e580-77c8-471b-83af-54e6152e2b46",
+        "id": "d920153d-9e78-44e4-bb3b-2e1cb16b1b50",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "8d50405b-0fff-4225-87aa-4f490f89133f",
+        "id": "5c25eefd-a10a-4a58-a64f-5eea0022b968",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
     "output": "A still-true / drifted / broken summary with counts; statuses corrected and findings filed for rot.",
     "prerequisites": [
       {
-        "id": "a498a7f4-da49-47b7-9d8e-7184a07e443b",
+        "id": "3812384a-0017-466f-a0a0-90ac42dce383",
         "text": "A fresh map (map --fresh) — drift is judged against it"
       }
     ],
     "purpose": "Drift sweep: re-check every bound spec against reality",
     "steps": [
       {
-        "id": "9422bbf9-3cad-43c0-bc83-3cce3bbd4825",
+        "id": "76aca5db-95e7-4b1d-add3-b0ccc016066a",
         "text": "Audit the spec graph for rot — statuses are promises, verify they still hold: $ARGUMENTS"
       },
       {
-        "id": "1a6f3317-3bab-4bab-8461-ef065567ecc1",
+        "id": "864f4a45-4db9-41b6-923d-34728ff04537",
         "text": "PREFLIGHT: a FRESH map (\"{PEBBLES_CLI}\" map --fresh) — drift is judged against it."
       },
       {
-        "id": "ba757459-2123-48e3-a376-e61b44068f71",
+        "id": "1cf3f4b8-baa2-4d7b-b5bc-0cd11d1bdf55",
         "text": "STEP 1 — SCOPE: `query --status verified` (then implemented) for the promises you will re-check; a scoped audit beats a vague sweep."
       },
       {
-        "id": "13e86c1d-5aaf-4473-a82d-452e2a0a73c1",
+        "id": "afc3bef8-b496-4d60-9bc1-a1cb37c0d45f",
         "text": "STEP 2 — CHECK each bound pebble: its codeLinks still exist in the map AND the linked symbols still exist (map-file). File gone or symbol gone → the promise is broken."
       },
       {
-        "id": "a5110e2f-b2fd-4efe-8afb-719b8ebe6b20",
-        "text": "STEP 3 — RECORD truthfully: set drift/missing on what no longer holds, then \"{PEBBLES_CLI}\" add-finding --category regression with the drift evidence (supersede the prior finding when re-judging the same claim, never edit it). Spot-check behavior on the most-imported hubs."
+        "id": "c74e18d6-3de9-451e-9b96-aa08319adc09",
+        "text": "STEP 3 — RECORD truthfully: set drift/missing on what no longer holds, then \"{PEBBLES_CLI}\" add-finding --category regression --body \"## Observation\\n\\n...\\n\\n## Evidence\\n\\n- file:line — proof\" (supersede the prior finding when re-judging the same claim, never edit it). Spot-check behavior on the most-imported hubs."
       },
       {
-        "id": "c67bc558-716e-4f48-a707-1646def19651",
+        "id": "d3d7df40-389e-4598-bb34-845037cd0681",
         "text": "Report: still-true / drifted / broken with counts, and the findings filed."
       }
     ],
     "verify": [
       {
-        "id": "d2e517a0-f5fc-4df1-8049-c7101bfe7a7a",
+        "id": "1039d278-c213-4999-8fd3-f3b7cd36617b",
         "text": "Every implemented/verified pebble was checked — report counts: still-true / drifted / broken"
       },
       {
-        "id": "0a899d98-e018-4246-9d71-94c4b8023ffd",
+        "id": "ef8f8433-4cb2-4116-aae5-f44eb674f314",
         "text": "Open finding chain-tips were re-confirmed (superseding finding appended: resolved or still-open)"
       },
       {
-        "id": "f8ab8158-05fc-4d9c-a061-83b6b55da591",
+        "id": "f994bcef-95fb-42dd-8582-8b089e618452",
         "text": "At least one finding records this audit's outcome"
       }
     ],
@@ -103,7 +103,7 @@
   "name": "pebbles-audit",
   "refs": [
     {
-      "id": "888a86ed-1ec2-49e9-b5b9-2dc31fb5164c",
+      "id": "18b246bc-0f5f-4d98-8687-e5dda27ee3f5",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -111,7 +111,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "9966acad-ff75-45dc-b239-a9751cdc1769",
+      "id": "dc6c81e1-3ea5-4634-8f39-55ca125bc026",
       "label": "Status discipline",
       "path": ".pebbles/rules/system/status-discipline.pebble",
       "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
@@ -119,7 +119,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "5604460f-2a7d-4dff-beab-35d78c45f1ae",
+      "id": "1622847c-d876-4d84-8751-ce35bb417410",
       "label": "Findings are the append-only evidence log",
       "path": ".pebbles/rules/system/findings-as-evidence.pebble",
       "pebbleId": "468bc1e3-c8ac-4495-8166-f6dd6ed9b469",
@@ -127,7 +127,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "aedfe80f-8abe-469d-a337-fcb7dbd5f744",
+      "id": "519ba843-ef1e-412c-be67-18042346cd4a",
       "label": "Graph-first navigation",
       "path": ".pebbles/rules/system/graph-first-navigation.pebble",
       "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
@@ -135,7 +135,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "3c789974-d242-4d77-ab35-d5c21298ef5b",
+      "id": "9fd1f99a-4619-4769-8674-ab0ad57300a3",
       "label": "Verification — standard",
       "path": ".pebbles/rules/system/verification-standard.pebble",
       "pebbleId": "6771fa07-1e4e-4e97-962e-dcf46d58c0b6",
@@ -143,7 +143,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "6e181760-74f7-4fb8-b089-0ac73cdd2abd",
+      "id": "8fad404a-d163-45f3-bf2d-d836224d507e",
       "label": "Command discipline",
       "path": ".pebbles/rules/system/command-discipline.pebble",
       "pebbleId": "197d289c-06cc-4cd5-b560-2efd427ed161",
@@ -151,7 +151,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "e2d73fee-f4ff-4cf9-8758-fd5102b3a8dd",
+      "id": "c0c9b090-3364-41ca-ac7b-9ec3549847cf",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -159,7 +159,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "f5f1e217-b7a8-42e0-aff3-35febac86199",
+      "id": "2a6e8bb8-daac-4f57-a1f8-36581954a3e8",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -167,7 +167,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "eca0788b-5674-4143-bf5e-bc606ab76a26",
+      "id": "aa4fc066-0ff7-4eb1-8e43-7bccc513e13a",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -175,7 +175,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "0bec04bb-eb64-47e1-b659-6ff54bc8e4b4",
+      "id": "e0c0adfc-cf33-44db-b2e9-8872df7c3dba",
       "label": "Verification — spec-first, unit-by-unit",
       "path": ".pebbles/knowledge/system/verification-model.pebble",
       "pebbleId": "6fefc4f2-c41e-48b9-af3e-4af4c953fd74",
@@ -188,6 +188,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.763Z",
+  "updatedAt": "2026-07-28T03:27:29.222Z",
   "version": 1
 }

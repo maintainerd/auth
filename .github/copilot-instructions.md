@@ -101,7 +101,7 @@ full contract. This section is the non-negotiable summary.
 Everything system-provided is an editable pebble: 27 skills
 (`.pebbles/skills/system/`), the enforcement rules
 (`.pebbles/rules/system/`), six knowledge docs covering the whole
-platform (`.pebbles/knowledge/system/` — platform-overview, oathkeeper,
+platform (`.pebbles/knowledge/system/` — platform-overview, oathkeeper-reference,
 pebbles-cli, code-map, skills-and-agents, spec-lifecycle), and seven
 specialist agent personas (`.pebbles/agents/system/`). `pebbles-cli get`
 any of them for authoritative, current guidance.

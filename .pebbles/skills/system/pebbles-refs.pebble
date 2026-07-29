@@ -3,15 +3,15 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "2ba2b66f-6cc8-4353-86ad-1d27425aa517",
+        "id": "caf12e50-c78c-425f-b892-bc962ed05e5b",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "0e4f9b08-90fd-4b96-ab07-fd256808f3c6",
+        "id": "2a611797-8890-42ec-83bf-41d10b419a07",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "cf384f8d-8815-4a2b-86f7-16662413441e",
+        "id": "dc7a9b6f-1db6-4f93-9c9c-b808d5c4301b",
         "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
       }
     ],
@@ -19,15 +19,15 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "abb7fb30-7454-491f-9ad8-dd69c582f927",
+        "id": "dba35097-fdba-4ff0-bf47-9225008370b0",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "770614ed-c198-4e5e-a19f-9f85ecd60333",
+        "id": "1dd78083-bba8-47c4-920d-c4154a3013ea",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "9b7259be-4a49-414b-93b1-4d5232609a15",
+        "id": "8b80520a-bf86-4f26-bb65-45b85a9f02aa",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
@@ -36,11 +36,11 @@
     "purpose": "A pebble's connections both ways (refs, codeLinks, backlinks)",
     "steps": [
       {
-        "id": "2b8bd451-6fe9-43e6-a057-da1c9ade7cc0",
+        "id": "affecf42-a703-49c8-88ea-44d21106932a",
         "text": "Run: \"{PEBBLES_CLI}\" refs $ARGUMENTS"
       },
       {
-        "id": "997bf831-be98-4c15-9185-9b52010b7d69",
+        "id": "83092257-0146-4b99-bd05-0e14981b1470",
         "text": "(Argument: a pebble path.) Report its outgoing refs + codeLinks AND every pebble/unit that references it. If deeper code analysis is wanted, each codeLink path is a map node id — `map-file <path>` gives its symbols/imports/callers instantly."
       }
     ],
@@ -53,7 +53,7 @@
   "name": "pebbles-refs",
   "refs": [
     {
-      "id": "2f75dfb4-6990-425c-809b-554604a117ac",
+      "id": "a4c86ed6-685f-4066-b423-993661b5e0e3",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -61,7 +61,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "5ff6852a-5ff1-4ccd-b28d-d81694b338e0",
+      "id": "5491d7ac-44ed-4c17-81a5-f2b711ee8c60",
       "label": "Reference integrity",
       "path": ".pebbles/rules/system/reference-integrity.pebble",
       "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
@@ -69,7 +69,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "03214297-191f-42fe-bec4-831c202266b5",
+      "id": "ff5a3062-1d3b-446d-a303-848a60cb7290",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -82,6 +82,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.752Z",
+  "updatedAt": "2026-07-28T03:27:29.210Z",
   "version": 1
 }

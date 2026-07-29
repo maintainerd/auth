@@ -2,25 +2,10 @@
   "content": {
     "edges": [
       {
-        "id": "1fbac78f-610d-4507-b4a4-6482ac3f38a0",
-        "source": "cab6080b-df10-45ec-9a17-c02c1d4813ee",
-        "target": "4cad9070-7276-4b85-aeb1-20fe87b161df"
-      },
-      {
         "id": "45ea2b59-0a7b-45d0-8e9e-976271c45227",
         "label": "Yes",
         "source": "4cad9070-7276-4b85-aeb1-20fe87b161df",
         "target": "ae5304cc-c421-48a6-89cb-972721037b97"
-      },
-      {
-        "id": "0c42e674-20b2-49fc-8000-0cac74d6e5a6",
-        "source": "b3f7422f-a8ae-493d-8cb9-bd692dac0e3d",
-        "target": "c10a9c09-8ba3-49d4-a3aa-0c93dd8fd29e"
-      },
-      {
-        "id": "874b989d-3e8b-4e51-b08c-4d47a7bbff87",
-        "source": "c10a9c09-8ba3-49d4-a3aa-0c93dd8fd29e",
-        "target": "920fbccb-1539-4af2-8555-1b8a65a739dc"
       },
       {
         "id": "ccbc83ed-0af0-48fc-9e09-0c49175692d6",
@@ -41,11 +26,6 @@
         "id": "ddb43bce-0b15-4182-972e-a9283b57eeef",
         "source": "cbcb2fe7-d944-451b-855f-4cb7d9e4d314",
         "target": "9d1911fc-1b92-4348-8079-46778b21b4a6"
-      },
-      {
-        "id": "830728d0-af53-4b96-bfb0-51c3f28bdde6",
-        "source": "c10a9c09-8ba3-49d4-a3aa-0c93dd8fd29e",
-        "target": "8fd19b52-a9a9-41e3-a463-4614712e0105"
       },
       {
         "id": "b105d761-f71e-457b-bc25-d3f6d5052218",
@@ -77,6 +57,37 @@
         "id": "e2f19ffa-9342-409e-b540-cef564f46e3b",
         "source": "c2500de4-0bf3-4b2f-9247-bf33b68545c8",
         "target": "b3f7422f-a8ae-493d-8cb9-bd692dac0e3d"
+      },
+      {
+        "id": "9ea354dc-2cbb-43e7-b4de-0c2c773f8e33",
+        "source": "cab6080b-df10-45ec-9a17-c02c1d4813ee",
+        "target": "4362ef5e-444c-409b-a0dc-d75a2ab67375"
+      },
+      {
+        "id": "9c4561c4-ef4f-44db-babb-2a03432a8bc2",
+        "source": "4362ef5e-444c-409b-a0dc-d75a2ab67375",
+        "target": "4cad9070-7276-4b85-aeb1-20fe87b161df"
+      },
+      {
+        "id": "d1e88616-bfb7-487e-a9df-a05cd4aabe1e",
+        "source": "4362ef5e-444c-409b-a0dc-d75a2ab67375",
+        "target": "9e143d9c-5cbc-4257-a032-f7175a157736"
+      },
+      {
+        "id": "e9758ef8-6c9a-4fcc-9c35-f9ab95f07eb2",
+        "source": "b3f7422f-a8ae-493d-8cb9-bd692dac0e3d",
+        "target": "9e143d9c-5cbc-4257-a032-f7175a157736"
+      },
+      {
+        "id": "74762ea1-42c2-4599-98b9-6c600b50b41a",
+        "label": "Exceptions",
+        "source": "9e143d9c-5cbc-4257-a032-f7175a157736",
+        "target": "920fbccb-1539-4af2-8555-1b8a65a739dc"
+      },
+      {
+        "id": "82515bd9-53bf-48a0-9841-d9d8093d1198",
+        "source": "9e143d9c-5cbc-4257-a032-f7175a157736",
+        "target": "8fd19b52-a9a9-41e3-a463-4614712e0105"
       }
     ],
     "kind": "flow",
@@ -86,128 +97,136 @@
         "label": "Start",
         "nodeType": "start",
         "status": "planned",
-        "x": 399,
-        "y": 10
+        "x": -21,
+        "y": -29
       },
       {
         "id": "cab6080b-df10-45ec-9a17-c02c1d4813ee",
         "label": "Check Authentication",
         "nodeType": "step",
         "status": "verified",
-        "x": 397,
-        "y": 320
+        "x": -23,
+        "y": 161
       },
       {
         "id": "4cad9070-7276-4b85-aeb1-20fe87b161df",
         "label": "IsAuthenticated",
         "nodeType": "condition",
         "status": "planned",
-        "x": 397,
-        "y": 470
+        "x": 127,
+        "y": 257
       },
       {
         "id": "ae5304cc-c421-48a6-89cb-972721037b97",
         "label": "Check Service Request",
         "nodeType": "query",
         "status": "planned",
-        "x": 397,
-        "y": 640
+        "x": 127,
+        "y": 353
       },
       {
         "id": "b3f7422f-a8ae-493d-8cb9-bd692dac0e3d",
         "label": "Process2",
         "nodeType": "step",
         "status": "planned",
-        "x": 397,
-        "y": 990
-      },
-      {
-        "id": "c10a9c09-8ba3-49d4-a3aa-0c93dd8fd29e",
-        "label": "Exception Occured",
-        "nodeType": "condition",
-        "status": "planned",
-        "x": 397,
-        "y": 1190
+        "x": 127,
+        "y": 545
       },
       {
         "id": "920fbccb-1539-4af2-8555-1b8a65a739dc",
         "label": "Error",
         "nodeType": "error",
         "status": "planned",
-        "x": 569,
-        "y": 1190
+        "x": 127,
+        "y": 641
       },
       {
         "id": "d77b5ab4-c5fd-46d3-8077-5d5efbd29cab",
         "label": "GET: Receive Service Request",
         "nodeType": "api",
         "status": "verified",
-        "x": 397,
-        "y": 170
+        "x": -23,
+        "y": 65
       },
       {
         "id": "cbcb2fe7-d944-451b-855f-4cb7d9e4d314",
         "label": "API",
         "nodeType": "api",
         "status": "planned",
-        "x": 727,
-        "y": 1190
+        "x": 277,
+        "y": 641
       },
       {
         "id": "9d1911fc-1b92-4348-8079-46778b21b4a6",
         "label": "End",
         "nodeType": "end",
         "status": "planned",
-        "x": 879,
-        "y": 1190
+        "x": 429,
+        "y": 643
       },
       {
         "id": "8fd19b52-a9a9-41e3-a463-4614712e0105",
         "label": "API",
         "nodeType": "api",
         "status": "planned",
-        "x": 397,
-        "y": 1370
+        "x": -23,
+        "y": 737
       },
       {
         "id": "b5d272a0-f224-409a-9e32-bb2488103706",
         "label": "End",
         "nodeType": "end",
         "status": "planned",
-        "x": 399,
-        "y": 1540
+        "x": -21,
+        "y": 835
       },
       {
         "id": "458a6eba-d491-4da9-a3b1-b49d27d7ca47",
         "label": "Error",
         "nodeType": "error",
         "status": "planned",
-        "x": 569,
-        "y": 470
+        "x": 277,
+        "y": 257
       },
       {
         "id": "846754d6-a25a-4e86-8693-4a85085cc2c0",
         "label": "API",
         "nodeType": "api",
         "status": "planned",
-        "x": 727,
-        "y": 470
+        "x": 427,
+        "y": 257
       },
       {
         "id": "1e0247da-7098-4c84-b642-1e2fc6e440bb",
         "label": "End",
         "nodeType": "end",
         "status": "planned",
-        "x": 889,
-        "y": 470
+        "x": 579,
+        "y": 259
       },
       {
         "id": "c2500de4-0bf3-4b2f-9247-bf33b68545c8",
         "label": "Create Service Request",
         "nodeType": "query",
         "status": "planned",
-        "x": 397,
-        "y": 820
+        "x": 127,
+        "y": 449
+      },
+      {
+        "id": "4362ef5e-444c-409b-a0dc-d75a2ab67375",
+        "label": "Try",
+        "nodeType": "try",
+        "status": "planned",
+        "x": -21,
+        "y": 259
+      },
+      {
+        "id": "9e143d9c-5cbc-4257-a032-f7175a157736",
+        "label": "Catch",
+        "nodeType": "catch",
+        "status": "planned",
+        "x": -21,
+        "y": 643
       }
     ]
   },
@@ -217,6 +236,6 @@
   "name": "Service Request API",
   "tags": [],
   "type": "workflow",
-  "updatedAt": "2026-07-24T14:04:40.620Z",
+  "updatedAt": "2026-07-27T16:52:02.829Z",
   "version": 1
 }

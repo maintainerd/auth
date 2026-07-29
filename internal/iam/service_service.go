@@ -525,13 +525,6 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		if service.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
-		// The tenant check does NOT cover a system service inside the owning tenant.
-		// A system service carries the platform's control policies — re-policying one
-		// grants or strips authority for every principal that resolves to it.
-		if service.IsSystem {
-			return apperror.NewValidation("system service policies cannot be modified")
-		}
-
 		// Check if policy exists and belongs to the same tenant
 		policy, err := txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
@@ -540,14 +533,6 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		if policy == nil {
 			return apperror.NewNotFoundWithReason("policy not found or access denied")
 		}
-		// The system control policy (root:* on *) is seeded into every tenant so the
-		// control plane can be provisioned there. Attaching it through the API would
-		// hand platform-wide authority to any service the caller owns — bootstrap
-		// writes the join directly and does not come through here.
-		if policy.IsSystem {
-			return apperror.NewValidation("system policies cannot be attached or detached through this API")
-		}
-
 		// Check if assignment already exists
 		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(service.ServiceID, policy.PolicyID)
 		if err != nil {
@@ -623,13 +608,6 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		if service.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
-		// The tenant check does NOT cover a system service inside the owning tenant.
-		// A system service carries the platform's control policies — re-policying one
-		// grants or strips authority for every principal that resolves to it.
-		if service.IsSystem {
-			return apperror.NewValidation("system service policies cannot be modified")
-		}
-
 		// Check if policy exists and belongs to the same tenant
 		policy, err := txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
@@ -638,14 +616,6 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		if policy == nil {
 			return apperror.NewNotFoundWithReason("policy not found or access denied")
 		}
-		// The system control policy (root:* on *) is seeded into every tenant so the
-		// control plane can be provisioned there. Attaching it through the API would
-		// hand platform-wide authority to any service the caller owns — bootstrap
-		// writes the join directly and does not come through here.
-		if policy.IsSystem {
-			return apperror.NewValidation("system policies cannot be attached or detached through this API")
-		}
-
 		// Check if assignment exists
 		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(service.ServiceID, policy.PolicyID)
 		if err != nil {

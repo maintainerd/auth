@@ -4,21 +4,21 @@
       {
         "description": "map-symbol (where defined) · map-search (ranked matches) · map-file (symbols + imports + importers + calls) · map-callers (who calls it) · map-neighbors (dependency closure). Only read the files the graph points you to.",
         "enforcement": "strict",
-        "id": "216e6b45-4cf3-4056-ac98-64c2f0a42373",
+        "id": "ee11b15d-d87a-4ca6-9c22-2d16d9bd8ae0",
         "status": "verified",
         "text": "Locate code through the map, not grep"
       },
       {
         "description": "Queries read the latest SAVED map; the relay reports its age. Add --fresh when the code has changed since — extraction REQUIRES a current map.",
         "enforcement": "strict",
-        "id": "f3582dca-e7ae-4b52-8421-a56688e0cb24",
+        "id": "eee922fa-e9dc-4998-a7dd-0943d7478202",
         "status": "verified",
         "text": "Mind map freshness"
       },
       {
         "description": "refs <path> shows a pebble's connections both ways (outgoing refs + codeLinks, and every pebble/unit referencing it). Use it before changing anything shared.",
         "enforcement": "strict",
-        "id": "04bae6c9-c6ea-4908-b9e2-bcc706d22872",
+        "id": "5fc979e9-6162-46d5-b705-21c1dea1b94d",
         "status": "verified",
         "text": "Traverse the spec graph with refs and query"
       }
@@ -31,7 +31,7 @@
   "name": "Graph-first navigation",
   "refs": [
     {
-      "id": "f037ff9f-20e1-40c8-ae6a-b0b3b43e4d1a",
+      "id": "a41a644b-649f-4438-abf4-56f02542923a",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -44,6 +44,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.684Z",
+  "updatedAt": "2026-07-28T03:27:29.167Z",
   "version": 1
 }

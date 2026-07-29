@@ -885,34 +885,37 @@ func TestServiceService_Update_DuplicateNameCheckIsTenantScoped(t *testing.T) {
 	assert.Equal(t, tid, gotTenantID)
 }
 
-// A system service carries the platform's control policies. The tenant check does
-// not cover it inside the owning tenant, so re-policying one would grant or strip
-// authority for every principal that resolves to it.
-func TestServiceService_PolicyMutations_RefuseSystemServices(t *testing.T) {
+func TestServiceService_PolicyMutations_AllowSystemPoliciesOnSystemServices(t *testing.T) {
 	serviceUUID := uuid.New()
 	policyUUID := uuid.New()
 	tid := int64(1)
 
-	buildSvc := func(t *testing.T) ServiceService {
+	buildSvc := func(t *testing.T, existingAssignment *ServicePolicy) ServiceService {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
-		mock.ExpectRollback()
+		mock.ExpectCommit()
 		return NewServiceService(db, &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return &Service{ServiceID: 1, ServiceUUID: serviceUUID, TenantID: tid, IsSystem: true}, nil
 			},
-		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
+		}, &mockAPIRepo{}, &mockServicePolicyRepo{
+			findByServiceAndPolicyFn: func(_ int64, _ int64) (*ServicePolicy, error) {
+				return existingAssignment, nil
+			},
+		}, &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: policyUUID, TenantID: tid, IsSystem: true}, nil
+			},
+		})
 	}
 
 	t.Run("assign", func(t *testing.T) {
-		err := buildSvc(t).AssignPolicy(context.Background(), serviceUUID, policyUUID, tid)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "system service")
+		err := buildSvc(t, nil).AssignPolicy(context.Background(), serviceUUID, policyUUID, tid)
+		require.NoError(t, err)
 	})
 
 	t.Run("remove", func(t *testing.T) {
-		err := buildSvc(t).RemovePolicy(context.Background(), serviceUUID, policyUUID, tid)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "system service")
+		err := buildSvc(t, &ServicePolicy{ServicePolicyUUID: uuid.New(), ServiceID: 1, PolicyID: 2}).RemovePolicy(context.Background(), serviceUUID, policyUUID, tid)
+		require.NoError(t, err)
 	})
 }

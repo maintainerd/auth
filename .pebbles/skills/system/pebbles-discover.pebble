@@ -3,15 +3,15 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "e905b753-7696-4349-9e54-bfa45e78e12c",
+        "id": "0ce1219d-0350-4c20-888b-af23d58e31bc",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "a6a4c1a8-89a6-432f-9e00-bb39aafe345c",
+        "id": "8b12bef4-c08b-4fbe-8515-51d862d4468d",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "b094bd82-4f48-4cf9-a540-184f279c5ff7",
+        "id": "c99301c5-4d3e-4e19-8892-dd4dd8acf815",
         "text": "Bound by system rule: Analysis standard (rules/system/analysis-standard)"
       }
     ],
@@ -19,63 +19,63 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "95f5b3d6-d5cd-4079-a51e-71eb4a2bb465",
+        "id": "22a8ca8c-6d85-4447-bdf3-43d85478657b",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "ea95ea58-ec4e-46fe-831e-1fe6f39b62d0",
+        "id": "e90c2c57-d7c4-4624-bdab-0a3ed3b57466",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "93adc93c-498f-4c2b-ad67-5a1d773a294a",
+        "id": "b47d09a8-0f0a-4627-8db4-90c8dad57f93",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
     "output": "A Discovery Brief: restated intent (+alternatives), READY vs GAPS (each gap with why it matters and what would fill it), and the exact recommended next skill/agent with arguments. Strictly read-only.",
     "prerequisites": [
       {
-        "id": "6cbb8ff1-d9e6-4f86-9837-5339376285a9",
+        "id": "bf4c1944-59df-4537-8047-7854558990ee",
         "text": "A saved map (relay reports its age; map --fresh if stale) — readiness is judged against it"
       }
     ],
     "purpose": "Discover: understand the ticket/context + whether the spec is ready, before any work",
     "steps": [
       {
-        "id": "25d9e377-6b0b-4d9f-8473-bda58150c2fd",
+        "id": "031e9864-8965-4fb7-a36f-0ae2cb3aa3b7",
         "text": "Discover — understand what the user actually wants and the context (the ticket/problem), before anything acts: $ARGUMENTS"
       },
       {
-        "id": "9b288c5b-59f2-4636-905e-481aee7d7b58",
+        "id": "4cb1aa90-e491-457c-a3db-3a7067ac1ad1",
         "text": "This skill is STRICTLY READ-ONLY — no create/update/set-status/add-finding, no code changes. It exists so nothing downstream runs on assumptions."
       },
       {
-        "id": "fb8d0fd0-bbfd-440e-a5b5-4e1b13541420",
+        "id": "67f2b187-3eed-4e83-839e-9181b0891317",
         "text": "STEP 1 — RESTATE THE ASK: goal, scope, success criteria, and the interpretation you chose — with the plausible alternatives named. If interpretations genuinely diverge, ask (max 5 targeted questions); never pick silently."
       },
       {
-        "id": "545f535d-788c-4fee-b398-61a91a37e2e7",
+        "id": "01cf484c-e381-4b34-af18-eafe06a5923b",
         "text": "STEP 2 — READINESS CHECK on the target pebble(s): `get` them and `refs` them. Assess against what the INTENDED work needs: is the description real (not filler)? do units (fields/items/nodes) carry descriptions + statuses? do refs resolve and cover the load-bearing relationships (FKs, subprocess links, governing rules)? are codeLinks present and in the map? is the map fresh enough for the task?"
       },
       {
-        "id": "0200d4a9-1bed-4121-b060-1a58057ad736",
+        "id": "1713d9c6-d17b-4fe3-8233-27198693c420",
         "text": "STEP 3 — THE DISCOVERY BRIEF (your output): (a) the restated intent; (b) READY: what the spec already provides; (c) GAPS: each missing piece, WHY it matters for this specific task, and what information from the user would fill it; (d) RECOMMENDED NEXT STEP: the exact skill (+agent) to run once settled — shallow/deep/regular extract, fix, verify, plan… — with the arguments to pass."
       },
       {
-        "id": "b89f8fe2-3090-48ca-9e25-4f93e74216a4",
+        "id": "3bf19d34-fc66-46b9-8c84-1f34a8bc6274",
         "text": "Do NOT fix the gaps yourself — surfacing them is the job; the user decides. When everything is settled, the user triggers the follow-up skill."
       }
     ],
     "verify": [
       {
-        "id": "a5c64f7b-d06a-4837-a7a7-c2881290523a",
+        "id": "d9c444fe-c447-4082-a3a6-3c147aa07b3c",
         "text": "NOTHING was written — no pebble create/update/status, no finding, no code"
       },
       {
-        "id": "0629c690-c098-47ef-864c-bf685b9dd062",
+        "id": "21d9ca66-822d-406b-81a2-6135d9751d5f",
         "text": "The brief contains: restated intent with alternatives, READY list, GAPS each with why-it-matters, and a concrete recommended next step"
       },
       {
-        "id": "9158c831-bf5d-4999-97ce-77a3ffad2e95",
+        "id": "66253ff1-7866-46bc-81f3-9b50a0df0c92",
         "text": "Genuinely diverging interpretations were asked about, not silently chosen"
       }
     ],
@@ -87,7 +87,7 @@
   "name": "pebbles-discover",
   "refs": [
     {
-      "id": "5220bd5d-1882-49fc-9100-270483ea8de4",
+      "id": "2571ac5b-bff4-4656-b4a5-8f11a6002a1b",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -95,7 +95,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "cda3c9cc-9b66-4d8a-86fb-ef88c7037005",
+      "id": "d054ff00-11b1-4e5b-baef-bec3a7957398",
       "label": "Analysis standard",
       "path": ".pebbles/rules/system/analysis-standard.pebble",
       "pebbleId": "8b8e366f-5ede-47df-a887-ca721e3f51d0",
@@ -103,7 +103,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "43b84d89-7e6c-4a7f-bb6b-20c466aeca95",
+      "id": "1cf246af-188d-4086-96da-57014ee249bd",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -111,7 +111,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "93001aa1-1aa6-4bae-8171-4a114cfa2685",
+      "id": "65c4cfb1-a8d4-4ff7-ad73-0d6948c162a0",
       "label": "Skills and agents",
       "path": ".pebbles/knowledge/system/skills-and-agents.pebble",
       "pebbleId": "d972e483-be17-4e83-afb7-f15b26a762db",
@@ -119,7 +119,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "ab4770b3-b6f6-45b5-94e4-aca378170e13",
+      "id": "3fa61c9b-4607-4845-a5fd-330aba26ea57",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -132,6 +132,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.730Z",
+  "updatedAt": "2026-07-28T03:27:29.185Z",
   "version": 1
 }

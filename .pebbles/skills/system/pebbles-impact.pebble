@@ -3,23 +3,23 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "e07d6592-7fab-49ee-941f-e659225add0f",
+        "id": "34b9e460-b0be-4693-aabe-096c1e9b9de5",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "749c3757-2710-4518-9980-37fe92cdff0d",
+        "id": "84beac27-3e0f-4597-b1dc-5ffa911c8267",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "3d5428d2-35a8-46a8-ba3a-b522b6cda7d9",
+        "id": "c811abc2-77f0-472a-b60c-4314c246e022",
         "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
       },
       {
-        "id": "1fa40796-eaea-4805-b852-8724a3aa17d3",
+        "id": "244c4d1d-59a7-4bd2-9e5b-f9ba24ead1d8",
         "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
       },
       {
-        "id": "d6e44e27-68be-42d3-90e6-0f82dd086b1f",
+        "id": "27cc39d9-3768-4f10-b63b-a75f3ec02e8d",
         "text": "Bound by system rule: Analysis standard (rules/system/analysis-standard)"
       }
     ],
@@ -27,55 +27,67 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "6a409365-991c-4836-98b8-6d04de54e8a1",
+        "id": "4969403a-a055-44d1-832e-a91c22fe4b0d",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "e7ca23aa-0af3-4d41-b6f1-8bbdb0b75eff",
+        "id": "894fd388-58a0-4a81-bd77-9a8740a7ecc5",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "6e087ef8-4ace-482e-8a9d-b839426af462",
+        "id": "75fca644-1083-4229-a5ba-c796b2d77a55",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
     "output": "What needs review or breaks, ranked by importedBy — nothing is changed.",
     "prerequisites": [
       {
-        "id": "046fbfb4-d621-4f01-aee5-c5f09f383f73",
+        "id": "e54a7dc7-21e5-400f-bf3f-64dbe20aa5ea",
         "text": "A saved map — code-side blast radius reads it"
       }
     ],
     "purpose": "Blast radius of a change (spec + code dependents)",
     "steps": [
       {
-        "id": "ac80aa35-2b45-4602-85f4-cf40b8f2f83b",
+        "id": "3cd18b19-f3b0-4f72-8b75-e05584b2b4ba",
         "text": "Impact analysis — the blast radius BEFORE a change: $ARGUMENTS"
       },
       {
-        "id": "2818b82e-7047-470f-8346-78717ec50558",
+        "id": "b67a0e9e-ceb1-4fea-9664-02a958e2a5f7",
         "text": "SCOPE FIRST (echo): the pebble/unit that would change, and what the change is."
       },
       {
-        "id": "a5b423f8-c1e0-4773-afe7-d6b0a3822795",
+        "id": "70aa5ae7-7cca-4a24-b552-4162e844e735",
         "text": "STEP 1 — SPEC SIDE: the pebble's refs and every pebble referencing it (query/get) — who depends on this promise."
       },
       {
-        "id": "dff872e2-31bc-44d4-ac04-497afc055fd5",
+        "id": "63a7d695-9314-4530-9e85-78872a88d411",
         "text": "STEP 2 — CODE SIDE: map-file and map-neighbors --in on its codeLinks — who IMPORTS it — and map-callers — who CALLS it. Rank by importedBy."
       },
       {
-        "id": "37076f3b-843e-42da-ad9f-778e49ac820d",
-        "text": "STEP 3 — Change NOTHING (code or spec); record the conclusion: \"{PEBBLES_CLI}\" add-finding <pebble> --title \"Impact: ...\" --category research --observation \"...\" --evidence \"...\"."
+        "id": "bfcadc5d-180a-4fa9-8498-d871b172aeb5",
+        "text": "STEP 3 — Change NOTHING (code or spec); record the conclusion: \"{PEBBLES_CLI}\" add-finding <pebble> --title \"Impact: ...\" --category research --body \"## Observation"
       },
       {
-        "id": "643cc1ed-ecbe-43a6-affd-78a5415fca8c",
+        "id": "bd202858-18a0-4eab-a8a9-c2881d1d6090",
+        "text": "..."
+      },
+      {
+        "id": "f5c78318-489d-404b-a682-ae53b4740290",
+        "text": "## Evidence"
+      },
+      {
+        "id": "df2707ee-a07d-4840-923c-2ce1199b25c6",
+        "text": "- ...\"."
+      },
+      {
+        "id": "a220ea64-fc69-4dfb-9d2f-a6538e0c7d6f",
         "text": "Report: what breaks or needs review if this changes, ranked by blast radius."
       }
     ],
     "verify": [
       {
-        "id": "da415429-1440-4281-a8ff-b9db84bd4a8f",
+        "id": "c68f2b9e-9fa3-42da-b01f-78c647d86910",
         "text": "The blast-radius conclusion is recorded as a finding (--category research or measurement)"
       }
     ],
@@ -87,7 +99,7 @@
   "name": "pebbles-impact",
   "refs": [
     {
-      "id": "d8080e71-365e-4d4b-a96e-8b931a23cd64",
+      "id": "817d4289-dd8d-403f-a69c-911b22e69a7a",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -95,7 +107,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "e7dcda17-0227-4d29-8d82-752c1fae0141",
+      "id": "ab2a30fe-8ec8-4993-9879-526b36a972b0",
       "label": "Reference integrity",
       "path": ".pebbles/rules/system/reference-integrity.pebble",
       "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
@@ -103,7 +115,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "1341cb14-636e-40de-891a-e682ce7456ed",
+      "id": "131260b1-8d42-45d7-b5ff-7254daadb747",
       "label": "Graph-first navigation",
       "path": ".pebbles/rules/system/graph-first-navigation.pebble",
       "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
@@ -111,7 +123,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "7eceb4d8-722f-4167-93e8-de204a1dce67",
+      "id": "9611fee4-aeb7-4667-9b71-7d5291a25033",
       "label": "Analysis standard",
       "path": ".pebbles/rules/system/analysis-standard.pebble",
       "pebbleId": "8b8e366f-5ede-47df-a887-ca721e3f51d0",
@@ -119,7 +131,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "271961c1-8e36-4dd6-bd4d-52a2b33c87cd",
+      "id": "57dbdfc8-9820-4554-9132-37bf8cda3a7c",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -127,7 +139,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "545502e5-0769-4847-8a0a-ea84b4d541e5",
+      "id": "a317b761-624f-46df-8a8e-c927ac209326",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -140,6 +152,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.768Z",
+  "updatedAt": "2026-07-28T03:27:29.229Z",
   "version": 1
 }

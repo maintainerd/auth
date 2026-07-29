@@ -4,42 +4,42 @@
       {
         "description": "Container or dev CLI as the project prescribes — never ad-hoc on the host; parity is the point.",
         "enforcement": "strict",
-        "id": "3600efd2-70d7-40cd-b5ad-8ad70bb07c3c",
+        "id": "3abfcfc4-fa1e-45ed-b0d8-a3dcab862f3f",
         "status": "verified",
         "text": "Run builds/tests in the project's sanctioned runtime"
       },
       {
         "description": "--force, rm -rf outside the workspace, reset --hard, checkout '.' — irreversible actions need a human.",
         "enforcement": "strict",
-        "id": "84ba2dca-a6e3-410a-9051-e001094a46d8",
+        "id": "18a8d6d5-1158-4f9d-ac15-22c7a376fb5a",
         "status": "verified",
         "text": "No destructive or history-rewriting commands"
       },
       {
         "description": "Never by output presence — passing logs lie. Check the code, count the assertions.",
         "enforcement": "strict",
-        "id": "90049d06-3f76-4bcc-bcca-08d2d9de2089",
+        "id": "78bb98cd-302c-4696-968c-93e0199beb83",
         "status": "verified",
         "text": "Judge success by exit code and expected assertions"
       },
       {
         "description": "Lockfile changes and new packages are supply-chain decisions for a human.",
         "enforcement": "strict",
-        "id": "f1a60d67-4c6e-4c34-9eda-5fef8e053c86",
+        "id": "ded3e901-4451-49a4-822c-1f109c0ecc31",
         "status": "verified",
         "text": "No dependency installs or version bumps without approval"
       },
       {
         "description": "Never read, echo or commit .env/secret material; no credentials inline in commands.",
         "enforcement": "strict",
-        "id": "a5d6ca74-9296-4cda-bbc0-70b5a2976eb7",
+        "id": "94181e46-ea42-4c74-b1e4-0403f51b43e2",
         "status": "verified",
         "text": "Secrets stay untouched"
       },
       {
         "description": "A green run before your final change proves nothing about the final state.",
         "enforcement": "strict",
-        "id": "fec03ba7-3261-4262-9648-8ce683b0bfe7",
+        "id": "d95b00c2-dc10-43b5-9959-e1488996a9d2",
         "status": "verified",
         "text": "Re-run the gate after the LAST edit"
       }
@@ -55,6 +55,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.711Z",
+  "updatedAt": "2026-07-28T03:27:29.178Z",
   "version": 1
 }

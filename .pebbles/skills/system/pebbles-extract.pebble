@@ -3,39 +3,39 @@
     "arguments": "$ARGUMENTS",
     "constraints": [
       {
-        "id": "581a40c6-4fed-422f-af35-8121054dcd7f",
+        "id": "bc2f85e7-40bc-416e-8a90-580cfe18d95b",
         "text": "Use the Bash tool. The Pebbles CLI at \"{PEBBLES_CLI}\" is the ONLY sanctioned way to change spec files — never edit .pebble files directly."
       },
       {
-        "id": "bddf4564-d2ac-445d-b3a5-76a7a1e33d38",
+        "id": "a817c0e8-5afd-4cc4-aa1a-dd203ee5c958",
         "text": "Bound by system rule: Extraction — workflow graph standard (rules/system/workflow-extraction)"
       },
       {
-        "id": "e8112aca-6c85-4a2f-9066-21969714bdb9",
+        "id": "8f232bb9-6420-4382-8a5b-0f269ad78ce2",
         "text": "Bound by system rule: Extraction — scope boundary (topic is law) (rules/system/extraction-scope)"
       },
       {
-        "id": "e6cc3133-083a-495a-b355-2953e3e5e3f5",
+        "id": "1859e242-325c-4b6b-a208-9b381ae32990",
         "text": "Bound by system rule: Spec mutation contract (rules/system/spec-mutation-contract)"
       },
       {
-        "id": "b3cb7494-54cb-4550-8beb-aacef3c9e0f5",
+        "id": "682c175f-1c8e-4268-9c9c-89e84a85d059",
         "text": "Bound by system rule: Table completeness (rules/system/table-completeness)"
       },
       {
-        "id": "87ddf1d2-a4a1-49bf-a58f-8d35b4283f03",
+        "id": "f8de1e52-5d6e-40fc-bac2-0f2d5ed11eb0",
         "text": "Bound by system rule: Reference integrity (rules/system/reference-integrity)"
       },
       {
-        "id": "e6b2b0e3-bd98-42f9-af7a-4d97e9aee13c",
+        "id": "f801272d-2282-46a9-a3cd-3c11a272cfa5",
         "text": "Bound by system rule: Status discipline (rules/system/status-discipline)"
       },
       {
-        "id": "bafcde25-7889-4d5a-91a8-31496ec856bf",
+        "id": "b2d81e06-78b1-47fc-9eb2-c2b9490b752a",
         "text": "Bound by system rule: Graph-first navigation (rules/system/graph-first-navigation)"
       },
       {
-        "id": "2b6f72f6-170a-41ee-a41c-51d59b5f765f",
+        "id": "da766731-ee77-4f70-b068-90d78a401311",
         "text": "Bound by system rule: Extraction — completeness standard (rules/system/extraction-standard)"
       }
     ],
@@ -43,83 +43,83 @@
     "kind": "skill",
     "onFailure": [
       {
-        "id": "0447f596-a217-40a0-9497-69910beedd55",
+        "id": "5e4110e9-fc78-4472-b624-a0e1bfbf74ca",
         "text": "Read the CLI error — it names the fix; correct the call and retry once"
       },
       {
-        "id": "3be2d9e2-788f-4cfe-9b9b-4007c013e2be",
+        "id": "c26595e7-0e78-4f62-b939-146435ad8d63",
         "text": "NEVER fall back to editing .pebble files directly, whatever failed"
       },
       {
-        "id": "d8c4161b-ef26-468e-ac09-797f463ba077",
+        "id": "10360f81-7b40-47dc-a112-2ba3adb5bffd",
         "text": "If still blocked, report the exact command and error to the user and stop"
       }
     ],
     "output": "The pebble's content extracted from code with every field described + statused, FK refKeys wired, sources code-linked, status implemented.",
     "prerequisites": [
       {
-        "id": "9864012c-9d7b-4c7d-93b2-e62256d5c59e",
+        "id": "44acc42d-c5c9-4b4d-ac79-02caec669126",
         "text": "A CURRENT project map exists (relay reports its age; run map --fresh if stale)"
       },
       {
-        "id": "549fbd5e-de3d-4657-9f87-f22cf6aca29a",
+        "id": "3328f005-6b22-41b1-9bea-4e7bbe22cb35",
         "text": "The target pebble exists — get it first to see what's already specified"
       }
     ],
     "purpose": "Reverse mode: fill a pebble FROM the existing code",
     "steps": [
       {
-        "id": "ec8fb66d-cacf-48ed-be79-00118ea29ed8",
+        "id": "37267d36-b63f-4774-abb3-ead2f4e48f5d",
         "text": "Extract spec from the existing codebase into: $ARGUMENTS"
       },
       {
-        "id": "3b280972-7a5a-4713-9d1b-2851ef57d9c5",
+        "id": "f9fc8142-4208-4119-9d38-82e568889f83",
         "text": "STEP 0 — KNOW WHAT YOU ARE EXTRACTING: `get` the target pebble first and read its type + content.kind; the procedure depends on it. REQUIRED before any of them: a project map — run \"{PEBBLES_CLI}\" map (--fresh if stale)."
       },
       {
-        "id": "2c739ca6-26dd-46f7-b6f9-e9c289594123",
+        "id": "2f3d042c-ccf9-48b7-a1ef-798aae9a456b",
         "text": "STEP 1 — THE SCOPE BLOCK (echo it before reading code): entry point(s) as concrete file:symbol (ASK if more than one candidate), the topic closure = code reachable FORWARD from the entry point only (upstream callers and siblings are OUT — never extract what happens before the topic), the exclusion list, depth: extract (single level)."
       },
       {
-        "id": "ad08a3c5-cc47-4fbf-a449-3435d5d7eb0d",
+        "id": "1ced520b-ef16-4549-8db6-3e08263c2576",
         "text": "MODEL (persisted table): truth is the DDL/migration, never the ORM. Count the columns in the source FIRST, then capture EVERY column (timestamps, soft-deletes, flags — boring fields are fields) with type, required (= NOT NULL), default (verbatim), primaryKey, a description from the code context, status implemented — then a SECOND pass for FKs: every *_id column whose target model pebble exists gets refKey {path, field: \"<target field name>\"} (the CLI resolves ids and wires the graph); name the unlinked ones and why. Reconcile counts before finishing."
       },
       {
-        "id": "43148fc0-8392-45c7-8df8-1ed8d22f7877",
-        "text": "STRUCTURE (in-code shape — DTO/payload/config): truth is the source code; code types; NO DB semantics (no PK/refKey/NOT NULL); nest other tables via typeRef."
+        "id": "3c4ed80f-3a98-4bbd-bf41-7a133cd2c3d1",
+        "text": "STRUCTURE (in-code shape — DTO/payload/config/wire body): truth is the source code; code types; NO DB semantics (no PK/refKey/NOT NULL); nest other tables via typeRef."
       },
       {
-        "id": "c5a3e2bd-1773-4fab-b4b6-3559871866cd",
-        "text": "CONTRACT (wire surface): real endpoints — method, path, status codes, auth notes in descriptions; request/response payload shapes REFERENCE structures via typeRef, never redefined inline."
+        "id": "d76ef20b-027b-47c3-8a4b-947f20366a05",
+        "text": "API (wire surface): real endpoints — method, path, params, headers, and every response status code with auth notes in descriptions; request/response payloads are defined inline OR REFERENCE a structure via structureRef, never a redefined shape."
       },
       {
-        "id": "dd299c78-e383-4b27-99f5-07163bd1c9a6",
-        "text": "WORKFLOW (flow): ONE symbol, exhaustively, single level — every call, branch, guard, throw, event and query INSIDE the closure is a step or condition; callees are FLATTENED into described steps (cite their file:line), never separate workflows (that is deep-extract). Shared utilities (fan-in ≥5: log/validate/auth/serialize/config) live inside descriptions, never as nodes. EXTERNAL I/O — mark every crossing of the app boundary as an `external` node, never buried in a step: INBOUND (a request/webhook/gRPC/consumed queue message we receive) → an external node at the entry (right after start) detailing the received payload; OUTBOUND (an HTTP/queue/service/frontend/partner call we make) → an external node where it happens. Its description states the direction + communication type (REST/webhook/gRPC/queue/…) + data shape; ref the contract/structure. External system = another backend, a frontend, a queue, a partner/AI API, etc. TERMINATE EVERY PATH: model the transaction (Begin→…→Commit + Rollback), and ONE terminal per distinct outcome — success for the achieved result, its own error terminal per distinct failure (each status code / contract / compensation is its own; auth denial always its own). ERROR HANDLING BY SCOPE (never loop an arrow back up to a reused error box): a single-purpose guard stays inline (check → its own error → end); a region of MANY actions under a handler (try/catch, transaction, middleware) → an exception check → its OWN `exception` node → its OWN end, IN FRONT OF that region. exception is an OUTCOME like success/error: DUPLICATED never shared — every covered region gets its own (several per flow), NEVER reuse one or point back to a distant one. TRY/CATCH (works for EVERY language — YOU identify the guarded error-handling construct in the code yourself: try/catch, try/except, begin/rescue, do/catch, defer+recover, an err-return guarded region, …, NOT by matching a keyword; the model is the SAME once recognized) → the dedicated `try`/`catch` nodes (circles, CLI-enforced): the `try` `{` opens the guarded region with TWO outputs — the BODY (the try block's statements as ordinary nodes flowing down, whose last node RETURNS to the catch) and a SPINE straight to the matching `catch` (2nd line may ONLY target a catch). Model the BODY in FULL — an inner guard that throws keeps its OWN condition + a throw arm → `error` \"<what> — error thrown\" → its own end (scope conveys the catch handles it; no edge drawn); never collapse/drop inner guards. The `catch` `}` closes with TWO inputs (the try's spine + the body's return) and TWO outputs: the EXCEPTION line ALWAYS labeled \"Exceptions\" (fixed) → the failure handling, and the CONTINUATION line with NO label → the code AFTER the try/catch. CAUGHT vs UNCAUGHT decides the Exceptions line: a catch that HANDLES the error locally (rollback/log/recover/set-status) → those REAL processes as EXPLICIT nodes → end, self-contained, NO global-exception; a catch that RE-THROWS/delegates → its local step(s) then an `exception` hand-off node → end → a `global-exception` flow (exception ⟹ global-exception). Never one generic box; never invent a global-exception for a self-contained catch. `arrange` draws the bracket (try+catch on the spine, the FIRST body node aligned horizontally with the try then the rest flowing down between the braces, catch below the body, continuation down, Exceptions peeling right). success/error/exception ARE routed to their own end nodes. FLOW FORWARD — the ONLY backward edge is a genuine process retry (a step/subprocess/parallel or a retry-condition looping back to re-process); outcomes and ends always move forward, never back up to reuse a node. Every node cites its code location; CAPTURE EVERY BRANCH AND EXIT — no path left behind, ANY language: account for each conditional (if/else/ternary/guard/early-return/continue/break), each switch/match/case (incl. default), each loop exit, each throw/raise/reject/panic/error-return, each catch/except/rescue CLAUSE (a multi-clause handler is SEVERAL handlers — model each clause's distinct handling: logging, notify flags, rollback, rethrow, mapped status — never merged), and each outcome. Before finishing, LIST the code's decision + exit points and confirm each maps to a node/branch — a mismatch means you are not done; reconcile source branches vs condition nodes before finishing."
+        "id": "0c3e771e-1ca5-435e-96ad-13df5f724a82",
+        "text": "WORKFLOW (flow): ONE symbol, exhaustively, single level — every call, branch, guard, throw, event and query INSIDE the closure is a step or condition; callees are FLATTENED into described steps (cite their file:line), never separate workflows (that is deep-extract). Shared utilities (fan-in ≥5: log/validate/auth/serialize/config) live inside descriptions, never as nodes. EXTERNAL I/O — mark every crossing of the app boundary as an `external` node, never buried in a step: INBOUND (a request/webhook/gRPC/consumed queue message we receive) → an external node at the entry (right after start) detailing the received payload; OUTBOUND (an HTTP/queue/service/frontend/partner call we make) → an external node where it happens. Its description states the direction + communication type (REST/webhook/gRPC/queue/…) + data shape; ref the api/structure. External system = another backend, a frontend, a queue, a partner/AI API, etc. TERMINATE EVERY PATH: model the transaction (Begin→…→Commit + Rollback), and ONE terminal per distinct outcome — success for the achieved result, its own error terminal per distinct failure (each status code / contract / compensation is its own; auth denial always its own). ERROR HANDLING BY SCOPE (never loop an arrow back up to a reused error box): a single-purpose guard stays inline (check → its own error → end); a region of MANY actions under a handler (try/catch, transaction, middleware) → an exception check → its OWN `exception` node → its OWN end, IN FRONT OF that region. exception is an OUTCOME like success/error: DUPLICATED never shared — every covered region gets its own (several per flow), NEVER reuse one or point back to a distant one. TRY/CATCH (works for EVERY language — YOU identify the guarded error-handling construct in the code yourself: try/catch, try/except, begin/rescue, do/catch, defer+recover, an err-return guarded region, …, NOT by matching a keyword; the model is the SAME once recognized) → the dedicated `try`/`catch` nodes (circles, CLI-enforced): the `try` `{` opens the guarded region with TWO outputs — the BODY (the try block's statements as ordinary nodes flowing down, whose last node RETURNS to the catch) and a SPINE straight to the matching `catch` (2nd line may ONLY target a catch). Model the BODY in FULL — an inner guard that throws keeps its OWN condition + a throw arm → `error` \"<what> — error thrown\" → its own end (scope conveys the catch handles it; no edge drawn); never collapse/drop inner guards. The `catch` `}` closes with TWO inputs (the try's spine + the body's return) and TWO outputs: the EXCEPTION line ALWAYS labeled \"Exceptions\" (fixed) → the failure handling, and the CONTINUATION line with NO label → the code AFTER the try/catch. CAUGHT vs UNCAUGHT decides the Exceptions line: a catch that HANDLES the error locally (rollback/log/recover/set-status) → those REAL processes as EXPLICIT nodes → end, self-contained, NO global-exception; a catch that RE-THROWS/delegates → its local step(s) then an `exception` hand-off node → end → a `global-exception` flow (exception ⟹ global-exception). Never one generic box; never invent a global-exception for a self-contained catch. `arrange` draws the bracket (try+catch on the spine, the FIRST body node aligned horizontally with the try then the rest flowing down between the braces, catch below the body, continuation down, Exceptions peeling right). success/error/exception ARE routed to their own end nodes. FLOW FORWARD — the ONLY backward edge is a genuine process retry (a step/subprocess/parallel or a retry-condition looping back to re-process); outcomes and ends always move forward, never back up to reuse a node. Every node cites its code location; CAPTURE EVERY BRANCH AND EXIT — no path left behind, ANY language: account for each conditional (if/else/ternary/guard/early-return/continue/break), each switch/match/case (incl. default), each loop exit, each throw/raise/reject/panic/error-return, each catch/except/rescue CLAUSE (a multi-clause handler is SEVERAL handlers — model each clause's distinct handling: logging, notify flags, rollback, rethrow, mapped status — never merged), and each outcome. Before finishing, LIST the code's decision + exit points and confirm each maps to a node/branch — a mismatch means you are not done; reconcile source branches vs condition nodes before finishing."
       },
       {
-        "id": "55184f2c-d095-4031-9355-65fc079db1bc",
+        "id": "64f864c5-5fe6-44a7-aa84-452de0ad2c7b",
         "text": "REQUIREMENT/TEST (checklist): one item per verifiable behavior actually found in code/tests, testable descriptions."
       },
       {
-        "id": "4fc4ac38-944a-46cd-9445-462a94303113",
+        "id": "23f02669-60fe-4de5-813e-471f37d8e115",
         "text": "ANY OTHER KIND (architecture, knowledge, agent, skill, memory, …): follow that type's own standard in the by-type extraction knowledge — same completeness bar, capture everything from the real source, invent nothing."
       },
       {
-        "id": "ea8b7203-d8f8-4c73-9015-ac1cf6f9b567",
+        "id": "e6e23f1b-85ea-471f-9a8f-fc0b382b9b63",
         "text": "ALWAYS: fill via \"{PEBBLES_CLI}\" update <path> --patch with the FULL content (the CLI rejects table fields lacking description/status), link-code every source file you read the shape from, status implemented per unit (verified only if you also proved behavior). For a WORKFLOW, use the EXACT content shape in the workflow-modeling knowledge doc / PEBBLES.md (nodes: id/label/status/nodeType[/description/refs]; edges: id/source/target[/sourceHandle]) — OMIT node x/y (auto-filled) and get it right in ONE write; then run \"{PEBBLES_CLI}\" arrange <path> to lay it out (never hand-place). Report what you extracted, from where, and what remains."
       }
     ],
     "verify": [
       {
-        "id": "c709c4f4-8772-4d63-8b40-7f34c52683b6",
+        "id": "2591ced4-b44b-40c5-9ee2-1f65b69ab033",
         "text": "Every field has a real description and status implemented (the CLI enforces; confirm no rejection)"
       },
       {
-        "id": "fa7ef8fe-8bfd-4898-8606-ecd5c17452a8",
+        "id": "cfce830c-3c10-41af-88ab-77d49224fc38",
         "text": "Every FK column whose target model exists carries a refKey — list the ones left unlinked and why"
       },
       {
-        "id": "9e2d2181-6a4a-48e3-80c1-ac27884c5dfc",
+        "id": "054ea4b7-f93b-4cba-b06b-54042478e588",
         "text": "link-code covers every source file you read the shape from"
       }
     ],
@@ -131,7 +131,7 @@
   "name": "pebbles-extract",
   "refs": [
     {
-      "id": "f1b74797-89ba-4d2f-9181-98859342cf9b",
+      "id": "70bdefcb-c537-4872-bb0e-5a9fa24325d4",
       "label": "Extraction — workflow graph standard",
       "path": ".pebbles/rules/system/workflow-extraction.pebble",
       "pebbleId": "9243a095-f907-4483-a4d7-b7108ff902bf",
@@ -139,7 +139,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "11a7cc2c-1b6d-464f-a640-b0c34bd05d23",
+      "id": "a188dba5-18d0-4755-b69e-1f0141d2456c",
       "label": "Extraction — scope boundary (topic is law)",
       "path": ".pebbles/rules/system/extraction-scope.pebble",
       "pebbleId": "4baf83c3-426f-467b-8642-e79a9683cce0",
@@ -147,7 +147,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "8210db3f-9f3b-40c2-84bb-886ff6a882ac",
+      "id": "32c1fa24-242c-4750-a0d0-8458a7fd39ed",
       "label": "Spec mutation contract",
       "path": ".pebbles/rules/system/spec-mutation-contract.pebble",
       "pebbleId": "9ea65046-c8a8-4630-a0a1-b4cd40956a6b",
@@ -155,7 +155,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "35a76c4f-6b83-49f5-80d5-00d83758f856",
+      "id": "17c9fe45-3aa7-4572-9472-6d98d7dbce9d",
       "label": "Table completeness",
       "path": ".pebbles/rules/system/table-completeness.pebble",
       "pebbleId": "d374da94-58db-4e58-8fc0-c42ec2e62c69",
@@ -163,7 +163,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "714e0559-3935-4812-8031-dfd28f88d120",
+      "id": "accc27ba-2936-4d83-b264-99c2ed92670d",
       "label": "Reference integrity",
       "path": ".pebbles/rules/system/reference-integrity.pebble",
       "pebbleId": "5497c1c2-5759-4f94-a7c9-cb543287838c",
@@ -171,7 +171,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "eeb7566e-dbba-4b17-acff-1c57b0ae2ccd",
+      "id": "478640ed-4bb1-43a1-a82d-d104634774eb",
       "label": "Status discipline",
       "path": ".pebbles/rules/system/status-discipline.pebble",
       "pebbleId": "02075798-780c-41c7-8a97-c3751eede040",
@@ -179,7 +179,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "129e137f-3db5-42f1-92e1-9468bac5326d",
+      "id": "fbf85479-d5de-4781-85c6-f645cd45167a",
       "label": "Graph-first navigation",
       "path": ".pebbles/rules/system/graph-first-navigation.pebble",
       "pebbleId": "0247d816-ab57-4ea3-84ce-68ea799ea186",
@@ -187,7 +187,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "1d396da4-3a9c-4384-ae1d-48f13b9fffb3",
+      "id": "20e54cb2-c995-4248-9308-171d7c637cf2",
       "label": "Extraction — completeness standard",
       "path": ".pebbles/rules/system/extraction-standard.pebble",
       "pebbleId": "c191b26f-080b-4cae-9387-e3249e02393a",
@@ -195,7 +195,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "228587eb-296d-413c-81a1-4c2d58e02b88",
+      "id": "a9b6f4a9-dfeb-4f17-b23b-e5db13a85f24",
       "label": "pebbles-cli — complete command reference",
       "path": ".pebbles/knowledge/system/pebbles-cli.pebble",
       "pebbleId": "633eccd4-f1bb-4df8-a703-7aafd304a00d",
@@ -203,7 +203,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "1a24a884-d3a7-4399-8ed4-b3d7eadea8cc",
+      "id": "94d3d321-e4ac-4759-ae6b-81135fe29515",
       "label": "The code map — a real dependency graph",
       "path": ".pebbles/knowledge/system/code-map.pebble",
       "pebbleId": "9f749a7c-f031-4956-9381-5f48bfe28ede",
@@ -211,7 +211,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "1f50af90-4999-46c7-aa44-02a111a25bee",
+      "id": "02b2ea84-67e2-47f1-baf3-16b9b20845e8",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -219,7 +219,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "5daf262c-10a6-42cb-8be7-174d0c8cfd69",
+      "id": "bdfb8cff-a6de-4126-8c7b-8d63a6131140",
       "label": "Extraction — workflow modeling (nodes, altitude, modes)",
       "path": ".pebbles/knowledge/system/workflow-modeling.pebble",
       "pebbleId": "7ac0eded-c92f-49f9-ab2c-984aaa92e502",
@@ -227,7 +227,7 @@
       "targetKind": "pebble"
     },
     {
-      "id": "e486828e-2369-4811-b01a-c116c800c198",
+      "id": "a9661770-24aa-4bd1-b48f-1f10242137f1",
       "label": "Extraction — standards by pebble type",
       "path": ".pebbles/knowledge/system/extraction-by-kind.pebble",
       "pebbleId": "23577b1f-7856-41f1-b757-85ff70323ab3",
@@ -240,6 +240,6 @@
     "system"
   ],
   "type": "skill",
-  "updatedAt": "2026-07-21T14:32:38.774Z",
+  "updatedAt": "2026-07-28T03:27:29.237Z",
   "version": 1
 }

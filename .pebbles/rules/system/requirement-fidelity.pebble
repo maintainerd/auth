@@ -4,35 +4,35 @@
       {
         "description": "Copy them into the plan verbatim; every implementation step maps to a criterion. Unmapped steps are scope invention — forbidden.",
         "enforcement": "strict",
-        "id": "c6bbc176-6f36-4f65-a225-b0aefe7bdfb5",
+        "id": "f17c1cb0-d6af-4a0b-96ca-3831be9ae5b3",
         "status": "verified",
         "text": "Acceptance criteria ARE the checklist"
       },
       {
         "description": "Adding, narrowing or \"improving\" a requirement requires a recorded finding, never an inline decision.",
         "enforcement": "strict",
-        "id": "0f35fba4-b2c0-4282-9916-2b94e2d85177",
+        "id": "4543b39d-3f6c-4b25-8cdd-ff4918102a7f",
         "status": "verified",
         "text": "No silent scope changes"
       },
       {
         "description": "Ask when interactive; otherwise record an assumption finding stating the interpretation chosen and why. Silent interpretation is a defect.",
         "enforcement": "strict",
-        "id": "b1ae2099-7e29-45d7-ab74-03cfa893e453",
+        "id": "148d3157-e4b1-4be0-af72-1491384bb6d1",
         "status": "verified",
         "text": "Ambiguity halts or records"
       },
       {
         "description": "State which dependent pebbles/behaviors were checked for unchanged behavior — \"I only touched X\" requires showing X's dependents.",
         "enforcement": "strict",
-        "id": "8bfb0819-ac9e-4b5a-9c9e-b84690bade89",
+        "id": "13344c46-f3fb-457f-8ea5-0b79db9eeb74",
         "status": "verified",
         "text": "Prove non-regression"
       },
       {
         "description": "Re-read the original ask LAST, diff it against what was built, and report mismatches.",
         "enforcement": "strict",
-        "id": "ce44e706-d6db-48f2-8919-94b8131a53f3",
+        "id": "afd4d0ac-7af1-449a-a8d1-5d6305811f43",
         "status": "verified",
         "text": "Fidelity diff before claiming done"
       }
@@ -45,7 +45,7 @@
   "name": "Requirement fidelity",
   "refs": [
     {
-      "id": "31786b1d-87fa-4480-b191-2186f7ad143b",
+      "id": "706a800b-45e6-4f9a-8000-12e14d6c8262",
       "label": "The spec lifecycle — both directions",
       "path": ".pebbles/knowledge/system/spec-lifecycle.pebble",
       "pebbleId": "55fb49bf-f121-420c-b849-f6e1bbc9e8b2",
@@ -58,6 +58,6 @@
     "system"
   ],
   "type": "rule",
-  "updatedAt": "2026-07-21T14:32:38.715Z",
+  "updatedAt": "2026-07-28T03:27:29.179Z",
   "version": 1
 }
