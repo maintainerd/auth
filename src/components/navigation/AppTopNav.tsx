@@ -48,7 +48,7 @@ export function AppTopNav() {
             Maintainerd-IAM
           </div>
         </span>
-        <TenantSwitcher className="ml-4 hidden w-48 sm:block" size="compact" />
+        <TenantSwitcher className="ml-4 hidden w-56 sm:block" />
       </div>
 
       <div className="ml-3 flex shrink-0 items-center gap-1.5">

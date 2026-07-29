@@ -71,10 +71,10 @@ export function CreateMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
-          <Plus className="h-3.5 w-3.5" />
+        <Button>
+          <Plus className="h-4 w-4" />
           Create
-          <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+          <ChevronDown className="h-4 w-4 opacity-80" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-[75vh] w-56 overflow-y-auto">
