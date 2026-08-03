@@ -42,6 +42,7 @@ export function AccountActions() {
             description="Update the email you sign in with."
             actionLabel="Change"
             onAction={() => setEmailOpen(true)}
+            className="first:pt-3"
           />
           <SettingsActionRow
             icon={AtSign}
@@ -57,6 +58,7 @@ export function AccountActions() {
             actionLabel={exportMutation.isPending ? "Preparing…" : "Download"}
             onAction={() => exportMutation.mutate()}
             disabled={exportMutation.isPending}
+            className="last:pb-3"
           />
         </div>
       </SettingsCard>
@@ -67,7 +69,7 @@ export function AccountActions() {
           title="Delete account"
           description="Permanently delete your account and all associated data."
           action={<Button variant="destructive" onClick={() => setDeleteOpen(true)}>Delete account</Button>}
-          className="py-0"
+          className="py-3"
         />
       </SettingsCard>
 
