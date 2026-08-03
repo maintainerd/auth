@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // jwtKey is the unexported context key type for JWTClaims, preventing key
@@ -34,12 +35,16 @@ type JWTClaims struct {
 	AMR         []string
 	ACR         string
 	Iat         int64
-	// TenantID is the tenant this token was issued for, from the `tenant_id` claim.
-	//
-	// The issuer stamps it and it is a RESERVED claim, so no client-configured or
-	// federation-configured claim mapper can forge it — which makes it a
-	// trustworthy tenant binding even on routes that do not run
-	// UserContextMiddleware. Zero when the token carries no tenant.
+	// TenantUUID is the tenant this token was issued for, taken verbatim from the
+	// `tenant_id` claim — whose VALUE is the tenant's opaque external UUID, never
+	// the internal PK (least-disclosure, RFC 9068). The issuer stamps it and it is
+	// a RESERVED claim, so no client- or federation-configured claim mapper can
+	// forge it — a trustworthy tenant binding even on routes that do not run
+	// UserContextMiddleware. uuid.Nil when the token carries no tenant.
+	TenantUUID uuid.UUID
+	// TenantID is TenantUUID resolved to the internal tenant PK (via the injected
+	// tenant-ref resolver) so every scoping check that consumes an int64 tenant id
+	// keeps working unchanged. Zero when there is no tenant or it cannot resolve.
 	TenantID int64
 }
 
@@ -116,7 +121,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		claims := buildJWTClaims(rawClaims)
+		claims := buildJWTClaims(r.Context(), rawClaims)
 
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), jwtKey{}, claims)))
 	})
@@ -125,7 +130,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 // buildJWTClaims maps validated raw token claims onto the typed JWTClaims used
 // across the request lifecycle. Shared by the hard JWTAuthMiddleware and the
 // session-aware OptionalUserContextMiddleware so the mapping lives in one place.
-func buildJWTClaims(rawClaims map[string]any) *JWTClaims {
+func buildJWTClaims(ctx context.Context, rawClaims map[string]any) *JWTClaims {
 	// ValidateToken already guarantees sub is non-empty. Authn tokens often use
 	// user UUIDs, while OAuth/OIDC tokens may use a pairwise subject; preserve
 	// sub either way and populate UserUUID only when sub happens to be a UUID.
@@ -145,6 +150,12 @@ func buildJWTClaims(rawClaims map[string]any) *JWTClaims {
 	amr := stringSliceClaim(rawClaims["amr"])
 	iat := numericDateClaim(rawClaims["iat"])
 
+	// The tenant_id claim VALUE is the tenant's opaque UUID; keep it as TenantUUID
+	// and resolve it back to the internal PK for TenantID (the id every scoping
+	// check consumes).
+	tenantUUIDStr, _ := rawClaims["tenant_id"].(string)
+	tenantUUID, _ := uuid.Parse(tenantUUIDStr)
+
 	return &JWTClaims{
 		Sub:         sub,
 		UserUUID:    userUUID,
@@ -160,7 +171,8 @@ func buildJWTClaims(rawClaims map[string]any) *JWTClaims {
 		AMR:         amr,
 		ACR:         acr,
 		Iat:         iat,
-		TenantID:    int64Claim(rawClaims["tenant_id"]),
+		TenantUUID:  tenantUUID,
+		TenantID:    shared.TenantIDByUUIDString(ctx, tenantUUIDStr),
 	}
 }
 

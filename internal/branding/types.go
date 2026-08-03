@@ -15,6 +15,8 @@ type BrandingResponseDTO struct {
 	IsActive          bool           `json:"is_active"`
 	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
+	LogoLabel         string         `json:"logo_label"`
+	ShowLogoLabel     bool           `json:"show_logo_label"`
 	LogoURL           string         `json:"logo_url"`
 	FaviconURL        string         `json:"favicon_url"`
 	SupportURL        string         `json:"support_url"`
@@ -30,6 +32,8 @@ type BrandingUpdateRequestDTO struct {
 	Name              string         `json:"name"`
 	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
+	LogoLabel         string         `json:"logo_label"`
+	ShowLogoLabel     *bool          `json:"show_logo_label,omitempty"`
 	LogoURL           string         `json:"logo_url"`
 	LogoData          string         `json:"logo_data,omitempty"`
 	LogoContentType   string         `json:"logo_content_type,omitempty"`
@@ -38,6 +42,15 @@ type BrandingUpdateRequestDTO struct {
 	PrivacyPolicyURL  string         `json:"privacy_policy_url"`
 	TermsOfServiceURL string         `json:"terms_of_service_url"`
 	Metadata          datatypes.JSON `json:"metadata"`
+}
+
+// ShowLogoLabelOrDefault keeps older branding clients on the current default:
+// the label is visible unless the request explicitly hides it.
+func (r BrandingUpdateRequestDTO) ShowLogoLabelOrDefault() bool {
+	if r.ShowLogoLabel == nil {
+		return true
+	}
+	return *r.ShowLogoLabel
 }
 
 // Email template list response DTO (without body content)

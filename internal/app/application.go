@@ -19,6 +19,7 @@ func (a *App) ServerApplication() *server.Application {
 		PolicyService:                     a.PolicyService,
 		TenantService:                     a.TenantService,
 		TenantMemberService:               a.TenantMemberService,
+		TenantClientBrandingReader:        a.TenantClientBrandingReader,
 		IdentityProviderService:           a.IdentityProviderService,
 		ClientService:                     a.ClientService,
 		RoleService:                       a.RoleService,

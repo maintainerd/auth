@@ -25,6 +25,7 @@ type TenantHandler struct {
 	brandingService        branding.BrandingService
 	securitySettingService secpolicy.SecuritySettingService
 	clientReader           SurfaceClientReader
+	clientBrandingReader   PublicClientBrandingReader
 	auditLogger            auditlog.ManagementAuditLogger
 }
 
@@ -48,6 +49,13 @@ func (h *TenantHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.aud
 // endpoint to advertise a tenant's seeded system client per surface. It is
 // optional: when unset, the bootstrap response simply omits the client field.
 func (h *TenantHandler) SetSurfaceClientReader(r SurfaceClientReader) { h.clientReader = r }
+
+// SetClientBrandingReader injects the optional resolver used by the domain
+// bootstrap endpoint when an OAuth client_id should select a client-attached
+// theme before falling back to the tenant's active theme.
+func (h *TenantHandler) SetClientBrandingReader(r PublicClientBrandingReader) {
+	h.clientBrandingReader = r
+}
 
 func (h *TenantHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
 	if h.auditLogger == nil {
@@ -245,7 +253,7 @@ func (h *TenantHandler) getBootstrap(w http.ResponseWriter, r *http.Request, dom
 		Surface:     surface,
 		IdentityURL: shared.FrontendURL(shared.FrontendSurfaceIdentity, tenant.Name, tenant.IsSystem, ""),
 		ConsoleURL:  shared.FrontendURL(shared.FrontendSurfaceConsole, tenant.Name, tenant.IsSystem, ""),
-		Branding:    h.publicBranding(r.Context(), tenant.TenantID),
+		Branding:    h.publicBranding(r.Context(), tenant.TenantID, r.URL.Query().Get("client_id")),
 	}
 	res.PasswordConfig, res.RegistrationConfig = h.publicSecurityConfigs(r.Context(), tenant.TenantID)
 
@@ -266,9 +274,17 @@ func (h *TenantHandler) getBootstrap(w http.ResponseWriter, r *http.Request, dom
 	resp.Success(w, res, "Tenant bootstrap fetched successfully")
 }
 
-// publicBranding loads a tenant's public branding, returning nil when branding
-// is unavailable. Shared by the bootstrap and public tenant responses.
-func (h *TenantHandler) publicBranding(ctx context.Context, tenantID int64) *BrandingPublic {
+// publicBranding loads the public branding for bootstrap/public tenant
+// responses. A non-empty clientID may select a client-attached theme; any miss
+// or resolver error falls back to the tenant's active branding.
+func (h *TenantHandler) publicBranding(ctx context.Context, tenantID int64, clientID string) *BrandingPublic {
+	clientID = strings.TrimSpace(clientID)
+	if clientID != "" && h.clientBrandingReader != nil {
+		if b, err := h.clientBrandingReader.GetPublicClientBranding(ctx, tenantID, clientID); err == nil && b != nil {
+			return toBrandingPublic(b)
+		}
+	}
+
 	if h.brandingService == nil {
 		return nil
 	}
@@ -276,9 +292,18 @@ func (h *TenantHandler) publicBranding(ctx context.Context, tenantID int64) *Bra
 	if err != nil || b == nil {
 		return nil
 	}
+	return toBrandingPublic(b)
+}
+
+func toBrandingPublic(b *branding.BrandingServiceDataResult) *BrandingPublic {
+	if b == nil {
+		return nil
+	}
 	return &BrandingPublic{
 		Layout:            b.Layout,
 		CompanyName:       b.CompanyName,
+		LogoLabel:         b.LogoLabel,
+		ShowLogoLabel:     b.ShowLogoLabel,
 		LogoURL:           b.LogoURL,
 		FaviconURL:        b.FaviconURL,
 		SupportURL:        b.SupportURL,
@@ -316,7 +341,7 @@ func (h *TenantHandler) toPublicResponse(ctx context.Context, tenant TenantServi
 	}
 
 	res.PasswordConfig, res.RegistrationConfig = h.publicSecurityConfigs(ctx, tenant.TenantID)
-	res.Branding = h.publicBranding(ctx, tenant.TenantID)
+	res.Branding = h.publicBranding(ctx, tenant.TenantID, "")
 
 	return res
 }

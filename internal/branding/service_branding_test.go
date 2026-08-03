@@ -43,6 +43,44 @@ func TestBrandingService_Get(t *testing.T) {
 	})
 }
 
+func TestBrandingService_GetPublicByID(t *testing.T) {
+	t.Run("returns tenant-owned public branding", func(t *testing.T) {
+		id := uuid.New()
+		svc := newBrandingSvc(&mockBrandingRepo{
+			findByIDFn: func(got any) (*Branding, error) {
+				assert.Equal(t, int64(7), got)
+				return &Branding{
+					BrandingUUID:  id,
+					TenantID:      1,
+					Name:          "client",
+					CompanyName:   "Client App",
+					LogoLabel:     "Client",
+					ShowLogoLabel: true,
+				}, nil
+			},
+		})
+
+		res, err := svc.GetPublicByID(context.Background(), 1, 7)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		assert.Equal(t, id, res.BrandingUUID)
+		assert.Equal(t, "Client App", res.CompanyName)
+		assert.Equal(t, "Client", res.LogoLabel)
+	})
+
+	t.Run("rejects branding from another tenant", func(t *testing.T) {
+		svc := newBrandingSvc(&mockBrandingRepo{
+			findByIDFn: func(any) (*Branding, error) {
+				return &Branding{BrandingUUID: uuid.New(), TenantID: 2, CompanyName: "Other"}, nil
+			},
+		})
+
+		_, err := svc.GetPublicByID(context.Background(), 1, 7)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "branding not found")
+	})
+}
+
 // ---------------------------------------------------------------------------
 // Update
 // ---------------------------------------------------------------------------
@@ -55,12 +93,14 @@ func TestBrandingService_Update(t *testing.T) {
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 		res, err := svc.Update(context.Background(), 1,
-			"", "Acme", "https://logo.png", "https://favicon.ico",
+			"", "Acme", "Acme IAM", true, "https://logo.png", "https://favicon.ico",
 			datatypes.JSON([]byte(`{"colors":{"primary":"#111"}}`)),
 			"https://support", "https://privacy", "https://terms",
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "Acme", res.CompanyName)
+		assert.Equal(t, "Acme IAM", res.LogoLabel)
+		assert.True(t, res.ShowLogoLabel)
 		assert.Equal(t, "https://logo.png", res.LogoURL)
 		assert.JSONEq(t, `{"colors":{"primary":"#111"}}`, string(res.Metadata))
 		assert.Equal(t, "https://support", res.SupportURL)
@@ -76,16 +116,17 @@ func TestBrandingService_Update(t *testing.T) {
 			},
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
-		res, err := svc.Update(context.Background(), 1, "", "X", "", "", datatypes.JSON(nil), "", "", "")
+		res, err := svc.Update(context.Background(), 1, "", "X", "", true, "", "", datatypes.JSON(nil), "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "X", res.CompanyName)
+		assert.Equal(t, "X", res.LogoLabel)
 	})
 
 	t.Run("getOrCreate error", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
 			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, errors.New("db") },
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", "", "", datatypes.JSON(nil), "", "", "")
+		_, err := svc.Update(context.Background(), 1, "", "", "", true, "", "", datatypes.JSON(nil), "", "", "")
 		require.Error(t, err)
 	})
 
@@ -98,7 +139,7 @@ func TestBrandingService_Update(t *testing.T) {
 				return nil, errors.New("save err")
 			},
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", "", "", datatypes.JSON(nil), "", "", "")
+		_, err := svc.Update(context.Background(), 1, "", "", "", true, "", "", datatypes.JSON(nil), "", "", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -117,9 +158,11 @@ func TestBrandingService_Create(t *testing.T) {
 			},
 		})
 
-		res, err := svc.Create(context.Background(), 1, "Acme", "split", "Acme", "", "", nil, "", "", "")
+		res, err := svc.Create(context.Background(), 1, "Acme", "split", "Acme", "Acme IAM", true, "", "", nil, "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "split", res.Layout)
+		assert.Equal(t, "Acme IAM", res.LogoLabel)
+		assert.True(t, res.ShowLogoLabel)
 	})
 
 	t.Run("defaults omitted layout to centered", func(t *testing.T) {
@@ -127,14 +170,15 @@ func TestBrandingService_Create(t *testing.T) {
 			createFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 
-		res, err := svc.Create(context.Background(), 1, "Acme", "", "Acme", "", "", nil, "", "", "")
+		res, err := svc.Create(context.Background(), 1, "Acme", "", "Acme", "", true, "", "", nil, "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "centered", res.Layout)
+		assert.Equal(t, "Acme", res.LogoLabel)
 	})
 
 	t.Run("rejects unsupported layout", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{})
-		_, err := svc.Create(context.Background(), 1, "Acme", "sidebar", "Acme", "", "", nil, "", "", "")
+		_, err := svc.Create(context.Background(), 1, "Acme", "sidebar", "Acme", "", true, "", "", nil, "", "", "")
 		require.Error(t, err)
 	})
 }
@@ -154,9 +198,11 @@ func TestBrandingService_UpdateByUUID_Layout(t *testing.T) {
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 
-		res, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "full_page", "Acme", "", "", nil, "", "", "")
+		res, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "full_page", "Acme", "Acme Console", false, "", "", nil, "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "full_page", res.Layout)
+		assert.Equal(t, "Acme Console", res.LogoLabel)
+		assert.False(t, res.ShowLogoLabel)
 	})
 
 	t.Run("preserves layout when omitted", func(t *testing.T) {
@@ -167,9 +213,22 @@ func TestBrandingService_UpdateByUUID_Layout(t *testing.T) {
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 
-		res, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "", "Acme", "", "", nil, "", "", "")
+		res, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "", "Acme", "", true, "", "", nil, "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "split", res.Layout)
+	})
+
+	t.Run("preserves system theme name", func(t *testing.T) {
+		svc := newBrandingSvc(&mockBrandingRepo{
+			findByUUIDFn: func(_ uuid.UUID) (*Branding, error) {
+				return &Branding{BrandingUUID: id, TenantID: 1, Name: "default", IsSystem: true}, nil
+			},
+			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
+		})
+
+		res, err := svc.UpdateByUUID(context.Background(), id, 1, "renamed-default", "centered", "Acme", "", true, "", "", nil, "", "", "")
+		require.NoError(t, err)
+		assert.Equal(t, "default", res.Name)
 	})
 
 	t.Run("rejects unsupported layout", func(t *testing.T) {
@@ -179,7 +238,86 @@ func TestBrandingService_UpdateByUUID_Layout(t *testing.T) {
 			},
 		})
 
-		_, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "sidebar", "Acme", "", "", nil, "", "", "")
+		_, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "sidebar", "Acme", "", true, "", "", nil, "", "", "")
 		require.Error(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// RestoreSystem
+// ---------------------------------------------------------------------------
+
+func TestBrandingService_RestoreSystem(t *testing.T) {
+	id := uuid.New()
+
+	t.Run("restores seeded system theme without changing active state", func(t *testing.T) {
+		svc := newBrandingSvc(&mockBrandingRepo{
+			findByUUIDFn: func(_ uuid.UUID) (*Branding, error) {
+				return &Branding{
+					BrandingUUID:     id,
+					TenantID:         1,
+					Name:             "dark",
+					IsSystem:         true,
+					IsActive:         true,
+					Layout:           "split",
+					CompanyName:      "Changed",
+					LogoLabel:        "Changed",
+					ShowLogoLabel:    false,
+					LogoURL:          "https://example.com/logo.png",
+					LogoData:         []byte("logo"),
+					LogoContentType:  "image/png",
+					FaviconURL:       "https://example.com/favicon.ico",
+					SupportURL:       "https://example.com/support",
+					PrivacyPolicyURL: "https://example.com/privacy",
+				}, nil
+			},
+			createOrUpdateFn: func(e *Branding) (*Branding, error) {
+				assert.Equal(t, "centered", e.Layout)
+				assert.Equal(t, "Maintainerd-Auth", e.CompanyName)
+				assert.Equal(t, "Maintainerd-IAM", e.LogoLabel)
+				assert.True(t, e.ShowLogoLabel)
+				assert.Empty(t, e.LogoURL)
+				assert.Empty(t, e.LogoData)
+				assert.Empty(t, e.LogoContentType)
+				assert.Empty(t, e.FaviconURL)
+				assert.Empty(t, e.SupportURL)
+				assert.Empty(t, e.PrivacyPolicyURL)
+				assert.True(t, e.IsActive)
+				assert.Contains(t, string(e.Metadata), `"authPageBackground"`)
+				assert.NotContains(t, string(e.Metadata), `"dropdownMenu"`)
+				return e, nil
+			},
+		})
+
+		res, err := svc.RestoreSystem(context.Background(), id, 1)
+		require.NoError(t, err)
+		assert.Equal(t, "centered", res.Layout)
+		assert.Equal(t, "Maintainerd-Auth", res.CompanyName)
+		assert.True(t, res.IsActive)
+		assert.Contains(t, string(res.Metadata), `"authPageBackground"`)
+	})
+
+	t.Run("rejects custom theme", func(t *testing.T) {
+		svc := newBrandingSvc(&mockBrandingRepo{
+			findByUUIDFn: func(_ uuid.UUID) (*Branding, error) {
+				return &Branding{BrandingUUID: id, TenantID: 1, Name: "Acme", IsSystem: false}, nil
+			},
+		})
+
+		_, err := svc.RestoreSystem(context.Background(), id, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "only system branding themes")
+	})
+
+	t.Run("rejects unknown system theme", func(t *testing.T) {
+		svc := newBrandingSvc(&mockBrandingRepo{
+			findByUUIDFn: func(_ uuid.UUID) (*Branding, error) {
+				return &Branding{BrandingUUID: id, TenantID: 1, Name: "custom-system", IsSystem: true}, nil
+			},
+		})
+
+		_, err := svc.RestoreSystem(context.Background(), id, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "seeded default")
 	})
 }

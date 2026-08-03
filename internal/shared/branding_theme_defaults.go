@@ -1,45 +1,25 @@
-package seeder
+package shared
 
-import (
-	"encoding/json"
-	"errors"
-	"log/slog"
-	"time"
+import "encoding/json"
 
-	"github.com/google/uuid"
-	"github.com/maintainerd/maintainerd-auth/internal/shared"
-	"gorm.io/datatypes"
-	"gorm.io/gorm"
-)
-
-type Branding struct {
-	BrandingID        int64          `gorm:"column:branding_id;primaryKey;autoIncrement"`
-	BrandingUUID      uuid.UUID      `gorm:"column:branding_uuid;type:uuid;uniqueIndex;not null"`
-	TenantID          int64          `gorm:"column:tenant_id;not null"`
-	Name              string         `gorm:"column:name;type:varchar(100)"`
-	IsSystem          bool           `gorm:"column:is_system;not null;default:false"`
-	IsActive          bool           `gorm:"column:is_active;not null;default:false"`
-	Layout            string         `gorm:"column:layout;type:varchar(32);not null;default:centered"`
-	CompanyName       string         `gorm:"column:company_name;type:varchar(255)"`
-	LogoLabel         string         `gorm:"column:logo_label;type:varchar(255)"`
-	ShowLogoLabel     bool           `gorm:"column:show_logo_label;not null;default:true"`
-	LogoURL           string         `gorm:"column:logo_url;type:text"`
-	FaviconURL        string         `gorm:"column:favicon_url;type:text"`
-	SupportURL        string         `gorm:"column:support_url;type:text"`
-	PrivacyPolicyURL  string         `gorm:"column:privacy_policy_url;type:text"`
-	TermsOfServiceURL string         `gorm:"column:terms_of_service_url;type:text"`
-	Metadata          datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
-	CreatedAt         time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt         time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+// SystemBrandingThemeDefault is the canonical seeded payload for an undeletable
+// system branding theme.
+type SystemBrandingThemeDefault struct {
+	Name     string
+	Metadata string
+	Active   bool
 }
 
-func (Branding) TableName() string { return "branding" }
+// SystemBrandingThemeDefaults returns the three system themes that every tenant
+// receives: default, light, and dark.
+func SystemBrandingThemeDefaults() []SystemBrandingThemeDefault {
+	return []SystemBrandingThemeDefault{
+		{Name: "default", Metadata: defaultBrandingMetadata, Active: true},
+		{Name: "light", Metadata: lightBrandingMetadata, Active: false},
+		{Name: "dark", Metadata: darkBrandingMetadata, Active: false},
+	}
+}
 
-// Three system themes are seeded. They are is_system (undeletable); default is
-// the active tenant baseline, while light and dark are switchable presets. The
-// metadata includes both core palette tokens and component-level design tokens;
-// the hardcoded app design remains the fallback when no custom theme metadata is
-// applied.
 var (
 	defaultBrandingMetadata = mustBrandingMetadata(themePalette{
 		Primary:             "#2563eb",
@@ -305,35 +285,27 @@ func mustBrandingMetadata(p themePalette) string {
 			"primaryButton":           componentTheme(p.Primary, p.PrimaryHover, "transparent", "0px", "3px", "#ffffff", "md"),
 			"secondaryButton":         componentTheme(p.Secondary, p.Accent, "transparent", "0px", "3px", p.TextPrimary, "md"),
 			"outlineButton":           componentTheme(p.CardBackground, p.Accent, p.InputBorder, "1px", "3px", p.TextPrimary, "md"),
-			"destructiveButton": componentTheme(
-				"#dc2626",
-				"#b91c1c",
-				"transparent",
-				"0px",
-				"3px",
-				"#ffffff",
-				"md",
-			),
-			"ghostButton":          componentTheme("transparent", p.Accent, "transparent", "0px", "3px", p.TextPrimary, "md"),
-			"tableContainer":       componentTheme(p.CardBackground, p.CardBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
-			"tableHeader":          componentTheme(p.AppBackground, p.AppBackground, p.Border, "1px", "0px", p.TextPrimary, "md"),
-			"tableRow":             componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "0px", p.TextPrimary, "md"),
-			"tableCell":            componentTheme("transparent", "transparent", "transparent", "0px", "0px", p.TextPrimary, "md"),
-			"iconContainer":        componentTheme(p.Secondary, p.Accent, "transparent", "0px", "3px", p.TextMuted, "md"),
-			"listingItem":          componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
-			"listingItemIcon":      componentTheme(p.Secondary, p.Accent, "transparent", "0px", "3px", p.TextMuted, "md"),
-			"listingItemMeta":      componentTheme("transparent", "transparent", "transparent", "0px", "0px", p.TextMuted, "sm"),
-			"listingSubContainer":  componentTheme(p.AppBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
-			"optionCard":           componentTheme(p.CardBackground, p.Accent, p.Border, "1px", "3px", p.TextPrimary, "md"),
-			"card":                 componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
-			"alert":                componentTheme(p.CardBackground, p.CardBackground, p.Border, "1px", "0.5rem", p.TextPrimary, "md"),
-			"input":                componentTheme(p.CardBackground, p.AppBackground, p.InputBorder, "1px", "3px", p.TextPrimary, "md"),
-			"textarea":             componentTheme(p.CardBackground, p.AppBackground, p.InputBorder, "1px", "3px", p.TextPrimary, "md"),
-			"datePicker":           componentTheme(p.CardBackground, p.AppBackground, p.InputBorder, "1px", "3px", p.TextPrimary, "md"),
-			"switch":               switchTheme(p.Primary, p.PrimaryHover, p.InputBorder, p.SwitchThumbColor, "transparent", "0px", "999px", "#ffffff", "md"),
-			"switchSubContainer":   componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
-			"checkboxSubContainer": componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
-			"badges":               badgeThemes(p.AppBackground, p.AppBackground, p.Border, p.TextPrimary),
+			"destructiveButton":       componentTheme("#dc2626", "#b91c1c", "transparent", "0px", "3px", "#ffffff", "md"),
+			"ghostButton":             componentTheme("transparent", p.Accent, "transparent", "0px", "3px", p.TextPrimary, "md"),
+			"tableContainer":          componentTheme(p.CardBackground, p.CardBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
+			"tableHeader":             componentTheme(p.AppBackground, p.AppBackground, p.Border, "1px", "0px", p.TextPrimary, "md"),
+			"tableRow":                componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "0px", p.TextPrimary, "md"),
+			"tableCell":               componentTheme("transparent", "transparent", "transparent", "0px", "0px", p.TextPrimary, "md"),
+			"iconContainer":           componentTheme(p.Secondary, p.Accent, "transparent", "0px", "3px", p.TextMuted, "md"),
+			"listingItem":             componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
+			"listingItemIcon":         componentTheme(p.Secondary, p.Accent, "transparent", "0px", "3px", p.TextMuted, "md"),
+			"listingItemMeta":         componentTheme("transparent", "transparent", "transparent", "0px", "0px", p.TextMuted, "sm"),
+			"listingSubContainer":     componentTheme(p.AppBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
+			"optionCard":              componentTheme(p.CardBackground, p.Accent, p.Border, "1px", "3px", p.TextPrimary, "md"),
+			"card":                    componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
+			"alert":                   componentTheme(p.CardBackground, p.CardBackground, p.Border, "1px", "0.5rem", p.TextPrimary, "md"),
+			"input":                   componentTheme(p.CardBackground, p.AppBackground, p.InputBorder, "1px", "3px", p.TextPrimary, "md"),
+			"textarea":                componentTheme(p.CardBackground, p.AppBackground, p.InputBorder, "1px", "3px", p.TextPrimary, "md"),
+			"datePicker":              componentTheme(p.CardBackground, p.AppBackground, p.InputBorder, "1px", "3px", p.TextPrimary, "md"),
+			"switch":                  switchTheme(p.Primary, p.PrimaryHover, p.InputBorder, p.SwitchThumbColor, "transparent", "0px", "999px", "#ffffff", "md"),
+			"switchSubContainer":      componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
+			"checkboxSubContainer":    componentTheme(p.CardBackground, p.AppBackground, p.Border, "1px", "3px", p.TextPrimary, "md"),
+			"badges":                  badgeThemes(p.AppBackground, p.AppBackground, p.Border, p.TextPrimary),
 		},
 	}
 
@@ -378,175 +350,4 @@ func badgeThemes(background, hoverColor, borderColor, textColor string) map[stri
 		out[group] = theme
 	}
 	return out
-}
-
-type systemBrandingTheme struct {
-	name     string
-	metadata string
-	active   bool
-}
-
-// SystemBrandingThemeDefault exposes the canonical seeded system branding
-// payloads for restore operations.
-type SystemBrandingThemeDefault struct {
-	Name     string
-	Metadata string
-	Active   bool
-}
-
-type legacySystemBrandingTheme struct {
-	name            string
-	replacementName string
-	metadata        string
-}
-
-func systemBrandingThemes() []systemBrandingTheme {
-	defaults := shared.SystemBrandingThemeDefaults()
-	themes := make([]systemBrandingTheme, 0, len(defaults))
-	for _, theme := range defaults {
-		themes = append(themes, systemBrandingTheme{
-			name:     theme.Name,
-			metadata: theme.Metadata,
-			active:   theme.Active,
-		})
-	}
-	return themes
-}
-
-func SystemBrandingThemeDefaults() []SystemBrandingThemeDefault {
-	themes := systemBrandingThemes()
-	defaults := make([]SystemBrandingThemeDefault, 0, len(themes))
-	for _, theme := range themes {
-		defaults = append(defaults, SystemBrandingThemeDefault{
-			Name:     theme.name,
-			Metadata: theme.metadata,
-			Active:   theme.active,
-		})
-	}
-	return defaults
-}
-
-func legacySystemBrandingThemes() []legacySystemBrandingTheme {
-	return []legacySystemBrandingTheme{
-		{name: "maintainerd-light", replacementName: "light", metadata: lightBrandingMetadata},
-		{name: "maintainerd-dark", replacementName: "dark", metadata: darkBrandingMetadata},
-	}
-}
-
-func SeedBranding(db *gorm.DB, tenantID int64) error {
-	// Immutable system themes: default (active), light, and dark. The active one
-	// is the loaded style; admins can switch between them or add their own.
-	// Idempotent — seeded by name.
-	if err := normalizeLegacySystemBranding(db, tenantID); err != nil {
-		return err
-	}
-
-	hasActive, err := tenantHasActiveBranding(db, tenantID)
-	if err != nil {
-		return err
-	}
-
-	for _, t := range systemBrandingThemes() {
-		var existing Branding
-		err := db.Where("tenant_id = ? AND name = ?", tenantID, t.name).First(&existing).Error
-		if err == nil {
-			if t.active && !hasActive && !existing.IsActive {
-				if err := db.Model(&existing).Update("is_active", true).Error; err != nil {
-					return err
-				}
-				hasActive = true
-			}
-			slog.Info("System branding already seeded", "tenant_id", tenantID, "name", t.name)
-			continue
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-
-		isActive := t.active && !hasActive
-		b := Branding{
-			BrandingUUID:  uuid.New(),
-			TenantID:      tenantID,
-			Name:          t.name,
-			Layout:        "centered",
-			CompanyName:   "Maintainerd-Auth",
-			LogoLabel:     "Maintainerd-IAM",
-			ShowLogoLabel: true,
-			IsSystem:      true,
-			IsActive:      isActive,
-			Metadata:      datatypes.JSON([]byte(t.metadata)),
-		}
-		if err := db.Create(&b).Error; err != nil {
-			return err
-		}
-		if isActive {
-			hasActive = true
-		}
-		slog.Info("Seeded system branding", "tenant_id", tenantID, "name", t.name)
-	}
-
-	return nil
-}
-
-func normalizeLegacySystemBranding(db *gorm.DB, tenantID int64) error {
-	for _, legacy := range legacySystemBrandingThemes() {
-		var existing Branding
-		err := db.Where(
-			"tenant_id = ? AND name = ? AND is_system = ?",
-			tenantID,
-			legacy.name,
-			true,
-		).First(&existing).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-
-		var replacement Branding
-		err = db.Where(
-			"tenant_id = ? AND name = ? AND is_system = ?",
-			tenantID,
-			legacy.replacementName,
-			true,
-		).First(&replacement).Error
-		if err == nil {
-			if existing.IsActive {
-				return db.Model(&existing).Update("is_active", false).Error
-			}
-			continue
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-
-		if err := db.Model(&existing).Updates(map[string]any{
-			"name":      legacy.replacementName,
-			"is_active": false,
-			"metadata":  datatypes.JSON([]byte(legacy.metadata)),
-		}).Error; err != nil {
-			return err
-		}
-		slog.Info(
-			"Normalized legacy system branding",
-			"tenant_id",
-			tenantID,
-			"name",
-			legacy.name,
-			"replacement",
-			legacy.replacementName,
-		)
-	}
-	return nil
-}
-
-func tenantHasActiveBranding(db *gorm.DB, tenantID int64) (bool, error) {
-	var count int64
-	if err := db.Model(&Branding{}).
-		Where("tenant_id = ? AND is_active = ?", tenantID, true).
-		Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
 }

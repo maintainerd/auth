@@ -117,7 +117,7 @@ func MultiIssuerAuthMiddleware(
 					resp.Error(w, http.StatusUnauthorized, "Invalid token", bindErr.Error())
 					return
 				}
-				next.ServeHTTP(w, r.WithContext(ContextWithJWTClaims(r.Context(), buildJWTClaims(claims))))
+				next.ServeHTTP(w, r.WithContext(ContextWithJWTClaims(r.Context(), buildJWTClaims(r.Context(), claims))))
 				return
 			}
 

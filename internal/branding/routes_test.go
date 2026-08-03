@@ -19,6 +19,7 @@ func TestBrandingRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 	}{
 		{http.MethodGet, "/branding/"},
 		{http.MethodPut, "/branding/"},
+		{http.MethodPatch, "/branding/00000000-0000-0000-0000-000000000099/restore"},
 	} {
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
 			w := httptest.NewRecorder()

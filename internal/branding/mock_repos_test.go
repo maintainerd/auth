@@ -12,6 +12,7 @@ import (
 type mockBrandingRepo struct {
 	findByTenantIDFn    func(int64) (*Branding, error)
 	findByUUIDFn        func(uuid.UUID) (*Branding, error)
+	findByIDFn          func(any) (*Branding, error)
 	findAllByTenantIDFn func(int64) ([]Branding, error)
 	createFn            func(*Branding) (*Branding, error)
 	createOrUpdateFn    func(*Branding) (*Branding, error)
@@ -78,11 +79,16 @@ func (m *mockBrandingRepo) FindByUUID(id any, p ...string) (*Branding, error) {
 func (m *mockBrandingRepo) FindByUUIDs(ids []string, p ...string) ([]Branding, error) {
 	return nil, nil
 }
-func (m *mockBrandingRepo) FindByID(id any, p ...string) (*Branding, error) { return nil, nil }
-func (m *mockBrandingRepo) UpdateByUUID(id, data any) (*Branding, error)    { return nil, nil }
-func (m *mockBrandingRepo) UpdateByID(id, data any) (*Branding, error)      { return nil, nil }
-func (m *mockBrandingRepo) DeleteByUUID(id any) error                       { return nil }
-func (m *mockBrandingRepo) DeleteByID(id any) error                         { return nil }
+func (m *mockBrandingRepo) FindByID(id any, p ...string) (*Branding, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id)
+	}
+	return nil, nil
+}
+func (m *mockBrandingRepo) UpdateByUUID(id, data any) (*Branding, error) { return nil, nil }
+func (m *mockBrandingRepo) UpdateByID(id, data any) (*Branding, error)   { return nil, nil }
+func (m *mockBrandingRepo) DeleteByUUID(id any) error                    { return nil }
+func (m *mockBrandingRepo) DeleteByID(id any) error                      { return nil }
 func (m *mockBrandingRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[Branding], error) {
 	return nil, nil
 }

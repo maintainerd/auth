@@ -46,18 +46,20 @@ func TestBrandingHandler_List_Success(t *testing.T) {
 
 func TestBrandingHandler_Create_Layout(t *testing.T) {
 	svc := &mockBrandingService{
-		createFn: func(_ int64, _ string, layout string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
-			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), Layout: layout}, nil
+		createFn: func(_ int64, _ string, layout string, _ string, logoLabel string, showLogoLabel bool, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), Layout: layout, LogoLabel: logoLabel, ShowLogoLabel: showLogoLabel}, nil
 		},
 	}
 	h := NewBrandingHandler(svc)
-	r := withTenant(jsonReq(t, http.MethodPost, "/branding", map[string]any{"name": "Acme", "layout": "full_page"}))
+	r := withTenant(jsonReq(t, http.MethodPost, "/branding", map[string]any{"name": "Acme", "layout": "full_page", "logo_label": "Acme IAM"}))
 	w := httptest.NewRecorder()
 
 	h.Create(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), `"layout":"full_page"`)
+	assert.Contains(t, w.Body.String(), `"logo_label":"Acme IAM"`)
+	assert.Contains(t, w.Body.String(), `"show_logo_label":true`)
 }
 
 func TestBrandingHandler_Create_InvalidLayout(t *testing.T) {
@@ -105,7 +107,7 @@ func TestBrandingHandler_Update_ValidationError(t *testing.T) {
 
 func TestBrandingHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockBrandingService{
-		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, _ string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, _ string, _ string, _ string, _ bool, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -119,15 +121,64 @@ func TestBrandingHandler_Update_ServiceError(t *testing.T) {
 
 func TestBrandingHandler_Update_Success(t *testing.T) {
 	svc := &mockBrandingService{
-		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, layout string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
-			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme", Layout: layout}, nil
+		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, layout string, _ string, logoLabel string, showLogoLabel bool, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme", Layout: layout, LogoLabel: logoLabel, ShowLogoLabel: showLogoLabel}, nil
 		},
 	}
 	h := NewBrandingHandler(svc)
-	body := map[string]any{"company_name": "Acme", "layout": "split"}
+	body := map[string]any{"company_name": "Acme", "layout": "split", "logo_label": "Acme Console", "show_logo_label": false}
 	r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/branding", body)), "branding_uuid", uuid.New().String())
 	w := httptest.NewRecorder()
 	h.Update(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), `"layout":"split"`)
+	assert.Contains(t, w.Body.String(), `"logo_label":"Acme Console"`)
+	assert.Contains(t, w.Body.String(), `"show_logo_label":false`)
+}
+
+func TestBrandingHandler_RestoreSystem_NoTenant(t *testing.T) {
+	h := NewBrandingHandler(&mockBrandingService{})
+	r := httptest.NewRequest(http.MethodPatch, "/branding/00000000-0000-0000-0000-000000000001/restore", nil)
+	w := httptest.NewRecorder()
+	h.RestoreSystem(w, r)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestBrandingHandler_RestoreSystem_BadUUID(t *testing.T) {
+	h := NewBrandingHandler(&mockBrandingService{})
+	r := withChiParam(withTenant(httptest.NewRequest(http.MethodPatch, "/branding/bad/restore", nil)), "branding_uuid", "not-a-uuid")
+	w := httptest.NewRecorder()
+	h.RestoreSystem(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestBrandingHandler_RestoreSystem_ServiceError(t *testing.T) {
+	svc := &mockBrandingService{
+		restoreFn: func(_ uuid.UUID, _ int64) (*BrandingServiceDataResult, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewBrandingHandler(svc)
+	r := withChiParam(withTenant(httptest.NewRequest(http.MethodPatch, "/branding/restore", nil)), "branding_uuid", uuid.New().String())
+	w := httptest.NewRecorder()
+	h.RestoreSystem(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestBrandingHandler_RestoreSystem_Success(t *testing.T) {
+	brandingID := uuid.New()
+	svc := &mockBrandingService{
+		restoreFn: func(id uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error) {
+			assert.Equal(t, brandingID, id)
+			assert.Equal(t, testTenantID, tenantID)
+			return &BrandingServiceDataResult{BrandingUUID: id, Name: "default", IsSystem: true, Layout: "centered"}, nil
+		},
+	}
+	h := NewBrandingHandler(svc)
+	r := withChiParam(withTenant(httptest.NewRequest(http.MethodPatch, "/branding/restore", nil)), "branding_uuid", brandingID.String())
+	w := httptest.NewRecorder()
+	h.RestoreSystem(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"name":"default"`)
+	assert.Contains(t, w.Body.String(), `"is_system":true`)
 }

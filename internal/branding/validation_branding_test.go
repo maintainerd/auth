@@ -62,6 +62,24 @@ func TestBrandingUpdateRequestDTO_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
+	t.Run("logo_label too long", func(t *testing.T) {
+		d := validBrandingUpdate()
+		d.LogoLabel = strings.Repeat("a", 256)
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("show_logo_label defaults to visible when omitted", func(t *testing.T) {
+		d := validBrandingUpdate()
+		assert.True(t, d.ShowLogoLabelOrDefault())
+	})
+
+	t.Run("show_logo_label preserves explicit false", func(t *testing.T) {
+		hide := false
+		d := validBrandingUpdate()
+		d.ShowLogoLabel = &hide
+		assert.False(t, d.ShowLogoLabelOrDefault())
+	})
+
 	t.Run("logo_url too long", func(t *testing.T) {
 		d := validBrandingUpdate()
 		d.LogoURL = "https://example.com/" + strings.Repeat("a", 2030)

@@ -1,14 +1,18 @@
 package branding
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
@@ -16,11 +20,23 @@ import (
 // BrandingHandler handles tenant branding configuration endpoints.
 type BrandingHandler struct {
 	brandingService BrandingService
+	appCache        *cache.Cache
+}
+
+const brandingLogoCacheTTL = time.Hour
+
+type cachedBrandingLogo struct {
+	Data        []byte `json:"data"`
+	ContentType string `json:"content_type"`
 }
 
 // NewBrandingHandler creates a new BrandingHandler.
-func NewBrandingHandler(brandingService BrandingService) *BrandingHandler {
-	return &BrandingHandler{brandingService: brandingService}
+func NewBrandingHandler(brandingService BrandingService, appCache ...*cache.Cache) *BrandingHandler {
+	h := &BrandingHandler{brandingService: brandingService}
+	if len(appCache) > 0 {
+		h.appCache = appCache[0]
+	}
+	return h
 }
 
 // List returns all branding themes for the authenticated tenant (the active one
@@ -69,7 +85,7 @@ func (h *BrandingHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.brandingService.Create(
 		r.Context(), tenant.TenantID,
-		req.Name, req.Layout, req.CompanyName, req.LogoURL, req.FaviconURL,
+		req.Name, req.Layout, req.CompanyName, req.LogoLabel, req.ShowLogoLabelOrDefault(), req.LogoURL, req.FaviconURL,
 		req.Metadata,
 		req.SupportURL, req.PrivacyPolicyURL, req.TermsOfServiceURL,
 	)
@@ -78,14 +94,12 @@ func (h *BrandingHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.LogoData != "" && req.LogoContentType != "" {
-		logoBytes, err := base64.StdEncoding.DecodeString(req.LogoData)
-		if err == nil {
-			brandingUUID := result.BrandingUUID
-			if err := h.brandingService.SetLogoData(r.Context(), brandingUUID, logoBytes, req.LogoContentType); err == nil {
-				result.LogoURL = fmt.Sprintf("/public/branding/%s/logo", result.BrandingUUID)
-			}
+	if req.LogoData != "" {
+		if err := h.storeLogoUpload(r, result.BrandingUUID, req); err != nil {
+			resp.HandleServiceError(w, r, "Failed to store logo", err)
+			return
 		}
+		result.LogoURL = fmt.Sprintf("/public/branding/%s/logo", result.BrandingUUID)
 	}
 
 	resp.Success(w, toBrandingResponseDTO(result), "Branding created successfully")
@@ -119,6 +133,11 @@ func (h *BrandingHandler) ServeLogo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if cached := h.cachedLogo(r.Context(), brandingUUID); cached != nil {
+		h.writeLogo(w, brandingUUID, cached.Data, cached.ContentType)
+		return
+	}
+
 	data, contentType, err := h.brandingService.GetLogoData(r.Context(), brandingUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Logo not found", err)
@@ -130,10 +149,62 @@ func (h *BrandingHandler) ServeLogo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.cacheLogo(r.Context(), brandingUUID, data, contentType)
+	h.writeLogo(w, brandingUUID, data, contentType)
+}
+
+func (h *BrandingHandler) writeLogo(w http.ResponseWriter, brandingUUID uuid.UUID, data []byte, contentType string) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	w.Header().Set("ETag", `"`+brandingUUID.String()+`"`)
 	_, _ = w.Write(data)
+}
+
+func (h *BrandingHandler) storeLogoUpload(r *http.Request, brandingUUID uuid.UUID, req BrandingUpdateRequestDTO) error {
+	logoBytes, err := base64.StdEncoding.DecodeString(req.LogoData)
+	if err != nil {
+		return apperror.NewValidation("Logo data must be base64-encoded")
+	}
+	if err := h.brandingService.SetLogoData(r.Context(), brandingUUID, logoBytes, req.LogoContentType); err != nil {
+		return err
+	}
+	h.deleteLogoCache(r.Context(), brandingUUID)
+	return nil
+}
+
+func brandingLogoCacheKey(brandingUUID uuid.UUID) string {
+	return "branding:logo:" + brandingUUID.String()
+}
+
+func (h *BrandingHandler) cachedLogo(ctx context.Context, brandingUUID uuid.UUID) *cachedBrandingLogo {
+	if h.appCache == nil {
+		return nil
+	}
+	var cached cachedBrandingLogo
+	if err := h.appCache.GetSession(ctx, brandingLogoCacheKey(brandingUUID), &cached); err != nil {
+		return nil
+	}
+	if len(cached.Data) == 0 || cached.ContentType == "" {
+		return nil
+	}
+	return &cached
+}
+
+func (h *BrandingHandler) cacheLogo(ctx context.Context, brandingUUID uuid.UUID, data []byte, contentType string) {
+	if h.appCache == nil {
+		return
+	}
+	_ = h.appCache.SetSession(ctx, brandingLogoCacheKey(brandingUUID), cachedBrandingLogo{
+		Data:        data,
+		ContentType: contentType,
+	}, brandingLogoCacheTTL)
+}
+
+func (h *BrandingHandler) deleteLogoCache(ctx context.Context, brandingUUID uuid.UUID) {
+	if h.appCache == nil {
+		return
+	}
+	_ = h.appCache.DeleteSession(ctx, brandingLogoCacheKey(brandingUUID))
 }
 
 // Update modifies a specific branding theme.
@@ -165,13 +236,22 @@ func (h *BrandingHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.brandingService.UpdateByUUID(
 		r.Context(), brandingUUID, tenant.TenantID,
-		req.Name, req.Layout, req.CompanyName, req.LogoURL, req.FaviconURL,
+		req.Name, req.Layout, req.CompanyName, req.LogoLabel, req.ShowLogoLabelOrDefault(), req.LogoURL, req.FaviconURL,
 		req.Metadata,
 		req.SupportURL, req.PrivacyPolicyURL, req.TermsOfServiceURL,
 	)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update branding", err)
 		return
+	}
+
+	h.deleteLogoCache(r.Context(), brandingUUID)
+	if req.LogoData != "" {
+		if err := h.storeLogoUpload(r, brandingUUID, req); err != nil {
+			resp.HandleServiceError(w, r, "Failed to store logo", err)
+			return
+		}
+		result.LogoURL = fmt.Sprintf("/public/branding/%s/logo", brandingUUID)
 	}
 
 	resp.Success(w, toBrandingResponseDTO(result), "Branding updated successfully")
@@ -202,6 +282,32 @@ func (h *BrandingHandler) Activate(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, toBrandingResponseDTO(result), "Branding activated successfully")
 }
 
+// RestoreSystem resets a system branding theme to its seeded defaults.
+//
+// PATCH /branding/{branding_uuid}/restore
+func (h *BrandingHandler) RestoreSystem(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	brandingUUID, err := uuid.Parse(chi.URLParam(r, "branding_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid branding UUID")
+		return
+	}
+
+	result, err := h.brandingService.RestoreSystem(r.Context(), brandingUUID, tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to restore branding", err)
+		return
+	}
+
+	h.deleteLogoCache(r.Context(), brandingUUID)
+	resp.Success(w, toBrandingResponseDTO(result), "Branding restored successfully")
+}
+
 // Delete removes a non-system branding record.
 //
 // DELETE /branding/{branding_uuid}
@@ -223,6 +329,7 @@ func (h *BrandingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.deleteLogoCache(r.Context(), brandingUUID)
 	resp.Success(w, nil, "Branding deleted successfully")
 }
 
@@ -234,6 +341,8 @@ func toBrandingResponseDTO(b *BrandingServiceDataResult) BrandingResponseDTO {
 		IsActive:          b.IsActive,
 		Layout:            b.Layout,
 		CompanyName:       b.CompanyName,
+		LogoLabel:         b.LogoLabel,
+		ShowLogoLabel:     b.ShowLogoLabel,
 		LogoURL:           b.LogoURL,
 		FaviconURL:        b.FaviconURL,
 		Metadata:          b.Metadata,

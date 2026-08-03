@@ -1,12 +1,14 @@
 package oauth
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jsonutil"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 func oauthEffectiveSessionPolicy(repo secpolicy.SecuritySettingRepository, client *Client) secpolicy.EffectiveSessionPolicy {
@@ -75,11 +77,16 @@ func oauthAccessTokenOptions(repo secpolicy.SecuritySettingRepository, client *C
 	for _, claim := range tokenPolicy.AdditionalAccessTokenClaims {
 		switch claim {
 		case "tenant_id":
+			// Stamp the tenant's opaque UUID, never the internal PK (least-disclosure
+			// per RFC 9068). The resolver is a cached, ctx-agnostic lookup, so a
+			// background context is fine here.
 			if client != nil && client.TenantID > 0 {
-				if opts.ExtraClaims == nil {
-					opts.ExtraClaims = map[string]any{}
+				if s := shared.TenantUUIDStringByID(context.Background(), client.TenantID); s != "" {
+					if opts.ExtraClaims == nil {
+						opts.ExtraClaims = map[string]any{}
+					}
+					opts.ExtraClaims["tenant_id"] = s
 				}
-				opts.ExtraClaims["tenant_id"] = client.TenantID
 			}
 		}
 	}

@@ -27,6 +27,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/setup"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 	"github.com/maintainerd/maintainerd-auth/internal/user"
 	"github.com/maintainerd/maintainerd-auth/internal/webhook"
@@ -237,6 +238,11 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	authzInvalidator := iam.NewDBAuthorizationTokenInvalidator(db, appCache)
 	tenantUOW := tenant.NewGormUnitOfWork(db, r.tenantRepo, r.tenantMemberRepo, tenantCascadeModels())
 	middleware.SetSessionValidator(sessionSvc)
+
+	// Tokens carry the tenant's opaque UUID in the `tenant_id` claim (never the
+	// internal PK); this resolver lets the mint layer stamp the UUID and the JWT
+	// parse layer resolve it back to the internal id every scoping check expects.
+	shared.SetTenantRefResolver(newTenantRefResolver(r.tenantRepo))
 
 	webAuthnSvc, err := mfa.NewWebAuthnService(db, mfaUserRepo, r.mfaWebAuthnCredRepo, appCache, authEventSvc, r.webauthnChallengeRepo)
 	if err != nil {

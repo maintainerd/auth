@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS branding (
     name                 VARCHAR(100),
     layout               VARCHAR(32) NOT NULL DEFAULT 'centered',
     company_name         VARCHAR(255),
+    logo_label           VARCHAR(255),
+    show_logo_label      BOOLEAN NOT NULL DEFAULT true,
     logo_url             VARCHAR(2048),
     logo_data            BYTEA,
     logo_content_type    VARCHAR(255),

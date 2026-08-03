@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -285,6 +286,8 @@ func grpcJWTClaims(ctx context.Context) (*middleware.JWTClaims, error) {
 
 	sub, _ := rawClaims["sub"].(string)
 	userUUID, _ := uuid.Parse(sub)
+	tenantUUIDStr := stringClaim(rawClaims, "tenant_id")
+	tenantUUID, _ := uuid.Parse(tenantUUIDStr)
 	return &middleware.JWTClaims{
 		Sub:         sub,
 		UserUUID:    userUUID,
@@ -301,7 +304,10 @@ func grpcJWTClaims(ctx context.Context) (*middleware.JWTClaims, error) {
 		AMR:         stringSliceClaim(rawClaims["amr"]),
 		// This path builds JWTClaims by hand rather than through
 		// middleware.buildJWTClaims, so every claim it needs must be mapped here.
-		TenantID: int64Claim(rawClaims["tenant_id"]),
+		// The tenant_id claim VALUE is the tenant's opaque UUID; keep it and resolve
+		// it back to the internal PK for TenantID (mirrors buildJWTClaims).
+		TenantUUID: tenantUUID,
+		TenantID:   shared.TenantIDByUUIDString(ctx, tenantUUIDStr),
 	}, nil
 }
 

@@ -9,9 +9,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 )
 
 func newTenantHandler(ts *mockTenantService, ms *mockTenantMemberService) *TenantHandler {
@@ -184,6 +186,29 @@ func (m *mockSurfaceClientReader) GetSurfaceClient(_ context.Context, tenantName
 	return nil, nil
 }
 
+type mockClientBrandingReader struct {
+	fn func(tenantID int64, clientIdentifier string) (*branding.BrandingServiceDataResult, error)
+}
+
+func (m *mockClientBrandingReader) GetPublicClientBranding(_ context.Context, tenantID int64, clientIdentifier string) (*branding.BrandingServiceDataResult, error) {
+	if m.fn != nil {
+		return m.fn(tenantID, clientIdentifier)
+	}
+	return nil, nil
+}
+
+type mockBootstrapBrandingService struct {
+	branding.BrandingService
+	fn func(tenantID int64) (*branding.BrandingServiceDataResult, error)
+}
+
+func (m *mockBootstrapBrandingService) GetPublic(_ context.Context, tenantID int64) (*branding.BrandingServiceDataResult, error) {
+	if m.fn != nil {
+		return m.fn(tenantID)
+	}
+	return nil, nil
+}
+
 func TestTenantHandler_GetBootstrap(t *testing.T) {
 	setBootstrapBases := func(t *testing.T) {
 		t.Helper()
@@ -266,6 +291,110 @@ func TestTenantHandler_GetBootstrap(t *testing.T) {
 		assert.Equal(t, "https://acme.console.auth.maintainerd.local", got.ConsoleURL)
 		require.NotNil(t, got.Client)
 		assert.Equal(t, "cid-console", got.Client.ClientID)
+	})
+
+	t.Run("includes active public branding metadata for theming", func(t *testing.T) {
+		setBootstrapBases(t)
+		svc := &mockTenantService{getByNameFn: func(name string) (*TenantServiceDataResult, error) {
+			assert.Equal(t, "acme", name)
+			return &TenantServiceDataResult{TenantID: 42, Name: "acme", Status: "active"}, nil
+		}}
+		brandingSvc := &mockBootstrapBrandingService{fn: func(tenantID int64) (*branding.BrandingServiceDataResult, error) {
+			assert.Equal(t, int64(42), tenantID)
+			return &branding.BrandingServiceDataResult{
+				CompanyName:   "Acme IAM",
+				LogoLabel:     "Acme",
+				ShowLogoLabel: true,
+				LogoURL:       "https://cdn.example.test/acme.svg",
+				Metadata:      datatypes.JSON([]byte(`{"colors":{"topPanelBackground":"#101820"},"components":{"input":{"borderRadius":"12px"}}}`)),
+			}, nil
+		}}
+		h := NewTenantHandler(svc, nil, brandingSvc, nil)
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=acme.console.auth.maintainerd.local", nil)
+		h.GetDefault(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		got := decode(t, w)
+		require.NotNil(t, got.Branding)
+		assert.Equal(t, "Acme IAM", got.Branding.CompanyName)
+		assert.Equal(t, "Acme", got.Branding.LogoLabel)
+		assert.True(t, got.Branding.ShowLogoLabel)
+		assert.Equal(t, "https://cdn.example.test/acme.svg", got.Branding.LogoURL)
+
+		var metadata map[string]any
+		require.NoError(t, json.Unmarshal(got.Branding.Metadata, &metadata))
+		colors := metadata["colors"].(map[string]any)
+		assert.Equal(t, "#101820", colors["topPanelBackground"])
+		components := metadata["components"].(map[string]any)
+		input := components["input"].(map[string]any)
+		assert.Equal(t, "12px", input["borderRadius"])
+	})
+
+	t.Run("client_id selects attached client branding", func(t *testing.T) {
+		setBootstrapBases(t)
+		svc := &mockTenantService{getByNameFn: func(name string) (*TenantServiceDataResult, error) {
+			assert.Equal(t, "acme", name)
+			return &TenantServiceDataResult{TenantID: 42, Name: "acme", Status: "active"}, nil
+		}}
+		brandingSvc := &mockBootstrapBrandingService{fn: func(int64) (*branding.BrandingServiceDataResult, error) {
+			t.Fatal("tenant fallback branding should not be used when client branding resolves")
+			return nil, nil
+		}}
+		h := NewTenantHandler(svc, nil, brandingSvc, nil)
+		h.SetClientBrandingReader(&mockClientBrandingReader{fn: func(tenantID int64, clientIdentifier string) (*branding.BrandingServiceDataResult, error) {
+			assert.Equal(t, int64(42), tenantID)
+			assert.Equal(t, "client-abc", clientIdentifier)
+			return &branding.BrandingServiceDataResult{
+				CompanyName:   "Client App",
+				LogoLabel:     "Client",
+				ShowLogoLabel: false,
+				Metadata:      datatypes.JSON([]byte(`{"colors":{"authPageBackground":"#050505"}}`)),
+			}, nil
+		}})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=acme.auth.maintainerd.local&client_id=client-abc", nil)
+		h.GetDefault(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		got := decode(t, w)
+		require.NotNil(t, got.Branding)
+		assert.Equal(t, "Client App", got.Branding.CompanyName)
+		assert.Equal(t, "Client", got.Branding.LogoLabel)
+		assert.False(t, got.Branding.ShowLogoLabel)
+
+		var metadata map[string]any
+		require.NoError(t, json.Unmarshal(got.Branding.Metadata, &metadata))
+		colors := metadata["colors"].(map[string]any)
+		assert.Equal(t, "#050505", colors["authPageBackground"])
+	})
+
+	t.Run("client_id without attached branding falls back to active tenant branding", func(t *testing.T) {
+		setBootstrapBases(t)
+		svc := &mockTenantService{getByNameFn: func(name string) (*TenantServiceDataResult, error) {
+			assert.Equal(t, "acme", name)
+			return &TenantServiceDataResult{TenantID: 42, Name: "acme", Status: "active"}, nil
+		}}
+		brandingSvc := &mockBootstrapBrandingService{fn: func(tenantID int64) (*branding.BrandingServiceDataResult, error) {
+			assert.Equal(t, int64(42), tenantID)
+			return &branding.BrandingServiceDataResult{CompanyName: "Tenant Theme", LogoLabel: "Tenant", ShowLogoLabel: true}, nil
+		}}
+		h := NewTenantHandler(svc, nil, brandingSvc, nil)
+		h.SetClientBrandingReader(&mockClientBrandingReader{fn: func(tenantID int64, clientIdentifier string) (*branding.BrandingServiceDataResult, error) {
+			assert.Equal(t, int64(42), tenantID)
+			assert.Equal(t, "client-abc", clientIdentifier)
+			return nil, nil
+		}})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=acme.auth.maintainerd.local&client_id=client-abc", nil)
+		h.GetDefault(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		got := decode(t, w)
+		require.NotNil(t, got.Branding)
+		assert.Equal(t, "Tenant Theme", got.Branding.CompanyName)
+		assert.Equal(t, "Tenant", got.Branding.LogoLabel)
+		assert.True(t, got.Branding.ShowLogoLabel)
 	})
 
 	t.Run("missing surface client still returns 200 without client field", func(t *testing.T) {
