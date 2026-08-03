@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenant } from '@/hooks/useTenant'
 import { resolveGuardRedirect, isPublicConsoleRoute } from '@/utils/postAuthRoute'
-import ConsoleOAuthRedirect from './ConsoleOAuthRedirect'
+import { ConsoleOAuthRedirect } from './ConsoleOAuthRedirect'
 
 /**
  * Single runtime redirect authority. Wraps the whole route tree and, on every
@@ -42,5 +42,3 @@ export function RouteGuard({ children }: { children: ReactNode }) {
 
   return <>{children}</>
 }
-
-export default RouteGuard

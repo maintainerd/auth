@@ -1,4 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface TemplateParametersCardProps {
   description: string
@@ -17,23 +25,23 @@ export function TemplateParametersCard({ description, parametersDoc }: TemplateP
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-2 text-left font-medium">Parameter</th>
-                <th className="px-4 py-2 text-left font-medium">Description</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div data-md-table-shell className="overflow-hidden rounded-md border">
+          <Table>
+            <TableHeader className="[&_tr]:border-b [&_tr]:bg-muted">
+              <TableRow>
+                <TableHead className="h-9 text-xs">Parameter</TableHead>
+                <TableHead className="h-9 text-xs">Description</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => (
-                <tr key={row.parameter} className="border-b last:border-0">
-                  <td className="px-4 py-2 font-mono text-xs">{row.parameter}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{row.description}</td>
-                </tr>
+                <TableRow key={row.parameter}>
+                  <TableCell className="font-mono text-xs">{row.parameter}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.description}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
     </Card>

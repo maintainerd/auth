@@ -10,6 +10,7 @@ import { AppBootstrap } from './components/auth/AppBootstrap'
 import { PrivateLayout } from './components/layout/PrivateLayout'
 import AppLoadingScreen from './components/layout/AppLoadingScreen'
 import ErrorBoundary from './components/ErrorBoundary'
+import { ConsoleBrandingProvider } from './components/theme/ConsoleBrandingProvider'
 
 // The app shell (bootstrap, layout, login landing) stays eager so the first
 // paint is immediate. Every route page below is code-split via React.lazy so
@@ -67,7 +68,6 @@ const AuditLogDetailsPage = lazy(() => import('./pages/audit-log/details/AuditLo
 const AuthEventDetailsPage = lazy(() => import('./pages/log-monitoring/details/AuthEventDetailsPage'))
 const BrandingDetailsPage = lazy(() => import('./pages/branding/templates/details/BrandingDetailsPage'))
 const BrandingForm = lazy(() => import('./pages/branding/templates/form/BrandingForm'))
-const LoginTemplateFormsPage = lazy(() => import('./pages/branding/templates/forms/LoginTemplateFormsPage'))
 const BrandingPage = lazy(() => import('./pages/branding/BrandingPage'))
 const EmailTemplateDetailsPage = lazy(() => import('./pages/branding/email-templates/details'))
 const EmailTemplateForm = lazy(() => import('./pages/branding/email-templates/form'))
@@ -94,6 +94,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <StepUpProvider>
+      <ConsoleBrandingProvider>
       <AppBootstrap>
       <ErrorBoundary resetKey={`${location.pathname}${location.search}`}>
       <Suspense fallback={<AppLoadingScreen />}>
@@ -177,7 +178,6 @@ function App() {
           <Route path="branding/templates/create" element={<BrandingForm />} />
           <Route path="branding/templates/:brandingId" element={<BrandingDetailsPage />} />
           <Route path="branding/templates/:brandingId/edit" element={<BrandingForm />} />
-          <Route path="branding/templates/:brandingId/forms" element={<LoginTemplateFormsPage />} />
           <Route path="branding/email-templates/:templateId" element={<EmailTemplateDetailsPage />} />
           <Route path="branding/email-templates/:templateId/edit" element={<EmailTemplateForm />} />
           <Route path="branding/sms-templates/:templateId" element={<SmsTemplateDetailsPage />} />
@@ -201,6 +201,7 @@ function App() {
       </Suspense>
       </ErrorBoundary>
       </AppBootstrap>
+      </ConsoleBrandingProvider>
       <ToastContainer
         position="bottom-right"
         autoClose={5000}

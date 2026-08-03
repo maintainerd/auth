@@ -111,6 +111,7 @@ export function ApiPermissionsTab({ apiId }: ApiPermissionsTabProps) {
                 return (
                   <div
                     key={permission.permission_id}
+                    data-md-listing-item
                     className="flex items-start justify-between gap-3 rounded-lg border p-4"
                   >
                     <div className="flex min-w-0 items-start gap-3">

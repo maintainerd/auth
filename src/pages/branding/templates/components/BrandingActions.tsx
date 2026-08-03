@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom"
-import { Eye, Edit, Trash2, CheckCircle2 } from "lucide-react"
+import { Eye, Edit, Trash2, CheckCircle2, RotateCcw } from "lucide-react"
 import { RowActions, type RowActionItem } from "@/components/data-table"
-import { useActivateBranding, useDeleteBranding } from "@/hooks/useBranding"
+import { useActivateBranding, useDeleteBranding, useRestoreBranding } from "@/hooks/useBranding"
 import { useToast } from "@/hooks/useToast"
 import type { Branding } from "@/services/api/branding/types"
 import { BRANDING_THEMES_BACK_STATE } from "../brandingNavigation"
@@ -14,6 +14,7 @@ export function BrandingActions({ branding }: BrandingActionsProps) {
   const navigate = useNavigate()
   const { showSuccess, showError } = useToast()
   const activateMutation = useActivateBranding()
+  const restoreMutation = useRestoreBranding()
   const deleteMutation = useDeleteBranding()
 
   const items: RowActionItem[] = [
@@ -30,6 +31,28 @@ export function BrandingActions({ branding }: BrandingActionsProps) {
       onSelect: () =>
         navigate(`/branding/templates/${branding.branding_id}/edit`, { state: BRANDING_THEMES_BACK_STATE }),
     },
+    ...(branding.is_system
+      ? [
+          {
+            key: "restore",
+            label: "Restore Defaults",
+            icon: RotateCcw,
+            onSelect: async () => {
+              try {
+                await restoreMutation.mutateAsync(branding.branding_id)
+                showSuccess(`"${branding.name}" restored to the system default`)
+              } catch (error) {
+                showError(error)
+              }
+            },
+            confirm: {
+              title: "Restore System Theme",
+              description: `Restore "${branding.name}" to the seeded system defaults? This replaces edited theme values but keeps the current active theme selection.`,
+              confirmText: "Restore Defaults",
+            },
+          } satisfies RowActionItem,
+        ]
+      : []),
     // System themes can be edited and activated but never deleted.
     ...(!branding.is_active
       ? [

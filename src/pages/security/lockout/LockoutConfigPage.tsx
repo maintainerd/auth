@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DetailsContainer } from '@/components/container'
 import { FormPageHeader } from '@/components/header'
-import { FormSwitchField, FormInputField, FormSubmitButton } from '@/components/form'
+import { FormInputField, FormSubmitButton } from '@/components/form'
+import { FormSwitchSubContainer } from '@/components/inputs'
 import { useLockoutConfig, useUpdateLockoutConfig } from '@/hooks/useLockoutConfig'
 import { useToast } from '@/hooks/useToast'
 import { ConfirmationDialog } from '@/components/dialog'
@@ -174,7 +175,7 @@ export default function LockoutConfigPage() {
               <p className="text-sm text-muted-foreground">Set thresholds and duration for account lockouts.</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormSwitchField
+              <FormSwitchSubContainer
                 label="Enable Lockout"
                 description="Enable account lockout after repeated failed login attempts"
                 checked={formValues.enabled}
@@ -197,7 +198,7 @@ export default function LockoutConfigPage() {
               <p className="text-sm text-muted-foreground">Escalate lockout duration on repeated lockouts.</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormSwitchField label="Progressive Lockout" description="Increase lockout duration with each successive lockout" checked={formValues.progressive_lockout} onCheckedChange={(checked) => handleUpdate({ progressive_lockout: checked })} disabled={isBusy} />
+              <FormSwitchSubContainer label="Progressive Lockout" description="Increase lockout duration with each successive lockout" checked={formValues.progressive_lockout} onCheckedChange={(checked) => handleUpdate({ progressive_lockout: checked })} disabled={isBusy} />
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Progression Reset (hours)" type="number" value={formValues.progression_reset_hours.toString()} onChange={(e) => handleUpdate({ progression_reset_hours: parseInt(e.target.value) || 1 })} error={errors.progression_reset_hours?.message} disabled={isBusy} />
               </div>
@@ -211,9 +212,9 @@ export default function LockoutConfigPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Auto Unlock After Duration" description="Automatically unlock after the lockout duration expires" checked={formValues.auto_unlock} onCheckedChange={(checked) => handleUpdate({ auto_unlock: checked })} disabled={isBusy} />
-                <FormSwitchField label="Reset Count On Success" description="Reset failed attempt counter on successful login" checked={formValues.reset_count_on_success} onCheckedChange={(checked) => handleUpdate({ reset_count_on_success: checked })} disabled={isBusy} />
-                <FormSwitchField label="Notify User On Lockout" description="Send notification to the user when their account is locked" checked={formValues.notify_user_on_lockout} onCheckedChange={(checked) => handleUpdate({ notify_user_on_lockout: checked })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Auto Unlock After Duration" description="Automatically unlock after the lockout duration expires" checked={formValues.auto_unlock} onCheckedChange={(checked) => handleUpdate({ auto_unlock: checked })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Reset Count On Success" description="Reset failed attempt counter on successful login" checked={formValues.reset_count_on_success} onCheckedChange={(checked) => handleUpdate({ reset_count_on_success: checked })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Notify User On Lockout" description="Send notification to the user when their account is locked" checked={formValues.notify_user_on_lockout} onCheckedChange={(checked) => handleUpdate({ notify_user_on_lockout: checked })} disabled={isBusy} />
               </div>
             </CardContent>
           </Card>

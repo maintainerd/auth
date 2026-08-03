@@ -9,18 +9,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { DetailsContainer } from "@/components/container"
 import { FormPageHeader } from "@/components/header"
 import {
   FormTextareaField,
   FormSelectField,
-  FormSwitchField,
   FormSubmitButton,
   type SelectOption
 } from "@/components/form"
-import { FormSlugField, SelectableOptionRow } from "@/components/inputs"
+import { FormSlugField, FormSwitchSubContainer, FormSearchableSelectField, FormCheckboxSubContainer } from "@/components/inputs"
 import { registrationFlowSchema, type RegistrationFlowFormData } from "@/lib/validations"
 import { sanitizeFlowName } from "@/lib/validations/regex"
 import {
@@ -29,7 +26,7 @@ import {
   useUpdateRegistrationFlow,
   useRegistrationFlowRoles,
 } from "@/hooks/useRegistrationFlows"
-import { useClients, useClient } from "@/hooks/useClients"
+import { useClients } from "@/hooks/useClients"
 import { useRoles } from "@/hooks/useRoles"
 import { useToast } from "@/hooks/useToast"
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
@@ -68,7 +65,6 @@ export default function RegistrationFlowAddOrUpdateForm() {
   const updateRegistrationFlowMutation = useUpdateRegistrationFlow()
 
   const [clientSearchValue, setClientSearchValue] = useState("")
-  const [clientSearchOpen, setClientSearchOpen] = useState(false)
 
   const { data: clientsData } = useClients({
     name: clientSearchValue || undefined,
@@ -116,9 +112,7 @@ export default function RegistrationFlowAddOrUpdateForm() {
     reValidateMode: "onChange",
   })
 
-  const selectedClientId = watch("clientId")
   const nameValue = watch("name")
-  const { data: selectedClientData } = useClient(selectedClientId || "")
 
   // Everything the form owns is hydrated in ONE reset, keyed on the fetched
   // records. verification_required, required_fields and the role selection used
@@ -230,10 +224,6 @@ export default function RegistrationFlowAddOrUpdateForm() {
       showError(error)
     }
   }
-
-  const selectedClient = clientsData?.rows?.find(
-    client => client.client_id === selectedClientId
-  ) || selectedClientData
 
   // Loading state while fetching the flow (and its roles) to edit. Rendering the
   // skeleton until BOTH have resolved means the single reset above always runs
@@ -383,71 +373,35 @@ export default function RegistrationFlowAddOrUpdateForm() {
               />
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  {/* role="combobox" takes its accessible name from the author,
-                      not from its content, so the trigger is explicitly labelled
-                      by this Label — otherwise assistive tech announces an
-                      unnamed combobox. */}
-                  <Label id="client-label" htmlFor="client">
-                    Client <span className="text-destructive">*</span>
-                  </Label>
-                  <Controller
-                    name="clientId"
-                    control={control}
-                    render={({ field }) => (
-                      <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            id="client"
-                            variant="outline"
-                            role="combobox"
-                            aria-labelledby="client-label"
-                            aria-expanded={clientSearchOpen}
-                            className="w-full justify-between"
-                            disabled={isLoading || isEditing}
-                          >
-                            {selectedClient?.name || "Select client..."}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
-                          <Command>
-                            <CommandInput
-                              placeholder="Search clients..."
-                              value={clientSearchValue}
-                              onValueChange={setClientSearchValue}
-                            />
-                            <CommandList>
-                              <CommandEmpty>No client found.</CommandEmpty>
-                              <CommandGroup>
-                                {clientsData?.rows?.map((client) => (
-                                  <CommandItem
-                                    key={client.client_id}
-                                    value={client.client_id}
-                                    onSelect={() => {
-                                      field.onChange(client.client_id)
-                                      setClientSearchOpen(false)
-                                    }}
-                                  >
-                                    {client.name}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  />
-                  {errors.clientId && (
-                    <p className="text-sm text-destructive">{errors.clientId.message}</p>
+                <Controller
+                  name="clientId"
+                  control={control}
+                  render={({ field }) => (
+                    <FormSearchableSelectField
+                      id="client"
+                      label="Client"
+                      placeholder="Select client..."
+                      emptyText="No client found."
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      options={(clientsData?.rows ?? []).map((client) => ({
+                        value: client.client_id,
+                        label: client.name,
+                        description: client.display_name,
+                      }))}
+                      searchValue={clientSearchValue}
+                      onSearchChange={setClientSearchValue}
+                      disabled={isLoading || isEditing}
+                      error={errors.clientId?.message}
+                      required
+                      description={
+                        isEditing
+                          ? "The client is fixed after creation — the registration link is only valid for this client."
+                          : "The client that provides branding, context, and validated callback URIs for this flow. Selecting a client does not automatically activate this flow."
+                      }
+                    />
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    {isEditing
-                      ? "The client is fixed after creation — the registration link is only valid for this client."
-                      : "The client that provides branding, context, and validated callback URIs for this flow. Selecting a client does not automatically activate this flow."}
-                  </p>
-                </div>
+                />
               </div>
             </CardContent>
           </Card>
@@ -464,14 +418,13 @@ export default function RegistrationFlowAddOrUpdateForm() {
                 name="verificationRequired"
                 control={control}
                 render={({ field }) => (
-                  <FormSwitchField
+                  <FormSwitchSubContainer
                     id="verification-required"
                     label="Require email verification"
                     description="Require users to verify their email before completing onboarding, even when the tenant-wide policy is less strict."
                     checked={Boolean(field.value)}
                     onCheckedChange={field.onChange}
                     disabled={isLoading}
-                    containerClassName="rounded-md border p-4"
                   />
                 )}
               />
@@ -482,7 +435,7 @@ export default function RegistrationFlowAddOrUpdateForm() {
                 render={({ field }) => {
                   const value = field.value ?? []
                   return (
-                    <div className="space-y-3 rounded-md border p-4">
+                    <div data-md-listing-nested className="space-y-3 rounded-md border p-4">
                       <div>
                         <Label>Required registration fields</Label>
                         <p className="text-xs text-muted-foreground">
@@ -537,31 +490,25 @@ export default function RegistrationFlowAddOrUpdateForm() {
                     field.onChange(value.includes(id) ? value.filter((entry) => entry !== id) : [...value, id])
 
                   return (
-                    <>
-                      {isLoadingRoles ? (
-                        <div className="py-6 text-center text-sm text-muted-foreground">Loading roles...</div>
-                      ) : roleOptions.length === 0 ? (
-                        <div className="py-6 text-center text-sm text-muted-foreground">No roles available</div>
-                      ) : (
-                        <div className="border rounded-md divide-y max-h-64 overflow-y-auto">
-                          {roleOptions.map((role) => (
-                            <SelectableOptionRow
-                              key={role.role_id}
-                              selected={value.includes(role.role_id)}
-                              onToggle={() => toggleRole(role.role_id)}
-                              disabled={isLoading}
-                              title={role.name}
-                              description={role.description}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      {value.length > 0 && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {value.length} role{value.length !== 1 ? "s" : ""} selected
-                        </p>
-                      )}
-                    </>
+                    <FormCheckboxSubContainer
+                      options={roleOptions.map((role) => ({
+                        value: role.role_id,
+                        title: role.name,
+                        description: role.description,
+                      }))}
+                      selected={value}
+                      onToggle={toggleRole}
+                      disabled={isLoading}
+                      loading={isLoadingRoles}
+                      emptyText="No roles available"
+                      footer={
+                        value.length > 0 ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {value.length} role{value.length !== 1 ? "s" : ""} selected
+                          </p>
+                        ) : undefined
+                      }
+                    />
                   )
                 }}
               />

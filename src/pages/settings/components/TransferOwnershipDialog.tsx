@@ -112,7 +112,7 @@ export function TransferOwnershipDialog({ open, onOpenChange, tenantId, currentO
               />
             </div>
 
-            <div className="border rounded-lg max-h-[300px] overflow-y-auto">
+            <div data-md-checkbox-sub-container className="border rounded-lg max-h-[300px] overflow-y-auto">
               {eligibleMembers.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   No other members available. Add members to the tenant before transferring ownership.

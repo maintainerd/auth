@@ -40,6 +40,14 @@ export const brandingSchema = yup.object({
     .trim()
     .max(255, 'Company name must not exceed 255 characters')
     .default(''),
+  logo_label: yup
+    .string()
+    .trim()
+    .max(255, 'Logo label must not exceed 255 characters')
+    .default('Maintainerd-IAM'),
+  show_logo_label: yup
+    .boolean()
+    .default(true),
   logo_url: optionalUrl('Logo URL'),
   favicon_url: optionalUrl('Favicon URL'),
   support_url: optionalUrl('Support URL'),

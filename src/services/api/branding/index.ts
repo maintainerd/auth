@@ -1,7 +1,7 @@
 /**
  * Branding API
  * Admin endpoints for managing per-tenant branding themes (list, create,
- * update, activate, delete). The active theme is the loaded style.
+ * update, activate, restore, delete). The active theme is the loaded style.
  */
 
 import { get, post, put, patch, deleteRequest } from '../client'
@@ -33,6 +33,12 @@ export async function updateBranding(brandingId: string, data: BrandingRequest):
 export async function activateBranding(brandingId: string): Promise<Branding> {
   const r = await patch<ApiResponse<Branding>>(`${API_ENDPOINTS.BRANDING}/${brandingId}/activate`)
   return unwrap(r, 'activate branding')
+}
+
+// Restore a system branding theme to the seeded defaults.
+export async function restoreBranding(brandingId: string): Promise<Branding> {
+  const r = await patch<ApiResponse<Branding>>(`${API_ENDPOINTS.BRANDING}/${brandingId}/restore`)
+  return unwrap(r, 'restore branding')
 }
 
 // Delete a custom branding theme. System themes cannot be deleted.

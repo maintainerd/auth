@@ -25,8 +25,8 @@ const humanizeEventType = (value: string) => {
 
 function ActivityRow({ event }: { event: AuthEvent }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg border p-3">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+    <div data-md-listing-item className="flex items-start gap-3 rounded-lg border p-3">
+      <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
         <Activity className="size-4" />
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">

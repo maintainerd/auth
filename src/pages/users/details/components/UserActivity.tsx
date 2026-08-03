@@ -75,9 +75,9 @@ export function UserActivity({ userId }: UserActivityProps) {
         {data && data.rows.length > 0 && (
           <div className="space-y-3">
             {data.rows.map((event: AuthEvent) => (
-              <div key={event.auth_event_id} className="rounded-lg border p-4">
+              <div data-md-listing-item key={event.auth_event_id} className="rounded-lg border p-4">
                 <div className="flex items-start gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <Activity className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1 space-y-1.5">
@@ -95,7 +95,7 @@ export function UserActivity({ userId }: UserActivityProps) {
                         {event.description || event.error_reason}
                       </p>
                     )}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div data-md-listing-meta className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <Calendar className="size-3" />
                         {safeFormat(event.created_at, "PPp")}

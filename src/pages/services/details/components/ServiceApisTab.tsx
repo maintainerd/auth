@@ -87,6 +87,7 @@ export function ServiceApisTab({ serviceId }: ServiceApisTabProps) {
                   navigate(`/apis/${api.api_id}`, { state: navState(serviceId) })
                   }
                 }}
+                data-md-listing-item
                 className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border p-4 transition-colors hover:bg-accent/50"
               >
                 <div className="flex min-w-0 items-start gap-3">

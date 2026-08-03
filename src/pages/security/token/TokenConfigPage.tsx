@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DetailsContainer } from '@/components/container'
 import { FormPageHeader } from '@/components/header'
-import { FormSwitchField, FormInputField, FormSelectField, FormCheckboxField, FormSubmitButton } from '@/components/form'
+import { FormInputField, FormSelectField, FormCheckboxField, FormSubmitButton } from '@/components/form'
+import { FormSwitchSubContainer } from '@/components/inputs'
 import { useTokenConfig, useUpdateTokenConfig } from '@/hooks/useTokenConfig'
 import { useToast } from '@/hooks/useToast'
 import { ConfirmationDialog } from '@/components/dialog'
@@ -181,7 +182,7 @@ export default function TokenConfigPage() {
                 <FormSelectField label="Signing Algorithm" options={SIGNING_OPTIONS} value={formValues.signing_algorithm} onValueChange={(v) => handleUpdate({ signing_algorithm: v as TokenConfigFormData['signing_algorithm'] })} error={errors.signing_algorithm?.message} disabled={isBusy} />
                 <FormInputField label="Clock Skew Leeway (seconds)" description="0–300 seconds" type="number" value={formValues.clock_skew_leeway_seconds.toString()} onChange={(e) => handleUpdate({ clock_skew_leeway_seconds: parseInt(e.target.value) || 0 })} error={errors.clock_skew_leeway_seconds?.message} disabled={isBusy} />
               </div>
-              <FormSwitchField label="Require PKCE" description="Enforce S256 PKCE for all OAuth authorization code flows" checked={formValues.require_pkce} onCheckedChange={(v) => handleUpdate({ require_pkce: v })} disabled={isBusy} />
+              <FormSwitchSubContainer label="Require PKCE" description="Enforce S256 PKCE for all OAuth authorization code flows" checked={formValues.require_pkce} onCheckedChange={(v) => handleUpdate({ require_pkce: v })} disabled={isBusy} />
             </CardContent>
           </Card>
 

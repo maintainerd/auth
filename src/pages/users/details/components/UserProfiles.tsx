@@ -151,6 +151,7 @@ export function UserProfiles({ userId }: UserProfilesProps) {
 
                 return (
                   <div
+                    data-md-listing-item
                     key={profile.profile_id}
                     className={`space-y-4 rounded-lg border p-4 ${
                       profile.is_default

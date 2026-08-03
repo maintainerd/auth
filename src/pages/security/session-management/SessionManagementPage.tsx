@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DetailsContainer } from '@/components/container'
 import { FormPageHeader } from '@/components/header'
-import { FormSwitchField, FormInputField, FormSelectField, FormSubmitButton } from '@/components/form'
+import { FormInputField, FormSelectField, FormSubmitButton } from '@/components/form'
+import { FormSwitchSubContainer } from '@/components/inputs'
 import { useSessionSettings, useUpdateSessionSettings } from '@/hooks/useSessionSettings'
 import { useToast } from '@/hooks/useToast'
 import { ConfirmationDialog } from '@/components/dialog'
@@ -196,7 +197,7 @@ export default function SessionManagementPage() {
               <p className="text-sm text-muted-foreground">Single-use refresh tokens with reuse detection and family revocation.</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormSwitchField label="Rotate Refresh Tokens" description="Issue a new refresh token on every refresh; replaying a consumed token revokes the entire token family" checked={formValues.rotate_refresh_tokens} onCheckedChange={(v) => handleUpdate({ rotate_refresh_tokens: v })} disabled={isBusy} />
+              <FormSwitchSubContainer label="Rotate Refresh Tokens" description="Issue a new refresh token on every refresh; replaying a consumed token revokes the entire token family" checked={formValues.rotate_refresh_tokens} onCheckedChange={(v) => handleUpdate({ rotate_refresh_tokens: v })} disabled={isBusy} />
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Reuse Grace (seconds)" description="Replay window before family revocation (0 = instant)" type="number" value={formValues.refresh_token_reuse_interval_seconds.toString()} onChange={(e) => handleUpdate({ refresh_token_reuse_interval_seconds: parseInt(e.target.value) || 0 })} error={errors.refresh_token_reuse_interval_seconds?.message} disabled={isBusy} />
               </div>
@@ -210,10 +211,12 @@ export default function SessionManagementPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Secure" description="Only transmit cookies over HTTPS" checked={formValues.cookie_secure} onCheckedChange={(v) => handleUpdate({ cookie_secure: v })} disabled={isBusy} />
-                <FormSwitchField label="HttpOnly" description="Block JavaScript access to cookies" checked={formValues.cookie_http_only} onCheckedChange={(v) => handleUpdate({ cookie_http_only: v })} disabled={isBusy} />
-                <FormSwitchField label="Revoke on Password Change" description="Terminate all other sessions when password is changed" checked={formValues.revoke_sessions_on_password_change} onCheckedChange={(v) => handleUpdate({ revoke_sessions_on_password_change: v })} disabled={isBusy} />
-                <FormSelectField label="SameSite" options={SAME_SITE_OPTIONS} value={formValues.cookie_same_site} onValueChange={(v) => handleUpdate({ cookie_same_site: v as SessionSettingsFormData['cookie_same_site'] })} error={errors.cookie_same_site?.message} disabled={isBusy} />
+                <FormSwitchSubContainer label="Secure" description="Only transmit cookies over HTTPS" checked={formValues.cookie_secure} onCheckedChange={(v) => handleUpdate({ cookie_secure: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="HttpOnly" description="Block JavaScript access to cookies" checked={formValues.cookie_http_only} onCheckedChange={(v) => handleUpdate({ cookie_http_only: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Revoke on Password Change" description="Terminate all other sessions when password is changed" checked={formValues.revoke_sessions_on_password_change} onCheckedChange={(v) => handleUpdate({ revoke_sessions_on_password_change: v })} disabled={isBusy} />
+                <div data-md-listing-nested className="rounded-md border p-4">
+                  <FormSelectField label="SameSite" options={SAME_SITE_OPTIONS} value={formValues.cookie_same_site} onValueChange={(v) => handleUpdate({ cookie_same_site: v as SessionSettingsFormData['cookie_same_site'] })} error={errors.cookie_same_site?.message} disabled={isBusy} />
+                </div>
               </div>
             </CardContent>
           </Card>

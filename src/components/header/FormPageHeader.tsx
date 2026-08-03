@@ -55,6 +55,7 @@ export function FormPageHeader({
       {/* Back Button */}
       <div>
         <Button
+          data-md-back-button
           variant="ghost"
           size="sm"
           onClick={onBack ?? (() => navigate(backUrl))}

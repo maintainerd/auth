@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import type { BrandingPublic } from '@/services/api/tenants/types'
+import { resolveBrandingLogoUrl } from '@/utils/branding'
 import MaintainedAuthIcon from '../icon/MaintainedAuthIcon'
 
 type Props = {
@@ -13,19 +14,17 @@ type Props = {
  */
 const AppLoadingScreen = ({ branding }: Props) => {
   const companyName = branding?.company_name || 'Maintainerd IAM'
-  const logoUrl = branding?.logo_url
+  const logoLabel = branding?.logo_label || companyName
+  const logoUrl = resolveBrandingLogoUrl(branding?.logo_url)
 
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-4">
-      {/* Same calm gradient backdrop as the login layout. */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'linear-gradient(180deg, #f7f9fc 0%, #eef2f8 55%, #e4ebf6 100%)' }}
-      />
-
-      <div className="relative z-10 flex flex-col items-center gap-6 text-center">
+    <div
+      data-console-auth-shell
+      className="flex min-h-svh flex-col items-center justify-center bg-background px-4 text-foreground"
+    >
+      <div className="flex flex-col items-center gap-6 text-center">
         {logoUrl ? (
-          <img src={logoUrl} alt={companyName} className="h-12 w-auto" />
+          <img src={logoUrl} alt={logoLabel} className="h-12 w-auto" />
         ) : (
           <MaintainedAuthIcon width={56} height={56} />
         )}

@@ -32,13 +32,16 @@ export interface PasswordConfigPublic {
 }
 
 export interface BrandingPublic {
+  layout: string
   company_name: string
+  logo_label: string
+  show_logo_label: boolean
   logo_url: string
   favicon_url: string
   support_url: string
   privacy_policy_url: string
   terms_of_service_url: string
-  metadata: Record<string, unknown>
+  metadata: Record<string, unknown> | null
 }
 
 /**

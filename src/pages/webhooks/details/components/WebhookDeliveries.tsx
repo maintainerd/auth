@@ -83,6 +83,7 @@ export function WebhookDeliveries({ webhookId }: Props) {
             {deliveries.map((d: DeliveryHistoryItem) => (
               <div
                 key={d.delivery_history_uuid}
+                data-md-listing-item
                 className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start sm:justify-between"
               >
                 <div className="flex min-w-0 items-start gap-3">

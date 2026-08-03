@@ -50,9 +50,9 @@ interface MethodRowProps {
 /** A single MFA method, rendered as a full-width status row. */
 function MethodRow({ icon: Icon, title, description, enabled, actions }: MethodRowProps) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border p-4">
+    <div data-md-listing-item className="flex items-center justify-between gap-3 rounded-lg border p-4">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
           <Icon className="size-4" />
         </div>
         <div className="min-w-0">
@@ -204,15 +204,16 @@ export function UserMFA({ userId }: UserMFAProps) {
               <div className="space-y-3">
                 {passkeys.map((key: UserMFAWebAuthnKey) => (
                   <div
+                    data-md-listing-item
                     key={key.credential_uuid}
                     className="flex items-start gap-3 rounded-lg border p-4"
                   >
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                       <Key className="size-4" />
                     </div>
-                    <div className="min-w-0 space-y-1">
-                      <p className="break-words text-sm font-medium">{key.name}</p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <div className="min-w-0 space-y-1">
+                        <p className="break-words text-sm font-medium">{key.name}</p>
+                      <div data-md-listing-meta className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         {key.transport && key.transport.length > 0 && (
                           <span className="capitalize">{key.transport.join(", ")}</span>
                         )}

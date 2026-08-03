@@ -18,7 +18,7 @@ export function DataTableViewOptions<TData>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="bg-background">
+        <Button data-md-column-dropdown-trigger variant="outline" className="bg-background">
           Columns <ChevronDown className="ml-2 h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -42,4 +42,3 @@ export function DataTableViewOptions<TData>({
     </DropdownMenu>
   )
 }
-

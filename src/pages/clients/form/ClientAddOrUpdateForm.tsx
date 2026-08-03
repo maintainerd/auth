@@ -15,12 +15,11 @@ import {
   FormInputField,
   FormCheckboxField,
   FormSelectField,
-  FormSwitchField,
   FormSubmitButton,
   FormTextareaField,
   type SelectOption
 } from "@/components/form"
-import { FormSlugField, FormUrlField, MetadataFieldEditor } from "@/components/inputs"
+import { FormSlugField, FormScopeField, FormSwitchSubContainer, FormUrlField, MetadataFieldEditor } from "@/components/inputs"
 import { ConfirmationDialog } from "@/components/dialog"
 import { clientSchema, validateClientOAuthConfig, type ClientFormData } from "@/lib/validations"
 import { useAppSelector } from "@/store/hooks"
@@ -903,7 +902,7 @@ export default function ClientAddOrUpdateForm() {
                 />
               </div>
 
-              <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+              <p data-md-listing-nested className="rounded-md px-3 py-2 text-sm text-muted-foreground">
                 {capability.summary}
               </p>
 
@@ -983,17 +982,17 @@ export default function ClientAddOrUpdateForm() {
                 required
               />
 
-              <FormInputField
+              <FormScopeField
                 label="Allowed Scopes"
                 placeholder="openid, profile, email"
                 value={allowedScopes}
-                onChange={(event) => { markDirty(); setAllowedScopes(event.target.value) }}
+                onValueChange={(value) => { markDirty(); setAllowedScopes(value) }}
                 disabled={isSystemClient || isLoading}
-                description="Comma-separated scopes this client can request"
+                description="Comma-separated scopes this client can request. Use Browse to pick common scopes."
               />
 
               <div className="grid gap-4 md:grid-cols-2">
-                <FormSwitchField
+                <FormSwitchSubContainer
                   id="requireConsent"
                   label="Require Consent"
                   description="Require user consent before issuing tokens for this client"
@@ -1002,28 +1001,29 @@ export default function ClientAddOrUpdateForm() {
                   disabled={isSystemClient || isLoading}
                 />
 
-                <FormSelectField
-                  label="Branding template"
-                  placeholder="Select branding"
-                  options={brandingOptions}
-                  value={brandingId}
-                  onValueChange={(value) => { markDirty(); setBrandingId(value) }}
-                  disabled={isLoading}
-                  description="Optional — the branding applied to this client's login and registration pages. Defaults to the tenant's active branding."
-                />
+                <div data-md-listing-nested className="rounded-md border p-4">
+                  <FormSelectField
+                    label="Branding template"
+                    placeholder="Select branding"
+                    options={brandingOptions}
+                    value={brandingId}
+                    onValueChange={(value) => { markDirty(); setBrandingId(value) }}
+                    disabled={isLoading}
+                    description="Optional — the branding applied to this client's login and registration pages. Defaults to the tenant's active branding."
+                  />
+                </div>
 
-                <FormSwitchField
+                <FormSwitchSubContainer
                   id="allow-registration"
                   label="Allow registration"
                   description="Allow self-service registration for this client. Does not affect login for existing users or invite acceptance."
                   checked={allowRegistration}
                   onCheckedChange={(checked) => { markDirty(); setAllowRegistration(checked) }}
                   disabled={isLoading}
-                  containerClassName="rounded-md border p-4"
                 />
 
                 {capability.pkce !== "none" && (
-                  <FormSwitchField
+                  <FormSwitchSubContainer
                     id="pkceRequired"
                     label="Require PKCE"
                     description={pkceForced
@@ -1070,7 +1070,7 @@ export default function ClientAddOrUpdateForm() {
                 />
               </div>
 
-              <FormSwitchField
+              <FormSwitchSubContainer
                 id="refreshTokenRotation"
                 label="Refresh Token Rotation"
                 description="Issue a new refresh token with each access token refresh"
@@ -1079,7 +1079,7 @@ export default function ClientAddOrUpdateForm() {
                 disabled={isLoading}
               />
 
-              <FormSwitchField
+              <FormSwitchSubContainer
                 id="multiResourceRefreshToken"
                 label="Multi-Resource Refresh Token (MRRT)"
                 description="Allow one refresh token to receive access tokens for multiple APIs"
@@ -1160,14 +1160,13 @@ export default function ClientAddOrUpdateForm() {
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              <FormSwitchField
+              <FormSwitchSubContainer
                 id="dpop-required"
                 label="Require DPoP (sender-constrained tokens)"
                 description="Binds this client's tokens to a key it holds, so a stolen token is useless without the private key. The client must send a DPoP proof on every token and API request."
                 checked={dpopRequired}
                 onCheckedChange={(checked) => { markDirty(); setDpopRequired(checked) }}
                 disabled={isSystemClient || isLoading}
-                containerClassName="rounded-md border p-4"
               />
 
               <FormUrlField
@@ -1179,7 +1178,7 @@ export default function ClientAddOrUpdateForm() {
                 disabled={isLoading}
               />
 
-              <FormSwitchField
+              <FormSwitchSubContainer
                 id="backchannel-logout-session-required"
                 label="Include the session ID in back-channel logout"
                 description="Sends the sid claim in the logout token so the client can end one session instead of all of the user's sessions."
@@ -1315,7 +1314,7 @@ export default function ClientAddOrUpdateForm() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <FormSwitchField
+                <FormSwitchSubContainer
                   id="corsEnabled"
                   label="Enable Cross-Origin Authentication"
                   description="Allow browser-based authentication calls from configured origins"

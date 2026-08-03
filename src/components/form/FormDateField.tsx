@@ -85,6 +85,7 @@ export const FormDateField = forwardRef<HTMLButtonElement, FormDateFieldProps>(
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
+              data-md-date-picker-trigger
               id={fieldId}
               ref={ref}
               variant="outline"

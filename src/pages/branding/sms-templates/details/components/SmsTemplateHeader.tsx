@@ -46,6 +46,7 @@ export function SmsTemplateHeader({ template, templateId }: SmsTemplateHeaderPro
         actions={
           <>
             <Button
+              data-md-details-edit-button
               variant="outline"
               size="sm"
               className="h-9 gap-2"
@@ -61,7 +62,7 @@ export function SmsTemplateHeader({ template, templateId }: SmsTemplateHeaderPro
             {canEditStatus && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+                  <Button data-md-details-menu-button variant="outline" size="sm" className="h-9 w-9 p-0">
                     <span className="sr-only">Open actions</span>
                     <MoreVertical className="size-4" />
                   </Button>

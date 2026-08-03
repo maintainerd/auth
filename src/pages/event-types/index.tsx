@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { Info, Radio, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { PageContainer, PageHeader } from "@/components/layout"
@@ -67,14 +68,14 @@ export default function EventTypesPage({ standalone = true }: { standalone?: boo
 
   const content = (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-2 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+      <Alert>
         <Info className="mt-0.5 size-4 shrink-0" />
-        <span>
+        <AlertDescription>
           This is a tenant-wide master switch. Disabling an event stops it at the source — it
           won't reach any webhook or the message broker, regardless of individual subscriptions.
           Events are enabled by default.
-        </span>
-      </div>
+        </AlertDescription>
+      </Alert>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

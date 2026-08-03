@@ -5,13 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { FormSelectField } from "@/components/form"
 import {
   Dialog,
   DialogContent,
@@ -121,19 +115,18 @@ export function AddMemberDialog({ open, onOpenChange, tenantId: propTenantId }: 
           {/* Role Selection — only shown when tenant has no owner yet */}
           {!hasOwner && (
             <div className="space-y-2">
-              <Label htmlFor="role">
-                Member Role <span className="text-destructive">*</span>
-              </Label>
-              <Select value={role} onValueChange={(value) => setRole(value as 'owner' | 'admin' | 'member')}>
-                <SelectTrigger id="role">
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="owner">Owner</SelectItem>
-                </SelectContent>
-              </Select>
+              <FormSelectField
+                id="role"
+                label="Member Role"
+                options={[
+                  { value: "member", label: "Member" },
+                  { value: "admin", label: "Admin" },
+                  { value: "owner", label: "Owner" },
+                ]}
+                value={role}
+                onValueChange={(value) => setRole(value as 'owner' | 'admin' | 'member')}
+                required
+              />
               <p className="text-xs text-muted-foreground">
                 Owners have full administrative access to the tenant. Only one owner is allowed.
               </p>
@@ -158,7 +151,7 @@ export function AddMemberDialog({ open, onOpenChange, tenantId: propTenantId }: 
             </div>
 
             {/* Users List */}
-            <div className="border rounded-lg max-h-[300px] overflow-y-auto">
+            <div data-md-checkbox-sub-container className="border rounded-lg max-h-[300px] overflow-y-auto">
               {isLoadingUsers && (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   Loading users...

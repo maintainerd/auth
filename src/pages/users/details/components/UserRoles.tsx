@@ -107,6 +107,7 @@ export function UserRoles({ userId }: UserRolesProps) {
           <div className="space-y-3">
             {data.rows.map((role: UserRole) => (
               <div
+                data-md-listing-item
                 key={role.role_id}
                 role="button"
                 tabIndex={0}
@@ -127,7 +128,7 @@ export function UserRoles({ userId }: UserRolesProps) {
                 className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border p-4 transition-colors hover:bg-accent/50"
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <Shield className="size-4" />
                   </div>
                   <div className="space-y-1">
@@ -146,7 +147,7 @@ export function UserRoles({ userId }: UserRolesProps) {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">{role.description}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <div data-md-listing-meta className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Calendar className="h-3 w-3" />
                       Added {safeFormat(role.created_at, "PPP")}
                     </div>

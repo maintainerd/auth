@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DetailsContainer } from '@/components/container'
 import { FormPageHeader } from '@/components/header'
-import { FormSwitchField, FormInputField, FormSelectField, FormCheckboxField, FormSubmitButton } from '@/components/form'
+import { FormInputField, FormSelectField, FormCheckboxField, FormSubmitButton } from '@/components/form'
+import { FormSwitchSubContainer } from '@/components/inputs'
 import { useMfaConfig, useUpdateMfaConfig } from '@/hooks/useMfaConfig'
 import { useToast } from '@/hooks/useToast'
 import { ConfirmationDialog } from '@/components/dialog'
@@ -376,9 +377,9 @@ export default function MfaConfigPage() {
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Allow SMS" description="Permit SMS-based MFA enrollment" checked={formValues.allow_sms} onCheckedChange={(v) => handleUpdate({ allow_sms: v })} disabled={isBusy} />
-                <FormSwitchField label="Allow Email OTP" description="Permit email OTP-based MFA enrollment" checked={formValues.allow_email_otp} onCheckedChange={(v) => handleUpdate({ allow_email_otp: v })} disabled={isBusy} />
-                <FormSwitchField label="Step-Up for Sensitive Actions" description="Require fresh MFA for email changes and admin operations" checked={formValues.require_mfa_for_sensitive_actions} onCheckedChange={(v) => handleUpdate({ require_mfa_for_sensitive_actions: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Allow SMS" description="Permit SMS-based MFA enrollment" checked={formValues.allow_sms} onCheckedChange={(v) => handleUpdate({ allow_sms: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Allow Email OTP" description="Permit email OTP-based MFA enrollment" checked={formValues.allow_email_otp} onCheckedChange={(v) => handleUpdate({ allow_email_otp: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Step-Up for Sensitive Actions" description="Require fresh MFA for email changes and admin operations" checked={formValues.require_mfa_for_sensitive_actions} onCheckedChange={(v) => handleUpdate({ require_mfa_for_sensitive_actions: v })} disabled={isBusy} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField

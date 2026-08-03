@@ -14,12 +14,11 @@ import {
   FormInputField,
   FormPasswordField,
   FormSelectField,
-  FormSwitchField,
   FormSubmitButton,
   FormTextareaField,
   type SelectOption
 } from "@/components/form"
-import { FormSlugField, FormUrlField } from "@/components/inputs"
+import { FormSlugField, FormSwitchSubContainer, FormUrlField } from "@/components/inputs"
 import { sanitizeName } from "@/lib/validations/regex"
 import { ConfirmationDialog } from "@/components/dialog"
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
@@ -440,14 +439,13 @@ export default function IdentityProviderAddOrUpdateForm() {
                 name="allowRegistration"
                 control={control}
                 render={({ field }) => (
-                  <FormSwitchField
+                  <FormSwitchSubContainer
                     id="allow-registration"
                     label="Allow registration"
                     description="Allow clients using this provider to create new accounts. Tenant and registration-flow registration policies still apply."
                     checked={Boolean(field.value)}
                     onCheckedChange={field.onChange}
                     disabled={fieldsDisabled}
-                    containerClassName="rounded-md border p-4"
                   />
                 )}
               />
@@ -456,14 +454,13 @@ export default function IdentityProviderAddOrUpdateForm() {
                 name="allowTokenFederation"
                 control={control}
                 render={({ field }) => (
-                  <FormSwitchField
+                  <FormSwitchSubContainer
                     id="allow-token-federation"
                     label="Allow token federation"
                     description="Accept foreign OIDC ID tokens from this issuer (Mode B / PDP). Requires issuer URL and at least one allowed audience."
                     checked={Boolean(field.value)}
                     onCheckedChange={field.onChange}
                     disabled={fieldsDisabled}
-                    containerClassName="rounded-md border p-4"
                   />
                 )}
               />
@@ -506,14 +503,14 @@ export default function IdentityProviderAddOrUpdateForm() {
                           name="allowJITProvisioning"
                           control={control}
                           render={({ field: formField }) => (
-                            <FormSwitchField
+                            <FormSwitchSubContainer
                               id="allow-jit-provisioning"
                               label={field.label}
                               description={field.description}
                               checked={Boolean(formField.value)}
                               onCheckedChange={formField.onChange}
                               disabled={fieldsDisabled}
-                              containerClassName="md:col-span-2 rounded-md border p-4"
+                              containerClassName="md:col-span-2"
                             />
                           )}
                         />

@@ -17,7 +17,6 @@ export const LOGIN_PAGE_PREVIEW_IDS = [
   "sms-login-code",
   "registration",
   "registration-loading",
-  "registration-unavailable",
   "registration-invalid-link",
   "registration-requirements-warning",
   "invite-accept",
@@ -65,10 +64,6 @@ export const LOGIN_PAGE_PREVIEW_IDS = [
   "account-erasure-confirm",
   "account-erasure-error",
   "account-erasure-success",
-  "step-up-loading",
-  "step-up-methods",
-  "step-up-passkey",
-  "step-up-no-methods",
   "account-locked",
   "too-many-requests",
   "no-access-authenticated",
@@ -85,7 +80,6 @@ export const LOGIN_PAGE_PREVIEW_GROUPS = [
   "Recovery",
   "OAuth",
   "Account",
-  "Security",
   "Status",
 ] as const
 
@@ -101,7 +95,8 @@ export type LoginPageElement =
   | { type: "readonly"; label: string; value: string }
   | { type: "scope-list"; items: string[] }
   | { type: "section"; title: string; description?: string }
-  | { type: "tile-list"; items: Array<{ title: string; description?: string }> }
+  | { type: "select"; label: string; value: string }
+  | { type: "tile-list"; columns?: 1 | 2; items: Array<{ title: string; description?: string; scopes?: string[]; actionLabel?: string }> }
 
 export type LoginPageCopy = {
   title: string
@@ -129,6 +124,9 @@ const accountTiles = [
   { title: "Preferences", description: "App settings" },
 ]
 
+// Keep fields/states aligned to maintainerd-auth-identity because those flows are
+// already wired there. Layout, ordering, and visual treatment remain owned by
+// the console branding preview; the identity app will consume those designs later.
 export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePreview> = {
   login: {
     id: "login",
@@ -206,11 +204,13 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     elements: [
       { type: "tile-list", items: [
         { title: "Authenticator app", description: "Use a six-digit code." },
-        { title: "SMS", description: "Send code to my phone." },
+        { title: "Passkey", description: "Use Face ID, Touch ID, Windows Hello, or your security key." },
+        { title: "Text message", description: "Send code to my phone." },
         { title: "Email OTP", description: "Send code to my email." },
-      ] },
+        { title: "Backup code", description: "Enter one saved recovery code." },
+      ], columns: 1 },
       { type: "field", label: "Authenticator app code", value: "000000", kind: "code" },
-      { type: "checkbox", label: "Trust this device" },
+      { type: "checkbox", label: "Trust this device — skip verification here next time" },
       { type: "button", label: "Verify" },
       { type: "button", label: "Cancel", variant: "ghost" },
     ],
@@ -220,11 +220,12 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     label: "Login MFA: Passkey",
     group: "Sign-in",
     title: "Two-step verification",
-    subtitle: "Use your saved passkey to finish signing in.",
+    subtitle: "Confirm your identity with a second factor.",
     elements: [
-      { type: "section", title: "Passkey", description: "Use a saved credential on this device." },
+      { type: "section", title: "Passkey", description: "Use Face ID, Touch ID, Windows Hello, or your security key to confirm." },
+      { type: "checkbox", label: "Trust this device — skip verification here next time" },
       { type: "button", label: "Use passkey" },
-      { type: "button", label: "Cancel", variant: "outline" },
+      { type: "button", label: "Cancel", variant: "ghost" },
     ],
   },
   "login-mfa-backup-code": {
@@ -235,7 +236,7 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     subtitle: "Enter one backup code to finish signing in.",
     elements: [
       { type: "field", label: "Backup code", value: "Enter one backup code", kind: "code" },
-      { type: "checkbox", label: "Trust this device" },
+      { type: "checkbox", label: "Trust this device — skip verification here next time" },
       { type: "button", label: "Verify" },
       { type: "button", label: "Cancel", variant: "ghost" },
     ],
@@ -276,8 +277,15 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     title: "Two-step verification",
     subtitle: "Your magic link was accepted. Confirm a different factor to finish signing in.",
     elements: [
+      { type: "tile-list", items: [
+        { title: "Authenticator app", description: "Use a six-digit code." },
+        { title: "Passkey", description: "Use Face ID, Touch ID, Windows Hello, or your security key." },
+        { title: "Text message", description: "Send code to my phone." },
+        { title: "Backup code", description: "Enter one saved recovery code." },
+      ], columns: 1 },
+      { type: "button", label: "Send code to my phone", variant: "outline" },
       { type: "field", label: "Authenticator app code", value: "000000", kind: "code" },
-      { type: "checkbox", label: "Trust this device" },
+      { type: "checkbox", label: "Trust this device — skip verification here next time" },
       { type: "button", label: "Verify" },
       { type: "button", label: "Cancel", variant: "ghost" },
     ],
@@ -338,8 +346,6 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     title: "Create your account",
     subtitle: "Sign up to get started.",
     elements: [
-      { type: "field", label: "Full name", value: "Alex Morgan" },
-      { type: "field", label: "Phone", value: "+1234567890", kind: "tel" },
       { type: "field", label: "Email", value: "you@company.com", kind: "email" },
       { type: "field", label: "Password", value: "********", kind: "password" },
       { type: "section", title: "Password requirements", description: "Tenant password policy checklist." },
@@ -357,16 +363,6 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     subtitle: "Preparing the registration experience.",
     elements: [
       { type: "section", title: "Loading registration context", description: "Tenant registration policy is loading." },
-    ],
-  },
-  "registration-unavailable": {
-    id: "registration-unavailable",
-    label: "Registration: Unavailable",
-    group: "Registration",
-    title: "Registration unavailable",
-    subtitle: "This registration link is invalid or registration is disabled.",
-    elements: [
-      { type: "button", label: "Sign in instead" },
     ],
   },
   "registration-invalid-link": {
@@ -442,7 +438,7 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     elements: [
       { type: "field", label: "First Name", value: "John" },
       { type: "field", label: "Last Name", value: "Doe" },
-      { type: "field", label: "Gender", value: "Select gender" },
+      { type: "select", label: "Gender", value: "Select gender" },
       { type: "button", label: "Create Profile" },
     ],
   },
@@ -796,10 +792,9 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     subtitle: "Review applications you have authorized.",
     elements: [
       { type: "tile-list", items: [
-        { title: "Example App", description: "openid profile email" },
-        { title: "Reporting Portal", description: "openid profile" },
-      ] },
-      { type: "button", label: "Revoke access", variant: "outline" },
+        { title: "Example App", scopes: ["openid", "profile", "email"], actionLabel: "Revoke access for Example App" },
+        { title: "Reporting Portal", scopes: ["openid", "profile"], actionLabel: "Revoke access for Reporting Portal" },
+      ], columns: 1 },
     ],
   },
   "oauth-grants-error": {
@@ -893,59 +888,6 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     subtitle: "Your data will be anonymised within 30 days. You will continue to have access to your account until then.",
     elements: [
       { type: "link", label: "Back to account" },
-    ],
-  },
-  "step-up-loading": {
-    id: "step-up-loading",
-    label: "Step-up: Loading",
-    group: "Security",
-    title: "Confirm it's you",
-    subtitle: "This is a sensitive action. Verify with a second factor to continue.",
-    elements: [
-      { type: "section", title: "Preparing verification..." },
-      { type: "button", label: "Cancel", variant: "ghost" },
-      { type: "button", label: "Verify" },
-    ],
-  },
-  "step-up-methods": {
-    id: "step-up-methods",
-    label: "Step-up: Code",
-    group: "Security",
-    title: "Confirm it's you",
-    subtitle: "This is a sensitive action. Verify with a second factor to continue.",
-    elements: [
-      { type: "tile-list", items: [
-        { title: "Authenticator app", description: "Use a six-digit code." },
-        { title: "SMS", description: "Send code to my phone." },
-        { title: "Email OTP", description: "Send code to my email." },
-      ] },
-      { type: "button", label: "Send code to my phone", variant: "outline" },
-      { type: "field", label: "Authenticator app code", value: "000000", kind: "code" },
-      { type: "button", label: "Cancel", variant: "ghost" },
-      { type: "button", label: "Verify" },
-    ],
-  },
-  "step-up-passkey": {
-    id: "step-up-passkey",
-    label: "Step-up: Passkey",
-    group: "Security",
-    title: "Confirm it's you",
-    subtitle: "This is a sensitive action. Verify with a second factor to continue.",
-    elements: [
-      { type: "section", title: "Passkey", description: "Use Face ID, Touch ID, Windows Hello, or your security key to confirm." },
-      { type: "button", label: "Cancel", variant: "ghost" },
-      { type: "button", label: "Use passkey" },
-    ],
-  },
-  "step-up-no-methods": {
-    id: "step-up-no-methods",
-    label: "Step-up: No Methods",
-    group: "Security",
-    title: "Confirm it's you",
-    subtitle: "No second factor is available on your account. Set up MFA first to perform this action.",
-    elements: [
-      { type: "button", label: "Cancel", variant: "ghost" },
-      { type: "button", label: "Verify" },
     ],
   },
   "account-locked": {

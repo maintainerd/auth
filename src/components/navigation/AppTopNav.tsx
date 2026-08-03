@@ -13,6 +13,7 @@ import { TenantSwitcher } from "@/components/navigation/TenantSwitcher"
 import { CreateMenu } from "@/components/navigation/CreateMenu"
 import { useAppSelector } from "@/store/hooks"
 import { logout } from "@/services/api/auth"
+import { resolveBrandingLogoUrl } from "@/utils/branding"
 import {
   BookOpen,
   ChevronDown,
@@ -34,20 +35,35 @@ const resourceLinks = [
 export function AppTopNav() {
   const navigate = useNavigate()
   const profile = useAppSelector((state) => state.auth.profile)
+  const branding = useAppSelector((state) => state.tenant.currentTenant?.branding)
 
   const displayName = profile?.display_name || profile?.email || "User"
   const initials = displayName.slice(0, 2).toUpperCase()
+  const logoLabel = branding?.logo_label || branding?.company_name || "Maintainerd-IAM"
+  const showLogoLabel = branding?.show_logo_label ?? true
+  const logoSrc = resolveBrandingLogoUrl(branding?.logo_url) ?? "/logo.png"
 
   return (
-    <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center border-b border-[#1e293b] bg-[#0f172a] px-4 text-white sm:px-6">
+    <header
+      data-console-top-panel
+      className="fixed inset-x-0 top-0 z-30 flex h-14 items-center border-b border-[#1e293b] bg-[#0f172a] px-4 text-white sm:px-6"
+    >
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <SidebarTrigger className="size-10 text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white" />
-        <img src="/logo.png" alt="Maintainerd" className="h-7 w-auto shrink-0" />
-        <span className="min-w-0">
-          <div className="text-base font-semibold leading-none text-white" style={{ fontFamily: "system-ui, sans-serif" }}>
-            Maintainerd-IAM
-          </div>
-        </span>
+        <SidebarTrigger
+          data-console-top-control
+          className="size-10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white"
+        />
+        <img src={logoSrc} alt={logoLabel} className="h-7 w-auto shrink-0" />
+        {showLogoLabel && (
+          <span className="min-w-0">
+            <div
+              data-console-top-logo-label
+              className="text-base font-semibold leading-none text-white"
+            >
+              {logoLabel}
+            </div>
+          </span>
+        )}
         <TenantSwitcher className="ml-4 hidden w-56 sm:block" />
       </div>
 
@@ -57,10 +73,11 @@ export function AppTopNav() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
+              data-console-top-control
               variant="ghost"
               size="icon"
               aria-label="Help & resources"
-              className="text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
+              className="bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
             >
               <HelpCircle className="size-5" />
             </Button>
@@ -84,8 +101,9 @@ export function AppTopNav() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
+              data-console-top-profile-trigger
               variant="ghost"
-              className="flex items-center gap-2 px-2 text-white hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
+              className="flex items-center gap-2 bg-white/5 px-2 text-white hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
             >
               <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={undefined} alt={displayName} />

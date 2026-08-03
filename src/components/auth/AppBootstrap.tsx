@@ -75,5 +75,3 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
 
   return <RouteGuard>{children}</RouteGuard>
 }
-
-export default AppBootstrap

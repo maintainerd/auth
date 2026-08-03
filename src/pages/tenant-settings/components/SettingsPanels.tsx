@@ -3,7 +3,8 @@ import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { FormInputField, FormSwitchField } from "@/components/form"
+import { FormInputField, FormSelectField } from "@/components/form"
+import { FormSwitchSubContainer } from "@/components/inputs"
 import { SettingsCard } from "@/components/card"
 import { useAuditConfig, useUpdateAuditConfig } from "@/hooks/useAuditConfig"
 import { useMaintenanceConfig, useUpdateMaintenanceConfig } from "@/hooks/useMaintenanceConfig"
@@ -78,7 +79,7 @@ export function RateLimitSettingsPanel() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6">
       <SettingsCard title="General" description="Enable or disable rate limiting.">
-        <FormSwitchField
+        <FormSwitchSubContainer
           label="Enabled"
           description="When enabled, requests exceeding configured limits will be rejected."
           checked={formValues.enabled}
@@ -107,13 +108,13 @@ export function RateLimitSettingsPanel() {
 
       <SettingsCard title="Scope" description="Apply rate limits per IP address and/or per API key.">
         <div className="space-y-4">
-          <FormSwitchField
+          <FormSwitchSubContainer
             label="Per IP"
             description="Track and limit requests per unique IP address."
             checked={formValues.per_ip}
             onCheckedChange={(v) => handleUpdate({ per_ip: v })}
           />
-          <FormSwitchField
+          <FormSwitchSubContainer
             label="Per API Key"
             description="Track and limit requests per API key."
             checked={formValues.per_api_key}
@@ -176,7 +177,7 @@ export function AuditSettingsPanel() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6">
       <SettingsCard title="General" description="Enable or disable audit logging.">
-        <FormSwitchField
+        <FormSwitchSubContainer
           label="Enabled"
           description="When enabled, audit events will be recorded."
           checked={formValues.enabled}
@@ -193,20 +194,16 @@ export function AuditSettingsPanel() {
             onChange={(e) => handleUpdate({ retention_days: parseInt(e.target.value) || 1 })}
             error={errors.retention_days?.message}
           />
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Log Level</label>
-            <select
-              value={formValues.log_level}
-              onChange={(e) => handleUpdate({ log_level: e.target.value })}
-              className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              {LOG_LEVELS.map((level) => <option key={level.value} value={level.value}>{level.label}</option>)}
-            </select>
-            {errors.log_level && <p className="text-sm text-destructive">{errors.log_level.message}</p>}
-          </div>
+          <FormSelectField
+            label="Log Level"
+            options={LOG_LEVELS}
+            value={formValues.log_level}
+            onValueChange={(v) => handleUpdate({ log_level: v })}
+            error={errors.log_level?.message}
+          />
         </div>
         <div className="mt-4 space-y-4">
-          <FormSwitchField
+          <FormSwitchSubContainer
             label="PII Masking"
             description="Mask personally identifiable information in audit logs."
             checked={formValues.pii_masking}
@@ -269,7 +266,7 @@ export function MaintenanceSettingsPanel() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6">
       <SettingsCard title="Maintenance Mode" description="Toggle maintenance mode on or off.">
-        <FormSwitchField
+        <FormSwitchSubContainer
           label="Enabled"
           description="When enabled, users will see the maintenance message and be unable to access the application."
           checked={formValues.enabled}

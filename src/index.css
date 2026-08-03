@@ -135,10 +135,19 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px white inset !important;
-  box-shadow: 0 0 0 1000px white inset !important;
-  -webkit-text-fill-color: oklch(0.141 0.005 285.823) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--card) inset !important;
+  box-shadow: 0 0 0 1000px var(--card) inset !important;
+  -webkit-text-fill-color: var(--foreground) !important;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+html[data-console-theme="active"] input:-webkit-autofill,
+html[data-console-theme="active"] input:-webkit-autofill:hover,
+html[data-console-theme="active"] input:-webkit-autofill:focus,
+html[data-console-theme="active"] input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--md-input-bg, var(--card)) inset !important;
+  box-shadow: 0 0 0 1000px var(--md-input-bg, var(--card)) inset !important;
+  -webkit-text-fill-color: var(--md-input-text, var(--foreground)) !important;
 }
 
 .dark input:-webkit-autofill,
@@ -148,4 +157,21 @@ input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px oklch(0.141 0.005 285.823) inset !important;
   box-shadow: 0 0 0 1000px oklch(0.141 0.005 285.823) inset !important;
   -webkit-text-fill-color: oklch(0.985 0 0) !important;
+}
+
+/* Native color inputs draw the swatch with browser pseudo-elements that ignore
+   the input's own border-radius. Flatten the wrapper and swatch so the picker
+   stays square like the rest of the console. */
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 0;
+}
+
+input[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 0;
 }

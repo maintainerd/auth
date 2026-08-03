@@ -148,6 +148,7 @@ export const FormPhoneFieldWithCountry = forwardRef<HTMLDivElement, FormPhoneFie
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button
+                data-md-phone-country-trigger
                 variant="outline"
                 role="combobox"
                 aria-expanded={open}
@@ -189,6 +190,7 @@ export const FormPhoneFieldWithCountry = forwardRef<HTMLDivElement, FormPhoneFie
           </Popover>
 
           <Input
+            data-md-phone-local-input
             ref={inputRef}
             id={fieldId}
             className={cn(

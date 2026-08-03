@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { Info, Radio, Search } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
@@ -75,13 +76,13 @@ export default function EventRoutesPage({ standalone = true }: { standalone?: bo
 
   const content = (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-2 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+      <Alert>
         <Info className="mt-0.5 size-4 shrink-0" />
-        <span>
+        <AlertDescription>
           Events are published to RabbitMQ. Enable an event type to forward it whenever it
           occurs in the system.
-        </span>
-      </div>
+        </AlertDescription>
+      </Alert>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

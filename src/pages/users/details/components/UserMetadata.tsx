@@ -32,7 +32,7 @@ export function UserMetadata({ user }: UserMetadataProps) {
           description="This user has no custom metadata. Applications can attach external identifiers or extended attributes here."
         />
       ) : (
-        <div className="divide-y rounded-lg border">
+        <div data-md-listing-nested className="divide-y rounded-lg border">
           {entries.map(([key, value]) => (
             <div
               key={key}

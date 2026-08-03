@@ -254,7 +254,7 @@ export function useProviderConfig(provider: string) {
 
       return Object.keys(nextErrors).length === 0
     },
-    [schema, values, presetSecrets]
+    [schema, values, presetSecrets, provider]
   )
 
   /** Build the config object to persist from the provider's known fields only. */

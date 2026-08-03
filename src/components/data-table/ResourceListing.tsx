@@ -121,7 +121,7 @@ export function ResourceListing<TRow, TParams = Record<string, unknown>>({
         // (below) sit outside it. Cells re-pad to a 16px gutter, and the table's
         // own bottom rule + last-row rule are dropped so the card border is the
         // single bottom line.
-        <div className="overflow-hidden rounded-[3px] border border-border bg-card [&_table]:border-b-0 [&_tbody_tr:last-child]:border-b-0 md:[&_td:first-child]:pl-4 md:[&_td:last-child]:pr-4 md:[&_th:first-child]:pl-4 md:[&_th:last-child]:pr-4">
+        <div data-md-table-shell className="overflow-hidden rounded-[3px] border border-border bg-card [&_table]:border-b-0 [&_tbody_tr:last-child]:border-b-0 md:[&_td:first-child]:pl-4 md:[&_td:last-child]:pr-4 md:[&_th:first-child]:pl-4 md:[&_th:last-child]:pr-4">
           <DataTable
             table={table}
             columnCount={columns.length}

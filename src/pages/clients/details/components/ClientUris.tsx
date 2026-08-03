@@ -63,7 +63,7 @@ export function ClientUris({ client }: ClientUrisProps) {
 
               <div className="space-y-2">
                 {uris.filter((uri) => uri.type === type).map((uri) => (
-                  <div key={uri.uri_id} className="rounded-md border bg-background p-3">
+                  <div data-md-listing-nested key={uri.uri_id} className="rounded-md border bg-background p-3">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <code className="break-all rounded bg-muted px-2 py-1.5 font-mono text-sm">
                         {uri.uri}

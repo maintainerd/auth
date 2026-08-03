@@ -12,11 +12,10 @@ import {
   FormInputField,
   FormSelectField,
   FormPasswordField,
-  FormSwitchField,
   FormSubmitButton,
   type SelectOption,
 } from "@/components/form"
-import { FormPhoneFieldWithCountry } from "@/components/inputs"
+import { FormPhoneFieldWithCountry, FormSwitchSubContainer } from "@/components/inputs"
 import { isValidPhone } from "@/lib/validations/regex"
 import { useToast } from "@/hooks/useToast"
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard"
@@ -298,7 +297,7 @@ export default function SMSConfigPage() {
                 name="test_mode"
                 control={control}
                 render={({ field }) => (
-                  <FormSwitchField
+                  <FormSwitchSubContainer
                     label="Test mode"
                     description="Keep the provider in test mode while you verify the setup. Turn off to deliver to real recipients."
                     checked={field.value}

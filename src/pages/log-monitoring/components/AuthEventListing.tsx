@@ -49,7 +49,7 @@ export function AuthEventListing({ tableInCard }: { tableInCard?: boolean } = {}
       extraActions={
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" data-md-export-button>
               <Download className="h-4 w-4 mr-1" /> Export
             </Button>
           </DropdownMenuTrigger>

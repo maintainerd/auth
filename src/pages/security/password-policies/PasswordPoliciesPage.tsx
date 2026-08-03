@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DetailsContainer } from '@/components/container'
 import { FormPageHeader } from '@/components/header'
-import { FormSwitchField, FormInputField, FormSelectField, FormSubmitButton } from '@/components/form'
+import { FormInputField, FormSelectField, FormSubmitButton } from '@/components/form'
+import { FormSwitchSubContainer } from '@/components/inputs'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ConfirmationDialog } from '@/components/dialog'
 import { usePasswordPolicies, useUpdatePasswordPolicies } from '@/hooks/usePasswordPolicies'
 import { useToast } from '@/hooks/useToast'
@@ -258,10 +260,10 @@ export default function PasswordPoliciesFormPage() {
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Require Uppercase" description="At least one A–Z character" checked={formValues.require_uppercase} onCheckedChange={(v) => handleUpdate({ require_uppercase: v })} disabled={isBusy} />
-                <FormSwitchField label="Require Lowercase" description="At least one a–z character" checked={formValues.require_lowercase} onCheckedChange={(v) => handleUpdate({ require_lowercase: v })} disabled={isBusy} />
-                <FormSwitchField label="Require Number" description="At least one 0–9 digit" checked={formValues.require_number} onCheckedChange={(v) => handleUpdate({ require_number: v })} disabled={isBusy} />
-                <FormSwitchField label="Require Symbol" description="At least one special character" checked={formValues.require_symbol} onCheckedChange={(v) => handleUpdate({ require_symbol: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Require Uppercase" description="At least one A–Z character" checked={formValues.require_uppercase} onCheckedChange={(v) => handleUpdate({ require_uppercase: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Require Lowercase" description="At least one a–z character" checked={formValues.require_lowercase} onCheckedChange={(v) => handleUpdate({ require_lowercase: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Require Number" description="At least one 0–9 digit" checked={formValues.require_number} onCheckedChange={(v) => handleUpdate({ require_number: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Require Symbol" description="At least one special character" checked={formValues.require_symbol} onCheckedChange={(v) => handleUpdate({ require_symbol: v })} disabled={isBusy} />
               </div>
             </CardContent>
           </Card>
@@ -273,8 +275,8 @@ export default function PasswordPoliciesFormPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Reject Common Passwords" description="Block passwords from known common-password lists" checked={formValues.reject_common_passwords} onCheckedChange={(v) => handleUpdate({ reject_common_passwords: v })} disabled={isBusy} />
-                <FormSwitchField label="Check HIBP" description="Screen against Have I Been Pwned breach database" checked={formValues.check_hibp} onCheckedChange={(v) => handleUpdate({ check_hibp: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Reject Common Passwords" description="Block passwords from known common-password lists" checked={formValues.reject_common_passwords} onCheckedChange={(v) => handleUpdate({ reject_common_passwords: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Check HIBP" description="Screen against Have I Been Pwned breach database" checked={formValues.check_hibp} onCheckedChange={(v) => handleUpdate({ check_hibp: v })} disabled={isBusy} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField
@@ -347,25 +349,20 @@ export default function PasswordPoliciesFormPage() {
                   verification detects the stored format — but the estate stays
                   mixed, so the operator should know before saving. */}
               {hashAlgorithmChanged && (
-                <div
-                  role="status"
-                  className="mt-4 flex gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm"
-                >
+                <Alert className="mt-4">
                   <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">
-                      Applies to new passwords only
-                    </p>
-                    <p className="text-muted-foreground">
-                      Existing users keep signing in normally — stored passwords are verified with
-                      the algorithm they were hashed with. They are only re-hashed with{' '}
-                      {HASH_OPTIONS.find((o) => o.value === formValues.hash_algorithm)?.label ??
-                        formValues.hash_algorithm}{' '}
-                      the next time each user changes their password, so both algorithms will be in
-                      use until then.
-                    </p>
-                  </div>
-                </div>
+                  <AlertTitle>
+                    Applies to new passwords only
+                  </AlertTitle>
+                  <AlertDescription>
+                    Existing users keep signing in normally — stored passwords are verified with
+                    the algorithm they were hashed with. They are only re-hashed with{' '}
+                    {HASH_OPTIONS.find((o) => o.value === formValues.hash_algorithm)?.label ??
+                      formValues.hash_algorithm}{' '}
+                    the next time each user changes their password, so both algorithms will be in
+                    use until then.
+                  </AlertDescription>
+                </Alert>
               )}
             </CardContent>
           </Card>

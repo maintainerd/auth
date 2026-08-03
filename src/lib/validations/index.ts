@@ -120,12 +120,6 @@ export {
   type RegistrationFlowFormData
 } from './registrationFlowSchema'
 
-// Tenant Settings schemas
-export {
-  tenantSettingsSchema,
-  type TenantSettingsFormData
-} from './tenantSettingsSchema'
-
 // Password Policies schemas
 export {
   PASSWORD_POLICY_DEFAULTS,

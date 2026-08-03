@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Users,
@@ -63,6 +63,7 @@ function NavRow({
   return (
     <button
       type="button"
+      data-md-option-card
       onClick={onClick}
       className="flex items-center justify-between rounded-lg border bg-card p-3 text-left transition-colors hover:border-border hover:bg-accent"
     >
@@ -93,19 +94,12 @@ function MfaStatusBanner({ onSetup }: { onSetup: () => void }) {
 
   if (active > 0) {
     return (
-      <Card className="border-emerald-500/30 bg-emerald-500/[0.04] py-0">
-        <CardContent className="flex items-center gap-3 p-3.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
-            <ShieldCheck className="size-4" />
-          </div>
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-sm font-medium">Two-factor authentication is enabled</p>
-            <p className="text-xs text-muted-foreground">
-              Your account is protected with a second factor at sign-in.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <Alert>
+        <ShieldCheck className="size-4" style={{ color: "#10b981" }} />
+        <AlertDescription>
+          <p className="text-sm font-medium">Two-factor authentication is enabled</p>
+        </AlertDescription>
+      </Alert>
     )
   }
 
@@ -144,7 +138,6 @@ const DashboardPage = () => {
       value: summary ? fmt(summary.users.total) : undefined,
       detail: summary ? `${fmt(summary.users.active)} active / ${fmt(summary.users.pending)} pending` : undefined,
       icon: Users,
-      hero: true,
     },
     {
       label: "Applications",
@@ -183,36 +176,20 @@ const DashboardPage = () => {
       {/* KPI stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card
-            key={stat.label}
-            className={cn(
-              "py-0",
-              stat.hero &&
-                "border-transparent bg-gradient-to-br from-blue-500 to-indigo-600 text-white",
-            )}
-          >
+          <Card key={stat.label} className="py-0">
             <CardContent className="flex items-center justify-between p-5">
               <div className="space-y-1">
-                <p className={cn("text-sm", stat.hero ? "text-blue-50" : "text-muted-foreground")}>
-                  {stat.label}
-                </p>
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
                 {isLoading || stat.value === undefined ? (
-                  <Skeleton className={cn("h-8 w-16", stat.hero && "bg-white/20")} />
+                  <Skeleton className="h-8 w-16" />
                 ) : (
                   <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>
                 )}
                 {stat.detail && (
-                  <p className={cn("text-xs", stat.hero ? "text-blue-50/90" : "text-muted-foreground")}>
-                    {stat.detail}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{stat.detail}</p>
                 )}
               </div>
-              <div
-                className={cn(
-                  "flex size-10 items-center justify-center rounded-xl",
-                  stat.hero ? "bg-white/15 text-white" : "bg-muted text-muted-foreground",
-                )}
-              >
+              <div className="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <stat.icon className="size-5" />
               </div>
             </CardContent>
@@ -259,7 +236,7 @@ const DashboardPage = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div data-md-listing-nested className="flex items-center justify-between rounded-lg border p-3">
               <div className="space-y-1">
                 <div className="font-medium">OAuth 2.0 / OpenID Connect</div>
                 <div className="text-sm text-muted-foreground">Standard authentication flows</div>
@@ -267,7 +244,7 @@ const DashboardPage = () => {
               <CheckCircle className="h-5 w-5 text-muted-foreground" />
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div data-md-listing-nested className="flex items-center justify-between rounded-lg border p-3">
               <div className="space-y-1">
                 <div className="font-medium">REST APIs</div>
                 <div className="text-sm text-muted-foreground">Direct API integration</div>

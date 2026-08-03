@@ -5,6 +5,7 @@ import { yupResolver } from "@hookform/resolvers/yup"
 import { AlertCircle, ArrowLeft, Copy, KeyRound, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DetailsContainer } from "@/components/container"
 import { FormPageHeader } from "@/components/header"
@@ -288,13 +289,13 @@ export default function WebhookAddOrUpdateForm() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+              <Alert>
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" />
-                <span>
+                <AlertDescription>
                   Copy this secret now and store it securely. Use it to verify the signature on
                   each webhook delivery. You won't be able to view it again — you can only rotate it.
-                </span>
-              </div>
+                </AlertDescription>
+              </Alert>
 
               <div className="flex items-center gap-2">
                 <code className="min-w-0 flex-1 truncate rounded-md border bg-muted px-3 py-2 font-mono text-sm">

@@ -45,7 +45,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       return (
         <div
           role="alert"
-          className="flex min-h-svh flex-col items-center justify-center gap-6 px-4 text-center"
+          data-console-auth-shell
+          className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background px-4 text-center text-foreground"
         >
           <div className="flex flex-col items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">Something went wrong</h1>

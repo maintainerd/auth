@@ -71,18 +71,19 @@ export function UserTrustedDevices({ userId }: UserTrustedDevicesProps) {
           <div className="space-y-3">
             {devices.map((device) => (
               <div
+                data-md-listing-item
                 key={device.uuid}
                 className="flex items-start justify-between gap-3 rounded-lg border p-4"
               >
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <MonitorSmartphone className="size-4" />
                   </div>
                   <div className="min-w-0 space-y-1">
                     <p className="break-words text-sm font-medium" title={device.user_agent || undefined}>
                       {device.device_name || formatUserAgent(device.user_agent)}
                     </p>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div data-md-listing-meta className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       {device.location && (
                         <span className="inline-flex items-center gap-1">
                           <MapPin className="size-3" />

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DetailsContainer } from '@/components/container'
 import { FormPageHeader } from '@/components/header'
-import { FormSwitchField, FormInputField, FormTextareaField, FormSubmitButton } from '@/components/form'
+import { FormInputField, FormTextareaField, FormSubmitButton } from '@/components/form'
+import { FormSwitchSubContainer } from '@/components/inputs'
 import { useRegistrationConfig, useUpdateRegistrationConfig } from '@/hooks/useRegistrationConfig'
 import { useToast } from '@/hooks/useToast'
 import { ConfirmationDialog } from '@/components/dialog'
@@ -162,8 +163,8 @@ export default function RegistrationConfigPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Self Registration" description="Allow users to register themselves" checked={formValues.self_registration_enabled} onCheckedChange={(v) => handleUpdate({ self_registration_enabled: v })} disabled={isBusy} />
-                <FormSwitchField label="CAPTCHA on Signup" description="Require reCAPTCHA verification during registration" checked={formValues.captcha_on_signup} onCheckedChange={(v) => handleUpdate({ captcha_on_signup: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Self Registration" description="Allow users to register themselves" checked={formValues.self_registration_enabled} onCheckedChange={(v) => handleUpdate({ self_registration_enabled: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="CAPTCHA on Signup" description="Require reCAPTCHA verification during registration" checked={formValues.captcha_on_signup} onCheckedChange={(v) => handleUpdate({ captcha_on_signup: v })} disabled={isBusy} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Rate Limit (per IP per hour)" type="number" value={formValues.registration_rate_limit_per_ip_per_hour.toString()} onChange={(e) => handleUpdate({ registration_rate_limit_per_ip_per_hour: parseInt(e.target.value) || 1 })} error={errors.registration_rate_limit_per_ip_per_hour?.message} disabled={isBusy} />
@@ -191,9 +192,9 @@ export default function RegistrationConfigPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Require Email Verification" description="Users must verify email before full access" checked={formValues.require_email_verification} onCheckedChange={(v) => handleUpdate({ require_email_verification: v })} disabled={isBusy} />
-                <FormSwitchField label="Require Phone Verification" description="Users must verify phone before full access" checked={formValues.require_phone_verification} onCheckedChange={(v) => handleUpdate({ require_phone_verification: v })} disabled={isBusy} />
-                <FormSwitchField label="Auto-Confirm Accounts" description="Skip verification and immediately activate new accounts" checked={formValues.auto_confirm_enabled} onCheckedChange={(v) => handleUpdate({ auto_confirm_enabled: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Require Email Verification" description="Users must verify email before full access" checked={formValues.require_email_verification} onCheckedChange={(v) => handleUpdate({ require_email_verification: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Require Phone Verification" description="Users must verify phone before full access" checked={formValues.require_phone_verification} onCheckedChange={(v) => handleUpdate({ require_phone_verification: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Auto-Confirm Accounts" description="Skip verification and immediately activate new accounts" checked={formValues.auto_confirm_enabled} onCheckedChange={(v) => handleUpdate({ auto_confirm_enabled: v })} disabled={isBusy} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Verification Token TTL (hours)" type="number" value={formValues.verification_token_ttl_hours.toString()} onChange={(e) => handleUpdate({ verification_token_ttl_hours: parseInt(e.target.value) || 1 })} error={errors.verification_token_ttl_hours?.message} disabled={isBusy} />

@@ -27,15 +27,18 @@ const STATUS_DOT: Record<string, string> = {
 
 /** A restrained, entity-agnostic status pill: a small coloured dot + label. */
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
-  const dot = STATUS_DOT[status?.toLowerCase()] ?? "bg-muted-foreground"
+  const normalizedStatus = status?.toLowerCase() ?? ""
+  const dot = STATUS_DOT[normalizedStatus] ?? "bg-muted-foreground"
   return (
     <span
+      data-md-status-badge
+      data-status={normalizedStatus}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-0.5 text-xs font-medium capitalize",
         className,
       )}
     >
-      <span className={cn("size-1.5 rounded-full", dot)} />
+      <span data-md-status-dot className={cn("size-1.5 rounded-full", dot)} />
       {status}
     </span>
   )

@@ -11,12 +11,11 @@ import { FormPageHeader } from "@/components/header"
 import {
   FormInputField,
   FormSelectField,
-  FormSwitchField,
   FormSubmitButton,
   FormTextareaField,
   type SelectOption,
 } from "@/components/form"
-import { FormUrlField, FormScopeField } from "@/components/inputs"
+import { FormUrlField, FormScopeField, FormSwitchSubContainer } from "@/components/inputs"
 import { ConfirmationDialog } from "@/components/dialog"
 import { useToast } from "@/hooks/useToast"
 import { useClients } from "@/hooks/useClients"
@@ -326,14 +325,13 @@ export default function WorkloadIdentityAddOrUpdateForm() {
                 name="is_active"
                 control={control}
                 render={({ field }) => (
-                  <FormSwitchField
+                  <FormSwitchSubContainer
                     id="is-active"
                     label="Active"
                     description="When off, matching workloads cannot exchange their tokens. This is the kill switch for this trust."
                     checked={field.value}
                     onCheckedChange={(checked) => { markDirty(); field.onChange(checked) }}
                     disabled={isSaving}
-                    containerClassName="rounded-md border p-4"
                   />
                 )}
               />

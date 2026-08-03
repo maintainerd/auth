@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Edit, Trash2, MoreVertical, Palette, CalendarDays, CheckCircle2 } from "lucide-react"
+import { Edit, Trash2, MoreVertical, Palette, CalendarDays, CheckCircle2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { DeleteConfirmationDialog, ConfirmationDialog } from "@/components/dialog"
 import { DetailHeaderCard, StatusBadge, type DetailAttribute } from "@/components/details"
-import { useDeleteBranding, useActivateBranding } from "@/hooks/useBranding"
+import { useDeleteBranding, useActivateBranding, useRestoreBranding } from "@/hooks/useBranding"
 import { useToast } from "@/hooks/useToast"
 import { format } from "date-fns"
 import { isHex } from "../../themeTokens"
@@ -33,8 +33,10 @@ export function BrandingHeader({ branding, brandingId }: BrandingHeaderProps) {
   const { showSuccess, showError } = useToast()
   const deleteMutation = useDeleteBranding()
   const activateMutation = useActivateBranding()
+  const restoreMutation = useRestoreBranding()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showActivateDialog, setShowActivateDialog] = useState(false)
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false)
 
   const listUrl = `/branding?tab=themes`
   const detailBase = `/branding/templates`
@@ -53,6 +55,15 @@ export function BrandingHeader({ branding, brandingId }: BrandingHeaderProps) {
     try {
       await activateMutation.mutateAsync(brandingId)
       showSuccess(`"${branding.name}" is now the active branding`)
+    } catch (error) {
+      showError(error)
+    }
+  }
+
+  const handleRestore = async () => {
+    try {
+      await restoreMutation.mutateAsync(brandingId)
+      showSuccess(`"${branding.name}" restored to the system default`)
     } catch (error) {
       showError(error)
     }
@@ -93,6 +104,7 @@ export function BrandingHeader({ branding, brandingId }: BrandingHeaderProps) {
         actions={
           <>
             <Button
+              data-md-details-edit-button
               variant="outline"
               size="sm"
               className="h-9 gap-2"
@@ -107,7 +119,7 @@ export function BrandingHeader({ branding, brandingId }: BrandingHeaderProps) {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+                <Button data-md-details-menu-button variant="outline" size="sm" className="h-9 w-9 p-0">
                   <span className="sr-only">Open actions</span>
                   <MoreVertical className="size-4" />
                 </Button>
@@ -117,6 +129,12 @@ export function BrandingHeader({ branding, brandingId }: BrandingHeaderProps) {
                   <DropdownMenuItem onClick={() => setShowActivateDialog(true)}>
                     <CheckCircle2 className="mr-2 size-4" />
                     Set as Active
+                  </DropdownMenuItem>
+                )}
+                {branding.is_system && (
+                  <DropdownMenuItem onClick={() => setShowRestoreDialog(true)}>
+                    <RotateCcw className="mr-2 size-4" />
+                    Restore
                   </DropdownMenuItem>
                 )}
                 {!branding.is_system && (
@@ -142,6 +160,16 @@ export function BrandingHeader({ branding, brandingId }: BrandingHeaderProps) {
         description={`Make "${branding.name}" the active branding? It becomes the loaded style and the current active template is deactivated.`}
         confirmText="Set as Active"
         isLoading={activateMutation.isPending}
+      />
+
+      <ConfirmationDialog
+        open={showRestoreDialog}
+        onOpenChange={setShowRestoreDialog}
+        onConfirm={handleRestore}
+        title="Restore System Theme"
+        description={`Restore "${branding.name}" to the seeded system defaults? This replaces edited theme values but keeps the current active theme selection.`}
+        confirmText="Restore Defaults"
+        isLoading={restoreMutation.isPending}
       />
 
       <DeleteConfirmationDialog

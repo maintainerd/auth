@@ -83,7 +83,7 @@ function PolicyStatementItem({ statement, index, isExpanded, onToggle }: PolicyS
   const EffectIcon = isAllow ? CheckCircle2 : Ban
 
   return (
-    <div className="rounded-lg border p-4">
+    <div data-md-listing-item className="rounded-lg border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <div
@@ -222,7 +222,7 @@ function PatternRow({ token, kind }: { token: string; kind: TokenKind }) {
   const isWildcard = value.includes("*")
 
   return (
-    <div className="flex items-start justify-between gap-3 rounded-md border bg-background p-3">
+    <div data-md-listing-nested className="flex items-start justify-between gap-3 rounded-md border bg-background p-3">
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="break-all font-mono text-sm font-medium">{value}</span>

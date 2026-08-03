@@ -34,13 +34,13 @@ export type NavSection = {
 }
 
 const parentMenuClass =
-  "h-9 rounded-md border border-transparent px-2 text-sm font-medium text-[#475569] transition-colors [&>svg]:size-[18px] [&>svg]:text-[#647084] hover:border-transparent hover:bg-[#edf1f6] hover:text-[#111827] hover:[&>svg]:text-[#2d3748] active:!bg-[#e7ecf3] active:!text-[#111827] data-[state=open]:hover:!bg-[#edf1f6]"
+  "h-9 rounded-md border border-transparent px-2 text-sm font-medium text-sidebar-foreground/80 transition-colors [&>svg]:size-[18px] [&>svg]:text-sidebar-foreground/65 hover:border-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:[&>svg]:text-sidebar-accent-foreground active:!bg-sidebar-accent active:!text-sidebar-accent-foreground data-[state=open]:hover:!bg-sidebar-accent"
 
 const parentMenuActiveClass =
-  "bg-[#e4eaf2] font-semibold !text-[#111827] hover:bg-[#e4eaf2] hover:!text-[#111827] active:!bg-[#e4eaf2] active:!text-[#111827] data-[active=true]:!bg-[#e4eaf2] data-[active=true]:!text-[#111827] [&>svg]:!text-primary"
+  "bg-sidebar-accent font-semibold !text-sidebar-accent-foreground hover:bg-sidebar-accent hover:!text-sidebar-accent-foreground active:!bg-sidebar-accent active:!text-sidebar-accent-foreground data-[active=true]:!bg-sidebar-accent data-[active=true]:!text-sidebar-accent-foreground [&>svg]:!text-sidebar-primary"
 
 const subMenuClass =
-  "h-8 w-full translate-x-0 rounded-md pl-[34px] pr-2 text-sm font-medium text-[#5b677a] transition-colors hover:!bg-[#edf1f6] hover:text-[#111827] active:!bg-[#e7ecf3] active:!text-[#111827] data-[active=true]:!bg-[#e4eaf2] data-[active=true]:!text-[#111827]"
+  "h-8 w-full translate-x-0 rounded-md pl-[34px] pr-2 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:!bg-sidebar-accent hover:text-sidebar-accent-foreground active:!bg-sidebar-accent active:!text-sidebar-accent-foreground data-[active=true]:!bg-sidebar-accent data-[active=true]:!text-sidebar-accent-foreground"
 
 export function NavMain({ sections }: { sections: NavSection[] }) {
   const location = useLocation()
@@ -111,7 +111,10 @@ export function NavMain({ sections }: { sections: NavSection[] }) {
       {sections.map((section, index) => (
         <SidebarGroup key={section.label ?? index} className="px-0 py-1.5">
           {section.label && (
-            <SidebarGroupLabel className="h-7 px-2 text-xs font-semibold text-[#667085]">
+            <SidebarGroupLabel
+              data-console-sidebar-section
+              className="h-7 px-2 text-xs font-semibold text-[#667085]"
+            >
               {section.label}
             </SidebarGroupLabel>
           )}
@@ -125,6 +128,7 @@ export function NavMain({ sections }: { sections: NavSection[] }) {
                     {item.items ? (
                       <>
                         <SidebarMenuButton
+                          data-console-sidebar-item
                           isActive={active}
                           onClick={() => toggleItem(item.title)}
                           tooltip={item.title}
@@ -133,9 +137,10 @@ export function NavMain({ sections }: { sections: NavSection[] }) {
                           {item.icon && <item.icon active={active} />}
                           <span>{item.title}</span>
                           <ChevronRight
+                            data-console-sidebar-chevron
                             className={cn(
                               "ml-auto h-4 w-4 text-[#7b8797] transition-transform",
-                              active && "text-[#475569]",
+                              active && "text-sidebar-foreground",
                               openItems.has(item.title) && "rotate-90",
                             )}
                           />
@@ -148,9 +153,10 @@ export function NavMain({ sections }: { sections: NavSection[] }) {
                               return (
                                 <SidebarMenuSubItem key={subItem.title}>
                                   <SidebarMenuSubButton
+                                    data-console-sidebar-sub-item
                                     asChild
                                     isActive={subActive}
-                                    className={cn(subMenuClass, subActive && "font-semibold !text-[#111827]")}
+                                    className={cn(subMenuClass, subActive && "font-semibold !text-sidebar-accent-foreground")}
                                   >
                                     <Link to={buildRoute(subItem.route)}>
                                       <span>{subItem.title}</span>
@@ -164,6 +170,7 @@ export function NavMain({ sections }: { sections: NavSection[] }) {
                       </>
                     ) : (
                       <SidebarMenuButton
+                        data-console-sidebar-item
                         asChild
                         isActive={active}
                         tooltip={item.title}

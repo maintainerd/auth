@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DetailsContainer } from '@/components/container'
 import { FormPageHeader } from '@/components/header'
-import { FormSwitchField, FormInputField, FormSubmitButton } from '@/components/form'
+import { FormInputField, FormSubmitButton } from '@/components/form'
+import { FormSwitchSubContainer } from '@/components/inputs'
 import { useThreatDetectionSettings, useUpdateThreatDetectionSettings } from '@/hooks/useThreatDetectionSettings'
 import { useToast } from '@/hooks/useToast'
 import { ConfirmationDialog } from '@/components/dialog'
@@ -168,10 +169,10 @@ export default function ThreatDetectionPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Brute Force Detection" description="Detect repeated failed login attempts per account" checked={formValues.brute_force_detection_enabled} onCheckedChange={(v) => handleUpdate({ brute_force_detection_enabled: v })} disabled={isBusy} />
-                <FormSwitchField label="Impossible Travel Detection" description="Flag logins from geographically impossible locations" checked={formValues.impossible_travel_detection_enabled} onCheckedChange={(v) => handleUpdate({ impossible_travel_detection_enabled: v })} disabled={isBusy} />
-                <FormSwitchField label="New Device Notification" description="Alert users when a login occurs from a new device" checked={formValues.new_device_notification_enabled} onCheckedChange={(v) => handleUpdate({ new_device_notification_enabled: v })} disabled={isBusy} />
-                <FormSwitchField label="Velocity Check" description="Rate-limit login attempts per IP address" checked={formValues.velocity_check_enabled} onCheckedChange={(v) => handleUpdate({ velocity_check_enabled: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Brute Force Detection" description="Detect repeated failed login attempts per account" checked={formValues.brute_force_detection_enabled} onCheckedChange={(v) => handleUpdate({ brute_force_detection_enabled: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Impossible Travel Detection" description="Flag logins from geographically impossible locations" checked={formValues.impossible_travel_detection_enabled} onCheckedChange={(v) => handleUpdate({ impossible_travel_detection_enabled: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="New Device Notification" description="Alert users when a login occurs from a new device" checked={formValues.new_device_notification_enabled} onCheckedChange={(v) => handleUpdate({ new_device_notification_enabled: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Velocity Check" description="Rate-limit login attempts per IP address" checked={formValues.velocity_check_enabled} onCheckedChange={(v) => handleUpdate({ velocity_check_enabled: v })} disabled={isBusy} />
               </div>
             </CardContent>
           </Card>
@@ -183,8 +184,8 @@ export default function ThreatDetectionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="Risk-Based Step-Up" description="Force MFA when risk score reaches the step-up threshold" checked={formValues.risk_based_step_up_enabled} onCheckedChange={(v) => handleUpdate({ risk_based_step_up_enabled: v })} disabled={isBusy} />
-                <FormSwitchField label="Compromised Credential Monitoring" description="Check credentials against known breach databases" checked={formValues.compromised_credential_monitoring_enabled} onCheckedChange={(v) => handleUpdate({ compromised_credential_monitoring_enabled: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Risk-Based Step-Up" description="Force MFA when risk score reaches the step-up threshold" checked={formValues.risk_based_step_up_enabled} onCheckedChange={(v) => handleUpdate({ risk_based_step_up_enabled: v })} disabled={isBusy} />
+                <FormSwitchSubContainer label="Compromised Credential Monitoring" description="Check credentials against known breach databases" checked={formValues.compromised_credential_monitoring_enabled} onCheckedChange={(v) => handleUpdate({ compromised_credential_monitoring_enabled: v })} disabled={isBusy} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Step-Up Threshold" description="Risk score >= this forces MFA" type="number" value={formValues.risk_step_up_threshold.toString()} onChange={(e) => handleUpdate({ risk_step_up_threshold: parseInt(e.target.value) || 0 })} error={errors.risk_step_up_threshold?.message} disabled={isBusy} />
@@ -204,8 +205,8 @@ export default function ThreatDetectionPage() {
                   switches are forced off + disabled so an admin can't toggle into
                   a validation error; re-enable once a provider is wired. */}
               <div className="grid gap-3 sm:grid-cols-2">
-                <FormSwitchField label="IP Reputation Check" description="Requires an IP reputation provider (not yet available)" checked={false} onCheckedChange={() => {}} disabled />
-                <FormSwitchField label="Block Tor Exit Nodes" description="Requires a Tor exit-node source (not yet available)" checked={false} onCheckedChange={() => {}} disabled />
+                <FormSwitchSubContainer label="IP Reputation Check" description="Requires an IP reputation provider (not yet available)" checked={false} onCheckedChange={() => {}} disabled />
+                <FormSwitchSubContainer label="Block Tor Exit Nodes" description="Requires a Tor exit-node source (not yet available)" checked={false} onCheckedChange={() => {}} disabled />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Velocity Limit (failures/IP/hour)" description="Raw failures from one IP; high volume triggers step-up" type="number" value={formValues.velocity_failures_per_ip_per_hour.toString()} onChange={(e) => handleUpdate({ velocity_failures_per_ip_per_hour: parseInt(e.target.value) || 1 })} error={errors.velocity_failures_per_ip_per_hour?.message} disabled={isBusy} />

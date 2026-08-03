@@ -40,5 +40,3 @@ export function ConsoleOAuthRedirect({ returnTo }: { returnTo: string }) {
 
   return <AppLoadingScreen branding={currentTenant?.branding} />
 }
-
-export default ConsoleOAuthRedirect

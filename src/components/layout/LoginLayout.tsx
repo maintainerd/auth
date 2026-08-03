@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { BrandingPublic } from '@/services/api/tenants/types'
+import { resolveBrandingLogoUrl } from '@/utils/branding'
 import MaintainedAuthIcon from "../icon/MaintainedAuthIcon"
 
 type Props = {
@@ -11,7 +12,9 @@ type Props = {
 
 const LoginLayout = ({ children, branding }: Props) => {
   const companyName = branding?.company_name || 'Maintainerd IAM'
-  const logoUrl = branding?.logo_url
+  const logoLabel = branding?.logo_label || companyName
+  const showLogoLabel = branding?.show_logo_label ?? true
+  const logoUrl = resolveBrandingLogoUrl(branding?.logo_url)
 
   const year = new Date().getFullYear()
 
@@ -29,28 +32,25 @@ const LoginLayout = ({ children, branding }: Props) => {
   }, [branding?.favicon_url])
 
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-4 py-12">
-      {/* Light, lightly-blue gradient backdrop — calm and trustworthy, not flashy */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'linear-gradient(180deg, #f7f9fc 0%, #eef2f8 55%, #e4ebf6 100%)' }}
-      />
-
-      <div className="relative z-10 w-full max-w-md">
+    <div
+      data-console-auth-shell
+      className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-12 text-foreground"
+    >
+      <div className="w-full max-w-md">
         {/* Brand mark */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           {logoUrl ? (
-            <img src={logoUrl} alt={companyName || 'Logo'} className="h-11 w-auto" />
+            <img src={logoUrl} alt={logoLabel || 'Logo'} className="h-11 w-auto" />
           ) : (
             <MaintainedAuthIcon width={48} height={48} />
           )}
-          {companyName && (
-            <span className="text-lg font-semibold tracking-tight text-foreground">{companyName}</span>
+          {showLogoLabel && logoLabel && (
+            <span className="text-lg font-semibold tracking-tight text-foreground">{logoLabel}</span>
           )}
         </div>
 
         {/* Form card */}
-        <Card className="border-border">
+        <Card data-console-auth-card className="border-border shadow-sm">
           <CardContent className="p-7 sm:p-9">{children}</CardContent>
         </Card>
 

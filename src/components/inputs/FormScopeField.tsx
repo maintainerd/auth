@@ -117,7 +117,13 @@ export function FormScopeField({
         />
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <Button type="button" variant="outline" disabled={disabled} className="shrink-0 gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              data-md-input-button
+              disabled={disabled}
+              className="shrink-0 gap-1.5"
+            >
               Browse
               <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />
             </Button>

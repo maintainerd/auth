@@ -20,8 +20,8 @@ interface MemberItemProps {
 
 export function MemberItem({ member, onUpdateRole, onDelete, onTransferOwnership }: MemberItemProps) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b last:border-0">
-      <div className="mt-1">
+    <div data-md-listing-item className="flex items-start gap-3 py-3 border-b last:border-0">
+      <div data-md-listing-icon className="mt-1">
         <User className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="flex-1 min-w-0">
@@ -59,7 +59,7 @@ export function MemberItem({ member, onUpdateRole, onDelete, onTransferOwnership
       {(onUpdateRole || onDelete || onTransferOwnership) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button data-md-icon-action-button variant="ghost" size="icon-sm" className="p-0">
               <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>

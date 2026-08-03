@@ -79,14 +79,15 @@ export function TenantSwitcher({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            data-console-top-dropdown-trigger
             variant="ghost"
             role="combobox"
             aria-expanded={open}
             aria-label="Switch tenant"
             className={cn(
               size === "compact"
-                ? "h-9 gap-1.5 border border-slate-700 bg-slate-800 px-2 text-xs text-white hover:bg-slate-700 hover:text-white active:!bg-slate-700 active:!text-white data-[state=open]:!bg-slate-700 data-[state=open]:!text-white"
-                : "h-10 gap-2 border border-slate-700 bg-slate-800 px-2 text-sm text-white hover:bg-slate-700 hover:text-white active:!bg-slate-700 active:!text-white data-[state=open]:!bg-slate-700 data-[state=open]:!text-white",
+                ? "h-9 gap-1.5 border border-slate-700 bg-white/5 px-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white"
+                : "h-10 gap-2 border border-slate-700 bg-white/5 px-2 text-sm text-slate-300 hover:bg-white/10 hover:text-white active:!bg-white/15 active:!text-white data-[state=open]:!bg-white/15 data-[state=open]:!text-white",
             )}
           >
             {showSkeleton ? (

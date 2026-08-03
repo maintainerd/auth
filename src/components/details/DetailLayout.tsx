@@ -34,6 +34,7 @@ export function DetailLayout({
     <DetailsContainer>
       <div className="flex flex-col gap-4">
         <Button
+          data-md-back-button
           variant="ghost"
           size="sm"
           onClick={onBack}
@@ -108,7 +109,7 @@ function DetailError({
           <h2 className="text-lg font-semibold">{title}</h2>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <Button variant="outline" onClick={onBack}>
+        <Button data-md-back-button variant="outline" onClick={onBack}>
           <ArrowLeft className="mr-2 size-4" />
           {backLabel}
         </Button>

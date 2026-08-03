@@ -3,15 +3,47 @@ import type { BrandingLayout } from "@/services/api/branding/types"
 export const AUTH_UI_TEMPLATE_IDS = [
   "centered-card",
   "split-showcase",
-  "full-page-minimal",
-  "side-panel",
   "stepper-flow",
-  "compact-modal",
-  "security-console",
   "editorial-cover",
 ] as const
 
 export type AuthUiTemplateId = typeof AUTH_UI_TEMPLATE_IDS[number]
+
+export const LOGIN_FORM_LOGO_PLACEMENTS = [
+  { value: "inside-form", label: "Inside form" },
+  { value: "above-form", label: "Above form" },
+] as const
+
+export type LoginFormLogoPlacement = typeof LOGIN_FORM_LOGO_PLACEMENTS[number]["value"]
+
+export const SPLIT_SHOWCASE_VISUAL_STYLES = [
+  { value: "default", label: "Default" },
+  { value: "identity-mesh", label: "Identity mesh" },
+  { value: "access-grid", label: "Access grid" },
+  { value: "security-radar", label: "Security radar" },
+  { value: "trust-circuit", label: "Trust circuit" },
+  { value: "audit-trail", label: "Audit trail" },
+  { value: "session-orbit", label: "Session orbit" },
+  { value: "image", label: "Image URL" },
+] as const
+
+export type SplitShowcaseVisualStyle = typeof SPLIT_SHOWCASE_VISUAL_STYLES[number]["value"]
+
+export type AuthUiTemplatePresentation = {
+  logoPlacement: LoginFormLogoPlacement
+  splitShowcaseVisualStyle: SplitShowcaseVisualStyle
+  splitShowcaseTitle: string
+  splitShowcaseSubtitle: string
+  splitShowcaseImageUrl: string
+}
+
+export const DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION: AuthUiTemplatePresentation = {
+  logoPlacement: "inside-form",
+  splitShowcaseVisualStyle: "default",
+  splitShowcaseTitle: "Secure access for your workspace",
+  splitShowcaseSubtitle: "Sign in with the protections, policies, and identity controls your team expects.",
+  splitShowcaseImageUrl: "",
+}
 
 export interface AuthUiTemplate {
   id: AuthUiTemplateId
@@ -48,63 +80,23 @@ export const AUTH_UI_TEMPLATES: AuthUiTemplate[] = [
     features: ["Login", "Registration", "MFA", "Invites", "Legal links"],
   },
   {
-    id: "full-page-minimal",
-    label: "Full Page Minimal",
-    summary: "A restrained full-page layout with a slim header and generous reading space.",
-    layout: "full_page",
-    previewVariant: "full-page-minimal",
-    bestFor: "Enterprise portals and internal tools",
-    flowTreatment: "Each step gets a full-page section with restrained navigation.",
-    features: ["Login", "Passwordless", "MFA", "Account linking", "Error states"],
-  },
-  {
-    id: "side-panel",
-    label: "Side Panel",
-    summary: "A flexible side-context layout with brand, support, and policy cues beside the auth form.",
-    layout: "split",
-    previewVariant: "side-panel",
-    bestFor: "SaaS products, customer portals, workforce tools, and partner apps",
-    flowTreatment: "A consistent context panel stays visible while each fixed auth page renders in the main area.",
-    features: ["Login", "Registration", "Recovery", "Support links", "Brand context"],
-  },
-  {
     id: "stepper-flow",
-    label: "Guided Steps",
-    summary: "A professional step-by-step onboarding layout for longer registration and recovery journeys.",
+    label: "Cover Card",
+    summary: "A centered auth card with the form and visual cover enclosed in one polished surface.",
     layout: "full_page",
     previewVariant: "stepper-flow",
-    bestFor: "Onboarding-heavy tenants",
-    flowTreatment: "Progress markers orient users across registration and verification steps.",
-    features: ["Registration", "MFA setup", "Email verify", "Phone verify", "Link account"],
-  },
-  {
-    id: "compact-modal",
-    label: "Compact Dialog",
-    summary: "A polished modal-style surface that keeps auth focused above a quiet app backdrop.",
-    layout: "centered",
-    previewVariant: "compact-modal",
-    bestFor: "Embedded sign-in, product overlays, portals, and developer tools",
-    flowTreatment: "Auth pages stay inside a compact dialog with a visible brand header and light surrounding context.",
-    features: ["Login", "MFA", "Passkeys", "Recovery", "Invites"],
-  },
-  {
-    id: "security-console",
-    label: "Assurance Console",
-    summary: "A trust-forward layout with session, policy, and device context presented cleanly.",
-    layout: "full_page",
-    previewVariant: "security-console",
-    bestFor: "High-assurance and workforce identity",
-    flowTreatment: "Challenge screens reserve space for risk, device, and policy messaging.",
-    features: ["Login", "Step-up", "MFA", "Device trust", "Threat prompts"],
+    bestFor: "Enterprise IAM and tenant-branded access",
+    flowTreatment: "A single centered card keeps the active auth form beside a configurable visual cover.",
+    features: ["Login", "Registration", "MFA", "Recovery", "Invites"],
   },
   {
     id: "editorial-cover",
     label: "Editorial Cover",
-    summary: "A premium cover layout with an expressive visual panel and composed form placement.",
+    summary: "A split cover layout with the visual panel on the opposite side and the logo reserved for the form.",
     layout: "split",
     previewVariant: "editorial-cover",
     bestFor: "Consumer-facing auth and branded communities",
-    flowTreatment: "Cover panel remains expressive while auth steps stay predictable.",
+    flowTreatment: "The visual panel uses the same configurable split artwork while the auth form owns the brand lockup.",
     features: ["Login", "Registration", "Social login", "Invites", "Marketing consent"],
   },
 ]
@@ -127,7 +119,7 @@ export function authUiTemplateIdFromMetadata(
   }
 
   if (fallbackLayout === "split") return "split-showcase"
-  if (fallbackLayout === "full_page") return "full-page-minimal"
+  if (fallbackLayout === "full_page") return "stepper-flow"
   return DEFAULT_AUTH_UI_TEMPLATE_ID
 }
 
@@ -139,5 +131,56 @@ export function authUiTemplateOptions() {
 }
 
 export function authUiTemplateSupportsImage(template: AuthUiTemplate): boolean {
-  return template.layout === "split"
+  return template.layout === "split" || template.previewVariant === "stepper-flow"
+}
+
+export function authUiTemplatePresentationFromMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+): AuthUiTemplatePresentation {
+  const rawLogoPlacement = metadata?.login_form_logo_placement
+  const rawVisualStyle = metadata?.split_showcase_visual_style
+  const rawSplitTitle = metadata?.split_showcase_panel_title
+  const rawSplitSubtitle = metadata?.split_showcase_panel_subtitle
+  const rawSplitImageUrl = metadata?.split_showcase_image_url
+
+  return {
+    logoPlacement: isLoginFormLogoPlacement(rawLogoPlacement)
+      ? rawLogoPlacement
+      : DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.logoPlacement,
+    splitShowcaseVisualStyle: isSplitShowcaseVisualStyle(rawVisualStyle)
+      ? rawVisualStyle
+      : DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.splitShowcaseVisualStyle,
+    splitShowcaseTitle: readString(rawSplitTitle) ?? DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.splitShowcaseTitle,
+    splitShowcaseSubtitle: readString(rawSplitSubtitle) ?? DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.splitShowcaseSubtitle,
+    splitShowcaseImageUrl: readString(rawSplitImageUrl) ?? DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.splitShowcaseImageUrl,
+  }
+}
+
+export function authUiTemplatePresentationMetadata(
+  currentMetadata: Record<string, unknown> | null | undefined,
+  presentation: AuthUiTemplatePresentation,
+): Record<string, unknown> {
+  const metadata = { ...(currentMetadata ?? {}) }
+  delete metadata.login_form_card_shadow
+
+  return {
+    ...metadata,
+    login_form_logo_placement: presentation.logoPlacement,
+    split_showcase_visual_style: presentation.splitShowcaseVisualStyle,
+    split_showcase_panel_title: presentation.splitShowcaseTitle.trim(),
+    split_showcase_panel_subtitle: presentation.splitShowcaseSubtitle.trim(),
+    split_showcase_image_url: presentation.splitShowcaseImageUrl.trim(),
+  }
+}
+
+function isLoginFormLogoPlacement(value: unknown): value is LoginFormLogoPlacement {
+  return LOGIN_FORM_LOGO_PLACEMENTS.some((option) => option.value === value)
+}
+
+function isSplitShowcaseVisualStyle(value: unknown): value is SplitShowcaseVisualStyle {
+  return SPLIT_SHOWCASE_VISUAL_STYLES.some((option) => option.value === value)
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined
 }

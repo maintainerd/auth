@@ -133,7 +133,7 @@ export function ClientApis({ clientId }: ClientApisProps) {
                 ]
 
                 return (
-                  <div key={item.client_api_id} className="rounded-lg border p-4">
+                  <div data-md-listing-item key={item.client_api_id} className="rounded-lg border p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -220,6 +220,7 @@ export function ClientApis({ clientId }: ClientApisProps) {
                               return (
                                 <div
                                   key={permission.permission_id}
+                                  data-md-listing-nested
                                   className="flex items-start justify-between gap-3 rounded-md border bg-background p-3"
                                 >
                                   <div className="min-w-0 space-y-1">

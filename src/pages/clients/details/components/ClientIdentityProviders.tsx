@@ -119,7 +119,7 @@ export function ClientIdentityProviders({ client }: ClientIdentityProvidersProps
             }
 
             return (
-              <div key={connection.client_identity_provider_id} className="rounded-lg border p-4">
+              <div data-md-listing-item key={connection.client_identity_provider_id} className="rounded-lg border p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-start gap-3">
                     <ProviderLogo provider={provider.provider} className="size-10" />

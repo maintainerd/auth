@@ -110,16 +110,17 @@ export function UserSessions({ userId }: UserSessionsProps) {
           <div className="space-y-3">
             {paginatedSessions.map((session) => (
               <div
+                data-md-listing-item
                 key={session.session_id}
                 className="flex items-start justify-between gap-3 rounded-lg border p-4"
               >
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <Monitor className="size-4" />
                   </div>
                   <div className="min-w-0 space-y-1">
                     <p className="break-words text-sm font-medium">{session.user_agent || "Unknown device"}</p>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div data-md-listing-meta className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       {session.ip_address && (
                         <span className="inline-flex items-center gap-1 font-mono">
                           <Globe className="size-3" />

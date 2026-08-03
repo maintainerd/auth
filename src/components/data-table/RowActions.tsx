@@ -74,12 +74,12 @@ export function RowActions({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           {variant === "header" ? (
-            <Button variant="outline" size="sm" className="h-9 gap-1.5">
+            <Button data-md-action-button variant="outline" size="sm" className="h-9 gap-1.5">
               Actions
               <ChevronDown className="size-4 opacity-70" />
             </Button>
           ) : (
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button data-md-icon-action-button variant="ghost" className="h-8 w-8 p-0">
               <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>

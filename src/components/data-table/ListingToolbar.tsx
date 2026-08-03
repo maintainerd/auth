@@ -84,7 +84,7 @@ export function ListingToolbar<TRow>({
         {filterGroups.length > 0 && (
           <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="relative bg-background">
+              <Button data-md-filter-button variant="outline" className="relative bg-background">
                 <Filter className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Filters</span>
                 {activeFilterCount > 0 && (

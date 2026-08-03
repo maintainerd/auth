@@ -19,6 +19,8 @@ export interface Branding {
   is_active: boolean
   layout: BrandingLayout
   company_name: string
+  logo_label: string
+  show_logo_label: boolean
   logo_url: string
   favicon_url: string
   support_url: string
@@ -34,6 +36,8 @@ export interface BrandingRequest {
   name: string
   layout: BrandingLayout
   company_name: string
+  logo_label: string
+  show_logo_label: boolean
   logo_url: string
   favicon_url: string
   support_url: string

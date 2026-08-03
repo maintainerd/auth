@@ -93,10 +93,10 @@ export function UserIdentities({ userId }: UserIdentitiesProps) {
             {data.rows.map((identity: UserIdentity) => {
               const actions = identityActions(identity)
               return (
-                <div key={identity.user_identity_id} className="rounded-lg border p-4">
+                <div data-md-listing-item key={identity.user_identity_id} className="rounded-lg border p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                         <Key className="size-4" />
                       </div>
                       <div className="min-w-0 flex-1 space-y-3">
@@ -118,7 +118,7 @@ export function UserIdentities({ userId }: UserIdentitiesProps) {
 
                         {/* Linked client */}
                         {identity.client && (
-                          <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                          <div data-md-listing-nested className="space-y-2 rounded-md border bg-muted/30 p-3">
                             <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                               <Globe className="size-3.5" />
                               Linked client
@@ -148,7 +148,7 @@ export function UserIdentities({ userId }: UserIdentitiesProps) {
                         )}
 
                         {/* Footer */}
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div data-md-listing-meta className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Calendar className="size-3" />
                           Connected {safeFormat(identity.created_at, "PPP")}
                         </div>
