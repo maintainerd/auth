@@ -32,7 +32,7 @@ export default function RegistrationConfigPage() {
   const { showSuccess, showError, parseError } = useToast()
   const backTo = `/security?tab=registration`
 
-  const { data: savedConfig, isLoading } = useRegistrationConfig()
+  const { data: savedConfig, isLoading, isError } = useRegistrationConfig()
   const updateMutation = useUpdateRegistrationConfig()
 
   const { handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting, isDirty } } = useForm<RegistrationConfigFormData>({
@@ -43,7 +43,7 @@ export default function RegistrationConfigPage() {
       require_phone_verification: false,
       auto_confirm_enabled: false,
       verification_token_ttl_hours: 24,
-      captcha_on_signup: true,
+      captcha_on_signup: false,
       registration_rate_limit_per_ip_per_hour: 10,
       allowed_email_domains: [],
       blocked_email_domains: [],
@@ -61,7 +61,7 @@ export default function RegistrationConfigPage() {
         require_phone_verification: savedConfig.require_phone_verification ?? false,
         auto_confirm_enabled: savedConfig.auto_confirm_enabled ?? false,
         verification_token_ttl_hours: savedConfig.verification_token_ttl_hours ?? 24,
-        captcha_on_signup: savedConfig.captcha_on_signup ?? true,
+        captcha_on_signup: savedConfig.captcha_on_signup ?? false,
         registration_rate_limit_per_ip_per_hour: savedConfig.registration_rate_limit_per_ip_per_hour ?? 10,
         allowed_email_domains: savedConfig.allowed_email_domains ?? [],
         blocked_email_domains: savedConfig.blocked_email_domains ?? [],
@@ -144,6 +144,24 @@ export default function RegistrationConfigPage() {
     )
   }
 
+  // A failed load must NOT fall through to the form. The form seeds itself
+  // from hardcoded defaults, so an admin who saves would overwrite the
+  // tenant's real settings with them — silent, security-relevant data loss.
+  if (isError) {
+    return (
+      <DetailsContainer>
+        <div className="flex flex-col gap-6">
+          <FormPageHeader backUrl={backTo} onBack={() => guard(() => navigate(backTo))} backLabel="Back to Registration" title="Configure Registration" description="Set registration and verification policies." />
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-destructive">
+              Failed to load registration configuration.
+            </CardContent>
+          </Card>
+        </div>
+      </DetailsContainer>
+    )
+  }
+
   return (
     <DetailsContainer>
       <div className="flex flex-col gap-6">
@@ -164,7 +182,11 @@ export default function RegistrationConfigPage() {
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <FormSwitchSubContainer label="Self Registration" description="Allow users to register themselves" checked={formValues.self_registration_enabled} onCheckedChange={(v) => handleUpdate({ self_registration_enabled: v })} disabled={isBusy} />
-                <FormSwitchSubContainer label="CAPTCHA on Signup" description="Require reCAPTCHA verification during registration" checked={formValues.captcha_on_signup} onCheckedChange={(v) => handleUpdate({ captcha_on_signup: v })} disabled={isBusy} />
+                {/* Shipping in a later release: the backend verifies a captcha token when
+                    CAPTCHA_SECRET is configured, but no widget is rendered on the hosted
+                    registration form yet, so enabling this would make signup impossible to
+                    complete. Left visible (and off) so the roadmap is discoverable. */}
+                <FormSwitchSubContainer label="CAPTCHA on Signup (Coming soon)" description="Bot protection during registration. Not yet available — the hosted signup form does not render a captcha challenge." checked={false} onCheckedChange={() => {}} disabled />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Rate Limit (per IP per hour)" type="number" value={formValues.registration_rate_limit_per_ip_per_hour.toString()} onChange={(e) => handleUpdate({ registration_rate_limit_per_ip_per_hour: parseInt(e.target.value) || 1 })} error={errors.registration_rate_limit_per_ip_per_hour?.message} disabled={isBusy} />

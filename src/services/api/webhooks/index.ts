@@ -174,6 +174,8 @@ export type DeliveryFinalStatus = 'pending' | 'success' | 'dead_letter'
 
 export interface DeliveryHistoryItem {
   delivery_history_uuid: string
+  /** The outbox event this delivery carried — the id POST /webhook-replay replays. */
+  event_id: string
   event_type: string
   attempt_count: number
   final_status: DeliveryFinalStatus
@@ -190,9 +192,12 @@ export async function fetchDeliveryHistory(webhookId: string): Promise<DeliveryH
   return response.data ?? []
 }
 
-export async function replayDelivery(deliveryHistoryUuid: string): Promise<{ message: string }> {
+// The backend replays an EVENT, not a delivery row: its replayRequestDTO reads
+// `event_id` and nothing else. This used to post `delivery_history_uuid`, which
+// left event_id empty and failed uuid.Parse("") — so every Replay click 400'd.
+export async function replayDelivery(eventId: string): Promise<{ message: string }> {
   const response = await post<ApiResponse<{ message: string }>>(API_ENDPOINTS.WEBHOOK_REPLAY, {
-    delivery_history_uuid: deliveryHistoryUuid,
+    event_id: eventId,
   })
   return response.data ?? { message: response.message ?? "Replay initiated" }
 }

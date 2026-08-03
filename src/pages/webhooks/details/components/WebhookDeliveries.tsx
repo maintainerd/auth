@@ -124,7 +124,7 @@ export function WebhookDeliveries({ webhookId }: Props) {
                   disabled={replayingId === d.delivery_history_uuid}
                   onClick={() => {
                     setReplayingId(d.delivery_history_uuid)
-                    replayMut.mutate(d.delivery_history_uuid)
+                    replayMut.mutate(d.event_id)
                   }}
                 >
                   <RotateCcw className="h-3 w-3" />

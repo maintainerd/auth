@@ -40,7 +40,7 @@ export default function SessionManagementPage() {
   const { showSuccess, showError, parseError } = useToast()
   const backTo = `/security?tab=sessions`
 
-  const { data: saved, isLoading } = useSessionSettings()
+  const { data: saved, isLoading, isError } = useSessionSettings()
   const updateMutation = useUpdateSessionSettings()
 
   const { handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting, isDirty } } = useForm<SessionSettingsFormData>({
@@ -145,6 +145,24 @@ export default function SessionManagementPage() {
                   <Skeleton key={i} className="h-10 w-full" />
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DetailsContainer>
+    )
+  }
+
+  // A failed load must NOT fall through to the form. The form seeds itself
+  // from hardcoded defaults, so an admin who saves would overwrite the
+  // tenant's real settings with them — silent, security-relevant data loss.
+  if (isError) {
+    return (
+      <DetailsContainer>
+        <div className="flex flex-col gap-6">
+          <FormPageHeader backUrl={backTo} onBack={() => guard(() => navigate(backTo))} backLabel="Back to Sessions" title="Configure Sessions" description="Set token lifetimes, timeouts, and cookie settings." />
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-destructive">
+              Failed to load session settings.
             </CardContent>
           </Card>
         </div>

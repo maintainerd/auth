@@ -128,7 +128,7 @@ function MfaStatusBanner({ onSetup }: { onSetup: () => void }) {
 
 const DashboardPage = () => {
   const navigate = useNavigate()
-  const { data: summary, isLoading } = useDashboardSummary()
+  const { data: summary, isLoading, isError } = useDashboardSummary()
 
   const to = (path: string) => navigate(`${path}`)
 
@@ -180,7 +180,12 @@ const DashboardPage = () => {
             <CardContent className="flex items-center justify-between p-5">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
-                {isLoading || stat.value === undefined ? (
+                {/* Without the isError arm these tiles spin forever on a failed fetch:
+                  retries exhaust, isLoading goes false, but summary stays
+                  undefined so stat.value never resolves. */}
+              {isError ? (
+                <span className="text-sm text-destructive">Unavailable</span>
+              ) : isLoading || stat.value === undefined ? (
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>

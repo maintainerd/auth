@@ -4,7 +4,7 @@
  */
 
 import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
-import { API_CONFIG, API_ENDPOINTS, TOKEN_DELIVERY_HEADER } from './config'
+import { API_CONFIG, API_ENDPOINTS } from './config'
 import { clearOAuthSession } from './oauth-session'
 import { requestStepUp } from './stepUp'
 
@@ -85,10 +85,9 @@ const axiosInstance = axios.create({
 // only exception is the step-up retry below, which attaches a short-lived
 // elevated (acr=2) access token returned in the step-up response body.
 
-// Endpoints where a 401 means a genuine credential failure (not an expired
-// session), so we must NOT attempt a token refresh — including the refresh
-// endpoint itself, to avoid an infinite loop.
-const NO_REFRESH_ENDPOINTS = [
+// Endpoints where a 401 is a genuine credential failure rather than an expired
+// session, so it must not trigger re-authentication.
+const NO_REAUTH_ENDPOINTS = [
   API_ENDPOINTS.AUTH.LOGIN,
   API_ENDPOINTS.AUTH.REGISTER,
   API_ENDPOINTS.AUTH.LOGOUT,
@@ -97,96 +96,84 @@ const NO_REFRESH_ENDPOINTS = [
   API_ENDPOINTS.AUTH.RESET_PASSWORD,
 ]
 
-// Single-flight refresh: concurrent 401s share one refresh request instead of
-// stampeding the refresh endpoint.
-let refreshPromise: Promise<void> | null = null
-
-function refreshSession(): Promise<void> {
-  if (!refreshPromise) {
-    // Cookie-based rotation: `withCredentials` sends the httpOnly refresh-token
-    // cookie and `X-Token-Delivery: cookie` tells the backend to rotate and
-    // Set-Cookie the fresh access/id/refresh tokens. The refresh token rides in
-    // the cookie, never in localStorage. Send `{}` (not null) so axios keeps the
-    // `Content-Type: application/json` header the backend requires on POST.
-    //
-    // TODO(auth-cookies): `/refresh-token` lives on the public API and its
-    // `__Secure-refresh_token` cookie is scoped to `/api/v1/refresh-token`. In
-    // deployments where the console reaches the public API on a different origin
-    // (or via the `/public-api` proxy prefix) the cookie path may not match this
-    // request path, so silent refresh can fail and the user is bounced back
-    // through the hosted-identity login. The console, private API, and public API
-    // must be served same-site for httpOnly cookie auth to round-trip fully.
-    refreshPromise = axios
-      .post(`${API_CONFIG.PUBLIC_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH}`, {}, {
-        headers: { ...TOKEN_DELIVERY_HEADER },
-        withCredentials: true,
-      })
-      .then(() => undefined)
-      .catch((error) => {
-        clearOAuthSession()
-        throw error
-      })
-      .finally(() => {
-        refreshPromise = null
-      })
-  }
-  return refreshPromise
-}
-
-// Routes that are allowed to see a 401 without being bounced. These are the
-// pages that exist precisely because there is no session yet — redirecting from
-// them would either be a no-op or, on the OAuth callback, abort the exchange
-// that is in the middle of establishing the session.
+// Routes that are allowed to see a 401 without being bounced. These pages exist
+// precisely because there is no session yet — reloading them would either be a
+// no-op or, on the OAuth callback, abort the very exchange that is establishing
+// the session.
 const UNAUTHENTICATED_ROUTES = ['/login', '/logout', '/auth/callback', '/setup/', '/no-access', '/service-unavailable']
 
-// Fire once. Several requests typically 401 together (a dashboard fans out), and
-// each would otherwise call location.replace and fight over the navigation.
-let sessionEnded = false
+// Survives the reload below, so a page that 401s again immediately after
+// re-authenticating falls through to the login page instead of reload-looping.
+const REAUTH_ATTEMPT_KEY = 'maintainerd.console.reauth-attempted'
 
-function endDeadSession(): void {
-  if (sessionEnded) return
+// Fire once per page. A dashboard fans out and several requests 401 together;
+// without this each would trigger its own navigation and they would race.
+let reauthStarted = false
+
+// The console deliberately holds NO refresh token.
+//
+// It is an administrative surface, so it must not carry a long-lived credential
+// — its authorize request omits `offline_access` and the token endpoint issues
+// no refresh token. Session continuity comes from the hosted-identity SSO
+// session instead: the route guard (ConsoleOAuthRedirect) re-authorizes with
+// `prompt=none` in a hidden iframe, which is silent while identity is still
+// signed in and falls back to a visible login when it is not.
+//
+// This used to POST /refresh-token on every 401. There has never been a refresh
+// cookie to send, so that call could only ever fail — a guaranteed-wasted round
+// trip before the user got bounced anyway.
+//
+// Reloading (rather than jumping straight to /login) is what makes both cases
+// behave correctly: an access token that merely expired re-authorizes silently
+// and the user notices nothing, while a session that was ended from identity in
+// this same browser fails `prompt=none` and lands on the login page — which is
+// exactly the cross-app sign-out behaviour we want.
+function reauthenticate(): void {
+  if (reauthStarted) return
   const path = window.location.pathname
   if (UNAUTHENTICATED_ROUTES.some((route) => path === route || path.startsWith(route))) return
-  sessionEnded = true
+  reauthStarted = true
   clearOAuthSession()
-  // Hard navigation, not react-router: flipping auth state while still mounted
-  // on a protected route makes the guard see "unauthenticated on a protected
-  // route" and fire the hosted-identity OAuth redirect, bouncing the user
-  // straight back in. This mirrors logoutAndRedirect, inlined because
-  // services/api/auth imports this module and importing it back would be a
-  // require cycle.
-  window.location.replace('/login')
+
+  if (window.sessionStorage.getItem(REAUTH_ATTEMPT_KEY) === path) {
+    // Already re-authenticated for this page and still unauthorized: the SSO
+    // session is gone too, so stop and let the user sign in explicitly.
+    window.sessionStorage.removeItem(REAUTH_ATTEMPT_KEY)
+    window.location.replace('/login')
+    return
+  }
+  window.sessionStorage.setItem(REAUTH_ATTEMPT_KEY, path)
+  window.location.reload()
 }
 
 type RetriableRequestConfig = InternalAxiosRequestConfig & { _retry?: boolean; _stepUpRetry?: boolean }
 
 // Response interceptor for error handling
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // A successful call means the session is healthy again, so retire the
+    // loop guard — otherwise a marker left over from an earlier re-auth would
+    // send the next unrelated 401 straight to /login instead of retrying.
+    window.sessionStorage.removeItem(REAUTH_ATTEMPT_KEY)
+    return response
+  },
   async (error: AxiosError) => {
-    // On an expired access token (401), transparently refresh once and retry the
-    // original request. Skipped for auth endpoints and already-retried requests.
+    // On a 401 the access token is gone or expired. The console has no refresh
+    // token by design, so recovery is a hosted-identity re-authorization rather
+    // than a token refresh — see reauthenticate().
     const original = error.config as RetriableRequestConfig | undefined
     const requestUrl = original?.url || ''
-    const isAuthEndpoint = NO_REFRESH_ENDPOINTS.some((endpoint) => requestUrl.includes(endpoint))
+    const isAuthEndpoint = NO_REAUTH_ENDPOINTS.some((endpoint) => requestUrl.includes(endpoint))
 
     if (error.response?.status === 401 && original && !original._retry && !isAuthEndpoint) {
       original._retry = true
-      try {
-        await refreshSession()
-        return axiosInstance(original)
-      } catch {
-        // Refresh failed: the session is gone server-side and cannot be revived.
-        //
-        // The most common way to get here is a sign-out in the OTHER surface of
-        // this same browser — console and identity share one session, so ending
-        // it from identity kills the console too. Previously nothing acted on
-        // that: the request 401'd, the refresh 401'd, and the console sat on a
-        // fully-rendered admin page showing stale data, still believing it was
-        // signed in until the user happened to reload. Now it lands on /login,
-        // which is what "logged out" is supposed to look like.
-        endDeadSession()
-      }
+      // Nothing acted on this before: the request 401'd, the (always-doomed)
+      // refresh 401'd, and the console sat on a fully-rendered admin page
+      // showing stale data, still believing it was signed in until the user
+      // happened to reload. The most common cause is a sign-out in the OTHER
+      // surface of this same browser, since console and identity share one
+      // session.
+      reauthenticate()
     }
 
     // Step-up elevation. Sensitive actions (assign role, delete user, revoke

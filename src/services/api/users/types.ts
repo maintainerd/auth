@@ -351,7 +351,8 @@ export interface UserMFAResponse {
 export interface UserMFAWebAuthnKey {
   credential_uuid: string
   name: string
-  transport?: string[]
+  /** Scalar on the wire (user.UserMFAWebAuthnKeyDTO.Transport is a string). */
+  transport?: string
   is_discoverable_credential?: boolean
   last_used_at?: string | null
   created_at: string

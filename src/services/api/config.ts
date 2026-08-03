@@ -84,6 +84,9 @@ export const API_ENDPOINTS = {
     STATUS: '/setup/status',
     CREATE_TENANT: '/setup/create_tenant',
     CREATE_ADMIN: '/setup/create_admin',
+    // Required before COMPLETE: the backend gates /setup/complete on
+    // IsProfileSetup, so skipping this leaves the tenant stuck in `pending`.
+    CREATE_PROFILE: '/setup/create_profile',
     COMPLETE: '/setup/complete',
   },
   AUTH: {

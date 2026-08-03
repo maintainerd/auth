@@ -95,7 +95,11 @@ export function UserActions({ user }: UserActionsProps) {
       icon: Edit,
       onSelect: () => navigate(`/users/${user.user_id}/edit`),
     },
-    ...STATUS_ACTIONS[user.status].map(
+    // Indexed directly, an unrecognised status (backend ships a new one before
+        // the frontend union is updated) yields undefined and .map throws — taking
+        // down the entire Users table, not just this row. Siblings like
+        // ServiceActions already use the tolerant form.
+        ...(STATUS_ACTIONS[user.status] ?? []).map(
       (action): RowActionItem => ({
         key: `status-${action.status}`,
         label: action.label,

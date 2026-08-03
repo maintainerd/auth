@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { History, Eye } from "lucide-react"
 import { InformationCard } from "@/components/card"
 import { EmptyState, ListSkeleton } from "@/components/details"
@@ -10,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { usePolicyHistory } from "@/hooks/usePolicies"
+import { fetchPolicyHistoryVersion } from "@/services/api/policies"
 import { safeFormat } from "@/lib/formatDate"
 import type { PolicyVersionHistory } from "@/services/api/policies/types"
 
@@ -21,6 +23,20 @@ export function PolicyHistoryTab({ policyId }: PolicyHistoryTabProps) {
   const { data, isLoading, isError } = usePolicyHistory(policyId)
   const [selected, setSelected] = useState<PolicyVersionHistory | null>(null)
   const versions = data?.rows ?? []
+
+  // The list endpoint returns metadata only — no `document`. This dialog used to
+  // render the row straight from the list, so it always printed the string
+  // "undefined" instead of the policy. The document lives on the per-version
+  // endpoint, which existed but was never called.
+  const {
+    data: version,
+    isLoading: isVersionLoading,
+    isError: isVersionError,
+  } = useQuery({
+    queryKey: ["policies", policyId, "history", selected?.version_number],
+    queryFn: () => fetchPolicyHistoryVersion(policyId, selected!.version_number),
+    enabled: !!selected,
+  })
 
   return (
     <>
@@ -80,9 +96,15 @@ export function PolicyHistoryTab({ policyId }: PolicyHistoryTabProps) {
           <DialogHeader>
             <DialogTitle>Version {selected?.version_number}</DialogTitle>
           </DialogHeader>
-          {selected && (
+          {isVersionLoading && (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading version…</p>
+          )}
+          {isVersionError && (
+            <p className="py-6 text-center text-sm text-destructive">Failed to load this version.</p>
+          )}
+          {version && (
             <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs">
-              {JSON.stringify(selected.document, null, 2)}
+              {JSON.stringify(version.document, null, 2)}
             </pre>
           )}
         </DialogContent>

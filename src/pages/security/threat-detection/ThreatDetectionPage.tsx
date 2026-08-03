@@ -35,7 +35,7 @@ export default function ThreatDetectionPage() {
   const { showSuccess, showError, parseError } = useToast()
   const backTo = `/security?tab=threat`
 
-  const { data: savedSettings, isLoading } = useThreatDetectionSettings()
+  const { data: savedSettings, isLoading, isError } = useThreatDetectionSettings()
   const updateMutation = useUpdateThreatDetectionSettings()
 
   const { handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting, isDirty } } = useForm<ThreatDetectionSettingsFormData>({
@@ -143,6 +143,24 @@ export default function ThreatDetectionPage() {
                   <Skeleton key={i} className="h-10 w-full" />
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DetailsContainer>
+    )
+  }
+
+  // A failed load must NOT fall through to the form. The form seeds itself
+  // from hardcoded defaults, so an admin who saves would overwrite the
+  // tenant's real settings with them — silent, security-relevant data loss.
+  if (isError) {
+    return (
+      <DetailsContainer>
+        <div className="flex flex-col gap-6">
+          <FormPageHeader backUrl={backTo} onBack={() => guard(() => navigate(backTo))} backLabel="Back to Threat Protection" title="Configure Threat Protection" description="Set threat detection and risk policies." />
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-destructive">
+              Failed to load threat detection settings.
             </CardContent>
           </Card>
         </div>

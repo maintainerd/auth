@@ -9,6 +9,8 @@ import type {
   CreateTenantResponse,
   CreateAdminRequest,
   CreateAdminResponse,
+  SetupCreateProfileRequest,
+  CreateProfileResponse,
   SetupStatusResponse,
   CompleteSetupResponse,
 } from './types'
@@ -19,6 +21,10 @@ export async function createTenant(data: CreateTenantRequest): Promise<CreateTen
 
 export async function createAdmin(data: CreateAdminRequest): Promise<CreateAdminResponse> {
   return post<CreateAdminResponse>(API_ENDPOINTS.SETUP.CREATE_ADMIN, data)
+}
+
+export async function createProfile(data: SetupCreateProfileRequest): Promise<CreateProfileResponse> {
+  return post<CreateProfileResponse>(API_ENDPOINTS.SETUP.CREATE_PROFILE, data)
 }
 
 export async function getSetupStatus(): Promise<SetupStatusResponse> {

@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { FieldGroup } from "@/components/ui/field"
-import { FormPasswordField, FormSubmitButton } from "@/components/form"
+import { FormInputField, FormPasswordField, FormSubmitButton } from "@/components/form"
 import { FormEmailField } from "@/components/inputs"
 import { setupAdminSchema, type SetupAdminFormData } from "@/lib/validations"
 import { useSetupAdmin } from "@/hooks/useSetup"
@@ -17,6 +17,7 @@ const SetupAdminForm = () => {
     resolver: yupResolver(setupAdminSchema),
     mode: 'onChange',
     defaultValues: {
+      fullName: "",
       email: "",
       password: "",
       confirmPassword: ""
@@ -25,6 +26,7 @@ const SetupAdminForm = () => {
 
   const onSubmit = async (data: SetupAdminFormData) => {
     await createAdminAccount({
+      fullName: data.fullName,
       email: data.email,
       password: data.password
     })
@@ -41,6 +43,14 @@ const SetupAdminForm = () => {
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <FieldGroup>
+          <FormInputField
+            label="Full name"
+            placeholder="Ada Lovelace"
+            disabled={isLoading}
+            error={errors.fullName?.message}
+            required
+            {...register("fullName")}
+          />
           <FormEmailField
             label="Email"
             placeholder="admin@acme.com"

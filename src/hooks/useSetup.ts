@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/useToast'
 import {
   createTenantWithDefaults,
   createAdmin,
+  createProfile,
   completeSetup,
   getSetupStatus,
 } from '@/services'
@@ -16,24 +17,31 @@ import type { CreateAdminRequest, SetupStatusData } from '@/services/api/setup/t
 export function useSetupStatus() {
   const [status, setStatus] = useState<SetupStatusData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  // Failures were swallowed into a null status, and the setup pages render
+  // nothing while status is null — so a backend blip during first-run left the
+  // user on a permanently blank white screen with no message and no retry.
+  const [isError, setIsError] = useState(false)
 
   const checkStatus = useCallback(async () => {
     setIsLoading(true)
+    setIsError(false)
     try {
       const response = await getSetupStatus()
       if (response.success && response.data) {
         setStatus(response.data)
         return response.data
       }
+      setIsError(true)
       return null
     } catch {
+      setIsError(true)
       return null
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  return { status, isLoading, checkStatus }
+  return { status, isLoading, isError, checkStatus }
 }
 
 export function useSetupTenant() {
@@ -71,26 +79,50 @@ export function useSetupAdmin() {
   const { showError, showSuccess } = useToast()
   const [isLoading, setIsLoading] = useState(false)
 
+  // Setup is a THREE-step server-side sequence, not two: create_admin,
+  // create_profile, then complete. Only complete flips the tenant from
+  // `pending` to `active`, and AuthEndpointTenantStatusMiddleware rejects every
+  // login against a non-active tenant with 403 "tenant_unavailable".
+  //
+  // This used to stop after create_admin and navigate away, so running the
+  // wizard to the end produced a tenant nobody could ever sign in to — the
+  // button says "Complete setup" and it genuinely did not. /setup/complete
+  // additionally refuses to run unless IsProfileSetup is true, which is why the
+  // profile step is mandatory rather than cosmetic.
   const createAdminAccount = useCallback(
-    async (data: { email: string; password: string }) => {
+    async (data: { fullName: string; email: string; password: string }) => {
       setIsLoading(true)
       try {
+        const fullName = data.fullName.trim()
         const adminData: CreateAdminRequest = {
           username: data.email,
-          fullname: data.email.split('@')[0],
+          fullname: fullName,
           password: data.password,
           email: data.email,
         }
         await createAdmin(adminData)
-        showSuccess('Admin account created successfully!')
+
+        // Split on the first space: everything after it is the surname. The
+        // backend only requires first_name, so a mononym is fine.
+        const [firstName, ...rest] = fullName.split(/\s+/)
+        const lastName = rest.join(' ')
+        await createProfile({
+          first_name: firstName,
+          ...(lastName ? { last_name: lastName } : {}),
+          email: data.email,
+        })
+
+        await completeSetup()
+
+        showSuccess('Setup completed successfully!')
         navigate('/')
         return { success: true }
       } catch (error: unknown) {
         if (error instanceof Error) {
-          showError(error, 'Failed to create admin account')
+          showError(error, 'Failed to complete setup')
           return { success: false, message: error.message }
         }
-        showError('Unknown error', 'Failed to create admin account')
+        showError('Unknown error', 'Failed to complete setup')
         return { success: false, message: 'Unknown error' }
       } finally {
         setIsLoading(false)

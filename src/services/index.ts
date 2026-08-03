@@ -45,6 +45,7 @@ export type * from './api/clients/types'
 export {
   createTenant,
   createAdmin,
+  createProfile,
   getSetupStatus,
   completeSetup,
   getDefaultTenantMetadata,

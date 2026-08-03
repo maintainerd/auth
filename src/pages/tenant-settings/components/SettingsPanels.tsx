@@ -26,6 +26,17 @@ const LOG_LEVELS = [
   { value: "critical", label: "Critical" },
 ]
 
+// A failed config load must never fall through to the form: it seeds from
+// hardcoded schema defaults, so saving would overwrite the tenant's real
+// settings with them — silent data loss on security-relevant controls.
+function FailedSettings({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-[320px] flex-col items-center justify-center gap-4">
+      <p className="text-sm text-destructive">{label}</p>
+    </div>
+  )
+}
+
 function LoadingSettings({ label }: { label: string }) {
   return (
     <div className="flex min-h-[320px] flex-col items-center justify-center gap-4">
@@ -36,7 +47,7 @@ function LoadingSettings({ label }: { label: string }) {
 
 export function RateLimitSettingsPanel() {
   const { showSuccess, showError } = useToast()
-  const { data: savedConfig, isLoading } = useRateLimitConfig()
+  const { data: savedConfig, isLoading, isError } = useRateLimitConfig()
   const updateMutation = useUpdateRateLimitConfig()
 
   const { handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<RateLimitConfigFormData>({
@@ -75,6 +86,7 @@ export function RateLimitSettingsPanel() {
   }
 
   if (isLoading) return <LoadingSettings label="Loading rate limit configuration..." />
+  if (isError) return <FailedSettings label="Failed to load rate limit configuration." />
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6">
@@ -135,7 +147,7 @@ export function RateLimitSettingsPanel() {
 
 export function AuditSettingsPanel() {
   const { showSuccess, showError } = useToast()
-  const { data: savedConfig, isLoading } = useAuditConfig()
+  const { data: savedConfig, isLoading, isError } = useAuditConfig()
   const updateMutation = useUpdateAuditConfig()
 
   const { handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<AuditConfigFormData>({
@@ -173,6 +185,7 @@ export function AuditSettingsPanel() {
   }
 
   if (isLoading) return <LoadingSettings label="Loading audit configuration..." />
+  if (isError) return <FailedSettings label="Failed to load audit configuration." />
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6">
@@ -224,7 +237,7 @@ export function AuditSettingsPanel() {
 
 export function MaintenanceSettingsPanel() {
   const { showSuccess, showError } = useToast()
-  const { data: savedConfig, isLoading } = useMaintenanceConfig()
+  const { data: savedConfig, isLoading, isError } = useMaintenanceConfig()
   const updateMutation = useUpdateMaintenanceConfig()
 
   const { handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<MaintenanceConfigFormData>({
@@ -262,6 +275,7 @@ export function MaintenanceSettingsPanel() {
   }
 
   if (isLoading) return <LoadingSettings label="Loading maintenance configuration..." />
+  if (isError) return <FailedSettings label="Failed to load maintenance configuration." />
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6">

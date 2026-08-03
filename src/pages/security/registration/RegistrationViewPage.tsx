@@ -88,7 +88,7 @@ export default function RegistrationViewPage({ standalone = true }: { standalone
             <SectionLabel>Registration Settings</SectionLabel>
             <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
               <Attr icon={data.self_registration_enabled ? Check : X} label="Self Registration" value={data.self_registration_enabled ? "Enabled" : "Disabled"} />
-              <Attr icon={data.captcha_on_signup ? Check : X} label="CAPTCHA" value={data.captcha_on_signup ? "Required" : "Disabled"} />
+              <Attr icon={X} label="CAPTCHA" value="Coming soon" />
               <Attr icon={Hash} label="Rate Limit" value={`${data.registration_rate_limit_per_ip_per_hour} per IP per hour`} />
             </div>
 
