@@ -9,6 +9,7 @@ import { useMutation } from '@tanstack/react-query'
 import { logout } from '@/services/api/auth'
 import { useTenant } from '@/hooks/useTenant'
 import MaintainedAuthIcon from '@/components/icon/MaintainedAuthIcon'
+import { resolveBrandingLogoUrl } from '@/utils/branding'
 
 const navItems = [
   { href: '/account/profile', label: 'Profile', icon: User },
@@ -40,7 +41,7 @@ export default function AccountLayout({
   const companyName = currentTenant?.branding?.company_name || 'Maintainerd-Auth'
   const logoLabel = currentTenant?.branding?.logo_label || companyName
   const showLogoLabel = currentTenant?.branding?.show_logo_label ?? true
-  const logoUrl = currentTenant?.branding?.logo_url
+  const logoUrl = resolveBrandingLogoUrl(currentTenant?.branding?.logo_url)
 
   return (
     <div data-auth-identity-account-shell className="auth-account-shell min-h-screen">

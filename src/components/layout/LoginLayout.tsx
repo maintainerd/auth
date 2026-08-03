@@ -11,6 +11,7 @@ import {
   type SplitVisualStyle,
 } from '@/lib/branding/authUiTemplates'
 import type { BrandingLayout, BrandingPublic } from '@/services/api/tenants/types'
+import { resolveBrandingLogoUrl } from '@/utils/branding'
 import MaintainedAuthIcon from '../icon/MaintainedAuthIcon'
 
 type Props = {
@@ -457,7 +458,7 @@ const LoginLayout = ({ children, branding }: Props) => {
   const companyName = resolvedBranding?.company_name || 'Maintainerd-Auth'
   const logoLabel = resolvedBranding?.logo_label || companyName
   const showLogoLabel = resolvedBranding?.show_logo_label ?? true
-  const logoUrl = resolvedBranding?.logo_url
+  const logoUrl = resolveBrandingLogoUrl(resolvedBranding?.logo_url) ?? undefined
   const layout = resolvedLayout(resolvedBranding?.layout)
   const templateId = authUiTemplateIdFromMetadata(resolvedBranding?.metadata, layout)
   const presentation = authUiTemplatePresentationFromMetadata(resolvedBranding?.metadata)

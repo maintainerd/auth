@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react'
 import { useTenant } from '@/hooks/useTenant'
 import type { BrandingPublic } from '@/services/api/tenants/types'
+import { resolveBrandingLogoUrl } from '@/utils/branding'
 import MaintainedAuthIcon from '../icon/MaintainedAuthIcon'
 
 type Props = {
@@ -18,7 +19,7 @@ const AppLoadingScreen = ({ branding }: Props) => {
   const companyName = resolvedBranding?.company_name || 'Maintainerd-Auth'
   const logoLabel = resolvedBranding?.logo_label || companyName
   const showLogoLabel = resolvedBranding?.show_logo_label ?? true
-  const logoUrl = resolvedBranding?.logo_url
+  const logoUrl = resolveBrandingLogoUrl(resolvedBranding?.logo_url)
 
   return (
     <div

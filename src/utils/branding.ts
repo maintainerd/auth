@@ -4,6 +4,7 @@ import type {
   BrandingMetadata,
   BrandingPublic,
 } from '@/services/api/tenants/types'
+import { API_CONFIG } from '@/services/api/config'
 
 type PreviousProperty = {
   value: string
@@ -29,6 +30,21 @@ type NormalizedBranding = {
 }
 
 const MANAGED_PREFIXES = ['--branding-', '--auth-', '--md-']
+
+/**
+ * Resolves backend-relative branding logo paths to public API URLs.
+ * Admin-uploaded logos are returned as `/public/branding/...`; direct URLs
+ * remain untouched.
+ */
+export function resolveBrandingLogoUrl(logoUrl: string | null | undefined): string | null {
+  if (!logoUrl) return null
+  if (!logoUrl.startsWith('/public/branding/')) return logoUrl
+
+  if (API_CONFIG.BASE_URL.startsWith('/')) return logoUrl
+
+  const origin = API_CONFIG.BASE_URL.replace('/api/v1', '').replace('/public-api/api/v1', '')
+  return `${origin}${logoUrl}`
+}
 
 const ROOT_THEME_PROPERTIES = [
   '--primary',

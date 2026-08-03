@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { applyBranding, getBrandingBackground } from './branding'
+import { applyBranding, getBrandingBackground, resolveBrandingLogoUrl } from './branding'
 
 afterEach(() => {
   document.documentElement.removeAttribute('style')
@@ -168,5 +168,21 @@ describe('getBrandingBackground', () => {
     })).toBe('#abcdef')
 
     expect(getBrandingBackground({ colors: { appBackground: '#f8fafc' } })).toBe('#f8fafc')
+  })
+})
+
+describe('resolveBrandingLogoUrl', () => {
+  it('keeps direct logo URLs unchanged', () => {
+    expect(resolveBrandingLogoUrl('https://example.com/logo.png')).toBe('https://example.com/logo.png')
+  })
+
+  it('keeps uploaded logo paths relative in the Vite proxy', () => {
+    expect(resolveBrandingLogoUrl('/public/branding/acme/logo')).toBe('/public/branding/acme/logo')
+  })
+
+  it('returns null when no logo is configured', () => {
+    expect(resolveBrandingLogoUrl('')).toBeNull()
+    expect(resolveBrandingLogoUrl(null)).toBeNull()
+    expect(resolveBrandingLogoUrl(undefined)).toBeNull()
   })
 })
