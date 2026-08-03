@@ -24,6 +24,7 @@ type BrandMarkProps = {
   logoLabel: string
   showLogoLabel: boolean
   logoUrl?: string
+  logoDetail: string
   panel?: boolean
 }
 
@@ -39,6 +40,7 @@ type LayoutProps = {
   logoLabel: string
   showLogoLabel: boolean
   logoUrl?: string
+  logoDetail: string
   legalLinks: FooterProps['legalLinks']
   presentation: AuthTemplatePresentation
 }
@@ -47,16 +49,16 @@ function resolvedLayout(layout: BrandingPublic['layout'] | undefined): BrandingL
   return layout === 'full_page' || layout === 'split' ? layout : 'centered'
 }
 
-function BrandMark({ companyName, logoLabel, showLogoLabel, logoUrl, panel = false }: BrandMarkProps) {
+function BrandMark({ companyName, logoLabel, showLogoLabel, logoUrl, logoDetail, panel = false }: BrandMarkProps) {
   return (
     <BrandLockup
       companyName={companyName}
       logoLabel={logoLabel}
       showLogoLabel={showLogoLabel}
       logoUrl={logoUrl}
+      logoDetail={logoDetail}
       panel={panel}
       centered
-      showSubtitle
     />
   )
 }
@@ -67,6 +69,7 @@ function LoginFormPanel({
   logoLabel,
   showLogoLabel,
   logoUrl,
+  logoDetail,
   logoPlacement = 'above-form',
   embedded = false,
 }: {
@@ -75,13 +78,20 @@ function LoginFormPanel({
   logoLabel: string
   showLogoLabel: boolean
   logoUrl?: string
+  logoDetail: string
   logoPlacement?: LogoPlacement | 'none'
   embedded?: boolean
 }) {
   const showLogo = logoPlacement !== 'none'
   const logo = showLogo ? (
     <div className={logoPlacement === 'inside-form' ? 'mb-7' : 'mb-8'}>
-      <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} />
+      <BrandMark
+        companyName={companyName}
+        logoLabel={logoLabel}
+        showLogoLabel={showLogoLabel}
+        logoUrl={logoUrl}
+        logoDetail={logoDetail}
+      />
     </div>
   ) : null
 
@@ -113,24 +123,54 @@ function LoginFormPanel({
 function SplitVisualDesign({ visualStyle, imageUrl }: { visualStyle: SplitVisualStyle; imageUrl: string }) {
   const image = safeAuthTemplateImageUrl(imageUrl)
 
-  if (visualStyle === 'image' && image) {
+  if (visualStyle === 'image') {
     return (
       <>
-        <img src={image} alt="" className="pointer-events-none absolute inset-0 size-full object-cover" />
+        {image ? (
+          <img src={image} alt="" className="pointer-events-none absolute inset-0 size-full object-cover" />
+        ) : (
+          <div className="auth-split-image-fallback pointer-events-none absolute inset-0" />
+        )}
         <div className="auth-split-visual-overlay pointer-events-none absolute inset-0" />
       </>
     )
   }
 
   if (visualStyle === 'identity-mesh') {
+    const lines = [
+      ['left-[12%] top-[18%] h-px w-[72%] rotate-[17deg]', 'high'],
+      ['left-[13%] top-[56%] h-px w-[68%] -rotate-[13deg]', 'medium'],
+      ['left-[34%] top-[80%] h-px w-[48%] -rotate-[34deg]', 'low'],
+      ['left-[48%] top-[16%] h-[70%] w-px rotate-[12deg]', 'low'],
+    ] as const
+    const nodes = [
+      ['12%', '18%', '26px'],
+      ['36%', '12%', '18px'],
+      ['64%', '20%', '34px'],
+      ['84%', '42%', '22px'],
+      ['66%', '72%', '26px'],
+      ['34%', '80%', '20px'],
+      ['14%', '56%', '32px'],
+      ['48%', '48%', '46px'],
+    ] as const
+
     return (
       <>
-        <div className="auth-split-mesh pointer-events-none absolute inset-0" />
-        {[['12%', '18%'], ['36%', '12%'], ['64%', '20%'], ['84%', '42%'], ['66%', '72%'], ['34%', '80%'], ['14%', '56%'], ['48%', '48%']].map(([left, top], index) => (
+        <div className="auth-split-mesh-bg pointer-events-none absolute inset-0" />
+        <div className="auth-split-mesh-grid pointer-events-none absolute inset-0 opacity-30" />
+        {lines.map(([lineClassName, tone]) => (
+          <span
+            key={lineClassName}
+            className={`auth-split-link pointer-events-none absolute ${lineClassName}`}
+            data-tone={tone}
+          />
+        ))}
+        {nodes.map(([left, top, size], index) => (
           <span
             key={`${left}-${top}`}
             className="auth-split-node pointer-events-none absolute rounded-full border"
-            style={{ left, top, width: index === 7 ? '46px' : '24px', height: index === 7 ? '46px' : '24px' }}
+            data-tone={index % 2 === 0 ? 'light' : 'dark'}
+            style={{ left, top, width: size, height: size }}
           />
         ))}
       </>
@@ -145,6 +185,8 @@ function SplitVisualDesign({ visualStyle, imageUrl }: { visualStyle: SplitVisual
           <span
             key={item}
             className="auth-split-tile pointer-events-none absolute rounded-md border"
+            data-featured={item === 1 ? true : undefined}
+            data-tone={item === 1 ? 'light' : 'text'}
             style={{
               left: `${14 + (item % 3) * 22}%`,
               top: `${18 + Math.floor(item / 3) * 28}%`,
@@ -157,35 +199,149 @@ function SplitVisualDesign({ visualStyle, imageUrl }: { visualStyle: SplitVisual
     )
   }
 
-  if (visualStyle === 'security-radar' || visualStyle === 'session-orbit') {
+  if (visualStyle === 'security-radar') {
+    const dots = [
+      ['24%', '28%', 'light', '16px'],
+      ['72%', '22%', 'dark', '10px'],
+      ['80%', '60%', 'text', '12px'],
+      ['44%', '70%', 'light', '9px'],
+      ['18%', '58%', 'text', '7px'],
+    ] as const
+
     return (
       <>
+        <div className="auth-split-radar-field pointer-events-none absolute inset-0" />
         <div className="auth-split-radar pointer-events-none absolute left-1/2 top-1/2 size-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full" />
         <span className="auth-split-axis pointer-events-none absolute left-0 top-1/2 h-px w-full" />
         <span className="auth-split-axis pointer-events-none absolute left-1/2 top-0 h-full w-px" />
+        {dots.map(([left, top, tone, size]) => (
+          <span
+            key={`${left}-${top}`}
+            className="auth-split-radar-dot pointer-events-none absolute rounded-full"
+            data-tone={tone}
+            style={{ left, top, width: size, height: size }}
+          />
+        ))}
+        <div className="auth-split-radar-card pointer-events-none absolute bottom-[14%] left-[12%] right-[12%] rounded-md border p-3">
+          <div className="grid grid-cols-4 gap-2">
+            {[0, 1, 2, 3].map((item) => (
+              <span key={item} className="h-9 rounded-sm border" data-featured={item === 2 ? true : undefined} />
+            ))}
+          </div>
+        </div>
       </>
     )
   }
 
-  if (visualStyle === 'trust-circuit' || visualStyle === 'audit-trail') {
+  if (visualStyle === 'trust-circuit') {
     return (
       <>
         <div className="auth-split-circuit pointer-events-none absolute inset-0" />
         {[14, 26, 38, 50, 62, 74].map((top, index) => (
-          <span
+          <div
             key={top}
-            className="auth-split-trace pointer-events-none absolute h-px"
-            style={{ left: index % 2 === 0 ? '10%' : '22%', right: index % 2 === 0 ? '18%' : '8%', top: `${top}%` }}
+            className="auth-split-trace-row pointer-events-none absolute"
+            style={{
+              left: index % 2 === 0 ? '10%' : '22%',
+              right: index % 2 === 0 ? '18%' : '8%',
+              top: `${top}%`,
+            }}
+          >
+            <span className="absolute left-0 right-0 top-1/2 h-px" data-index={index} />
+            <span
+              className="absolute left-0 top-1/2 size-4 -translate-y-1/2 rounded-sm border"
+              data-tone={index % 2 === 0 ? 'light' : 'dark'}
+            />
+            <span
+              className="absolute right-0 top-1/2 size-4 -translate-y-1/2 rounded-sm border"
+              data-tone={index % 2 === 0 ? 'dark' : 'light'}
+            />
+          </div>
+        ))}
+        {[0, 1, 2, 3].map((item) => (
+          <span
+            key={item}
+            className="auth-split-circuit-card pointer-events-none absolute rounded-md border"
+            data-tone={item % 2 === 0 ? 'light' : 'dark'}
+            style={{
+              left: `${18 + item * 17}%`,
+              top: `${20 + (item % 2) * 42}%`,
+              width: '76px',
+              height: '44px',
+            }}
           />
         ))}
       </>
     )
   }
 
+  if (visualStyle === 'audit-trail') {
+    return (
+      <>
+        <div className="auth-split-audit-field pointer-events-none absolute inset-0" />
+        <span className="auth-split-timeline pointer-events-none absolute bottom-[10%] left-[22%] top-[12%] w-px" data-tone="strong" />
+        <span className="auth-split-timeline pointer-events-none absolute bottom-[16%] right-[18%] top-[18%] w-px" />
+        {[0, 1, 2, 3, 4].map((item) => (
+          <div
+            key={item}
+            className="auth-split-audit-card pointer-events-none absolute rounded-md border p-3"
+            data-tone={item % 2 === 0 ? 'light' : 'dark'}
+            style={{
+              left: item % 2 === 0 ? '26%' : '44%',
+              right: item % 2 === 0 ? '16%' : '8%',
+              top: `${13 + item * 15}%`,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="size-5 rounded-full border" />
+              <span className="h-2 flex-1 rounded-full" />
+              <span className="h-2 w-14 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </>
+    )
+  }
+
+  if (visualStyle === 'session-orbit') {
+    const tiles = [
+      ['18%', '20%', '52px', '34px', 'dark'],
+      ['72%', '18%', '34px', '56px', 'light'],
+      ['78%', '66%', '54px', '34px', 'dark'],
+      ['18%', '68%', '58px', '34px', 'light'],
+      ['50%', '10%', '42px', '30px', 'text'],
+      ['46%', '80%', '42px', '30px', 'text'],
+    ] as const
+
+    return (
+      <>
+        <div className="auth-split-orbit-field pointer-events-none absolute inset-0" />
+        <div className="auth-split-orbit-core pointer-events-none absolute left-1/2 top-1/2 w-36 -translate-x-1/2 -translate-y-1/2 rounded-md border p-3">
+          <div className="mb-3 h-2 w-20 rounded-full" />
+          <div className="space-y-1.5">
+            <span className="block h-1.5 w-full rounded-full" />
+            <span className="block h-1.5 w-2/3 rounded-full" />
+          </div>
+        </div>
+        {tiles.map(([left, top, width, height, tone]) => (
+          <span
+            key={`${left}-${top}`}
+            className="auth-split-orbit-tile pointer-events-none absolute rounded-md border"
+            data-tone={tone}
+            style={{ left, top, width, height }}
+          />
+        ))}
+        <span className="auth-split-orbit-line pointer-events-none absolute left-[22%] top-[29%] h-px w-[56%] rotate-[14deg]" data-tone="strong" />
+        <span className="auth-split-orbit-line pointer-events-none absolute left-[22%] top-[70%] h-px w-[56%] -rotate-[12deg]" />
+      </>
+    )
+  }
+
   return (
     <>
-      <div className="auth-split-decoration-light pointer-events-none absolute -right-24 -top-24 size-80 rounded-full opacity-10" />
-      <div className="auth-split-decoration-dark pointer-events-none absolute -bottom-40 -left-20 size-96 rounded-full opacity-10" />
+      <span className="auth-split-decoration-light pointer-events-none absolute -right-24 -top-24 size-80 rounded-full opacity-15" />
+      <span className="auth-split-decoration-dark pointer-events-none absolute -bottom-40 -left-20 size-96 rounded-full opacity-15" />
+      <div className="auth-split-visual-overlay pointer-events-none absolute inset-0 opacity-25" />
     </>
   )
 }
@@ -199,7 +355,7 @@ function VisualPanel({
   presentation,
   showBrand,
   visibleFrom = 'lg',
-}: Omit<LayoutProps, 'children'> & { showBrand: boolean; visibleFrom?: 'md' | 'lg' }) {
+}: Omit<LayoutProps, 'children' | 'logoDetail'> & { showBrand: boolean; visibleFrom?: 'md' | 'lg' }) {
   return (
     <section
       data-testid="split-brand-panel"
@@ -211,7 +367,14 @@ function VisualPanel({
       />
       {showBrand ? (
         <div className="relative">
-          <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} panel />
+          <BrandMark
+            companyName={companyName}
+            logoLabel={logoLabel}
+            showLogoLabel={showLogoLabel}
+            logoUrl={logoUrl}
+            logoDetail={presentation.logoDetail}
+            panel
+          />
         </div>
       ) : (
         <div className="relative" />
@@ -280,6 +443,7 @@ function CenteredLayout({
           logoLabel={logoLabel}
           showLogoLabel={showLogoLabel}
           logoUrl={logoUrl}
+          logoDetail={presentation.logoDetail}
           logoPlacement={logoPlacement}
         >
           {children}
@@ -306,20 +470,21 @@ function FullPageLayout({
       data-auth-identity-shell
       data-auth-ui-template="stepper-flow"
       data-layout="full_page"
-      className="relative flex min-h-svh items-center justify-center overflow-hidden p-4 sm:p-6 lg:p-10"
+      className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden p-6 md:p-10"
     >
       <div className="auth-page-background pointer-events-none absolute inset-0" />
       <div
         data-auth-identity-card
-        className="auth-full-page-panel relative z-10 grid min-h-[calc(100svh-2rem)] w-full max-w-sm overflow-hidden rounded-xl border shadow-2xl md:min-h-[440px] md:max-w-4xl md:grid-cols-2 sm:min-h-[calc(100svh-3rem)] lg:min-h-[520px]"
+        className="auth-full-page-panel relative z-10 grid w-full max-w-sm items-stretch overflow-hidden rounded-md border md:min-h-[440px] md:max-w-4xl md:grid-cols-2"
       >
-        <section className="flex min-h-[440px] items-center justify-center px-6 py-10 md:px-8">
+        <section className="flex min-h-[440px] items-center justify-center p-6 md:p-8">
           <div className="w-full max-w-md">
             <LoginFormPanel
               companyName={companyName}
               logoLabel={logoLabel}
               showLogoLabel={showLogoLabel}
               logoUrl={logoUrl}
+              logoDetail={presentation.logoDetail}
               logoPlacement="inside-form"
               embedded
             >
@@ -356,7 +521,7 @@ function SplitShowcaseLayout({
       data-auth-identity-shell
       data-auth-ui-template="split-showcase"
       data-layout="split"
-      className="auth-form-panel grid min-h-svh lg:grid-cols-[minmax(0,1.1fr)_minmax(30rem,0.9fr)]"
+      className="auth-form-panel grid min-h-svh lg:grid-cols-[0.95fr_1.05fr]"
     >
       <VisualPanel
         companyName={companyName}
@@ -370,17 +535,24 @@ function SplitShowcaseLayout({
 
       <section
         data-auth-identity-card
-        className="auth-form-panel flex min-h-svh items-center justify-center px-6 py-12 sm:px-10 lg:px-14"
+        className="auth-form-panel flex min-h-svh items-center justify-center p-6"
       >
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
-            <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} />
+            <BrandMark
+              companyName={companyName}
+              logoLabel={logoLabel}
+              showLogoLabel={showLogoLabel}
+              logoUrl={logoUrl}
+              logoDetail={presentation.logoDetail}
+            />
           </div>
           <LoginFormPanel
             companyName={companyName}
             logoLabel={logoLabel}
             showLogoLabel={showLogoLabel}
             logoUrl={logoUrl}
+            logoDetail={presentation.logoDetail}
             logoPlacement="none"
           >
             {children}
@@ -408,21 +580,28 @@ function EditorialCoverLayout({
       data-auth-identity-shell
       data-auth-ui-template="editorial-cover"
       data-layout="split"
-      className="auth-form-panel grid min-h-svh lg:grid-cols-[minmax(30rem,0.9fr)_minmax(0,1.1fr)]"
+      className="auth-form-panel grid min-h-svh lg:grid-cols-[1.05fr_0.95fr]"
     >
       <section
         data-auth-identity-card
-        className="auth-form-panel flex min-h-svh flex-col px-6 py-8 sm:px-10 lg:px-14"
+        className="auth-form-panel flex min-h-svh flex-col p-6"
       >
         <div className="shrink-0">
-          <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} />
+          <BrandMark
+            companyName={companyName}
+            logoLabel={logoLabel}
+            showLogoLabel={showLogoLabel}
+            logoUrl={logoUrl}
+            logoDetail={presentation.logoDetail}
+          />
         </div>
-        <div className="flex flex-1 items-center justify-center py-8">
+        <div className="flex flex-1 items-center justify-center py-6">
           <LoginFormPanel
             companyName={companyName}
             logoLabel={logoLabel}
             showLogoLabel={showLogoLabel}
             logoUrl={logoUrl}
+            logoDetail={presentation.logoDetail}
             logoPlacement="none"
           >
             {children}
@@ -448,7 +627,7 @@ function EditorialCoverLayout({
 const LoginLayout = ({ children, branding }: Props) => {
   const { currentTenant } = useTenant()
   const resolvedBranding = branding === undefined ? currentTenant?.branding : branding
-  const companyName = resolvedBranding?.company_name || 'Maintainerd-Auth'
+  const companyName = resolvedBranding?.company_name || 'Maintainerd'
   const logoLabel = resolvedBranding?.logo_label || companyName
   const showLogoLabel = resolvedBranding?.show_logo_label ?? true
   const logoUrl = resolveBrandingLogoUrl(resolvedBranding?.logo_url) ?? undefined
@@ -468,7 +647,7 @@ const LoginLayout = ({ children, branding }: Props) => {
     }
   }, [resolvedBranding?.favicon_url])
 
-  const layoutProps = { children, companyName, logoLabel, showLogoLabel, logoUrl, legalLinks, presentation }
+  const layoutProps = { children, companyName, logoLabel, showLogoLabel, logoUrl, logoDetail: presentation.logoDetail, legalLinks, presentation }
   if (templateId === 'stepper-flow') return <FullPageLayout {...layoutProps} />
   if (templateId === 'editorial-cover') return <EditorialCoverLayout {...layoutProps} />
   if (templateId === 'split-showcase') return <SplitShowcaseLayout {...layoutProps} />

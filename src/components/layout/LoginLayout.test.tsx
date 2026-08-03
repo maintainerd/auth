@@ -44,7 +44,7 @@ describe('LoginLayout', () => {
 
   it('renders the template brand lockup as logo beside logo label', () => {
     render(
-      <LoginLayout branding={branding}>
+      <LoginLayout branding={{ ...branding, metadata: { login_form_logo_detail: 'Identity access' } }}>
         <span>Authentication form</span>
       </LoginLayout>,
     )
@@ -54,6 +54,18 @@ describe('LoginLayout', () => {
     expect(logo.parentElement).toHaveClass('flex', 'items-center', 'gap-3')
     expect(logo.parentElement).toContainElement(label)
     expect(screen.getByText('Identity access')).toBeInTheDocument()
+  })
+
+  it('uses the identity fallback label and enlarges it when logo detail is blank', () => {
+    render(
+      <LoginLayout branding={null}>
+        <span>Authentication form</span>
+      </LoginLayout>,
+    )
+
+    const label = screen.getByText('Maintainerd')
+    expect(label).toHaveClass('text-lg')
+    expect(screen.queryByText('Identity access')).not.toBeInTheDocument()
   })
 
   it.each([
@@ -132,11 +144,12 @@ describe('LoginLayout', () => {
 
   it('hides the logo label when branding disables it', () => {
     render(
-      <LoginLayout branding={{ ...branding, show_logo_label: false }}>
+      <LoginLayout branding={{ ...branding, show_logo_label: false, metadata: { login_form_logo_detail: 'Identity access' } }}>
         <span>Authentication form</span>
       </LoginLayout>,
     )
 
     expect(screen.queryByText('Acme ID')).not.toBeInTheDocument()
+    expect(screen.queryByText('Identity access')).not.toBeInTheDocument()
   })
 })

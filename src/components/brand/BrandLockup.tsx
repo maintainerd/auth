@@ -10,7 +10,7 @@ type BrandLockupProps = {
   logoClassName?: string
   labelClassName?: string
   topPanelLabel?: boolean
-  showSubtitle?: boolean
+  logoDetail?: string
 }
 
 export function BrandLockup({
@@ -21,11 +21,13 @@ export function BrandLockup({
   panel = false,
   centered = false,
   logoClassName = 'size-9',
-  labelClassName = 'text-sm',
+  labelClassName,
   topPanelLabel = false,
-  showSubtitle = false,
+  logoDetail,
 }: BrandLockupProps) {
-  const label = logoLabel || companyName || 'Maintainerd-Auth'
+  const label = logoLabel || companyName || 'Maintainerd'
+  const detail = logoDetail?.trim()
+  const resolvedLabelClassName = labelClassName ?? (detail ? 'text-sm' : 'text-lg')
 
   return (
     <div className={`flex items-center gap-3 ${centered ? 'justify-center' : ''}`}>
@@ -47,11 +49,11 @@ export function BrandLockup({
         <div className="min-w-0 text-left">
           <p
             data-md-top-logo-label={topPanelLabel ? true : undefined}
-            className={`truncate font-semibold leading-none ${labelClassName}`}
+            className={`truncate font-semibold leading-none ${resolvedLabelClassName}`}
           >
             {label}
           </p>
-          {showSubtitle && <p className="mt-1 text-xs leading-none opacity-75">Identity access</p>}
+          {detail && <p className="mt-1 text-xs leading-none opacity-75">{detail}</p>}
         </div>
       )}
     </div>

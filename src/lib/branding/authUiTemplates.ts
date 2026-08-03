@@ -26,6 +26,7 @@ export type SplitVisualStyle = typeof SPLIT_VISUAL_STYLES[number]
 
 export type AuthTemplatePresentation = {
   logoPlacement: LogoPlacement
+  logoDetail: string
   splitShowcaseVisualStyle: SplitVisualStyle
   splitShowcaseTitle: string
   splitShowcaseSubtitle: string
@@ -34,6 +35,7 @@ export type AuthTemplatePresentation = {
 
 export const DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION: AuthTemplatePresentation = {
   logoPlacement: 'inside-form',
+  logoDetail: '',
   splitShowcaseVisualStyle: 'default',
   splitShowcaseTitle: 'Secure access for your workspace',
   splitShowcaseSubtitle: 'Sign in with the protections, policies, and identity controls your team expects.',
@@ -57,11 +59,13 @@ export function authUiTemplatePresentationFromMetadata(
   metadata: BrandingMetadata | null | undefined,
 ): AuthTemplatePresentation {
   const rawLogoPlacement = metadata?.login_form_logo_placement
+  const rawLogoDetail = metadata?.login_form_logo_detail
   const rawVisualStyle = metadata?.split_showcase_visual_style
   return {
     logoPlacement: rawLogoPlacement === 'above-form' || rawLogoPlacement === 'inside-form'
       ? rawLogoPlacement
       : DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.logoPlacement,
+    logoDetail: readString(rawLogoDetail) ?? DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.logoDetail,
     splitShowcaseVisualStyle:
       typeof rawVisualStyle === 'string' && SPLIT_VISUAL_STYLES.includes(rawVisualStyle as SplitVisualStyle)
         ? rawVisualStyle as SplitVisualStyle

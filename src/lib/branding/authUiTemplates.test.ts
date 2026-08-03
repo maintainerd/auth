@@ -20,8 +20,10 @@ describe('authUiTemplates', () => {
       split_showcase_panel_title: 'Workspace access',
       split_showcase_panel_subtitle: 'Use your verified identity.',
       split_showcase_image_url: 'https://example.test/cover.jpg',
+      login_form_logo_detail: 'Identity access',
     })).toEqual({
       logoPlacement: 'above-form',
+      logoDetail: 'Identity access',
       splitShowcaseVisualStyle: 'security-radar',
       splitShowcaseTitle: 'Workspace access',
       splitShowcaseSubtitle: 'Use your verified identity.',

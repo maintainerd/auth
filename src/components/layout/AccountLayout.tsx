@@ -9,6 +9,7 @@ import { useMutation } from '@tanstack/react-query'
 import { logout } from '@/services/api/auth'
 import { useTenant } from '@/hooks/useTenant'
 import { BrandLockup } from '@/components/brand/BrandLockup'
+import { authUiTemplatePresentationFromMetadata } from '@/lib/branding/authUiTemplates'
 import { resolveBrandingLogoUrl } from '@/utils/branding'
 
 const navItems = [
@@ -38,10 +39,11 @@ export default function AccountLayout({
     onSuccess: () => navigate('/login'),
   })
 
-  const companyName = currentTenant?.branding?.company_name || 'Maintainerd-Auth'
+  const companyName = currentTenant?.branding?.company_name || 'Maintainerd'
   const logoLabel = currentTenant?.branding?.logo_label || companyName
   const showLogoLabel = currentTenant?.branding?.show_logo_label ?? true
   const logoUrl = resolveBrandingLogoUrl(currentTenant?.branding?.logo_url)
+  const presentation = authUiTemplatePresentationFromMetadata(currentTenant?.branding?.metadata)
 
   return (
     <div data-auth-identity-account-shell className="auth-account-shell min-h-screen">
@@ -55,7 +57,7 @@ export default function AccountLayout({
               showLogoLabel={showLogoLabel}
               logoUrl={logoUrl}
               logoClassName="size-7"
-              labelClassName="text-base"
+              logoDetail={presentation.logoDetail}
               topPanelLabel
             />
           </Link>

@@ -136,6 +136,7 @@
     --auth-form-panel-background,
     color-mix(in srgb, var(--branding-top-panel-background, var(--card)) 96%, transparent)
   );
+  box-shadow: var(--auth-form-panel-shadow, 0 24px 80px -42px rgb(15 23 42 / 0.4));
 }
 
 .auth-form-panel {
@@ -161,20 +162,49 @@
   background: color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 42%, transparent);
 }
 
-.auth-split-mesh {
+.auth-split-image-fallback {
+  background-image:
+    linear-gradient(135deg, color-mix(in srgb, var(--auth-decorative-light, #ffffff) 16%, transparent), transparent 38%),
+    linear-gradient(315deg, color-mix(in srgb, var(--auth-decorative-dark, #000000) 18%, transparent), transparent 42%);
+}
+
+.auth-split-mesh-bg {
   background-image:
     radial-gradient(circle at 14% 20%, color-mix(in srgb, var(--auth-decorative-light, #ffffff) 22%, transparent), transparent 28%),
     radial-gradient(circle at 82% 68%, color-mix(in srgb, var(--auth-decorative-dark, #000000) 22%, transparent), transparent 34%),
-    linear-gradient(135deg, color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 28%, transparent), transparent 58%),
+    linear-gradient(135deg, color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 28%, transparent), transparent 58%);
+}
+
+.auth-split-mesh-grid {
+  background-image:
     linear-gradient(90deg, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 1px, transparent 1px),
     linear-gradient(color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 1px, transparent 1px);
-  background-size: auto, auto, auto, 56px 56px, 56px 56px;
+  background-size: 56px 56px;
 }
 
 .auth-split-node {
   border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 22%, transparent);
-  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 16%, transparent);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 5%, transparent);
+}
+
+.auth-split-node[data-tone="light"] {
+  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 16%, transparent);
+}
+
+.auth-split-node[data-tone="dark"] {
+  background-color: color-mix(in srgb, var(--auth-decorative-dark, #000000) 16%, transparent);
+}
+
+.auth-split-link {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 12%, transparent);
+}
+
+.auth-split-link[data-tone="high"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 16%, transparent);
+}
+
+.auth-split-link[data-tone="medium"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 14%, transparent);
 }
 
 .auth-split-grid {
@@ -182,22 +212,60 @@
     linear-gradient(color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 12%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 12%, transparent) 1px, transparent 1px);
   background-size: 40px 40px;
-  opacity: 0.5;
+  opacity: 0.25;
 }
 
 .auth-split-tile {
-  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 20%, transparent);
-  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 12%, transparent);
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 16%, transparent);
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 7%, transparent);
+}
+
+.auth-split-tile[data-featured] {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 30%, transparent);
+  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 16%, transparent);
+}
+
+.auth-split-radar-field {
+  background-image:
+    radial-gradient(circle at 58% 48%, transparent 0 21%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 21% 21.5%, transparent 21.5% 36%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 7%, transparent) 36% 36.5%, transparent 36.5% 52%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 6%, transparent) 52% 52.5%, transparent 52.5%),
+    linear-gradient(160deg, color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 25%, transparent), transparent);
 }
 
 .auth-split-radar {
-  background:
-    radial-gradient(circle, transparent 0 21%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 21% 21.5%, transparent 21.5% 36%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 7%, transparent) 36% 36.5%, transparent 36.5% 52%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 6%, transparent) 52% 52.5%, transparent 52.5%),
-    conic-gradient(from 24deg, color-mix(in srgb, var(--auth-decorative-light, #ffffff) 26%, transparent), transparent 22%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 10%, transparent) 42%, transparent 64%, color-mix(in srgb, var(--auth-decorative-dark, #000000) 20%, transparent), transparent 86%);
+  background: conic-gradient(from 24deg, color-mix(in srgb, var(--auth-decorative-light, #ffffff) 26%, transparent), transparent 22%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 10%, transparent) 42%, transparent 64%, color-mix(in srgb, var(--auth-decorative-dark, #000000) 20%, transparent), transparent 86%);
 }
 
 .auth-split-axis {
   background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent);
+}
+
+.auth-split-radar-dot {
+  background-color: var(--auth-visual-panel-foreground, #ffffff);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent);
+}
+
+.auth-split-radar-dot[data-tone="light"] {
+  background-color: var(--auth-decorative-light, #ffffff);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--auth-decorative-light, #ffffff) 8%, transparent);
+}
+
+.auth-split-radar-dot[data-tone="dark"] {
+  background-color: var(--auth-decorative-dark, #000000);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--auth-decorative-dark, #000000) 8%, transparent);
+}
+
+.auth-split-radar-card {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 16%, transparent);
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 7%, transparent);
+}
+
+.auth-split-radar-card span {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 12%, transparent);
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent);
+}
+
+.auth-split-radar-card span[data-featured] {
+  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 18%, transparent);
 }
 
 .auth-split-circuit {
@@ -206,8 +274,119 @@
     linear-gradient(145deg, color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 25%, transparent), transparent 65%);
 }
 
-.auth-split-trace {
+.auth-split-trace-row > span:first-child {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 12%, transparent);
+}
+
+.auth-split-trace-row > span:first-child[data-index="1"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 13.2%, transparent);
+}
+
+.auth-split-trace-row > span:first-child[data-index="2"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 14.4%, transparent);
+}
+
+.auth-split-trace-row > span:first-child[data-index="3"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 15.6%, transparent);
+}
+
+.auth-split-trace-row > span:first-child[data-index="4"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 16.8%, transparent);
+}
+
+.auth-split-trace-row > span:first-child[data-index="5"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 18%, transparent);
+}
+
+.auth-split-trace-row > span:not(:first-child) {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 18%, transparent);
+}
+
+.auth-split-trace-row > span[data-tone="light"],
+.auth-split-circuit-card[data-tone="light"],
+.auth-split-audit-card[data-tone="light"],
+.auth-split-orbit-tile[data-tone="light"] {
+  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 11%, transparent);
+}
+
+.auth-split-trace-row > span[data-tone="dark"],
+.auth-split-circuit-card[data-tone="dark"],
+.auth-split-audit-card[data-tone="dark"],
+.auth-split-orbit-tile[data-tone="dark"] {
+  background-color: color-mix(in srgb, var(--auth-decorative-dark, #000000) 11%, transparent);
+}
+
+.auth-split-circuit-card,
+.auth-split-audit-card {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 16%, transparent);
+}
+
+.auth-split-audit-field {
+  background-image:
+    linear-gradient(180deg, color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 24%, transparent), transparent),
+    linear-gradient(90deg, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 5%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px;
+}
+
+.auth-split-audit-card span {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 20%, transparent);
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent);
+}
+
+.auth-split-audit-card span:nth-child(2) {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 18%, transparent);
+}
+
+.auth-split-audit-card span:nth-child(3) {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 11%, transparent);
+}
+
+.auth-split-timeline {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 10%, transparent);
+}
+
+.auth-split-timeline[data-tone="strong"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 18%, transparent);
+}
+
+.auth-split-orbit-field {
+  background-image:
+    radial-gradient(circle at 52% 48%, color-mix(in srgb, var(--auth-decorative-light, #ffffff) 18%, transparent), transparent 18%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 7%, transparent) 18.5%, transparent 19%, transparent 32%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 7%, transparent) 32.5%, transparent 33%, transparent 47%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 6%, transparent) 47.5%, transparent 48%),
+    linear-gradient(145deg, color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 22%, transparent), transparent 70%);
+}
+
+.auth-split-orbit-line {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 10%, transparent);
+}
+
+.auth-split-orbit-line[data-tone="strong"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 11%, transparent);
+}
+
+.auth-split-orbit-core {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 22%, transparent);
+  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 12%, transparent);
+}
+
+.auth-split-orbit-core span {
   background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 16%, transparent);
+}
+
+.auth-split-orbit-core > div:first-child {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 26%, transparent);
+}
+
+.auth-split-orbit-core span:last-child {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 12%, transparent);
+}
+
+.auth-split-orbit-tile {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 18%, transparent);
+  box-shadow: 0 0 0 8px color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.auth-split-orbit-tile[data-tone="text"] {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 13%, transparent);
 }
 
 .auth-account-shell {

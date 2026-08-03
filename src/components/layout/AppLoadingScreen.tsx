@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { useTenant } from '@/hooks/useTenant'
+import { authUiTemplatePresentationFromMetadata } from '@/lib/branding/authUiTemplates'
 import type { BrandingPublic } from '@/services/api/tenants/types'
 import { resolveBrandingLogoUrl } from '@/utils/branding'
 
@@ -16,10 +17,11 @@ type Props = {
 const AppLoadingScreen = ({ branding }: Props) => {
   const { currentTenant } = useTenant()
   const resolvedBranding = branding === undefined ? currentTenant?.branding : branding
-  const companyName = resolvedBranding?.company_name || 'Maintainerd-Auth'
+  const companyName = resolvedBranding?.company_name || 'Maintainerd'
   const logoLabel = resolvedBranding?.logo_label || companyName
   const showLogoLabel = resolvedBranding?.show_logo_label ?? true
   const logoUrl = resolveBrandingLogoUrl(resolvedBranding?.logo_url)
+  const presentation = authUiTemplatePresentationFromMetadata(resolvedBranding?.metadata)
 
   return (
     <div
@@ -34,8 +36,8 @@ const AppLoadingScreen = ({ branding }: Props) => {
           logoLabel={logoLabel}
           showLogoLabel={showLogoLabel}
           logoUrl={logoUrl}
+          logoDetail={presentation.logoDetail}
           centered
-          showSubtitle
         />
         <div className="text-muted-foreground flex items-center gap-2">
           <Loader2 className="size-4 animate-spin" />
