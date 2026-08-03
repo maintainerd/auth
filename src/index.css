@@ -419,15 +419,20 @@
 }
 
 .auth-account-header [data-md-top-logout] {
-  color: var(--md-top-panel-text, var(--branding-top-panel-foreground, currentColor)) !important;
-  background-color: transparent !important;
-  border-color: transparent !important;
+  height: var(--md-top-control-height, 2.25rem) !important;
+  background-color: var(--md-top-control-bg, transparent) !important;
+  border-color: var(--md-top-control-border, transparent) !important;
+  border-width: var(--md-top-control-border-width, 0px) !important;
+  border-radius: var(--md-top-control-radius, 0.375rem) !important;
+  color: var(--md-top-control-text, var(--md-top-panel-text, currentColor)) !important;
+  font-size: var(--md-top-control-font-size, 0.875rem) !important;
+  border-style: solid !important;
 }
 
 .auth-account-header [data-md-top-logout]:hover,
 .auth-account-header [data-md-top-logout]:active {
-  color: var(--md-top-panel-text, var(--branding-top-panel-foreground, currentColor)) !important;
-  background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
+  background-color: var(--md-top-control-hover, color-mix(in srgb, currentColor 10%, transparent)) !important;
+  color: var(--md-top-control-text, var(--md-top-panel-text, currentColor)) !important;
 }
 
 .auth-account-nav-active {
@@ -526,16 +531,22 @@ html[data-identity-theme="active"] [data-md-top-profile-trigger]:active {
   color: var(--md-top-profile-text, var(--md-top-panel-text, currentColor)) !important;
 }
 
-html[data-identity-theme="active"] [data-md-top-logout] {
-  color: var(--md-top-panel-text, var(--branding-top-panel-foreground, currentColor)) !important;
-  background-color: transparent !important;
-  border-color: transparent !important;
+html[data-identity-theme="active"] [data-slot="button"][data-md-top-logout][data-variant="ghost"] {
+  height: var(--md-top-control-height, 2.25rem) !important;
+  background-color: var(--md-top-control-bg, transparent) !important;
+  border-color: var(--md-top-control-border, transparent) !important;
+  border-width: var(--md-top-control-border-width, 0px) !important;
+  border-radius: var(--md-top-control-radius, 3px) !important;
+  color: var(--md-top-control-text, var(--md-top-panel-text, currentColor)) !important;
+  font-size: var(--md-top-control-font-size, 0.875rem) !important;
+  border-style: solid !important;
+  transition-property: background-color, border-color, color, box-shadow;
 }
 
-html[data-identity-theme="active"] [data-md-top-logout]:hover,
-html[data-identity-theme="active"] [data-md-top-logout]:active {
-  color: var(--md-top-panel-text, var(--branding-top-panel-foreground, currentColor)) !important;
-  background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
+html[data-identity-theme="active"] [data-slot="button"][data-md-top-logout][data-variant="ghost"]:hover,
+html[data-identity-theme="active"] [data-slot="button"][data-md-top-logout][data-variant="ghost"]:active {
+  background-color: var(--md-top-control-hover, color-mix(in srgb, currentColor 10%, transparent)) !important;
+  color: var(--md-top-control-text, var(--md-top-panel-text, currentColor)) !important;
 }
 
 html[data-identity-theme="active"] [data-md-sidebar] {

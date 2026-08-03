@@ -1,24 +1,27 @@
 /**
  * Reusable Form Password Field Component
- * A flexible password field with label, validation, error handling, and show/hide toggle
+ * A password field with label, validation, error handling, and a show/hide toggle.
+ *
+ * Layout, error rendering and aria wiring all come from FieldShell — this
+ * component only supplies the control and its visibility toggle.
  */
 
 import { forwardRef, useState } from "react"
-import { Field, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { FieldShell } from "./FieldShell"
+import {
+  fieldControlProps,
+  resolveFieldId,
+  FIELD_INVALID_CONTROL_CLASS,
+  type FieldShellOwnProps,
+} from "./fieldControl"
 
-export interface FormPasswordFieldProps extends Omit<React.ComponentProps<typeof Input>, 'type'> {
-  label: string
-  error?: string
-  description?: string
-  required?: boolean
-  containerClassName?: string
-  labelClassName?: string
-  errorClassName?: string
-  descriptionClassName?: string
+export interface FormPasswordFieldProps
+  extends Omit<React.ComponentProps<typeof Input>, "type">,
+    FieldShellOwnProps {
   showToggle?: boolean
 }
 
@@ -33,41 +36,47 @@ export const FormPasswordField = forwardRef<HTMLInputElement, FormPasswordFieldP
       labelClassName,
       errorClassName,
       descriptionClassName,
+      labelAction,
+      footer,
       className,
       showToggle = true,
+      autoComplete = "new-password",
       id,
       ...props
     },
     ref
   ) => {
     const [showPassword, setShowPassword] = useState(false)
-    
-    // Generate ID if not provided
-    const fieldId = id || label.toLowerCase().replace(/\s+/g, '-')
+    const fieldId = resolveFieldId(id, label)
 
     return (
-      <Field className={cn("space-y-2", containerClassName)}>
-        <FieldLabel 
-          htmlFor={fieldId} 
-          className={cn(labelClassName)}
-        >
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </FieldLabel>
-        
+      <FieldShell
+        fieldId={fieldId}
+        label={label}
+        error={error}
+        description={description}
+        required={required}
+        containerClassName={containerClassName}
+        labelClassName={labelClassName}
+        errorClassName={errorClassName}
+        descriptionClassName={descriptionClassName}
+        labelAction={labelAction}
+        footer={footer}
+      >
         <div className="relative">
           <Input
-            id={fieldId}
             ref={ref}
             type={showPassword ? "text" : "password"}
+            autoComplete={autoComplete}
             className={cn(
-              error && "border-red-500 focus-visible:ring-red-500",
+              error && FIELD_INVALID_CONTROL_CLASS,
               showToggle && "pr-10",
               className
             )}
+            {...fieldControlProps(fieldId, error, description)}
             {...props}
           />
-          
+
           {showToggle && (
             <Button
               type="button"
@@ -88,19 +97,7 @@ export const FormPasswordField = forwardRef<HTMLInputElement, FormPasswordFieldP
             </Button>
           )}
         </div>
-
-        {description && (
-          <FieldDescription className={cn(descriptionClassName)}>
-            {description}
-          </FieldDescription>
-        )}
-        
-        {error && (
-          <FieldError className={cn("text-red-600", errorClassName)}>
-            {error}
-          </FieldError>
-        )}
-      </Field>
+      </FieldShell>
     )
   }
 )

@@ -24,7 +24,18 @@ export const LOGIN_ROUTE = '/login'
 export const MAGIC_LINK_ROUTE = '/magic-link'
 export const NO_ACCESS_ROUTE = '/no-access'
 export const SERVICE_UNAVAILABLE_ROUTE = '/service-unavailable'
+// Terminal status pages. The user is sent here BY the API layer (423/429), so
+// the guard must let them sit there and read the message instead of bouncing
+// them straight to /login.
+export const ACCOUNT_LOCKED_ROUTE = '/account-locked'
+export const TOO_MANY_REQUESTS_ROUTE = '/too-many-requests'
 export const LOGIN_SUCCESS_ROUTE = '/login-success'
+// Landing point for this app's own federated logins. The page exchanges the
+// authorization code and then routes itself via resolvePostAuthRoute.
+export const OAUTH_CALLBACK_ROUTE = '/callback'
+// Federated account-link confirmation. Arrives from the broker unauthenticated,
+// carrying its token in the query string.
+export const ACCOUNT_LINK_ROUTE = '/account-link'
 // The self-service account profile — where a fully-registered, authenticated
 // user lands when there is no OAuth redirect (or invite callback) to continue.
 export const ACCOUNT_ROUTE = '/account/profile'
@@ -104,7 +115,29 @@ export interface GuardContext {
 export function resolveGuardRedirect(ctx: GuardContext): string | null {
   const { pathname, search = '', isAuthenticated, account, tenant, registrationEnabled, verificationRequired, pendingContinuation } = ctx
 
-  if (pathname === NO_ACCESS_ROUTE || pathname === SERVICE_UNAVAILABLE_ROUTE) {
+  if (
+    pathname === NO_ACCESS_ROUTE ||
+    pathname === SERVICE_UNAVAILABLE_ROUTE ||
+    pathname === ACCOUNT_LOCKED_ROUTE ||
+    pathname === TOO_MANY_REQUESTS_ROUTE
+  ) {
+    return null
+  }
+
+  // The federated-login callback must always render: it still has to exchange
+  // its authorization code, and it decides where to go afterwards via
+  // resolvePostAuthRoute. Bouncing it — to /login when the cookie session has
+  // not landed yet, or to a registration detour when it has — would strand the
+  // flow with an unspent code.
+  if (pathname === OAUTH_CALLBACK_ROUTE) {
+    return null
+  }
+
+  // Account linking is reached from the broker with NO session by design (the
+  // backend withholds the token until the user confirms the link), and its
+  // token + broker_session live only in the query string. Redirecting to /login
+  // dropped both and made the page unreachable for the only user who can use it.
+  if (pathname === ACCOUNT_LINK_ROUTE) {
     return null
   }
 

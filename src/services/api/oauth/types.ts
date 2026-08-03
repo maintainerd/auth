@@ -15,6 +15,8 @@ export interface OAuthConnection {
 export interface OAuthConnections {
   password_enabled: boolean
   registration_enabled: boolean
+  /** Passwordless email sign-in, opt-in per client. */
+  magic_link_enabled?: boolean
   branding?: OAuthConnectionsBranding
   connections: OAuthConnection[]
 }

@@ -107,14 +107,26 @@ describe('LoginLayout', () => {
 
   it('uses the identity fallback label and enlarges it when logo detail is blank', () => {
     render(
+      <LoginLayout branding={{ ...branding, metadata: { login_form_logo_detail: '' } }}>
+        <span>Authentication form</span>
+      </LoginLayout>,
+    )
+
+    const label = screen.getByText('Acme ID')
+    expect(label).toHaveClass('text-lg')
+    expect(screen.queryByText('Identity access')).not.toBeInTheDocument()
+  })
+
+  it('defaults the identity logo detail to the seeded brand line', () => {
+    render(
       <LoginLayout branding={null}>
         <span>Authentication form</span>
       </LoginLayout>,
     )
 
     const label = screen.getByText('Maintainerd')
-    expect(label).toHaveClass('text-lg')
-    expect(screen.queryByText('Identity access')).not.toBeInTheDocument()
+    expect(label).toHaveClass('text-sm')
+    expect(screen.getByText('Open-source Cloud Platform')).toBeInTheDocument()
   })
 
   it.each([

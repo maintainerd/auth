@@ -1,4 +1,6 @@
 import { forwardRef } from "react"
+import { Field, FieldError } from "@/components/ui/field"
+import { cn } from "@/lib/utils"
 
 export interface FormConsentCheckboxProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
@@ -17,14 +19,18 @@ export const FormConsentCheckbox = forwardRef<HTMLInputElement, FormConsentCheck
   ({ error, termsUrl, privacyUrl, id = "accept-terms", ...props }, ref) => {
     const linkClass = "font-medium text-primary underline-offset-4 hover:underline"
     return (
-      <div className="flex flex-col gap-1.5">
+      <Field>
         <label htmlFor={id} className="flex items-start gap-2.5 text-sm text-muted-foreground">
           <input
             ref={ref}
             id={id}
             type="checkbox"
-            aria-invalid={error ? true : undefined}
-            className="mt-0.5 size-4 shrink-0 rounded-[3px] border border-input accent-primary"
+            aria-invalid={error ? "true" : "false"}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className={cn(
+              "mt-0.5 size-4 shrink-0 rounded-[3px] border accent-primary",
+              error ? "border-destructive" : "border-input"
+            )}
             {...props}
           />
           <span>
@@ -47,8 +53,8 @@ export const FormConsentCheckbox = forwardRef<HTMLInputElement, FormConsentCheck
             .
           </span>
         </label>
-        {error && <p className="text-xs text-destructive">{error}</p>}
-      </div>
+        {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
+      </Field>
     )
   },
 )

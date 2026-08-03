@@ -49,7 +49,13 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/utils/clientContext', async () => {
   const actual = await vi.importActual<typeof import('@/utils/clientContext')>('@/utils/clientContext')
-  return { ...actual, currentPublicAuthContext: () => ({ clientId: 'storefront-abc123' }) }
+  // resolvePublicAuthContext is what the registration-context hook reads, so it
+  // resolves the same client the sibling register() call sends.
+  return {
+    ...actual,
+    currentPublicAuthContext: () => ({ clientId: 'storefront-abc123' }),
+    resolvePublicAuthContext: () => ({ clientId: 'storefront-abc123' }),
+  }
 })
 
 const FLOW_ROUTE = '/register?client_id=storefront-abc123&registration_flow=partner-signup'

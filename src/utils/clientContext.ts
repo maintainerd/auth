@@ -85,32 +85,30 @@ export function currentPublicAuthContext(): PublicAuthContext {
 }
 
 /**
- * Resolve the single context value the backend should receive.
- *
- * Called with NO argument it resolves the ambient context (current URL + domain
- * bootstrap), with this priority:
+ * Resolve the single context value the backend should receive, in priority order:
  *   1. an explicit OAuth `client_id` (external-client / persisted flow) wins;
  *   2. otherwise the tenant's default identity `client_id` from the domain
- *      bootstrap (first-party direct navigation — the caller supplies nothing);
- *   3. otherwise the bootstrap tenant slug as `tenant_id`;
+ *      bootstrap — the client this surface *is*;
+ *   3. otherwise a caller-supplied tenant slug as `tenant_id`;
  *   4. otherwise nothing — the system tenant, where the backend defaults.
  *
- * Called WITH an explicit context (signed magic-link / reset / invite links, MFA
- * continuations) it is forwarded verbatim — its own `client_id`/`tenant_id`
- * wins and the default-client fallback is NOT applied, so the backend signature
- * and the caller's intent are preserved.
+ * Step 2 applies even when the caller passed a `tenantId`. Every public auth
+ * endpoint is client-scoped: it requires `client_id` and rejects `tenant_id`
+ * outright ("Public registration requires client_id and does not accept
+ * tenant_id"). So preferring a caller's tenant slug over the known surface
+ * client cannot produce a working request — only a 400. Callers that read the
+ * tenant slug off the bootstrap (register, magic link, MFA continuation) were
+ * doing exactly that on any first-party visit with no `client_id` in the URL.
  *
- * An external `client_id` and a `tenant_id` are never sent together (the backend
- * rejects that combination for external clients).
+ * A `client_id` and a `tenant_id` are never sent together.
  */
 export function resolvePublicAuthContext(context?: PublicAuthContext): PublicAuthContext {
-  const ambient = context === undefined
   const ctx = context ?? currentPublicAuthContext()
 
   const clientId = ctx.clientId?.trim() || undefined
   if (clientId) return { clientId }
 
-  if (ambient && bootstrapContext.defaultClientId) {
+  if (bootstrapContext.defaultClientId) {
     return { clientId: bootstrapContext.defaultClientId }
   }
 

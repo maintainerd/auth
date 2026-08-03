@@ -18,8 +18,8 @@ const AppLoadingScreen = ({ branding }: Props) => {
   const { currentTenant } = useTenant()
   const resolvedBranding = branding === undefined ? currentTenant?.branding : branding
   const companyName = resolvedBranding?.company_name || 'Maintainerd'
-  const logoLabel = resolvedBranding?.logo_label || companyName
-  const showLogoLabel = resolvedBranding?.show_logo_label ?? true
+  const logoLabel = resolvedBranding?.identity_logo_label || resolvedBranding?.logo_label || companyName
+  const showLogoLabel = resolvedBranding?.identity_show_logo_label ?? resolvedBranding?.show_logo_label ?? true
   const logoUrl = resolveBrandingLogoUrl(resolvedBranding?.logo_url)
   const presentation = authUiTemplatePresentationFromMetadata(resolvedBranding?.metadata)
 

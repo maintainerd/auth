@@ -88,6 +88,7 @@ const RegisterForm = () => {
       // resume the pending OAuth authorize once the account is fully registered.
       const account = await refreshAccount()
       finishAuthStep({
+        returnTo: searchParams.get('return_to'),
         account,
         tenant: getCurrentTenant(),
         requestId,
@@ -136,8 +137,8 @@ const RegisterForm = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col items-center gap-2 text-center">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-center gap-1 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Create your account</h1>
         <p className="text-sm text-muted-foreground">
           Sign up to get started.

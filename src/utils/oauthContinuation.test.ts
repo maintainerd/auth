@@ -59,6 +59,36 @@ describe('finishAuthStep', () => {
     expect(navigate).toHaveBeenCalledWith('/login-success?request_id=abc', { replace: true })
   })
 
+  // The console (and every external RP) sends the browser to /authorize. The
+  // guard bounces an anonymous user to /login BEFORE the backend is called, so a
+  // request_id can never exist on this path — the return_to is the only handle.
+  // Clearing it here stranded every SSO login on the identity account page.
+  it('resumes a guard-bounced authorize using return_to when no request_id exists', () => {
+    const navigate = vi.fn()
+    const outcome = finishAuthStep({
+      account: complete,
+      returnTo: '/authorize?client_id=console&redirect_uri=https%3A%2F%2Fconsole.example%2Fauth%2Fcallback',
+      navigate,
+    })
+
+    expect(outcome).toBe('continued')
+    expect(navigate).toHaveBeenCalledWith('/login-success', { replace: true })
+    // Left armed for LoginSuccessPage to consume and send the user back.
+    expect(sessionStorage.getItem('maintainerd_auth_oauth_return_to')).toContain('/authorize')
+  })
+
+  it('ignores an unsafe return_to rather than following it', () => {
+    const navigate = vi.fn()
+    const outcome = finishAuthStep({
+      account: complete,
+      returnTo: 'https://evil.example/steal',
+      navigate,
+    })
+
+    expect(outcome).toBe('dashboard')
+    expect(sessionStorage.getItem('maintainerd_auth_oauth_return_to')).toBeNull()
+  })
+
   it('sends a fully-registered account with NO request_id to the dashboard landing and clears stale markers', () => {
     rememberOAuthReturnTo('/authorize?client_id=stale')
     const navigate = vi.fn()

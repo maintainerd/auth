@@ -25,6 +25,8 @@ import {
   clearOAuthReturnTo,
   consumeInviteCallback,
   consumeOAuthReturnTo,
+  rememberOAuthReturnTo,
+  safeOAuthReturnTo,
   withRequestId,
 } from '@/utils/oauthRedirect'
 
@@ -35,6 +37,14 @@ export interface FinishAuthStepInput {
   tenant?: TenantEntity | null
   requestId?: string
   verificationRequired?: boolean
+  /**
+   * The `return_to` on the CURRENT url, if any. Present exactly when the route
+   * guard bounced an OAuth interaction route here to authenticate, so it is the
+   * signal that this sign-in belongs to a pending authorize request. Without it
+   * we cannot tell "finish the flow I interrupted" from "a stale marker from an
+   * abandoned flow", and must clear rather than resume.
+   */
+  returnTo?: string | null
   navigate: NavigateFunction
 }
 
@@ -50,7 +60,7 @@ export interface FinishAuthStepInput {
  * Returns the outcome so callers can react (e.g. a success toast on 'dashboard').
  */
 export function finishAuthStep(input: FinishAuthStepInput): AuthStepOutcome {
-  const { account, tenant, requestId, verificationRequired, navigate } = input
+  const { account, tenant, requestId, verificationRequired, returnTo, navigate } = input
   const dest = resolvePostAuthRoute(account, tenant, verificationRequired ? { verificationRequired } : undefined)
 
   if (dest !== LOGIN_SUCCESS_ROUTE) {
@@ -63,9 +73,22 @@ export function finishAuthStep(input: FinishAuthStepInput): AuthStepOutcome {
     return 'continued'
   }
 
-  // Direct completion (no pending OAuth handle): drop any stale continuation
-  // markers so LoginSuccessPage lands on the dashboard rather than resuming a
-  // stale request, then converge on LoginSuccessPage.
+  // No server handle, but this sign-in carries a return_to — the guard sent us
+  // here from an authorize request that was never allowed to reach the backend,
+  // so no request_id could exist. Re-arm the marker (the guard stored it, but a
+  // reload may have dropped it) and let LoginSuccessPage resume it. Clearing
+  // here is what previously stranded every console→identity SSO login on the
+  // identity account page instead of returning to the calling app.
+  const pendingReturnTo = safeOAuthReturnTo(returnTo)
+  if (pendingReturnTo) {
+    rememberOAuthReturnTo(pendingReturnTo)
+    navigate(LOGIN_SUCCESS_ROUTE, { replace: true })
+    return 'continued'
+  }
+
+  // Genuinely direct completion: drop any stale continuation markers so
+  // LoginSuccessPage lands on the dashboard rather than resuming an abandoned
+  // request, then converge on LoginSuccessPage.
   clearOAuthReturnTo()
   clearInviteCallback()
   navigate(LOGIN_SUCCESS_ROUTE, { replace: true })

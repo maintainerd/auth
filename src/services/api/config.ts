@@ -41,16 +41,19 @@ function runtimeEnv(key: string): string | undefined {
 // as opposed to the internal management port (8080) used by the admin console.
 // In development, use relative path to go through Vite proxy
 // In production, prefer runtime config, then the build-time value, then a default.
+// The API is served SAME-ORIGIN, in dev via the Vite proxy and in production
+// via the container's nginx (see nginx.conf). Auth cookies are __Host- prefixed
+// and therefore host-only: a cookie set by a sibling API host would never be
+// sent back with this app's own requests. Same-origin is what makes the session
+// work, and it removes CORS. An absolute URL may still be injected for
+// deployments that terminate the proxy elsewhere.
 const getBaseUrl = () => {
-  if (import.meta.env.DEV) {
-    // Development: use relative path to go through Vite proxy
-    return '/api/v1'
-  }
-  // Production: runtime injection wins, then build-time env, then fallback.
+  // Dev always uses the Vite proxy, regardless of what .env holds.
+  if (import.meta.env.DEV) return '/api/v1'
   return (
     runtimeEnv('VITE_AUTH_API_BASE_URL') ||
     import.meta.env.VITE_AUTH_API_BASE_URL ||
-    'https://identity-api.auth.maintainerd.local/api/v1'
+    '/api/v1'
   )
 }
 

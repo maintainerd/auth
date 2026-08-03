@@ -4,6 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
 import { AlertCircle, Mail } from "lucide-react"
 import { FormSubmitButton, FormPasswordField, PasswordRequirements, FormConsentCheckbox } from "@/components/form"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { FieldGroup } from "@/components/ui/field"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
@@ -142,7 +143,7 @@ const RegisterInviteForm = () => {
       }
     }
     return (
-      <div className="flex flex-col gap-8 text-center">
+      <div className="flex flex-col gap-6 text-center">
         <div className="flex flex-col items-center gap-3">
           <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
             <Mail className="size-7 text-primary" />
@@ -183,8 +184,8 @@ const RegisterInviteForm = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col items-center gap-2 text-center">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-center gap-1 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Accept your invitation</h1>
         <p className="text-sm text-muted-foreground">
           Set up your password to complete registration.
@@ -203,26 +204,30 @@ const RegisterInviteForm = () => {
             </div>
           )}
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Email</label>
+          {/* Read-only email: uses the shared Field scaffold so its label sits
+              the same distance above its control as every other field. */}
+          <Field>
+            <FieldLabel>Email</FieldLabel>
             <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground">
               <Mail className="size-4 shrink-0" />
               <span>{invitedEmail}</span>
             </div>
-          </div>
+          </Field>
 
-          <div className="flex flex-col gap-2">
-            <FormPasswordField
-              label="Password"
-              placeholder="Enter a strong password"
-              autoComplete="new-password"
-              disabled={isSubmitting}
-              error={errors.password?.message}
-              required
-              {...register("password")}
-            />
-            {passwordTyped && <PasswordRequirements password={passwordValue} config={passwordConfig} />}
-          </div>
+          <FormPasswordField
+            label="Password"
+            placeholder="Enter a strong password"
+            autoComplete="new-password"
+            disabled={isSubmitting}
+            error={errors.password?.message}
+            required
+            footer={
+              passwordTyped ? (
+                <PasswordRequirements password={passwordValue} config={passwordConfig} />
+              ) : undefined
+            }
+            {...register("password")}
+          />
           <FormPasswordField
             label="Confirm password"
             placeholder="Re-enter your password"

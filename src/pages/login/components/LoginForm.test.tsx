@@ -31,6 +31,9 @@ vi.mock('@/hooks/useTenant', () => ({
       identifier: 'acme',
       registration_config: { self_registration_enabled: true },
     }),
+    // This suite exercises magic-link sign-in, which is opt-in per client — so
+    // the surface under test has it turned on.
+    bootstrap: { magic_link_enabled: true },
   }),
 }))
 

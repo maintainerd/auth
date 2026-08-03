@@ -59,14 +59,31 @@ describe('resolvePublicAuthContext — ambient (first-party direct navigation)',
 })
 
 describe('resolvePublicAuthContext — explicit signed-flow context', () => {
-  it('forwards an explicit tenant_id verbatim, without the default-client fallback', () => {
+  // Regression: this previously forwarded the tenant slug verbatim and skipped
+  // the default-client fallback. Every public auth endpoint is client-scoped —
+  // it requires client_id and rejects tenant_id — so callers that read the
+  // tenant off the bootstrap (register, magic link, MFA) sent a request the
+  // backend could only answer with "requires client_id and does not accept
+  // tenant_id" on any first-party visit.
+  it('prefers the surface client over a caller-supplied tenant_id', () => {
     setTenantBootstrapContext({ tenantSlug: 'acme', defaultClientId: 'acme-identity' })
+    expect(resolvePublicAuthContext({ tenantId: 'acme' })).toEqual({ clientId: 'acme-identity' })
+  })
+
+  it('still emits tenant_id when the surface has no client to offer', () => {
+    setTenantBootstrapContext({ tenantSlug: 'acme' })
     expect(resolvePublicAuthContext({ tenantId: 'acme' })).toEqual({ tenantId: 'acme' })
   })
 
   it('forwards an explicit client_id verbatim', () => {
     setTenantBootstrapContext({ tenantSlug: 'acme', defaultClientId: 'acme-identity' })
     expect(resolvePublicAuthContext({ clientId: 'reset-client' })).toEqual({ clientId: 'reset-client' })
+  })
+
+  it('never sends client_id and tenant_id together', () => {
+    setTenantBootstrapContext({ tenantSlug: 'acme', defaultClientId: 'acme-identity' })
+    const resolved = resolvePublicAuthContext({ clientId: 'external', tenantId: 'acme' })
+    expect(resolved).toEqual({ clientId: 'external' })
   })
 })
 
@@ -76,7 +93,15 @@ describe('publicAuthQuery', () => {
     expect(publicAuthQuery()).toBe('client_id=acme-identity')
   })
 
-  it('emits tenant_id from an explicit first-party context', () => {
+  it('emits tenant_id only when the surface has no client', () => {
+    setTenantBootstrapContext({ tenantSlug: 'acme' })
     expect(publicAuthQuery({ tenantId: 'acme' })).toBe('tenant_id=acme')
+  })
+
+  // What /register actually sends on a plain visit: no client_id in the URL,
+  // a tenant slug from the bootstrap. It must still resolve to the client.
+  it('emits the surface client for a first-party register with no query params', () => {
+    setTenantBootstrapContext({ tenantSlug: 'acme', defaultClientId: 'acme-identity' })
+    expect(publicAuthQuery({ clientId: undefined, tenantId: 'acme' })).toBe('client_id=acme-identity')
   })
 })

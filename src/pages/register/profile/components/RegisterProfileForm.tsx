@@ -91,8 +91,8 @@ const RegisterProfileForm = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col items-center gap-2 text-center">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-center gap-1 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Complete your profile</h1>
         <p className="text-sm text-muted-foreground">
           Just a few details to get started.

@@ -167,9 +167,13 @@ const ResetPasswordForm = () => {
             disabled={isSubmitting}
             error={errors.password?.message}
             required
+            footer={
+              passwordTyped ? (
+                <PasswordRequirements password={passwordValue} config={passwordConfig} />
+              ) : undefined
+            }
             {...register("password")}
           />
-          {passwordTyped && <PasswordRequirements password={passwordValue} config={passwordConfig} />}
           <FormPasswordField
             label="Confirm password"
             placeholder="Confirm your new password"

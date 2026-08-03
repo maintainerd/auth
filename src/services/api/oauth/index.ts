@@ -1,5 +1,5 @@
 import { deleteRequest, get, post } from '@/services/api/client'
-import { API_CONFIG } from '@/services/api/config'
+import { API_CONFIG, TOKEN_DELIVERY_HEADER } from '@/services/api/config'
 import { assertSuccess, unwrap } from '@/services/api/_lib/unwrap'
 import type { ApiResponse } from '@/services/api/types'
 import type {
@@ -26,6 +26,35 @@ export async function authorizeOAuth(queryString: string): Promise<OAuthAuthoriz
   const endpoint = query ? `${BASE}/authorize?${query}` : `${BASE}/authorize`
   const response = await get<ApiResponse<OAuthAuthorizeResult>>(endpoint)
   return unwrap(response, 'authorize OAuth request')
+}
+
+/**
+ * Exchange an authorization code for a session (authorization_code + PKCE).
+ *
+ * Closes the first-party federated login round trip started from the login page
+ * (see utils/oauthFlow). `redirect_uri` must byte-for-byte match the one sent to
+ * `/oauth/authorize` — the backend compares it against the value stored with the
+ * code. `X-Token-Delivery: cookie` asks the backend to Set-Cookie the tokens as
+ * httpOnly rather than hand them to JS, so nothing is ever persisted in
+ * localStorage; the response body is deliberately ignored.
+ */
+export async function exchangeAuthorizationCode(params: {
+  clientId: string
+  code: string
+  redirectUri: string
+  codeVerifier: string
+}): Promise<void> {
+  await post<unknown>(
+    `${BASE}/token`,
+    formBody({
+      grant_type: 'authorization_code',
+      code: params.code,
+      redirect_uri: params.redirectUri,
+      code_verifier: params.codeVerifier,
+      client_id: params.clientId,
+    }),
+    { headers: { ...FORM_HEADERS, ...TOKEN_DELIVERY_HEADER } },
+  )
 }
 
 export async function fetchOAuthConnections(clientId: string): Promise<OAuthConnections> {

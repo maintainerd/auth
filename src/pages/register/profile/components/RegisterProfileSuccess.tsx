@@ -35,7 +35,7 @@ const RegisterProfileSuccess = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8 text-center">
+    <div className="flex flex-col gap-6 text-center">
       <div className="flex flex-col items-center gap-3">
         <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10">
           <CheckCircle className="size-8 text-emerald-600" />

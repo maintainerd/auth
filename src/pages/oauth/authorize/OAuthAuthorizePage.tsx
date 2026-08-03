@@ -7,6 +7,8 @@ import { authorizeOAuth } from '@/services/api/oauth'
 import { useTenant } from '@/hooks/useTenant'
 import { normalizeOAuthAuthorizeSearch, oauthLoginRoute, withRequestId } from '@/utils/oauthRedirect'
 import { ApiError } from '@/services/api/client'
+import AuthPageHeading from '@/components/auth/AuthPageHeading'
+import { useLoginPageCopy } from '@/hooks/useLoginPageCopy'
 
 export default function OAuthAuthorizePage() {
   const [searchParams] = useSearchParams()
@@ -14,6 +16,8 @@ export default function OAuthAuthorizePage() {
   const { currentTenant } = useTenant()
   const [error, setError] = useState<string | null>(null)
   const startedRef = useRef(false)
+  const loadingCopy = useLoginPageCopy('oauth-authorize-loading')
+  const errorCopy = useLoginPageCopy('oauth-authorize-error')
 
   useEffect(() => {
     if (startedRef.current) return
@@ -83,27 +87,31 @@ export default function OAuthAuthorizePage() {
 
   return (
     <LoginLayout branding={currentTenant?.branding}>
-      <div className="flex flex-col gap-8 text-center" role={error ? 'alert' : 'status'} aria-live="polite">
-        <div className="flex flex-col items-center gap-3">
-          <div className={`flex size-14 items-center justify-center rounded-full ${error ? 'bg-destructive/10' : 'bg-primary/10'}`}>
-            {error ? (
-              <AlertCircle className="size-7 text-destructive" />
-            ) : (
-              <Loader2 className="size-7 animate-spin text-primary" />
-            )}
+      <div className="space-y-6" role={error ? 'alert' : 'status'} aria-live="polite">
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <div className={`flex size-14 items-center justify-center rounded-full ${error ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+              {error ? (
+                <AlertCircle className="size-7 text-destructive" />
+              ) : (
+                <Loader2 className="size-7 animate-spin text-primary" />
+              )}
+            </div>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {error ? 'Authorization unavailable' : 'Authorizing'}
-          </h1>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            {error || 'Preparing the secure redirect.'}
-          </p>
+          {/* The server's failure reason is more useful than the branded
+              subtitle, so it takes precedence when present. */}
+          <AuthPageHeading
+            title={error ? errorCopy.title : loadingCopy.title}
+            subtitle={error || loadingCopy.subtitle}
+          />
         </div>
 
         {error && (
-          <Button className="w-full" onClick={() => navigate('/login', { replace: true })}>
-            Back to sign in
-          </Button>
+          <div className="space-y-4">
+            <Button className="w-full" onClick={() => navigate('/login', { replace: true })}>
+              Back to sign in
+            </Button>
+          </div>
         )}
       </div>
     </LoginLayout>

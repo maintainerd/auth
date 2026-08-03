@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, Link, useSearchParams } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import { MessageSquare, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FormCodeField, FormPhoneField } from "@/components/inputs"
@@ -8,10 +8,10 @@ import { useTenant } from "@/hooks/useTenant"
 import { useToast } from "@/hooks/useToast"
 import { post } from "@/services/api/client"
 import { API_ENDPOINTS } from "@/services/api/config"
+import { publicAuthQuery } from "@/utils/clientContext"
 
 export default function SMSLoginPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { currentTenant } = useTenant()
   const { showError, showSuccess } = useToast()
 
@@ -30,19 +30,16 @@ export default function SMSLoginPage() {
     return flagged
   })
 
-  // Tenant comes from the domain bootstrap (its slug); client_id (OAuth) still
-  // comes from the URL.
-  const tenantId = currentTenant?.name
-  const clientId = searchParams.get("client_id")
-
   const handleSendCode = async () => {
     if (!phone) return
     setSending(true)
     try {
-      const body: Record<string, string> = { phone }
-      if (tenantId) body.tenant_id = tenantId
-      if (clientId) body.client_id = clientId
-      await post(API_ENDPOINTS.AUTH.SMS_LOGIN_SEND, body)
+      // Auth context belongs in the QUERY STRING: the backend reads it with
+      // authenticationContextQuery, and the request DTO has no client_id /
+      // tenant_id fields at all, so body values were silently discarded.
+      // publicAuthQuery also resolves to the surface client rather than a
+      // tenant slug, which this endpoint rejects outright.
+      await post(`${API_ENDPOINTS.AUTH.SMS_LOGIN_SEND}?${publicAuthQuery()}`, { phone })
       setOtpSent(true)
       showSuccess("Verification code sent")
     } catch (e: unknown) {
@@ -56,10 +53,7 @@ export default function SMSLoginPage() {
     if (!phone || !code) return
     setVerifying(true)
     try {
-      const body: Record<string, string> = { phone, code }
-      if (tenantId) body.tenant_id = tenantId
-      if (clientId) body.client_id = clientId
-      await post(API_ENDPOINTS.AUTH.SMS_LOGIN_VERIFY, body)
+      await post(`${API_ENDPOINTS.AUTH.SMS_LOGIN_VERIFY}?${publicAuthQuery()}`, { phone, code })
       showSuccess("Signed in successfully")
       navigate("/", { replace: true })
     } catch (e: unknown) {

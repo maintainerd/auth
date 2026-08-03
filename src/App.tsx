@@ -25,6 +25,8 @@ const RegisterProfilePage = lazy(() => import('./pages/register/profile'))
 const VerifyEmailPage = lazy(() => import('./pages/register/verify-email/VerifyEmailPage'))
 const LoginSuccessPage = lazy(() => import('./pages/login-success'))
 const OAuthAuthorizePage = lazy(() => import('./pages/oauth/authorize/OAuthAuthorizePage'))
+const OAuthCallbackPage = lazy(() => import('./pages/oauth/callback/OAuthCallbackPage'))
+const LogoutPage = lazy(() => import('./pages/logout/LogoutPage'))
 const OAuthConsentPage = lazy(() => import('./pages/oauth/consent/OAuthConsentPage'))
 const OAuthDevicePage = lazy(() => import('./pages/oauth/device/OAuthDevicePage'))
 const OAuthCIBAPage = lazy(() => import('./pages/oauth/ciba/OAuthCIBAPage'))
@@ -72,6 +74,12 @@ function App() {
         <Route path="/magic-link" element={<MagicLinkPage />} />
         <Route path="/authorize" element={<OAuthAuthorizePage />} />
         <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
+        {/* Landing point for this app's own federated logins — matches the
+            redirect_uri registered on the seeded identity surface client. */}
+        <Route path="/callback" element={<OAuthCallbackPage />} />
+        {/* Landing point for RP-initiated logout — matches the post_logout_redirect_uri
+            the seeder registers for the identity surface client. */}
+        <Route path="/logout" element={<LogoutPage />} />
         <Route path="/oauth/consent/:challengeId" element={<OAuthConsentPage />} />
         <Route path="/device" element={<OAuthDevicePage />} />
         <Route path="/oauth/device" element={<OAuthDevicePage />} />

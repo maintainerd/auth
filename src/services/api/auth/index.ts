@@ -265,8 +265,12 @@ export async function validateAuthentication(): Promise<AccountEntity | null> {
     return null
   } catch (err: unknown) {
     const apiErr = err as { status?: number }
-    if (apiErr?.status === 401 || apiErr?.status === 403) throw err
-    return null
+    // 401/403 is the server's verdict: there is no session. Anything else — a
+    // timeout, a 5xx, a network blip, a rate limit — means we do NOT know. It
+    // must propagate so boot can record "unknown", not silently resolve to
+    // "anonymous" and bounce an authenticated user through SSO.
+    if (apiErr?.status === 401 || apiErr?.status === 403) return null
+    throw err
   }
 }
 

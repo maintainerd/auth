@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { fetchRegistrationContext } from '@/services/api/auth'
-import { currentPublicAuthContext } from '@/utils/clientContext'
+import { resolvePublicAuthContext } from '@/utils/clientContext'
 import { ApiError } from '@/services/api/client'
 import type { RegistrationContext, RegistrationRequiredField } from '@/services/api/auth/types'
 
@@ -29,7 +29,12 @@ export type RegistrationContextState =
 export function useRegistrationContext(): RegistrationContextState {
   const [searchParams] = useSearchParams()
   const registrationFlow = searchParams.get('registration_flow') || undefined
-  const clientId = currentPublicAuthContext().clientId
+  // Must resolve the SAME client the sibling register() call uses. Reading only
+  // the URL/session client_id meant a first-party flow link (no client_id in the
+  // URL, tenant on the subdomain) resolved to nothing, so required_fields were
+  // never fetched: the form omitted the fields the flow demands and submit then
+  // failed with an error the user had no field to fix.
+  const clientId = resolvePublicAuthContext().clientId
 
   const query = useQuery({
     queryKey: ['registration-context', clientId, registrationFlow],

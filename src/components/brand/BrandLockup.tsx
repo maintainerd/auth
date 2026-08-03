@@ -53,7 +53,11 @@ export function BrandLockup({
           >
             {label}
           </p>
-          {detail && <p className="mt-1 text-xs leading-none opacity-75">{detail}</p>}
+          {detail && (
+            <p className={`mt-1 leading-none opacity-75 ${topPanelLabel ? 'text-[11px]' : 'text-xs'}`}>
+              {detail}
+            </p>
+          )}
         </div>
       )}
     </div>

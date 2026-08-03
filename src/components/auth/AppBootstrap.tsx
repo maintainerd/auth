@@ -24,12 +24,17 @@ import { setLimitRedirectHandler } from '@/services/api/client'
 export function AppBootstrap({ children }: { children: ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { initializeAuth, isInitialized } = useAuth()
+  const { initializeAuth, isInitialized, status: authStatus } = useAuth()
   const { initializeTenant, currentTenant, error: tenantError } = useTenant()
 
   const authStartedRef = useRef(false)
   const tenantBootstrapKeyRef = useRef<string | null>(null)
   const [tenantSettled, setTenantSettled] = useState(false)
+
+  // Boot has settled once the session verdict is in AND the tenant lookup has
+  // finished. Everything below keys off this rather than `isInitialized`, which
+  // also flips true on a failed account fetch.
+  const bootSettled = isInitialized && authStatus !== 'unknown' && tenantSettled
 
   // Tenant branding is a document-level concern: every auth route consumes the
   // same semantic CSS tokens, and cleanup prevents one tenant's theme leaking
@@ -41,7 +46,12 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
   // D5: send the user to the lockout / rate-limit screen when the backend
   // returns 423 / 429 on any request. Registered here (inside the router) so the
   // module-level axios interceptor can trigger a navigation.
+  // Registered only once boot has settled. While the splash is up a transient
+  // 429/423/503 on a bootstrap request must not navigate anywhere — the gate
+  // owns that decision, and a limit page flashing before login was exactly the
+  // glitch this avoids.
   useEffect(() => {
+    if (!bootSettled) return
     setLimitRedirectHandler((kind, retryAfterSeconds) => {
       const path =
         kind === 'locked'
@@ -55,7 +65,7 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
       })
     })
     return () => setLimitRedirectHandler(null)
-  }, [navigate])
+  }, [navigate, bootSettled])
 
   // Initialize auth once on mount (fetches /account if a session cookie exists).
   useEffect(() => {
@@ -90,8 +100,8 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
     run()
   }, [location.search, initializeTenant])
 
-  const ready = isInitialized && tenantSettled
-  if (!ready) {
+  // Nothing renders until boot has settled — see bootSettled above.
+  if (!bootSettled) {
     return <AppLoadingScreen branding={currentTenant?.branding} />
   }
 

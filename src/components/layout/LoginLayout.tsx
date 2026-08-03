@@ -1,6 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
 import { ExternalLink } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { useTenant } from '@/hooks/useTenant'
 import {
@@ -93,39 +92,46 @@ function LoginFormPanel({
 }) {
   const showLogo = logoPlacement !== 'none'
   const logo = showLogo ? (
-    <div className={logoPlacement === 'inside-form' ? 'mb-7' : 'mb-8'}>
-      <BrandMark
-        companyName={companyName}
-        logoLabel={logoLabel}
-        showLogoLabel={showLogoLabel}
-        logoUrl={logoUrl}
-        logoDetail={logoDetail}
-        centered
-      />
-    </div>
+    <BrandMark
+      companyName={companyName}
+      logoLabel={logoLabel}
+      showLogoLabel={showLogoLabel}
+      logoUrl={logoUrl}
+      logoDetail={logoDetail}
+      centered
+    />
   ) : null
 
   if (embedded) {
     return (
-      <div className="w-full">
+      <div className="w-full space-y-6">
         {logo}
         {children}
       </div>
     )
   }
 
-  return (
-    <div className="w-full max-w-md">
-      {logoPlacement === 'above-form' && logo}
-      <Card
-        data-auth-identity-card
-        className="auth-form-panel border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_-20px_rgba(15,23,42,0.25)]"
-      >
-        <CardContent className="p-7 sm:p-9">
-          {logoPlacement === 'inside-form' && logo}
+  if (logoPlacement === 'above-form') {
+    return (
+      <div className="w-full max-w-md space-y-4">
+        {logo}
+        <div
+          data-auth-identity-card
+          className="auth-form-panel w-full space-y-6 rounded-md border p-7"
+        >
           {children}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      data-auth-identity-card
+      className="auth-form-panel w-full max-w-md space-y-6 rounded-md border p-7"
+    >
+      {logo}
+      {children}
     </div>
   )
 }
@@ -488,7 +494,7 @@ function FullPageLayout({
         className="auth-full-page-panel relative z-10 grid w-full max-w-sm items-stretch overflow-hidden rounded-md border md:min-h-[440px] md:max-w-4xl md:grid-cols-2"
       >
         <section className="flex min-h-[440px] items-center justify-center p-6 md:p-8">
-          <div className="w-full max-w-md">
+          <div className="w-full max-w-sm">
             <LoginFormPanel
               companyName={companyName}
               logoLabel={logoLabel}
@@ -639,8 +645,14 @@ const LoginLayout = ({ children, branding }: Props) => {
   const { currentTenant } = useTenant()
   const resolvedBranding = branding === undefined ? currentTenant?.branding : branding
   const companyName = resolvedBranding?.company_name || 'Maintainerd'
-  const logoLabel = resolvedBranding?.logo_label || companyName
-  const showLogoLabel = resolvedBranding?.show_logo_label ?? true
+  const logoLabel =
+    resolvedBranding?.identity_logo_label ||
+    resolvedBranding?.logo_label ||
+    companyName
+  const showLogoLabel =
+    resolvedBranding?.identity_show_logo_label ??
+    resolvedBranding?.show_logo_label ??
+    true
   const logoUrl = resolveBrandingLogoUrl(resolvedBranding?.logo_url) ?? undefined
   const layout = resolvedLayout(resolvedBranding?.layout)
   const templateId = authUiTemplateIdFromMetadata(resolvedBranding?.metadata, layout)

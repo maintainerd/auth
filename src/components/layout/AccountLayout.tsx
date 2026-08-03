@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMutation } from '@tanstack/react-query'
-import { logout } from '@/services/api/auth'
+import { useAuth } from '@/hooks/useAuth'
 import { useTenant } from '@/hooks/useTenant'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { authUiTemplatePresentationFromMetadata } from '@/lib/branding/authUiTemplates'
@@ -39,14 +39,35 @@ export default function AccountLayout({
   const navigate = useNavigate()
   const { currentTenant } = useTenant()
 
+  const { logout } = useAuth()
+
+  // Sign out through the auth store, not the bare API call.
+  //
+  // This used to call the logout endpoint directly and redirect from onSuccess,
+  // which left two holes. The store never saw the logout, so Redux still held
+  // isAuthenticated: true and a stale account — the shell kept rendering as a
+  // signed-in user. And because onSuccess only fires on a 2xx, any error
+  // response (most commonly a 401 when the session was already revoked from the
+  // other surface in this browser) skipped the redirect entirely and left the
+  // user sitting on an account page that no longer had a session behind it.
+  //
+  // The store's logout clears auth state on BOTH fulfilled and rejected, so the
+  // navigation belongs in onSettled: whatever the server said, this browser is
+  // signed out locally and must land on /login.
   const logoutMutation = useMutation({
     mutationFn: logout,
-    onSuccess: () => navigate('/login'),
+    onSettled: () => navigate('/login', { replace: true }),
   })
 
   const companyName = currentTenant?.branding?.company_name || 'Maintainerd'
-  const logoLabel = currentTenant?.branding?.logo_label || companyName
-  const showLogoLabel = currentTenant?.branding?.show_logo_label ?? true
+  const logoLabel =
+    currentTenant?.branding?.identity_logo_label ||
+    currentTenant?.branding?.logo_label ||
+    companyName
+  const showLogoLabel =
+    currentTenant?.branding?.identity_show_logo_label ??
+    currentTenant?.branding?.show_logo_label ??
+    true
   const presentation = authUiTemplatePresentationFromMetadata(currentTenant?.branding?.metadata)
 
   return (

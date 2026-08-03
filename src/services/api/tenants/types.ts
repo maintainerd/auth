@@ -75,7 +75,12 @@ export interface BrandingPublic {
   layout: BrandingLayout
   company_name: string
   logo_label?: string
+  logo_detail?: string
   show_logo_label?: boolean
+  /** Public-facing logo label shown on identity surfaces. Falls back to logo_label/company_name. */
+  identity_logo_label?: string
+  /** Whether the identity surface renders the logo label + detail. */
+  identity_show_logo_label?: boolean
   logo_url: string
   favicon_url: string
   support_url: string
@@ -152,6 +157,33 @@ export interface TenantBootstrap {
   registration_config?: RegistrationConfigPublic
   branding?: BrandingPublic | null
   client?: TenantBootstrapClient | null
+  /**
+   * Federated login options enabled on `client`, ordered by display_order.
+   * Carried on the bootstrap so the login page can render provider buttons on
+   * first paint — no second round trip, and no in-flight OAuth authorize request
+   * needed to justify the lookup. Optional only for resilience against an older
+   * backend: treat a missing value exactly like an empty array.
+   */
+  connections?: TenantBootstrapConnection[]
+  /**
+   * Whether this surface offers passwordless email sign-in. Opt-in per client,
+   * so treat a missing value as off.
+   */
+  magic_link_enabled?: boolean
+}
+
+/**
+ * One federated login option (identity provider) on the resolved surface
+ * client. Structurally identical to the `/oauth/connections` projection so the
+ * login form can render either source through the same code path.
+ */
+export interface TenantBootstrapConnection {
+  identifier: string
+  display_name: string
+  provider: string
+  provider_type: string
+  is_default: boolean
+  display_order: number
 }
 
 /**

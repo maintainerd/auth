@@ -21,7 +21,9 @@ export function PasswordRequirements({ password, config, className }: PasswordRe
   const rules = buildPasswordRules(password, config)
 
   return (
-    <ul className={cn('mt-1 flex flex-col gap-1', className)}>
+    // No outer margin: this renders inside a field's footer slot, where the
+    // surrounding gap already provides the separation.
+    <ul className={cn('flex flex-col gap-1', className)}>
       {rules.map((rule) => (
         <li
           key={rule.label}

@@ -24,6 +24,16 @@ function populateAccount(state: AuthState, account: AccountEntity | null) {
   state.permissions = account?.permissions ?? []
 }
 
+/**
+ * Record the session verdict. `isAuthenticated` and `status` must never
+ * disagree, so nothing writes them separately — the two used to drift, which is
+ * how "not yet known" started reading as "definitely anonymous".
+ */
+function setAuthed(state: AuthState, authed: boolean) {
+  state.isAuthenticated = authed
+  state.status = authed ? 'authenticated' : 'anonymous'
+}
+
 export const authExtraReducers = (builder: ActionReducerMapBuilder<AuthState>) => {
   builder
     // Login
@@ -40,7 +50,7 @@ export const authExtraReducers = (builder: ActionReducerMapBuilder<AuthState>) =
         return
       }
       populateAccount(state, action.payload.data)
-      state.isAuthenticated = true
+      setAuthed(state, true)
     })
     .addCase(loginAsync.rejected, (state, action) => {
       state.isLoading = false
@@ -55,7 +65,7 @@ export const authExtraReducers = (builder: ActionReducerMapBuilder<AuthState>) =
       state.isLoading = false
       state.error = null
       populateAccount(state, action.payload.data)
-      state.isAuthenticated = true
+      setAuthed(state, true)
     })
     .addCase(completeMFALoginAsync.rejected, (state, action) => {
       state.isLoading = false
@@ -83,23 +93,23 @@ export const authExtraReducers = (builder: ActionReducerMapBuilder<AuthState>) =
     .addCase(logoutAsync.fulfilled, (state) => {
       state.isLoading = false
       populateAccount(state, null)
-      state.isAuthenticated = false
+      setAuthed(state, false)
       state.error = null
     })
     .addCase(logoutAsync.rejected, (state, action) => {
       state.isLoading = false
       populateAccount(state, null)
-      state.isAuthenticated = false
+      setAuthed(state, false)
       state.error = action.error.message || 'Logout failed'
     })
     // Validate
     .addCase(validateAuthAsync.fulfilled, (state, action) => {
       populateAccount(state, action.payload)
-      state.isAuthenticated = true
+      setAuthed(state, true)
     })
     .addCase(validateAuthAsync.rejected, (state) => {
       populateAccount(state, null)
-      state.isAuthenticated = false
+      setAuthed(state, false)
     })
     // Initialize
     .addCase(initializeAuthAsync.pending, (state) => {
@@ -109,32 +119,36 @@ export const authExtraReducers = (builder: ActionReducerMapBuilder<AuthState>) =
       state.isLoading = false
       state.isInitialized = true
       populateAccount(state, action.payload)
-      state.isAuthenticated = !!action.payload
+      setAuthed(state, !!action.payload)
     })
     .addCase(initializeAuthAsync.rejected, (state) => {
       state.isLoading = false
       state.isInitialized = true
-      state.profile = null
-      state.isAuthenticated = false
+      // We could not reach the backend, so the session is UNKNOWN, not absent.
+      // Clear the account too — leaving it populated alongside
+      // isAuthenticated=false lets guards read a stale tenant off it.
+      populateAccount(state, null)
+      setAuthed(state, false)
+      state.status = 'error'
     })
     // Fetch Profile
     .addCase(fetchProfileAsync.fulfilled, (state, action) => {
       populateAccount(state, action.payload)
-      state.isAuthenticated = true
+      setAuthed(state, true)
     })
     .addCase(fetchProfileAsync.rejected, (state) => {
       populateAccount(state, null)
-      state.isAuthenticated = false
+      setAuthed(state, false)
     })
     // Refresh Account (sync auth state with the live cookie session)
     .addCase(refreshAccountAsync.fulfilled, (state, action) => {
       state.isInitialized = true
       populateAccount(state, action.payload)
-      state.isAuthenticated = !!action.payload
+      setAuthed(state, !!action.payload)
     })
     .addCase(refreshAccountAsync.rejected, (state) => {
       populateAccount(state, null)
-      state.isAuthenticated = false
+      setAuthed(state, false)
     })
     // Forgot Password
     .addCase(forgotPasswordAsync.pending, (state) => {

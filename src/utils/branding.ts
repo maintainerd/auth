@@ -285,7 +285,7 @@ function normalizeBranding(
     const branding = brandingOrColors as unknown as BrandingPublic
     return {
       metadata: branding.metadata,
-      title: branding.company_name || branding.logo_label,
+      title: branding.identity_logo_label || branding.company_name || branding.logo_label,
       faviconUrl: branding.favicon_url,
     }
   }

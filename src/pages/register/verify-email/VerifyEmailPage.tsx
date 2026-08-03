@@ -61,6 +61,7 @@ export default function VerifyEmailPage() {
         sessionStorage.removeItem('register_email')
         const fresh = await refreshAccount()
         finishAuthStep({
+          returnTo: searchParams.get('return_to'),
           account: fresh,
           tenant: currentTenant,
           requestId: getRequestId(searchParams),
@@ -94,7 +95,7 @@ export default function VerifyEmailPage() {
   if (verified) {
     return (
       <LoginLayout branding={currentTenant?.branding}>
-        <div className="flex flex-col gap-8 text-center">
+        <div className="flex flex-col gap-6 text-center">
           <div className="flex flex-col items-center gap-3">
             <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
               <CheckCircle className="size-7 text-emerald-600" />
@@ -114,7 +115,7 @@ export default function VerifyEmailPage() {
 
   return (
     <LoginLayout branding={currentTenant?.branding}>
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
             <Mail className="size-7 text-primary" />

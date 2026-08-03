@@ -11,19 +11,22 @@ export const FormPasswordFieldWithPolicy = forwardRef<HTMLInputElement, FormPass
     const [password, setPassword] = useState('')
 
     return (
-      <div>
-        <FormPasswordField
-          ref={ref}
-          {...props}
-          onChange={(event) => {
-            setPassword(event.target.value)
-            onChange?.(event)
-          }}
-        />
-        {password.length > 0 && (
-          <PasswordRequirements password={password} config={passwordConfig} />
-        )}
-      </div>
+      // The checklist rides in the field's own footer slot rather than a
+      // wrapper div, so it inherits the same gap as the label and input
+      // instead of introducing a third spacing value.
+      <FormPasswordField
+        ref={ref}
+        {...props}
+        footer={
+          password.length > 0 ? (
+            <PasswordRequirements password={password} config={passwordConfig} />
+          ) : undefined
+        }
+        onChange={(event) => {
+          setPassword(event.target.value)
+          onChange?.(event)
+        }}
+      />
     )
   },
 )

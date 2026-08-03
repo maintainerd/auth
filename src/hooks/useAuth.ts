@@ -38,7 +38,7 @@ export function useAuth() {
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const { showError } = useToast()
-  const { profile, account, isAuthenticated, isLoading, isInitialized, error } = useAppSelector((state) => state.auth)
+  const { profile, account, isAuthenticated, isLoading, isInitialized, error, status } = useAppSelector((state) => state.auth)
   // Tenant slug resolved by the domain bootstrap (never parsed from the host).
   const tenantSlug = useAppSelector((state) => state.tenant.currentTenant?.name)
 
@@ -214,6 +214,7 @@ export function useAuth() {
     isAuthenticated,
     isLoading,
     isInitialized,
+    status,
     error,
     // Actions
     login,

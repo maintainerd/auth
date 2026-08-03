@@ -5,6 +5,7 @@ import type { TenantEntity } from '@/services/api/tenants/types'
 import { AppBootstrap } from './AppBootstrap'
 
 const initializeTenantMock = vi.hoisted(() => vi.fn())
+const authStatus = vi.hoisted(() => ({ value: 'authenticated' as string }))
 
 const tenant = {
   branding: {
@@ -34,6 +35,7 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     initializeAuth: vi.fn().mockResolvedValue(undefined),
     isInitialized: true,
+    status: authStatus.value,
   }),
 }))
 
@@ -99,5 +101,47 @@ describe('AppBootstrap branding', () => {
 
     expect(await screen.findByText('Authorize')).toBeInTheDocument()
     expect(initializeTenantMock).toHaveBeenCalledWith('client-abc')
+  })
+})
+
+/**
+ * The gate owns the decision. Nothing downstream may render — and therefore
+ * nothing may redirect — until the session verdict is in. This is what stops a
+ * signed-in user glimpsing the login / no-access page on first load.
+ */
+describe('AppBootstrap gate', () => {
+  afterEach(() => {
+    authStatus.value = 'authenticated'
+  })
+
+  it('holds the loading screen while the session is still unknown', async () => {
+    authStatus.value = 'unknown'
+
+    render(
+      <MemoryRouter>
+        <AppBootstrap>
+          <div data-testid="route-tree">routes</div>
+        </AppBootstrap>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(initializeTenantMock).toHaveBeenCalled())
+    // Route tree must NOT have rendered: a guard inside it would redirect on a
+    // session state we have not established yet.
+    expect(screen.queryByTestId('route-tree')).not.toBeInTheDocument()
+  })
+
+  it('renders the route tree once the verdict is in', async () => {
+    authStatus.value = 'anonymous'
+
+    render(
+      <MemoryRouter>
+        <AppBootstrap>
+          <div data-testid="route-tree">routes</div>
+        </AppBootstrap>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByTestId('route-tree')).toBeInTheDocument())
   })
 })

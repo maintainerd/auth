@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { AlertCircle, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react"
-import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
 import { FormPasswordField, FormSubmitButton } from "@/components/form"
 import { FormEmailField } from "@/components/inputs"
 import { buildLoginSchema, type LoginFormData } from "@/lib/validations"
@@ -22,6 +21,10 @@ import {
 import { finishAuthStep } from '@/utils/oauthContinuation'
 import { fetchOAuthConnections } from '@/services/api/oauth'
 import type { OAuthConnection, OAuthConnections } from '@/services/api/oauth/types'
+import { buildFirstPartyBrokerAuthorizeUrl } from '@/utils/oauthFlow'
+import AuthDivider from '@/components/auth/AuthDivider'
+import AuthPageHeading from '@/components/auth/AuthPageHeading'
+import { useLoginPageCopy } from '@/hooks/useLoginPageCopy'
 
 type OAuthAuthorizeTarget = {
   pathname: string
@@ -50,7 +53,7 @@ const LoginForm = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { login } = useAuth()
-  const { getCurrentTenant } = useTenant()
+  const { getCurrentTenant, bootstrap } = useTenant()
   const { showSuccess } = useToast()
   const [loginError, setLoginError] = useState<string | null>(null)
   const [mfaChallenge, setMfaChallenge] = useState<{ token: string; methods: string[] } | null>(null)
@@ -59,6 +62,13 @@ const LoginForm = () => {
   const [connections, setConnections] = useState<OAuthConnections | null>(null)
   const [connectionsError, setConnectionsError] = useState<string | null>(null)
   const [startingProvider, setStartingProvider] = useState<string | null>(null)
+
+  // Page copy is tenant-configurable in the console branding editor; these
+  // resolve to the same defaults its preview shows when unset.
+  const pageCopy = useLoginPageCopy('login')
+  const mfaCopy = useLoginPageCopy('login-mfa-code')
+  const magicLinkCopy = useLoginPageCopy('login-magic-link-sent')
+  const unavailableCopy = useLoginPageCopy('login-methods-unavailable')
 
   const currentTenant = getCurrentTenant()
   const clientId = searchParams.get('client_id') || undefined
@@ -70,7 +80,18 @@ const LoginForm = () => {
   const loginSchema = buildLoginSchema()
   const showSignUp = shouldLoadConnections ? connections?.registration_enabled !== false : currentTenant?.registration_config?.self_registration_enabled !== false
   const passwordEnabled = shouldLoadConnections ? connections?.password_enabled === true : true
-  const providerConnections = shouldLoadConnections ? connections?.connections ?? [] : []
+  // Two sources, one shape. Mid-authorize, the in-flight request's client owns
+  // the provider list and we fetch it for that client_id. Visited directly, the
+  // tenant bootstrap already carried the surface client's providers, so they
+  // render on first paint with no extra round trip.
+  const providerConnections = shouldLoadConnections
+    ? connections?.connections ?? []
+    : bootstrap?.connections ?? []
+  // Passwordless email sign-in is opt-in per client and off by default, so an
+  // absent value means "don't offer it" — same source split as the providers.
+  const magicLinkEnabled = shouldLoadConnections
+    ? connections?.magic_link_enabled === true
+    : bootstrap?.magic_link_enabled === true
   const isLoadingConnections = shouldLoadConnections && !connections && !connectionsError
 
   useEffect(() => {
@@ -134,6 +155,9 @@ const LoginForm = () => {
       account,
       tenant: currentTenant,
       requestId: getRequestId(searchParams),
+      // Present when the guard bounced an authorize request here to sign in;
+      // it is what sends the user back to the calling app afterwards.
+      returnTo: searchParams.get('return_to'),
       navigate,
     })
     // Only celebrate a completed direct sign-in; the OAuth continuation and the
@@ -196,26 +220,47 @@ const LoginForm = () => {
     }
   }
 
-  const handleBrokerLogin = (connection: OAuthConnection) => {
-    if (!oauthAuthorizeTarget) return
-
+  const handleBrokerLogin = async (connection: OAuthConnection) => {
     setLoginError(null)
     setStartingProvider(connection.identifier)
-    const params = new URLSearchParams(oauthAuthorizeTarget.searchParams)
-    params.set('idp_hint', connection.identifier)
-    const query = normalizeOAuthAuthorizeSearch(params.toString())
-    navigate(`${oauthAuthorizeTarget.pathname}?${query}`, { replace: true })
+
+    // Mid-authorize: the in-flight request owns the flow and already carries the
+    // caller's client_id, redirect_uri and PKCE — just add the provider hint and
+    // let it resume. It redirects to the original app, not back here.
+    if (oauthAuthorizeTarget) {
+      const params = new URLSearchParams(oauthAuthorizeTarget.searchParams)
+      params.set('idp_hint', connection.identifier)
+      const query = normalizeOAuthAuthorizeSearch(params.toString())
+      navigate(`${oauthAuthorizeTarget.pathname}?${query}`, { replace: true })
+      return
+    }
+
+    // Visited directly: there is no authorize request to join, so this app
+    // starts one of its own against the tenant's surface client and lands the
+    // result on /callback.
+    const surfaceClientId = bootstrap?.client?.client_id
+    if (!surfaceClientId) {
+      setStartingProvider(null)
+      setLoginError('Sign-in with this provider is unavailable right now. Please use your email and password.')
+      return
+    }
+
+    try {
+      const authorizeUrl = await buildFirstPartyBrokerAuthorizeUrl({
+        clientId: surfaceClientId,
+        idpHint: connection.identifier,
+      })
+      navigate(authorizeUrl, { replace: true })
+    } catch {
+      setStartingProvider(null)
+      setLoginError('Could not start sign-in with this provider. Please try again.')
+    }
   }
 
   if (mfaChallenge) {
     return (
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Two-step verification</h1>
-          <p className="text-sm text-muted-foreground">
-            Confirm your second factor to finish signing in.
-          </p>
-        </div>
+      <div className="space-y-6">
+        <AuthPageHeading title={mfaCopy.title} subtitle={mfaCopy.subtitle} />
         <LoginMFAStep
           challengeToken={mfaChallenge.token}
           allowedMethods={mfaChallenge.methods}
@@ -230,67 +275,92 @@ const LoginForm = () => {
 
   if (magicLinkSent) {
     return (
-      <div className="flex flex-col gap-8 text-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
-            <CheckCircle2 className="size-7 text-emerald-600" />
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
+              <CheckCircle2 className="size-7 text-emerald-600" />
+            </div>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Check your email</h1>
-          <p className="max-w-xs text-sm text-muted-foreground">
-            A secure sign-in link will arrive shortly.
-          </p>
+          <AuthPageHeading title={magicLinkCopy.title} subtitle={magicLinkCopy.subtitle} />
         </div>
 
-        <Button type="button" variant="outline" className="w-full" onClick={() => setMagicLinkSent(false)}>
-          Back to password sign in
-        </Button>
+        <div className="space-y-4">
+          <Button type="button" variant="outline" className="w-full" onClick={() => setMagicLinkSent(false)}>
+            Back to password sign in
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
-          Sign in to your account to continue.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <AuthPageHeading title={pageCopy.title} subtitle={pageCopy.subtitle} />
 
-      {connectionsError && (
-        <div
-          role="alert"
-          className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
-        >
-          <AlertCircle className="mt-0.5 size-4 shrink-0" />
-          <span>{connectionsError}</span>
-        </div>
-      )}
+      {/* One uniform element stack, ordered to match the console's login-template
+          preview: identity providers first, then the email/password form, then
+          the secondary actions. */}
+      <div className="space-y-4">
+        {connectionsError && (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+          >
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            <span>{connectionsError}</span>
+          </div>
+        )}
 
-      {isLoadingConnections && (
-        <div className="auth-progress-panel flex items-center justify-center gap-2 rounded-lg border p-3 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          <span>Loading sign-in methods...</span>
-        </div>
-      )}
+        {isLoadingConnections && (
+          <div className="auth-progress-panel flex items-center justify-center gap-2 rounded-md border p-3 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            <span>Loading sign-in methods...</span>
+          </div>
+        )}
 
-      {passwordEnabled && !connectionsError && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleSubmit(onSubmit)(e)
-          }}
-        >
-          <FieldGroup>
+        {providerConnections.length > 0 && !connectionsError && (
+          <>
+            {providerConnections.map((connection) => (
+              <Button
+                key={connection.identifier}
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={isSubmitting || isSendingMagicLink || startingProvider !== null}
+                onClick={() => void handleBrokerLogin(connection)}
+              >
+                {startingProvider === connection.identifier ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <KeyRound className="mr-2 size-4" />
+                )}
+                {startingProvider === connection.identifier ? 'Redirecting...' : providerButtonLabel(connection)}
+              </Button>
+            ))}
+
+            {passwordEnabled && <AuthDivider label="or continue with email" />}
+          </>
+        )}
+
+        {passwordEnabled && !connectionsError && (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSubmit(onSubmit)(e)
+            }}
+          >
             {loginError && (
               <div
                 role="alert"
-                className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+                className="flex items-start gap-2.5 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
               >
                 <AlertCircle className="mt-0.5 size-4 shrink-0" />
                 <span>{loginError}</span>
               </div>
             )}
+
             <FormEmailField
               label="Email"
               placeholder="you@company.com"
@@ -299,113 +369,72 @@ const LoginForm = () => {
               required
               {...register("email")}
             />
-            <Field>
-              <div className="flex items-center">
-                <FieldLabel htmlFor="password">
-                  Password
-                  <span className="text-red-500 ml-1">*</span>
-                </FieldLabel>
+
+            <FormPasswordField
+              id="password"
+              label="Password"
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              disabled={isSubmitting || isLoadingConnections}
+              error={errors.password?.message}
+              required
+              labelAction={
                 <Link
                   to="/forgot-password"
-                  className="ml-auto text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
                 >
                   Forgot password?
                 </Link>
-              </div>
-              <FormPasswordField
-                id="password"
-                label=""
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                disabled={isSubmitting || isLoadingConnections}
-                error={errors.password?.message}
-                containerClassName="space-y-0"
-                labelClassName="sr-only"
-                required
-                {...register("password")}
-              />
-            </Field>
+              }
+              {...register("password")}
+            />
+
             <FormSubmitButton
               isSubmitting={isSubmitting}
               submitText="Sign in"
               submittingText="Signing in..."
-              className="mt-1 w-full"
+              className="w-full"
             />
 
-            <div className="relative py-1">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
+            {magicLinkEnabled && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={isSubmitting || isSendingMagicLink || isLoadingConnections}
+                onClick={handleMagicLink}
+              >
+                {isSendingMagicLink ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Mail className="mr-2 size-4" />
+                )}
+                {isSendingMagicLink ? 'Sending sign-in link...' : 'Email me a sign-in link'}
+              </Button>
+            )}
+          </form>
+        )}
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={isSubmitting || isSendingMagicLink || isLoadingConnections}
-              onClick={handleMagicLink}
+        {!passwordEnabled && !isLoadingConnections && providerConnections.length === 0 && !connectionsError && (
+          <div className="rounded-md border p-3 text-center text-sm text-muted-foreground">
+            {unavailableCopy.subtitle}
+          </div>
+        )}
+
+        {/* Mirrors the register page's "Already have an account? Sign in" — the
+            prompt reads as a sentence, with only the action as the link. */}
+        {showSignUp && (
+          <div className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link
+              to={{ pathname: "/register", search: searchParams.toString() }}
+              className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              {isSendingMagicLink ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <Mail className="mr-2 size-4" />
-              )}
-              {isSendingMagicLink ? 'Sending sign-in link...' : 'Email me a sign-in link'}
-            </Button>
-          </FieldGroup>
-        </form>
-      )}
-
-      {providerConnections.length > 0 && !connectionsError && (
-        <div className="flex flex-col gap-3">
-          {passwordEnabled && (
-            <div className="relative py-1">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or use an identity provider</span>
-              </div>
-            </div>
-          )}
-
-          {providerConnections.map((connection) => (
-            <Button
-              key={connection.identifier}
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={isSubmitting || isSendingMagicLink || startingProvider !== null}
-              onClick={() => handleBrokerLogin(connection)}
-            >
-              {startingProvider === connection.identifier ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <KeyRound className="mr-2 size-4" />
-              )}
-              {startingProvider === connection.identifier ? 'Redirecting...' : providerButtonLabel(connection)}
-            </Button>
-          ))}
-        </div>
-      )}
-
-      {!passwordEnabled && !isLoadingConnections && providerConnections.length === 0 && !connectionsError && (
-        <div className="rounded-lg border p-3 text-center text-sm text-muted-foreground">
-          No sign-in methods are available for this application.
-        </div>
-      )}
-
-      {showSignUp && (
-      <div className="text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
-        <Link to={{ pathname: "/register", search: searchParams.toString() }} className="font-medium text-primary underline-offset-4 hover:underline">
-          Sign up
-        </Link>
+              Sign up
+            </Link>
+          </div>
+        )}
       </div>
-      )}
     </div>
   )
 }

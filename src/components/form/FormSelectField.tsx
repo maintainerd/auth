@@ -3,9 +3,15 @@
  * A flexible select field with label, validation, and error handling
  */
 
-import { Field, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { FieldShell } from "./FieldShell"
+import {
+  fieldControlProps,
+  resolveFieldId,
+  FIELD_INVALID_CONTROL_CLASS,
+  type FieldShellOwnProps,
+} from "./fieldControl"
 
 export interface SelectOption {
   value: string
@@ -13,20 +19,12 @@ export interface SelectOption {
   disabled?: boolean
 }
 
-export interface FormSelectFieldProps {
-  label: string
+export interface FormSelectFieldProps extends FieldShellOwnProps {
   placeholder?: string
   options: SelectOption[]
   value?: string
   onValueChange?: (value: string) => void
-  error?: string
-  description?: string
-  required?: boolean
   disabled?: boolean
-  containerClassName?: string
-  labelClassName?: string
-  errorClassName?: string
-  descriptionClassName?: string
   className?: string
   id?: string
 }
@@ -45,22 +43,25 @@ export function FormSelectField({
   labelClassName,
   errorClassName,
   descriptionClassName,
+  labelAction,
   className,
   id,
 }: FormSelectFieldProps) {
-  // Generate ID if not provided
-  const fieldId = id || label.toLowerCase().replace(/\s+/g, '-')
+  const fieldId = resolveFieldId(id, label)
 
   return (
-    <Field className={cn(containerClassName)}>
-      <FieldLabel
-        htmlFor={fieldId}
-        className={cn(labelClassName)}
-      >
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </FieldLabel>
-
+    <FieldShell
+      fieldId={fieldId}
+      label={label}
+      error={error}
+      description={description}
+      required={required}
+      containerClassName={containerClassName}
+      labelClassName={labelClassName}
+      errorClassName={errorClassName}
+      descriptionClassName={descriptionClassName}
+      labelAction={labelAction}
+    >
       <Select
         key={value}
         value={value || undefined}
@@ -68,12 +69,8 @@ export function FormSelectField({
         disabled={disabled}
       >
         <SelectTrigger
-          id={fieldId}
-          className={cn(
-            "w-full",
-            error && "border-red-500 focus:ring-red-500",
-            className
-          )}
+          className={cn("w-full", error && FIELD_INVALID_CONTROL_CLASS, className)}
+          {...fieldControlProps(fieldId, error, description)}
         >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
@@ -89,19 +86,7 @@ export function FormSelectField({
           ))}
         </SelectContent>
       </Select>
-
-      {description && (
-        <FieldDescription className={cn(descriptionClassName)}>
-          {description}
-        </FieldDescription>
-      )}
-
-      {error && (
-        <FieldError className={cn("text-red-600", errorClassName)}>
-          {error}
-        </FieldError>
-      )}
-    </Field>
+    </FieldShell>
   )
 }
 

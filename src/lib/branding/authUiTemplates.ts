@@ -34,8 +34,10 @@ export type AuthTemplatePresentation = {
 }
 
 export const DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION: AuthTemplatePresentation = {
-  logoPlacement: 'inside-form',
-  logoDetail: '',
+  // Brand above the card, so the logo reads as the page's identity rather than
+  // as a row inside the form. Kept in step with the backend seeder default.
+  logoPlacement: 'above-form',
+  logoDetail: 'Open-source Cloud Platform',
   splitShowcaseVisualStyle: 'default',
   splitShowcaseTitle: 'Secure access for your workspace',
   splitShowcaseSubtitle: 'Sign in with the protections, policies, and identity controls your team expects.',
@@ -65,7 +67,9 @@ export function authUiTemplatePresentationFromMetadata(
     logoPlacement: rawLogoPlacement === 'above-form' || rawLogoPlacement === 'inside-form'
       ? rawLogoPlacement
       : DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.logoPlacement,
-    logoDetail: readString(rawLogoDetail) ?? DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.logoDetail,
+    logoDetail: typeof rawLogoDetail === 'string'
+      ? rawLogoDetail.trim()
+      : DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.logoDetail,
     splitShowcaseVisualStyle:
       typeof rawVisualStyle === 'string' && SPLIT_VISUAL_STYLES.includes(rawVisualStyle as SplitVisualStyle)
         ? rawVisualStyle as SplitVisualStyle
