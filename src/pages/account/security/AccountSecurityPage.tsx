@@ -143,9 +143,9 @@ export default function AccountSecurityPage() {
         title="Sign-in details"
         description="Manage the identifiers and password used to access your account."
         icon={AtSign}
-        contentClassName="p-0"
+        contentClassName="space-y-2"
       >
-        <div className="divide-y">
+        <div className="space-y-2">
           <SettingsActionRow
             icon={Mail}
             title="Email address"

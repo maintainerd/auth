@@ -26,7 +26,7 @@ export default function AccountDataPage() {
           title="Export your data"
           description="Download a copy of your account data."
           icon={Download}
-          contentClassName="p-0"
+          contentClassName="space-y-2"
         >
           {exportResult ? (
             <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
@@ -68,7 +68,7 @@ export default function AccountDataPage() {
           description="Irreversible actions for your account."
           icon={Trash2}
           className="border-destructive/30"
-          contentClassName="p-0"
+          contentClassName="space-y-2"
         >
           <SettingsActionRow
             icon={Trash2}
