@@ -99,6 +99,13 @@ export function resolveGuardRedirect(ctx: GuardContext): string | null {
     return null
   }
 
+  // The OAuth callback owns its own routing: it exchanges the code, refreshes
+  // the account, then navigates to the caller's return_to. Evaluating the
+  // tenant-isolation rule here mid-exchange preempted that with /no-access.
+  if (pathname === OAUTH_CALLBACK_ROUTE) {
+    return null
+  }
+
   const home = resolvePostAuthRoute()
 
   // Root → resolved home. Unauthenticated routing is handled by RouteGuard,

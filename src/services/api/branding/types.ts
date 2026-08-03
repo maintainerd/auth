@@ -20,7 +20,10 @@ export interface Branding {
   layout: BrandingLayout
   company_name: string
   logo_label: string
+  logo_detail: string
   show_logo_label: boolean
+  identity_logo_label: string
+  identity_show_logo_label: boolean
   logo_url: string
   favicon_url: string
   support_url: string
@@ -37,7 +40,10 @@ export interface BrandingRequest {
   layout: BrandingLayout
   company_name: string
   logo_label: string
+  logo_detail: string
   show_logo_label: boolean
+  identity_logo_label: string
+  identity_show_logo_label: boolean
   logo_url: string
   favicon_url: string
   support_url: string

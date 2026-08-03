@@ -90,6 +90,7 @@ function makeClient(overrides: Record<string, unknown> = {}) {
     is_system: false,
     branding_id: null,
     allow_registration: true,
+    allow_magic_link: false,
     uris: [],
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -141,6 +142,7 @@ describe("ClientAddOrUpdateForm", () => {
           client_type: "spa",
           status: "active",
           allow_registration: true,
+          allow_magic_link: false,
           config: expect.objectContaining({
             grant_types: ["authorization_code", "refresh_token"],
             pkce_required: true,

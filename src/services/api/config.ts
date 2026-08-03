@@ -22,31 +22,33 @@ function runtimeEnv(key: string): string | undefined {
 // Get base URL from environment variables
 // In development, use relative path to go through Vite proxy
 // In production, prefer runtime config, then the build-time value, then a default.
+// Both planes are served SAME-ORIGIN, in dev via the Vite proxy and in
+// production via the container's nginx (see nginx.conf). This is not a
+// convenience: auth cookies are __Host- prefixed, so they are host-only and a
+// cookie set by a sibling API host would never be sent back with the console's
+// own requests. Keeping the API on this origin is what makes the session work
+// at all — and it removes CORS. An absolute URL may still be injected for
+// deployments that terminate the proxy elsewhere.
 const getBaseUrl = () => {
-  if (import.meta.env.DEV) {
-    // Development: use relative path to go through Vite proxy
-    return '/api/v1'
-  }
-  // Production: runtime injection wins, then build-time env, then fallback.
+  // Dev always uses the Vite proxy, regardless of what .env holds.
+  if (import.meta.env.DEV) return '/api/v1'
   return (
     runtimeEnv('VITE_AUTH_API_BASE_URL') ||
     import.meta.env.VITE_AUTH_API_BASE_URL ||
-    'https://console-api.auth.maintainerd.local/api/v1'
+    '/api/v1'
   )
 }
 
+// The data plane (OAuth2/OIDC + tenant bootstrap), also same-origin. The token
+// exchange runs here — a public authorization-server endpoint, never the
+// control plane — and its Set-Cookie must land on THIS origin.
 const getPublicBaseUrl = () => {
-  if (import.meta.env.DEV) {
-    // Development: use a relative path so the request goes through the Vite
-    // proxy (/public-api → identity-api.auth.maintainerd.local). This keeps the OAuth /
-    // tenant-bootstrap calls same-origin and avoids cross-origin CORS / browser
-    // cert-trust failures that would otherwise abort the flow before it starts.
-    return '/public-api/api/v1'
-  }
+  // Dev always uses the Vite proxy, regardless of what .env holds.
+  if (import.meta.env.DEV) return '/public-api/api/v1'
   return (
     runtimeEnv('VITE_AUTH_PUBLIC_API_BASE_URL') ||
     import.meta.env.VITE_AUTH_PUBLIC_API_BASE_URL ||
-    'https://identity-api.auth.maintainerd.local/api/v1'
+    '/public-api/api/v1'
   )
 }
 

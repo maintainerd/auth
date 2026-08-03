@@ -178,10 +178,16 @@ function ThemeTab({ branding }: { branding: Branding }) {
 function BrandAssetsLinksSection({ branding }: { branding: Branding }) {
   const links: { label: string; value: string }[] = [
     { label: "Company name", value: branding.company_name },
-    { label: "Logo label", value: branding.logo_label },
+    { label: "Logo label (console)", value: branding.logo_label },
+    { label: "Logo detail (console)", value: branding.logo_detail },
     {
-      label: "Show logo label",
+      label: "Show logo label (console)",
       value: (branding.show_logo_label ?? true) ? "Yes" : "No",
+    },
+    { label: "Logo label (identity)", value: branding.identity_logo_label },
+    {
+      label: "Show logo label (identity)",
+      value: (branding.identity_show_logo_label ?? true) ? "Yes" : "No",
     },
     { label: "Logo URL", value: branding.logo_url },
     { label: "Favicon URL", value: branding.favicon_url },

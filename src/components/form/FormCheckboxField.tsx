@@ -59,7 +59,9 @@ export function FormCheckboxField({
           >
             {label}
           </FieldLabel>
-          {description && (
+          {/* Suppressed while an error shows, so the control is never followed
+              by two competing lines of helper text. */}
+          {description && !error && (
             <FieldDescription id={`${fieldId}-description`} className={cn(descriptionClassName)}>
               {description}
             </FieldDescription>
@@ -68,7 +70,7 @@ export function FormCheckboxField({
       </div>
 
       {error && (
-        <FieldError id={`${fieldId}-error`} className={cn("text-red-600", errorClassName)}>
+        <FieldError id={`${fieldId}-error`} className={cn(errorClassName)}>
           {error}
         </FieldError>
       )}

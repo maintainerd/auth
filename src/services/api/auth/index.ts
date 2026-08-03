@@ -3,6 +3,7 @@
  * Handles authentication API calls and storage operations
  */
 
+import axios from 'axios'
 import { post, get } from '../client'
 import { API_CONFIG, API_ENDPOINTS } from '../config'
 import { clearOAuthSession, getStoredOAuthSession, getSessionIdTokenHint } from '../oauth-session'
@@ -95,7 +96,13 @@ export async function logoutViaIdentity(): Promise<void> {
  */
 export async function logout(to: string = '/login'): Promise<void> {
   try {
-    await post(API_ENDPOINTS.AUTH.LOGOUT)
+    // The PUBLIC plane, not the control plane. Interactive authentication is
+    // public-only — the internal router deliberately does not mount /logout, so
+    // posting there 404'd and logout silently did nothing. The console's session
+    // is minted by the public token endpoint, so it must be ended there too.
+    await axios.post(`${API_CONFIG.PUBLIC_BASE_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, {}, {
+      withCredentials: true,
+    })
   } catch {
     /* best-effort — still clear client state and land on /login */
   }
@@ -163,8 +170,12 @@ export async function validateAuthentication(): Promise<AccountEntity | null> {
     return null
   } catch (err: unknown) {
     const apiErr = err as { status?: number }
-    if (apiErr?.status === 401 || apiErr?.status === 403) throw err
-    return null
+    // 401/403 is the server's verdict: there is no session. Anything else — a
+    // timeout, a 5xx, a network blip, a rate limit — means we do NOT know. It
+    // must propagate so boot can record "unknown", not silently resolve to
+    // "anonymous" and bounce an authenticated user through SSO.
+    if (apiErr?.status === 401 || apiErr?.status === 403) return null
+    throw err
   }
 }
 

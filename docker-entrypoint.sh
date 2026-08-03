@@ -18,4 +18,21 @@ window.__ENV__ = {
 };
 EOF
 
+# Same-origin API proxy upstreams.
+#
+# The app calls /api/ and /public-api/ on its OWN origin so the session cookie
+# stays first-party (auth cookies are __Host- prefixed and cannot cross hosts).
+# nginx then forwards to the two backend planes. These are the upstream ORIGINS
+# (scheme://host[:port]) — not the browser-facing URLs.
+NGINX_CONF="${NGINX_CONF:-/etc/nginx/conf.d/default.conf}"
+INTERNAL_API_ORIGIN="${AUTH_CONTROL_PLANE_ORIGIN:-http://maintainerd-auth:8080}"
+PUBLIC_API_ORIGIN="${AUTH_DATA_PLANE_ORIGIN:-http://maintainerd-auth:8081}"
+
+if [ -w "$NGINX_CONF" ]; then
+  sed -i \
+    -e "s#__INTERNAL_API_ORIGIN__#${INTERNAL_API_ORIGIN}#g" \
+    -e "s#__PUBLIC_API_ORIGIN__#${PUBLIC_API_ORIGIN}#g" \
+    "$NGINX_CONF"
+fi
+
 exec "$@"

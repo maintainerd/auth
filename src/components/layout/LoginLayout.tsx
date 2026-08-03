@@ -13,6 +13,7 @@ type Props = {
 const LoginLayout = ({ children, branding }: Props) => {
   const companyName = branding?.company_name || 'Maintainerd IAM'
   const logoLabel = branding?.logo_label || companyName
+  const logoDetail = branding?.logo_detail
   const showLogoLabel = branding?.show_logo_label ?? true
   const logoUrl = resolveBrandingLogoUrl(branding?.logo_url)
 
@@ -45,7 +46,12 @@ const LoginLayout = ({ children, branding }: Props) => {
             <MaintainedAuthIcon width={48} height={48} />
           )}
           {showLogoLabel && logoLabel && (
-            <span className="text-lg font-semibold tracking-tight text-foreground">{logoLabel}</span>
+            <span className="text-center">
+              <span className={`block font-semibold tracking-tight text-foreground ${logoDetail ? "text-sm" : "text-lg"}`}>{logoLabel}</span>
+              {logoDetail && (
+                <span className="mt-1 block text-xs text-muted-foreground">{logoDetail}</span>
+              )}
+            </span>
           )}
         </div>
 

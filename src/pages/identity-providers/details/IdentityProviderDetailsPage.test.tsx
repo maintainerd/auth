@@ -54,6 +54,7 @@ function seededSystemProvider(): IdentityProviderDetailResponse {
       allow_login: true,
       require_mfa: false,
       allow_registration: true,
+      allow_magic_link: false,
       max_login_attempts: 5,
       refresh_timeout_min: 1440,
       session_timeout_min: 60,

@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DetailsContainer } from "@/components/container"
@@ -245,7 +246,10 @@ const BACKEND_FIELD_MAP: Record<string, keyof BrandingFormData> = {
   ui_template: "ui_template",
   company_name: "company_name",
   logo_label: "logo_label",
+  logo_detail: "logo_detail",
   show_logo_label: "show_logo_label",
+  identity_logo_label: "identity_logo_label",
+  identity_show_logo_label: "identity_show_logo_label",
   logo_url: "logo_url",
   favicon_url: "favicon_url",
   support_url: "support_url",
@@ -315,7 +319,10 @@ export default function BrandingForm() {
       ui_template: "centered-card",
       company_name: "",
       logo_label: "Maintainerd-IAM",
+      logo_detail: "Identity and Access Management",
       show_logo_label: true,
+      identity_logo_label: "Maintainerd",
+      identity_show_logo_label: true,
       logo_url: "",
       favicon_url: "",
       support_url: "",
@@ -334,7 +341,10 @@ export default function BrandingForm() {
         ui_template: authUiTemplateIdFromMetadata(branding.metadata, branding.layout),
         company_name: branding.company_name ?? "",
         logo_label: branding.logo_label ?? branding.company_name ?? "Maintainerd-IAM",
+        logo_detail: branding.logo_detail ?? "Identity and Access Management",
         show_logo_label: branding.show_logo_label ?? true,
+        identity_logo_label: branding.identity_logo_label ?? "Maintainerd",
+        identity_show_logo_label: branding.identity_show_logo_label ?? true,
         logo_url: branding.logo_url ?? "",
         favicon_url: branding.favicon_url ?? "",
         support_url: branding.support_url ?? "",
@@ -409,11 +419,22 @@ export default function BrandingForm() {
     savedLoginTemplatePresentation.splitShowcaseImageUrl !== loginTemplatePresentation.splitShowcaseImageUrl
   const logoLabel = watch("logo_label") || "Maintainerd-IAM"
   const showLogoLabel = watch("show_logo_label") ?? true
+  const logoDetail = watch("logo_detail") || ""
   const logoUrl = watch("logo_url") || ""
+  const identityLogoLabel = watch("identity_logo_label") || logoLabel
+  const identityShowLogoLabel = watch("identity_show_logo_label") ?? true
+  const resolvedLogoUrl = logoMode === "file" ? logoPreview : logoUrl
   const topPanelPreviewBranding = {
     logoLabel,
+    logoDetail,
     showLogoLabel,
-    logoUrl: logoMode === "file" ? logoPreview : logoUrl,
+    logoUrl: resolvedLogoUrl,
+  }
+  const loginTemplatePreviewBranding = {
+    logoLabel: identityLogoLabel,
+    logoDetail: loginTemplatePresentation.logoDetail,
+    showLogoLabel: identityShowLogoLabel,
+    logoUrl: resolvedLogoUrl,
   }
   const updateLoginPageCopy = (field: keyof LoginPageCopy, value: string) => {
     setLoginPageDraft((current) => ({
@@ -472,14 +493,6 @@ export default function BrandingForm() {
             description="Place the brand logo inside the form or above it."
           />
         )}
-        <FormInputField
-          label="Logo detail"
-          value={loginTemplatePresentation.logoDetail}
-          onChange={(event) => updateLoginTemplatePresentation("logoDetail", event.target.value)}
-          disabled={isLoading}
-          placeholder="Optional short text below the logo label"
-          description="Shown under the logo label on hosted auth templates. Leave blank to enlarge the label."
-        />
         {selectedTemplateUsesSplitArtwork && (
           <FormSelectField
             label="Visual design"
@@ -549,7 +562,10 @@ export default function BrandingForm() {
       layout: selectedUiTemplate.layout,
       company_name: (data.company_name ?? "").trim(),
       logo_label: (data.logo_label ?? "").trim(),
+      logo_detail: (data.logo_detail ?? "").trim(),
       show_logo_label: data.show_logo_label ?? true,
+      identity_logo_label: (data.identity_logo_label ?? "").trim(),
+      identity_show_logo_label: data.identity_show_logo_label ?? true,
       logo_url: logoMode === 'url' ? (data.logo_url ?? "").trim() : "",
       favicon_url: (data.favicon_url ?? "").trim(),
       support_url: (data.support_url ?? "").trim(),
@@ -732,36 +748,18 @@ export default function BrandingForm() {
             <CardHeader>
               <CardTitle className="text-base">Brand assets &amp; links</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Logo, favicon, and the URLs surfaced across the auth experience.
+                Logo, labels, and the URLs surfaced across the auth experience.
               </p>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-                  <FormInputField
-                    label="Logo label"
-                    placeholder="Maintainerd-IAM"
-                    disabled={isLoading}
-                    error={errors.logo_label?.message}
-                    description="Shown beside the logo in the console top panel and hosted auth templates."
-                    {...register("logo_label")}
-                  />
-                  <Controller
-                    name="show_logo_label"
-                    control={control}
-                    render={({ field }) => (
-                      <FormCheckboxField
-                        label="Show label"
-                        checked={field.value ?? true}
-                        onCheckedChange={field.onChange}
-                        disabled={isLoading}
-                        containerClassName="self-end pb-2"
-                      />
-                    )}
-                  />
-                </div>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium leading-none">Logo</span>
+                  <div>
+                    <span className="text-sm font-medium leading-none">Logo</span>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Shared logo image used by both the console and identity surfaces.
+                    </p>
+                  </div>
                   <div className="flex rounded-md border text-xs overflow-hidden">
                     <button
                       type="button"
@@ -810,35 +808,136 @@ export default function BrandingForm() {
                   </div>
                 )}
               </div>
-              <FormUrlField
-                label="Favicon URL"
-                placeholder="https://…/favicon.ico"
-                disabled={isLoading}
-                error={errors.favicon_url?.message}
-                {...register("favicon_url")}
-              />
-              <FormUrlField
-                label="Support URL"
-                placeholder="https://…/support"
-                disabled={isLoading}
-                error={errors.support_url?.message}
-                {...register("support_url")}
-              />
-              <FormUrlField
-                label="Privacy policy URL"
-                placeholder="https://…/privacy"
-                disabled={isLoading}
-                error={errors.privacy_policy_url?.message}
-                {...register("privacy_policy_url")}
-              />
-              <FormUrlField
-                label="Terms of service URL"
-                placeholder="https://…/terms"
-                disabled={isLoading}
-                error={errors.terms_of_service_url?.message}
-                containerClassName="sm:col-span-2"
-                {...register("terms_of_service_url")}
-              />
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold">Console app</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Shown in the admin console top panel and sign-in page.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-4">
+                  <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                    <FormInputField
+                      label="Logo label"
+                      placeholder="Maintainerd-IAM"
+                      disabled={isLoading}
+                      error={errors.logo_label?.message}
+                      description="Shown beside the logo in the console top panel."
+                      {...register("logo_label")}
+                    />
+                    <Controller
+                      name="show_logo_label"
+                      control={control}
+                      render={({ field }) => (
+                        <FormCheckboxField
+                          label="Show label"
+                          checked={field.value ?? true}
+                          onCheckedChange={field.onChange}
+                          disabled={isLoading}
+                          containerClassName="self-end pb-2"
+                        />
+                      )}
+                    />
+                  </div>
+                  <FormInputField
+                    label="Logo detail"
+                    placeholder="Optional short text below the logo label"
+                    disabled={isLoading}
+                    error={errors.logo_detail?.message}
+                    description="Shown under the logo label in the console top panel. Leave blank to enlarge the label."
+                    {...register("logo_detail")}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold">Identity app</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Shown on the public login and account pages. Public-facing — keep internal names out of it.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-4">
+                  <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                    <FormInputField
+                      label="Logo label"
+                      placeholder="Acme Inc."
+                      disabled={isLoading}
+                      error={errors.identity_logo_label?.message}
+                      description="Falls back to the console logo label when blank."
+                      {...register("identity_logo_label")}
+                    />
+                    <Controller
+                      name="identity_show_logo_label"
+                      control={control}
+                      render={({ field }) => (
+                        <FormCheckboxField
+                          label="Show label"
+                          checked={field.value ?? true}
+                          onCheckedChange={field.onChange}
+                          disabled={isLoading}
+                          containerClassName="self-end pb-2"
+                        />
+                      )}
+                    />
+                  </div>
+                  <FormInputField
+                    label="Logo detail"
+                    value={loginTemplatePresentation.logoDetail}
+                    onChange={(event) => updateLoginTemplatePresentation("logoDetail", event.target.value)}
+                    disabled={isLoading}
+                    placeholder="Optional short text below the logo label"
+                    description="Shown under the logo label on hosted auth pages. Leave blank to enlarge the label."
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold">Links</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Favicon and legal URLs surfaced across the auth experience.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormUrlField
+                    label="Favicon URL"
+                    placeholder="https://…/favicon.ico"
+                    disabled={isLoading}
+                    error={errors.favicon_url?.message}
+                    {...register("favicon_url")}
+                  />
+                  <FormUrlField
+                    label="Support URL"
+                    placeholder="https://…/support"
+                    disabled={isLoading}
+                    error={errors.support_url?.message}
+                    {...register("support_url")}
+                  />
+                  <FormUrlField
+                    label="Privacy policy URL"
+                    placeholder="https://…/privacy"
+                    disabled={isLoading}
+                    error={errors.privacy_policy_url?.message}
+                    {...register("privacy_policy_url")}
+                  />
+                  <FormUrlField
+                    label="Terms of service URL"
+                    placeholder="https://…/terms"
+                    disabled={isLoading}
+                    error={errors.terms_of_service_url?.message}
+                    containerClassName="sm:col-span-2"
+                    {...register("terms_of_service_url")}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -849,6 +948,7 @@ export default function BrandingForm() {
                 section={section}
                 tokens={tokens}
                 previewBranding={topPanelPreviewBranding}
+                loginPreviewBranding={loginTemplatePreviewBranding}
                 selectedTemplate={selectedUiTemplate}
                 selectedLoginPage={selectedLoginPage}
                 loginTemplatePresentation={loginTemplatePresentation}
@@ -886,6 +986,7 @@ function ThemeSectionEditor({
   section,
   tokens,
   previewBranding,
+  loginPreviewBranding,
   selectedTemplate,
   selectedLoginPage,
   loginTemplatePresentation,
@@ -896,6 +997,7 @@ function ThemeSectionEditor({
   section: ThemeSection
   tokens: Record<string, string>
   previewBranding: TopPanelPreviewBranding
+  loginPreviewBranding: TopPanelPreviewBranding
   selectedTemplate: AuthUiTemplate
   selectedLoginPage: LoginPagePreview
   loginTemplatePresentation: AuthUiTemplatePresentation
@@ -1004,6 +1106,7 @@ function ThemeSectionEditor({
                 sectionId={section.id}
                 tokens={tokens}
                 previewBranding={previewBranding}
+                loginPreviewBranding={loginPreviewBranding}
                 selectedTemplate={selectedTemplate}
                 selectedLoginPage={selectedLoginPage}
                 loginTemplatePresentation={loginTemplatePresentation}
@@ -1114,6 +1217,7 @@ function ThemeTokenRow({
 
 type TopPanelPreviewBranding = {
   logoLabel: string
+  logoDetail?: string
   showLogoLabel: boolean
   logoUrl?: string | null
 }
@@ -1122,6 +1226,7 @@ function ThemeSectionPreview({
   sectionId,
   tokens,
   previewBranding,
+  loginPreviewBranding,
   selectedTemplate,
   selectedLoginPage,
   loginTemplatePresentation,
@@ -1129,12 +1234,13 @@ function ThemeSectionPreview({
   sectionId: string
   tokens: Record<string, string>
   previewBranding: TopPanelPreviewBranding
+  loginPreviewBranding: TopPanelPreviewBranding
   selectedTemplate: AuthUiTemplate
   selectedLoginPage: LoginPagePreview
   loginTemplatePresentation: AuthUiTemplatePresentation
 }) {
   if (sectionId === "top-panel") return <TopPanelPreview tokens={tokens} branding={previewBranding} />
-  if (sectionId === "login-template") return <LoginTemplateThemePreview tokens={tokens} branding={previewBranding} template={selectedTemplate} page={selectedLoginPage} presentation={loginTemplatePresentation} />
+  if (sectionId === "login-template") return <LoginTemplateThemePreview tokens={tokens} branding={loginPreviewBranding} template={selectedTemplate} page={selectedLoginPage} presentation={loginTemplatePresentation} />
   if (sectionId === "side-panel") return <SidePanelPreview tokens={tokens} />
   if (sectionId === "icon-containers") return <IconContainersPreview tokens={tokens} />
   if (sectionId === "table") return <TablePreview tokens={tokens} />
@@ -1216,9 +1322,14 @@ function TopPanelPreview({
         <img src={logoSrc} alt={logoLabel} className="h-7 w-auto shrink-0 object-contain" />
         {branding.showLogoLabel && (
           <span className="min-w-0">
-            <span className="block truncate text-base font-semibold leading-none" style={{ color: tokens["colors.topPanelText"] }}>
+            <span className={`block truncate font-semibold leading-none ${branding.logoDetail ? "text-sm" : "text-lg"}`} style={{ color: tokens["colors.topPanelText"] }}>
               {logoLabel}
             </span>
+            {branding.logoDetail && (
+              <span className="mt-1 block truncate text-[11px] leading-none opacity-75" style={{ color: tokens["colors.topPanelText"] }}>
+                {branding.logoDetail}
+              </span>
+            )}
           </span>
         )}
         <span className="ml-1 hidden h-10 min-w-32 items-center justify-between gap-2 px-2 text-sm sm:flex" style={topDropdownStyle}>
@@ -1252,9 +1363,14 @@ function TopPanelPreview({
         <img src={logoSrc} alt="" className="h-7 w-auto shrink-0 object-contain" />
         {branding.showLogoLabel && (
           <span className="min-w-0">
-            <span className="block truncate text-base font-semibold leading-none" style={{ color: tokens["colors.topPanelText"] }}>
+            <span className={`block truncate font-semibold leading-none ${branding.logoDetail ? "text-sm" : "text-lg"}`} style={{ color: tokens["colors.topPanelText"] }}>
               {logoLabel}
             </span>
+            {branding.logoDetail && (
+              <span className="mt-1 block truncate text-[11px] leading-none opacity-75" style={{ color: tokens["colors.topPanelText"] }}>
+                {branding.logoDetail}
+              </span>
+            )}
           </span>
         )}
         <span className="ml-1 hidden h-10 min-w-32 items-center justify-between gap-2 px-2 text-sm sm:flex" style={{ ...topDropdownStyle, backgroundColor: componentValue(tokens, "topPanelDropdownTrigger", "hoverColor") }}>
@@ -1988,6 +2104,7 @@ function LoginTemplatePreviewElement({
         value={element.value ?? ""}
         icon={icon}
         rightIcon={element.kind === "password" ? <Eye className="size-4" /> : undefined}
+        labelAction={element.labelAction}
         style={inputStyle}
       />
     )
@@ -2026,6 +2143,16 @@ function LoginTemplatePreviewElement({
   }
 
   if (element.type === "link") {
+    // With a prefix the row reads as a sentence and only the label is the
+    // action; without one it is a plain standalone link.
+    if (element.prefix) {
+      return (
+        <p className="text-center text-sm" style={{ color: tokens["colors.textMuted"] }}>
+          {element.prefix}{" "}
+          <span className="font-medium text-primary underline-offset-4">{element.label}</span>
+        </p>
+      )
+    }
     return <p className="text-center text-sm font-medium text-primary underline-offset-4">{element.label}</p>
   }
 
@@ -2663,6 +2790,7 @@ function InputPreviewField({
   rightIcon,
   description,
   error,
+  labelAction,
   style,
 }: {
   label: string
@@ -2671,11 +2799,21 @@ function InputPreviewField({
   rightIcon?: ReactNode
   description?: string
   error?: string
+  labelAction?: string
   style: CSSProperties
 }) {
   return (
-    <div className="space-y-1.5">
-      <InputPreviewLabel>{label}</InputPreviewLabel>
+    // space-y-3 matches the shared <Field> primitive's gap-3, so the preview
+    // reproduces the label→input distance the real apps actually render.
+    <div className="space-y-3">
+      {labelAction ? (
+        <div className="flex items-center justify-between gap-2">
+          <InputPreviewLabel>{label}</InputPreviewLabel>
+          <span className="text-sm font-medium text-primary underline-offset-4">{labelAction}</span>
+        </div>
+      ) : (
+        <InputPreviewLabel>{label}</InputPreviewLabel>
+      )}
       <div
         className="flex h-10 w-full min-w-0 items-center gap-2 px-3.5 py-2 text-base transition-[color,box-shadow] outline-none md:text-sm"
         style={inputControlStyle(style)}
@@ -2689,9 +2827,9 @@ function InputPreviewField({
         )}
       </div>
       {description && !error && (
-        <p className="text-xs leading-normal text-muted-foreground">{description}</p>
+        <p className="text-sm leading-normal text-muted-foreground">{description}</p>
       )}
-      {error && <p className="text-xs leading-normal text-red-600">{error}</p>}
+      {error && <p className="text-sm leading-normal text-red-600">{error}</p>}
     </div>
   )
 }

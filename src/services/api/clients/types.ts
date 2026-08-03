@@ -87,6 +87,7 @@ export type Client = {
   is_system: boolean
   branding_id?: string | null
   allow_registration: boolean
+  allow_magic_link: boolean
   /**
    * OAuth metadata as ENFORCED by the runtime. These come from real columns; the
    * `config` blob is only mirrored into them on write, so reading the blob can show
@@ -185,6 +186,7 @@ export interface ClientResponse {
   is_system: boolean
   branding_id?: string | null
   allow_registration: boolean
+  allow_magic_link: boolean
   /**
    * OAuth metadata as ENFORCED by the runtime. These come from real columns; the
    * `config` blob is only mirrored into them on write, so reading the blob can show
@@ -250,6 +252,7 @@ export interface CreateClientRequest {
   identity_provider_id?: string
   branding_id?: string
   allow_registration?: boolean
+  allow_magic_link?: boolean
   status: ClientStatus
   config: Record<string, unknown>
   backchannel_logout_uri?: string | null
@@ -275,6 +278,7 @@ export interface UpdateClientRequest {
   domain: string
   branding_id?: string
   allow_registration?: boolean
+  allow_magic_link?: boolean
   status: ClientStatus
   config: Record<string, unknown>
   backchannel_logout_uri?: string | null

@@ -45,7 +45,20 @@ export const brandingSchema = yup.object({
     .trim()
     .max(255, 'Logo label must not exceed 255 characters')
     .default('Maintainerd-IAM'),
+  logo_detail: yup
+    .string()
+    .trim()
+    .max(255, 'Logo detail must not exceed 255 characters')
+    .default(''),
   show_logo_label: yup
+    .boolean()
+    .default(true),
+  identity_logo_label: yup
+    .string()
+    .trim()
+    .max(255, 'Identity logo label must not exceed 255 characters')
+    .default(''),
+  identity_show_logo_label: yup
     .boolean()
     .default(true),
   logo_url: optionalUrl('Logo URL'),

@@ -1,30 +1,31 @@
 /**
  * Reusable Form Date Field Component
- * A beautiful date picker with calendar popover using shadcn components
+ * A beautiful date picker with calendar popover using shadcn components.
+ *
+ * Layout, error rendering and aria wiring all come from FieldShell — this
+ * component only supplies the trigger, its calendar and the hidden input.
  */
 
 import { forwardRef, useState } from "react"
 import { format } from "date-fns"
 import { ChevronDownIcon } from "lucide-react"
-import { Field, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { FieldShell } from "./FieldShell"
+import {
+  fieldControlProps,
+  resolveFieldId,
+  FIELD_INVALID_CONTROL_CLASS,
+  type FieldShellOwnProps,
+} from "./fieldControl"
 
-export interface FormDateFieldProps {
-  label: string
+export interface FormDateFieldProps extends FieldShellOwnProps {
   value?: string
   onChange?: (value: string) => void
-  error?: string
-  description?: string
-  required?: boolean
   placeholder?: string
   disabled?: boolean
-  containerClassName?: string
-  labelClassName?: string
-  errorClassName?: string
-  descriptionClassName?: string
   className?: string
   id?: string
   name?: string
@@ -45,6 +46,8 @@ export const FormDateField = forwardRef<HTMLButtonElement, FormDateFieldProps>(
       labelClassName,
       errorClassName,
       descriptionClassName,
+      labelAction,
+      footer,
       className,
       id,
       name,
@@ -54,8 +57,7 @@ export const FormDateField = forwardRef<HTMLButtonElement, FormDateFieldProps>(
   ) => {
     const [open, setOpen] = useState(false)
 
-    // Generate ID if not provided
-    const fieldId = id || label.toLowerCase().replace(/\s+/g, '-')
+    const fieldId = resolveFieldId(id, label)
 
     // Convert string value to Date object
     const selectedDate = value ? new Date(value) : undefined
@@ -73,35 +75,33 @@ export const FormDateField = forwardRef<HTMLButtonElement, FormDateFieldProps>(
     }
 
     return (
-      <Field className={cn(containerClassName)}>
-        <FieldLabel
-          htmlFor={fieldId}
-          className={cn(labelClassName)}
-        >
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </FieldLabel>
-
+      <FieldShell
+        fieldId={fieldId}
+        label={label}
+        error={error}
+        description={description}
+        required={required}
+        containerClassName={containerClassName}
+        labelClassName={labelClassName}
+        errorClassName={errorClassName}
+        descriptionClassName={descriptionClassName}
+        labelAction={labelAction}
+        footer={footer}
+      >
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
               data-md-date-picker-trigger
-              id={fieldId}
               ref={ref}
               variant="outline"
               disabled={disabled}
-              aria-invalid={error ? "true" : "false"}
-              aria-describedby={
-                error ? `${fieldId}-error` :
-                description ? `${fieldId}-description` :
-                undefined
-              }
               className={cn(
                 "w-full justify-between font-normal",
                 !selectedDate && "text-muted-foreground",
-                error && "border-red-500 focus-visible:ring-red-500",
+                error && FIELD_INVALID_CONTROL_CLASS,
                 className
               )}
+              {...fieldControlProps(fieldId, error, description)}
               {...props}
             >
               {selectedDate ? (
@@ -142,19 +142,7 @@ export const FormDateField = forwardRef<HTMLButtonElement, FormDateFieldProps>(
           name={name}
           value={value || ''}
         />
-
-        {description && (
-          <FieldDescription id={`${fieldId}-description`} className={cn(descriptionClassName)}>
-            {description}
-          </FieldDescription>
-        )}
-
-        {error && (
-          <FieldError id={`${fieldId}-error`} className={cn("text-red-600", errorClassName)}>
-            {error}
-          </FieldError>
-        )}
-      </Field>
+      </FieldShell>
     )
   }
 )

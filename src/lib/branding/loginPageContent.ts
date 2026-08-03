@@ -90,8 +90,12 @@ export type LoginPageElement =
   | { type: "button"; label: string; variant?: "primary" | "outline" | "ghost" }
   | { type: "checkbox"; label: string }
   | { type: "divider"; label: string }
-  | { type: "field"; label: string; value?: string; kind?: "email" | "password" | "tel" | "code" | "text" }
-  | { type: "link"; label: string }
+  // `labelAction` renders at the far end of the label row — where a
+  // "Forgot password?" link conventionally sits, beside the field it relates to.
+  | { type: "field"; label: string; value?: string; kind?: "email" | "password" | "tel" | "code" | "text"; labelAction?: string }
+  // `prefix` turns a bare link into a sentence ("Don't have an account? Sign up"),
+  // with only `label` styled as the action.
+  | { type: "link"; label: string; prefix?: string }
   | { type: "readonly"; label: string; value: string }
   | { type: "scope-list"; items: string[] }
   | { type: "section"; title: string; description?: string }
@@ -139,11 +143,10 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
       { type: "button", label: "Continue with GitHub", variant: "outline" },
       { type: "divider", label: "or continue with email" },
       { type: "field", label: "Email", value: "you@company.com", kind: "email" },
-      { type: "field", label: "Password", value: "********", kind: "password" },
-      { type: "link", label: "Forgot password?" },
+      { type: "field", label: "Password", value: "********", kind: "password", labelAction: "Forgot password?" },
       { type: "button", label: "Sign in" },
       { type: "button", label: "Email me a sign-in link", variant: "outline" },
-      { type: "link", label: "Create an account" },
+      { type: "link", label: "Sign up", prefix: "Don't have an account?" },
     ],
   },
   "login-methods-loading": {
@@ -178,11 +181,10 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     elements: [
       { type: "alert", tone: "error", text: "Invalid email or password." },
       { type: "field", label: "Email", value: "you@company.com", kind: "email" },
-      { type: "field", label: "Password", value: "********", kind: "password" },
-      { type: "link", label: "Forgot password?" },
+      { type: "field", label: "Password", value: "********", kind: "password", labelAction: "Forgot password?" },
       { type: "button", label: "Sign in" },
       { type: "button", label: "Email me a sign-in link", variant: "outline" },
-      { type: "link", label: "Create an account" },
+      { type: "link", label: "Sign up", prefix: "Don't have an account?" },
     ],
   },
   "login-magic-link-sent": {
@@ -352,7 +354,7 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
       { type: "field", label: "Confirm password", value: "********", kind: "password" },
       { type: "checkbox", label: "I agree to the terms and privacy policy" },
       { type: "button", label: "Create account" },
-      { type: "link", label: "Sign in" },
+      { type: "link", label: "Sign in", prefix: "Already have an account?" },
     ],
   },
   "registration-loading": {

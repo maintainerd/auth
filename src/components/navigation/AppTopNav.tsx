@@ -40,6 +40,7 @@ export function AppTopNav() {
   const displayName = profile?.display_name || profile?.email || "User"
   const initials = displayName.slice(0, 2).toUpperCase()
   const logoLabel = branding?.logo_label || branding?.company_name || "Maintainerd-IAM"
+  const logoDetail = branding?.logo_detail
   const showLogoLabel = branding?.show_logo_label ?? true
   const logoSrc = resolveBrandingLogoUrl(branding?.logo_url) ?? "/logo.png"
 
@@ -58,10 +59,15 @@ export function AppTopNav() {
           <span className="min-w-0">
             <div
               data-console-top-logo-label
-              className="text-base font-semibold leading-none text-white"
+              className={`font-semibold leading-none text-white ${logoDetail ? "text-sm" : "text-lg"}`}
             >
               {logoLabel}
             </div>
+            {logoDetail && (
+              <div className="mt-1 truncate text-[11px] leading-none text-slate-400">
+                {logoDetail}
+              </div>
+            )}
           </span>
         )}
         <TenantSwitcher className="ml-4 hidden w-56 sm:block" />

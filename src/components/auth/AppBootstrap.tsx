@@ -19,7 +19,7 @@ import { RouteGuard } from './RouteGuard'
  */
 export function AppBootstrap({ children }: { children: ReactNode }) {
   const location = useLocation()
-  const { initializeAuth, isInitialized } = useAuth()
+  const { initializeAuth, isInitialized, status: authStatus } = useAuth()
   const { initializeFromHost, currentTenant, error: tenantError } = useTenant()
 
   const authStartedRef = useRef(false)
@@ -60,9 +60,21 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
     run()
   }, [location.pathname, initializeFromHost])
 
-  const ready = isInitialized && tenantSettled
-  if (!ready) {
+  // Nothing renders until the session verdict is IN. `isInitialized` alone was
+  // not enough: it flips true even when the account fetch merely failed, and
+  // downstream code then read isAuthenticated=false as "anonymous" and bounced a
+  // signed-in user through SSO. Waiting on a resolved status is what removes the
+  // flash of the login / no-access page.
+  const authResolved = isInitialized && authStatus !== 'unknown'
+  if (!authResolved || !tenantSettled) {
     return <AppLoadingScreen branding={currentTenant?.branding} />
+  }
+
+  // We reached the app but could not determine the session. Treating this as
+  // anonymous would silently sign the user out over a blip, so it is surfaced as
+  // an outage on protected routes instead.
+  if (authStatus === 'error' && !isPublicConsoleRoute(location.pathname)) {
+    return <Navigate to={SERVICE_UNAVAILABLE_ROUTE} replace />
   }
 
   // Public routes (login / landing, setup wizard, error / callback pages) must

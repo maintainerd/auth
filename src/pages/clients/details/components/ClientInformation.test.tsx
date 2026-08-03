@@ -8,7 +8,8 @@ function makeClient(overrides: Partial<ClientResponse> = {}): ClientResponse {
   return {
     client_id: "c1", name: "console", display_name: "Console",
     client_type: "traditional", status: "active", is_default: false, is_system: false,
-    allow_registration: true, created_at: "", updated_at: "", ...overrides,
+    allow_registration: true,
+    allow_magic_link: false, created_at: "", updated_at: "", ...overrides,
   }
 }
 

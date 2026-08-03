@@ -155,6 +155,8 @@ export default function ClientAddOrUpdateForm() {
   const [accessTokenLifetime, setAccessTokenLifetime] = useState<number>(3600)
   const [refreshTokenLifetime, setRefreshTokenLifetime] = useState<number>(604800)
   const [allowRegistration, setAllowRegistration] = useState<boolean>(true)
+  // Passwordless email sign-in is opt-in: default off for a new client.
+  const [allowMagicLink, setAllowMagicLink] = useState<boolean>(false)
   const NO_BRANDING = "__none__"
   const [brandingId, setBrandingId] = useState<string>(NO_BRANDING)
   const { data: brandings } = useBrandings()
@@ -278,6 +280,7 @@ export default function ClientAddOrUpdateForm() {
         status: clientData.status,
       })
       setAllowRegistration(clientData.allow_registration ?? true)
+      setAllowMagicLink(clientData.allow_magic_link ?? false)
       setDpopRequired(clientData.dpop_required ?? false)
       setServiceId(clientData.service_id ?? NO_SERVICE)
       setBackchannelLogoutUri(clientData.backchannel_logout_uri ?? "")
@@ -555,6 +558,7 @@ export default function ClientAddOrUpdateForm() {
           status: formData.status as ClientStatus,
           branding_id: brandingId !== NO_BRANDING ? brandingId : undefined,
           allow_registration: allowRegistration,
+          allow_magic_link: allowMagicLink,
           config,
           // Always sent, empty included: the server reads an omitted key as
           // "unchanged" and an empty string as "clear", so sending "" is the only way
@@ -581,6 +585,7 @@ export default function ClientAddOrUpdateForm() {
           status: formData.status as ClientStatus,
           branding_id: brandingId !== NO_BRANDING ? brandingId : undefined,
           allow_registration: allowRegistration,
+          allow_magic_link: allowMagicLink,
           config,
           // Always sent, empty included: the server reads an omitted key as
           // "unchanged" and an empty string as "clear", so sending "" is the only way
@@ -1019,6 +1024,15 @@ export default function ClientAddOrUpdateForm() {
                   description="Allow self-service registration for this client. Does not affect login for existing users or invite acceptance."
                   checked={allowRegistration}
                   onCheckedChange={(checked) => { markDirty(); setAllowRegistration(checked) }}
+                  disabled={isLoading}
+                />
+
+                <FormSwitchSubContainer
+                  id="allow-magic-link"
+                  label="Allow magic-link sign-in"
+                  description="Offer passwordless sign-in by emailed link on this client's login page. Possession of the inbox becomes sufficient to authenticate, so this is off unless you enable it."
+                  checked={allowMagicLink}
+                  onCheckedChange={(checked) => { markDirty(); setAllowMagicLink(checked) }}
                   disabled={isLoading}
                 />
 

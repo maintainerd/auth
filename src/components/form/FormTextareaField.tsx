@@ -1,23 +1,25 @@
 /**
  * Reusable Form Textarea Field Component
- * A flexible textarea field with label, validation, and error handling
+ * A flexible textarea field with label, validation, and error handling.
+ *
+ * Layout, error rendering and aria wiring all come from FieldShell — this
+ * component only supplies the control.
  */
 
 import { forwardRef } from "react"
-import { Field, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { FieldShell } from "./FieldShell"
+import {
+  fieldControlProps,
+  resolveFieldId,
+  FIELD_INVALID_CONTROL_CLASS,
+  type FieldShellOwnProps,
+} from "./fieldControl"
 
-export interface FormTextareaFieldProps extends React.ComponentProps<typeof Textarea> {
-  label: string
-  error?: string
-  description?: string
-  required?: boolean
-  containerClassName?: string
-  labelClassName?: string
-  errorClassName?: string
-  descriptionClassName?: string
-}
+export interface FormTextareaFieldProps
+  extends React.ComponentProps<typeof Textarea>,
+    FieldShellOwnProps {}
 
 export const FormTextareaField = forwardRef<HTMLTextAreaElement, FormTextareaFieldProps>(
   (
@@ -30,59 +32,37 @@ export const FormTextareaField = forwardRef<HTMLTextAreaElement, FormTextareaFie
       labelClassName,
       errorClassName,
       descriptionClassName,
+      labelAction,
+      footer,
       className,
       id,
       ...props
     },
     ref
   ) => {
-    // Generate ID if not provided
-    const fieldId = id || label.toLowerCase().replace(/\s+/g, '-')
+    const fieldId = resolveFieldId(id, label)
 
     return (
-      <Field className={cn(containerClassName)}>
-        <FieldLabel 
-          htmlFor={fieldId} 
-          className={cn(labelClassName)}
-        >
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </FieldLabel>
-        
+      <FieldShell
+        fieldId={fieldId}
+        label={label}
+        error={error}
+        description={description}
+        required={required}
+        containerClassName={containerClassName}
+        labelClassName={labelClassName}
+        errorClassName={errorClassName}
+        descriptionClassName={descriptionClassName}
+        labelAction={labelAction}
+        footer={footer}
+      >
         <Textarea
           ref={ref}
-          id={fieldId}
-          className={cn(
-            error && "border-red-500 focus-visible:ring-red-500/20",
-            className
-          )}
-          aria-invalid={error ? "true" : "false"}
-          aria-describedby={
-            error ? `${fieldId}-error` : 
-            description ? `${fieldId}-description` : 
-            undefined
-          }
+          className={cn(error && FIELD_INVALID_CONTROL_CLASS, className)}
+          {...fieldControlProps(fieldId, error, description)}
           {...props}
         />
-        
-        {description && !error && (
-          <FieldDescription 
-            id={`${fieldId}-description`}
-            className={cn("text-muted-foreground", descriptionClassName)}
-          >
-            {description}
-          </FieldDescription>
-        )}
-        
-        {error && (
-          <FieldError
-            id={`${fieldId}-error`}
-            className={cn(errorClassName)}
-          >
-            {error}
-          </FieldError>
-        )}
-      </Field>
+      </FieldShell>
     )
   }
 )

@@ -42,6 +42,7 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     is_default: false,
     is_system: false,
     allow_registration: true,
+    allow_magic_link: false,
     created_at: "",
     updated_at: "",
     ...overrides,

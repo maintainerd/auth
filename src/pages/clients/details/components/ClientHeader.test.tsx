@@ -40,6 +40,7 @@ function makeClient(overrides: Partial<ClientResponse> = {}): ClientResponse {
     client_id: "c1", name: "console", display_name: "Console",
     client_type: "traditional", status: "active", is_default: false, is_system: false,
     allow_registration: true,
+    allow_magic_link: false,
     created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z",
     ...overrides,
   }

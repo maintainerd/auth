@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppLoadingScreen from '@/components/layout/AppLoadingScreen'
 import { useAuth } from '@/hooks/useAuth'
@@ -13,8 +13,16 @@ const OAuthCallbackPage = () => {
   const { refreshAccount } = useAuth()
   const { currentTenant } = useTenant()
   const [failed, setFailed] = useState(false)
+  // The exchange is single-use: consumePendingOAuthFlow removes the stashed
+  // flow, so a second invocation (StrictMode, or any dep change) finds nothing
+  // and reports failure — which flashed /no-access while the first exchange was
+  // still in flight. Identity's callback already guards this way.
+  const startedRef = useRef(false)
 
   useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+
     const run = async () => {
       const code = searchParams.get('code')
       const state = searchParams.get('state')

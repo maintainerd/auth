@@ -133,6 +133,31 @@ function refreshSession(): Promise<void> {
   return refreshPromise
 }
 
+// Routes that are allowed to see a 401 without being bounced. These are the
+// pages that exist precisely because there is no session yet — redirecting from
+// them would either be a no-op or, on the OAuth callback, abort the exchange
+// that is in the middle of establishing the session.
+const UNAUTHENTICATED_ROUTES = ['/login', '/logout', '/auth/callback', '/setup/', '/no-access', '/service-unavailable']
+
+// Fire once. Several requests typically 401 together (a dashboard fans out), and
+// each would otherwise call location.replace and fight over the navigation.
+let sessionEnded = false
+
+function endDeadSession(): void {
+  if (sessionEnded) return
+  const path = window.location.pathname
+  if (UNAUTHENTICATED_ROUTES.some((route) => path === route || path.startsWith(route))) return
+  sessionEnded = true
+  clearOAuthSession()
+  // Hard navigation, not react-router: flipping auth state while still mounted
+  // on a protected route makes the guard see "unauthenticated on a protected
+  // route" and fire the hosted-identity OAuth redirect, bouncing the user
+  // straight back in. This mirrors logoutAndRedirect, inlined because
+  // services/api/auth imports this module and importing it back would be a
+  // require cycle.
+  window.location.replace('/login')
+}
+
 type RetriableRequestConfig = InternalAxiosRequestConfig & { _retry?: boolean; _stepUpRetry?: boolean }
 
 // Response interceptor for error handling
@@ -151,7 +176,16 @@ axiosInstance.interceptors.response.use(
         await refreshSession()
         return axiosInstance(original)
       } catch {
-        // Refresh failed — fall through to normal error handling below.
+        // Refresh failed: the session is gone server-side and cannot be revived.
+        //
+        // The most common way to get here is a sign-out in the OTHER surface of
+        // this same browser — console and identity share one session, so ending
+        // it from identity kills the console too. Previously nothing acted on
+        // that: the request 401'd, the refresh 401'd, and the console sat on a
+        // fully-rendered admin page showing stale data, still believing it was
+        // signed in until the user happened to reload. Now it lands on /login,
+        // which is what "logged out" is supposed to look like.
+        endDeadSession()
       }
     }
 

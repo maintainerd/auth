@@ -16,7 +16,7 @@ import {
 export function useAuth() {
   const dispatch = useAppDispatch()
   const queryClient = useQueryClient()
-  const { profile, account, isAuthenticated, isLoading, isInitialized, error } = useAppSelector((state) => state.auth)
+  const { profile, account, isAuthenticated, isLoading, isInitialized, error, status } = useAppSelector((state) => state.auth)
 
   const checkAuth = useCallback(async () => {
     try {
@@ -78,6 +78,7 @@ export function useAuth() {
     isAuthenticated,
     isLoading,
     isInitialized,
+    status,
     error,
     // Actions
     checkAuth,

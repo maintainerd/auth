@@ -54,7 +54,9 @@ export function FormSwitchField({
           >
             {label}
           </FieldLabel>
-          {description && (
+          {/* Suppressed while an error shows, so the control is never followed
+              by two competing lines of helper text. */}
+          {description && !error && (
             <FieldDescription id={`${fieldId}-description`} className={cn("text-sm", descriptionClassName)}>
               {description}
             </FieldDescription>
@@ -76,7 +78,7 @@ export function FormSwitchField({
       </div>
 
       {error && (
-        <FieldError id={`${fieldId}-error`} className={cn("text-red-600", errorClassName)}>
+        <FieldError id={`${fieldId}-error`} className={cn(errorClassName)}>
           {error}
         </FieldError>
       )}
