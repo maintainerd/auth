@@ -116,11 +116,11 @@ describe('applyBranding', () => {
     expect(style.getPropertyValue('--md-button-primary-border-width')).toBe('2px')
     expect(style.getPropertyValue('--md-button-primary-radius')).toBe('6px')
     expect(style.getPropertyValue('--md-button-primary-text')).toBe('#ffffff')
-    expect(style.getPropertyValue('--md-button-primary-height')).toBe('2.5rem')
+    expect(style.getPropertyValue('--md-button-primary-height')).toBe('2.75rem')
     expect(style.getPropertyValue('--md-card-bg')).toBe('#fefefe')
     expect(style.getPropertyValue('--md-card-radius')).toBe('8px')
     expect(style.getPropertyValue('--md-input-bg')).toBe('#ffffff')
-    expect(style.getPropertyValue('--md-input-height')).toBe('2rem')
+    expect(style.getPropertyValue('--md-input-height')).toBe('2.25rem')
     expect(style.getPropertyValue('--md-icon-container-bg')).toBe('#e0f2fe')
 
     cleanup()

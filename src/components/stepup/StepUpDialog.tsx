@@ -128,6 +128,8 @@ export function StepUpDialog({ open, onOpenChange, onVerified, onCancel, title, 
                       <button
                         key={m}
                         type="button"
+                        data-md-option-card
+                        data-state={selected ? "open" : undefined}
                         onClick={() => { setMethod(m); setCode(""); setSmsSent(false); setEmailOtpSent(false) }}
                         className={cn(
                           "flex items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors",

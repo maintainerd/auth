@@ -160,38 +160,16 @@ const COMPONENT_PREFIXES: Record<string, string> = {
   checkboxSubContainer: '--md-checkbox-sub',
 }
 
-const SIZE_STYLES: Record<string, {
-  height: string
-  paddingX: string
-  fontSize: string
-  dotSize: string
-  thumbSize: string
-  switchWidth: string
-}> = {
-  sm: {
-    height: '2rem',
-    paddingX: '0.75rem',
-    fontSize: '0.8125rem',
-    dotSize: '0.3125rem',
-    thumbSize: '0.875rem',
-    switchWidth: '2rem',
-  },
-  md: {
-    height: '2.25rem',
-    paddingX: '1rem',
-    fontSize: '0.875rem',
-    dotSize: '0.375rem',
-    thumbSize: '1rem',
-    switchWidth: '2.5rem',
-  },
-  lg: {
-    height: '2.5rem',
-    paddingX: '1.25rem',
-    fontSize: '0.9375rem',
-    dotSize: '0.4375rem',
-    thumbSize: '1.125rem',
-    switchWidth: '2.75rem',
-  },
+const COMPONENT_SIZES: Record<string, { height: string; paddingX: string; fontSize: string }> = {
+  sm: { height: '2.25rem', paddingX: '0.75rem', fontSize: '0.75rem' },
+  md: { height: '2.5rem', paddingX: '0.875rem', fontSize: '0.875rem' },
+  lg: { height: '2.75rem', paddingX: '1rem', fontSize: '0.9375rem' },
+}
+
+const SWITCH_SIZES: Record<string, { height: string; width: string; thumb: string }> = {
+  sm: { height: '1rem', width: '1.75rem', thumb: '0.8125rem' },
+  md: { height: '1.15rem', width: '2rem', thumb: '1rem' },
+  lg: { height: '1.35rem', width: '2.375rem', thumb: '1.125rem' },
 }
 
 const HEX_COLOR = /^#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i
@@ -348,14 +326,20 @@ function setComponentVars(
     if (textColor) setProperty(root, previous, `${prefix}-text`, textColor)
 
     const size = config.size?.trim()
-    const sizeStyle = size ? SIZE_STYLES[size] : undefined
-    if (!sizeStyle) continue
-    setProperty(root, previous, `${prefix}-height`, sizeStyle.height)
-    setProperty(root, previous, `${prefix}-padding-x`, sizeStyle.paddingX)
-    setProperty(root, previous, `${prefix}-font-size`, sizeStyle.fontSize)
-    setProperty(root, previous, `${prefix}-dot-size`, sizeStyle.dotSize)
-    setProperty(root, previous, `${prefix}-thumb-size`, sizeStyle.thumbSize)
-    if (componentName === 'switch') setProperty(root, previous, `${prefix}-width`, sizeStyle.switchWidth)
+    const componentSize = size ? COMPONENT_SIZES[size] : undefined
+    if (componentSize) {
+      setProperty(root, previous, `${prefix}-height`, componentSize.height)
+      setProperty(root, previous, `${prefix}-padding-x`, componentSize.paddingX)
+      setProperty(root, previous, `${prefix}-font-size`, componentSize.fontSize)
+    }
+
+    if (componentName === 'switch' && size) {
+      const switchSize = SWITCH_SIZES[size]
+      if (!switchSize) continue
+      setProperty(root, previous, '--md-switch-height', switchSize.height)
+      setProperty(root, previous, '--md-switch-width', switchSize.width)
+      setProperty(root, previous, '--md-switch-thumb-size', switchSize.thumb)
+    }
   }
 
   const switchConfig = readPath(metadata, ['components', 'switch'])

@@ -108,6 +108,8 @@ export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientI
                 <button
                   key={m}
                   type="button"
+                  data-md-option-card
+                  data-state={selected ? "open" : undefined}
                   aria-pressed={selected}
                   onClick={() => { setMethod(m); setCode(""); setSmsSent(false); setEmailOtpSent(false) }}
                   className={cn(
