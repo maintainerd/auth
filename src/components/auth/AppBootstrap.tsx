@@ -7,7 +7,7 @@ import AppLoadingScreen from '@/components/layout/AppLoadingScreen'
 import { RouteGuard } from './RouteGuard'
 import { rememberPublicAuthContext } from '@/utils/clientContext'
 import { isOAuthInteractionRoute } from '@/utils/oauthRedirect'
-import { applyBranding, getBrandingBackground } from '@/utils/branding'
+import { applyBranding } from '@/utils/branding'
 import { setLimitRedirectHandler } from '@/services/api/client'
 
 /**
@@ -35,12 +35,7 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
   // same semantic CSS tokens, and cleanup prevents one tenant's theme leaking
   // into the next tenant after an in-app context switch.
   useLayoutEffect(() => {
-    const metadata = currentTenant?.branding?.metadata
-    return applyBranding(
-      metadata?.colors,
-      metadata?.font,
-      getBrandingBackground(metadata),
-    )
+    return applyBranding(currentTenant?.branding)
   }, [currentTenant?.branding])
 
   // D5: send the user to the lockout / rate-limit screen when the backend

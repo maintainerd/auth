@@ -73,7 +73,7 @@ export default function PasskeySetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                 <Key className="size-5 text-muted-foreground" />
               </div>
               <div>
@@ -112,9 +112,9 @@ export default function PasskeySetupPage() {
             ) : (
               <div className="space-y-2">
                 {keys.map((key) => (
-                  <div key={key.credential_uuid} className="flex items-center justify-between rounded-lg border p-3">
+                  <div key={key.credential_uuid} data-md-listing-item className="flex items-center justify-between rounded-lg border p-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                      <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
                         <Key className="size-4 text-muted-foreground" />
                       </div>
                       <div className="min-w-0">

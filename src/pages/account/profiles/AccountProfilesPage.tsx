@@ -196,10 +196,11 @@ export default function AccountProfilesPage() {
               {profiles.map((profile: UserProfile) => (
                 <div
                   key={profile.profile_id}
+                  data-md-listing-item
                   className="flex items-center justify-between gap-3 rounded-lg border p-3"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                    <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
                       {profile.profile_url ? (
                         <img src={profile.profile_url} alt="" className="size-9 rounded-full object-cover" />
                       ) : (

@@ -34,9 +34,9 @@ function DeviceRow({
   const label = device.device_name || formatUserAgent(device.user_agent)
 
   return (
-    <li className="flex items-start justify-between gap-4 py-4">
+    <li data-md-listing-item className="flex items-start justify-between gap-4 py-4">
       <div className="flex min-w-0 items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
           <MonitorSmartphone className="size-4" />
         </div>
         <div className="min-w-0 space-y-1">

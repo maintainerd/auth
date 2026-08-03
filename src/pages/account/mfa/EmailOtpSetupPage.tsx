@@ -62,7 +62,7 @@ export default function EmailOtpSetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-emerald-600">
+              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-emerald-600">
                 <ShieldCheck className="size-5" />
               </div>
               <div>
@@ -102,7 +102,7 @@ export default function EmailOtpSetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                 <Mail className="size-5 text-muted-foreground" />
               </div>
               <div>

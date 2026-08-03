@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -38,6 +39,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       return (
         <div
           role="alert"
+          data-auth-identity-shell
           className="flex min-h-svh flex-col items-center justify-center gap-6 px-4 text-center"
         >
           <div className="flex flex-col items-center gap-3">
@@ -46,13 +48,12 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
               An unexpected error occurred. Reloading the page usually resolves it.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={this.handleReload}
-            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
           >
             Reload page
-          </button>
+          </Button>
         </div>
       )
     }

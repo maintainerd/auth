@@ -94,13 +94,20 @@ function CenteredLayout({
   legalLinks: FooterProps['legalLinks']
 }) {
   return (
-    <main data-layout="centered" className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-4 py-12">
+    <main
+      data-auth-identity-shell
+      data-layout="centered"
+      className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-4 py-12"
+    >
       <div className="auth-page-background pointer-events-none absolute inset-0" />
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-8">
           <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} />
         </div>
-        <Card className="auth-form-panel border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_-20px_rgba(15,23,42,0.25)]">
+        <Card
+          data-auth-identity-card
+          className="auth-form-panel border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_-20px_rgba(15,23,42,0.25)]"
+        >
           <CardContent className="p-7 sm:p-9">{children}</CardContent>
         </Card>
         <div className="mt-8">
@@ -127,9 +134,16 @@ function FullPageLayout({
   legalLinks: FooterProps['legalLinks']
 }) {
   return (
-    <main data-layout="full_page" className="relative min-h-svh overflow-hidden p-0 sm:p-6 lg:p-10">
+    <main
+      data-auth-identity-shell
+      data-layout="full_page"
+      className="relative min-h-svh overflow-hidden p-0 sm:p-6 lg:p-10"
+    >
       <div className="auth-page-background pointer-events-none absolute inset-0" />
-      <div className="auth-full-page-panel relative z-10 mx-auto flex min-h-svh w-full max-w-4xl flex-col px-6 py-8 shadow-2xl sm:min-h-[calc(100svh-3rem)] sm:rounded-3xl sm:px-12 lg:min-h-[calc(100svh-5rem)] lg:px-20">
+      <div
+        data-auth-identity-card
+        className="auth-full-page-panel relative z-10 mx-auto flex min-h-svh w-full max-w-4xl flex-col px-6 py-8 shadow-2xl sm:min-h-[calc(100svh-3rem)] sm:rounded-3xl sm:px-12 lg:min-h-[calc(100svh-5rem)] lg:px-20"
+      >
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-md">
             <div className="mb-10">
@@ -160,7 +174,11 @@ function SplitLayout({
   legalLinks: FooterProps['legalLinks']
 }) {
   return (
-    <main data-layout="split" className="auth-form-panel grid min-h-svh lg:grid-cols-[minmax(0,1.1fr)_minmax(30rem,0.9fr)]">
+    <main
+      data-auth-identity-shell
+      data-layout="split"
+      className="auth-form-panel grid min-h-svh lg:grid-cols-[minmax(0,1.1fr)_minmax(30rem,0.9fr)]"
+    >
       <section data-testid="split-brand-panel" className="auth-split-brand-panel relative hidden overflow-hidden p-12 lg:flex lg:flex-col lg:justify-between">
         <div className="auth-split-decoration-light pointer-events-none absolute -right-24 -top-24 size-80 rounded-full opacity-10" />
         <div className="auth-split-decoration-dark pointer-events-none absolute -bottom-40 -left-20 size-96 rounded-full opacity-10" />
@@ -172,12 +190,18 @@ function SplitLayout({
         </div>
       </section>
 
-      <section className="auth-form-panel flex min-h-svh items-center justify-center px-6 py-12 sm:px-10 lg:px-14">
+      <section
+        data-auth-identity-card
+        className="auth-form-panel flex min-h-svh items-center justify-center px-6 py-12 sm:px-10 lg:px-14"
+      >
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
             <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} />
           </div>
-          <Card className="auth-form-panel border-border/70 shadow-[0_16px_50px_-28px_rgba(15,23,42,0.35)]">
+          <Card
+            data-auth-identity-card
+            className="auth-form-panel border-border/70 shadow-[0_16px_50px_-28px_rgba(15,23,42,0.35)]"
+          >
             <CardContent className="p-7 sm:p-9">{children}</CardContent>
           </Card>
           <div className="mt-8 lg:hidden">

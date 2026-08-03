@@ -3,45 +3,94 @@ import { applyBranding, getBrandingBackground } from './branding'
 
 afterEach(() => {
   document.documentElement.removeAttribute('style')
+  document.documentElement.removeAttribute('data-identity-theme')
+  document.title = ''
 })
 
 describe('applyBranding', () => {
-  it('maps the complete tenant palette and font to auth theme variables', () => {
-    const cleanup = applyBranding(
-      {
-        primary: '#2563eb',
-        secondary: '#64748b',
-        accent: '#0ea5e9',
-        appBackground: '#f8fafc',
-        topPanelBackground: '#ffffff',
-        sidePanelBackground: '#0f172a',
-        cardBackground: '#fefefe',
-        textPrimary: '#111827',
-        textMuted: '#6b7280',
-        border: '#e5e7eb',
-        authPageBackground: '#eef2f8',
-        authFormPanelBackground: '#ffffff',
-        authFormPanelBorder: '#cbd5e1',
-        authFormPanelText: '#172033',
-        authVisualPanelBackground: '#1d4ed8',
-        authVisualPanelText: '#f8fafc',
-        authVisualPanelOverlay: '#0f172a',
-        authDecorativeLight: '#ffffff',
-        authDecorativeDark: '#000000',
-        authProgressPanelBackground: '#f8fafc',
-        authSecurityPanelBackground: '#f9fafb',
+  it('maps the complete tenant palette, font, and reusable component tokens', () => {
+    const cleanup = applyBranding({
+      layout: 'centered',
+      company_name: 'Acme',
+      logo_url: '',
+      favicon_url: '',
+      support_url: '',
+      privacy_policy_url: '',
+      terms_of_service_url: '',
+      metadata: {
+        colors: {
+          primary: '#2563eb',
+          secondary: '#64748b',
+          accent: '#0ea5e9',
+          appBackground: '#f8fafc',
+          topPanelBackground: '#ffffff',
+          sidePanelBackground: '#0f172a',
+          cardBackground: '#fefefe',
+          textPrimary: '#111827',
+          textMuted: '#6b7280',
+          border: '#e5e7eb',
+          authPageBackground: '#eef2f8',
+          authFormPanelBackground: '#ffffff',
+          authFormPanelBorder: '#cbd5e1',
+          authFormPanelText: '#172033',
+          authVisualPanelBackground: '#1d4ed8',
+          authVisualPanelText: '#f8fafc',
+          authVisualPanelOverlay: '#0f172a',
+          authDecorativeLight: '#ffffff',
+          authDecorativeDark: '#000000',
+          authProgressPanelBackground: '#f8fafc',
+          authSecurityPanelBackground: '#f9fafb',
+        },
+        font: { family: 'Inter, system-ui, sans-serif' },
+        background: '#f8fafc',
+        effects: {
+          authFormPanelShadow: '0 20px 60px rgba(15, 23, 42, 0.24)',
+        },
+        components: {
+          primaryButton: {
+            background: '#0f172a',
+            hoverColor: '#1e293b',
+            borderColor: '#334155',
+            borderThickness: '2px',
+            borderRadius: '6px',
+            textColor: '#ffffff',
+            size: 'lg',
+          },
+          card: {
+            background: '#fefefe',
+            borderColor: '#dbe4ef',
+            borderThickness: '1px',
+            borderRadius: '8px',
+            textColor: '#111827',
+            size: 'md',
+          },
+          input: {
+            background: '#ffffff',
+            hoverColor: '#f8fafc',
+            borderColor: '#cbd5e1',
+            borderRadius: '5px',
+            textColor: '#111827',
+            size: 'sm',
+          },
+          iconContainer: {
+            background: '#e0f2fe',
+            borderColor: '#bae6fd',
+            textColor: '#075985',
+            size: 'md',
+          },
+        },
       },
-      { family: 'Inter, system-ui, sans-serif' },
-      '#f8fafc',
-    )
+    })
 
     const style = document.documentElement.style
+    expect(document.documentElement).toHaveAttribute('data-identity-theme', 'active')
     expect(style.getPropertyValue('--primary')).toBe('#2563eb')
     expect(style.getPropertyValue('--ring')).toBe('#2563eb')
     expect(style.getPropertyValue('--secondary')).toBe('#64748b')
     expect(style.getPropertyValue('--accent')).toBe('#0ea5e9')
     expect(style.getPropertyValue('--background')).toBe('#f8fafc')
-    expect(style.getPropertyValue('--popover')).toBe('#ffffff')
+    expect(style.getPropertyValue('--md-top-panel-bg')).toBe('#ffffff')
+    expect(style.getPropertyValue('--popover')).toBe('#fefefe')
     expect(style.getPropertyValue('--sidebar')).toBe('#0f172a')
     expect(style.getPropertyValue('--branding-side-panel-foreground')).toBe('#ffffff')
     expect(style.getPropertyValue('--card')).toBe('#fefefe')
@@ -60,10 +109,25 @@ describe('applyBranding', () => {
     expect(style.getPropertyValue('--auth-decorative-dark')).toBe('#000000')
     expect(style.getPropertyValue('--auth-progress-panel-background')).toBe('#f8fafc')
     expect(style.getPropertyValue('--auth-security-panel-background')).toBe('#f9fafb')
+    expect(style.getPropertyValue('--md-auth-form-shadow')).toBe('0 20px 60px rgba(15, 23, 42, 0.24)')
+    expect(style.getPropertyValue('--md-button-primary-bg')).toBe('#0f172a')
+    expect(style.getPropertyValue('--md-button-primary-hover')).toBe('#1e293b')
+    expect(style.getPropertyValue('--md-button-primary-border')).toBe('#334155')
+    expect(style.getPropertyValue('--md-button-primary-border-width')).toBe('2px')
+    expect(style.getPropertyValue('--md-button-primary-radius')).toBe('6px')
+    expect(style.getPropertyValue('--md-button-primary-text')).toBe('#ffffff')
+    expect(style.getPropertyValue('--md-button-primary-height')).toBe('2.5rem')
+    expect(style.getPropertyValue('--md-card-bg')).toBe('#fefefe')
+    expect(style.getPropertyValue('--md-card-radius')).toBe('8px')
+    expect(style.getPropertyValue('--md-input-bg')).toBe('#ffffff')
+    expect(style.getPropertyValue('--md-input-height')).toBe('2rem')
+    expect(style.getPropertyValue('--md-icon-container-bg')).toBe('#e0f2fe')
 
     cleanup()
     expect(style.getPropertyValue('--primary')).toBe('')
     expect(style.getPropertyValue('--font-family')).toBe('')
+    expect(style.getPropertyValue('--md-button-primary-bg')).toBe('')
+    expect(document.documentElement).not.toHaveAttribute('data-identity-theme')
   })
 
   it('restores pre-existing inline theme values during cleanup', () => {

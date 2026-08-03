@@ -43,9 +43,9 @@ export default function AccountLayout({
   const logoUrl = currentTenant?.branding?.logo_url
 
   return (
-    <div className="auth-account-shell min-h-screen">
+    <div data-auth-identity-account-shell className="auth-account-shell min-h-screen">
       {/* Top navigation */}
-      <header className="auth-account-header fixed inset-x-0 top-0 z-50 h-14 border-b">
+      <header data-md-top-panel className="auth-account-header fixed inset-x-0 top-0 z-50 h-14 border-b">
         <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
           <Link to="/account" className="flex items-center gap-2">
             {logoUrl ? (
@@ -54,7 +54,7 @@ export default function AccountLayout({
               <MaintainedAuthIcon width={28} height={28} className="shrink-0" />
             )}
             {showLogoLabel && logoLabel && (
-              <span className="text-base font-semibold tracking-tight">{logoLabel}</span>
+              <span data-md-top-logo-label className="text-base font-semibold tracking-tight">{logoLabel}</span>
             )}
           </Link>
 
@@ -62,6 +62,7 @@ export default function AccountLayout({
             <Button
               variant="ghost"
               size="sm"
+              data-md-top-profile-trigger
               className="gap-2 text-current hover:bg-current/10 hover:text-current"
               onClick={() => logoutMutation.mutate()}
               disabled={logoutMutation.isPending}
@@ -76,8 +77,11 @@ export default function AccountLayout({
       <div className="mx-auto max-w-5xl px-4 pb-8 pt-20">
         <div className="flex gap-6">
           {/* Sidebar */}
-          <aside className="w-56 shrink-0 space-y-1 self-start">
-            <p className="mb-3 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <aside data-md-sidebar className="w-56 shrink-0 space-y-1 self-start">
+            <p
+              data-md-sidebar-section-label
+              className="mb-3 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
               Account
             </p>
             {navItems.map(({ href, label, icon: Icon }) => {
@@ -88,6 +92,8 @@ export default function AccountLayout({
                 <Link
                   key={href}
                   to={href}
+                  data-md-sidebar-item
+                  data-active={active ? 'true' : undefined}
                   className={cn(
                     'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     active

@@ -28,7 +28,7 @@ export default function AccountOverviewPage() {
     <AccountLayout title="Account">
       <div className="space-y-6">
         {/* Account info header */}
-        <div className="flex items-center gap-4 rounded-lg border bg-card p-4 shadow-sm">
+        <div data-md-listing-item className="flex items-center gap-4 rounded-lg border bg-card p-4 shadow-sm">
           <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
             {isLoading ? '…' : initials}
           </div>
@@ -67,10 +67,10 @@ export default function AccountOverviewPage() {
         {/* Section cards */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {sections.map(({ href, label, description, icon: Icon }) => (
-            <Link key={href} to={href}>
-              <Card className="h-full transition-colors hover:bg-muted/50">
+            <Link key={href} to={href} className="block">
+              <Card data-md-listing-item className="h-full transition-colors hover:bg-muted/50">
                 <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                     <Icon className="size-5 text-muted-foreground" />
                   </div>
                   <div>

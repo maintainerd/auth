@@ -43,9 +43,9 @@ export default function MFAPage() {
 
       <div className="space-y-6">
         {/* Security status */}
-        <Card className="auth-security-panel">
+        <Card data-md-listing-item className="auth-security-panel">
           <CardContent className="flex items-center gap-4">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted">
+            <div data-md-listing-icon className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted">
               {isProtected
                 ? <ShieldCheck className="size-6 text-emerald-600" />
                 : <ShieldAlert className="size-6 text-amber-600" />}
@@ -201,9 +201,10 @@ function MethodRow({ icon: Icon, title, description, active, activeLabel, onClic
     <button
       type="button"
       onClick={onClick}
+      data-md-listing-item
       className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none"
     >
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+      <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
         <Icon className="size-5" />
       </div>
       <div className="min-w-0 flex-1">

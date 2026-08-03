@@ -21,7 +21,10 @@ const AppLoadingScreen = ({ branding }: Props) => {
   const logoUrl = resolvedBranding?.logo_url
 
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-4">
+    <div
+      data-auth-identity-shell
+      className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-4"
+    >
       <div className="auth-page-background pointer-events-none absolute inset-0" />
 
       <div className="relative z-10 flex flex-col items-center gap-6 text-center">

@@ -37,6 +37,7 @@ describe('LoginLayout', () => {
     )
 
     expect(screen.getByRole('main')).toHaveAttribute('data-layout', layout)
+    expect(screen.getByRole('main')).toHaveAttribute('data-auth-identity-shell')
     expect(screen.getByText('Authentication form')).toBeInTheDocument()
     expect(screen.getAllByText('Acme ID').length).toBeGreaterThan(0)
   })
