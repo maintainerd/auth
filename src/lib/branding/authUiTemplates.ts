@@ -31,6 +31,7 @@ export type SplitShowcaseVisualStyle = typeof SPLIT_SHOWCASE_VISUAL_STYLES[numbe
 
 export type AuthUiTemplatePresentation = {
   logoPlacement: LoginFormLogoPlacement
+  logoDetail: string
   splitShowcaseVisualStyle: SplitShowcaseVisualStyle
   splitShowcaseTitle: string
   splitShowcaseSubtitle: string
@@ -39,6 +40,7 @@ export type AuthUiTemplatePresentation = {
 
 export const DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION: AuthUiTemplatePresentation = {
   logoPlacement: "inside-form",
+  logoDetail: "",
   splitShowcaseVisualStyle: "default",
   splitShowcaseTitle: "Secure access for your workspace",
   splitShowcaseSubtitle: "Sign in with the protections, policies, and identity controls your team expects.",
@@ -138,6 +140,7 @@ export function authUiTemplatePresentationFromMetadata(
   metadata: Record<string, unknown> | null | undefined,
 ): AuthUiTemplatePresentation {
   const rawLogoPlacement = metadata?.login_form_logo_placement
+  const rawLogoDetail = metadata?.login_form_logo_detail
   const rawVisualStyle = metadata?.split_showcase_visual_style
   const rawSplitTitle = metadata?.split_showcase_panel_title
   const rawSplitSubtitle = metadata?.split_showcase_panel_subtitle
@@ -147,6 +150,7 @@ export function authUiTemplatePresentationFromMetadata(
     logoPlacement: isLoginFormLogoPlacement(rawLogoPlacement)
       ? rawLogoPlacement
       : DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.logoPlacement,
+    logoDetail: readString(rawLogoDetail) ?? DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.logoDetail,
     splitShowcaseVisualStyle: isSplitShowcaseVisualStyle(rawVisualStyle)
       ? rawVisualStyle
       : DEFAULT_AUTH_UI_TEMPLATE_PRESENTATION.splitShowcaseVisualStyle,
@@ -166,6 +170,7 @@ export function authUiTemplatePresentationMetadata(
   return {
     ...metadata,
     login_form_logo_placement: presentation.logoPlacement,
+    login_form_logo_detail: presentation.logoDetail.trim(),
     split_showcase_visual_style: presentation.splitShowcaseVisualStyle,
     split_showcase_panel_title: presentation.splitShowcaseTitle.trim(),
     split_showcase_panel_subtitle: presentation.splitShowcaseSubtitle.trim(),
@@ -182,5 +187,5 @@ function isSplitShowcaseVisualStyle(value: unknown): value is SplitShowcaseVisua
 }
 
 function readString(value: unknown) {
-  return typeof value === "string" && value.trim() ? value : undefined
+  return typeof value === "string" && value.trim() ? value.trim() : undefined
 }

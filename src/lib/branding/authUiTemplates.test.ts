@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   AUTH_UI_TEMPLATE_IDS,
   AUTH_UI_TEMPLATES,
+  authUiTemplatePresentationFromMetadata,
+  authUiTemplatePresentationMetadata,
   authUiTemplateOptions,
 } from "./authUiTemplates"
 
@@ -16,5 +18,16 @@ describe("auth UI templates", () => {
     const ids = AUTH_UI_TEMPLATES.map((template) => template.id)
 
     expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it("round-trips hosted auth logo detail metadata", () => {
+    const presentation = authUiTemplatePresentationFromMetadata({
+      login_form_logo_detail: "  Identity access  ",
+    })
+
+    expect(presentation.logoDetail).toBe("Identity access")
+    expect(authUiTemplatePresentationMetadata({}, presentation)).toMatchObject({
+      login_form_logo_detail: "Identity access",
+    })
   })
 })

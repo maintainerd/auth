@@ -402,6 +402,7 @@ export default function BrandingForm() {
   const savedLoginTemplatePresentation = authUiTemplatePresentationFromMetadata(branding?.metadata)
   const isLoginTemplatePresentationDirty =
     savedLoginTemplatePresentation.logoPlacement !== loginTemplatePresentation.logoPlacement ||
+    savedLoginTemplatePresentation.logoDetail !== loginTemplatePresentation.logoDetail ||
     savedLoginTemplatePresentation.splitShowcaseVisualStyle !== loginTemplatePresentation.splitShowcaseVisualStyle ||
     savedLoginTemplatePresentation.splitShowcaseTitle !== loginTemplatePresentation.splitShowcaseTitle ||
     savedLoginTemplatePresentation.splitShowcaseSubtitle !== loginTemplatePresentation.splitShowcaseSubtitle ||
@@ -471,6 +472,14 @@ export default function BrandingForm() {
             description="Place the brand logo inside the form or above it."
           />
         )}
+        <FormInputField
+          label="Logo detail"
+          value={loginTemplatePresentation.logoDetail}
+          onChange={(event) => updateLoginTemplatePresentation("logoDetail", event.target.value)}
+          disabled={isLoading}
+          placeholder="Optional short text below the logo label"
+          description="Shown under the logo label on hosted auth templates. Leave blank to enlarge the label."
+        />
         {selectedTemplateUsesSplitArtwork && (
           <FormSelectField
             label="Visual design"
@@ -734,6 +743,7 @@ export default function BrandingForm() {
                     placeholder="Maintainerd-IAM"
                     disabled={isLoading}
                     error={errors.logo_label?.message}
+                    description="Shown beside the logo in the console top panel and hosted auth templates."
                     {...register("logo_label")}
                   />
                   <Controller
@@ -1425,6 +1435,7 @@ function LoginTemplatePreviewCanvas({
       secondaryButtonStyle={secondaryButtonStyle}
       tokens={tokens}
       page={page}
+      logoDetail={presentation.logoDetail}
       logoPlacement={
         template.previewVariant === "split-showcase"
           ? "none"
@@ -1443,6 +1454,7 @@ function LoginTemplatePreviewCanvas({
       secondaryButtonStyle={secondaryButtonStyle}
       tokens={tokens}
       page={page}
+      logoDetail={presentation.logoDetail}
       logoPlacement="none"
     />
   )
@@ -1455,6 +1467,7 @@ function LoginTemplatePreviewCanvas({
       secondaryButtonStyle={secondaryButtonStyle}
       tokens={tokens}
       page={page}
+      logoDetail={presentation.logoDetail}
       logoPlacement="inside-form"
       embedded
     />
@@ -1474,7 +1487,7 @@ function LoginTemplatePreviewCanvas({
       <div className={`grid ${canvasHeightClass} lg:grid-cols-[1.05fr_0.95fr]`} style={pageStyle}>
         <div className="flex min-h-[440px] flex-col p-6">
           <div className="shrink-0">
-            <BrandPreviewLockup branding={branding} />
+            <BrandPreviewLockup branding={branding} logoDetail={presentation.logoDetail} />
           </div>
           <div className="flex flex-1 items-center justify-center py-6">
             {editorialForm}
@@ -1542,7 +1555,7 @@ function LoginVisualPanel({
       />
       {showVisualBrand ? (
         <div className="relative">
-          <BrandPreviewLockup branding={branding} panel />
+          <BrandPreviewLockup branding={branding} logoDetail={presentation.logoDetail} panel />
         </div>
       ) : (
         <div className="relative" />
@@ -1885,6 +1898,7 @@ function LoginFormSample({
   page,
   logoPlacement = "inside-form",
   embedded,
+  logoDetail,
 }: {
   branding: TopPanelPreviewBranding
   formPanelStyle: CSSProperties
@@ -1895,10 +1909,11 @@ function LoginFormSample({
   page: LoginPagePreview
   logoPlacement?: LoginFormLogoPlacement | "none"
   embedded?: boolean
+  logoDetail?: string
 }) {
   const content = (
     <>
-      {logoPlacement === "inside-form" && <BrandPreviewLockup branding={branding} centered />}
+      {logoPlacement === "inside-form" && <BrandPreviewLockup branding={branding} logoDetail={logoDetail} centered />}
       <div className="space-y-1 text-center">
         <p className="text-2xl font-semibold tracking-tight">{page.title}</p>
         <p className="text-sm" style={{ color: tokens["colors.textMuted"] }}>
@@ -1923,7 +1938,7 @@ function LoginFormSample({
   if (!embedded && logoPlacement === "above-form") {
     return (
       <div className="w-full max-w-md space-y-4">
-        <BrandPreviewLockup branding={branding} centered />
+        <BrandPreviewLockup branding={branding} logoDetail={logoDetail} centered />
         <div
           className="w-full space-y-6 rounded-md border p-7"
           style={{ ...formPanelStyle, boxShadow: tokens["effects.authFormPanelShadow"] }}
@@ -2112,15 +2127,18 @@ function LoginTemplatePreviewElement({
 
 function BrandPreviewLockup({
   branding,
+  logoDetail,
   panel,
   centered,
 }: {
   branding: TopPanelPreviewBranding
+  logoDetail?: string
   panel?: boolean
   centered?: boolean
 }) {
   const logoSrc = resolveBrandingLogoUrl(branding.logoUrl) ?? "/logo.png"
   const label = branding.logoLabel || "Maintainerd-IAM"
+  const detail = logoDetail?.trim()
 
   return (
     <div className={`flex items-center gap-3 ${centered ? "justify-center" : ""}`}>
@@ -2131,8 +2149,8 @@ function BrandPreviewLockup({
       />
       {branding.showLogoLabel && (
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{label}</p>
-          <p className="text-xs opacity-75">Identity access</p>
+          <p className={`truncate font-semibold ${detail ? "text-sm" : "text-lg"}`}>{label}</p>
+          {detail && <p className="text-xs opacity-75">{detail}</p>}
         </div>
       )}
     </div>
