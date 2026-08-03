@@ -24,6 +24,18 @@ const branding: BrandingPublic = {
   metadata: null,
 }
 
+function parentLockupForText(text: string, root: ParentNode = document.body): HTMLElement {
+  const label = Array.from(root.querySelectorAll('p')).find((element) => element.textContent === text)
+  if (!(label instanceof HTMLElement)) {
+    throw new Error(`Unable to find logo label for ${text}`)
+  }
+  const lockup = label.closest('.flex.items-center.gap-3')
+  if (!(lockup instanceof HTMLElement)) {
+    throw new Error(`Unable to find logo lockup for ${text}`)
+  }
+  return lockup
+}
+
 describe('LoginLayout', () => {
   beforeEach(() => {
     useTenantMock.mockReturnValue({ currentTenant: null })
@@ -54,6 +66,43 @@ describe('LoginLayout', () => {
     expect(logo.parentElement).toHaveClass('flex', 'items-center', 'gap-3')
     expect(logo.parentElement).toContainElement(label)
     expect(screen.getByText('Identity access')).toBeInTheDocument()
+  })
+
+  it('centers form-owned logo lockups for centered and cover templates', () => {
+    const { rerender } = render(
+      <LoginLayout branding={{ ...branding, metadata: { auth_ui_template: 'centered-card' } }}>
+        <span>Authentication form</span>
+      </LoginLayout>,
+    )
+
+    expect(parentLockupForText('Acme ID')).toHaveClass('justify-center')
+
+    rerender(
+      <LoginLayout branding={{ ...branding, layout: 'full_page', metadata: { auth_ui_template: 'stepper-flow' } }}>
+        <span>Authentication form</span>
+      </LoginLayout>,
+    )
+
+    expect(parentLockupForText('Acme ID')).toHaveClass('justify-center')
+  })
+
+  it('left-aligns brand-panel and editorial logo lockups like the template previews', () => {
+    const { rerender } = render(
+      <LoginLayout branding={{ ...branding, layout: 'split', metadata: { auth_ui_template: 'split-showcase' } }}>
+        <span>Authentication form</span>
+      </LoginLayout>,
+    )
+
+    expect(parentLockupForText('Acme ID', screen.getByTestId('split-brand-panel'))).not.toHaveClass('justify-center')
+
+    rerender(
+      <LoginLayout branding={{ ...branding, layout: 'split', metadata: { auth_ui_template: 'editorial-cover' } }}>
+        <span>Authentication form</span>
+      </LoginLayout>,
+    )
+
+    const editorialPanel = screen.getByRole('main').querySelector('section[data-auth-identity-card]')
+    expect(parentLockupForText('Acme ID', editorialPanel ?? document.body)).not.toHaveClass('justify-center')
   })
 
   it('uses the identity fallback label and enlarges it when logo detail is blank', () => {

@@ -25,6 +25,7 @@ type BrandMarkProps = {
   showLogoLabel: boolean
   logoUrl?: string
   logoDetail: string
+  centered?: boolean
   panel?: boolean
 }
 
@@ -49,7 +50,15 @@ function resolvedLayout(layout: BrandingPublic['layout'] | undefined): BrandingL
   return layout === 'full_page' || layout === 'split' ? layout : 'centered'
 }
 
-function BrandMark({ companyName, logoLabel, showLogoLabel, logoUrl, logoDetail, panel = false }: BrandMarkProps) {
+function BrandMark({
+  companyName,
+  logoLabel,
+  showLogoLabel,
+  logoUrl,
+  logoDetail,
+  centered = false,
+  panel = false,
+}: BrandMarkProps) {
   return (
     <BrandLockup
       companyName={companyName}
@@ -58,7 +67,7 @@ function BrandMark({ companyName, logoLabel, showLogoLabel, logoUrl, logoDetail,
       logoUrl={logoUrl}
       logoDetail={logoDetail}
       panel={panel}
-      centered
+      centered={centered}
     />
   )
 }
@@ -91,6 +100,7 @@ function LoginFormPanel({
         showLogoLabel={showLogoLabel}
         logoUrl={logoUrl}
         logoDetail={logoDetail}
+        centered
       />
     </div>
   ) : null
@@ -545,6 +555,7 @@ function SplitShowcaseLayout({
               showLogoLabel={showLogoLabel}
               logoUrl={logoUrl}
               logoDetail={presentation.logoDetail}
+              centered
             />
           </div>
           <LoginFormPanel
