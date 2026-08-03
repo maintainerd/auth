@@ -67,7 +67,7 @@ export default function AccountLayout({
               variant="ghost"
               size="sm"
               data-md-top-profile-trigger
-              className="gap-2 text-current hover:bg-current/10 hover:text-current"
+              className="gap-2"
               onClick={() => logoutMutation.mutate()}
               disabled={logoutMutation.isPending}
             >

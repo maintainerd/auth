@@ -78,6 +78,15 @@ describe('applyBranding', () => {
             textColor: '#075985',
             size: 'md',
           },
+          topPanelProfileTrigger: {
+            background: '#111827',
+            hoverColor: '#1f2937',
+            borderColor: '#374151',
+            borderThickness: '2px',
+            borderRadius: '999px',
+            textColor: '#f9fafb',
+            size: 'sm',
+          },
         },
       },
     })
@@ -122,11 +131,19 @@ describe('applyBranding', () => {
     expect(style.getPropertyValue('--md-input-bg')).toBe('#ffffff')
     expect(style.getPropertyValue('--md-input-height')).toBe('2.25rem')
     expect(style.getPropertyValue('--md-icon-container-bg')).toBe('#e0f2fe')
+    expect(style.getPropertyValue('--md-top-profile-bg')).toBe('#111827')
+    expect(style.getPropertyValue('--md-top-profile-hover')).toBe('#1f2937')
+    expect(style.getPropertyValue('--md-top-profile-border')).toBe('#374151')
+    expect(style.getPropertyValue('--md-top-profile-border-width')).toBe('2px')
+    expect(style.getPropertyValue('--md-top-profile-radius')).toBe('999px')
+    expect(style.getPropertyValue('--md-top-profile-text')).toBe('#f9fafb')
+    expect(style.getPropertyValue('--md-top-profile-height')).toBe('2.25rem')
 
     cleanup()
     expect(style.getPropertyValue('--primary')).toBe('')
     expect(style.getPropertyValue('--font-family')).toBe('')
     expect(style.getPropertyValue('--md-button-primary-bg')).toBe('')
+    expect(style.getPropertyValue('--md-top-profile-text')).toBe('')
     expect(document.documentElement).not.toHaveAttribute('data-identity-theme')
   })
 

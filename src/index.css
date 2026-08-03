@@ -400,6 +400,24 @@
   border-color: color-mix(in srgb, currentColor 16%, transparent);
 }
 
+.auth-account-header [data-md-top-profile-trigger] {
+  height: var(--md-top-profile-height, 2rem) !important;
+  background-color: var(--md-top-profile-bg, transparent) !important;
+  border-color: var(--md-top-profile-border, transparent) !important;
+  border-width: var(--md-top-profile-border-width, 1px) !important;
+  border-radius: var(--md-top-profile-radius, 0.375rem) !important;
+  color: var(--md-top-profile-text, var(--md-top-panel-text, currentColor)) !important;
+  font-size: var(--md-top-profile-font-size, 0.875rem) !important;
+  border-style: solid !important;
+}
+
+.auth-account-header [data-md-top-profile-trigger]:hover,
+.auth-account-header [data-md-top-profile-trigger][data-state="open"],
+.auth-account-header [data-md-top-profile-trigger]:active {
+  background-color: var(--md-top-profile-hover, color-mix(in srgb, var(--md-top-profile-text, currentColor) 10%, transparent)) !important;
+  color: var(--md-top-profile-text, var(--md-top-panel-text, currentColor)) !important;
+}
+
 .auth-account-nav-active {
   color: var(--primary);
   background: color-mix(in srgb, var(--primary) 12%, transparent);
@@ -490,9 +508,10 @@ html[data-identity-theme="active"] [data-md-top-profile-trigger] {
 }
 
 html[data-identity-theme="active"] [data-md-top-profile-trigger]:hover,
-html[data-identity-theme="active"] [data-md-top-profile-trigger][data-state="open"] {
+html[data-identity-theme="active"] [data-md-top-profile-trigger][data-state="open"],
+html[data-identity-theme="active"] [data-md-top-profile-trigger]:active {
   background-color: var(--md-top-profile-hover, color-mix(in srgb, currentColor 10%, transparent)) !important;
-  color: var(--md-top-panel-text, currentColor) !important;
+  color: var(--md-top-profile-text, var(--md-top-panel-text, currentColor)) !important;
 }
 
 html[data-identity-theme="active"] [data-md-sidebar] {
