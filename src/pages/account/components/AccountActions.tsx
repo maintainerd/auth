@@ -38,9 +38,9 @@ export function AccountActions() {
         title="Account"
         description="Manage your sign-in identity and personal data."
         icon={AtSign}
-        contentClassName="p-0"
+        contentClassName="space-y-2"
       >
-        <div className="divide-y">
+        <div className="space-y-2">
           <SettingsActionRow
             icon={Mail}
             title="Email address"
@@ -71,7 +71,7 @@ export function AccountActions() {
         description="Irreversible actions for your account."
         icon={Trash2}
         className="border-destructive/30"
-        contentClassName="p-0"
+        contentClassName="space-y-2"
       >
         <SettingsActionRow
           icon={Trash2}

@@ -51,7 +51,7 @@ export function SettingsActionRow({
       action={actionNode}
       iconClassName="size-10"
       contentClassName="items-center gap-4"
-      className={cn("items-center rounded-none border-0 px-4 py-4 first:rounded-t-xl last:rounded-b-xl", className)}
+      className={cn("items-center", className)}
     >
       <p className="text-sm font-medium">{title}</p>
       <p className="text-sm text-muted-foreground">{description}</p>
