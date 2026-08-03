@@ -22,7 +22,12 @@ export default function AccountDataPage() {
   return (
     <AccountLayout title="Data & Privacy">
       <div className="grid gap-6">
-        <SettingsCard title="Export your data" description="Download a copy of your account data." icon={Download}>
+        <SettingsCard
+          title="Export your data"
+          description="Download a copy of your account data."
+          icon={Download}
+          contentClassName="p-0"
+        >
           {exportResult ? (
             <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
               {exportResult.download_url ? (
@@ -54,7 +59,6 @@ export default function AccountDataPage() {
                 {exportMutation.isPending ? 'Requesting…' : 'Request export'}
               </Button>
               )}
-              className="py-3"
             />
           )}
         </SettingsCard>
@@ -64,6 +68,7 @@ export default function AccountDataPage() {
           description="Irreversible actions for your account."
           icon={Trash2}
           className="border-destructive/30"
+          contentClassName="p-0"
         >
           <SettingsActionRow
             icon={Trash2}
@@ -74,7 +79,6 @@ export default function AccountDataPage() {
                 <Link to="/account/erasure">Delete my account</Link>
               </Button>
             )}
-            className="py-3"
           />
         </SettingsCard>
       </div>

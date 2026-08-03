@@ -48,7 +48,9 @@ export function SettingsActionRow({
     <ListingItemCard
       icon={icon}
       action={actionNode}
-      className={cn('items-center border-0 px-0 py-3 first:pt-0 last:pb-0', className)}
+      iconClassName="size-10"
+      contentClassName="items-center gap-4"
+      className={cn('items-center rounded-none border-0 px-4 py-4 first:rounded-t-xl last:rounded-b-xl', className)}
     >
       <p className="text-sm font-medium">{title}</p>
       <p className="text-sm text-muted-foreground">{description}</p>
