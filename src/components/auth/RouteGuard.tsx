@@ -29,7 +29,7 @@ export function RouteGuard({ children }: { children: ReactNode }) {
 
   // A pending continuation means a finished user finishing a registration detour
   // should continue the OAuth flow (via /login-success) rather than being coerced
-  // to the account dashboard. Primary signal is the request_id handle in the URL;
+  // to the account profile. Primary signal is the request_id handle in the URL;
   // the legacy sessionStorage return-to / invite callback remain as a defensive
   // fallback. Peeked non-consumingly so the guard function stays pure and the
   // handle is only consumed by LoginSuccessPage.

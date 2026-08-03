@@ -104,7 +104,7 @@ export function consumeOAuthReturnTo(): string | null {
  * Non-consuming peek: is there a valid, pending OAuth return-to stored?
  * Used by the route guard to decide whether a finished user should continue the
  * OAuth authorize flow (via /login-success, which consumes it) instead of being
- * coerced to the account dashboard. Does NOT remove the stored value.
+ * coerced to the account profile. Does NOT remove the stored value.
  */
 export function hasPendingOAuthReturnTo(): boolean {
   return safeOAuthReturnTo(sessionStorage.getItem(OAUTH_RETURN_KEY)) !== null

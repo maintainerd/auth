@@ -44,7 +44,6 @@ const TooManyRequestsPage = lazy(() => import('./pages/too-many-requests/TooMany
 const NotFoundPage = lazy(() => import('./pages/not-found/NotFoundPage'))
 const AccountLinkPage = lazy(() => import('./pages/account-link/AccountLinkPage'))
 const ErasurePage = lazy(() => import('./pages/account/erasure/ErasurePage'))
-const AccountOverviewPage = lazy(() => import('./pages/account/AccountOverviewPage'))
 const AccountProfilesPage = lazy(() => import('./pages/account/profiles/AccountProfilesPage'))
 const AccountProfileFormPage = lazy(() => import('./pages/account/profiles/ProfileFormPage'))
 const AccountSecurityPage = lazy(() => import('./pages/account/security/AccountSecurityPage'))
@@ -96,7 +95,7 @@ function App() {
         <Route path="/too-many-requests" element={<TooManyRequestsPage />} />
         <Route path="/account-link" element={<AccountLinkPage />} />
         <Route path="/account/erasure" element={<ErasurePage />} />
-        <Route path="/account" element={<AccountOverviewPage />} />
+        <Route path="/account" element={<Navigate to="/account/profile" replace />} />
         <Route path="/account/profile" element={<AccountProfilesPage />} />
         <Route path="/account/profile/new" element={<AccountProfileFormPage />} />
         <Route path="/account/profile/:profileId/edit" element={<AccountProfileFormPage />} />

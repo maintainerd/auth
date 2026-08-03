@@ -85,16 +85,20 @@ describe('resolveGuardRedirect OAuth broker routing', () => {
     })).toBe('/email-verification')
   })
 
-  it('sends an already-authenticated user landing on / to the account dashboard', () => {
-    expect(resolveGuardRedirect({ ...authenticated, pathname: '/' })).toBe('/account')
+  it('sends an already-authenticated user landing on / to the account profile', () => {
+    expect(resolveGuardRedirect({ ...authenticated, pathname: '/' })).toBe('/account/profile')
   })
 
-  it('sends an already-authenticated user on the login page to the account dashboard', () => {
-    expect(resolveGuardRedirect({ ...authenticated, pathname: '/login' })).toBe('/account')
+  it('sends an already-authenticated user on the login page to the account profile', () => {
+    expect(resolveGuardRedirect({ ...authenticated, pathname: '/login' })).toBe('/account/profile')
   })
 
-  it('lets an authenticated user render the account dashboard without redirecting', () => {
-    expect(resolveGuardRedirect({ ...authenticated, pathname: '/account' })).toBeNull()
+  it('redirects the deleted account overview page to the account profile', () => {
+    expect(resolveGuardRedirect({ ...authenticated, pathname: '/account' })).toBe('/account/profile')
+  })
+
+  it('lets an authenticated user render the account profile without redirecting', () => {
+    expect(resolveGuardRedirect({ ...authenticated, pathname: '/account/profile' })).toBeNull()
   })
 
   it('still renders login-success (it performs OAuth/invite continuation itself)', () => {
@@ -109,7 +113,7 @@ describe('resolveGuardRedirect OAuth broker routing', () => {
     })).toBeNull()
   })
 
-  it('renders the invite page even for an already-signed-in user (does not bounce to the dashboard)', () => {
+  it('renders the invite page even for an already-signed-in user (does not bounce to the account profile)', () => {
     expect(resolveGuardRedirect({
       ...authenticated,
       pathname: '/register/invite',
@@ -126,19 +130,19 @@ describe('resolveGuardRedirect OAuth broker routing', () => {
       })).toBe('/login-success')
     })
 
-    it('routes a completed user off /register/profile to /account when no continuation is pending', () => {
+    it('routes a completed user off /register/profile to /account/profile when no continuation is pending', () => {
       expect(resolveGuardRedirect({
         ...authenticated,
         pathname: '/register/profile',
         pendingContinuation: false,
-      })).toBe('/account')
+      })).toBe('/account/profile')
     })
 
-    it('defaults to /account off /register/profile when pendingContinuation is unset', () => {
+    it('defaults to /account/profile off /register/profile when pendingContinuation is unset', () => {
       expect(resolveGuardRedirect({
         ...authenticated,
         pathname: '/register/profile',
-      })).toBe('/account')
+      })).toBe('/account/profile')
     })
 
     it('routes a completed user off /email-verification to /login-success when a continuation is pending', () => {
@@ -149,12 +153,12 @@ describe('resolveGuardRedirect OAuth broker routing', () => {
       })).toBe('/login-success')
     })
 
-    it('routes a completed user off /email-verification to /account when no continuation is pending', () => {
+    it('routes a completed user off /email-verification to /account/profile when no continuation is pending', () => {
       expect(resolveGuardRedirect({
         ...authenticated,
         pathname: '/email-verification',
         pendingContinuation: false,
-      })).toBe('/account')
+      })).toBe('/account/profile')
     })
   })
 
@@ -178,13 +182,13 @@ describe('resolveGuardRedirect OAuth broker routing', () => {
       })).toBe('/register/profile?request_id=abc')
     })
 
-    it('does not thread request_id onto the dashboard (no pending continuation)', () => {
+    it('does not thread request_id onto the account profile (no pending continuation)', () => {
       expect(resolveGuardRedirect({
         ...authenticated,
         pathname: '/register/profile',
         search: '?request_id=abc',
         pendingContinuation: false,
-      })).toBe('/account')
+      })).toBe('/account/profile')
     })
   })
 })

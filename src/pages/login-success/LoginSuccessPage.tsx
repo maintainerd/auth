@@ -42,7 +42,7 @@ export default function LoginSuccessPage() {
   // The single OAuth2 continuation point. Resumes the pending authorize request
   // with the request_id handle (primary) or the legacy sessionStorage return-to /
   // invite callback (defensive fallback); with nothing to resume it is a direct
-  // login → the account dashboard.
+  // login → the account profile.
   useEffect(() => {
     if (redirectedRef.current) return
     redirectedRef.current = true

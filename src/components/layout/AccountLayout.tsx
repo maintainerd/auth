@@ -50,7 +50,7 @@ export default function AccountLayout({
       {/* Top navigation */}
       <header data-md-top-panel className="auth-account-header fixed inset-x-0 top-0 z-50 h-14 border-b">
         <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
-          <Link to="/account" className="flex items-center gap-2">
+          <Link to="/account/profile" className="flex items-center gap-2">
             <BrandLockup
               companyName={companyName}
               logoLabel={logoLabel}

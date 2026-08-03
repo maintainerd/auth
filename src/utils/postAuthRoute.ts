@@ -25,9 +25,9 @@ export const MAGIC_LINK_ROUTE = '/magic-link'
 export const NO_ACCESS_ROUTE = '/no-access'
 export const SERVICE_UNAVAILABLE_ROUTE = '/service-unavailable'
 export const LOGIN_SUCCESS_ROUTE = '/login-success'
-// The self-service account dashboard — where a fully-registered, authenticated
+// The self-service account profile — where a fully-registered, authenticated
 // user lands when there is no OAuth redirect (or invite callback) to continue.
-export const ACCOUNT_ROUTE = '/account'
+export const ACCOUNT_ROUTE = '/account/profile'
 
 // Public auth pages an authenticated, fully-registered user should never sit on.
 // NOTE: /register/invite is deliberately NOT here — an invite is addressed to a
@@ -84,7 +84,7 @@ export interface GuardContext {
    * invite callback) waiting to be resumed. Computed by the caller from a
    * non-consuming peek so this function stays pure. When true, a finished user
    * on a registration detour is routed to /login-success (which consumes the
-   * continuation and forwards to the callback) instead of the dashboard.
+   * continuation and forwards to the callback) instead of the account profile.
    */
   pendingContinuation?: boolean
 }
@@ -112,7 +112,7 @@ export function resolveGuardRedirect(ctx: GuardContext): string | null {
   // email, which may differ from whoever is currently signed in. Always let it
   // render — anonymous invitees complete registration here, and a signed-in user
   // opening an invite for someone else is handled by the form (sign-out prompt)
-  // rather than being silently bounced to their own dashboard.
+  // rather than being silently bounced to their own account profile.
   if (pathname === REGISTER_INVITE_ROUTE) {
     return null
   }
@@ -128,12 +128,12 @@ export function resolveGuardRedirect(ctx: GuardContext): string | null {
   const requestId = getRequestId(search)
 
   // Where a fully-registered, authenticated user actually lands. Normally the
-  // account dashboard — but when a continuation is pending (a request_id handle,
+  // account profile — but when a continuation is pending (a request_id handle,
   // or the legacy OAuth return-to / invite callback fallback), route to
   // /login-success instead: that page resumes the authorize request and forwards
   // to the caller's callback URL. Without this, finishing a registration detour
   // (create profile / verify email) during an OAuth flow would be coerced to the
-  // dashboard before the continuation ran. Detour homes also carry the handle.
+  // profile page before the continuation ran. Detour homes also carry the handle.
   const authenticatedHome = home === LOGIN_SUCCESS_ROUTE
     ? (pendingContinuation ? withRequestId(LOGIN_SUCCESS_ROUTE, requestId) : ACCOUNT_ROUTE)
     : withRequestId(home, requestId)
@@ -182,6 +182,10 @@ export function resolveGuardRedirect(ctx: GuardContext): string | null {
   // Authenticated but mid-registration (verify email / create profile) — the
   // detour takes precedence over whatever route was requested.
   if (home !== LOGIN_SUCCESS_ROUTE) return home
+
+  if (pathname === '/account') {
+    return ACCOUNT_ROUTE
+  }
 
   // Fully-registered authenticated user on a non-auth route: OAuth interaction
   // routes (authorize / consent / device / …) render as-is so the OAuth2
