@@ -1,10 +1,8 @@
 import { useState } from "react"
 import { Ban, CheckCircle2, ChevronDown, ChevronRight, FileText, KeyRound, Target } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { InformationCard } from "@/components/card"
-import { EmptyState } from "@/components/details"
-import { cn } from "@/lib/utils"
+import { EmptyState, StatusBadge } from "@/components/details"
 import type { PolicyStatement } from "@/services/api/policies/types"
 
 interface PolicyStatementsTabProps {
@@ -65,9 +63,7 @@ export function PolicyStatementsTab({ documentVersion, statements }: PolicyState
 
 function DocumentBadge({ version }: { version: string }) {
   return (
-    <Badge variant="outline" className="font-mono text-xs">
-      Document {version}
-    </Badge>
+    <StatusBadge status="inactive" label={`Document ${version}`} />
   )
 }
 
@@ -86,22 +82,15 @@ function PolicyStatementItem({ statement, index, isExpanded, onToggle }: PolicyS
     <div data-md-listing-item className="rounded-lg border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <div
-            className={cn(
-              "flex size-10 shrink-0 items-center justify-center rounded-lg",
-              isAllow ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700",
-            )}
-          >
+          <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg">
             <EffectIcon className="size-5" />
           </div>
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold">Statement {String(index + 1).padStart(2, "0")}</span>
-              <EffectBadge effect={statement.effect} />
+              <StatusBadge status={statement.effect} />
               {!isAllow && (
-                <Badge variant="outline" className="border-red-200 bg-red-50 text-xs text-red-700">
-                  Overrides allows
-                </Badge>
+                <StatusBadge status="deny" label="Overrides allows" />
               )}
             </div>
             <p className="text-sm text-muted-foreground">
@@ -117,9 +106,7 @@ function PolicyStatementItem({ statement, index, isExpanded, onToggle }: PolicyS
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Badge variant="secondary" className="text-xs">
-            {statement.action.length + statement.resource.length} patterns
-          </Badge>
+          <StatusBadge status="inactive" label={`${statement.action.length + statement.resource.length} patterns`} />
           <Button
             variant="ghost"
             size="sm"
@@ -164,23 +151,6 @@ function PolicyStatementItem({ statement, index, isExpanded, onToggle }: PolicyS
   )
 }
 
-function EffectBadge({ effect }: { effect: PolicyStatement["effect"] }) {
-  const isAllow = effect === "allow"
-
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "gap-1 capitalize",
-        isAllow ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700",
-      )}
-    >
-      {isAllow ? <CheckCircle2 className="size-3" /> : <Ban className="size-3" />}
-      {effect}
-    </Badge>
-  )
-}
-
 function PatternGroup({
   icon: Icon,
   title,
@@ -200,9 +170,7 @@ function PatternGroup({
         <div className="flex items-center gap-2">
           <Icon className="size-4 text-muted-foreground" />
           <h5 className="text-sm font-semibold">{title}</h5>
-          <Badge variant="secondary" className="text-xs">
-            {tokens.length}
-          </Badge>
+          <StatusBadge status="inactive" label={`${tokens.length}`} />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
@@ -227,17 +195,10 @@ function PatternRow({ token, kind }: { token: string; kind: TokenKind }) {
         <div className="flex flex-wrap items-center gap-2">
           <span className="break-all font-mono text-sm font-medium">{value}</span>
           {isWildcard && (
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-xs",
-                isGlobalWildcard
-                  ? "border-amber-200 bg-amber-50 text-amber-700"
-                  : "border-sky-200 bg-sky-50 text-sky-700",
-              )}
-            >
-              {isGlobalWildcard ? "Global wildcard" : "Wildcard"}
-            </Badge>
+            <StatusBadge
+              status={isGlobalWildcard ? "configuring" : "pending"}
+              label={isGlobalWildcard ? "Global wildcard" : "Wildcard"}
+            />
           )}
         </div>
         <p className="text-sm text-muted-foreground">{describePattern(value, kind)}</p>

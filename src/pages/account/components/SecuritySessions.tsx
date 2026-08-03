@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SettingsCard } from "@/components/card"
 import { ConfirmationDialog } from "@/components/dialog"
+import { ListingItemCard } from "@/components/details"
 import { useToast } from "@/hooks/useToast"
 import { fetchAccountSessions, revokeAccountSession, revokeAllAccountSessions, type AccountSession } from "@/services/api/account"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -73,21 +74,27 @@ export function SecuritySessions() {
             {sessions.map((s: AccountSession) => {
               const { label, icon: Icon } = deviceLabel(s.user_agent)
               return (
-                <div key={s.session_id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><Icon className="size-4" /></div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{label}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {s.ip_address || "Unknown IP"} · Last active {timeAgo(s.last_used_at ?? s.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive shrink-0"
-                    onClick={() => revokeOne.mutate(s.session_id)} disabled={revokeOne.isPending}>
-                    Revoke
-                  </Button>
-                </div>
+                <ListingItemCard
+                  key={s.session_id}
+                  icon={Icon}
+                  className="items-center p-3"
+                  action={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => revokeOne.mutate(s.session_id)}
+                      disabled={revokeOne.isPending}
+                    >
+                      Revoke
+                    </Button>
+                  }
+                >
+                  <p className="truncate text-sm font-medium">{label}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {s.ip_address || "Unknown IP"} · Last active {timeAgo(s.last_used_at ?? s.created_at)}
+                  </p>
+                </ListingItemCard>
               )
             })}
           </div>

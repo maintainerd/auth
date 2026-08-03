@@ -10,6 +10,7 @@ const STATUS_DOT: Record<string, string> = {
   enabled: "bg-emerald-500",
   verified: "bg-emerald-500",
   accepted: "bg-emerald-500",
+  allow: "bg-emerald-500",
   pending: "bg-amber-500",
   draft: "bg-amber-500",
   configuring: "bg-amber-500",
@@ -18,6 +19,7 @@ const STATUS_DOT: Record<string, string> = {
   disabled: "bg-muted-foreground",
   archived: "bg-muted-foreground",
   expired: "bg-muted-foreground",
+  deny: "bg-red-500",
   suspended: "bg-red-500",
   blocked: "bg-red-500",
   revoked: "bg-red-500",
@@ -25,8 +27,18 @@ const STATUS_DOT: Record<string, string> = {
   deprecated: "bg-red-500",
 }
 
-/** A restrained, entity-agnostic status pill: a small coloured dot + label. */
-export function StatusBadge({ status, className }: { status: string; className?: string }) {
+/** A restrained, entity-agnostic status pill: a small coloured dot + label. The
+ *  `status` keyword selects the tone (theme badge config); `label` overrides the
+ *  displayed text when it differs from the keyword. */
+export function StatusBadge({
+  status,
+  label,
+  className,
+}: {
+  status: string
+  label?: string
+  className?: string
+}) {
   const normalizedStatus = status?.toLowerCase() ?? ""
   const dot = STATUS_DOT[normalizedStatus] ?? "bg-muted-foreground"
   return (
@@ -39,7 +51,7 @@ export function StatusBadge({ status, className }: { status: string; className?:
       )}
     >
       <span data-md-status-dot className={cn("size-1.5 rounded-full", dot)} />
-      {status}
+      {label ?? status}
     </span>
   )
 }

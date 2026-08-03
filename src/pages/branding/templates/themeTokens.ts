@@ -198,6 +198,7 @@ export const STATUS_BADGE_TYPES = [
   "enabled",
   "verified",
   "accepted",
+  "allow",
   "pending",
   "draft",
   "configuring",
@@ -206,6 +207,7 @@ export const STATUS_BADGE_TYPES = [
   "disabled",
   "archived",
   "expired",
+  "deny",
   "suspended",
   "blocked",
   "revoked",
@@ -216,10 +218,10 @@ export const STATUS_BADGE_TYPES = [
 /** Semantic sub-groups for the Badges section, mirroring how buttons are
  *  grouped. Each group renders its own preview and token rows. */
 export const BADGE_GROUP_MEMBERS: Record<string, readonly (typeof STATUS_BADGE_TYPES)[number][]> = {
-  positive: ["active", "enabled", "verified", "accepted"],
+  positive: ["active", "enabled", "verified", "accepted", "allow"],
   "in-progress": ["pending", "draft", "configuring", "maintenance"],
   neutral: ["inactive", "disabled", "archived", "expired"],
-  negative: ["suspended", "blocked", "revoked", "quarantined", "deprecated"],
+  negative: ["deny", "suspended", "blocked", "revoked", "quarantined", "deprecated"],
 }
 
 export const THEME_SECTIONS: ThemeSection[] = [

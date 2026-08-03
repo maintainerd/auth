@@ -1,15 +1,18 @@
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { SlidersHorizontal, ShieldCheck, ChevronRight } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SlidersHorizontal, ShieldCheck } from "lucide-react"
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DetailTabs } from "@/components/details/DetailTabs"
 import { DetailsContainer } from "@/components/container"
 import { FormPageHeader } from "@/components/header"
-import { SettingsCard } from "@/components/card"
-import { StatusBadge } from "@/components/details"
-import { fetchMFAStatus } from "@/services/api/mfa"
-import { useQuery } from "@tanstack/react-query"
 import { PreferencesForm } from "./components/PreferencesForm"
 import { SecuritySessions } from "./components/SecuritySessions"
 import { AccountActions } from "./components/AccountActions"
+import { MfaSettingsCard } from "./components/MfaSettingsCard"
+
+const TABS = [
+  { value: "preferences", label: "Preferences", icon: SlidersHorizontal },
+  { value: "security", label: "Security", icon: ShieldCheck },
+] as const
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -26,10 +29,14 @@ export default function SettingsPage() {
           description="Manage your preferences and account security."
         />
 
-        <Tabs value={tab} onValueChange={(v) => setSearchParams(v === "security" ? { tab: "security" } : {})} className="space-y-6">
+        <DetailTabs value={tab} onValueChange={(v) => setSearchParams(v === "security" ? { tab: "security" } : {})}>
           <TabsList>
-            <TabsTrigger value="preferences" className="gap-2"><SlidersHorizontal className="size-4" />Preferences</TabsTrigger>
-            <TabsTrigger value="security" className="gap-2"><ShieldCheck className="size-4" />Security</TabsTrigger>
+            {TABS.map(({ value, label, icon: Icon }) => (
+              <TabsTrigger key={value} value={value} className="gap-2">
+                <Icon className="size-4" />
+                {label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="preferences">
@@ -37,40 +44,12 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="security" className="space-y-6">
-            <MFACard onManage={() => navigate(`/account/mfa?from=settings`)} />
+            <MfaSettingsCard onManage={() => navigate(`/account/mfa?from=settings`)} />
             <SecuritySessions />
             <AccountActions />
           </TabsContent>
-        </Tabs>
+        </DetailTabs>
       </div>
     </DetailsContainer>
-  )
-}
-
-function MFACard({ onManage }: { onManage: () => void }) {
-  const { data } = useQuery({ queryKey: ["mfa", "status"], queryFn: fetchMFAStatus, retry: false })
-  const totp = data?.is_totp_enabled ?? false
-  const sms = data?.is_sms_available ?? false
-  const passkeys = (data?.webauthn_keys?.length ?? 0) > 0
-  const active = [totp, sms, passkeys].filter(Boolean).length
-
-  return (
-    <SettingsCard title="Multi-factor authentication" description="Add a second step at sign-in to protect your account." icon={ShieldCheck}>
-      <button
-        type="button"
-        onClick={onManage}
-        className="flex w-full items-center justify-between gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-accent/50"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <StatusBadge status={active > 0 ? "active" : "inactive"} />
-          <span className="text-sm text-muted-foreground">
-            {active > 0 ? `${active} method${active === 1 ? "" : "s"} active` : "No methods set up yet"}
-          </span>
-        </div>
-        <span className="flex items-center gap-1 text-sm text-muted-foreground shrink-0">
-          Manage<ChevronRight className="size-4" />
-        </span>
-      </button>
-    </SettingsCard>
   )
 }

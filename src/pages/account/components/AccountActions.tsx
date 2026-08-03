@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { logout } from "@/services/api/auth"
-import { Mail, AtSign, Download, Trash2, ChevronRight } from "lucide-react"
+import { Mail, AtSign, Download, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/useToast"
 import { changeEmail, verifyEmailChange, changeUsername, exportAccountData, deleteAccount } from "@/services/api/account"
 import { useMutation } from "@tanstack/react-query"
 import { StepUpDialog } from "@/components/stepup/StepUpDialog"
+import { SettingsActionRow } from "./SettingsActionRow"
 
 export function AccountActions() {
   const [emailOpen, setEmailOpen] = useState(false)
@@ -35,45 +36,45 @@ export function AccountActions() {
     <>
       <SettingsCard title="Account" description="Manage your sign-in identity and personal data." icon={AtSign}>
         <div className="divide-y">
-          <ActionRow icon={Mail} title="Email address" desc="Update the email you sign in with." actionLabel="Change" onClick={() => setEmailOpen(true)} />
-          <ActionRow icon={AtSign} title="Username" desc="Update your account username." actionLabel="Change" onClick={() => setUsernameOpen(true)} />
-          <ActionRow icon={Download} title="Export your data" desc="Download a copy of your account data." actionLabel={exportMutation.isPending ? "Preparing…" : "Download"} onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending} />
+          <SettingsActionRow
+            icon={Mail}
+            title="Email address"
+            description="Update the email you sign in with."
+            actionLabel="Change"
+            onAction={() => setEmailOpen(true)}
+          />
+          <SettingsActionRow
+            icon={AtSign}
+            title="Username"
+            description="Update your account username."
+            actionLabel="Change"
+            onAction={() => setUsernameOpen(true)}
+          />
+          <SettingsActionRow
+            icon={Download}
+            title="Export your data"
+            description="Download a copy of your account data."
+            actionLabel={exportMutation.isPending ? "Preparing…" : "Download"}
+            onAction={() => exportMutation.mutate()}
+            disabled={exportMutation.isPending}
+          />
         </div>
       </SettingsCard>
 
       <SettingsCard title="Danger zone" description="Irreversible actions for your account." icon={Trash2} className="border-destructive/30">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Delete account</p>
-            <p className="text-sm text-muted-foreground">Permanently delete your account and all associated data.</p>
-          </div>
-          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>Delete account</Button>
-        </div>
+        <SettingsActionRow
+          icon={Trash2}
+          title="Delete account"
+          description="Permanently delete your account and all associated data."
+          action={<Button variant="destructive" onClick={() => setDeleteOpen(true)}>Delete account</Button>}
+          className="py-0"
+        />
       </SettingsCard>
 
       <ChangeEmailDialog open={emailOpen} onOpenChange={setEmailOpen} />
       <ChangeUsernameDialog open={usernameOpen} onOpenChange={setUsernameOpen} />
       <DeleteAccountDialog open={deleteOpen} onOpenChange={setDeleteOpen} />
     </>
-  )
-}
-
-function ActionRow({ icon: Icon, title, desc, actionLabel, onClick, disabled }: {
-  icon: typeof Mail; title: string; desc: string; actionLabel: string; onClick: () => void; disabled?: boolean
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><Icon className="size-4" /></div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium">{title}</p>
-          <p className="text-sm text-muted-foreground">{desc}</p>
-        </div>
-      </div>
-      <Button variant="ghost" size="sm" className="shrink-0" onClick={onClick} disabled={disabled}>
-        {actionLabel}<ChevronRight className="size-4 ml-1" />
-      </Button>
-    </div>
   )
 }
 

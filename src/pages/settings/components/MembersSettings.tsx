@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react"
-import { Users, Search, Plus } from "lucide-react"
+import { AlertCircle, Users, Search, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { InformationCard } from "@/components/card"
 import { DataTablePagination } from "@/components/data-table"
 import { DeleteConfirmationDialog } from "@/components/dialog"
+import { EmptyState, ListSkeleton } from "@/components/details"
 import { MemberItem } from "./MemberItem"
 import { AddMemberDialog } from "./AddMemberDialog"
 import { TransferOwnershipDialog } from "./TransferOwnershipDialog"
@@ -131,26 +132,26 @@ export function MembersSettings({ tenantId: propTenantId, isSystemTenant }: Memb
 
           {/* Scrollable content area */}
           <div className="max-h-[600px] overflow-y-auto pr-2">
-            {isLoading && (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading members...
-              </div>
-            )}
+            {isLoading && <ListSkeleton />}
 
             {error && (
-              <div className="text-center py-8 text-destructive">
-                Failed to load members
-              </div>
+              <EmptyState
+                icon={AlertCircle}
+                title="Failed to load members"
+                description="Refresh the page or try again in a moment."
+              />
             )}
 
             {filteredData && filteredData.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                {searchQuery ? "No members found matching your search" : "No members found"}
-              </div>
+              <EmptyState
+                icon={Users}
+                title={searchQuery ? "No members found" : "No members yet"}
+                description={searchQuery ? "No members match your search." : "Add members to give users access to this tenant."}
+              />
             )}
 
             {filteredData && filteredData.length > 0 && (
-              <>
+              <div className="space-y-2">
                 {filteredData.map((member: TenantMember) => {
                   const isOwner = member.role === 'owner'
                   const isProtectedOwner = isSystemTenant && isOwner
@@ -175,7 +176,7 @@ export function MembersSettings({ tenantId: propTenantId, isSystemTenant }: Memb
                     />
                   )
                 })}
-              </>
+              </div>
             )}
           </div>
 
