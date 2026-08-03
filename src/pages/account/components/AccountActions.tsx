@@ -34,7 +34,12 @@ export function AccountActions() {
 
   return (
     <>
-      <SettingsCard title="Account" description="Manage your sign-in identity and personal data." icon={AtSign}>
+      <SettingsCard
+        title="Account"
+        description="Manage your sign-in identity and personal data."
+        icon={AtSign}
+        contentClassName="p-0"
+      >
         <div className="divide-y">
           <SettingsActionRow
             icon={Mail}
@@ -42,7 +47,6 @@ export function AccountActions() {
             description="Update the email you sign in with."
             actionLabel="Change"
             onAction={() => setEmailOpen(true)}
-            className="first:pt-3"
           />
           <SettingsActionRow
             icon={AtSign}
@@ -58,18 +62,22 @@ export function AccountActions() {
             actionLabel={exportMutation.isPending ? "Preparing…" : "Download"}
             onAction={() => exportMutation.mutate()}
             disabled={exportMutation.isPending}
-            className="last:pb-3"
           />
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Danger zone" description="Irreversible actions for your account." icon={Trash2} className="border-destructive/30">
+      <SettingsCard
+        title="Danger zone"
+        description="Irreversible actions for your account."
+        icon={Trash2}
+        className="border-destructive/30"
+        contentClassName="p-0"
+      >
         <SettingsActionRow
           icon={Trash2}
           title="Delete account"
           description="Permanently delete your account and all associated data."
           action={<Button variant="destructive" onClick={() => setDeleteOpen(true)}>Delete account</Button>}
-          className="py-3"
         />
       </SettingsCard>
 
