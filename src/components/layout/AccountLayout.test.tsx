@@ -11,7 +11,10 @@ vi.mock('@/hooks/useTenant', () => ({
         company_name: 'Acme',
         logo_label: 'Acme ID',
         show_logo_label: true,
-        logo_url: '',
+        logo_url: 'https://console-assets.example/logo.svg',
+        metadata: {
+          login_form_logo_detail: 'Identity access',
+        },
       },
     },
   }),
@@ -43,11 +46,19 @@ describe('AccountLayout', () => {
 
     expect(container.querySelector('[data-auth-identity-account-shell]')).toBeInTheDocument()
     expect(container.querySelector('[data-md-top-panel]')).toBeInTheDocument()
-    expect(container.querySelector('[data-md-top-profile-trigger]')).toBeInTheDocument()
+    expect(container.querySelector('[data-md-top-logout]')).toBeInTheDocument()
     expect(container.querySelector('[data-md-sidebar]')).toBeInTheDocument()
     expect(container.querySelector('[data-md-sidebar-section]')).toBeInTheDocument()
     expect(container.querySelector('[data-md-sidebar-section-label]')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Security' })).toHaveAttribute('data-active', 'true')
     expect(screen.getByText('Account content')).toBeInTheDocument()
+  })
+
+  it('uses login-template label details and ignores console asset logo URLs in the top panel', () => {
+    renderAccountLayout()
+
+    expect(screen.getByText('Acme ID')).toBeInTheDocument()
+    expect(screen.getByText('Identity access')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Acme ID' })).toHaveAttribute('src', '/logo.png')
   })
 })

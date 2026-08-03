@@ -418,6 +418,18 @@
   color: var(--md-top-profile-text, var(--md-top-panel-text, currentColor)) !important;
 }
 
+.auth-account-header [data-md-top-logout] {
+  color: var(--md-top-panel-text, var(--branding-top-panel-foreground, currentColor)) !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+.auth-account-header [data-md-top-logout]:hover,
+.auth-account-header [data-md-top-logout]:active {
+  color: var(--md-top-panel-text, var(--branding-top-panel-foreground, currentColor)) !important;
+  background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
+}
+
 .auth-account-nav-active {
   color: var(--primary);
   background: color-mix(in srgb, var(--primary) 12%, transparent);
@@ -512,6 +524,18 @@ html[data-identity-theme="active"] [data-md-top-profile-trigger][data-state="ope
 html[data-identity-theme="active"] [data-md-top-profile-trigger]:active {
   background-color: var(--md-top-profile-hover, color-mix(in srgb, currentColor 10%, transparent)) !important;
   color: var(--md-top-profile-text, var(--md-top-panel-text, currentColor)) !important;
+}
+
+html[data-identity-theme="active"] [data-md-top-logout] {
+  color: var(--md-top-panel-text, var(--branding-top-panel-foreground, currentColor)) !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+html[data-identity-theme="active"] [data-md-top-logout]:hover,
+html[data-identity-theme="active"] [data-md-top-logout]:active {
+  color: var(--md-top-panel-text, var(--branding-top-panel-foreground, currentColor)) !important;
+  background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
 }
 
 html[data-identity-theme="active"] [data-md-sidebar] {

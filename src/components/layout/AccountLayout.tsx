@@ -10,7 +10,6 @@ import { logout } from '@/services/api/auth'
 import { useTenant } from '@/hooks/useTenant'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { authUiTemplatePresentationFromMetadata } from '@/lib/branding/authUiTemplates'
-import { resolveBrandingLogoUrl } from '@/utils/branding'
 
 const navItems = [
   { href: '/account/profile', label: 'Profile', icon: User },
@@ -48,7 +47,6 @@ export default function AccountLayout({
   const companyName = currentTenant?.branding?.company_name || 'Maintainerd'
   const logoLabel = currentTenant?.branding?.logo_label || companyName
   const showLogoLabel = currentTenant?.branding?.show_logo_label ?? true
-  const logoUrl = resolveBrandingLogoUrl(currentTenant?.branding?.logo_url)
   const presentation = authUiTemplatePresentationFromMetadata(currentTenant?.branding?.metadata)
 
   return (
@@ -61,7 +59,6 @@ export default function AccountLayout({
               companyName={companyName}
               logoLabel={logoLabel}
               showLogoLabel={showLogoLabel}
-              logoUrl={logoUrl}
               logoClassName="size-7"
               logoDetail={presentation.logoDetail}
               topPanelLabel
@@ -72,7 +69,7 @@ export default function AccountLayout({
             <Button
               variant="ghost"
               size="sm"
-              data-md-top-profile-trigger
+              data-md-top-logout
               className="gap-2"
               onClick={() => logoutMutation.mutate()}
               disabled={logoutMutation.isPending}
