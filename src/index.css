@@ -167,6 +167,59 @@
   background: var(--auth-decorative-dark, #000000);
 }
 
+.auth-split-visual-overlay {
+  background: color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 42%, transparent);
+}
+
+.auth-split-mesh {
+  background-image:
+    radial-gradient(circle at 14% 20%, color-mix(in srgb, var(--auth-decorative-light, #ffffff) 22%, transparent), transparent 28%),
+    radial-gradient(circle at 82% 68%, color-mix(in srgb, var(--auth-decorative-dark, #000000) 22%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 28%, transparent), transparent 58%),
+    linear-gradient(90deg, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 1px, transparent 1px);
+  background-size: auto, auto, auto, 56px 56px, 56px 56px;
+}
+
+.auth-split-node {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 22%, transparent);
+  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 16%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 5%, transparent);
+}
+
+.auth-split-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 12%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.5;
+}
+
+.auth-split-tile {
+  border-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 20%, transparent);
+  background-color: color-mix(in srgb, var(--auth-decorative-light, #ffffff) 12%, transparent);
+}
+
+.auth-split-radar {
+  background:
+    radial-gradient(circle, transparent 0 21%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 21% 21.5%, transparent 21.5% 36%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 7%, transparent) 36% 36.5%, transparent 36.5% 52%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 6%, transparent) 52% 52.5%, transparent 52.5%),
+    conic-gradient(from 24deg, color-mix(in srgb, var(--auth-decorative-light, #ffffff) 26%, transparent), transparent 22%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 10%, transparent) 42%, transparent 64%, color-mix(in srgb, var(--auth-decorative-dark, #000000) 20%, transparent), transparent 86%);
+}
+
+.auth-split-axis {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent);
+}
+
+.auth-split-circuit {
+  background-image:
+    linear-gradient(90deg, transparent 0 12%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 12% 12.3%, transparent 12.3% 34%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 34% 34.3%, transparent 34.3% 66%, color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 8%, transparent) 66% 66.3%, transparent 66.3%),
+    linear-gradient(145deg, color-mix(in srgb, var(--auth-visual-panel-overlay, #0f172a) 25%, transparent), transparent 65%);
+}
+
+.auth-split-trace {
+  background-color: color-mix(in srgb, var(--auth-visual-panel-foreground, #ffffff) 16%, transparent);
+}
+
 .auth-account-shell {
   color: var(--foreground);
   background: var(--auth-page-background, var(--background));

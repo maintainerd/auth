@@ -42,6 +42,39 @@ describe('LoginLayout', () => {
     expect(screen.getAllByText('Acme ID').length).toBeGreaterThan(0)
   })
 
+  it.each([
+    ['centered-card', 'centered'],
+    ['split-showcase', 'split'],
+    ['stepper-flow', 'full_page'],
+    ['editorial-cover', 'split'],
+  ] as const)('honors the %s auth UI template structure', (templateId, layout) => {
+    render(
+      <LoginLayout
+        branding={{
+          ...branding,
+          layout,
+          metadata: {
+            auth_ui_template: templateId,
+            login_form_logo_placement: 'inside-form',
+            split_showcase_panel_title: 'Access the workspace',
+            split_showcase_panel_subtitle: 'Use your verified identity to continue.',
+            split_showcase_visual_style: 'identity-mesh',
+          },
+        }}
+      >
+        <span>Authentication form</span>
+      </LoginLayout>,
+    )
+
+    expect(screen.getByRole('main')).toHaveAttribute('data-auth-ui-template', templateId)
+    expect(screen.getByRole('main')).toHaveAttribute('data-layout', layout)
+    if (templateId !== 'centered-card') {
+      expect(screen.getByTestId('split-brand-panel')).toBeInTheDocument()
+      expect(screen.getByText('Access the workspace')).toBeInTheDocument()
+      expect(screen.getByText('Use your verified identity to continue.')).toBeInTheDocument()
+    }
+  })
+
   it('renders the split brand panel only for split layout', () => {
     const { rerender } = render(
       <LoginLayout branding={{ ...branding, layout: 'split' }}>
