@@ -96,8 +96,8 @@ export default function MagicLinkPage() {
       {status === "verifying" && (
         <div className="flex flex-col gap-8 text-center" role="status" aria-live="polite">
           <div className="flex flex-col items-center gap-3">
-            <div className="flex size-14 items-center justify-center rounded-full bg-blue-100">
-              <Loader2 className="size-7 animate-spin text-blue-600" />
+            <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+              <Loader2 className="size-7 animate-spin text-primary" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Signing you in</h1>
             <p className="max-w-xs text-sm text-muted-foreground">
@@ -110,8 +110,8 @@ export default function MagicLinkPage() {
       {status === "success" && (
         <div className="flex flex-col gap-8 text-center" role="status" aria-live="polite">
           <div className="flex flex-col items-center gap-3">
-            <div className="flex size-14 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="size-7 text-green-600" />
+            <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
+              <CheckCircle2 className="size-7 text-emerald-600" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">You&apos;re signed in</h1>
             <p className="max-w-xs text-sm text-muted-foreground">
@@ -133,8 +133,8 @@ export default function MagicLinkPage() {
       {status === "mfa" && mfaChallenge && (
         <div className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex size-14 items-center justify-center rounded-full bg-blue-100">
-              <ShieldCheck className="size-7 text-blue-600" />
+            <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+              <ShieldCheck className="size-7 text-primary" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Two-step verification</h1>
             <p className="max-w-xs text-sm text-muted-foreground">

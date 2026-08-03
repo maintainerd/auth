@@ -135,12 +135,62 @@
 }
 
 .auth-full-page-panel {
-  background: color-mix(in srgb, var(--branding-top-panel-background, var(--card)) 96%, transparent);
+  color: var(--auth-form-panel-foreground, var(--card-foreground));
+  background: var(
+    --auth-form-panel-background,
+    color-mix(in srgb, var(--branding-top-panel-background, var(--card)) 96%, transparent)
+  );
+}
+
+.auth-form-panel {
+  color: var(--auth-form-panel-foreground, var(--card-foreground));
+  background: var(--auth-form-panel-background, var(--card));
+  border-color: var(--auth-form-panel-border, var(--border));
+}
+
+.auth-brand-icon-panel {
+  color: inherit;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
 }
 
 .auth-split-brand-panel {
-  color: var(--branding-side-panel-foreground, var(--primary-foreground));
-  background: var(--branding-side-panel-background, var(--primary));
+  color: var(--auth-visual-panel-foreground, var(--branding-side-panel-foreground, var(--primary-foreground)));
+  background: var(--auth-visual-panel-background, var(--branding-side-panel-background, var(--primary)));
+}
+
+.auth-split-decoration-light {
+  background: var(--auth-decorative-light, #ffffff);
+}
+
+.auth-split-decoration-dark {
+  background: var(--auth-decorative-dark, #000000);
+}
+
+.auth-account-shell {
+  color: var(--foreground);
+  background: var(--auth-page-background, var(--background));
+}
+
+.auth-account-header {
+  color: var(--auth-visual-panel-foreground, var(--branding-side-panel-foreground, var(--primary-foreground)));
+  background: var(--auth-visual-panel-background, var(--branding-side-panel-background, var(--primary)));
+  border-color: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.auth-account-nav-active {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.auth-progress-panel {
+  background: var(--auth-progress-panel-background, var(--muted));
+  border-color: var(--auth-form-panel-border, var(--border));
+}
+
+.auth-security-panel {
+  background: var(--auth-security-panel-background, var(--muted));
+  border-color: var(--auth-form-panel-border, var(--border));
 }
 
 input:-webkit-autofill,

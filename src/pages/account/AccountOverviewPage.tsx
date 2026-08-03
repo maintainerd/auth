@@ -44,7 +44,7 @@ export default function AccountOverviewPage() {
                 <span
                   className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                     account.status === 'active'
-                      ? 'bg-green-100 text-green-700'
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                       : 'bg-muted text-muted-foreground'
                   }`}
                 >
@@ -54,7 +54,7 @@ export default function AccountOverviewPage() {
               <div className="mt-0.5 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 {account.username && <span>@{account.username}</span>}
                 {account.is_email_verified && (
-                  <span className="flex items-center gap-1 text-green-600">
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                     <CheckCircle2 className="size-3.5" />
                     Verified
                   </span>

@@ -38,27 +38,31 @@ export default function AccountLayout({
   })
 
   const companyName = currentTenant?.branding?.company_name || 'Maintainerd-Auth'
+  const logoLabel = currentTenant?.branding?.logo_label || companyName
+  const showLogoLabel = currentTenant?.branding?.show_logo_label ?? true
   const logoUrl = currentTenant?.branding?.logo_url
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="auth-account-shell min-h-screen">
       {/* Top navigation */}
-      <header className="fixed inset-x-0 top-0 z-50 h-14 border-b border-white/10 bg-slate-900 text-slate-100">
+      <header className="auth-account-header fixed inset-x-0 top-0 z-50 h-14 border-b">
         <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
           <Link to="/account" className="flex items-center gap-2">
             {logoUrl ? (
-              <img src={logoUrl} alt={companyName} className="h-7 w-auto object-contain" />
+              <img src={logoUrl} alt={logoLabel || companyName} className="h-7 w-auto object-contain" />
             ) : (
               <MaintainedAuthIcon width={28} height={28} className="shrink-0" />
             )}
-            <span className="text-base font-semibold tracking-tight">{companyName}</span>
+            {showLogoLabel && logoLabel && (
+              <span className="text-base font-semibold tracking-tight">{logoLabel}</span>
+            )}
           </Link>
 
           <div className="ml-auto flex items-center gap-3">
             <Button
               variant="ghost"
               size="sm"
-              className="gap-2 text-slate-100 hover:bg-white/10 hover:text-white"
+              className="gap-2 text-current hover:bg-current/10 hover:text-current"
               onClick={() => logoutMutation.mutate()}
               disabled={logoutMutation.isPending}
             >
@@ -87,7 +91,7 @@ export default function AccountLayout({
                   className={cn(
                     'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     active
-                      ? 'bg-blue-50 font-semibold text-blue-600 shadow-sm hover:bg-blue-50 hover:text-blue-600'
+                      ? 'auth-account-nav-active font-semibold shadow-sm'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >

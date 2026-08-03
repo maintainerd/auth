@@ -134,7 +134,7 @@ export default function AccountProfilesPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="truncate text-lg">{profileName(defaultProfile)}</CardTitle>
                     {defaultProfile.is_default && (
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         Default
                       </span>
                     )}
@@ -209,7 +209,7 @@ export default function AccountProfilesPage() {
                     <div className="flex min-w-0 items-center gap-2">
                       <p className="truncate text-sm font-medium">{profileName(profile)}</p>
                       {profile.is_default && (
-                        <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-600">
+                        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
                           Default
                         </span>
                       )}

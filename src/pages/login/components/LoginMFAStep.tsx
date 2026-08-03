@@ -125,7 +125,7 @@ export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientI
       )}
 
       {isWebAuthn ? (
-        <p className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+              <p className="auth-security-panel rounded-lg border p-3 text-sm text-muted-foreground">
           Use Face ID, Touch ID, Windows Hello, or your security key to confirm.
         </p>
       ) : (

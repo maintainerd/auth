@@ -19,6 +19,17 @@ describe('applyBranding', () => {
         textPrimary: '#111827',
         textMuted: '#6b7280',
         border: '#e5e7eb',
+        authPageBackground: '#eef2f8',
+        authFormPanelBackground: '#ffffff',
+        authFormPanelBorder: '#cbd5e1',
+        authFormPanelText: '#172033',
+        authVisualPanelBackground: '#1d4ed8',
+        authVisualPanelText: '#f8fafc',
+        authVisualPanelOverlay: '#0f172a',
+        authDecorativeLight: '#ffffff',
+        authDecorativeDark: '#000000',
+        authProgressPanelBackground: '#f8fafc',
+        authSecurityPanelBackground: '#f9fafb',
       },
       { family: 'Inter, system-ui, sans-serif' },
       '#f8fafc',
@@ -39,6 +50,16 @@ describe('applyBranding', () => {
     expect(style.getPropertyValue('--border')).toBe('#e5e7eb')
     expect(style.getPropertyValue('--font-family')).toBe('Inter, system-ui, sans-serif')
     expect(style.getPropertyValue('--auth-page-background')).toBe('#f8fafc')
+    expect(style.getPropertyValue('--auth-form-panel-background')).toBe('#ffffff')
+    expect(style.getPropertyValue('--auth-form-panel-border')).toBe('#cbd5e1')
+    expect(style.getPropertyValue('--auth-form-panel-foreground')).toBe('#172033')
+    expect(style.getPropertyValue('--auth-visual-panel-background')).toBe('#1d4ed8')
+    expect(style.getPropertyValue('--auth-visual-panel-foreground')).toBe('#f8fafc')
+    expect(style.getPropertyValue('--auth-visual-panel-overlay')).toBe('#0f172a')
+    expect(style.getPropertyValue('--auth-decorative-light')).toBe('#ffffff')
+    expect(style.getPropertyValue('--auth-decorative-dark')).toBe('#000000')
+    expect(style.getPropertyValue('--auth-progress-panel-background')).toBe('#f8fafc')
+    expect(style.getPropertyValue('--auth-security-panel-background')).toBe('#f9fafb')
 
     cleanup()
     expect(style.getPropertyValue('--primary')).toBe('')

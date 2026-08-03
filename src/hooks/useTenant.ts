@@ -23,7 +23,10 @@ export function useTenant() {
   // Resolve the tenant from the current host via the backend domain bootstrap.
   const initializeFromLocation = useCallback(async () => {
     try {
-      const result = await dispatch(initializeTenantAsync()).unwrap()
+      const clientId = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('client_id')?.trim() || undefined
+        : undefined
+      const result = await dispatch(initializeTenantAsync({ clientId })).unwrap()
       return result
     } catch (error) {
       showError('Failed to initialize tenant')
@@ -54,8 +57,8 @@ export function useTenant() {
     return result
   }, [dispatch])
 
-  const initializeTenant = useCallback(async () => {
-    const result = await dispatch(initializeTenantAsync()).unwrap()
+  const initializeTenant = useCallback(async (clientId?: string) => {
+    const result = await dispatch(initializeTenantAsync({ clientId })).unwrap()
     return result
   }, [dispatch])
 

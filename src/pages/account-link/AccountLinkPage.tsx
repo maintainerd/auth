@@ -84,7 +84,7 @@ export default function AccountLinkPage() {
     <LoginLayout>
       <div className="max-w-md mx-auto pt-12 px-4">
         <div className="flex justify-center mb-6">
-          <div className="flex size-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <div className="flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Link2 className="h-7 w-7" />
           </div>
         </div>

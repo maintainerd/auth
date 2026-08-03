@@ -85,11 +85,11 @@ export default function OAuthAuthorizePage() {
     <LoginLayout branding={currentTenant?.branding}>
       <div className="flex flex-col gap-8 text-center" role={error ? 'alert' : 'status'} aria-live="polite">
         <div className="flex flex-col items-center gap-3">
-          <div className={`flex size-14 items-center justify-center rounded-full ${error ? 'bg-destructive/10' : 'bg-blue-100'}`}>
+          <div className={`flex size-14 items-center justify-center rounded-full ${error ? 'bg-destructive/10' : 'bg-primary/10'}`}>
             {error ? (
               <AlertCircle className="size-7 text-destructive" />
             ) : (
-              <Loader2 className="size-7 animate-spin text-blue-600" />
+              <Loader2 className="size-7 animate-spin text-primary" />
             )}
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">

@@ -8,9 +8,7 @@ import { RouteGuard } from './RouteGuard'
 import { rememberPublicAuthContext } from '@/utils/clientContext'
 import { isOAuthInteractionRoute } from '@/utils/oauthRedirect'
 import { applyBranding, getBrandingBackground } from '@/utils/branding'
-import { fetchOAuthConnections } from '@/services/api/oauth'
 import { setLimitRedirectHandler } from '@/services/api/client'
-import type { BrandingPublic } from '@/services/api/tenants/types'
 
 /**
  * App initialization gate.
@@ -30,22 +28,20 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
   const { initializeTenant, currentTenant, error: tenantError } = useTenant()
 
   const authStartedRef = useRef(false)
-  const tenantStartedRef = useRef(false)
+  const tenantBootstrapKeyRef = useRef<string | null>(null)
   const [tenantSettled, setTenantSettled] = useState(false)
-  const [clientBranding, setClientBranding] = useState<BrandingPublic | null>(null)
 
   // Tenant branding is a document-level concern: every auth route consumes the
   // same semantic CSS tokens, and cleanup prevents one tenant's theme leaking
   // into the next tenant after an in-app context switch.
   useLayoutEffect(() => {
-    const resolvedBranding = clientBranding ?? currentTenant?.branding
-    const metadata = resolvedBranding?.metadata
+    const metadata = currentTenant?.branding?.metadata
     return applyBranding(
       metadata?.colors,
       metadata?.font,
       getBrandingBackground(metadata),
     )
-  }, [clientBranding, currentTenant?.branding])
+  }, [currentTenant?.branding])
 
   // D5: send the user to the lockout / rate-limit screen when the backend
   // returns 423 / 429 on any request. Registered here (inside the router) so the
@@ -76,36 +72,22 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
   }, [initializeAuth])
 
   // Resolve the tenant from the full host via the backend domain bootstrap and
-  // settle the splash. The tenant is NEVER parsed from the host client-side, nor
-  // taken from a query param / client_id — the backend resolves it from the full
-  // host (`GET /tenant?domain=<host>`). This holds for both direct navigation and
-  // the OAuth2 authorize flow (the calling app redirects to the correct tenant
-  // subdomain). An explicit OAuth `client_id` in the URL, when present, is used
-  // only to overlay per-client branding — not to resolve the tenant, and the
-  // tenant's own default client does not trigger an overlay.
+  // settle the splash. The tenant is NEVER parsed from the host client-side; an
+  // explicit OAuth client_id is passed only so the backend can select a
+  // client-attached theme with tenant active branding as fallback.
   useEffect(() => {
     const run = async () => {
       const urlClientId = new URLSearchParams(location.search).get('client_id')?.trim() || undefined
       // Persist the URL client_id (side-effect) for later same-session calls.
       rememberPublicAuthContext(location.search)
-      setClientBranding(null)
       try {
-        if (!tenantStartedRef.current) {
-          tenantStartedRef.current = true
-          await initializeTenant()
-        }
-        if (urlClientId) {
-          try {
-            const connections = await fetchOAuthConnections(urlClientId)
-            setClientBranding(connections.branding
-              ? { ...connections.branding, layout: connections.branding.layout as BrandingPublic['layout'] }
-              : null)
-          } catch {
-            setClientBranding(null)
-          }
+        const bootstrapKey = urlClientId ?? ''
+        if (tenantBootstrapKeyRef.current !== bootstrapKey) {
+          tenantBootstrapKeyRef.current = bootstrapKey
+          await initializeTenant(urlClientId)
         }
       } catch {
-        /* tenant initialization or branding lookup failed */
+        /* handled inside initializeTenant */
       } finally {
         setTenantSettled(true)
       }

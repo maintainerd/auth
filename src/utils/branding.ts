@@ -21,6 +21,17 @@ const COLOR_PROPERTIES: Record<keyof BrandingColors, readonly string[]> = {
   ],
   textMuted: ['--branding-text-muted', '--muted-foreground'],
   border: ['--branding-border', '--border', '--input', '--sidebar-border'],
+  authPageBackground: ['--auth-page-background'],
+  authFormPanelBackground: ['--auth-form-panel-background'],
+  authFormPanelBorder: ['--auth-form-panel-border'],
+  authFormPanelText: ['--auth-form-panel-foreground'],
+  authVisualPanelBackground: ['--auth-visual-panel-background'],
+  authVisualPanelText: ['--auth-visual-panel-foreground'],
+  authVisualPanelOverlay: ['--auth-visual-panel-overlay'],
+  authDecorativeLight: ['--auth-decorative-light'],
+  authDecorativeDark: ['--auth-decorative-dark'],
+  authProgressPanelBackground: ['--auth-progress-panel-background'],
+  authSecurityPanelBackground: ['--auth-security-panel-background'],
 }
 
 const FOREGROUND_PROPERTIES: Partial<Record<keyof BrandingColors, readonly string[]>> = {
@@ -122,7 +133,9 @@ export function applyBranding(
   const fontFamily = safeFontFamily(font?.family)
   if (fontFamily) setProperty('--font-family', fontFamily)
 
-  const pageBackground = safeBackground(background) ?? safeBackground(colors?.appBackground)
+  const pageBackground = safeBackground(background)
+    ?? safeBackground(colors?.authPageBackground)
+    ?? safeBackground(colors?.appBackground)
   if (pageBackground) setProperty('--auth-page-background', pageBackground)
 
   return () => {

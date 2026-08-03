@@ -1,16 +1,19 @@
 import { useEffect, type ReactNode } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { useTenant } from '@/hooks/useTenant'
 import type { BrandingLayout, BrandingPublic } from '@/services/api/tenants/types'
 import MaintainedAuthIcon from '../icon/MaintainedAuthIcon'
 
 type Props = {
   children: ReactNode
-  branding?: BrandingPublic
+  branding?: BrandingPublic | null
 }
 
 type BrandMarkProps = {
   companyName: string
+  logoLabel: string
+  showLogoLabel: boolean
   logoUrl?: string
   panel?: boolean
 }
@@ -25,21 +28,21 @@ function resolvedLayout(layout: BrandingPublic['layout'] | undefined): BrandingL
   return layout === 'full_page' || layout === 'split' ? layout : 'centered'
 }
 
-function BrandMark({ companyName, logoUrl, panel = false }: BrandMarkProps) {
+function BrandMark({ companyName, logoLabel, showLogoLabel, logoUrl, panel = false }: BrandMarkProps) {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       {logoUrl ? (
-        <img src={logoUrl} alt={companyName || 'Logo'} className="h-11 w-auto max-w-full object-contain" />
+        <img src={logoUrl} alt={logoLabel || companyName || 'Logo'} className="h-11 w-auto max-w-full object-contain" />
       ) : panel ? (
-        <div className="rounded-2xl bg-white/95 p-3 shadow-sm">
+        <div className="auth-brand-icon-panel rounded-2xl p-3 shadow-sm">
           <MaintainedAuthIcon width={48} height={48} />
         </div>
       ) : (
         <MaintainedAuthIcon width={48} height={48} />
       )}
-      {companyName && (
+      {showLogoLabel && logoLabel && (
         <span className={panel ? 'text-xl font-semibold tracking-tight' : 'text-foreground text-lg font-semibold tracking-tight'}>
-          {companyName}
+          {logoLabel}
         </span>
       )}
     </div>
@@ -78,11 +81,15 @@ function Footer({ companyName, legalLinks, panel = false }: FooterProps) {
 function CenteredLayout({
   children,
   companyName,
+  logoLabel,
+  showLogoLabel,
   logoUrl,
   legalLinks,
 }: {
   children: ReactNode
   companyName: string
+  logoLabel: string
+  showLogoLabel: boolean
   logoUrl?: string
   legalLinks: FooterProps['legalLinks']
 }) {
@@ -91,9 +98,9 @@ function CenteredLayout({
       <div className="auth-page-background pointer-events-none absolute inset-0" />
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-8">
-          <BrandMark companyName={companyName} logoUrl={logoUrl} />
+          <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} />
         </div>
-        <Card className="border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_-20px_rgba(15,23,42,0.25)]">
+        <Card className="auth-form-panel border-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_-20px_rgba(15,23,42,0.25)]">
           <CardContent className="p-7 sm:p-9">{children}</CardContent>
         </Card>
         <div className="mt-8">
@@ -107,11 +114,15 @@ function CenteredLayout({
 function FullPageLayout({
   children,
   companyName,
+  logoLabel,
+  showLogoLabel,
   logoUrl,
   legalLinks,
 }: {
   children: ReactNode
   companyName: string
+  logoLabel: string
+  showLogoLabel: boolean
   logoUrl?: string
   legalLinks: FooterProps['legalLinks']
 }) {
@@ -122,7 +133,7 @@ function FullPageLayout({
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-md">
             <div className="mb-10">
-              <BrandMark companyName={companyName} logoUrl={logoUrl} />
+              <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} />
             </div>
             {children}
           </div>
@@ -136,33 +147,37 @@ function FullPageLayout({
 function SplitLayout({
   children,
   companyName,
+  logoLabel,
+  showLogoLabel,
   logoUrl,
   legalLinks,
 }: {
   children: ReactNode
   companyName: string
+  logoLabel: string
+  showLogoLabel: boolean
   logoUrl?: string
   legalLinks: FooterProps['legalLinks']
 }) {
   return (
-    <main data-layout="split" className="bg-card grid min-h-svh lg:grid-cols-[minmax(0,1.1fr)_minmax(30rem,0.9fr)]">
+    <main data-layout="split" className="auth-form-panel grid min-h-svh lg:grid-cols-[minmax(0,1.1fr)_minmax(30rem,0.9fr)]">
       <section data-testid="split-brand-panel" className="auth-split-brand-panel relative hidden overflow-hidden p-12 lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10" />
-        <div className="pointer-events-none absolute -bottom-40 -left-20 size-96 rounded-full bg-black/10" />
+        <div className="auth-split-decoration-light pointer-events-none absolute -right-24 -top-24 size-80 rounded-full opacity-10" />
+        <div className="auth-split-decoration-dark pointer-events-none absolute -bottom-40 -left-20 size-96 rounded-full opacity-10" />
         <div className="relative flex flex-1 items-center justify-center">
-          <BrandMark companyName={companyName} logoUrl={logoUrl} panel />
+          <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} panel />
         </div>
         <div className="relative">
           <Footer companyName={companyName} legalLinks={legalLinks} panel />
         </div>
       </section>
 
-      <section className="bg-card text-card-foreground flex min-h-svh items-center justify-center px-6 py-12 sm:px-10 lg:px-14">
+      <section className="auth-form-panel flex min-h-svh items-center justify-center px-6 py-12 sm:px-10 lg:px-14">
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
-            <BrandMark companyName={companyName} logoUrl={logoUrl} />
+            <BrandMark companyName={companyName} logoLabel={logoLabel} showLogoLabel={showLogoLabel} logoUrl={logoUrl} />
           </div>
-          <Card className="border-border/70 shadow-[0_16px_50px_-28px_rgba(15,23,42,0.35)]">
+          <Card className="auth-form-panel border-border/70 shadow-[0_16px_50px_-28px_rgba(15,23,42,0.35)]">
             <CardContent className="p-7 sm:p-9">{children}</CardContent>
           </Card>
           <div className="mt-8 lg:hidden">
@@ -175,23 +190,27 @@ function SplitLayout({
 }
 
 const LoginLayout = ({ children, branding }: Props) => {
-  const companyName = branding?.company_name || 'Maintainerd-Auth'
-  const logoUrl = branding?.logo_url
-  const layout = resolvedLayout(branding?.layout)
+  const { currentTenant } = useTenant()
+  const resolvedBranding = branding === undefined ? currentTenant?.branding : branding
+  const companyName = resolvedBranding?.company_name || 'Maintainerd-Auth'
+  const logoLabel = resolvedBranding?.logo_label || companyName
+  const showLogoLabel = resolvedBranding?.show_logo_label ?? true
+  const logoUrl = resolvedBranding?.logo_url
+  const layout = resolvedLayout(resolvedBranding?.layout)
   const legalLinks = [
-    branding?.support_url && { label: 'Support', href: branding.support_url },
-    branding?.privacy_policy_url && { label: 'Privacy', href: branding.privacy_policy_url },
-    branding?.terms_of_service_url && { label: 'Terms', href: branding.terms_of_service_url },
+    resolvedBranding?.support_url && { label: 'Support', href: resolvedBranding.support_url },
+    resolvedBranding?.privacy_policy_url && { label: 'Privacy', href: resolvedBranding.privacy_policy_url },
+    resolvedBranding?.terms_of_service_url && { label: 'Terms', href: resolvedBranding.terms_of_service_url },
   ].filter(Boolean) as FooterProps['legalLinks']
 
   useEffect(() => {
-    if (branding?.favicon_url) {
+    if (resolvedBranding?.favicon_url) {
       const link = document.querySelector<HTMLLinkElement>("link[rel*='icon']")
-      if (link) link.href = branding.favicon_url
+      if (link) link.href = resolvedBranding.favicon_url
     }
-  }, [branding?.favicon_url])
+  }, [resolvedBranding?.favicon_url])
 
-  const layoutProps = { children, companyName, logoUrl, legalLinks }
+  const layoutProps = { children, companyName, logoLabel, showLogoLabel, logoUrl, legalLinks }
   if (layout === 'full_page') return <FullPageLayout {...layoutProps} />
   if (layout === 'split') return <SplitLayout {...layoutProps} />
   return <CenteredLayout {...layoutProps} />

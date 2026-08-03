@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
-import { bootstrapToTenantEntity } from './index'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { bootstrapToTenantEntity, fetchTenantBootstrap } from './index'
+import { get } from '../client'
 import type { TenantBootstrap } from './types'
 
 // Mock the HTTP client so importing the service module doesn't pull in the
 // dev-only debug helper (which touches `window` after teardown).
 vi.mock('../client', () => ({ get: vi.fn() }))
+const getMock = vi.mocked(get)
 
 const bootstrap: TenantBootstrap = {
   tenant: {
@@ -85,5 +87,27 @@ describe('bootstrapToTenantEntity', () => {
     const entity = bootstrapToTenantEntity({ ...bootstrap, password_config: undefined, registration_config: undefined })
     expect(entity.password_config).toBeUndefined()
     expect(entity.registration_config).toBeUndefined()
+  })
+})
+
+describe('fetchTenantBootstrap', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+  })
+
+  it('sends host and client_id to the domain bootstrap endpoint', async () => {
+    getMock.mockResolvedValueOnce({ success: true, data: bootstrap, message: '' })
+
+    await expect(fetchTenantBootstrap('acme.auth.maintainerd.local', ' client-abc ')).resolves.toEqual(bootstrap)
+
+    expect(getMock).toHaveBeenCalledWith('/tenant?domain=acme.auth.maintainerd.local&client_id=client-abc')
+  })
+
+  it('omits client_id when it is not provided', async () => {
+    getMock.mockResolvedValueOnce({ success: true, data: bootstrap, message: '' })
+
+    await expect(fetchTenantBootstrap('acme.auth.maintainerd.local')).resolves.toEqual(bootstrap)
+
+    expect(getMock).toHaveBeenCalledWith('/tenant?domain=acme.auth.maintainerd.local')
   })
 })

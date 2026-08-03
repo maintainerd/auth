@@ -1,9 +1,10 @@
 import { Loader2 } from 'lucide-react'
+import { useTenant } from '@/hooks/useTenant'
 import type { BrandingPublic } from '@/services/api/tenants/types'
 import MaintainedAuthIcon from '../icon/MaintainedAuthIcon'
 
 type Props = {
-  branding?: BrandingPublic
+  branding?: BrandingPublic | null
 }
 
 /**
@@ -12,8 +13,12 @@ type Props = {
  * mark: tenant logo when configured, otherwise the Maintainerd icon.
  */
 const AppLoadingScreen = ({ branding }: Props) => {
-  const companyName = branding?.company_name || 'Maintainerd-Auth'
-  const logoUrl = branding?.logo_url
+  const { currentTenant } = useTenant()
+  const resolvedBranding = branding === undefined ? currentTenant?.branding : branding
+  const companyName = resolvedBranding?.company_name || 'Maintainerd-Auth'
+  const logoLabel = resolvedBranding?.logo_label || companyName
+  const showLogoLabel = resolvedBranding?.show_logo_label ?? true
+  const logoUrl = resolvedBranding?.logo_url
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-4">
@@ -21,9 +26,12 @@ const AppLoadingScreen = ({ branding }: Props) => {
 
       <div className="relative z-10 flex flex-col items-center gap-6 text-center">
         {logoUrl ? (
-          <img src={logoUrl} alt={companyName} className="h-12 w-auto" />
+          <img src={logoUrl} alt={logoLabel || companyName} className="h-12 w-auto" />
         ) : (
           <MaintainedAuthIcon width={56} height={56} />
+        )}
+        {showLogoLabel && logoLabel && (
+          <span className="text-foreground text-lg font-semibold tracking-tight">{logoLabel}</span>
         )}
         <div className="text-muted-foreground flex items-center gap-2">
           <Loader2 className="size-4 animate-spin" />

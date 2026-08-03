@@ -95,8 +95,8 @@ export default function VerifyEmailPage() {
       <LoginLayout branding={currentTenant?.branding}>
         <div className="flex flex-col gap-8 text-center">
           <div className="flex flex-col items-center gap-3">
-            <div className="flex size-14 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle className="size-7 text-green-600" />
+            <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
+              <CheckCircle className="size-7 text-emerald-600" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Email verified</h1>
             <p className="text-sm text-muted-foreground max-w-xs">
@@ -115,8 +115,8 @@ export default function VerifyEmailPage() {
     <LoginLayout branding={currentTenant?.branding}>
       <div className="flex flex-col gap-8">
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex size-14 items-center justify-center rounded-full bg-blue-100">
-            <Mail className="size-7 text-blue-600" />
+          <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+            <Mail className="size-7 text-primary" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Verify your email</h1>
           <p className="text-sm text-muted-foreground">

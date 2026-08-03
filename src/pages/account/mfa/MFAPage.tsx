@@ -43,7 +43,7 @@ export default function MFAPage() {
 
       <div className="space-y-6">
         {/* Security status */}
-        <Card>
+        <Card className="auth-security-panel">
           <CardContent className="flex items-center gap-4">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted">
               {isProtected
@@ -181,7 +181,7 @@ function ResetAllMFA() {
 function StatusBadge({ active }: { active: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-0.5 text-xs font-medium">
-      <span className={cn("size-1.5 rounded-full", active ? "bg-emerald-500" : "bg-slate-400")} />
+      <span className={cn("size-1.5 rounded-full", active ? "bg-emerald-500" : "bg-muted-foreground")} />
       {active ? "Active" : "Inactive"}
     </span>
   )

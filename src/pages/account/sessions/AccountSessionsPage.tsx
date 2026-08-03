@@ -32,7 +32,7 @@ function SessionRow({
           <p className="truncate text-sm font-medium">
             {ua}
             {session.is_current && (
-              <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700">
+              <span className="ml-2 rounded bg-emerald-500/10 px-1.5 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
                 Current
               </span>
             )}

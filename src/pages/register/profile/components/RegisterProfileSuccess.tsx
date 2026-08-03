@@ -37,8 +37,8 @@ const RegisterProfileSuccess = () => {
   return (
     <div className="flex flex-col gap-8 text-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="flex size-16 items-center justify-center rounded-full bg-green-100">
-          <CheckCircle className="size-8 text-green-600" />
+        <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10">
+          <CheckCircle className="size-8 text-emerald-600" />
         </div>
         <h1 className="text-2xl font-semibold tracking-tight">All set!</h1>
         <p className="text-sm text-muted-foreground max-w-xs">

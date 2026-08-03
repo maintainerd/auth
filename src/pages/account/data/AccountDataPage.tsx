@@ -34,18 +34,18 @@ export default function AccountDataPage() {
               Download a copy of your personal data including your profile, sessions, and activity.
             </p>
             {exportResult ? (
-              <div className="rounded-md border border-green-200 bg-green-50 p-3">
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
                 {exportResult.download_url ? (
                   <a
                     href={exportResult.download_url}
-                    className="text-sm font-medium text-green-700 underline"
+                    className="text-sm font-medium text-emerald-700 underline dark:text-emerald-400"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     Download your export
                   </a>
                 ) : (
-                  <p className="text-sm text-green-700">
+                  <p className="text-sm text-emerald-700 dark:text-emerald-400">
                     {exportResult.message ?? 'Your export is being prepared. You will receive an email when it is ready.'}
                   </p>
                 )}

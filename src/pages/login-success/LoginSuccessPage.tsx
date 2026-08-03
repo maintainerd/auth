@@ -65,8 +65,8 @@ export default function LoginSuccessPage() {
   return (
     <LoginLayout branding={currentTenant?.branding}>
       <div className="flex flex-col items-center gap-6 text-center">
-        <div className="flex size-16 items-center justify-center rounded-full bg-green-50">
-          <Check className="size-8 text-green-600" />
+        <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10">
+          <Check className="size-8 text-emerald-600" />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">You&apos;re signed in</h1>

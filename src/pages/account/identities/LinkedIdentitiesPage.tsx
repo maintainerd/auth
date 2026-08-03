@@ -123,7 +123,7 @@ export default function LinkedIdentitiesPage() {
                     {id.created_at && <p className="text-xs text-muted-foreground">Linked: {new Date(id.created_at).toLocaleDateString()}</p>}
                   </div>
                   {isBuiltIn ? (
-                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                       Primary sign-in
                     </span>
                   ) : (

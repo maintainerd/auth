@@ -21,11 +21,16 @@ import type { TenantBootstrap, TenantEntity, TenantResponse } from './types'
  * of truth for tenant-context resolution.
  *
  * @param host - the full window host (e.g. `acme.auth.maintainerd.local`).
+ * @param clientId - optional OAuth client identifier used only for branding selection.
  */
-export async function fetchTenantBootstrap(host: string): Promise<TenantBootstrap> {
-  const response = await get<ApiResponse<TenantBootstrap>>(
-    `${API_ENDPOINTS.TENANT}?domain=${encodeURIComponent(host)}`,
-  )
+export async function fetchTenantBootstrap(host: string, clientId?: string): Promise<TenantBootstrap> {
+  const params = new URLSearchParams({ domain: host })
+  const normalizedClientId = clientId?.trim()
+  if (normalizedClientId) {
+    params.set('client_id', normalizedClientId)
+  }
+
+  const response = await get<ApiResponse<TenantBootstrap>>(`${API_ENDPOINTS.TENANT}?${params.toString()}`)
 
   if (response.success && response.data) {
     return response.data

@@ -42,6 +42,17 @@ export interface BrandingColors {
   textPrimary?: string
   textMuted?: string
   border?: string
+  authPageBackground?: string
+  authFormPanelBackground?: string
+  authFormPanelBorder?: string
+  authFormPanelText?: string
+  authVisualPanelBackground?: string
+  authVisualPanelText?: string
+  authVisualPanelOverlay?: string
+  authDecorativeLight?: string
+  authDecorativeDark?: string
+  authProgressPanelBackground?: string
+  authSecurityPanelBackground?: string
 }
 
 export interface BrandingFont {
@@ -63,6 +74,8 @@ export type BrandingLayout = 'centered' | 'full_page' | 'split'
 export interface BrandingPublic {
   layout: BrandingLayout
   company_name: string
+  logo_label?: string
+  show_logo_label?: boolean
   logo_url: string
   favicon_url: string
   support_url: string

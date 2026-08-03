@@ -47,8 +47,8 @@ export default function OAuthConsentPage() {
       <div className="flex flex-col gap-8">
         {!challenge && !error && (
           <div className="flex flex-col items-center gap-3 text-center" role="status">
-            <div className="flex size-14 items-center justify-center rounded-full bg-blue-100">
-              <Loader2 className="size-7 animate-spin text-blue-600" />
+            <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+              <Loader2 className="size-7 animate-spin text-primary" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Loading request</h1>
           </div>

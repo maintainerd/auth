@@ -7,6 +7,10 @@ import {
 } from '@/services'
 import { setTenantBootstrapContext } from '@/utils/clientContext'
 
+type InitializeTenantArgs = {
+  clientId?: string
+}
+
 export const fetchTenantAsync = createAsyncThunk(
   'tenant/fetch',
   async (identifier?: string) => {
@@ -37,9 +41,9 @@ export const fetchTenantBySlugAsync = createAsyncThunk(
  */
 export const initializeTenantAsync = createAsyncThunk(
   'tenant/initialize',
-  async () => {
+  async (args?: InitializeTenantArgs) => {
     const host = typeof window !== 'undefined' ? window.location.host : ''
-    const bootstrap = await fetchTenantBootstrap(host)
+    const bootstrap = await fetchTenantBootstrap(host, args?.clientId)
     setTenantBootstrapContext({
       tenantSlug: bootstrap.tenant.name,
       defaultClientId: bootstrap.client?.client_id,
