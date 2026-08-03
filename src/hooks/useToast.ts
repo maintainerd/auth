@@ -22,12 +22,17 @@ export function useToast(options: UseToastOptions = {}) {
     defaultErrorDescription = "An unexpected error occurred"
   } = options
 
+  // The second positional argument is the caller's fallback message. It was
+  // named `_title` and never read, so the ~35 call sites that pass one
+  // ("Could not revoke session", "Recovery failed", …) were silently dropped:
+  // when the underlying error carried no message — a network blip, an opaque
+  // 500 — the user got the generic default instead of the intended text.
   const showError = useCallback((
     error: unknown,
-    _title?: string,
+    fallbackMessage?: string,
     description?: string
   ) => {
-    let errorMessage = description || defaultErrorDescription
+    let errorMessage = description || fallbackMessage || defaultErrorDescription
 
     // Extract error message from different error types
     if (error instanceof Error) {

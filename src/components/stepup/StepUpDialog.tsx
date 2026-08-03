@@ -45,7 +45,11 @@ export function StepUpDialog({ open, onOpenChange, onVerified, onCancel, title, 
       setMethods(allowed)
       setMethod(allowed[0] ?? "")
     },
-    onError: (e) => { showError(e); onOpenChange(false) },
+    // handleOpenChange, not the raw prop: closing via onOpenChange skips
+    // onCancel, so the step-up bridge's pending promise never settles. One
+    // failed challenge then wedged EVERY later step-up action — revoke
+    // sessions, delete account — until a full page reload.
+    onError: (e) => { showError(e); handleOpenChange(false) },
   })
 
   const smsMutation = useMutation({

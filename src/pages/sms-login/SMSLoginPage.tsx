@@ -53,7 +53,7 @@ export default function SMSLoginPage() {
     if (!phone || !code) return
     setVerifying(true)
     try {
-      await post(`${API_ENDPOINTS.AUTH.SMS_LOGIN_VERIFY}?${publicAuthQuery()}`, { phone, code })
+      await post(`${API_ENDPOINTS.AUTH.SMS_LOGIN_VERIFY}?${publicAuthQuery()}`, { phone, otp: code })
       showSuccess("Signed in successfully")
       navigate("/", { replace: true })
     } catch (e: unknown) {

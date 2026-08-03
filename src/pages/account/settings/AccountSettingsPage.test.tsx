@@ -17,8 +17,10 @@ vi.mock('@/hooks/useTenant', () => ({
   }),
 }))
 
-vi.mock('@/services/api/auth', () => ({
-  logout: vi.fn().mockResolvedValue(undefined),
+// AccountLayout signs out through the auth store rather than the bare API call,
+// so the shell it wraps this page in needs useAuth stubbed.
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ logout: vi.fn().mockResolvedValue(undefined) }),
 }))
 
 vi.mock('@/services/api/account', async (importOriginal) => {

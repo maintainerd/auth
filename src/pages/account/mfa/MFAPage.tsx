@@ -17,12 +17,25 @@ import { ConfirmRemoveDialog } from "./MfaShell"
 
 export default function MFAPage() {
   const navigate = useNavigate()
-  const { data, isLoading } = useQuery({ queryKey: ["mfa", "status"], queryFn: fetchMFAStatus })
+  const { data, isLoading, isError } = useQuery({ queryKey: ["mfa", "status"], queryFn: fetchMFAStatus })
 
   if (isLoading) {
     return (
       <AccountLayout title="Two-Factor Authentication">
         <MFAHubSkeleton />
+      </AccountLayout>
+    )
+  }
+
+  // Without this, a failed status fetch falls through with every flag defaulting
+  // to false — the page then states as fact that the account has no protection,
+  // which is a security claim we have not actually verified.
+  if (isError) {
+    return (
+      <AccountLayout title="Two-Factor Authentication">
+        <p className="py-12 text-center text-sm text-destructive">
+          Could not load your two-factor settings. Refresh to try again.
+        </p>
       </AccountLayout>
     )
   }

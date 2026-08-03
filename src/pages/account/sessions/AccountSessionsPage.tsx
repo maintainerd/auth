@@ -60,7 +60,7 @@ function SessionRow({
       icon={Icon}
       className="items-center p-3"
       contentClassName="items-center"
-      action={!session.is_current && (
+      action={(
         <div className="flex shrink-0 items-center gap-2">
           {confirming ? (
             <>
@@ -70,7 +70,7 @@ function SessionRow({
                 className="h-7 text-xs"
                 disabled={revoking}
                 onClick={() => {
-                  onRevoke(session.session_uuid)
+                  onRevoke(session.session_id)
                   setConfirming(false)
                 }}
               >
@@ -112,7 +112,7 @@ function SessionRow({
         <ListingItemMeta>
           <span>{session.ip_address ?? 'Unknown IP'}</span>
           {session.created_at && <span>Signed in {fmt(session.created_at)}</span>}
-          {session.last_active_at && <span>Last active {fmt(session.last_active_at)}</span>}
+          {session.last_used_at && <span>Last active {fmt(session.last_used_at)}</span>}
         </ListingItemMeta>
       </div>
     </ListingItemCard>
@@ -148,7 +148,10 @@ export default function AccountSessionsPage() {
     onError: (err) => showError(err, 'Could not revoke all sessions'),
   })
 
-  const otherSessions = sessions.filter((session: UserSession) => !session.is_current)
+  // The response carries no "is this me" marker, so every listed session is
+  // revocable. Revoking the current one simply signs this browser out, which is
+  // a legitimate action and what the button already claims to do.
+  const otherSessions = sessions
   const revokeAllAction = otherSessions.length > 0 ? (
     <div className="flex w-full justify-end gap-2 sm:w-auto">
       {confirmingAll ? (
@@ -204,7 +207,7 @@ export default function AccountSessionsPage() {
             <div className="space-y-2">
               {sessions.map((session: UserSession) => (
                 <SessionRow
-                  key={session.session_uuid}
+                  key={session.session_id}
                   session={session}
                   onRevoke={(uuid) => revokeMutation.mutate(uuid)}
                   revoking={revokeMutation.isPending}

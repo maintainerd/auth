@@ -105,13 +105,20 @@ export const verifyEmailChange = (token: string): Promise<void> =>
 // Sessions
 // ---------------------------------------------------------------------------
 
+// Mirrors user.SessionDataResult on the wire (internal/user/types.go). The
+// field names previously guessed at were session_uuid / last_active_at plus an
+// is_current flag: the first made every revoke call POST `undefined` (the
+// backend rejected it as an invalid UUID, so revoke silently never worked), the
+// second meant "Last active" never rendered, and the third does not exist on
+// the response at all — so `!is_current` was always true and the page offered
+// to revoke the session the user is currently sitting in.
 export interface UserSession {
-  session_uuid: string
+  session_id: string
   ip_address?: string
   user_agent?: string
   created_at: string
-  last_active_at?: string
-  is_current?: boolean
+  last_used_at?: string
+  expires_at?: string
 }
 
 export const fetchSessions = (): Promise<UserSession[]> =>

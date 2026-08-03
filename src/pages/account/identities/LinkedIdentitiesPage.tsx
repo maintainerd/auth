@@ -21,8 +21,12 @@ interface LinkedIdentity {
   created_at?: string
 }
 
+// Mirrors idp.LinkIdentityRequestDTO. The field is provider_identifier, not
+// provider — sending `provider` left it empty server-side and the handler
+// rejected every link attempt with 400 "provider_identifier and external_token
+// are required".
 interface LinkIdentityRequest {
-  provider: string
+  provider_identifier: string
   external_token: string
 }
 
@@ -99,7 +103,7 @@ export default function LinkedIdentitiesPage() {
                   placeholder="Paste the external provider ID token"
                 />
                 <div className="flex justify-end">
-                  <Button onClick={() => linkMut.mutate({ provider, external_token: externalToken })} disabled={linkMut.isPending || !provider || !externalToken}>
+                  <Button onClick={() => linkMut.mutate({ provider_identifier: provider, external_token: externalToken })} disabled={linkMut.isPending || !provider || !externalToken}>
                     {linkMut.isPending ? "Linking…" : "Link identity"}
                   </Button>
                 </div>
