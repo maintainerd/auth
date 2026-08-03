@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { BrandLockup } from '@/components/brand/BrandLockup'
 import { useTenant } from '@/hooks/useTenant'
 import {
   authUiTemplateIdFromMetadata,
@@ -12,7 +13,6 @@ import {
 } from '@/lib/branding/authUiTemplates'
 import type { BrandingLayout, BrandingPublic } from '@/services/api/tenants/types'
 import { resolveBrandingLogoUrl } from '@/utils/branding'
-import MaintainedAuthIcon from '../icon/MaintainedAuthIcon'
 
 type Props = {
   children: ReactNode
@@ -49,22 +49,15 @@ function resolvedLayout(layout: BrandingPublic['layout'] | undefined): BrandingL
 
 function BrandMark({ companyName, logoLabel, showLogoLabel, logoUrl, panel = false }: BrandMarkProps) {
   return (
-    <div className="flex flex-col items-center gap-3 text-center">
-      {logoUrl ? (
-        <img src={logoUrl} alt={logoLabel || companyName || 'Logo'} className="h-11 w-auto max-w-full object-contain" />
-      ) : panel ? (
-        <div className="auth-brand-icon-panel rounded-2xl p-3 shadow-sm">
-          <MaintainedAuthIcon width={48} height={48} />
-        </div>
-      ) : (
-        <MaintainedAuthIcon width={48} height={48} />
-      )}
-      {showLogoLabel && logoLabel && (
-        <span className={panel ? 'text-xl font-semibold tracking-tight' : 'text-foreground text-lg font-semibold tracking-tight'}>
-          {logoLabel}
-        </span>
-      )}
-    </div>
+    <BrandLockup
+      companyName={companyName}
+      logoLabel={logoLabel}
+      showLogoLabel={showLogoLabel}
+      logoUrl={logoUrl}
+      panel={panel}
+      centered
+      showSubtitle
+    />
   )
 }
 

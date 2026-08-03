@@ -42,6 +42,20 @@ describe('LoginLayout', () => {
     expect(screen.getAllByText('Acme ID').length).toBeGreaterThan(0)
   })
 
+  it('renders the template brand lockup as logo beside logo label', () => {
+    render(
+      <LoginLayout branding={branding}>
+        <span>Authentication form</span>
+      </LoginLayout>,
+    )
+
+    const logo = screen.getByAltText('Acme ID')
+    const label = screen.getByText('Acme ID')
+    expect(logo.parentElement).toHaveClass('flex', 'items-center', 'gap-3')
+    expect(logo.parentElement).toContainElement(label)
+    expect(screen.getByText('Identity access')).toBeInTheDocument()
+  })
+
   it.each([
     ['centered-card', 'centered'],
     ['split-showcase', 'split'],

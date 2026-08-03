@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useMutation } from '@tanstack/react-query'
 import { logout } from '@/services/api/auth'
 import { useTenant } from '@/hooks/useTenant'
-import MaintainedAuthIcon from '@/components/icon/MaintainedAuthIcon'
+import { BrandLockup } from '@/components/brand/BrandLockup'
 import { resolveBrandingLogoUrl } from '@/utils/branding'
 
 const navItems = [
@@ -49,14 +49,15 @@ export default function AccountLayout({
       <header data-md-top-panel className="auth-account-header fixed inset-x-0 top-0 z-50 h-14 border-b">
         <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
           <Link to="/account" className="flex items-center gap-2">
-            {logoUrl ? (
-              <img src={logoUrl} alt={logoLabel || companyName} className="h-7 w-auto object-contain" />
-            ) : (
-              <MaintainedAuthIcon width={28} height={28} className="shrink-0" />
-            )}
-            {showLogoLabel && logoLabel && (
-              <span data-md-top-logo-label className="text-base font-semibold tracking-tight">{logoLabel}</span>
-            )}
+            <BrandLockup
+              companyName={companyName}
+              logoLabel={logoLabel}
+              showLogoLabel={showLogoLabel}
+              logoUrl={logoUrl}
+              logoClassName="size-7"
+              labelClassName="text-base"
+              topPanelLabel
+            />
           </Link>
 
           <div className="ml-auto flex items-center gap-3">

@@ -144,12 +144,6 @@
   border-color: var(--auth-form-panel-border, var(--border));
 }
 
-.auth-brand-icon-panel {
-  color: inherit;
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-}
-
 .auth-split-brand-panel {
   color: var(--auth-visual-panel-foreground, var(--branding-side-panel-foreground, var(--primary-foreground)));
   background: var(--auth-visual-panel-background, var(--branding-side-panel-background, var(--primary)));
@@ -281,14 +275,6 @@ html[data-identity-theme="active"] .auth-full-page-panel {
 html[data-identity-theme="active"] .auth-split-brand-panel {
   background: var(--auth-visual-panel-background, var(--md-side-panel-bg, var(--sidebar))) !important;
   color: var(--auth-visual-panel-foreground, var(--sidebar-foreground)) !important;
-}
-
-html[data-identity-theme="active"] .auth-brand-icon-panel {
-  background-color: var(--md-icon-container-bg, var(--md-listing-icon-bg, color-mix(in srgb, currentColor 12%, transparent))) !important;
-  border-color: var(--md-icon-container-border, var(--md-listing-icon-border, color-mix(in srgb, currentColor 18%, transparent))) !important;
-  border-width: var(--md-icon-container-border-width, var(--md-listing-icon-border-width, 1px)) !important;
-  border-radius: var(--md-icon-container-radius, var(--md-listing-icon-radius, 1rem)) !important;
-  color: var(--md-icon-container-text, var(--md-listing-icon-text, currentColor)) !important;
 }
 
 html[data-identity-theme="active"] .auth-progress-panel {

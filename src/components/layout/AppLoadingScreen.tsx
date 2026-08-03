@@ -1,8 +1,8 @@
 import { Loader2 } from 'lucide-react'
+import { BrandLockup } from '@/components/brand/BrandLockup'
 import { useTenant } from '@/hooks/useTenant'
 import type { BrandingPublic } from '@/services/api/tenants/types'
 import { resolveBrandingLogoUrl } from '@/utils/branding'
-import MaintainedAuthIcon from '../icon/MaintainedAuthIcon'
 
 type Props = {
   branding?: BrandingPublic | null
@@ -29,14 +29,14 @@ const AppLoadingScreen = ({ branding }: Props) => {
       <div className="auth-page-background pointer-events-none absolute inset-0" />
 
       <div className="relative z-10 flex flex-col items-center gap-6 text-center">
-        {logoUrl ? (
-          <img src={logoUrl} alt={logoLabel || companyName} className="h-12 w-auto" />
-        ) : (
-          <MaintainedAuthIcon width={56} height={56} />
-        )}
-        {showLogoLabel && logoLabel && (
-          <span className="text-foreground text-lg font-semibold tracking-tight">{logoLabel}</span>
-        )}
+        <BrandLockup
+          companyName={companyName}
+          logoLabel={logoLabel}
+          showLogoLabel={showLogoLabel}
+          logoUrl={logoUrl}
+          centered
+          showSubtitle
+        />
         <div className="text-muted-foreground flex items-center gap-2">
           <Loader2 className="size-4 animate-spin" />
           <span className="text-sm">Loading…</span>
