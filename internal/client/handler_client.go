@@ -15,7 +15,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
-	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 type ClientHandler struct {
@@ -380,17 +379,19 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Toggle status between active and inactive
-	newStatus := shared.StatusActive
-	// We need to get current status first to toggle it
-	currentClient, err := h.ClientService.GetByUUID(r.Context(), ClientUUID, tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Auth client not found", err)
+	// Honour the status the caller asked for. This previously read the current
+	// row and flipped it, ignoring the body — so the result depended on server
+	// state at the moment of the request rather than on the operator's choice.
+	var req ClientSetStatusRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
 		return
 	}
-	if currentClient.Status == shared.StatusActive {
-		newStatus = shared.StatusInactive
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
 	}
+	newStatus := req.Status
 
 	Client, err := h.ClientService.SetStatusByUUID(r.Context(), ClientUUID, tenant.TenantID, newStatus, user.UserUUID)
 	if err != nil {

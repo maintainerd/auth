@@ -19,25 +19,25 @@ import (
 // BrandingServiceDataResult is the service-layer representation of a branding
 // record, decoupled from the persistence layer.
 type BrandingServiceDataResult struct {
-	BrandingUUID      uuid.UUID
-	Name              string
-	IsSystem          bool
-	IsActive          bool
-	Layout            string
-	CompanyName       string
-	LogoLabel         string
-	LogoDetail        string
-	ShowLogoLabel     bool
-	IdentityLogoLabel string
+	BrandingUUID          uuid.UUID
+	Name                  string
+	IsSystem              bool
+	IsActive              bool
+	Layout                string
+	CompanyName           string
+	LogoLabel             string
+	LogoDetail            string
+	ShowLogoLabel         bool
+	IdentityLogoLabel     string
 	IdentityShowLogoLabel bool
-	LogoURL           string
-	FaviconURL        string
-	SupportURL        string
-	PrivacyPolicyURL  string
-	TermsOfServiceURL string
-	Metadata          datatypes.JSON
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	LogoURL               string
+	FaviconURL            string
+	SupportURL            string
+	PrivacyPolicyURL      string
+	TermsOfServiceURL     string
+	Metadata              datatypes.JSON
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 // BrandingService defines business operations on tenant branding.
@@ -66,25 +66,25 @@ func NewBrandingService(brandingRepo BrandingRepository) BrandingService {
 
 func toBrandingServiceDataResult(b *Branding) *BrandingServiceDataResult {
 	return &BrandingServiceDataResult{
-		BrandingUUID:      b.BrandingUUID,
-		Name:              b.Name,
-		IsSystem:          b.IsSystem,
-		IsActive:          b.IsActive,
-		Layout:            brandingLayoutOrDefault(metadataString(b.Metadata, BrandingMetadataLayout)),
-		CompanyName:       b.CompanyName,
-		LogoLabel:         brandingLogoLabelOrDefault(metadataString(b.Metadata, BrandingMetadataLogoLabel), b.CompanyName, b.Name),
-		LogoDetail:        metadataString(b.Metadata, BrandingMetadataLogoDetail),
-		ShowLogoLabel:     metadataBool(b.Metadata, BrandingMetadataShowLogoLabel, true),
-		IdentityLogoLabel: metadataString(b.Metadata, BrandingMetadataIdentityLogoLabel),
+		BrandingUUID:          b.BrandingUUID,
+		Name:                  b.Name,
+		IsSystem:              b.IsSystem,
+		IsActive:              b.IsActive,
+		Layout:                brandingLayoutOrDefault(metadataString(b.Metadata, BrandingMetadataLayout)),
+		CompanyName:           b.CompanyName,
+		LogoLabel:             brandingLogoLabelOrDefault(metadataString(b.Metadata, BrandingMetadataLogoLabel), b.CompanyName, b.Name),
+		LogoDetail:            metadataString(b.Metadata, BrandingMetadataLogoDetail),
+		ShowLogoLabel:         metadataBool(b.Metadata, BrandingMetadataShowLogoLabel, true),
+		IdentityLogoLabel:     metadataString(b.Metadata, BrandingMetadataIdentityLogoLabel),
 		IdentityShowLogoLabel: metadataBool(b.Metadata, BrandingMetadataIdentityShowLogoLabel, true),
-		LogoURL:           b.LogoURL,
-		FaviconURL:        b.FaviconURL,
-		SupportURL:        b.SupportURL,
-		PrivacyPolicyURL:  b.PrivacyPolicyURL,
-		TermsOfServiceURL: b.TermsOfServiceURL,
-		Metadata:          b.Metadata,
-		CreatedAt:         b.CreatedAt,
-		UpdatedAt:         b.UpdatedAt,
+		LogoURL:               b.LogoURL,
+		FaviconURL:            b.FaviconURL,
+		SupportURL:            b.SupportURL,
+		PrivacyPolicyURL:      b.PrivacyPolicyURL,
+		TermsOfServiceURL:     b.TermsOfServiceURL,
+		Metadata:              b.Metadata,
+		CreatedAt:             b.CreatedAt,
+		UpdatedAt:             b.UpdatedAt,
 	}
 }
 

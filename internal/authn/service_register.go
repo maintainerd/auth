@@ -52,6 +52,9 @@ type registerService struct {
 	registrationFlowRoleRepo RegistrationFlowRoleRepository
 	emailVerificationSvc     EmailVerificationService
 	consentRecorder          UserConsentRecorder
+	// sessionService creates the user_sessions row for a newly registered user.
+	// Nil only in tests that never mint tokens.
+	sessionService SessionService
 }
 
 func NewRegistrationService(
@@ -97,6 +100,13 @@ func WithEmailVerificationService(svc EmailVerificationService) RegisterServiceO
 
 func WithConsentRecorder(r UserConsentRecorder) RegisterServiceOption {
 	return func(s *registerService) { s.consentRecorder = r }
+}
+
+// WithRegisterSessionService gives registration the same session handling as
+// login. Registration signs the user in, so it must create a session like every
+// other authentication path — see generateTokenResponse.
+func WithRegisterSessionService(svc SessionService) RegisterServiceOption {
+	return func(s *registerService) { s.sessionService = svc }
 }
 
 // Helper function to find the system default registration role for a tenant.
@@ -1167,7 +1177,37 @@ func (s *registerService) RegisterInvite(
 func (s *registerService) generateTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*RegisterResponseDTO, error) {
 	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, client)
 	tokenPolicy := resolveEffectiveTokenPolicy(s.securitySettingRepo, client)
-	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRPassword}, jwt.ACRLevel1, "", policy, tokenPolicy))
+
+	// Registration signs the user in, so it must create a session exactly like
+	// login and SMS login do. It previously passed an empty session id and
+	// created no user_sessions row at all, which quietly exempted every
+	// registered user from the entire session layer: they never appeared in
+	// /account/sessions, SessionValidationMiddleware skipped them (so no idle
+	// timeout and no absolute lifetime), the concurrent-session limit did not
+	// apply, and logout had no session to revoke. Their refresh token was also
+	// unbound, so it survived every revocation control.
+	var sessionID string
+	if s.sessionService != nil {
+		if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
+			return nil, err
+		}
+		attrs := SessionAttributes{
+			AMR:                []string{jwt.AMRPassword},
+			ACR:                jwt.ACRLevel1,
+			IdentityProviderID: connectedSystemIdentityProviderID(client),
+		}
+		if client != nil && client.ClientID > 0 {
+			cid := client.ClientID
+			attrs.ClientID = &cid
+		}
+		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, clientTenantID(client), middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy, attrs)
+		if err != nil {
+			return nil, err
+		}
+		sessionID = sess.UserSessionUUID.String()
+	}
+
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContextWithPolicy([]string{jwt.AMRPassword}, jwt.ACRLevel1, sessionID, policy, tokenPolicy))
 	if err != nil {
 		return nil, err
 	}
@@ -1175,6 +1215,10 @@ func (s *registerService) generateTokenResponse(ctx context.Context, sub string,
 	applyRegisterCookiePolicy(resp, policy)
 	if policy.AccessTokenTTLSeconds > 0 {
 		resp.ExpiresIn = int64(policy.AccessTokenTTLSeconds)
+	}
+	// Mirror login: the client needs the session id it was just given.
+	if sessionID != "" {
+		resp.SessionID = &sessionID
 	}
 	return resp, nil
 }

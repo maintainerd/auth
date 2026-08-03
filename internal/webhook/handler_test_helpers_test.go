@@ -26,7 +26,7 @@ var (
 )
 
 type mockWebhookEndpointService struct {
-	getAllFn       func(int64, []string, int, int, string, string) (*WebhookEndpointServiceListResult, error)
+	getAllFn       func(int64, []string, *string, int, int, string, string) (*WebhookEndpointServiceListResult, error)
 	getByUUIDFn    func(int64, uuid.UUID) (*WebhookEndpointServiceDataResult, error)
 	createFn       func(int64, string, bool, *int, *int, string, string) (*WebhookEndpointServiceDataResult, error)
 	updateFn       func(int64, uuid.UUID, string, bool, bool, *int, *int, string, string) (*WebhookEndpointServiceDataResult, error)
@@ -34,9 +34,9 @@ type mockWebhookEndpointService struct {
 	deleteFn       func(int64, uuid.UUID) (*WebhookEndpointServiceDataResult, error)
 }
 
-func (m *mockWebhookEndpointService) GetAll(_ context.Context, tid int64, status []string, page, limit int, sortBy, sortOrder string) (*WebhookEndpointServiceListResult, error) {
+func (m *mockWebhookEndpointService) GetAll(_ context.Context, tid int64, status []string, url *string, page, limit int, sortBy, sortOrder string) (*WebhookEndpointServiceListResult, error) {
 	if m.getAllFn != nil {
-		return m.getAllFn(tid, status, page, limit, sortBy, sortOrder)
+		return m.getAllFn(tid, status, url, page, limit, sortBy, sortOrder)
 	}
 	return &WebhookEndpointServiceListResult{}, nil
 }

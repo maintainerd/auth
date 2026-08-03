@@ -2,8 +2,10 @@ package client
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -275,53 +277,76 @@ func TestClientHandler_Update(t *testing.T) {
 }
 
 func TestClientHandler_SetStatus(t *testing.T) {
+	// The endpoint applies the status the caller asked for. It used to ignore the
+	// body and flip whatever was currently in the DB, so a stale view could
+	// invert the operator's choice — "Activate" silently deactivating a client.
+	body := func(status string) *strings.Reader {
+		return strings.NewReader(`{"status":"` + status + `"}`)
+	}
+	req := func(b io.Reader) *http.Request {
+		return withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", b), "client_uuid", testResourceUUID.String()))
+	}
+
 	t.Run("no tenant returns 401", func(t *testing.T) {
-		r := withUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "client_uuid", testResourceUUID.String()))
+		r := withUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", body("active")), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		NewClientHandler(&mockClientService{}).SetStatus(w, r)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
-		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "client_uuid", "bad"))
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", body("active")), "client_uuid", "bad"))
 		w := httptest.NewRecorder()
 		NewClientHandler(&mockClientService{}).SetStatus(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
-	t.Run("get by uuid error returns 404", func(t *testing.T) {
-		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
-			return nil, errNotFound
-		}}
-		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "client_uuid", testResourceUUID.String()))
+
+	t.Run("missing body returns 400", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		NewClientHandler(svc).SetStatus(w, r)
-		assert.Equal(t, http.StatusNotFound, w.Code)
+		NewClientHandler(&mockClientService{}).SetStatus(w, req(nil))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
-	t.Run("active client toggled to inactive", func(t *testing.T) {
-		svc := &mockClientService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
-				return &ClientServiceDataResult{Status: "active"}, nil
-			},
-			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*ClientServiceDataResult, error) {
-				return &ClientServiceDataResult{Status: s}, nil
-			},
-		}
-		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "client_uuid", testResourceUUID.String()))
+
+	t.Run("unknown status is rejected", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		NewClientHandler(svc).SetStatus(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
+		NewClientHandler(&mockClientService{}).SetStatus(w, req(body("banana")))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+
+	// The core of the fix: the requested status is what gets applied, regardless
+	// of what the client's current status happens to be.
+	for _, tc := range []struct{ current, requested string }{
+		{"active", "active"},
+		{"active", "inactive"},
+		{"inactive", "active"},
+		{"inactive", "inactive"},
+	} {
+		t.Run("applies requested "+tc.requested+" when currently "+tc.current, func(t *testing.T) {
+			var applied string
+			svc := &mockClientService{
+				getByUUIDFn: func(uuid.UUID, int64) (*ClientServiceDataResult, error) {
+					return &ClientServiceDataResult{Status: tc.current}, nil
+				},
+				setStatusByUUIDFn: func(_ uuid.UUID, _ int64, s string, _ uuid.UUID) (*ClientServiceDataResult, error) {
+					applied = s
+					return &ClientServiceDataResult{Status: s}, nil
+				},
+			}
+			w := httptest.NewRecorder()
+			NewClientHandler(svc).SetStatus(w, req(body(tc.requested)))
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Equal(t, tc.requested, applied, "must apply the requested status, not toggle the current one")
+		})
+	}
+
 	t.Run("set status service error returns 500", func(t *testing.T) {
 		svc := &mockClientService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
-				return &ClientServiceDataResult{Status: "inactive"}, nil
-			},
-			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			setStatusByUUIDFn: func(uuid.UUID, int64, string, uuid.UUID) (*ClientServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
-		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
-		NewClientHandler(svc).SetStatus(w, r)
+		NewClientHandler(svc).SetStatus(w, req(body("active")))
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }

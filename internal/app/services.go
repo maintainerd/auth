@@ -244,6 +244,13 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	tenantUOW := tenant.NewGormUnitOfWork(db, r.tenantRepo, r.tenantMemberRepo, tenantCascadeModels())
 	middleware.SetSessionValidator(sessionSvc)
 
+	// Let CORS honour the `cors_origin_uri` entries operators register against
+	// their OAuth clients. Without this a third-party SPA on its own domain
+	// cannot POST to /oauth/token, so authorization-code + PKCE dies at the
+	// exchange even though the code is valid — and registering the origin in the
+	// admin console has no effect.
+	middleware.SetCORSOriginResolver(client.NewCORSOriginResolver(db))
+
 	// Tokens carry the tenant's opaque UUID in the `tenant_id` claim (never the
 	// internal PK); this resolver lets the mint layer stamp the UUID and the JWT
 	// parse layer resolve it back to the internal id every scoping check expects.
@@ -290,6 +297,10 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		registerService: authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnRegistrationFlowRoleRepoAdapter(db, r.registrationFlowRoleRepo, r.registrationFlowRepo),
 			authn.WithEmailVerificationService(emailVerificationSvc),
 			authn.WithConsentRecorder(user.NewUserConsentService(r.userConsentRepo)),
+			// Registration signs the user in, so it gets the same session
+			// handling as login — without this a registered user has no
+			// user_sessions row and sits outside the whole session layer.
+			authn.WithRegisterSessionService(sessionSvc),
 		),
 		loginService:             authn.NewLoginService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo, appCache),
 		sessionService:           sessionSvc,

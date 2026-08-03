@@ -8,17 +8,30 @@ import (
 	"gorm.io/gorm"
 )
 
+// resolvedBranding mirrors the columns actually present on the branding table.
+//
+// There is deliberately no Layout field: the hosted-login layout is stored in
+// the metadata JSONB under BrandingMetadataLayout, not in a column (see
+// types.go and service_branding.go). This struct used to declare one and the
+// queries below selected it, so every lookup failed with
+// `column "layout" does not exist` (SQLSTATE 42703) — silently, because each
+// caller treats an error as "no branding". The login form therefore rendered
+// with EMPTY branding on every request while the DB row was perfectly fine.
 type resolvedBranding struct {
 	BrandingUUID      uuid.UUID
 	CompanyName       string
 	LogoURL           string
 	FaviconURL        string
-	Layout            string
 	SupportURL        string
 	PrivacyPolicyURL  string
 	TermsOfServiceURL string
 	Metadata          datatypes.JSON
 }
+
+// brandingColumns is shared by all three lookups so they cannot drift apart
+// again — the previous copies were identical strings maintained by hand.
+const brandingColumns = "branding_uuid, company_name, logo_url, favicon_url, " +
+	"support_url, privacy_policy_url, terms_of_service_url, metadata"
 
 type ClientBrandingResponse struct {
 	BrandingUUID      string          `json:"branding_id"`
@@ -60,7 +73,7 @@ func (r *ClientBrandingResolver) resolveByID(brandingID int64, tenantID int64) *
 	var b resolvedBranding
 	err := r.db.Table("branding").
 		Where("branding_id = ? AND tenant_id = ? AND deleted_at IS NULL", brandingID, tenantID).
-		Select("branding_uuid, company_name, logo_url, favicon_url, layout, support_url, privacy_policy_url, terms_of_service_url, metadata").
+		Select(brandingColumns).
 		First(&b).Error
 	if err != nil {
 		return nil
@@ -72,7 +85,7 @@ func (r *ClientBrandingResolver) resolveActiveForTenant(tenantID int64) *ClientB
 	var b resolvedBranding
 	err := r.db.Table("branding").
 		Where("tenant_id = ? AND is_active = true AND deleted_at IS NULL", tenantID).
-		Select("branding_uuid, company_name, logo_url, favicon_url, layout, support_url, privacy_policy_url, terms_of_service_url, metadata").
+		Select(brandingColumns).
 		First(&b).Error
 	if err != nil {
 		return nil
@@ -84,7 +97,7 @@ func (r *ClientBrandingResolver) systemFallback() *ClientBrandingResponse {
 	var b resolvedBranding
 	err := r.db.Table("branding").
 		Where("is_system = true AND is_active = true AND deleted_at IS NULL").
-		Select("branding_uuid, company_name, logo_url, favicon_url, layout, support_url, privacy_policy_url, terms_of_service_url, metadata").
+		Select(brandingColumns).
 		First(&b).Error
 	if err != nil {
 		return &ClientBrandingResponse{}
@@ -98,11 +111,13 @@ func toBrandingResponse(b *resolvedBranding) *ClientBrandingResponse {
 	}
 	metadata, _ := b.Metadata.MarshalJSON()
 	return &ClientBrandingResponse{
-		BrandingUUID:      b.BrandingUUID.String(),
-		CompanyName:       b.CompanyName,
-		LogoURL:           b.LogoURL,
-		FaviconURL:        b.FaviconURL,
-		Layout:            b.Layout,
+		BrandingUUID: b.BrandingUUID.String(),
+		CompanyName:  b.CompanyName,
+		LogoURL:      b.LogoURL,
+		FaviconURL:   b.FaviconURL,
+		// Read from metadata and default the same way service_branding.go does,
+		// so the connections endpoint and the branding API agree on the layout.
+		Layout:            brandingLayoutOrDefault(metadataString(b.Metadata, BrandingMetadataLayout)),
 		SupportURL:        b.SupportURL,
 		PrivacyPolicyURL:  b.PrivacyPolicyURL,
 		TermsOfServiceURL: b.TermsOfServiceURL,

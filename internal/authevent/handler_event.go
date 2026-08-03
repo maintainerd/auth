@@ -193,6 +193,7 @@ func (h *AuthEventHandler) repositoryFilterFromRequest(
 		UserUUID:  ptr.PtrOrNil(q.Get("user")),
 		Category:  filter.Category,
 		EventType: filter.EventType,
+		IPAddress: ptr.PtrOrNil(q.Get("ip_address")),
 		Severity:  filter.Severity,
 		Result:    filter.Result,
 		SortBy:    filter.SortBy,

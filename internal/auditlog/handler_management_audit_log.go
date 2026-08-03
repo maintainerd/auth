@@ -45,6 +45,15 @@ func (h *ManagementAuditLogHandler) List(w http.ResponseWriter, r *http.Request)
 	if v := r.URL.Query().Get("action"); v != "" {
 		filter.Action = v
 	}
+	if v := r.URL.Query().Get("outcome"); v != "" {
+		filter.Outcome = v
+	}
+	if v := r.URL.Query().Get("sort_by"); v != "" {
+		filter.SortBy = v
+	}
+	if v := r.URL.Query().Get("sort_order"); v != "" {
+		filter.SortOrder = v
+	}
 	if v := r.URL.Query().Get("actor_user_id"); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
 			filter.ActorUserID = &n

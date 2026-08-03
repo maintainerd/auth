@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"slices"
@@ -10,8 +11,27 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
-// CORSMiddleware enforces a per-environment origin allow-list.
-// Origins are read from the CORS_ALLOWED_ORIGINS env var (comma-separated).
+// CORSOriginResolver reports whether an Origin was registered for cross-origin
+// access by an active OAuth client. client.CORSOriginResolver satisfies it.
+type CORSOriginResolver interface {
+	IsAllowedCORSOrigin(ctx context.Context, origin string) bool
+}
+
+// registeredCORSOrigins is set once at startup. Nil is valid and simply means
+// only the env var and tenant-surface hosts are consulted.
+var registeredCORSOrigins CORSOriginResolver
+
+// SetCORSOriginResolver wires the client registry into CORS decisions. Without
+// it, a third-party SPA cannot call the token endpoint from its own domain no
+// matter what the operator registers in the admin console — see
+// client.CORSOriginResolver for why that mattered.
+func SetCORSOriginResolver(resolver CORSOriginResolver) {
+	registeredCORSOrigins = resolver
+}
+
+// CORSMiddleware enforces an origin allow-list drawn from three sources: the
+// CORS_ALLOWED_ORIGINS env var, maintainerd's own tenant surface hosts, and the
+// `cors_origin_uri` entries operators register against their OAuth clients.
 // A wildcard "*" is never combined with credentials; if no origins are
 // configured the header is simply not set.
 func CORSMiddleware(next http.Handler) http.Handler {
@@ -27,13 +47,15 @@ func CORSMiddleware(next http.Handler) http.Handler {
 		if len(allowed) == 1 && allowed[0] == "*" {
 			// Wildcard is only safe without credentials.
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-		} else if slices.Contains(allowed, origin) || originMatchesTenantHost(origin) {
+		} else if slices.Contains(allowed, origin) || originMatchesTenantHost(origin) || originIsRegisteredClient(r, origin) {
 			// Allow either a statically configured origin or a tenant-surface
 			// origin that shared.ResolveTenantHost recognizes (any {tenant}.<base>
 			// or a bare configured base). This is required for cross-origin prod,
 			// where the browser is on {tenant}.auth.<domain> and the API is on its
-			// own host; it is harmless in dev/same-origin. Arbitrary origins are
-			// never allowed — only ones ResolveTenantHost accepts.
+			// own host; it is harmless in dev/same-origin. Third-party origins are
+			// allowed only when an operator has registered them as a
+			// `cors_origin_uri` on an ACTIVE client. Arbitrary origins are never
+			// allowed.
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -66,6 +88,15 @@ func originMatchesTenantHost(origin string) bool {
 	}
 	_, _, _, ok := shared.ResolveTenantHost(u.Host)
 	return ok
+}
+
+// originIsRegisteredClient consults the client registry. Fails closed when no
+// resolver is wired.
+func originIsRegisteredClient(r *http.Request, origin string) bool {
+	if registeredCORSOrigins == nil {
+		return false
+	}
+	return registeredCORSOrigins.IsAllowedCORSOrigin(r.Context(), origin)
 }
 
 func allowedOrigins() []string {

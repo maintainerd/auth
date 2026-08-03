@@ -11,56 +11,56 @@ import (
 // logo labels (console vs public identity). Only name, company name, logo,
 // favicon, and legal URLs get columns.
 const (
-	BrandingMetadataLayout              = "layout"
-	BrandingMetadataLogoLabel           = "logo_label"
-	BrandingMetadataShowLogoLabel       = "show_logo_label"
-	BrandingMetadataLogoDetail          = "logo_detail"
-	BrandingMetadataIdentityLogoLabel   = "identity_logo_label"
+	BrandingMetadataLayout                = "layout"
+	BrandingMetadataLogoLabel             = "logo_label"
+	BrandingMetadataShowLogoLabel         = "show_logo_label"
+	BrandingMetadataLogoDetail            = "logo_detail"
+	BrandingMetadataIdentityLogoLabel     = "identity_logo_label"
 	BrandingMetadataIdentityShowLogoLabel = "identity_show_logo_label"
 )
 
 // BrandingResponseDTO is the JSON representation of a branding record. Theme
 // tokens (colors, fonts, panel backgrounds, …) live in metadata.
 type BrandingResponseDTO struct {
-	BrandingID        string         `json:"branding_id"`
-	Name              string         `json:"name"`
-	IsSystem          bool           `json:"is_system"`
-	IsActive          bool           `json:"is_active"`
-	Layout            string         `json:"layout"`
-	CompanyName       string         `json:"company_name"`
-	LogoLabel         string         `json:"logo_label"`
-	LogoDetail        string         `json:"logo_detail"`
-	ShowLogoLabel     bool           `json:"show_logo_label"`
-	IdentityLogoLabel string         `json:"identity_logo_label"`
-	IdentityShowLogoLabel bool       `json:"identity_show_logo_label"`
-	LogoURL           string         `json:"logo_url"`
-	FaviconURL        string         `json:"favicon_url"`
-	SupportURL        string         `json:"support_url"`
-	PrivacyPolicyURL  string         `json:"privacy_policy_url"`
-	TermsOfServiceURL string         `json:"terms_of_service_url"`
-	Metadata          datatypes.JSON `json:"metadata"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
+	BrandingID            string         `json:"branding_id"`
+	Name                  string         `json:"name"`
+	IsSystem              bool           `json:"is_system"`
+	IsActive              bool           `json:"is_active"`
+	Layout                string         `json:"layout"`
+	CompanyName           string         `json:"company_name"`
+	LogoLabel             string         `json:"logo_label"`
+	LogoDetail            string         `json:"logo_detail"`
+	ShowLogoLabel         bool           `json:"show_logo_label"`
+	IdentityLogoLabel     string         `json:"identity_logo_label"`
+	IdentityShowLogoLabel bool           `json:"identity_show_logo_label"`
+	LogoURL               string         `json:"logo_url"`
+	FaviconURL            string         `json:"favicon_url"`
+	SupportURL            string         `json:"support_url"`
+	PrivacyPolicyURL      string         `json:"privacy_policy_url"`
+	TermsOfServiceURL     string         `json:"terms_of_service_url"`
+	Metadata              datatypes.JSON `json:"metadata"`
+	CreatedAt             time.Time      `json:"created_at"`
+	UpdatedAt             time.Time      `json:"updated_at"`
 }
 
 // BrandingUpdateRequestDTO is the request body for updating branding.
 type BrandingUpdateRequestDTO struct {
-	Name              string         `json:"name"`
-	Layout            string         `json:"layout"`
-	CompanyName       string         `json:"company_name"`
-	LogoLabel         string         `json:"logo_label"`
-	LogoDetail        string         `json:"logo_detail"`
-	ShowLogoLabel     *bool          `json:"show_logo_label,omitempty"`
-	IdentityLogoLabel string         `json:"identity_logo_label"`
-	IdentityShowLogoLabel *bool      `json:"identity_show_logo_label,omitempty"`
-	LogoURL           string         `json:"logo_url"`
-	LogoData          string         `json:"logo_data,omitempty"`
-	LogoContentType   string         `json:"logo_content_type,omitempty"`
-	FaviconURL        string         `json:"favicon_url"`
-	SupportURL        string         `json:"support_url"`
-	PrivacyPolicyURL  string         `json:"privacy_policy_url"`
-	TermsOfServiceURL string         `json:"terms_of_service_url"`
-	Metadata          datatypes.JSON `json:"metadata"`
+	Name                  string         `json:"name"`
+	Layout                string         `json:"layout"`
+	CompanyName           string         `json:"company_name"`
+	LogoLabel             string         `json:"logo_label"`
+	LogoDetail            string         `json:"logo_detail"`
+	ShowLogoLabel         *bool          `json:"show_logo_label,omitempty"`
+	IdentityLogoLabel     string         `json:"identity_logo_label"`
+	IdentityShowLogoLabel *bool          `json:"identity_show_logo_label,omitempty"`
+	LogoURL               string         `json:"logo_url"`
+	LogoData              string         `json:"logo_data,omitempty"`
+	LogoContentType       string         `json:"logo_content_type,omitempty"`
+	FaviconURL            string         `json:"favicon_url"`
+	SupportURL            string         `json:"support_url"`
+	PrivacyPolicyURL      string         `json:"privacy_policy_url"`
+	TermsOfServiceURL     string         `json:"terms_of_service_url"`
+	Metadata              datatypes.JSON `json:"metadata"`
 }
 
 // ShowLogoLabelOrDefault keeps older branding clients on the current default:

@@ -53,12 +53,12 @@ func TestAuthEventRepository_FindPaginated(t *testing.T) {
 	eventUUID := uuid.New()
 
 	// Tenant-scoped exact count runs FIRST (before keyset pagination).
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "auth_events" WHERE tenant_id = \$1 AND actor_user_id = \$2 AND target_user_id = \$3 AND category = \$4 AND event_type = \$5 AND severity = \$6 AND result = \$7 AND created_at >= \$8 AND created_at <= \$9`).
-		WithArgs(tenantID, actorID, targetID, category, eventType, severity, resultValue, from, to).
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "auth_events" WHERE tenant_id = \$1 AND actor_user_id = \$2 AND target_user_id = \$3 AND category = \$4 AND event_type ILIKE \$5 AND severity = \$6 AND result = \$7 AND created_at >= \$8 AND created_at <= \$9`).
+		WithArgs(tenantID, actorID, targetID, category, eventType+"%", severity, resultValue, from, to).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-	mock.ExpectQuery(`SELECT \* FROM "auth_events" WHERE tenant_id = \$1 AND actor_user_id = \$2 AND target_user_id = \$3 AND category = \$4 AND event_type = \$5 AND severity = \$6 AND result = \$7 AND created_at >= \$8 AND created_at <= \$9 ORDER BY event_type ASC,auth_event_id DESC LIMIT \$10`).
-		WithArgs(tenantID, actorID, targetID, category, eventType, severity, resultValue, from, to, 11).
+	mock.ExpectQuery(`SELECT \* FROM "auth_events" WHERE tenant_id = \$1 AND actor_user_id = \$2 AND target_user_id = \$3 AND category = \$4 AND event_type ILIKE \$5 AND severity = \$6 AND result = \$7 AND created_at >= \$8 AND created_at <= \$9 ORDER BY event_type ASC,auth_event_id DESC LIMIT \$10`).
+		WithArgs(tenantID, actorID, targetID, category, eventType+"%", severity, resultValue, from, to, 11).
 		WillReturnRows(authEventRows().AddRow(1, eventUUID, tenantID, "10.0.0.1", category, eventType, severity, resultValue, []byte(`{}`), to))
 
 	repo := NewAuthEventRepository(db)

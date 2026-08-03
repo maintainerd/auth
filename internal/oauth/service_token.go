@@ -130,9 +130,6 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 	if req.RedirectURI == "" {
 		return nil, apperror.NewOAuthInvalidRequest("redirect_uri is required for authorization_code grant")
 	}
-	if req.CodeVerifier == "" {
-		return nil, apperror.NewOAuthInvalidRequest("code_verifier is required (PKCE)")
-	}
 
 	// Authenticate the client.
 	client, oerr := authenticateOAuthClient(s.db, creds)
@@ -207,10 +204,27 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 		return nil, apperror.NewOAuthInvalidGrant("redirect_uri does not match the value used in the authorization request")
 	}
 
-	// Validate PKCE code_verifier against the stored code_challenge.
-	if err := crypto.ValidatePKCEChallenge(req.CodeVerifier, authCode.CodeChallenge, authCode.CodeChallengeMethod); err != nil {
-		span.SetStatus(codes.Error, "PKCE validation failed")
-		return nil, apperror.NewOAuthInvalidGrant("PKCE validation failed")
+	// Validate PKCE against the challenge stored WITH THIS CODE.
+	//
+	// The binding is per-authorization-request, not global: /authorize only
+	// demands a code_challenge when the client's RequirePKCE policy is on, so a
+	// confidential web client legitimately running without PKCE receives a code
+	// that has no challenge attached. This used to reject every request that
+	// arrived without a code_verifier before the code was even loaded, so such a
+	// client could obtain a code and then never redeem it.
+	//
+	// A code that DOES carry a challenge still requires a matching verifier —
+	// omitting it is rejected below, so a public client cannot strip PKCE off its
+	// own authorization by simply not sending the verifier.
+	if authCode.CodeChallenge != "" && req.CodeVerifier == "" {
+		span.SetStatus(codes.Error, "PKCE verifier missing")
+		return nil, apperror.NewOAuthInvalidGrant("code_verifier is required (PKCE)")
+	}
+	if authCode.CodeChallenge != "" {
+		if err := crypto.ValidatePKCEChallenge(req.CodeVerifier, authCode.CodeChallenge, authCode.CodeChallengeMethod); err != nil {
+			span.SetStatus(codes.Error, "PKCE validation failed")
+			return nil, apperror.NewOAuthInvalidGrant("PKCE validation failed")
+		}
 	}
 
 	// Mark the code as used — one-time use is enforced at the application level.

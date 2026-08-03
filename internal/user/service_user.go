@@ -1611,6 +1611,7 @@ func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenant
 		IsTOTPEnabled:     user.IsTOTPEnabled,
 		IsWebAuthnEnabled: user.IsWebAuthnEnabled,
 		IsSMSEnabled:      s.isSMSVerified(ctx, user.UserID),
+		IsEmailOTPEnabled: s.isEmailOTPVerified(ctx, user.UserID),
 		BackupCodesCount:  int(backupCount),
 		WebAuthnKeys:      keys,
 	}
@@ -1705,6 +1706,21 @@ func ToClientServiceDataResult(client *Client) *ClientServiceDataResult {
 		CreatedAt:   client.CreatedAt,
 		UpdatedAt:   client.UpdatedAt,
 	}
+}
+
+// isEmailOTPVerified mirrors isSMSVerified for the email factor. Queried
+// directly rather than through the mfa service, which this package does not
+// depend on — same approach already taken for SMS.
+func (s *userService) isEmailOTPVerified(ctx context.Context, userID int64) bool {
+	var verified bool
+	if err := s.db.WithContext(ctx).
+		Table("user_mfa_emails").
+		Select("is_verified").
+		Where("user_id = ?", userID).
+		Scan(&verified).Error; err != nil {
+		return false
+	}
+	return verified
 }
 
 func (s *userService) isSMSVerified(ctx context.Context, userID int64) bool {

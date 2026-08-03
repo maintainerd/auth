@@ -108,8 +108,21 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		user.AccountRoute(api, h.account, h.userConsent, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRateLimit)
 		// Internal MFA routes (authenticated): self-service plus admin remediation.
 		mfa.MFAInternalRoute(api, h.mfa, userProvider, application.Cache, tenantRateLimit)
-		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
-		idp.FederationPublicRoute(api, h.federation)
+		// Identity link/unlink for the console operator's OWN account. This is
+		// self-service (all permissions are :self-scoped) and belongs here for the
+		// same reason AccountRoute does — the console manages its user's account
+		// over the control plane.
+		//
+		// FederationPublicRoute is deliberately NOT mounted here. It carries
+		// interactive authentication and TOKEN ISSUANCE — /federation/token,
+		// /federation/oauth2/callback and /federation/saml/exchange all mint an
+		// end-user JWT from an upstream credential — which is data-plane work, not
+		// management. Two reasons it must not sit on the control plane: minting
+		// user sessions is a privilege boundary the management surface should not
+		// cross, and the callers are browsers and upstream IdPs (a SAML ACS POST
+		// arrives from the IdP) which can neither present a management client nor
+		// reach this port once it is VPN-only. It is mounted on the public router,
+		// which is the only place it works.
 		idp.FederationIdentityRoute(api, h.federation, userProvider, application.Cache, tenantRateLimit)
 	})
 	return r

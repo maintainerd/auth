@@ -18,15 +18,19 @@ type AuthEventRepositoryGetFilter struct {
 	UserUUID     *string
 	Category     *string
 	EventType    *string
-	Severity     *string
-	Result       *string
-	DateFrom     *time.Time
-	DateTo       *time.Time
-	SortBy       string
-	SortOrder    string
-	Page         int
-	Limit        int
-	Cursor       *int64
+	// IPAddress backs the "or IP" half of the console's search box, which sent
+	// the param but had nothing reading it — searching by IP silently returned
+	// every event.
+	IPAddress *string
+	Severity  *string
+	Result    *string
+	DateFrom  *time.Time
+	DateTo    *time.Time
+	SortBy    string
+	SortOrder string
+	Page      int
+	Limit     int
+	Cursor    *int64
 }
 
 // AuthEventRepository defines persistence operations for auth events.
@@ -111,7 +115,15 @@ func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter)
 		query = query.Where("category = ?", *filter.Category)
 	}
 	if filter.EventType != nil && *filter.EventType != "" {
-		query = query.Where("event_type = ?", *filter.EventType)
+		// Prefix match, not equality. The console labels this box "Search events
+		// by type or IP", but an exact match means a partial type like "logi"
+		// returns nothing — so the search box only ever worked if you typed a
+		// full event type from memory.
+		query = query.Where("event_type ILIKE ?", *filter.EventType+"%")
+	}
+	if filter.IPAddress != nil && *filter.IPAddress != "" {
+		// ip_address is INET, so cast before text matching.
+		query = query.Where("host(ip_address) ILIKE ?", *filter.IPAddress+"%")
 	}
 	if filter.Severity != nil && *filter.Severity != "" {
 		query = query.Where("severity = ?", *filter.Severity)

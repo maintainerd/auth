@@ -89,7 +89,11 @@ func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 					FirstName:   p.FirstName,
 					LastName:    p.LastName,
 					DisplayName: p.DisplayName,
-					Default:     true,
+					// Report the row's real flag. This was hardcoded true, so a
+					// user with several profiles had every one of them marked
+					// default — the field was unusable for the one thing it exists
+					// to say.
+					Default: p.IsDefault,
 				})
 			}
 		}
