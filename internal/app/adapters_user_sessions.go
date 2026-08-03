@@ -2,10 +2,33 @@ package app
 
 import (
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/maintainerd/maintainerd-auth/internal/user"
 )
+
+// sessionRevokerAdapter satisfies user.SessionRevoker over the authn session
+// repository. It exists for WithTx: the repository returns its own concrete
+// type, which cannot satisfy an interface method declared to return
+// user.SessionRevoker, so the conversion happens here rather than widening
+// either domain's contract.
+type sessionRevokerAdapter struct {
+	sessions authn.UserSessionRepository
+}
+
+func (a sessionRevokerAdapter) WithTx(tx *gorm.DB) user.SessionRevoker {
+	return sessionRevokerAdapter{sessions: a.sessions.WithTx(tx)}
+}
+
+func (a sessionRevokerAdapter) RevokeAllByUserID(userID int64, reason string) error {
+	return a.sessions.RevokeAllByUserID(userID, reason)
+}
+
+func (a sessionRevokerAdapter) RevokeAllExceptUUID(userID int64, keepSessionUUID uuid.UUID, reason string) error {
+	return a.sessions.RevokeAllExceptUUID(userID, keepSessionUUID, reason)
+}
 
 // userSessionBackedTokenRepo makes the user service's session-admin operations
 // (list/revoke a user's active sessions) read and write the canonical
@@ -68,9 +91,9 @@ func (r *userSessionBackedTokenRepo) FindActiveSessionByUUID(userID int64, sessi
 }
 
 func (r *userSessionBackedTokenRepo) RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error {
-	return r.sessions.RevokeByUUID(userID, sessionUUID, "revoked by administrator")
+	return r.sessions.RevokeByUUID(userID, sessionUUID, shared.SessionRevokeAdmin)
 }
 
 func (r *userSessionBackedTokenRepo) RevokeAllSessionsByUserID(userID int64) error {
-	return r.sessions.RevokeAllByUserID(userID, "revoked due to role or permission change")
+	return r.sessions.RevokeAllByUserID(userID, shared.SessionRevokeRoleChange)
 }

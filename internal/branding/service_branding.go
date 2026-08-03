@@ -2,6 +2,7 @@ package branding
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -25,7 +26,10 @@ type BrandingServiceDataResult struct {
 	Layout            string
 	CompanyName       string
 	LogoLabel         string
+	LogoDetail        string
 	ShowLogoLabel     bool
+	IdentityLogoLabel string
+	IdentityShowLogoLabel bool
 	LogoURL           string
 	FaviconURL        string
 	SupportURL        string
@@ -39,10 +43,10 @@ type BrandingServiceDataResult struct {
 // BrandingService defines business operations on tenant branding.
 type BrandingService interface {
 	Get(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error)
-	Update(ctx context.Context, tenantID int64, name, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	Update(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
 	List(ctx context.Context, tenantID int64) ([]*BrandingServiceDataResult, error)
-	Create(ctx context.Context, tenantID int64, name, layout, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
-	UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, layout, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
 	Activate(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
 	RestoreSystem(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
 	Delete(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) error
@@ -66,10 +70,13 @@ func toBrandingServiceDataResult(b *Branding) *BrandingServiceDataResult {
 		Name:              b.Name,
 		IsSystem:          b.IsSystem,
 		IsActive:          b.IsActive,
-		Layout:            brandingLayoutOrDefault(b.Layout),
+		Layout:            brandingLayoutOrDefault(metadataString(b.Metadata, BrandingMetadataLayout)),
 		CompanyName:       b.CompanyName,
-		LogoLabel:         brandingLogoLabelOrDefault(b.LogoLabel, b.CompanyName, b.Name),
-		ShowLogoLabel:     b.ShowLogoLabel,
+		LogoLabel:         brandingLogoLabelOrDefault(metadataString(b.Metadata, BrandingMetadataLogoLabel), b.CompanyName, b.Name),
+		LogoDetail:        metadataString(b.Metadata, BrandingMetadataLogoDetail),
+		ShowLogoLabel:     metadataBool(b.Metadata, BrandingMetadataShowLogoLabel, true),
+		IdentityLogoLabel: metadataString(b.Metadata, BrandingMetadataIdentityLogoLabel),
+		IdentityShowLogoLabel: metadataBool(b.Metadata, BrandingMetadataIdentityShowLogoLabel, true),
 		LogoURL:           b.LogoURL,
 		FaviconURL:        b.FaviconURL,
 		SupportURL:        b.SupportURL,
@@ -79,6 +86,51 @@ func toBrandingServiceDataResult(b *Branding) *BrandingServiceDataResult {
 		CreatedAt:         b.CreatedAt,
 		UpdatedAt:         b.UpdatedAt,
 	}
+}
+
+// metadataString reads a string value from branding metadata.
+func metadataString(metadata datatypes.JSON, key string) string {
+	if len(metadata) == 0 {
+		return ""
+	}
+	var m map[string]any
+	if err := json.Unmarshal(metadata, &m); err != nil {
+		return ""
+	}
+	value, _ := m[key].(string)
+	return value
+}
+
+// metadataBool reads a boolean value from branding metadata, falling back to
+// fallback when the key is absent or not a boolean.
+func metadataBool(metadata datatypes.JSON, key string, fallback bool) bool {
+	if len(metadata) == 0 {
+		return fallback
+	}
+	var m map[string]any
+	if err := json.Unmarshal(metadata, &m); err != nil {
+		return fallback
+	}
+	value, ok := m[key].(bool)
+	if !ok {
+		return fallback
+	}
+	return value
+}
+
+// setMetadataString writes a string value into branding metadata, returning the
+// updated payload.
+func setMetadataString(metadata datatypes.JSON, key, value string) datatypes.JSON {
+	m := map[string]any{}
+	if len(metadata) > 0 {
+		_ = json.Unmarshal(metadata, &m)
+	}
+	m[key] = value
+	out, err := json.Marshal(m)
+	if err != nil {
+		return metadata
+	}
+	return datatypes.JSON(out)
 }
 
 func brandingLogoLabelOrDefault(label, companyName, name string) string {
@@ -131,7 +183,7 @@ func (s *brandingService) Get(ctx context.Context, tenantID int64) (*BrandingSer
 // Update is used to upsert a custom (non-system) branding record. If no custom
 // record exists, one is created. The system branding record cannot be modified
 // through this method.
-func (s *brandingService) Update(ctx context.Context, tenantID int64, name, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+func (s *brandingService) Update(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "branding.update")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
@@ -147,15 +199,11 @@ func (s *brandingService) Update(ctx context.Context, tenantID int64, name, comp
 
 	isNew := branding == nil
 	if isNew {
-		branding = &Branding{TenantID: tenantID, Layout: shared.BrandingLayoutCentered}
-	} else if branding.Layout == "" {
-		branding.Layout = shared.BrandingLayoutCentered
+		branding = &Branding{TenantID: tenantID}
 	}
 
 	branding.Name = name
 	branding.CompanyName = companyName
-	branding.LogoLabel = logoLabel
-	branding.ShowLogoLabel = showLogoLabel
 	branding.LogoURL = logoURL
 	branding.FaviconURL = faviconURL
 	if metadata != nil {
@@ -232,10 +280,7 @@ func (s *brandingService) RestoreSystem(ctx context.Context, brandingUUID uuid.U
 		return nil, apperror.NewValidation("system branding theme does not have a seeded default")
 	}
 
-	b.Layout = shared.BrandingLayoutCentered
 	b.CompanyName = "Maintainerd-Auth"
-	b.LogoLabel = "Maintainerd-IAM"
-	b.ShowLogoLabel = true
 	b.LogoURL = ""
 	b.LogoData = nil
 	b.LogoContentType = ""
@@ -363,13 +408,18 @@ func (s *brandingService) List(ctx context.Context, tenantID int64) ([]*Branding
 }
 
 // Create adds a new custom branding theme for a tenant (never active or system
-// on creation — activate it explicitly).
-func (s *brandingService) Create(ctx context.Context, tenantID int64, name, layout, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+// on creation — activate it explicitly). The hosted-login layout is read from
+// metadata and defaults to centered when absent.
+func (s *brandingService) Create(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "branding.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	layout = brandingLayoutOrDefault(layout)
+	layout := metadataString(metadata, BrandingMetadataLayout)
+	if layout == "" {
+		layout = shared.BrandingLayoutCentered
+		metadata = setMetadataString(metadata, BrandingMetadataLayout, layout)
+	}
 	if err := validateBrandingLayout(layout); err != nil {
 		return nil, err
 	}
@@ -377,10 +427,7 @@ func (s *brandingService) Create(ctx context.Context, tenantID int64, name, layo
 	b := &Branding{
 		TenantID:          tenantID,
 		Name:              name,
-		Layout:            layout,
 		CompanyName:       companyName,
-		LogoLabel:         logoLabel,
-		ShowLogoLabel:     showLogoLabel,
 		LogoURL:           logoURL,
 		FaviconURL:        faviconURL,
 		SupportURL:        supportURL,
@@ -403,7 +450,7 @@ func (s *brandingService) Create(ctx context.Context, tenantID int64, name, layo
 // UpdateByUUID updates a specific branding theme. System themes can be edited
 // (e.g. tweak colors) but never deleted. is_active/is_system are not changed
 // here — activation is a separate action.
-func (s *brandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, layout, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+func (s *brandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "branding.update_by_uuid")
 	defer span.End()
 
@@ -411,21 +458,17 @@ func (s *brandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UU
 	if err != nil || b == nil || b.TenantID != tenantID {
 		return nil, apperror.NewNotFoundWithReason("branding not found")
 	}
-	if layout != "" {
+
+	if layout := metadataString(metadata, BrandingMetadataLayout); layout != "" {
 		if err := validateBrandingLayout(layout); err != nil {
 			return nil, err
 		}
-		b.Layout = layout
-	} else if b.Layout == "" {
-		b.Layout = shared.BrandingLayoutCentered
 	}
 
 	if !b.IsSystem {
 		b.Name = name
 	}
 	b.CompanyName = companyName
-	b.LogoLabel = logoLabel
-	b.ShowLogoLabel = showLogoLabel
 	b.LogoURL = logoURL
 	b.FaviconURL = faviconURL
 	if metadata != nil {

@@ -74,28 +74,78 @@ func TestRefreshToken(t *testing.T) {
 		assert.Contains(t, err.Error(), "client not found")
 	})
 
-	t.Run("happy path creates a new session and rotates the refresh token", func(t *testing.T) {
-		denylist := &recordingLogoutJTIDenylister{}
-		newSessUUID := uuid.New()
+	// A refresh must NEVER establish a session. It used to, which meant a stolen
+	// refresh token defeated every session-revoking control: after "sign out
+	// everywhere" or a password reset the thief omitted the access-token cookie
+	// and was handed a brand-new session.
+	t.Run("refresh with no bound session is rejected, not granted a new one", func(t *testing.T) {
+		created := false
 		svc := &loginService{
 			userRepo:   userFound(t),
 			clientRepo: clientFound,
 			sessionService: &mockSessionService{
 				createSessionFn: func(_ context.Context, _ int64, _, _ string) (*UserSession, error) {
-					return &UserSession{UserSessionUUID: newSessUUID}, nil
+					created = true
+					return &UserSession{UserSessionUUID: uuid.New()}, nil
 				},
 			},
-			jtiDenylist: denylist,
+			jtiDenylist: &recordingLogoutJTIDenylister{},
 		}
-		resp, err := svc.RefreshToken(context.Background(), newRefreshToken(t), "")
+		_, err := svc.RefreshToken(context.Background(), newRefreshToken(t), "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not bound to a session")
+		assert.False(t, created, "a refresh must never mint a session")
+	})
+
+	t.Run("happy path reuses the bound session and rotates the refresh token", func(t *testing.T) {
+		denylist := &recordingLogoutJTIDenylister{}
+		boundSession := uuid.New()
+		token, err := jwt.GenerateRefreshTokenWithOptionsContext(context.Background(), sub,
+			"https://auth.example.com", clientID, providerID,
+			&jwt.RefreshTokenOptions{SessionID: boundSession.String()})
+		require.NoError(t, err)
+
+		svc := &loginService{
+			userRepo:       userFound(t),
+			clientRepo:     clientFound,
+			sessionService: &mockSessionService{},
+			jtiDenylist:    denylist,
+		}
+		resp, err := svc.RefreshToken(context.Background(), token, "")
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp.AccessToken)
 		assert.NotEmpty(t, resp.IDToken)
 		assert.NotEmpty(t, resp.RefreshToken)
 		require.NotNil(t, resp.SessionID)
-		assert.Equal(t, newSessUUID.String(), *resp.SessionID)
+		assert.Equal(t, boundSession.String(), *resp.SessionID, "the session must carry through rotation")
 		// The consumed refresh token must be denylisted (single-use rotation).
 		assert.NotEmpty(t, denylist.jti, "consumed refresh token should be denylisted")
+	})
+
+	// The signed claim wins over anything the caller supplies, so a caller cannot
+	// pick which session to attach a refresh to.
+	t.Run("signed sid takes precedence over the caller-supplied session id", func(t *testing.T) {
+		signed := uuid.New()
+		token, err := jwt.GenerateRefreshTokenWithOptionsContext(context.Background(), sub,
+			"https://auth.example.com", clientID, providerID,
+			&jwt.RefreshTokenOptions{SessionID: signed.String()})
+		require.NoError(t, err)
+
+		var validated uuid.UUID
+		svc := &loginService{
+			userRepo:   userFound(t),
+			clientRepo: clientFound,
+			sessionService: &mockSessionService{
+				validateAndTouchFn: func(_ context.Context, id uuid.UUID, _ int64) error {
+					validated = id
+					return nil
+				},
+			},
+			jtiDenylist: &recordingLogoutJTIDenylister{},
+		}
+		_, err = svc.RefreshToken(context.Background(), token, uuid.New().String())
+		require.NoError(t, err)
+		assert.Equal(t, signed, validated)
 	})
 
 	t.Run("reuses a valid supplied session", func(t *testing.T) {

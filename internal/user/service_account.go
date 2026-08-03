@@ -92,12 +92,29 @@ type accountService struct {
 	// sessionRepo is the canonical session store (user_sessions). Revoking
 	// anywhere else does not end a login.
 	sessionRepo SessionRevoker
+	// refreshRevoker kills OAuth refresh tokens. Revoking sessions alone leaves
+	// a long-lived credential minted under the OLD password fully spendable.
+	// Nil disables it.
+	refreshRevoker RefreshTokenRevoker
+}
+
+// RefreshTokenRevoker is the slice of the OAuth refresh-token store this
+// service needs. Declared here rather than importing internal/oauth, which
+// already imports this package — internal/app supplies the adapter.
+type RefreshTokenRevoker interface {
+	// WithTx joins the caller's transaction so the password update and the
+	// revocation commit or roll back together.
+	WithTx(tx *gorm.DB) RefreshTokenRevoker
+	RevokeByUserID(userID int64) (int64, error)
 }
 
 // SessionRevoker is the slice of the canonical session store this service needs.
 // Declared here rather than importing authn's repository interface so the user
 // package keeps its existing dependency direction.
 type SessionRevoker interface {
+	// WithTx lets a revoke join the caller's transaction, so a password change
+	// and its session revocation commit or roll back together.
+	WithTx(tx *gorm.DB) SessionRevoker
 	RevokeAllByUserID(userID int64, reason string) error
 	RevokeAllExceptUUID(userID int64, keepSessionUUID uuid.UUID, reason string) error
 }
@@ -118,8 +135,9 @@ func NewAccountService(
 	smsOtpRepo notifier.UserOTPRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
 	sessionRepo SessionRevoker,
+	refreshRevoker ...RefreshTokenRevoker,
 ) AccountService {
-	return &accountService{
+	svc := &accountService{
 		passwordHistoryRepo:  passwordHistoryRepo,
 		sessionRepo:          sessionRepo,
 		db:                   db,
@@ -136,6 +154,10 @@ func NewAccountService(
 		securitySettingRepo:  securitySettingRepo,
 		smsOtpRepo:           smsOtpRepo,
 	}
+	if len(refreshRevoker) > 0 {
+		svc.refreshRevoker = refreshRevoker[0]
+	}
+	return svc
 }
 
 // InitiateEmailChange verifies the current password and sends an OTP to the new email address.
@@ -423,19 +445,40 @@ func (s *accountService) ChangePassword(
 			}
 		}
 
-		if !revokeSessions {
-			return nil
-		}
-		if callerSessionUUID == nil {
-			if err := s.sessionRepo.RevokeAllByUserID(user.UserID, "password changed"); err != nil {
-				return apperror.NewInternal("failed to revoke sessions on password change", err)
+		// A password change invalidates every OAuth refresh token, including the
+		// caller's own — even when callerSessionUUID keeps their current session
+		// alive. Refresh tokens are long-lived bearer credentials minted under the
+		// OLD password; leaving them usable means changing your password after a
+		// compromise does not actually lock the attacker out. The caller stays
+		// signed in on this device via their session, so the UX cost is nil.
+		revokeRefreshTokens := func(tx *gorm.DB) error {
+			if s.refreshRevoker == nil {
+				return nil
+			}
+			if _, err := s.refreshRevoker.WithTx(tx).RevokeByUserID(user.UserID); err != nil {
+				return apperror.NewInternal("failed to revoke refresh tokens on password change", err)
 			}
 			return nil
 		}
-		if err := s.sessionRepo.RevokeAllExceptUUID(user.UserID, *callerSessionUUID, "password changed"); err != nil {
+
+		if !revokeSessions {
+			// Even when the tenant opts out of session revocation, a changed
+			// credential must not leave old refresh tokens spendable.
+			return revokeRefreshTokens(tx)
+		}
+		// WithTx: this must commit or roll back WITH the password update. Without
+		// it the revoke ran on its own connection, so a rolled-back password
+		// change could still have signed the user out everywhere.
+		if callerSessionUUID == nil {
+			if err := s.sessionRepo.WithTx(tx).RevokeAllByUserID(user.UserID, shared.SessionRevokePasswordChange); err != nil {
+				return apperror.NewInternal("failed to revoke sessions on password change", err)
+			}
+			return revokeRefreshTokens(tx)
+		}
+		if err := s.sessionRepo.WithTx(tx).RevokeAllExceptUUID(user.UserID, *callerSessionUUID, shared.SessionRevokePasswordChange); err != nil {
 			return apperror.NewInternal("failed to revoke other sessions on password change", err)
 		}
-		return nil
+		return revokeRefreshTokens(tx)
 	})
 	if txErr != nil {
 		s.logPasswordChangeEvent(ctx, user, false, "password update failed")

@@ -15,6 +15,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"gorm.io/datatypes"
 )
 
 // BrandingHandler handles tenant branding configuration endpoints.
@@ -83,10 +84,11 @@ func (h *BrandingHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	metadata := mergeBrandingPreferences(req.Metadata, req)
 	result, err := h.brandingService.Create(
 		r.Context(), tenant.TenantID,
-		req.Name, req.Layout, req.CompanyName, req.LogoLabel, req.ShowLogoLabelOrDefault(), req.LogoURL, req.FaviconURL,
-		req.Metadata,
+		req.Name, req.CompanyName, req.LogoURL, req.FaviconURL,
+		metadata,
 		req.SupportURL, req.PrivacyPolicyURL, req.TermsOfServiceURL,
 	)
 	if err != nil {
@@ -234,10 +236,11 @@ func (h *BrandingHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	metadata := mergeBrandingPreferences(req.Metadata, req)
 	result, err := h.brandingService.UpdateByUUID(
 		r.Context(), brandingUUID, tenant.TenantID,
-		req.Name, req.Layout, req.CompanyName, req.LogoLabel, req.ShowLogoLabelOrDefault(), req.LogoURL, req.FaviconURL,
-		req.Metadata,
+		req.Name, req.CompanyName, req.LogoURL, req.FaviconURL,
+		metadata,
 		req.SupportURL, req.PrivacyPolicyURL, req.TermsOfServiceURL,
 	)
 	if err != nil {
@@ -342,7 +345,10 @@ func toBrandingResponseDTO(b *BrandingServiceDataResult) BrandingResponseDTO {
 		Layout:            b.Layout,
 		CompanyName:       b.CompanyName,
 		LogoLabel:         b.LogoLabel,
+		LogoDetail:        b.LogoDetail,
 		ShowLogoLabel:     b.ShowLogoLabel,
+		IdentityLogoLabel: b.IdentityLogoLabel,
+		IdentityShowLogoLabel: b.IdentityShowLogoLabel,
 		LogoURL:           b.LogoURL,
 		FaviconURL:        b.FaviconURL,
 		Metadata:          b.Metadata,
@@ -352,4 +358,28 @@ func toBrandingResponseDTO(b *BrandingServiceDataResult) BrandingResponseDTO {
 		CreatedAt:         b.CreatedAt,
 		UpdatedAt:         b.UpdatedAt,
 	}
+}
+
+// mergeBrandingPreferences folds the layout and logo label preferences from the
+// request into the metadata JSONB. Branding preferences have no dedicated
+// columns — only name, company name, logo, favicon, and legal URLs do.
+func mergeBrandingPreferences(metadata datatypes.JSON, req BrandingUpdateRequestDTO) datatypes.JSON {
+	m := map[string]any{}
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &m); err != nil {
+			m = map[string]any{}
+		}
+	}
+	m[BrandingMetadataLayout] = req.Layout
+	m[BrandingMetadataLogoLabel] = req.LogoLabel
+	m[BrandingMetadataShowLogoLabel] = req.ShowLogoLabelOrDefault()
+	m[BrandingMetadataLogoDetail] = req.LogoDetail
+	m[BrandingMetadataIdentityLogoLabel] = req.IdentityLogoLabel
+	m[BrandingMetadataIdentityShowLogoLabel] = req.IdentityShowLogoLabelOrDefault()
+
+	out, err := json.Marshal(m)
+	if err != nil {
+		return metadata
+	}
+	return datatypes.JSON(out)
 }

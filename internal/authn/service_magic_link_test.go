@@ -102,10 +102,12 @@ func TestSendMagicLink(t *testing.T) {
 		clientRepo := &mockClientRepo{
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 				return &Client{
-					ClientID:   1,
-					Status:     shared.StatusActive,
-					Domain:     strPtr("https://auth.example.com"),
-					Identifier: strPtr("test-client"),
+					ClientID: 1,
+					Status:   shared.StatusActive,
+					// Magic link is opt-in per client; these cases exercise the send flow.
+					AllowMagicLink: true,
+					Domain:         strPtr("https://auth.example.com"),
+					Identifier:     strPtr("test-client"),
 					IdentityProvider: &IdentityProvider{
 						Identifier: "test-provider",
 					},
@@ -156,10 +158,12 @@ func TestSendMagicLink(t *testing.T) {
 		clientRepo := &mockClientRepo{
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 				return &Client{
-					ClientID:   1,
-					Status:     shared.StatusActive,
-					Domain:     strPtr("https://auth.example.com"),
-					Identifier: strPtr("test-client"),
+					ClientID: 1,
+					Status:   shared.StatusActive,
+					// Magic link is opt-in per client; these cases exercise the send flow.
+					AllowMagicLink: true,
+					Domain:         strPtr("https://auth.example.com"),
+					Identifier:     strPtr("test-client"),
 					IdentityProvider: &IdentityProvider{
 						Identifier: "test-provider",
 					},
@@ -187,10 +191,12 @@ func TestSendMagicLink(t *testing.T) {
 		clientRepo := &mockClientRepo{
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 				return &Client{
-					ClientID:   1,
-					Status:     shared.StatusActive,
-					Domain:     strPtr("https://auth.example.com"),
-					Identifier: strPtr("test-client"),
+					ClientID: 1,
+					Status:   shared.StatusActive,
+					// Magic link is opt-in per client; these cases exercise the send flow.
+					AllowMagicLink: true,
+					Domain:         strPtr("https://auth.example.com"),
+					Identifier:     strPtr("test-client"),
 					IdentityProvider: &IdentityProvider{
 						Identifier: "test-provider",
 					},
@@ -518,6 +524,60 @@ func TestLoginWithMagicLink(t *testing.T) {
 // TestSendMagicLink_DefaultClient
 // ---------------------------------------------------------------------------
 
+// Passwordless email sign-in is opt-in per client. The endpoint is public, so
+// hiding the button is not enough — a client that has not enabled it must be
+// refused server-side.
+func TestSendMagicLink_DisabledForClient(t *testing.T) {
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:       1,
+				Status:         shared.StatusActive,
+				AllowMagicLink: false,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
+			}, nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockEmailTemplateRepo{})
+	_, err := svc.SendMagicLink(context.Background(), "user@example.com", strPtr("test-client"), nil, false)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not enabled")
+}
+
+// Internal/system callers are not the hosted login page and keep working.
+func TestSendMagicLink_DisabledStillAllowsInternalCaller(t *testing.T) {
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:       1,
+				Status:         shared.StatusActive,
+				AllowMagicLink: false,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailAndTenantIDFn: func(_ string, _ int64) (*User, error) { return nil, nil },
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockEmailTemplateRepo{})
+	_, err := svc.SendMagicLink(context.Background(), "user@example.com", strPtr("test-client"), nil, true)
+
+	// Passes the gate and fails later on the missing user, not on the toggle.
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "not enabled")
+}
+
 func TestSendMagicLink_DefaultClient(t *testing.T) {
 	emailAddr := "test@example.com"
 
@@ -535,10 +595,12 @@ func TestSendMagicLink_DefaultClient(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findSystemFn: func() (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("system"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("system"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "default",
 				},
@@ -586,10 +648,12 @@ func TestSendMagicLink_ExistingTokensError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -632,10 +696,12 @@ func TestSendMagicLink_RevokeError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -681,10 +747,12 @@ func TestSendMagicLink_TokenCreateError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -734,10 +802,12 @@ func TestSendMagicLink_Internal(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -789,10 +859,12 @@ func TestSendMagicLink_TemplateFindByNameError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -843,10 +915,12 @@ func TestSendMagicLink_TemplateParseError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -900,10 +974,12 @@ func TestSendMagicLink_TemplateExecuteError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -957,10 +1033,12 @@ func TestSendMagicLink_PlaintextParseError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -1016,10 +1094,12 @@ func TestSendMagicLink_PlaintextExecuteError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -1334,10 +1414,12 @@ func TestSendMagicLink_SignedURLError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -1394,10 +1476,12 @@ func TestSendMagicLink_ConvertToFrontendURLError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},
@@ -1491,10 +1575,12 @@ func TestSendMagicLink_FindByEmailError(t *testing.T) {
 	clientRepo := &mockClientRepo{
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return &Client{
-				ClientID:   1,
-				Status:     shared.StatusActive,
-				Domain:     strPtr("https://auth.example.com"),
-				Identifier: strPtr("test-client"),
+				ClientID: 1,
+				Status:   shared.StatusActive,
+				// Magic link is opt-in per client; these cases exercise the send flow.
+				AllowMagicLink: true,
+				Domain:         strPtr("https://auth.example.com"),
+				Identifier:     strPtr("test-client"),
 				IdentityProvider: &IdentityProvider{
 					Identifier: "test-provider",
 				},

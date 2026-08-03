@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -36,6 +37,24 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 		return nil, apperror.NewUnauthorized("refresh token is required")
 	}
 
+	// Reuse detection MUST run before the shared validator.
+	//
+	// A consumed refresh token is recorded in the refresh-scoped `rtused:` key,
+	// and rotation is what makes replay detectable. If the shared validator ran
+	// first it would reject a replayed token as merely "invalid" — which is what
+	// used to happen, because the consumed jti was also written to the generic
+	// access-token denylist. That short-circuit made the family-revocation branch
+	// below unreachable: a stolen sibling token stayed valid after a replay was
+	// observed, contrary to RFC 6819 §5.2.1.1 / OAuth 2.1 §6.1.
+	//
+	// Claims are read unverified here purely to look up the jti/family; the
+	// signature is still verified immediately afterwards, before anything is
+	// issued.
+	if err := s.rejectRefreshReuse(ctx, refreshToken); err != nil {
+		span.SetStatus(codes.Error, "refresh token reuse")
+		return nil, err
+	}
+
 	// Validate signature, expiry, and denylist via the shared validator.
 	claims, err := platformjwt.ValidateTokenWithContext(ctx, refreshToken)
 	if err != nil {
@@ -50,7 +69,6 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 
 	sub, _ := claims["sub"].(string)
 	clientIdentifier, _ := claims["client_id"].(string)
-	providerIdentifier, _ := claims["provider_id"].(string)
 	if sub == "" || clientIdentifier == "" {
 		return nil, apperror.NewUnauthorized("refresh token is missing required claims")
 	}
@@ -69,7 +87,14 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	}
 
 	// Resolve the client so the new token set carries the correct issuer/audience.
-	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientIdentifier, providerIdentifier)
+	//
+	// Identify by client identifier ALONE. clients.identifier is globally unique
+	// (see migration 019: "an OAuth client_id is resolved without a tenant
+	// predicate"), so the provider join adds no identification — it only adds a
+	// way to fail. It did: provider_id is a realm value, not an
+	// identity_providers.identifier, so the join matched nothing and refresh
+	// broke permanently after the first rotation.
+	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientIdentifier, "")
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "client lookup failed")
@@ -84,14 +109,18 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	policy := resolveEffectiveSessionPolicy(s.securitySettingRepo, client)
 	tokenPolicy := resolveEffectiveTokenPolicy(s.securitySettingRepo, client)
 
-	if policy.RotateRefreshTokens {
-		if err := s.rejectRefreshReuse(ctx, refreshToken); err != nil {
-			return nil, err
-		}
+	// The session comes from the SIGNED refresh token, not the caller.
+	//
+	// The transport-supplied value (X-Session-ID header, or the sid read out of
+	// an unverified — possibly expired — access-token cookie) is only a fallback
+	// for tokens minted before refresh tokens carried `sid`. Preferring the
+	// signed claim means the caller cannot choose which session to attach to.
+	boundSessionID, _ := claims["sid"].(string)
+	if strings.TrimSpace(boundSessionID) == "" {
+		boundSessionID = sessionID
 	}
 
-	// Bind the new tokens to a session (reuse the caller's, or start a new one).
-	resolvedSessionID, err := s.resolveRefreshSession(ctx, user, clientTenantID(client), sessionID, policy)
+	resolvedSessionID, err := s.resolveRefreshSession(ctx, user, clientTenantID(client), boundSessionID, policy)
 	if err != nil {
 		span.SetStatus(codes.Error, "session resolution failed")
 		return nil, err
@@ -149,27 +178,28 @@ func (s *loginService) resolveRefreshSession(ctx context.Context, user *User, te
 		return "", nil
 	}
 
-	if strings.TrimSpace(sessionID) != "" {
-		sessionUUID, err := uuid.Parse(sessionID)
-		if err != nil {
-			return "", apperror.NewUnauthorized("invalid session id")
-		}
-		if err := s.sessionService.ValidateAndTouch(ctx, sessionUUID, user.UserID); err != nil {
-			// Session revoked or past its idle/absolute limit — require re-login.
-			return "", apperror.NewUnauthorized("session is no longer valid")
-		}
-		return sessionID, nil
+	// A refresh NEVER establishes a session.
+	//
+	// It used to: with no session id supplied it created a fresh one. That made
+	// every session-revoking control ineffective against a stolen refresh token —
+	// after "sign out everywhere" or a password reset the thief simply omitted
+	// the access-token cookie and was issued a brand-new session, with acr
+	// silently reset to 1. The refresh token now carries `sid` (see
+	// jwt.RefreshTokenOptions), so a token that presents no session is either
+	// pre-dating that change or forged; both must re-authenticate.
+	if strings.TrimSpace(sessionID) == "" {
+		return "", apperror.NewUnauthorized("refresh token is not bound to a session")
 	}
 
-	// No session supplied — establish a new one, mirroring the login flow.
-	if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
-		return "", err
-	}
-	sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, tenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+	sessionUUID, err := uuid.Parse(sessionID)
 	if err != nil {
-		return "", err
+		return "", apperror.NewUnauthorized("invalid session id")
 	}
-	return sess.UserSessionUUID.String(), nil
+	if err := s.sessionService.ValidateAndTouch(ctx, sessionUUID, user.UserID); err != nil {
+		// Session revoked or past its idle/absolute limit — require re-login.
+		return "", apperror.NewUnauthorized("session is no longer valid")
+	}
+	return sessionID, nil
 }
 
 // denylistConsumedRefreshToken best-effort denylists the refresh token's JTI for
@@ -186,8 +216,15 @@ func (s *loginService) denylistConsumedRefreshToken(ctx context.Context, claims 
 	if ttl <= 0 {
 		return
 	}
-	_ = s.jtiDenylist.DenyJTI(ctx, jti, ttl)
-	_ = s.jtiDenylist.DenyJTI(ctx, refreshUsedKey(jti), ttl)
+	// Deliberately NOT the bare jti: that namespace is the generic access-token
+	// denylist consulted by ValidateTokenWithContext, and writing to it made a
+	// replayed refresh token fail validation before reuse detection could run.
+	// The refresh-scoped key below is the one rejectRefreshReuse reads.
+	if err := s.jtiDenylist.DenyJTI(ctx, refreshUsedKey(jti), ttl); err != nil {
+		// Fail loudly rather than silently leaving the parent replayable.
+		slog.Error("refresh rotation: failed to mark token consumed",
+			"jti", jti, "error", err)
+	}
 	if policy.RefreshTokenReuseIntervalSeconds > 0 {
 		_ = s.jtiDenylist.DenyJTI(ctx, refreshGraceKey(jti), time.Duration(policy.RefreshTokenReuseIntervalSeconds)*time.Second)
 	}
@@ -218,9 +255,14 @@ func (s *loginService) rejectRefreshReuse(ctx context.Context, refreshToken stri
 	if !used {
 		return nil
 	}
-	if inGrace, _ := s.jtiDenylist.IsJTIDenied(ctx, refreshGraceKey(jti)); inGrace {
-		return apperror.NewUnauthorized("refresh token was already consumed")
-	}
+
+	// The grace window may soften the ERROR SHAPE for a client that legitimately
+	// retried, but it must never suppress the RESPONSE TO COMPROMISE. Revoking
+	// the family happens first, unconditionally: an attacker replays a stolen
+	// token immediately, which is squarely inside the window, so returning early
+	// here disabled detection at exactly the highest-risk moment.
+	inGrace, _ := s.jtiDenylist.IsJTIDenied(ctx, refreshGraceKey(jti))
+
 	if familyID != "" {
 		ttl := jwtClaimTTL(claims["exp"])
 		if ttl <= 0 {
@@ -237,6 +279,11 @@ func (s *loginService) rejectRefreshReuse(ctx context.Context, refreshToken stri
 			Details:   "Refresh token reuse detected; token family revoked",
 			Severity:  "HIGH",
 		})
+	}
+	if inGrace {
+		// Distinct message for an in-window replay (most often a client that
+		// retried), but the family is already revoked above either way.
+		return apperror.NewUnauthorized("refresh token was already consumed")
 	}
 	return apperror.NewUnauthorized("refresh token reuse detected")
 }

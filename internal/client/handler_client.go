@@ -343,7 +343,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ExpectedUpdatedAt, req.ServiceUUID)
+	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.AllowMagicLink, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ExpectedUpdatedAt, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update auth client", err)
 		return
@@ -1074,6 +1074,7 @@ func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 		IsSystem:                         r.IsSystem,
 		BrandingUUID:                     brandingUUIDToStringPtr(r.BrandingUUID),
 		AllowRegistration:                r.AllowRegistration,
+		AllowMagicLink:                   r.AllowMagicLink,
 		BackchannelLogoutURI:             r.BackchannelLogoutURI,
 		FrontchannelLogoutURI:            r.FrontchannelLogoutURI,
 		BackchannelLogoutSessionRequired: r.BackchannelLogoutSessionRequired,

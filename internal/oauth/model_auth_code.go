@@ -24,10 +24,14 @@ type OAuthAuthorizationCode struct {
 	Nonce                      *string        `gorm:"column:nonce"`
 	CodeChallenge              string         `gorm:"column:code_challenge;not null"`
 	CodeChallengeMethod        string         `gorm:"column:code_challenge_method;not null;default:'S256'"`
-	Used                       bool           `gorm:"column:used;not null;default:false"`
-	UsedAt                     *time.Time     `gorm:"column:used_at"`
-	ExpiresAt                  time.Time      `gorm:"column:expires_at;not null"`
-	CreatedAt                  time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
+	// UserSessionUUID is the browser session this code was authorized from. It
+	// rides through token exchange to become the `sid` claim, which is what lets
+	// logout revoke exactly one session instead of all of them.
+	UserSessionUUID *uuid.UUID `gorm:"column:user_session_uuid;type:uuid"`
+	Used            bool       `gorm:"column:used;not null;default:false"`
+	UsedAt          *time.Time `gorm:"column:used_at"`
+	ExpiresAt       time.Time  `gorm:"column:expires_at;not null"`
+	CreatedAt       time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
 
 	// Relationships
 	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`

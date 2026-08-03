@@ -93,7 +93,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			}
 		}
 		if token == "" {
-			for _, name := range []string{"access_token", "__Host-access_token"} {
+			for _, name := range []string{"access_token", "__Host-access_token", "__Secure-access_token"} {
 				if cookie, err := r.Cookie(name); err == nil {
 					token = cookie.Value
 					scheme = "cookie"

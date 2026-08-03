@@ -32,7 +32,7 @@ func bearerOrCookieTokenWithScheme(r *http.Request) (token, scheme string) {
 			}
 		}
 	}
-	for _, name := range []string{"access_token", "__Host-access_token"} {
+	for _, name := range []string{"access_token", "__Host-access_token", "__Secure-access_token"} {
 		if cookie, err := r.Cookie(name); err == nil && cookie.Value != "" {
 			return cookie.Value, "cookie"
 		}

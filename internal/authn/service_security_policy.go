@@ -123,16 +123,26 @@ func tokenAuthContextWithPolicyAndRefreshFamily(amr []string, acr, sessionID str
 }
 
 type policyAwareSessionCreator interface {
-	CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error)
+	CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy, attrs SessionAttributes) (*UserSession, error)
 }
 
 type policyAwareConcurrentLimiter interface {
 	EnforceConcurrentLimitWithPolicy(ctx context.Context, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error
 }
 
-func createSessionWithPolicy(ctx context.Context, sessionService SessionService, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error) {
+// These assertions are the whole point of the block below: the helpers reach the
+// richer methods by RUNTIME type assertion, so a signature change would
+// otherwise fall through to the default-policy path silently, at runtime, with
+// no compile error — losing the tenant's session policy on five login flows.
+// Keep these lines; they turn that failure into a build failure.
+var (
+	_ policyAwareSessionCreator    = (*sessionService)(nil)
+	_ policyAwareConcurrentLimiter = (*sessionService)(nil)
+)
+
+func createSessionWithPolicy(ctx context.Context, sessionService SessionService, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy, attrs SessionAttributes) (*UserSession, error) {
 	if svc, ok := sessionService.(policyAwareSessionCreator); ok {
-		return svc.CreateSessionWithPolicy(ctx, userID, tenantID, ipAddress, userAgent, policy)
+		return svc.CreateSessionWithPolicy(ctx, userID, tenantID, ipAddress, userAgent, policy, attrs)
 	}
 	return sessionService.CreateSession(ctx, userID, tenantID, ipAddress, userAgent)
 }

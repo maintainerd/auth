@@ -234,6 +234,17 @@ type themePalette struct {
 
 func mustBrandingMetadata(p themePalette) string {
 	payload := map[string]any{
+		// Branding preferences (no dedicated columns — metadata owns them).
+		"layout":                   "centered",
+		"logo_label":               "Maintainerd-IAM",
+		"logo_detail":              "Identity and Access Management",
+		"show_logo_label":          true,
+		"identity_logo_label":      "Maintainerd",
+		"identity_show_logo_label": true,
+		"login_form_logo_detail":   "Open-source Cloud Platform",
+		// Brand sits above the card by default, so the logo reads as the page's
+		// identity rather than as a row inside the form.
+		"login_form_logo_placement": "above-form",
 		"colors": map[string]string{
 			"primary":                     p.Primary,
 			"secondary":                   p.Secondary,

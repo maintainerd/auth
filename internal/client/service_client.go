@@ -65,6 +65,7 @@ type ClientServiceDataResult struct {
 	IsSystem          bool
 	BrandingUUID      *uuid.UUID
 	AllowRegistration bool
+	AllowMagicLink    bool
 
 	// OIDC Session Management
 	BackchannelLogoutURI             *string
@@ -133,7 +134,7 @@ type ClientService interface {
 	GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
 	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
 	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error)
-	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error)
+	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error)
 	// RotateSecret generates a new secret, hashes and persists it, and keeps the old
 	// hash valid for the specified grace period (gracePeriodHours=0 revokes immediately).
 	// Returns the new plaintext secret once — it cannot be retrieved again.
@@ -542,6 +543,9 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			IsDefault:         isDefault,
 			IsSystem:          false,
 			AllowRegistration: &allowRegistration,
+			// Passwordless email sign-in is opt-in: a new client starts with it
+			// off and an operator turns it on deliberately.
+			AllowMagicLink: &magicLinkDisabledByDefault,
 
 			BackchannelLogoutURI:  backchannelLogoutURI,
 			FrontchannelLogoutURI: frontchannelLogoutURI,
@@ -816,7 +820,12 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 	return plaintextSecret, nil
 }
 
-func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
+// magicLinkDisabledByDefault backs the AllowMagicLink pointer on newly created
+// clients. A pointer is required so an explicit false is distinguishable from
+// "unset" (see the field comment on the model).
+var magicLinkDisabledByDefault = false
+
+func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.update")
 	defer span.End()
 	span.SetAttributes(
@@ -903,6 +912,9 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		}
 		if allowRegistration != nil {
 			Client.AllowRegistration = allowRegistration
+		}
+		if allowMagicLink != nil {
+			Client.AllowMagicLink = allowMagicLink
 		}
 		// A nil pointer means "unchanged"; an EMPTY string means "clear". Without the
 		// empty-string case a logout URI could be set but never removed: JSON null
@@ -1809,6 +1821,7 @@ func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 		AccessTokenTTL:                   Client.AccessTokenTTL,
 		RefreshTokenTTL:                  Client.RefreshTokenTTL,
 		AllowRegistration:                boolValue(Client.AllowRegistration, true),
+		AllowMagicLink:                   boolValue(Client.AllowMagicLink, false),
 		BackchannelLogoutURI:             Client.BackchannelLogoutURI,
 		FrontchannelLogoutURI:            Client.FrontchannelLogoutURI,
 		BackchannelLogoutSessionRequired: Client.BackchannelLogoutSessionRequired,

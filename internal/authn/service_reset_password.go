@@ -29,6 +29,9 @@ type resetPasswordService struct {
 	// UserContextMiddleware validates every request against. Revoking anywhere
 	// else does not end a login.
 	sessionRepo UserSessionRepository
+	// refreshRevoker kills OAuth refresh tokens alongside the sessions; nil
+	// disables it. Sessions alone are not enough — see ResetPassword.
+	refreshRevoker RefreshTokenRevoker
 }
 
 func NewResetPasswordService(
@@ -39,8 +42,9 @@ func NewResetPasswordService(
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
 	sessionRepo UserSessionRepository,
+	refreshRevoker ...RefreshTokenRevoker,
 ) ResetPasswordService {
-	return &resetPasswordService{
+	s := &resetPasswordService{
 		db:                  db,
 		userRepo:            userRepo,
 		userTokenRepo:       userTokenRepo,
@@ -49,6 +53,10 @@ func NewResetPasswordService(
 		passwordHistoryRepo: passwordHistoryRepo,
 		sessionRepo:         sessionRepo,
 	}
+	if len(refreshRevoker) > 0 {
+		s.refreshRevoker = refreshRevoker[0]
+	}
+	return s
 }
 
 var resetHashPasswordWithPolicy = security.HashPasswordWithPolicy
@@ -193,8 +201,20 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			if s.sessionRepo == nil {
 				return apperror.NewInternal("cannot revoke sessions on password reset: no session repository configured", nil)
 			}
-			if txErr = s.sessionRepo.WithTx(tx).RevokeAllByUserID(user.UserID, "password reset"); txErr != nil {
+			if txErr = s.sessionRepo.WithTx(tx).RevokeAllByUserID(user.UserID, shared.SessionRevokePasswordReset); txErr != nil {
 				return apperror.NewInternal("failed to revoke sessions on password reset", txErr)
+			}
+			// A password reset is the recovery path for a compromised account, so
+			// it must also kill every OAuth refresh token. Revoking only the
+			// session rows left the attacker's refresh token alive — it would mint
+			// new access tokens straight through the reset.
+			//
+			// Unlike a plain logout, going global here is correct and intended:
+			// the credential itself changed.
+			if s.refreshRevoker != nil {
+				if _, txErr = s.refreshRevoker.RevokeByUserID(user.UserID); txErr != nil {
+					return apperror.NewInternal("failed to revoke refresh tokens on password reset", txErr)
+				}
 			}
 		}
 

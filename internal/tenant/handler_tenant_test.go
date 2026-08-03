@@ -186,6 +186,19 @@ func (m *mockSurfaceClientReader) GetSurfaceClient(_ context.Context, tenantName
 	return nil, nil
 }
 
+// mockSurfaceConnectionsReader is an inline SurfaceConnectionsReader for
+// bootstrap tests.
+type mockSurfaceConnectionsReader struct {
+	fn func(clientIdentifier string) (SurfaceLoginMethods, error)
+}
+
+func (m *mockSurfaceConnectionsReader) ListSurfaceConnections(_ context.Context, clientIdentifier string) (SurfaceLoginMethods, error) {
+	if m.fn != nil {
+		return m.fn(clientIdentifier)
+	}
+	return SurfaceLoginMethods{}, nil
+}
+
 type mockClientBrandingReader struct {
 	fn func(tenantID int64, clientIdentifier string) (*branding.BrandingServiceDataResult, error)
 }
@@ -237,6 +250,65 @@ func TestTenantHandler_GetBootstrap(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/?domain=evil.example.com", nil)
 		newTenantHandler(&mockTenantService{}, nil).GetDefault(w, r)
 		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	// The hosted login page renders its provider buttons straight from this
+	// payload, so the bootstrap must carry the surface client's connections.
+	t.Run("includes the surface client's federated connections", func(t *testing.T) {
+		setBootstrapBases(t)
+		var askedFor string
+		svc := &mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: "system", Status: "active", IsSystem: true}, nil
+		}}
+		h := newTenantHandler(svc, nil)
+		h.SetSurfaceClientReader(&mockSurfaceClientReader{fn: func(_, _ string) (*SurfaceClient, error) {
+			return &SurfaceClient{ClientID: "cid-identity", Name: "auth-identity", ClientType: "spa"}, nil
+		}})
+		h.SetSurfaceConnectionsReader(&mockSurfaceConnectionsReader{fn: func(clientIdentifier string) (SurfaceLoginMethods, error) {
+			askedFor = clientIdentifier
+			return SurfaceLoginMethods{Connections: []SurfaceConnection{{
+				Identifier:   "idp-cognito",
+				DisplayName:  "AWS Cognito",
+				Provider:     "cognito",
+				ProviderType: "enterprise",
+				DisplayOrder: 1,
+			}}}, nil
+		}})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=auth.maintainerd.local", nil)
+		h.GetDefault(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		// Looked up by the resolved surface client, not the query string.
+		assert.Equal(t, "cid-identity", askedFor)
+		got := decode(t, w)
+		require.Len(t, got.Connections, 1)
+		assert.Equal(t, "idp-cognito", got.Connections[0].Identifier)
+		assert.Equal(t, "AWS Cognito", got.Connections[0].DisplayName)
+		assert.Equal(t, 1, got.Connections[0].DisplayOrder)
+	})
+
+	t.Run("connections degrade to an empty array, never null", func(t *testing.T) {
+		setBootstrapBases(t)
+		svc := &mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: "system", Status: "active", IsSystem: true}, nil
+		}}
+		h := newTenantHandler(svc, nil)
+		h.SetSurfaceClientReader(&mockSurfaceClientReader{fn: func(_, _ string) (*SurfaceClient, error) {
+			return &SurfaceClient{ClientID: "cid-identity", Name: "auth-identity"}, nil
+		}})
+		// A failing reader must not fail the whole bootstrap — the login page
+		// still needs its tenant, branding and password policy.
+		h.SetSurfaceConnectionsReader(&mockSurfaceConnectionsReader{fn: func(string) (SurfaceLoginMethods, error) {
+			return SurfaceLoginMethods{}, errors.New("connections unavailable")
+		}})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/?domain=auth.maintainerd.local", nil)
+		h.GetDefault(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		assert.Empty(t, decode(t, w).Connections)
+		assert.Contains(t, w.Body.String(), `"connections":[]`)
 	})
 
 	t.Run("system identity host resolves system tenant with identity surface", func(t *testing.T) {
@@ -302,11 +374,14 @@ func TestTenantHandler_GetBootstrap(t *testing.T) {
 		brandingSvc := &mockBootstrapBrandingService{fn: func(tenantID int64) (*branding.BrandingServiceDataResult, error) {
 			assert.Equal(t, int64(42), tenantID)
 			return &branding.BrandingServiceDataResult{
-				CompanyName:   "Acme IAM",
-				LogoLabel:     "Acme",
-				ShowLogoLabel: true,
-				LogoURL:       "https://cdn.example.test/acme.svg",
-				Metadata:      datatypes.JSON([]byte(`{"colors":{"topPanelBackground":"#101820"},"components":{"input":{"borderRadius":"12px"}}}`)),
+				CompanyName:           "Acme IAM",
+				LogoLabel:             "Acme",
+				LogoDetail:            "Acme Console",
+				ShowLogoLabel:         true,
+				IdentityLogoLabel:     "Acme Public",
+				IdentityShowLogoLabel: true,
+				LogoURL:               "https://cdn.example.test/acme.svg",
+				Metadata:              datatypes.JSON([]byte(`{"colors":{"topPanelBackground":"#101820"},"components":{"input":{"borderRadius":"12px"}}}`)),
 			}, nil
 		}}
 		h := NewTenantHandler(svc, nil, brandingSvc, nil)
@@ -319,7 +394,10 @@ func TestTenantHandler_GetBootstrap(t *testing.T) {
 		require.NotNil(t, got.Branding)
 		assert.Equal(t, "Acme IAM", got.Branding.CompanyName)
 		assert.Equal(t, "Acme", got.Branding.LogoLabel)
+		assert.Equal(t, "Acme Console", got.Branding.LogoDetail)
 		assert.True(t, got.Branding.ShowLogoLabel)
+		assert.Equal(t, "Acme Public", got.Branding.IdentityLogoLabel)
+		assert.True(t, got.Branding.IdentityShowLogoLabel)
 		assert.Equal(t, "https://cdn.example.test/acme.svg", got.Branding.LogoURL)
 
 		var metadata map[string]any
@@ -346,10 +424,13 @@ func TestTenantHandler_GetBootstrap(t *testing.T) {
 			assert.Equal(t, int64(42), tenantID)
 			assert.Equal(t, "client-abc", clientIdentifier)
 			return &branding.BrandingServiceDataResult{
-				CompanyName:   "Client App",
-				LogoLabel:     "Client",
-				ShowLogoLabel: false,
-				Metadata:      datatypes.JSON([]byte(`{"colors":{"authPageBackground":"#050505"}}`)),
+				CompanyName:           "Client App",
+				LogoLabel:             "Client",
+				LogoDetail:            "Client Console",
+				ShowLogoLabel:         false,
+				IdentityLogoLabel:     "Client Public",
+				IdentityShowLogoLabel: true,
+				Metadata:              datatypes.JSON([]byte(`{"colors":{"authPageBackground":"#050505"}}`)),
 			}, nil
 		}})
 		w := httptest.NewRecorder()
@@ -361,7 +442,10 @@ func TestTenantHandler_GetBootstrap(t *testing.T) {
 		require.NotNil(t, got.Branding)
 		assert.Equal(t, "Client App", got.Branding.CompanyName)
 		assert.Equal(t, "Client", got.Branding.LogoLabel)
+		assert.Equal(t, "Client Console", got.Branding.LogoDetail)
 		assert.False(t, got.Branding.ShowLogoLabel)
+		assert.Equal(t, "Client Public", got.Branding.IdentityLogoLabel)
+		assert.True(t, got.Branding.IdentityShowLogoLabel)
 
 		var metadata map[string]any
 		require.NoError(t, json.Unmarshal(got.Branding.Metadata, &metadata))

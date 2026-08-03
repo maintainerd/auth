@@ -395,7 +395,7 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func extractAccessToken(r *http.Request) string {
-	for _, name := range []string{"access_token", "__Host-access_token"} {
+	for _, name := range []string{"access_token", "__Host-access_token", "__Secure-access_token"} {
 		if cookie, err := r.Cookie(name); err == nil {
 			return cookie.Value
 		}

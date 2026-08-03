@@ -51,6 +51,9 @@ CREATE TABLE IF NOT EXISTS clients (
     is_system                    BOOLEAN NOT NULL DEFAULT FALSE,
     branding_id                  BIGINT,
     allow_registration           BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Passwordless email sign-in is opt-in per client: possession of an inbox
+    -- becomes sufficient to authenticate, so it is off unless enabled.
+    allow_magic_link             BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- OIDC Session Management (RP-Initiated / Back-Channel Logout)
     backchannel_logout_uri              VARCHAR(2048),

@@ -93,6 +93,9 @@ type Client struct {
 	// fields on INSERT, so the DB default (TRUE) would silently win and
 	// self-registration would stay enabled on a client the operator locked down.
 	AllowRegistration *bool `gorm:"column:allow_registration;not null;default:true" json:"allow_registration"`
+	// AllowMagicLink: pointer for the same reason as AllowRegistration. Default
+	// FALSE — passwordless email sign-in is opt-in per client.
+	AllowMagicLink *bool `gorm:"column:allow_magic_link;not null;default:false" json:"allow_magic_link"`
 
 	// OIDC Session Management (RP-Initiated / Back-Channel Logout)
 	BackchannelLogoutURI             *string `gorm:"column:backchannel_logout_uri"`

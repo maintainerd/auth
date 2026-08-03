@@ -115,6 +115,7 @@ type Client struct {
 	SessionAbsoluteTimeout  *int              `gorm:"column:session_absolute_timeout"`
 	BrandingID              *int64            `gorm:"column:branding_id"`
 	AllowRegistration       bool              `gorm:"column:allow_registration;not null;default:true"`
+	AllowMagicLink          bool              `gorm:"column:allow_magic_link;not null;default:false"`
 	RequireConsent          bool              `gorm:"column:require_consent"`
 	AllowedScopes           pq.StringArray    `gorm:"column:allowed_scopes;type:text[]"`
 	ClientURIs              *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`

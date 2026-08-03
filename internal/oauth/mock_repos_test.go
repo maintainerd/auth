@@ -282,6 +282,8 @@ type mockOAuthRefreshTokenRepo struct {
 	findByTokenHashFn func(string) (*OAuthRefreshToken, error)
 	revokeByIDFn      func(int64) error
 	createFn          func(*OAuthRefreshToken) (*OAuthRefreshToken, error)
+	revokedFamilies   []uuid.UUID
+	revokedSessions   []uuid.UUID
 }
 
 func (m *mockOAuthRefreshTokenRepo) WithTx(_ *gorm.DB) OAuthRefreshTokenRepository { return m }
@@ -301,13 +303,18 @@ func (m *mockOAuthRefreshTokenRepo) FindActiveByUserAndClient(userID, clientID i
 	return nil, nil
 }
 func (m *mockOAuthRefreshTokenRepo) RevokeByFamily(familyID uuid.UUID) (int64, error) {
+	m.revokedFamilies = append(m.revokedFamilies, familyID)
 	return 0, nil
 }
 func (m *mockOAuthRefreshTokenRepo) RevokeByUserAndClient(userID, clientID int64) (int64, error) {
 	return 0, nil
 }
 func (m *mockOAuthRefreshTokenRepo) RevokeByUserID(userID int64) (int64, error) { return 0, nil }
-func (m *mockOAuthRefreshTokenRepo) UpdateLastUsed(tokenID int64) error         { return nil }
+func (m *mockOAuthRefreshTokenRepo) RevokeBySession(sessionUUID uuid.UUID) (int64, error) {
+	m.revokedSessions = append(m.revokedSessions, sessionUUID)
+	return 0, nil
+}
+func (m *mockOAuthRefreshTokenRepo) UpdateLastUsed(tokenID int64) error { return nil }
 func (m *mockOAuthRefreshTokenRepo) DeleteExpired(before time.Time) (int64, error) {
 	return 0, nil
 }

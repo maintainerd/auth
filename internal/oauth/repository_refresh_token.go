@@ -20,6 +20,7 @@ type OAuthRefreshTokenRepository interface {
 	RevokeByFamily(familyID uuid.UUID) (int64, error)
 	RevokeByUserAndClient(userID, clientID int64) (int64, error)
 	RevokeByUserID(userID int64) (int64, error)
+	RevokeBySession(sessionUUID uuid.UUID) (int64, error)
 	UpdateLastUsed(tokenID int64) error
 	DeleteExpired(before time.Time) (int64, error)
 	CountByUserAndClient(userID, clientID int64) (int64, error)
@@ -114,6 +115,25 @@ func (r *oauthRefreshTokenRepository) RevokeByUserID(userID int64) (int64, error
 	now := time.Now()
 	result := r.DB().Model(&OAuthRefreshToken{}).
 		Where("user_id = ? AND is_revoked = false", userID).
+		Updates(map[string]any{
+			"is_revoked": true,
+			"revoked_at": now,
+		})
+	return result.RowsAffected, result.Error
+}
+
+// RevokeBySession revokes every refresh token minted from one browser session.
+//
+// This is the granularity an ordinary logout needs: ending a session must not
+// reach the same user's other browsers or their phone, each of which holds its
+// own session and its own tokens. Revoking by user (or even by user+client)
+// would sign them out everywhere, which is only correct for the explicit
+// "sign out everywhere" control and for credential changes.
+// Returns the number of tokens revoked.
+func (r *oauthRefreshTokenRepository) RevokeBySession(sessionUUID uuid.UUID) (int64, error) {
+	now := time.Now()
+	result := r.DB().Model(&OAuthRefreshToken{}).
+		Where("user_session_uuid = ? AND is_revoked = false", sessionUUID).
 		Updates(map[string]any{
 			"is_revoked": true,
 			"revoked_at": now,

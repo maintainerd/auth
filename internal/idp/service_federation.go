@@ -1090,7 +1090,18 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 	if err != nil {
 		return nil, err
 	}
-	sessionID, err := s.createBrokerSession(ctx, user, clientID)
+	// Record the upstream session: idp_session_id is how an upstream provider's
+	// back-channel logout locates the session it just ended. The column and its
+	// index already existed and were never written.
+	brokerAttrs := authn.SessionAttributes{
+		AMR:                []string{"federated"},
+		ACR:                "1",
+		IdentityProviderID: &idp.IdentityProviderID,
+	}
+	if upstreamSID, _ := claims["sid"].(string); strings.TrimSpace(upstreamSID) != "" {
+		brokerAttrs.IDPSessionID = &upstreamSID
+	}
+	sessionID, err := s.createBrokerSession(ctx, user, clientID, brokerAttrs)
 	if err != nil {
 		return nil, err
 	}
@@ -1369,7 +1380,7 @@ func (s *federationService) isSystemBuiltinIdentity(identity *UserIdentity) (boo
 	return *identity.IdentityProviderID == systemIDP.IdentityProviderID, nil
 }
 
-func (s *federationService) createBrokerSession(ctx context.Context, user *User, clientID int64) (string, error) {
+func (s *federationService) createBrokerSession(ctx context.Context, user *User, clientID int64, attrs authn.SessionAttributes) (string, error) {
 	if s.sessionService == nil {
 		return "", nil
 	}
@@ -1386,7 +1397,11 @@ func (s *federationService) createBrokerSession(ctx context.Context, user *User,
 		if err := svc.EnforceConcurrentLimitWithPolicy(ctx, user.UserUUID, user.UserID, policy); err != nil {
 			return "", apperror.NewInternal("session limit enforcement failed", err)
 		}
-		sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, clientTenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+		if client != nil && client.ClientID > 0 {
+			cid := client.ClientID
+			attrs.ClientID = &cid
+		}
+		sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, clientTenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy, attrs)
 		if err != nil {
 			return "", apperror.NewInternal("session creation failed", err)
 		}
@@ -1421,7 +1436,12 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 			if err := svc.EnforceConcurrentLimitWithPolicy(ctx, user.UserUUID, user.UserID, policy); err != nil {
 				return nil, apperror.NewInternal("session limit enforcement failed", err)
 			}
-			sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, genClientTenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+			genAttrs := authn.SessionAttributes{AMR: []string{"federated"}, ACR: "1"}
+			if client != nil && client.ClientID > 0 {
+				cid := client.ClientID
+				genAttrs.ClientID = &cid
+			}
+			sess, err := svc.CreateSessionWithPolicy(ctx, user.UserID, genClientTenantID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy, genAttrs)
 			if err != nil {
 				return nil, apperror.NewInternal("session creation failed", err)
 			}
@@ -1541,7 +1561,7 @@ func mapFromJSON(raw []byte) map[string]any {
 
 type policyAwareSessionService interface {
 	EnforceConcurrentLimitWithPolicy(ctx context.Context, userUUID uuid.UUID, userID int64, policy secpolicy.EffectiveSessionPolicy) error
-	CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*authn.UserSession, error)
+	CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy, attrs authn.SessionAttributes) (*authn.UserSession, error)
 }
 
 // findDefaultRole mirrors the logic in registerService to locate the tenant's

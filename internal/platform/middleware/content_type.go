@@ -34,6 +34,10 @@ func EnforceJSONContentType(next http.Handler) http.Handler {
 	})
 }
 
+// isFormEncodedPath lists the endpoints whose handlers read r.ParseForm().
+// Anything here MUST be exempt from the JSON content-type gate, or the request
+// is rejected with 415 before the handler ever runs. The device and CIBA
+// approve/deny endpoints were missing, which made both flows unusable.
 func isFormEncodedPath(path string) bool {
 	formPaths := []string{
 		"/oauth/token",
@@ -41,6 +45,13 @@ func isFormEncodedPath(path string) bool {
 		"/oauth/introspect",
 		"/oauth/par",
 		"/oauth/end_session",
+		"/oauth/device",
+		"/oauth/device/deny",
+		"/oauth/device_authorization",
+		"/oauth/ciba",
+		"/oauth/ciba/approve",
+		"/oauth/ciba/deny",
+		"/oauth/logout/backchannel",
 	}
 	for _, p := range formPaths {
 		if strings.HasSuffix(path, p) {

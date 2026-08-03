@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -134,7 +135,18 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req OAuthDeviceAutho
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	verificationURI := config.AppPublicHostname + "/device"
+	// The user types this URI into a browser, so it must point at the hosted
+	// identity app — not the API host, which serves no /device page. Mirrors the
+	// broker's account-link lookup: a regular tenant verifies on its own
+	// subdomain, the system tenant on the bare host.
+	verifyTenantName := ""
+	verifyTenantIsSystem := true
+	var verifyTenant Tenant
+	if err := s.db.Select("name", "is_system").Where("tenant_id = ?", client.TenantID).First(&verifyTenant).Error; err == nil {
+		verifyTenantName = verifyTenant.Name
+		verifyTenantIsSystem = verifyTenant.IsSystem
+	}
+	verificationURI := shared.FrontendURL(shared.FrontendSurfaceIdentity, verifyTenantName, verifyTenantIsSystem, "/device")
 	verificationURIComplete := fmt.Sprintf("%s?user_code=%s", verificationURI, userCode)
 
 	span.SetStatus(codes.Ok, "")

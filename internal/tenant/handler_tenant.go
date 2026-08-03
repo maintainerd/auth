@@ -26,6 +26,7 @@ type TenantHandler struct {
 	securitySettingService secpolicy.SecuritySettingService
 	clientReader           SurfaceClientReader
 	clientBrandingReader   PublicClientBrandingReader
+	connectionsReader      SurfaceConnectionsReader
 	auditLogger            auditlog.ManagementAuditLogger
 }
 
@@ -55,6 +56,14 @@ func (h *TenantHandler) SetSurfaceClientReader(r SurfaceClientReader) { h.client
 // theme before falling back to the tenant's active theme.
 func (h *TenantHandler) SetClientBrandingReader(r PublicClientBrandingReader) {
 	h.clientBrandingReader = r
+}
+
+// SetSurfaceConnectionsReader injects the resolver that lists the federated
+// login options enabled on the resolved surface client. It is optional: when
+// unset, the bootstrap response carries an empty connections array rather than
+// failing, so a misconfigured wiring degrades to password-only login.
+func (h *TenantHandler) SetSurfaceConnectionsReader(r SurfaceConnectionsReader) {
+	h.connectionsReader = r
 }
 
 func (h *TenantHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
@@ -254,6 +263,7 @@ func (h *TenantHandler) getBootstrap(w http.ResponseWriter, r *http.Request, dom
 		IdentityURL: shared.FrontendURL(shared.FrontendSurfaceIdentity, tenant.Name, tenant.IsSystem, ""),
 		ConsoleURL:  shared.FrontendURL(shared.FrontendSurfaceConsole, tenant.Name, tenant.IsSystem, ""),
 		Branding:    h.publicBranding(r.Context(), tenant.TenantID, r.URL.Query().Get("client_id")),
+		Connections: []TenantBootstrapConnectionDTO{},
 	}
 	res.PasswordConfig, res.RegistrationConfig = h.publicSecurityConfigs(r.Context(), tenant.TenantID)
 
@@ -268,10 +278,47 @@ func (h *TenantHandler) getBootstrap(w http.ResponseWriter, r *http.Request, dom
 				DisplayName: c.DisplayName,
 				ClientType:  c.ClientType,
 			}
+			methods := h.surfaceLoginMethods(r.Context(), c.ClientID)
+			res.Connections = methods.Connections
+			res.MagicLinkEnabled = methods.MagicLinkEnabled
 		}
 	}
 
 	resp.Success(w, res, "Tenant bootstrap fetched successfully")
+}
+
+// surfaceLoginMethods loads the login options enabled on the resolved surface
+// client. Best-effort by design: an unwired reader or a lookup error yields an
+// empty (never nil) connection slice and magic link off, so the login page
+// degrades to password-only instead of the whole bootstrap failing.
+func (h *TenantHandler) surfaceLoginMethods(ctx context.Context, clientIdentifier string) bootstrapLoginMethods {
+	out := bootstrapLoginMethods{Connections: []TenantBootstrapConnectionDTO{}}
+	if h.connectionsReader == nil || strings.TrimSpace(clientIdentifier) == "" {
+		return out
+	}
+	methods, err := h.connectionsReader.ListSurfaceConnections(ctx, clientIdentifier)
+	if err != nil {
+		return out
+	}
+	out.MagicLinkEnabled = methods.MagicLinkEnabled
+	for _, c := range methods.Connections {
+		out.Connections = append(out.Connections, TenantBootstrapConnectionDTO{
+			Identifier:   c.Identifier,
+			DisplayName:  c.DisplayName,
+			Provider:     c.Provider,
+			ProviderType: c.ProviderType,
+			IsDefault:    c.IsDefault,
+			DisplayOrder: c.DisplayOrder,
+		})
+	}
+	return out
+}
+
+// bootstrapLoginMethods is the handler-local projection assembled for the
+// bootstrap response.
+type bootstrapLoginMethods struct {
+	Connections      []TenantBootstrapConnectionDTO
+	MagicLinkEnabled bool
 }
 
 // publicBranding loads the public branding for bootstrap/public tenant
@@ -300,16 +347,19 @@ func toBrandingPublic(b *branding.BrandingServiceDataResult) *BrandingPublic {
 		return nil
 	}
 	return &BrandingPublic{
-		Layout:            b.Layout,
-		CompanyName:       b.CompanyName,
-		LogoLabel:         b.LogoLabel,
-		ShowLogoLabel:     b.ShowLogoLabel,
-		LogoURL:           b.LogoURL,
-		FaviconURL:        b.FaviconURL,
-		SupportURL:        b.SupportURL,
-		PrivacyPolicyURL:  b.PrivacyPolicyURL,
-		TermsOfServiceURL: b.TermsOfServiceURL,
-		Metadata:          b.Metadata,
+		Layout:                b.Layout,
+		CompanyName:           b.CompanyName,
+		LogoLabel:             b.LogoLabel,
+		LogoDetail:            b.LogoDetail,
+		ShowLogoLabel:         b.ShowLogoLabel,
+		IdentityLogoLabel:     b.IdentityLogoLabel,
+		IdentityShowLogoLabel: b.IdentityShowLogoLabel,
+		LogoURL:               b.LogoURL,
+		FaviconURL:            b.FaviconURL,
+		SupportURL:            b.SupportURL,
+		PrivacyPolicyURL:      b.PrivacyPolicyURL,
+		TermsOfServiceURL:     b.TermsOfServiceURL,
+		Metadata:              b.Metadata,
 	}
 }
 

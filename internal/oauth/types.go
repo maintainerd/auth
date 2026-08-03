@@ -37,6 +37,7 @@ type OAuthAuthorizeResponseDTO struct {
 type OAuthConnectionsResponseDTO struct {
 	PasswordEnabled     bool                             `json:"password_enabled"`
 	RegistrationEnabled bool                             `json:"registration_enabled"`
+	MagicLinkEnabled    bool                             `json:"magic_link_enabled"`
 	Branding            *branding.ClientBrandingResponse `json:"branding,omitempty"`
 	Connections         []OAuthConnectionDTO             `json:"connections"`
 }

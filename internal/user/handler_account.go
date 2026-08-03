@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // AccountHandler handles self-service account management operations.
@@ -561,7 +562,7 @@ func (h *AccountHandler) RevokeAllSessions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := h.sessionService.RevokeAllSessions(r.Context(), user.UserID, "user_revoke"); err != nil {
+	if err := h.sessionService.RevokeAllSessions(r.Context(), user.UserID, shared.SessionRevokeUserRevoke); err != nil {
 		resp.HandleServiceError(w, r, "Failed to revoke all sessions", err)
 		return
 	}

@@ -23,6 +23,12 @@ CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
     nonce                         TEXT,
     code_challenge                TEXT          NOT NULL,
     code_challenge_method         VARCHAR(10)   NOT NULL DEFAULT 'S256',
+    -- The user_sessions row this code was authorized from, carried so the minted
+    -- tokens can be stamped with a sid claim. Without it an OAuth token is not
+    -- attributable to a session, and logout cannot revoke just that session — it
+    -- has to revoke all of them or none. NULL only when the authorize request
+    -- carried no session.
+    user_session_uuid             UUID,
     used                          BOOLEAN       NOT NULL DEFAULT FALSE,
     used_at                       TIMESTAMPTZ,
     expires_at                    TIMESTAMPTZ   NOT NULL,

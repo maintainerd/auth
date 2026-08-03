@@ -2177,7 +2177,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 
 	t.Run("access token auth context", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 
@@ -2190,14 +2190,14 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 	t.Run("nil Domain, nil Identifier, nil IdentityProvider", func(t *testing.T) {
 		initTestJWTKeysService(t)
 		nilClient := &Client{ClientID: 10, TenantID: 1}
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, nilClient, "openid profile", nil, "")
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, nilClient, "openid profile", nil, "", false, nil)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("non-empty dpopThumbprint", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "thumbprint123")
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "thumbprint123", false, nil)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Equal(t, "DPoP", result.TokenType)
@@ -2209,7 +2209,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 	t.Run("with nonce", func(t *testing.T) {
 		initTestJWTKeysService(t)
 		nonce := "nonce-abc-123"
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", &nonce, "")
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", &nonce, "", false, nil)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.NotEmpty(t, result.IDToken)
@@ -2217,7 +2217,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 
 	t.Run("without offline_access scope", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.NotEmpty(t, result.AccessToken)
@@ -2238,7 +2238,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 				Identifier: "default-provider",
 			},
 		}
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, ttlClient, "openid profile", nil, "")
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, ttlClient, "openid profile", nil, "", false, nil)
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Equal(t, int64(900), result.ExpiresIn)
@@ -2248,7 +2248,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 		jwt.ResetJWTKeys()
 		defer jwt.ResetJWTKeys()
 
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -2261,7 +2261,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 			return "", errors.New("id token error")
 		}
 
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -2274,7 +2274,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 			return "", errors.New("random error")
 		}
 
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "")
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "", true, nil)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -2289,7 +2289,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 			},
 		}
 
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "")
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "", true, nil)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})

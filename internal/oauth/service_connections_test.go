@@ -29,13 +29,34 @@ func TestOAuthConnectionsService_ListConnections(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("non-console system client is rejected", func(t *testing.T) {
+	t.Run("internal system client is rejected", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
-			return &Client{ClientID: 1, Name: shared.SystemClientNameAuthIdentity, Status: shared.StatusActive, IsSystem: true}, nil
+			return &Client{ClientID: 1, Name: "internal-worker", Status: shared.StatusActive, IsSystem: true}, nil
 		}}, nil, nil)
 		_, err := svc.ListConnections(ctx, "my-client")
 		require.Error(t, err)
+		// Rejected at the client gate, so the connections query is never reached.
+		assert.Contains(t, err.Error(), "unknown or inactive client")
+	})
+
+	// The identity app is the hosted login page: it must be able to list the
+	// providers it renders. Regression guard — it was previously rejected as a
+	// system client, so its own login form silently showed no provider buttons.
+	t.Run("auth-identity system client is allowed", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE.*client_id = \$1.*enabled = \$2`).
+			WithArgs(int64(20), true).
+			WillReturnRows(sqlmock.NewRows([]string{"client_identity_provider_id"}))
+
+		svc := NewOAuthConnectionsService(db, &mockClientRepo{findByIdentifierFn: func(string) (*Client, error) {
+			return &Client{ClientID: 20, Name: shared.SystemClientNameAuthIdentity, Status: shared.StatusActive, IsSystem: true}, nil
+		}}, nil, nil)
+
+		result, err := svc.ListConnections(ctx, "my-client")
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("auth-console system client enables password", func(t *testing.T) {
