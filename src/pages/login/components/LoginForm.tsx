@@ -3,7 +3,8 @@ import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { AlertCircle, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react"
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field"
-import { FormInputField, FormPasswordField, FormSubmitButton } from "@/components/form"
+import { FormPasswordField, FormSubmitButton } from "@/components/form"
+import { FormEmailField } from "@/components/inputs"
 import { buildLoginSchema, type LoginFormData } from "@/lib/validations"
 import { useToast } from "@/hooks/useToast"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
@@ -290,11 +291,9 @@ const LoginForm = () => {
                 <span>{loginError}</span>
               </div>
             )}
-            <FormInputField
+            <FormEmailField
               label="Email"
-              type="email"
               placeholder="you@company.com"
-              autoComplete="email"
               disabled={isSubmitting || isLoadingConnections}
               error={errors.email?.message}
               required

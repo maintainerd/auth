@@ -6,7 +6,8 @@ import { yupResolver } from "@hookform/resolvers/yup"
 import { AlertCircle, Mail, Loader2, CheckCircle } from "lucide-react"
 import { FieldGroup } from "@/components/ui/field"
 import { Button } from "@/components/ui/button"
-import { FormInputField, FormSubmitButton } from "@/components/form"
+import { FormSubmitButton } from "@/components/form"
+import { FormCodeField } from "@/components/inputs"
 import { post } from "@/services/api/client"
 import { publicAuthQuery } from "@/utils/clientContext"
 import LoginLayout from "@/components/layout/LoginLayout"
@@ -133,15 +134,13 @@ export default function VerifyEmailPage() {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <FieldGroup>
-            <FormInputField
+            <FormCodeField
               label="Verification code"
               placeholder="000000"
-              inputMode="numeric"
-              autoComplete="one-time-code"
+              numeric
               disabled={isSubmitting}
               error={errors.code?.message}
               required
-              className="font-mono tracking-[0.4em] text-center"
               {...register("code")}
             />
             <FormSubmitButton

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Smartphone, ShieldCheck, RefreshCw, Copy, Check, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { FormInputField } from "@/components/form"
+import { FormCodeField } from "@/components/inputs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ListingItemIcon } from "@/components/details/ListingItemCard"
 import {
@@ -248,14 +248,12 @@ export default function TOTPSetupPage() {
           <CardDescription>Enter the 6-digit code from your authenticator app.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormInputField
+            <FormCodeField
               id="totp-code"
               label="Verification code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
+              numeric
               placeholder="000000"
               maxLength={6}
-              className="text-center font-mono tracking-[0.5em]"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
             />

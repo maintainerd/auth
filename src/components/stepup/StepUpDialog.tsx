@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { FormInputField } from "@/components/form"
+import { FormCodeField } from "@/components/inputs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { getAssertion } from "@/lib/webauthn"
@@ -162,13 +162,11 @@ export function StepUpDialog({ open, onOpenChange, onVerified, onCancel, title, 
                   </Button>
                 )}
 
-                <FormInputField
+                <FormCodeField
                   id="stepup-code"
                   label={numeric ? `${meta?.label} code` : (meta?.label ?? "Code")}
-                  inputMode={numeric ? "numeric" : "text"}
-                  autoComplete="one-time-code"
+                  numeric={numeric}
                   placeholder={numeric ? "000000" : "Enter one backup code"}
-                  className={numeric ? "font-mono tracking-[0.4em] text-center" : "font-mono"}
                   value={code}
                   onChange={(e) => setCode(numeric ? e.target.value.replace(/\D/g, "").slice(0, 6) : e.target.value)}
                   description={method === "backup_code" ? "Enter a single code from your saved list. Each one works only once." : undefined}

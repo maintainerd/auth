@@ -3,8 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import LoginLayout from '@/components/layout/LoginLayout'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FormCodeField } from '@/components/inputs'
 import { approveOAuthDevice, denyOAuthDevice } from '@/services/api/oauth'
 import { useTenant } from '@/hooks/useTenant'
 import { useToast } from '@/hooks/useToast'
@@ -77,14 +76,13 @@ export default function OAuthDevicePage() {
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="oauth-device-code">User code</Label>
-          <Input
+        <div>
+          <FormCodeField
             id="oauth-device-code"
+            label="User code"
             value={userCode}
             onChange={(event) => setUserCode(event.target.value.toUpperCase())}
-            autoComplete="one-time-code"
-            className="font-mono uppercase tracking-[0.3em] text-center"
+            className="uppercase tracking-[0.3em]"
           />
         </div>
 

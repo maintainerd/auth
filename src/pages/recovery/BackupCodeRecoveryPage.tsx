@@ -2,8 +2,7 @@ import { useState } from "react"
 import { useNavigate, Link, useSearchParams } from "react-router-dom"
 import { KeyRound, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FormCodeField } from "@/components/inputs"
 import LoginLayout from "@/components/layout/LoginLayout"
 import { useTenant } from "@/hooks/useTenant"
 import { useToast } from "@/hooks/useToast"
@@ -57,8 +56,8 @@ export default function BackupCodeRecoveryPage() {
         </div>
 
         <div className="space-y-3">
-          <Label>Backup Code</Label>
-          <Input
+          <FormCodeField
+            label="Backup code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="Enter your backup code"

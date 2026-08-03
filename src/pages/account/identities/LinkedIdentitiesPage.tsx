@@ -71,14 +71,19 @@ export default function LinkedIdentitiesPage() {
           title="External identities"
           description="External provider accounts connected to your profile."
           icon={Link2}
+          action={(
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 sm:w-auto"
+              onClick={() => setShowLinkForm(!showLinkForm)}
+              disabled={linkMut.isPending}
+            >
+              <Plus className="size-4" /> Link identity
+            </Button>
+          )}
         >
           <div className="space-y-4">
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => setShowLinkForm(!showLinkForm)} disabled={linkMut.isPending}>
-                <Plus className="mr-1 size-4" /> Link identity
-              </Button>
-            </div>
-
             {showLinkForm && (
               <div data-md-listing-nested className="space-y-3 rounded-md border p-3">
                 <FormInputField

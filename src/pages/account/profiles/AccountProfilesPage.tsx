@@ -4,9 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { User, Plus, Star, Trash2, Pencil, MoreHorizontal } from 'lucide-react'
 import AccountLayout from '@/components/layout/AccountLayout'
 import { SettingsCard } from '@/components/card'
-import { CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ListingItemCard, ListingItemIcon } from '@/components/details'
+import { ListingItemCard, ListingItemIcon, ListingItemMeta } from '@/components/details'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
@@ -37,9 +36,9 @@ function fmtDate(value?: string | null): string | undefined {
 
 function ViewField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="min-w-0 space-y-1 border-border/60 px-4 py-3 sm:border-r [&:nth-child(2n)]:sm:border-r-0 lg:[&:nth-child(2n)]:border-r lg:[&:nth-child(3n)]:border-r-0">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-sm">{value || <span className="text-muted-foreground">Not set</span>}</p>
+      <p className="truncate text-sm font-medium">{value || <span className="font-normal text-muted-foreground">Not set</span>}</p>
     </div>
   )
 }
@@ -120,40 +119,47 @@ export default function AccountProfilesPage() {
       <div className="space-y-6">
         {/* Default profile — full details */}
         {!isLoading && defaultProfile && (
-          <SettingsCard title="Default profile" description="The profile used first across identity flows." icon={User}>
-            <div className="flex items-center gap-4">
-              <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                {defaultProfile.profile_url ? (
-                  <img src={defaultProfile.profile_url} alt="" className="size-16 rounded-full object-cover" />
-                ) : (
-                  <span className="text-lg font-semibold text-muted-foreground">
-                    {profileName(defaultProfile).slice(0, 2).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <CardTitle className="truncate text-lg">{profileName(defaultProfile)}</CardTitle>
-                  {defaultProfile.is_default && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      Default
+          <SettingsCard
+            title="Default profile"
+            description="The profile used first across identity flows."
+            icon={User}
+            contentClassName="space-y-6"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border">
+                  {defaultProfile.profile_url ? (
+                    <img src={defaultProfile.profile_url} alt="" className="size-16 rounded-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-semibold text-muted-foreground">
+                      {profileName(defaultProfile).slice(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {defaultProfile.is_default ? 'Your default profile' : 'Your profile'}
-                </p>
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="truncate text-lg font-semibold tracking-tight">{profileName(defaultProfile)}</h2>
+                    {defaultProfile.is_default && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {defaultProfile.is_default ? 'Your default profile' : 'Your profile'}
+                  </p>
+                </div>
               </div>
               <Button
                 size="sm"
                 variant="outline"
-                className="shrink-0 gap-1.5"
+                className="w-full shrink-0 gap-1.5 sm:w-auto"
                 onClick={() => navigate(`/account/profile/${defaultProfile.profile_id}/edit`)}
               >
                 <Pencil className="size-3.5" /> Edit
               </Button>
             </div>
-            <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div data-md-listing-nested className="grid overflow-hidden rounded-md border bg-muted/20 sm:grid-cols-2 lg:grid-cols-3">
               <ViewField label="Display name" value={defaultProfile.display_name} />
               <ViewField label="First name" value={defaultProfile.first_name} />
               <ViewField label="Middle name" value={defaultProfile.middle_name} />
@@ -173,18 +179,18 @@ export default function AccountProfilesPage() {
           title="Profiles"
           description="Manage the profiles available to your account."
           icon={User}
-          contentClassName="space-y-4"
-        >
-          <div className="flex justify-end">
+          action={(
             <Button
               size="sm"
               variant="outline"
-              className="gap-1.5"
+              className="w-full gap-1.5 sm:w-auto"
               onClick={() => navigate('/account/profile/new')}
             >
               <Plus className="size-3.5" /> Add profile
             </Button>
-          </div>
+          )}
+          contentClassName="space-y-4"
+        >
           {isLoading && <p className="text-sm text-muted-foreground">Loading profiles…</p>}
           {!isLoading && profiles.length === 0 && (
             <div className="flex flex-col items-center gap-3 py-8 text-center">
@@ -218,12 +224,20 @@ export default function AccountProfilesPage() {
                       )}
                     </ListingItemIcon>
                     <div className="flex min-w-0 items-center gap-2">
-                      <p className="truncate text-sm font-medium">{profileName(profile)}</p>
-                      {profile.is_default && (
-                        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-                          Default
-                        </span>
-                      )}
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-medium">{profileName(profile)}</p>
+                          {profile.is_default && (
+                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <ListingItemMeta>
+                          {profile.email && <span>{profile.email}</span>}
+                          {profile.created_at && <span>Added {fmtDate(profile.created_at)}</span>}
+                        </ListingItemMeta>
+                      </div>
                     </div>
                   </div>
                 </ListingItemCard>

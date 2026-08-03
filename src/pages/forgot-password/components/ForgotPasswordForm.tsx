@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
-import { FormSubmitButton, FormInputField } from "@/components/form"
+import { FormSubmitButton } from "@/components/form"
+import { FormEmailField } from "@/components/inputs"
 import { FieldGroup } from "@/components/ui/field"
 import { Link } from "react-router-dom"
 import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/lib/validations"
@@ -83,11 +84,9 @@ const ForgotPasswordForm = () => {
               <span>{forgotPasswordError}</span>
             </div>
           )}
-          <FormInputField
+          <FormEmailField
             label="Email"
-            type="email"
             placeholder="you@company.com"
-            autoComplete="email"
             disabled={isSubmitting}
             error={errors.email?.message}
             required

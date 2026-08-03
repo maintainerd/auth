@@ -5,7 +5,8 @@ import { AtSign, KeyRound, Mail } from 'lucide-react'
 import AccountLayout from '@/components/layout/AccountLayout'
 import { SettingsCard } from '@/components/card'
 import { Button } from '@/components/ui/button'
-import { FormInputField, FormPasswordField, PasswordRequirements } from '@/components/form'
+import { FormInputField, FormPasswordField } from '@/components/form'
+import { FormEmailField, FormPasswordFieldWithPolicy } from '@/components/inputs'
 import { useToast } from '@/hooks/useToast'
 import { useTenant } from '@/hooks/useTenant'
 import { changePassword, changeUsername, fetchAccountInfo, initiateEmailChange } from '@/services/api/account'
@@ -42,7 +43,6 @@ export default function AccountSecurityPage() {
   const usernameForm = useForm<UsernameForm>()
   const emailForm = useForm<EmailForm>()
   const passwordForm = useForm<PasswordForm>()
-  const newPasswordValue = passwordForm.watch('new_password') ?? ''
 
   const usernameMutation = useMutation({
     mutationFn: (data: UsernameForm) => changeUsername(data.username),
@@ -133,9 +133,8 @@ export default function AccountSecurityPage() {
               onSubmit={emailForm.handleSubmit((data) => emailMutation.mutate(data))}
               className="flex flex-col gap-3 sm:flex-row sm:items-end"
             >
-              <FormInputField
+              <FormEmailField
                 label="New email address"
-                type="email"
                 placeholder="New email address"
                 containerClassName="flex-1"
                 {...emailForm.register('new_email', { required: true })}
@@ -156,15 +155,13 @@ export default function AccountSecurityPage() {
                 error={passwordForm.formState.errors.current_password?.message}
                 {...passwordForm.register('current_password', { required: true })}
               />
-              <div className="space-y-2">
-                <FormPasswordField
-                  label="New password"
-                  autoComplete="new-password"
-                  error={passwordForm.formState.errors.new_password?.message}
-                  {...passwordForm.register('new_password', { required: true })}
-                />
-                {newPasswordValue && <PasswordRequirements password={newPasswordValue} config={passwordConfig} />}
-              </div>
+              <FormPasswordFieldWithPolicy
+                label="New password"
+                autoComplete="new-password"
+                error={passwordForm.formState.errors.new_password?.message}
+                passwordConfig={passwordConfig}
+                {...passwordForm.register('new_password', { required: true })}
+              />
               <FormPasswordField
                 label="Confirm new password"
                 autoComplete="new-password"

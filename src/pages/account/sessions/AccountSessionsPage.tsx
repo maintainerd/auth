@@ -149,6 +149,40 @@ export default function AccountSessionsPage() {
   })
 
   const otherSessions = sessions.filter((session: UserSession) => !session.is_current)
+  const revokeAllAction = otherSessions.length > 0 ? (
+    <div className="flex w-full justify-end gap-2 sm:w-auto">
+      {confirmingAll ? (
+        <>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="h-7 flex-1 text-xs sm:flex-none"
+            disabled={revokeAllMutation.isPending}
+            onClick={() => revokeAllMutation.mutate()}
+          >
+            Confirm revoke all
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 flex-1 text-xs sm:flex-none"
+            onClick={() => setConfirmingAll(false)}
+          >
+            Cancel
+          </Button>
+        </>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 w-full text-xs text-destructive hover:text-destructive sm:w-auto"
+          onClick={() => setConfirmingAll(true)}
+        >
+          Revoke all others
+        </Button>
+      )}
+    </div>
+  ) : undefined
 
   return (
     <AccountLayout title="Sessions">
@@ -156,43 +190,9 @@ export default function AccountSessionsPage() {
         title="Active sign-ins"
         description="Devices and browsers currently signed in to your account."
         icon={Monitor}
+        action={revokeAllAction}
       >
         <div className="space-y-4">
-          {otherSessions.length > 0 && (
-            <div className="flex justify-end gap-2">
-              {confirmingAll ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="h-7 text-xs"
-                    disabled={revokeAllMutation.isPending}
-                    onClick={() => revokeAllMutation.mutate()}
-                  >
-                    Confirm revoke all
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs"
-                    onClick={() => setConfirmingAll(false)}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs text-destructive hover:text-destructive"
-                  onClick={() => setConfirmingAll(true)}
-                >
-                  Revoke all others
-                </Button>
-              )}
-            </div>
-          )}
-
           {isLoading && <p className="text-sm text-muted-foreground">Loading sessions…</p>}
           {!isLoading && sessions.length === 0 && (
             <div className="flex flex-col items-center gap-3 py-8 text-center">

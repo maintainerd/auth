@@ -8,6 +8,7 @@ import { SettingsCard } from '@/components/card'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { FormInputField } from '@/components/form'
+import { FormUrlField } from '@/components/inputs'
 import { useToast } from '@/hooks/useToast'
 import { fetchProfiles, createProfile, updateProfile, type UserProfile } from '@/services/api/account'
 
@@ -87,6 +88,7 @@ export default function ProfileFormPage() {
         <SettingsCard
           title={isEdit ? 'Edit profile' : 'New profile'}
           description="Keep your display details consistent across the identity experience."
+          contentClassName="space-y-6"
         >
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -106,7 +108,7 @@ export default function ProfileFormPage() {
                 placeholder="Last name"
                 {...form.register('last_name')}
               />
-              <FormInputField
+              <FormUrlField
                 label="Avatar URL"
                 placeholder="https://..."
                 containerClassName="sm:col-span-2"

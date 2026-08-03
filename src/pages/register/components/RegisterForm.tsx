@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useForm, type Resolver } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { useNavigate, Link, useSearchParams } from "react-router-dom"
 import { AlertCircle, TriangleAlert } from "lucide-react"
-import { FormSubmitButton, FormInputField, FormPasswordField, PasswordRequirements, FormConsentCheckbox } from "@/components/form"
+import { FormSubmitButton, FormInputField, FormPasswordField, FormConsentCheckbox } from "@/components/form"
+import { FormEmailField, FormPasswordFieldWithPolicy, FormPhoneField } from "@/components/inputs"
 import { FieldGroup } from "@/components/ui/field"
 import { buildRegisterSchema, type RegisterFormData } from "@/lib/validations"
 import { useAuth } from "@/hooks/useAuth"
@@ -50,7 +51,6 @@ const RegisterForm = () => {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors, isSubmitting }
   } = useForm<RegisterFormData>({
     resolver: yupResolver(registerSchema) as Resolver<RegisterFormData>,
@@ -65,15 +65,6 @@ const RegisterForm = () => {
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
-
-  const passwordValue = watch("password") || ""
-
-  // Reveal the requirements checklist once the user starts typing a password,
-  // then keep it visible even if they clear the field.
-  const [passwordTyped, setPasswordTyped] = useState(false)
-  useEffect(() => {
-    if (passwordValue.length > 0) setPasswordTyped(true)
-  }, [passwordValue])
 
   const onSubmit = async (data: RegisterFormData) => {
     setRegisterError(null)
@@ -193,40 +184,33 @@ const RegisterForm = () => {
             />
           )}
           {needsPhone && (
-            <FormInputField
+            <FormPhoneField
               label="Phone"
-              type="tel"
-              inputMode="tel"
               placeholder="+1 212 555 1234"
-              autoComplete="tel"
               disabled={isSubmitting}
               error={errors.phone?.message}
               required
               {...register("phone")}
             />
           )}
-          <FormInputField
+          <FormEmailField
             label="Email"
-            type="email"
             placeholder="you@company.com"
-            autoComplete="email"
             disabled={isSubmitting}
             error={errors.email?.message}
             required
             {...register("email")}
           />
-          <div className="flex flex-col gap-2">
-            <FormPasswordField
-              label="Password"
-              placeholder="Enter a strong password"
-              autoComplete="new-password"
-              disabled={isSubmitting}
-              error={errors.password?.message}
-              required
-              {...register("password")}
-            />
-            {passwordTyped && <PasswordRequirements password={passwordValue} config={passwordConfig} />}
-          </div>
+          <FormPasswordFieldWithPolicy
+            label="Password"
+            placeholder="Enter a strong password"
+            autoComplete="new-password"
+            disabled={isSubmitting}
+            error={errors.password?.message}
+            passwordConfig={passwordConfig}
+            required
+            {...register("password")}
+          />
           <FormPasswordField
             label="Confirm password"
             placeholder="Re-enter your password"

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import { ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FormCodeField } from "@/components/inputs"
 import { cn } from "@/lib/utils"
 import { getAssertion } from "@/lib/webauthn"
 import { MFA_METHOD_META as METHOD_META, extractMFACode } from "@/lib/mfaMethods"
@@ -142,14 +142,12 @@ export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientI
               {emailOtpMutation.isPending ? "Sending…" : emailOtpSent ? "Resend code" : "Send code to my email"}
             </Button>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="login-mfa-code">{numeric ? `${meta?.label} code` : (meta?.label ?? "Code")}</Label>
-            <Input
+          <div>
+            <FormCodeField
               id="login-mfa-code"
-              inputMode={numeric ? "numeric" : "text"}
-              autoComplete="one-time-code"
+              label={numeric ? `${meta?.label} code` : (meta?.label ?? "Code")}
+              numeric={numeric}
               placeholder={numeric ? "000000" : "Enter one backup code"}
-              className={numeric ? "font-mono tracking-[0.4em] text-center" : "font-mono"}
               value={code}
               onChange={(e) => setCode(numeric ? e.target.value.replace(/\D/g, "").slice(0, 6) : e.target.value)}
             />

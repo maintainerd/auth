@@ -2,8 +2,7 @@ import { useState } from "react"
 import { useNavigate, Link, useSearchParams } from "react-router-dom"
 import { MessageSquare, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FormCodeField, FormPhoneField } from "@/components/inputs"
 import LoginLayout from "@/components/layout/LoginLayout"
 import { useTenant } from "@/hooks/useTenant"
 import { useToast } from "@/hooks/useToast"
@@ -97,25 +96,23 @@ export default function SMSLoginPage() {
         </div>
 
         <div className="space-y-3">
-          <Label>Phone Number</Label>
-          <Input
+          <FormPhoneField
+            label="Phone number"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="+1234567890"
             disabled={otpSent}
-            type="tel"
           />
 
           {otpSent && (
-            <>
-              <Label>Verification Code</Label>
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="000000"
-                maxLength={6}
-              />
-            </>
+            <FormCodeField
+              label="Verification code"
+              numeric
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="000000"
+              maxLength={6}
+            />
           )}
 
           {!otpSent ? (

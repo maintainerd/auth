@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Mail, ShieldCheck, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { FormInputField } from "@/components/form"
+import { FormCodeField, FormEmailField } from "@/components/inputs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ListingItemIcon } from "@/components/details/ListingItemCard"
 import { useAuth } from "@/hooks/useAuth"
@@ -112,10 +112,9 @@ export default function EmailOtpSetupPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormInputField
+            <FormEmailField
               id="email"
               label="Email address"
-              type="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -139,14 +138,12 @@ export default function EmailOtpSetupPage() {
           <CardDescription>Enter the 6-digit code sent to {email}.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormInputField
+            <FormCodeField
               id="email-otp-code"
               label="Verification code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
+              numeric
               placeholder="000000"
               maxLength={6}
-              className="text-center font-mono tracking-[0.5em]"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
             />
