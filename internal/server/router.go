@@ -142,7 +142,14 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 	)
 	tenantMaintenance := securityMiddleware.TenantMaintenanceMiddleware(application.TenantSettingService)
 	tenantIPRestriction := securityMiddleware.TenantIPRestrictionMiddleware(&ipRestrictionAdapter{repo: application.IPRestrictionRuleRepo})
-	tenantRuntimeMiddleware := []securityMiddleware.Middleware{tenantMaintenance, tenantIPRestriction, tenantRateLimit}
+	// The status gate rides along here so the OAuth surface and the cookie-auth
+	// account routes are covered too — a suspended tenant must not be able to run
+	// an authorize flow or keep using its account pages, not merely be stopped at
+	// the login form.
+	tenantStatusGate := securityMiddleware.AuthEndpointTenantStatusMiddleware(
+		&tenantSlugResolverAdapter{svc: application.TenantService},
+	)
+	tenantRuntimeMiddleware := []securityMiddleware.Middleware{tenantMaintenance, tenantIPRestriction, tenantRateLimit, tenantStatusGate}
 
 	// Pre-auth IP restriction for the credential surface (login, register,
 	// password reset, SMS, magic link). Keyed on the request's subdomain tenant
@@ -159,6 +166,13 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 	// subdomain tenant; identity surface only, so console/admin logins stay open).
 	authEndpointMaintenance := securityMiddleware.AuthEndpointMaintenanceMiddleware(
 		application.TenantSettingService,
+		&tenantSlugResolverAdapter{svc: application.TenantService},
+	)
+
+	// Pre-auth tenant lifecycle gate: a suspended/inactive tenant cannot mint a
+	// session. Same scoping as the maintenance gate (identity surface only) so
+	// operators keep console access to the tenant they need to reactivate.
+	authEndpointTenantStatus := securityMiddleware.AuthEndpointTenantStatusMiddleware(
 		&tenantSlugResolverAdapter{svc: application.TenantService},
 	)
 
@@ -207,6 +221,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 			rl.Use(authRateLimit)
 			rl.Use(authEndpointIPRestriction)
 			rl.Use(authEndpointMaintenance)
+			rl.Use(authEndpointTenantStatus)
 			authn.RegisterPublicRoute(rl, h.register)
 			authn.LoginPublicRoute(rl, h.login)
 			authn.ForgotPasswordPublicRoute(rl, h.forgotPassword)
@@ -219,6 +234,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		api.Group(func(ml chi.Router) {
 			ml.Use(authEndpointIPRestriction)
 			ml.Use(authEndpointMaintenance)
+			ml.Use(authEndpointTenantStatus)
 			authn.MagicLinkPublicRoute(ml, h.magicLink)
 		})
 		invite.InvitePublicRoute(api, h.invite)
@@ -245,6 +261,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		api.Group(func(sms chi.Router) {
 			sms.Use(authEndpointIPRestriction)
 			sms.Use(authEndpointMaintenance)
+			sms.Use(authEndpointTenantStatus)
 			authn.SMSLoginPublicRoute(sms, h.smsLogin)
 		})
 		// Account-link confirmation (authenticated: user re-auths as the existing account)
@@ -322,6 +339,22 @@ func (a *tenantSlugResolverAdapter) ResolveTenantIDBySlug(ctx context.Context, s
 		return 0, false, nil
 	}
 	return res.TenantID, true, nil
+}
+
+// ResolveTenantStatusBySlug backs the pre-auth tenant-status gate. Same
+// ok=false-for-unknown-slug contract as ResolveTenantIDBySlug.
+func (a *tenantSlugResolverAdapter) ResolveTenantStatusBySlug(ctx context.Context, slug string) (string, bool, error) {
+	if a.svc == nil || slug == "" {
+		return "", false, nil
+	}
+	res, err := a.svc.GetByName(ctx, slug)
+	if err != nil {
+		return "", false, err
+	}
+	if res == nil {
+		return "", false, nil
+	}
+	return res.Status, true, nil
 }
 
 func (a *ipRestrictionAdapter) GetActiveIPRestrictions(ctx context.Context, tenantID int64) ([]securityMiddleware.IPRestriction, error) {

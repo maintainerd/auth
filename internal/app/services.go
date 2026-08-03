@@ -208,7 +208,12 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// outbox → relay → {webhook, broker} plane wired above.
 	authEventSvc := authevent.NewAuthEventService(r.authEventRepo, tenantSettingSvc)
 
-	sessionSvc := authn.NewSessionService(r.userSessionRepo)
+	// Revoking a session must also revoke the OAuth refresh tokens minted from
+	// it, or the session ends while a long-lived credential keeps issuing fresh
+	// access tokens. The scope of each revoke is chosen by the caller — see
+	// refreshRevokerAdapter.
+	refreshRevoker := refreshRevokerAdapter{tokens: r.oauthRefreshTokenRepo}
+	sessionSvc := authn.NewSessionService(r.userSessionRepo, refreshRevoker)
 	iamClientRepo := newIAMClientRepo(db)
 	iamTenantRepo := newIAMTenantRepo(db)
 	iamUserRepo := newIAMUserRepo(db)
@@ -295,7 +300,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		userTrustedDeviceService: user.NewUserTrustedDeviceService(r.userTrustedDeviceRepo),
 		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), r.emailTemplateRepo, newInviteRegistrationFlowRepo(db)),
 		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
-		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), userSessionRepo),
+		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), userSessionRepo, refreshRevoker),
 		emailVerificationService: emailVerificationSvc,
 		magicLinkService:         authn.NewMagicLinkService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.emailTemplateRepo),
 		setupService: setup.NewSetupService(db, r.userRepo, r.tenantRepo, r.tenantMemberRepo, r.clientRepo, r.roleRepo, r.userRoleRepo, r.userIdentityRepo, r.profileRepo,
@@ -333,7 +338,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		oauthSessionService:          oauth.NewOAuthSessionService(db, oauthClientRepo, oauthUserRepo, r.oauthRefreshTokenRepo, authEventSvc),
 		oauthCIBAService:             oauth.NewOAuthCIBAService(db, oauthClientRepo, r.oauthCIBARequestRepo, oauthUserRepo, authEventSvc, r.securitySettingRepo),
 		oauthRegisterService:         oauth.NewOAuthRegisterService(db, oauthClientRepo, oauthClientURIRepo, oauthTenantRepo, authEventSvc),
-		accountService:               user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc, r.securitySettingRepo, r.smsOtpRepo, r.userPasswordHistoryRepo, userSessionRepo),
+		accountService:               user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc, r.securitySettingRepo, r.smsOtpRepo, r.userPasswordHistoryRepo, sessionRevokerAdapter{sessions: userSessionRepo}, refreshRevoker),
 		smsLoginService:              authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo),
 		mfaService:                   mfaSvc,
 		webAuthnService:              webAuthnSvc,

@@ -81,6 +81,7 @@ type ClientResponseDTO struct {
 	IsSystem          bool                         `json:"is_system"`
 	BrandingUUID      *string                      `json:"branding_id,omitempty"`
 	AllowRegistration bool                         `json:"allow_registration"`
+	AllowMagicLink    bool                         `json:"allow_magic_link"`
 
 	// OIDC Session Management
 	BackchannelLogoutURI             *string `json:"backchannel_logout_uri,omitempty"`
@@ -168,6 +169,7 @@ type ClientCreateRequestDTO struct {
 	IdentityProviderUUID string         `json:"identity_provider_id"`
 	BrandingUUID         *string        `json:"branding_id,omitempty"`
 	AllowRegistration    *bool          `json:"allow_registration,omitempty"`
+	AllowMagicLink       *bool          `json:"allow_magic_link,omitempty"`
 
 	// ServiceUUID binds this client to a service, making it that service's
 	// credential. A token issued to a bound client carries the `svc` claim, which is
@@ -194,6 +196,7 @@ type ClientUpdateRequestDTO struct {
 	Status            string         `json:"status"`
 	BrandingUUID      *string        `json:"branding_id,omitempty"`
 	AllowRegistration *bool          `json:"allow_registration,omitempty"`
+	AllowMagicLink    *bool          `json:"allow_magic_link,omitempty"`
 
 	// ServiceUUID binds this client to a service (see the create DTO). Sending an
 	// empty string unbinds it; omitting the field leaves the binding unchanged.

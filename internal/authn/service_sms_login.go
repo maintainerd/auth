@@ -310,7 +310,17 @@ func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub stri
 		if err := enforceConcurrentLimitWithPolicy(ctx, s.sessionService, user.UserUUID, user.UserID, policy); err != nil {
 			return nil, err
 		}
-		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, clientTenantID(client), middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy)
+		// SMS OTP proves possession of a phone: amr "sms", still a single factor.
+		smsAttrs := SessionAttributes{
+			AMR:                []string{"sms"},
+			ACR:                "1",
+			IdentityProviderID: connectedSystemIdentityProviderID(client),
+		}
+		if client != nil && client.ClientID > 0 {
+			cid := client.ClientID
+			smsAttrs.ClientID = &cid
+		}
+		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, clientTenantID(client), middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx), policy, smsAttrs)
 		if err != nil {
 			return nil, err
 		}

@@ -8,10 +8,11 @@ import (
 // (logo + colors) consumed by both auth-console and auth-identity. A tenant has
 // many branding rows: one immutable system record (is_system) and any number of
 // custom ones, with exactly one active (is_active) that drives the global look.
-// All theme tokens (primary/secondary colors, panel/sidebar/app backgrounds,
-// fonts, …) live in the `metadata` JSONB so the palette can grow without schema
-// changes. Only stable, first-class fields get columns (logo, favicon, legal
-// URLs and the selected hosted-login layout). Custom CSS remains unsupported.
+// Theme tokens (primary/secondary colors, panel/sidebar/app backgrounds,
+// fonts, …), the hosted-login layout, and logo label preferences all live in
+// the `metadata` JSONB so the palette can grow without schema changes. Only
+// stable, first-class fields get columns (logo, favicon, legal URLs). Custom
+// CSS remains unsupported.
 func CreateBrandingTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
@@ -20,10 +21,7 @@ CREATE TABLE IF NOT EXISTS branding (
     branding_uuid        UUID NOT NULL UNIQUE,
     tenant_id            BIGINT NOT NULL,
     name                 VARCHAR(100),
-    layout               VARCHAR(32) NOT NULL DEFAULT 'centered',
     company_name         VARCHAR(255),
-    logo_label           VARCHAR(255),
-    show_logo_label      BOOLEAN NOT NULL DEFAULT true,
     logo_url             VARCHAR(2048),
     logo_data            BYTEA,
     logo_content_type    VARCHAR(255),
@@ -53,16 +51,6 @@ BEGIN
     END IF;
 END$$;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'chk_branding_layout'
-    ) THEN
-        ALTER TABLE branding
-            ADD CONSTRAINT chk_branding_layout
-            CHECK (layout IN ('centered', 'full_page', 'split'));
-    END IF;
-END$$;
 -- NOTE: FK constraints for created_by/updated_by are added in migration 026
 -- (users table) since this table is created before users.
 

@@ -21,14 +21,24 @@ type Tenant struct {
 	Name        string
 	DisplayName string
 	Description string
-	Identifier  string
-	Status      string
-	IsSystem    bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// Identifier is the tenant slug. The tenants.identifier COLUMN was dropped —
+	// the DNS-safe name is now the slug — so this must be gorm:"-" or every
+	// SELECT through this projection asks for a column that no longer exists.
+	// Mirrored from Name in AfterFind, matching internal/oauth's projection.
+	Identifier string `gorm:"-"`
+	Status     string
+	IsSystem   bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 func (Tenant) TableName() string { return "tenants" }
+
+// AfterFind mirrors the tenant name into Identifier (the slug) after every load.
+func (t *Tenant) AfterFind(_ *gorm.DB) error {
+	t.Identifier = t.Name
+	return nil
+}
 
 type IdentityProvider struct {
 	IdentityProviderID   int64
@@ -70,10 +80,15 @@ type Client struct {
 	SessionAbsoluteTimeout *int
 	BrandingID             *int64
 	AllowRegistration      bool
-	IdentityProvider       *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
-	ConnectedProviders     *[]ClientIdentityProvider
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	AllowMagicLink         bool `gorm:"column:allow_magic_link;not null;default:false"`
+	// Tenant is preloaded by the client repository. Declaring it here is what
+	// lets the token realm be derived from the tenant (stable across every read
+	// path) rather than from IdentityProvider, which is a gorm:"-" phantom.
+	Tenant             *Tenant           `gorm:"foreignKey:TenantID;references:TenantID"`
+	IdentityProvider   *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	ConnectedProviders *[]ClientIdentityProvider
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 func (Client) TableName() string { return "clients" }

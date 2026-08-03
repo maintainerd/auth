@@ -113,3 +113,23 @@ const (
 	DefaultGRPCAddr             = ":50051"
 	DefaultDiscoveryCacheMaxAge = "public, max-age=3600"
 )
+
+// Session revocation reasons.
+//
+// These are a CLOSED vocabulary: user_sessions.revoked_reason carries a CHECK
+// constraint (migration 046) listing exactly these values, so a free-text reason
+// makes the UPDATE fail with SQLSTATE 23514 the moment it matches a live row —
+// which is how "sign out everywhere", admin revoke, password change and password
+// reset were all silently broken. Add a constant here AND to that CHECK together.
+const (
+	SessionRevokeLogout         = "logout"
+	SessionRevokeAdmin          = "admin_revoke"
+	SessionRevokePasswordChange = "password_change"
+	SessionRevokePasswordReset  = "password_reset"
+	SessionRevokeMFAChange      = "mfa_change"
+	SessionRevokeExpired        = "session_expired"
+	SessionRevokeConcurrent     = "concurrent_limit"
+	SessionRevokeSuspicious     = "suspicious_activity"
+	SessionRevokeUserRevoke     = "user_revoke"
+	SessionRevokeRoleChange     = "role_change"
+)

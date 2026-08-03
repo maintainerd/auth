@@ -87,6 +87,17 @@ var (
 	// Cookie Config
 	CookieSecure   bool   // defaults true; set COOKIE_SECURE=false for local dev
 	CookieSameSite string // "strict", "lax", or "none"; defaults "lax"
+	// CookieDomain scopes auth cookies to a shared parent domain so every
+	// FIRST-PARTY surface under it (identity, console, and any app the operator
+	// hosts there) shares one session — sign in once, sign out once. Empty means
+	// host-only, which keeps each surface's session independent.
+	//
+	// Setting this trades the __Host- prefix for __Secure-: __Host- forbids a
+	// Domain attribute by definition. Only set it for a domain whose subdomains
+	// you control, since any of them could then set a cookie for the parent.
+	// External relying parties live on other domains and are unaffected either
+	// way — they hold their own sessions and are logged out via OIDC, not cookies.
+	CookieDomain string
 )
 
 // Init loads all configuration from environment variables (and an optional .env file).
@@ -217,6 +228,7 @@ func Init() error {
 	// Cookie Config
 	CookieSecure = GetEnvOrDefault("COOKIE_SECURE", "true") != "false"
 	CookieSameSite = GetEnvOrDefault("COOKIE_SAMESITE", "lax")
+	CookieDomain = strings.TrimSpace(GetEnvOrDefault("COOKIE_DOMAIN", ""))
 
 	// Logging
 	LogLevel = GetEnvOrDefault("LOG_LEVEL", "info")

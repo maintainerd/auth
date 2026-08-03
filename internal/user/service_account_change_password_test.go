@@ -51,6 +51,10 @@ type stubSessionRevoker struct {
 	revokeExceptCalled bool
 }
 
+// WithTx returns the same stub: the revoke must join the password-change
+// transaction, and the stub records the call either way.
+func (s *stubSessionRevoker) WithTx(*gorm.DB) SessionRevoker { return s }
+
 func (s *stubSessionRevoker) RevokeAllByUserID(int64, string) error {
 	s.revokeAllCalled = true
 	return s.revokeAllErr

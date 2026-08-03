@@ -3,9 +3,11 @@ package authn
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"go.opentelemetry.io/otel"
@@ -36,12 +38,31 @@ type SessionService interface {
 	ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error
 }
 
-type sessionService struct {
-	sessionRepo UserSessionRepository
+// RefreshTokenRevoker is the slice of the OAuth refresh-token store this
+// package needs.
+//
+// Declared here rather than importing oauth.OAuthRefreshTokenRevoker because
+// internal/oauth already imports internal/authn; importing back would be a
+// cycle. internal/app owns the adapter that binds this to the real repository.
+type RefreshTokenRevoker interface {
+	RevokeByUserID(userID int64) (int64, error)
+	RevokeBySession(sessionUUID uuid.UUID) (int64, error)
 }
 
-func NewSessionService(sessionRepo UserSessionRepository) SessionService {
-	return &sessionService{sessionRepo: sessionRepo}
+type sessionService struct {
+	sessionRepo    UserSessionRepository
+	refreshRevoker RefreshTokenRevoker // optional; nil disables refresh revocation
+}
+
+// NewSessionService builds the session service. refreshRevoker is variadic so
+// existing callers and tests that do not care about OAuth refresh tokens keep
+// compiling; when omitted, refresh revocation is skipped.
+func NewSessionService(sessionRepo UserSessionRepository, refreshRevoker ...RefreshTokenRevoker) SessionService {
+	s := &sessionService{sessionRepo: sessionRepo}
+	if len(refreshRevoker) > 0 {
+		s.refreshRevoker = refreshRevoker[0]
+	}
+	return s
 }
 
 func (s *sessionService) ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error) {
@@ -82,6 +103,19 @@ func (s *sessionService) RevokeSession(ctx context.Context, userID int64, sessio
 		return err
 	}
 
+	// Revoke only the refresh tokens minted from THIS session. Ending one
+	// browser must not sign the user out of their other browsers or their
+	// phone — each of those holds a different session and different tokens.
+	// Without this the session row went away but its refresh token stayed
+	// spendable, so the "logged out" browser could mint a fresh access token.
+	if s.refreshRevoker != nil {
+		if _, err := s.refreshRevoker.RevokeBySession(sessionUUID); err != nil {
+			// Best-effort: the session is already revoked, which is what ends
+			// the login. Do not fail an otherwise successful logout.
+			span.RecordError(err)
+		}
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
@@ -96,15 +130,54 @@ func (s *sessionService) RevokeAllSessions(ctx context.Context, userID int64, re
 		return err
 	}
 
+	// Revoking every session must also revoke every OAuth refresh token, or the
+	// control is theatre: "sign out everywhere" (and password change/reset, which
+	// route here) would drop the session rows while a stolen refresh token kept
+	// minting fresh access tokens indefinitely.
+	//
+	// This is the ONE place a global revoke is correct — it is an explicit,
+	// user-initiated "everywhere" act or a credential change. An ordinary logout
+	// is per-session and must never reach here.
+	if s.refreshRevoker != nil {
+		if _, err := s.refreshRevoker.RevokeByUserID(userID); err != nil {
+			// Best-effort: the session rows are already gone, which is the
+			// primary control. Surfacing this would fail a logout that mostly
+			// succeeded.
+			span.RecordError(err)
+		}
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
-func (s *sessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserSession, error) {
-	return s.CreateSessionWithPolicy(ctx, userID, tenantID, ipAddress, userAgent, defaultEffectiveSessionPolicy())
+// SessionAttributes carries the authentication facts a session should record.
+//
+// These are properties of the AUTHENTICATION EVENT, not of the token that
+// happens to be minted from it: acr/amr describe how the user proved who they
+// are, identity_provider_id which provider did it, client_id where the session
+// was established, and idp_session_id the upstream session for a federated
+// login (needed to honour an upstream back-channel logout). Every one of these
+// columns already existed and was never written — sessions were indistinguishable
+// from one another, and acr was hardcoded "1" even for MFA-completed logins.
+//
+// A struct rather than more positional parameters, because the two call paths
+// reach this through runtime type assertions (see service_security_policy.go);
+// adding fields here does not change the method signature they assert on.
+type SessionAttributes struct {
+	AMR                []string
+	ACR                string
+	ClientID           *int64
+	IdentityProviderID *int64
+	// IDPSessionID is the upstream provider's `sid`, for federated logins only.
+	IDPSessionID *string
 }
 
-func (s *sessionService) CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy) (*UserSession, error) {
+func (s *sessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*UserSession, error) {
+	return s.CreateSessionWithPolicy(ctx, userID, tenantID, ipAddress, userAgent, defaultEffectiveSessionPolicy(), SessionAttributes{})
+}
+
+func (s *sessionService) CreateSessionWithPolicy(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string, policy secpolicy.EffectiveSessionPolicy, attrs SessionAttributes) (*UserSession, error) {
 	_, span := otel.Tracer("service").Start(ctx, "session.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -126,13 +199,22 @@ func (s *sessionService) CreateSessionWithPolicy(ctx context.Context, userID, te
 		uaPtr = &userAgent
 	}
 
+	acr := strings.TrimSpace(attrs.ACR)
+	if acr == "" {
+		acr = "1"
+	}
+
 	session := &UserSession{
 		UserID:             userID,
 		TenantID:           tenantID,
+		ClientID:           attrs.ClientID,
+		IdentityProviderID: attrs.IdentityProviderID,
 		AuthTime:           now,
 		IPAddress:          ipPtr,
 		UserAgent:          uaPtr,
-		ACR:                "1",
+		AMR:                pq.StringArray(attrs.AMR),
+		ACR:                acr,
+		IDPSessionID:       attrs.IDPSessionID,
 		IdleTimeoutSeconds: policy.IdleTimeoutSeconds,
 		LastActiveAt:       now,
 		ExpiresAt:          now.Add(time.Duration(policy.AbsoluteTimeoutSeconds) * time.Second),

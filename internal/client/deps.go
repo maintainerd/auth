@@ -80,6 +80,7 @@ type IdentityProvider struct {
 	IsDefault            bool
 	IsSystem             bool
 	AllowRegistration    bool
+	AllowMagicLink       bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 	Tenant               *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`

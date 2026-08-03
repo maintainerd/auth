@@ -42,6 +42,7 @@ func (h *OAuthConnectionsHandler) ListConnections(w http.ResponseWriter, r *http
 	dto := OAuthConnectionsResponseDTO{
 		PasswordEnabled:     result.PasswordEnabled,
 		RegistrationEnabled: result.RegistrationEnabled,
+		MagicLinkEnabled:    result.MagicLinkEnabled,
 		Branding:            result.Branding,
 		Connections:         make([]OAuthConnectionDTO, 0, len(result.Connections)),
 	}

@@ -3,6 +3,7 @@ package authn
 import (
 	"context"
 	"errors"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 )
 
 type mockLogoutUserRepo struct {
+	findBySubFn      func(sub, clientID string) (*User, error)
 	findByUUIDFn     func(uuid.UUID) (*User, error)
 	findByIDFn       func(interface{}, ...string) (*User, error)
 	findByUsernameFn func(string) (*User, error)
@@ -62,6 +64,9 @@ func (m *mockLogoutUserRepo) FindByPhone(phone string) (*User, error) { return n
 func (m *mockLogoutUserRepo) FindSuperAdmin() (*User, error)          { return nil, nil }
 func (m *mockLogoutUserRepo) FindRoles(userID int64) ([]Role, error)  { return nil, nil }
 func (m *mockLogoutUserRepo) FindBySubAndClientID(sub, clientID string) (*User, error) {
+	if m.findBySubFn != nil {
+		return m.findBySubFn(sub, clientID)
+	}
 	return nil, nil
 }
 func (m *mockLogoutUserRepo) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[User], error) {
@@ -89,6 +94,7 @@ func (m *mockLogoutUserRepo) Paginate(c map[string]any, pg, lim int, p ...string
 
 type mockLogoutSessionService struct {
 	revokeAllSessionsFn func(int64) error
+	revokeSessionFn     func(int64, uuid.UUID) error
 }
 
 type recordingLogoutJTIDenylister struct {
@@ -111,6 +117,9 @@ func (m *mockLogoutSessionService) ListSessions(ctx context.Context, userID int6
 	return nil, nil
 }
 func (m *mockLogoutSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
+	if m.revokeSessionFn != nil {
+		return m.revokeSessionFn(userID, sessionUUID)
+	}
 	return nil
 }
 func (m *mockLogoutSessionService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
@@ -174,7 +183,7 @@ func TestLoginService_Logout(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("invalid UUID sub returns nil", func(t *testing.T) {
+	t.Run("unresolvable sub returns nil", func(t *testing.T) {
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{"sub": "not-a-uuid"})
 		tokenStr, _ := token.SignedString([]byte("secret"))
 		svc := &loginService{userRepo: &mockLogoutUserRepo{}, sessionService: &mockLogoutSessionService{}}
@@ -199,7 +208,7 @@ func TestLoginService_Logout(t *testing.T) {
 		tokenStr, _ := token.SignedString([]byte("secret"))
 
 		repo := &mockLogoutUserRepo{
-			findByUUIDFn: func(uuid.UUID) (*User, error) { return nil, errors.New("db error") },
+			findBySubFn: func(string, string) (*User, error) { return nil, errors.New("db error") },
 		}
 		svc := &loginService{userRepo: repo, sessionService: &mockLogoutSessionService{}}
 		err := svc.Logout(context.Background(), tokenStr)
@@ -207,14 +216,17 @@ func TestLoginService_Logout(t *testing.T) {
 	})
 
 	t.Run("session revoke error is returned", func(t *testing.T) {
-		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{"sub": userUUID.String()})
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{
+			"sub": userUUID.String(),
+			"sid": uuid.New().String(),
+		})
 		tokenStr, _ := token.SignedString([]byte("secret"))
 
 		repo := &mockLogoutUserRepo{
-			findByUUIDFn: func(uuid.UUID) (*User, error) { return &User{UserID: 1}, nil },
+			findBySubFn: func(string, string) (*User, error) { return &User{UserID: 1}, nil },
 		}
 		sess := &mockLogoutSessionService{
-			revokeAllSessionsFn: func(int64) error { return errors.New("revoke error") },
+			revokeSessionFn: func(int64, uuid.UUID) error { return errors.New("revoke error") },
 		}
 		svc := &loginService{userRepo: repo, sessionService: sess}
 		err := svc.Logout(context.Background(), tokenStr)
@@ -222,25 +234,99 @@ func TestLoginService_Logout(t *testing.T) {
 		assert.Contains(t, err.Error(), "revoke error")
 	})
 
-	t.Run("success revokes all sessions", func(t *testing.T) {
+	// A logout must never revoke a session it cannot identify.
+	//
+	// This used to fall back to RevokeAllSessions when the token carried no sid,
+	// which signed the user out of every OTHER browser and their phone — alarming
+	// behaviour, and it fired on every console logout because OAuth-minted tokens
+	// had no sid at all. Tokens are session-stamped at /authorize now; when a sid
+	// is genuinely absent the access token is already denylisted, and revoking
+	// nothing beats guessing.
+	t.Run("no sid revokes nothing rather than signing the user out everywhere", func(t *testing.T) {
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{"sub": userUUID.String()})
 		tokenStr, _ := token.SignedString([]byte("secret"))
 
-		called := false
 		repo := &mockLogoutUserRepo{
-			findByUUIDFn: func(uuid.UUID) (*User, error) { return &User{UserID: 42}, nil },
+			findBySubFn: func(string, string) (*User, error) { return &User{UserID: 42}, nil },
 		}
 		sess := &mockLogoutSessionService{
-			revokeAllSessionsFn: func(uid int64) error {
-				called = true
-				require.Equal(t, int64(42), uid)
+			revokeAllSessionsFn: func(int64) error {
+				t.Fatal("logout must not revoke all sessions: it would sign the user out of other browsers and mobile")
+				return nil
+			},
+			revokeSessionFn: func(int64, uuid.UUID) error {
+				t.Fatal("no session is identifiable, so none should be revoked")
 				return nil
 			},
 		}
 		svc := &loginService{userRepo: repo, sessionService: sess}
 		err := svc.Logout(context.Background(), tokenStr)
 		require.NoError(t, err)
-		require.True(t, called)
+	})
+
+	// Console and identity share one browser, one cookie domain and therefore one
+	// user_sessions row, so whichever logs out first revokes it and the other is
+	// signed out too. The second logout then finds it already gone — that is a
+	// successful logout, not an error.
+	t.Run("already-revoked session is a successful logout", func(t *testing.T) {
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{
+			"sub": userUUID.String(),
+			"sid": uuid.New().String(),
+		})
+		tokenStr, _ := token.SignedString([]byte("secret"))
+
+		repo := &mockLogoutUserRepo{
+			findBySubFn: func(string, string) (*User, error) { return &User{UserID: 42}, nil },
+		}
+		sess := &mockLogoutSessionService{
+			revokeSessionFn: func(int64, uuid.UUID) error {
+				return apperror.NewNotFound("session not found")
+			},
+		}
+		svc := &loginService{userRepo: repo, sessionService: sess}
+		require.NoError(t, svc.Logout(context.Background(), tokenStr))
+	})
+
+	// The subject is a user_identities.sub, not users.user_uuid. A federated
+	// subject (Google, Cognito) is usually not a UUID at all — parsing it as one
+	// made logout a silent no-op for every federated user.
+	t.Run("federated non-uuid sub still resolves the user and revokes its session", func(t *testing.T) {
+		sessionUUID := uuid.New()
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{
+			"sub":       "109876543210987654321", // a Google-shaped subject
+			"client_id": "acme-spa",
+			"sid":       sessionUUID.String(),
+		})
+		tokenStr, _ := token.SignedString([]byte("secret"))
+
+		var gotSub, gotClient string
+		repo := &mockLogoutUserRepo{
+			findBySubFn: func(sub, clientID string) (*User, error) {
+				gotSub, gotClient = sub, clientID
+				return &User{UserID: 7}, nil
+			},
+		}
+
+		var revoked uuid.UUID
+		var revokedUser int64
+		sess := &mockLogoutSessionService{
+			revokeSessionFn: func(uid int64, sid uuid.UUID) error {
+				revokedUser, revoked = uid, sid
+				return nil
+			},
+			revokeAllSessionsFn: func(int64) error {
+				t.Fatal("must revoke only this session, not every device")
+				return nil
+			},
+		}
+
+		svc := &loginService{userRepo: repo, sessionService: sess}
+		require.NoError(t, svc.Logout(context.Background(), tokenStr))
+
+		assert.Equal(t, "109876543210987654321", gotSub)
+		assert.Equal(t, "acme-spa", gotClient)
+		assert.Equal(t, int64(7), revokedUser)
+		assert.Equal(t, sessionUUID, revoked)
 	})
 
 	t.Run("success denylists access token jti", func(t *testing.T) {

@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -236,7 +237,7 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 	}
 
 	// Generate tokens.
-	result, oerr := s.generateTokens(ctx, sub, user, client, strings.Join([]string(authCode.Scope), " "), authCode.Nonce, req.DPoPThumbprint)
+	result, oerr := s.generateTokens(ctx, sub, user, client, strings.Join([]string(authCode.Scope), " "), authCode.Nonce, req.DPoPThumbprint, true, authCode.UserSessionUUID)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "token generation failed")
 		return nil, oerr
@@ -331,6 +332,38 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 		return nil, apperror.NewOAuthInvalidGrant("the refresh token was not issued to this tenant")
 	}
 
+	// Verify the DPoP binding (RFC 9449 §5). A refresh token issued to a
+	// proofing client is sender-constrained: it may only be redeemed by a caller
+	// that proves possession of the SAME key. Without this the binding is
+	// decorative — a stolen refresh token could be replayed with any freshly
+	// generated key, or with no proof at all, and be honoured.
+	if storedToken.DPoPJKT != nil && *storedToken.DPoPJKT != "" {
+		if req.DPoPThumbprint == "" {
+			span.SetStatus(codes.Error, "dpop proof missing")
+			return nil, apperror.NewOAuthInvalidGrant("the refresh token is bound to a DPoP key and requires a DPoP proof")
+		}
+		// Constant-time: the thumbprint is not a secret, but comparing it in
+		// constant time costs nothing and keeps the token path uniform.
+		if subtle.ConstantTimeCompare([]byte(*storedToken.DPoPJKT), []byte(req.DPoPThumbprint)) != 1 {
+			s.authEventService.Log(ctx, authevent.AuthEventInput{
+				TenantID:    storedToken.TenantID,
+				ActorUserID: &storedToken.UserID,
+				IPAddress:   middleware.ClientIPFromContext(ctx),
+				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+				Category:    authevent.AuthEventCategoryAuthn,
+				EventType:   authevent.AuthEventTypeTokenReuse,
+				Severity:    authevent.AuthEventSeverityCritical,
+				Result:      authevent.AuthEventResultFailure,
+				Description: ptr.Ptr(fmt.Sprintf("DPoP key mismatch on refresh, revoking family %s", storedToken.FamilyID)),
+			})
+			// A proof over a different key means the token is in hands other than
+			// the ones it was issued to — treat it exactly like reuse.
+			_, _ = s.refreshTokenRepo.RevokeByFamily(storedToken.FamilyID)
+			span.SetStatus(codes.Error, "dpop key mismatch")
+			return nil, apperror.NewOAuthInvalidGrant("the refresh token is bound to a different DPoP key")
+		}
+	}
+
 	// Rotate: revoke the old token and issue a new one in the same family.
 	// When token rotation is disabled, the existing token is reused and no new
 	// refresh token is issued — only access/id tokens are regenerated.
@@ -373,7 +406,7 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 		}
 
 		// Generate new access + ID tokens.
-		result, oerr = s.generateTokens(ctx, sub, user, client, scope, nil, req.DPoPThumbprint)
+		result, oerr = s.generateTokens(ctx, sub, user, client, scope, nil, req.DPoPThumbprint, false, storedToken.UserSessionUUID)
 		if oerr != nil {
 			return oerr
 		}
@@ -395,6 +428,12 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 				TenantID:  client.TenantID,
 				Scope:     parseScopeFields(scope),
 				ExpiresAt: time.Now().Add(rtTTL),
+				// Both bindings are properties of the family, not of the individual
+				// token — carry them across rotation so a DPoP-bound family can
+				// never silently downgrade to bearer on its next hop, and so a
+				// rotated token stays revocable with its session.
+				DPoPJKT:         storedToken.DPoPJKT,
+				UserSessionUUID: storedToken.UserSessionUUID,
 			}
 			if _, err := txRefreshRepo.Create(newToken); err != nil {
 				return err
@@ -721,8 +760,17 @@ func (s *oauthTokenService) SetClientPermissionResolver(r ClientPermissionResolv
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-// generateTokens creates an access token, ID token, and a new refresh token.
-func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *User, client *Client, scope string, nonce *string, dpopThumbprint string) (*OAuthTokenResult, *apperror.OAuthError) {
+// generateTokens creates an access token, an ID token, and — when
+// issueRefreshToken is set and the scope allows it — a brand-new refresh token
+// family.
+//
+// issueRefreshToken MUST be false on the refresh_token grant. That path owns
+// rotation: it revokes the presented token and re-issues into the SAME family.
+// Letting this helper also mint here inserted a second row in a NEW family on
+// every refresh whose raw value was then discarded by the caller — unreachable
+// rows that still counted against the per-client active-token limit and were
+// written outside the rotation transaction.
+func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *User, client *Client, scope string, nonce *string, dpopThumbprint string, issueRefreshToken bool, sessionUUID *uuid.UUID) (*OAuthTokenResult, *apperror.OAuthError) {
 	issuer := ""
 	audience := ""
 	identifier := ""
@@ -741,6 +789,12 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	}
 	accessTokenOpts.AMR = []string{jwt.AMRPassword}
 	accessTokenOpts.ACR = jwt.ACRLevel1
+	// Stamp the originating browser session. This is what lets logout revoke a
+	// single session: without a sid the OAuth token is unattributable and logout
+	// can only revoke everything or nothing.
+	if sessionUUID != nil {
+		accessTokenOpts.SessionID = sessionUUID.String()
+	}
 
 	accessToken, err := oauthTokenGenerateAccessTokenWithOptionsContext(ctx, sub, scope, issuer, audience, identifier, providerID, accessTokenOpts)
 	if err != nil {
@@ -764,7 +818,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	// Refresh tokens are only issued when offline_access scope is requested
 	// (RFC 6749 §1.5) or for authorization_code grant with a valid DPoP binding.
 	var rawRT string
-	if hasOfflineAccess(scope) {
+	if issueRefreshToken && hasOfflineAccess(scope) {
 		rawRT, err = oauthTokenGenerateRandomString(refreshTokenByteLength)
 		if err != nil {
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
@@ -780,6 +834,10 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 			TenantID:  client.TenantID,
 			Scope:     parseScopeFields(scope),
 			ExpiresAt: time.Now().Add(rtTTL),
+			// RFC 9449 §5: bind the refresh token to the proofing key so a stolen
+			// token is useless without the private key that minted it.
+			DPoPJKT:         ptr.PtrOrNil(dpopThumbprint),
+			UserSessionUUID: sessionUUID,
 		}
 		if _, err := s.refreshTokenRepo.Create(newRT); err != nil {
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")

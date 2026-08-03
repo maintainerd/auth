@@ -240,7 +240,7 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 		configJSON = nil
 	}
 
-	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, nil, req.AllowRegistration, nil, nil, nil, nil, actorUUID, nil, nil)
+	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, nil, req.AllowRegistration, nil, nil, nil, nil, nil, actorUUID, nil, nil)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}

@@ -6,6 +6,19 @@ import (
 	"gorm.io/datatypes"
 )
 
+// Metadata keys for branding preferences that live in the `metadata` JSONB
+// rather than dedicated columns: the hosted-login layout and the per-surface
+// logo labels (console vs public identity). Only name, company name, logo,
+// favicon, and legal URLs get columns.
+const (
+	BrandingMetadataLayout              = "layout"
+	BrandingMetadataLogoLabel           = "logo_label"
+	BrandingMetadataShowLogoLabel       = "show_logo_label"
+	BrandingMetadataLogoDetail          = "logo_detail"
+	BrandingMetadataIdentityLogoLabel   = "identity_logo_label"
+	BrandingMetadataIdentityShowLogoLabel = "identity_show_logo_label"
+)
+
 // BrandingResponseDTO is the JSON representation of a branding record. Theme
 // tokens (colors, fonts, panel backgrounds, …) live in metadata.
 type BrandingResponseDTO struct {
@@ -16,7 +29,10 @@ type BrandingResponseDTO struct {
 	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
 	LogoLabel         string         `json:"logo_label"`
+	LogoDetail        string         `json:"logo_detail"`
 	ShowLogoLabel     bool           `json:"show_logo_label"`
+	IdentityLogoLabel string         `json:"identity_logo_label"`
+	IdentityShowLogoLabel bool       `json:"identity_show_logo_label"`
 	LogoURL           string         `json:"logo_url"`
 	FaviconURL        string         `json:"favicon_url"`
 	SupportURL        string         `json:"support_url"`
@@ -33,7 +49,10 @@ type BrandingUpdateRequestDTO struct {
 	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
 	LogoLabel         string         `json:"logo_label"`
+	LogoDetail        string         `json:"logo_detail"`
 	ShowLogoLabel     *bool          `json:"show_logo_label,omitempty"`
+	IdentityLogoLabel string         `json:"identity_logo_label"`
+	IdentityShowLogoLabel *bool      `json:"identity_show_logo_label,omitempty"`
 	LogoURL           string         `json:"logo_url"`
 	LogoData          string         `json:"logo_data,omitempty"`
 	LogoContentType   string         `json:"logo_content_type,omitempty"`
@@ -51,6 +70,16 @@ func (r BrandingUpdateRequestDTO) ShowLogoLabelOrDefault() bool {
 		return true
 	}
 	return *r.ShowLogoLabel
+}
+
+// IdentityShowLogoLabelOrDefault keeps older branding clients on the current
+// default: the identity logo label is visible unless the request explicitly
+// hides it.
+func (r BrandingUpdateRequestDTO) IdentityShowLogoLabelOrDefault() bool {
+	if r.IdentityShowLogoLabel == nil {
+		return true
+	}
+	return *r.IdentityShowLogoLabel
 }
 
 // Email template list response DTO (without body content)

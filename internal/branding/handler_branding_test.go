@@ -46,8 +46,16 @@ func TestBrandingHandler_List_Success(t *testing.T) {
 
 func TestBrandingHandler_Create_Layout(t *testing.T) {
 	svc := &mockBrandingService{
-		createFn: func(_ int64, _ string, layout string, _ string, logoLabel string, showLogoLabel bool, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
-			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), Layout: layout, LogoLabel: logoLabel, ShowLogoLabel: showLogoLabel}, nil
+		createFn: func(_ int64, _ string, _ string, _ string, _ string, metadata datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+			return &BrandingServiceDataResult{
+				BrandingUUID:          uuid.New(),
+				Layout:                metadataString(metadata, BrandingMetadataLayout),
+				LogoLabel:             metadataString(metadata, BrandingMetadataLogoLabel),
+				ShowLogoLabel:         metadataBool(metadata, BrandingMetadataShowLogoLabel, true),
+				LogoDetail:            metadataString(metadata, BrandingMetadataLogoDetail),
+				IdentityLogoLabel:     metadataString(metadata, BrandingMetadataIdentityLogoLabel),
+				IdentityShowLogoLabel: metadataBool(metadata, BrandingMetadataIdentityShowLogoLabel, true),
+			}, nil
 		},
 	}
 	h := NewBrandingHandler(svc)
@@ -107,7 +115,7 @@ func TestBrandingHandler_Update_ValidationError(t *testing.T) {
 
 func TestBrandingHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockBrandingService{
-		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, _ string, _ string, _ string, _ bool, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, _ string, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -121,12 +129,21 @@ func TestBrandingHandler_Update_ServiceError(t *testing.T) {
 
 func TestBrandingHandler_Update_Success(t *testing.T) {
 	svc := &mockBrandingService{
-		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, layout string, _ string, logoLabel string, showLogoLabel bool, _ string, _ string, _ datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
-			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme", Layout: layout, LogoLabel: logoLabel, ShowLogoLabel: showLogoLabel}, nil
+		updateByUUIDFn: func(_ uuid.UUID, _ int64, _ string, _ string, _ string, _ string, metadata datatypes.JSON, _ string, _ string, _ string) (*BrandingServiceDataResult, error) {
+			return &BrandingServiceDataResult{
+				BrandingUUID:          uuid.New(),
+				CompanyName:           "Acme",
+				Layout:                metadataString(metadata, BrandingMetadataLayout),
+				LogoLabel:             metadataString(metadata, BrandingMetadataLogoLabel),
+				ShowLogoLabel:         metadataBool(metadata, BrandingMetadataShowLogoLabel, true),
+				LogoDetail:            metadataString(metadata, BrandingMetadataLogoDetail),
+				IdentityLogoLabel:     metadataString(metadata, BrandingMetadataIdentityLogoLabel),
+				IdentityShowLogoLabel: metadataBool(metadata, BrandingMetadataIdentityShowLogoLabel, true),
+			}, nil
 		},
 	}
 	h := NewBrandingHandler(svc)
-	body := map[string]any{"company_name": "Acme", "layout": "split", "logo_label": "Acme Console", "show_logo_label": false}
+	body := map[string]any{"company_name": "Acme", "layout": "split", "logo_label": "Acme Console", "show_logo_label": false, "identity_logo_label": "Acme Public", "identity_show_logo_label": true, "logo_detail": "Console detail"}
 	r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/branding", body)), "branding_uuid", uuid.New().String())
 	w := httptest.NewRecorder()
 	h.Update(w, r)
@@ -134,6 +151,9 @@ func TestBrandingHandler_Update_Success(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"layout":"split"`)
 	assert.Contains(t, w.Body.String(), `"logo_label":"Acme Console"`)
 	assert.Contains(t, w.Body.String(), `"show_logo_label":false`)
+	assert.Contains(t, w.Body.String(), `"identity_logo_label":"Acme Public"`)
+	assert.Contains(t, w.Body.String(), `"identity_show_logo_label":true`)
+	assert.Contains(t, w.Body.String(), `"logo_detail":"Console detail"`)
 }
 
 func TestBrandingHandler_RestoreSystem_NoTenant(t *testing.T) {

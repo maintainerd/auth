@@ -13,10 +13,7 @@ type Branding struct {
 	BrandingUUID      uuid.UUID `gorm:"column:branding_uuid;type:uuid;uniqueIndex;not null" json:"branding_uuid"`
 	TenantID          int64     `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	Name              string    `gorm:"column:name;type:varchar(100)" json:"name"`
-	Layout            string    `gorm:"column:layout;type:varchar(32);not null;default:centered" json:"layout"`
 	CompanyName       string    `gorm:"column:company_name;type:varchar(255)" json:"company_name"`
-	LogoLabel         string    `gorm:"column:logo_label;type:varchar(255)" json:"logo_label"`
-	ShowLogoLabel     bool      `gorm:"column:show_logo_label;not null;default:true" json:"show_logo_label"`
 	LogoURL           string    `gorm:"column:logo_url;type:varchar(2048)" json:"logo_url"`
 	LogoData          []byte    `gorm:"column:logo_data;type:bytes" json:"-"`
 	LogoContentType   string    `gorm:"column:logo_content_type;type:varchar(255)" json:"-"`
@@ -24,8 +21,9 @@ type Branding struct {
 	SupportURL        string    `gorm:"column:support_url;type:varchar(2048)" json:"support_url"`
 	PrivacyPolicyURL  string    `gorm:"column:privacy_policy_url;type:varchar(2048)" json:"privacy_policy_url"`
 	TermsOfServiceURL string    `gorm:"column:terms_of_service_url;type:varchar(2048)" json:"terms_of_service_url"`
-	// Metadata holds all theme tokens (colors, fonts, panel backgrounds, …) as a
-	// flexible JSON object so the palette can extend without schema changes.
+	// Metadata holds all theme tokens (colors, fonts, panel backgrounds, …), the
+	// hosted-login layout, and logo label preferences as a flexible JSON object
+	// so the palette can extend without schema changes.
 	Metadata  datatypes.JSON `gorm:"column:metadata;type:jsonb;not null;default:'{}'" json:"metadata"`
 	IsSystem  bool           `gorm:"column:is_system;not null;default:false" json:"is_system"`
 	IsActive  bool           `gorm:"column:is_active;not null;default:false" json:"is_active"`

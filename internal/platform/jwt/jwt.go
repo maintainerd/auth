@@ -361,6 +361,13 @@ type RefreshTokenOptions struct {
 	// FamilyID groups rotated refresh tokens so reuse can revoke descendants.
 	FamilyID string
 
+	// SessionID binds the refresh token to the server-side session that
+	// authenticated it. Without it a refresh token outlives every revocation
+	// control — logout, password change/reset and "sign out everywhere" all
+	// revoke SESSIONS, so a token that is not session-bound simply mints a new
+	// one and the attacker is never evicted.
+	SessionID string
+
 	// AMR is the list of Authentication Methods References (RFC 8176) to
 	// carry through refresh, so the step-up context survives token rotation.
 	AMR []string
@@ -826,6 +833,9 @@ func GenerateRefreshTokenWithOptionsContext(ctx context.Context, userUUID, issue
 	if opts != nil && opts.ACR != "" {
 		claims["acr"] = opts.ACR
 	}
+	if opts != nil && strings.TrimSpace(opts.SessionID) != "" {
+		claims["sid"] = strings.TrimSpace(opts.SessionID)
+	}
 
 	alg := ""
 	if opts != nil {
@@ -1121,4 +1131,61 @@ func ParseTokenUnverified(rawToken string) (map[string]interface{}, string, erro
 		result[k] = v
 	}
 	return result, alg, nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Back-Channel Logout tokens (OpenID Connect Back-Channel Logout 1.0 §2.4)
+// ──────────────────────────────────────────────────────────────────────────────
+
+// BackchannelLogoutEventURI is the event identifier a logout token MUST carry.
+// Its presence is how a relying party distinguishes a logout token from an ID
+// token, so it is not optional.
+const BackchannelLogoutEventURI = "http://schemas.openid.net/event/backchannel-logout"
+
+// logoutTokenTTL is deliberately short: the token is consumed immediately by the
+// RP's back-channel endpoint and never held.
+const logoutTokenTTL = 2 * time.Minute
+
+// GenerateLogoutToken mints a logout token for one relying party.
+//
+// Per §2.4 the token carries `sub` and/or `sid` (we send both — `sid` is what
+// lets an RP end exactly the right session rather than every session for the
+// user), the `events` claim above, and a `jti` for replay detection. It MUST
+// NOT contain a `nonce`; a validator that accepts one cannot tell a logout
+// token from an ID token.
+func GenerateLogoutToken(issuer, audience, subject, sessionID string) (string, error) {
+	if issuer == "" || audience == "" {
+		return "", errors.New("issuer and audience are required for a logout token")
+	}
+	if subject == "" && sessionID == "" {
+		return "", errors.New("a logout token requires sub, sid, or both")
+	}
+
+	now := time.Now()
+	claims := jwtlib.MapClaims{
+		"iss": issuer,
+		"aud": audience,
+		"iat": jwtlib.NewNumericDate(now),
+		"exp": jwtlib.NewNumericDate(now.Add(logoutTokenTTL)),
+		"jti": generateSecureJTI(),
+		"events": map[string]any{
+			BackchannelLogoutEventURI: map[string]any{},
+		},
+	}
+	if subject != "" {
+		claims["sub"] = subject
+	}
+	if sessionID != "" {
+		claims["sid"] = sessionID
+	}
+
+	// generateTokenWithAlgorithm requires `sub`; a sid-only logout token is legal
+	// per spec, so sign it directly rather than through that helper.
+	priv, kid := defaultKeyStore.signingKey()
+	if priv == nil {
+		return "", errors.New("private key not initialized - call InitJWTKeys() first")
+	}
+	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
+	token.Header["kid"] = kid
+	return token.SignedString(priv)
 }

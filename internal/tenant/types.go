@@ -51,6 +51,29 @@ type TenantBootstrapResponseDTO struct {
 	RegistrationConfig *RegistrationConfigPublic `json:"registration_config,omitempty"`
 	Branding           *BrandingPublic           `json:"branding,omitempty"`
 	Client             *TenantBootstrapClientDTO `json:"client,omitempty"`
+	// Connections are the federated login options (identity providers) enabled
+	// on the resolved surface client, ordered by display order. They ride along
+	// with initialization so the hosted login page can render its provider
+	// buttons immediately, without a second round trip and without needing an
+	// in-flight OAuth authorize request to justify the lookup. Always non-nil:
+	// an empty array means "no federated providers", never "not yet known".
+	Connections []TenantBootstrapConnectionDTO `json:"connections"`
+	// MagicLinkEnabled reports whether this surface offers passwordless email
+	// sign-in. Off unless an operator enables it on the client.
+	MagicLinkEnabled bool `json:"magic_link_enabled"`
+}
+
+// TenantBootstrapConnectionDTO is one federated login option on the resolved
+// surface client. It mirrors the /oauth/connections projection field-for-field
+// so both entry points hand the login page the same shape. Provider secrets and
+// upstream config are never included.
+type TenantBootstrapConnectionDTO struct {
+	Identifier   string `json:"identifier"`
+	DisplayName  string `json:"display_name"`
+	Provider     string `json:"provider"`
+	ProviderType string `json:"provider_type"`
+	IsDefault    bool   `json:"is_default"`
+	DisplayOrder int    `json:"display_order"`
 }
 
 // TenantBootstrapTenantDTO is the public tenant projection embedded in the
@@ -103,16 +126,19 @@ type RegistrationConfigPublic struct {
 }
 
 type BrandingPublic struct {
-	Layout            string         `json:"layout"`
-	CompanyName       string         `json:"company_name"`
-	LogoLabel         string         `json:"logo_label"`
-	ShowLogoLabel     bool           `json:"show_logo_label"`
-	LogoURL           string         `json:"logo_url"`
-	FaviconURL        string         `json:"favicon_url"`
-	SupportURL        string         `json:"support_url"`
-	PrivacyPolicyURL  string         `json:"privacy_policy_url"`
-	TermsOfServiceURL string         `json:"terms_of_service_url"`
-	Metadata          datatypes.JSON `json:"metadata"`
+	Layout                string         `json:"layout"`
+	CompanyName           string         `json:"company_name"`
+	LogoLabel             string         `json:"logo_label"`
+	LogoDetail            string         `json:"logo_detail"`
+	ShowLogoLabel         bool           `json:"show_logo_label"`
+	IdentityLogoLabel     string         `json:"identity_logo_label"`
+	IdentityShowLogoLabel bool           `json:"identity_show_logo_label"`
+	LogoURL               string         `json:"logo_url"`
+	FaviconURL            string         `json:"favicon_url"`
+	SupportURL            string         `json:"support_url"`
+	PrivacyPolicyURL      string         `json:"privacy_policy_url"`
+	TermsOfServiceURL     string         `json:"terms_of_service_url"`
+	Metadata              datatypes.JSON `json:"metadata"`
 }
 
 // Create Tenant request DTO

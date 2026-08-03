@@ -74,4 +74,6 @@ graphify-out/
 # Air live reload temp
 .air.toml
 tmp/
-server
+# Anchored to the repo root: this is the compiled binary Air builds. Unanchored,
+# it also matched internal/server/, silently ignoring real source files there.
+/server

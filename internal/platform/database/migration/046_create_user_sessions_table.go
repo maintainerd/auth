@@ -33,8 +33,9 @@ CREATE TABLE IF NOT EXISTS user_sessions (
         REFERENCES identity_providers(identity_provider_id) ON DELETE SET NULL,
     CONSTRAINT chk_user_sessions_revoked_reason CHECK (
         revoked_reason IS NULL OR revoked_reason IN (
-            'logout', 'admin_revoke', 'password_change', 'mfa_change',
-            'session_expired', 'concurrent_limit', 'suspicious_activity'
+            'logout', 'admin_revoke', 'password_change', 'password_reset',
+            'mfa_change', 'session_expired', 'concurrent_limit',
+            'suspicious_activity', 'user_revoke', 'role_change'
         )
     )
 );

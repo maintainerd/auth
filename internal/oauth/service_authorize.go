@@ -478,8 +478,13 @@ func (s *oauthAuthorizeService) resolveAuthorizeClient(req OAuthAuthorizeRequest
 	return nil, nil
 }
 
+// isPublicOAuthSystemClientAllowed reports whether a system client may drive a
+// public authorize request. Only the two seeded surface clients qualify — the
+// identity app needs it to broker its own first-party federated logins, and the
+// console to sign its operators in. Their registered redirect_uris (plus PKCE)
+// remain the gate on where any resulting code can be delivered.
 func isPublicOAuthSystemClientAllowed(client *Client) bool {
-	return client != nil && client.Name == shared.SystemClientNameAuthConsole
+	return isSeededSurfaceClient(client)
 }
 
 // GetConsentChallenge implements OAuthAuthorizeService.
@@ -625,6 +630,7 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision OAut
 			CodeChallenge:       challenge.CodeChallenge,
 			CodeChallengeMethod: challenge.CodeChallengeMethod,
 			ExpiresAt:           time.Now().Add(authorizationCodeTTL),
+			UserSessionUUID:     callerSessionUUID(ctx),
 		}
 		if _, err := txAuthCodeRepo.Create(authCode); err != nil {
 			return err
@@ -773,6 +779,31 @@ func (s *oauthAuthorizeService) createConsentChallenge(ctx context.Context, clie
 	return challenge, nil
 }
 
+// callerSessionUUID extracts the browser session the current request is
+// authenticated with.
+//
+// OptionalUserContextMiddleware has already validated the caller's access-token
+// cookie and parsed its `sid` claim into the request context, so the session is
+// simply sitting there — it was never read. Carrying it onto the authorization
+// code is what makes OAuth-minted tokens session-attributable: without it every
+// console/identity token has no `sid`, and logout is forced to choose between
+// revoking ALL of the user's sessions (signing them out of other browsers and
+// their phone) or none at all.
+//
+// Returns nil when the request carried no session, which is legitimate for
+// non-browser callers; the token then simply has no `sid`.
+func callerSessionUUID(ctx context.Context) *uuid.UUID {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil || strings.TrimSpace(claims.SessionID) == "" {
+		return nil
+	}
+	parsed, err := uuid.Parse(claims.SessionID)
+	if err != nil {
+		return nil
+	}
+	return &parsed
+}
+
 // issueAuthorizationCode creates an authorization code and returns the full
 // redirect URI with the code and state appended.
 func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, client *Client, userID int64, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
@@ -792,6 +823,7 @@ func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, clie
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(authorizationCodeTTL),
+		UserSessionUUID:     callerSessionUUID(ctx),
 	}
 
 	if req.State != "" {

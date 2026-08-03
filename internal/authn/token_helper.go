@@ -64,11 +64,19 @@ func authnTokenRealm(client *Client) string {
 	if client == nil {
 		return ""
 	}
-	if client.IdentityProvider != nil && client.IdentityProvider.Tenant != nil && client.IdentityProvider.Tenant.Identifier != "" {
-		return client.IdentityProvider.Tenant.Identifier
+	// The realm is the TENANT, never an identity provider — matching
+	// oauth.tokenRealm and the federation path. It previously preferred
+	// client.IdentityProvider (a gorm:"-" phantom, populated on some read paths
+	// and not others), so the same client produced a different provider_id
+	// depending on how it had been loaded: the IdP identifier at login, the
+	// tenant name after a refresh. Because the refresh path resolves the client
+	// by joining on identity_providers.identifier, that drift made the SECOND
+	// refresh fail with "client not found" — refresh worked exactly once.
+	if client.Tenant != nil && client.Tenant.Name != "" {
+		return client.Tenant.Name
 	}
-	if client.IdentityProvider != nil && client.IdentityProvider.Identifier != "" {
-		return client.IdentityProvider.Identifier
+	if client.IdentityProvider != nil && client.IdentityProvider.Tenant != nil && client.IdentityProvider.Tenant.Name != "" {
+		return client.IdentityProvider.Tenant.Name
 	}
 	if client.Identifier != nil {
 		return *client.Identifier
@@ -145,9 +153,12 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 	}
 
 	rtOpts := &jwt.RefreshTokenOptions{
-		FamilyID:         authCtx.RefreshTokenFamilyID,
-		AMR:              authCtx.AMR,
-		ACR:              authCtx.ACR,
+		FamilyID: authCtx.RefreshTokenFamilyID,
+		AMR:      authCtx.AMR,
+		ACR:      authCtx.ACR,
+		// Bind the refresh token to this session, so revoking the session
+		// revokes the refresh token with it.
+		SessionID:        authCtx.SessionID,
 		SigningAlgorithm: authCtx.SigningAlgorithm,
 	}
 	if authCtx.RefreshTokenTTLSeconds > 0 {

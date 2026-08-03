@@ -30,8 +30,11 @@ type OAuthConnectionInfo struct {
 type OAuthConnectionsResult struct {
 	PasswordEnabled     bool
 	RegistrationEnabled bool
-	Branding            *branding.ClientBrandingResponse
-	Connections         []OAuthConnectionInfo
+	// MagicLinkEnabled reports whether this client offers passwordless email
+	// sign-in. Off unless an operator turns it on for the client.
+	MagicLinkEnabled bool
+	Branding         *branding.ClientBrandingResponse
+	Connections      []OAuthConnectionInfo
 }
 
 type OAuthConnectionsService interface {
@@ -59,7 +62,7 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 		span.SetStatus(codes.Error, "client lookup failed")
 		return nil, apperror.NewInternal("failed to load client", err)
 	}
-	allowedSystemClient := client != nil && client.IsSystem && client.Name == shared.SystemClientNameAuthConsole
+	allowedSystemClient := isSeededSurfaceClient(client)
 	if client == nil || client.Status != shared.StatusActive || (client.IsSystem && !allowedSystemClient) {
 		span.SetStatus(codes.Error, "client not found or inactive")
 		return nil, apperror.NewNotFound("unknown or inactive client")
@@ -84,6 +87,7 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 	result := &OAuthConnectionsResult{
 		PasswordEnabled:     allowedSystemClient,
 		RegistrationEnabled: allowedSystemClient,
+		MagicLinkEnabled:    client.AllowMagicLink,
 		Branding:            resolvedBranding,
 		Connections:         make([]OAuthConnectionInfo, 0, len(connections)),
 	}
@@ -118,6 +122,20 @@ func (s *oauthConnectionsService) ListConnections(ctx context.Context, clientID 
 
 	span.SetStatus(codes.Ok, "")
 	return result, nil
+}
+
+// isSeededSurfaceClient reports whether a client is one of the two seeded
+// first-party surface clients (auth-console, auth-identity). Those are the only
+// system clients that render a hosted login page, so they are the only ones
+// allowed to list their connections; every other system client is internal and
+// must not expose them. Non-system clients are never "seeded surface" clients —
+// callers gate on client.IsSystem separately.
+func isSeededSurfaceClient(client *Client) bool {
+	if client == nil || !client.IsSystem {
+		return false
+	}
+	return client.Name == shared.SystemClientNameAuthConsole ||
+		client.Name == shared.SystemClientNameAuthIdentity
 }
 
 // clientTenantID returns the tenant ID for the OAuth client. Uses the client's

@@ -19,10 +19,7 @@ type Branding struct {
 	Name              string         `gorm:"column:name;type:varchar(100)"`
 	IsSystem          bool           `gorm:"column:is_system;not null;default:false"`
 	IsActive          bool           `gorm:"column:is_active;not null;default:false"`
-	Layout            string         `gorm:"column:layout;type:varchar(32);not null;default:centered"`
 	CompanyName       string         `gorm:"column:company_name;type:varchar(255)"`
-	LogoLabel         string         `gorm:"column:logo_label;type:varchar(255)"`
-	ShowLogoLabel     bool           `gorm:"column:show_logo_label;not null;default:true"`
 	LogoURL           string         `gorm:"column:logo_url;type:text"`
 	FaviconURL        string         `gorm:"column:favicon_url;type:text"`
 	SupportURL        string         `gorm:"column:support_url;type:text"`
@@ -254,6 +251,17 @@ type themePalette struct {
 
 func mustBrandingMetadata(p themePalette) string {
 	payload := map[string]any{
+		// Branding preferences (no dedicated columns — metadata owns them).
+		"layout":                   "centered",
+		"logo_label":               "Maintainerd-IAM",
+		"logo_detail":              "Identity and Access Management",
+		"show_logo_label":          true,
+		"identity_logo_label":      "Maintainerd",
+		"identity_show_logo_label": true,
+		"login_form_logo_detail":   "Open-source Cloud Platform",
+		// Brand sits above the card by default, so the logo reads as the page's
+		// identity rather than as a row inside the form.
+		"login_form_logo_placement": "above-form",
 		"colors": map[string]string{
 			"primary":                     p.Primary,
 			"secondary":                   p.Secondary,
@@ -465,16 +473,13 @@ func SeedBranding(db *gorm.DB, tenantID int64) error {
 
 		isActive := t.active && !hasActive
 		b := Branding{
-			BrandingUUID:  uuid.New(),
-			TenantID:      tenantID,
-			Name:          t.name,
-			Layout:        "centered",
-			CompanyName:   "Maintainerd-Auth",
-			LogoLabel:     "Maintainerd-IAM",
-			ShowLogoLabel: true,
-			IsSystem:      true,
-			IsActive:      isActive,
-			Metadata:      datatypes.JSON([]byte(t.metadata)),
+			BrandingUUID: uuid.New(),
+			TenantID:     tenantID,
+			Name:         t.name,
+			CompanyName:  "Maintainerd-Auth",
+			IsSystem:     true,
+			IsActive:     isActive,
+			Metadata:     datatypes.JSON([]byte(t.metadata)),
 		}
 		if err := db.Create(&b).Error; err != nil {
 			return err

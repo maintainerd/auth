@@ -3,6 +3,7 @@ package authn
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -675,17 +676,56 @@ func (s *loginService) Logout(ctx context.Context, accessToken string) error {
 		return nil
 	}
 
-	userUUID, err := uuid.Parse(sub)
-	if err != nil {
-		return nil
-	}
-
-	user, err := s.userRepo.FindByUUID(userUUID)
+	// `sub` is a user_identities.sub, NOT users.user_uuid.
+	//
+	// For a built-in (system-IdP) identity it is an independently minted UUID; for
+	// a federated identity it is the upstream provider's subject, which is often
+	// not a UUID at all. This previously did uuid.Parse(sub) → FindByUUID(sub),
+	// so it either bailed on the parse (every Google/Cognito user) or looked up a
+	// user_uuid that never matches (every password user) — and returned nil having
+	// revoked no session. Logout appeared to work only because the access token's
+	// jti was denylisted above; the session row stayed live.
+	//
+	// FindBySubAndClientID is the same resolver the auth middleware uses, and it
+	// also enforces that the identity is actually reachable from this client.
+	clientID, _ := claims["client_id"].(string)
+	user, err := s.userRepo.FindBySubAndClientID(sub, clientID)
 	if err != nil || user == nil {
 		return nil
 	}
 
-	if err := s.sessionService.RevokeAllSessions(ctx, user.UserID, "logout"); err != nil {
+	// Revoke ONLY the session this token belongs to — never more.
+	//
+	// A logout is a per-session act. Console and identity share one browser, one
+	// cookie domain and therefore one user_sessions row, so revoking it signs the
+	// user out of both — which is the intent. A second browser or a phone holds a
+	// DIFFERENT session and must be left alone; being silently signed out
+	// somewhere else because you logged out here is alarming, not secure.
+	// "Sign out everywhere" is the separate, explicit control for that
+	// (DELETE /account/sessions), as is a password change or reset.
+	//
+	// This used to fall back to RevokeAllSessions when the token had no `sid`,
+	// which is exactly that cross-browser sign-out — and OAuth-minted tokens
+	// never carried a `sid`, so every console logout took the fallback. OAuth
+	// tokens are now session-stamped at /authorize (see oauth.callerSessionUUID),
+	// so the claim is present. When it is genuinely absent we revoke nothing: the
+	// access token is already denylisted above, and guessing at a session by
+	// nuking all of them is worse than doing nothing.
+	sessionID, _ := claims["sid"].(string)
+	sessionUUID, parseErr := uuid.Parse(sessionID)
+	if parseErr != nil {
+		span.SetStatus(codes.Ok, "no session bound to token; jti denylisted only")
+		return nil
+	}
+	if err := s.sessionService.RevokeSession(ctx, user.UserID, sessionUUID); err != nil {
+		// A session that is already gone is a successful logout, not an error —
+		// double-submits and a console+identity pair both calling logout for the
+		// same shared session are both normal.
+		var notFound *apperror.NotFoundError
+		if errors.As(err, &notFound) {
+			span.SetStatus(codes.Ok, "session already revoked")
+			return nil
+		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "session revoke failed")
 		return err
@@ -1216,7 +1256,19 @@ func (s *loginService) generateTokenResponseWithAuth(ctx context.Context, sub st
 		}
 		ipAddress := middleware.ClientIPFromContext(ctx)
 		userAgent := middleware.UserAgentFromContext(ctx)
-		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, clientTenantID(Client), ipAddress, userAgent, policy)
+		// Record what actually authenticated this session. acr/amr are the
+		// session's own facts — hardcoding "1" here made an MFA-completed login
+		// indistinguishable from a password-only one.
+		attrs := SessionAttributes{
+			AMR:                amr,
+			ACR:                acr,
+			IdentityProviderID: connectedSystemIdentityProviderID(Client),
+		}
+		if Client != nil && Client.ClientID > 0 {
+			cid := Client.ClientID
+			attrs.ClientID = &cid
+		}
+		sess, err := createSessionWithPolicy(ctx, s.sessionService, user.UserID, clientTenantID(Client), ipAddress, userAgent, policy, attrs)
 		if err != nil {
 			return nil, err
 		}

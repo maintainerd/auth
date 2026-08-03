@@ -29,7 +29,15 @@ type OAuthRefreshToken struct {
 	UserAgent             *string        `gorm:"column:user_agent"`
 	ACR                   string         `gorm:"column:acr;type:varchar(10);not null;default:1"`
 	AMR                   pq.StringArray `gorm:"column:amr;type:text[];not null;default:'{}'"`
-	CreatedAt             time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
+	// DPoPJKT is the JWK thumbprint this refresh token is bound to (RFC 9449 §5).
+	// Non-nil means redemption REQUIRES a DPoP proof over the same key; nil means
+	// the token was issued without DPoP and remains a bearer credential.
+	DPoPJKT *string `gorm:"column:dpop_jkt"`
+	// UserSessionUUID binds this token to a single browser session so that
+	// logging out of one browser revokes its refresh tokens without touching the
+	// user's other browsers or their phone.
+	UserSessionUUID *uuid.UUID `gorm:"column:user_session_uuid;type:uuid"`
+	CreatedAt       time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
 
 	// Relationships
 	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`

@@ -106,6 +106,15 @@ func (s *magicLinkService) sendMagicLink(ctx context.Context, emailAddr string, 
 			return apperror.NewInternal("auth client not found", nil)
 		}
 
+		// Passwordless email sign-in is opt-in per client, and enforced here
+		// rather than only hidden in the UI: the endpoint is public, so a client
+		// that has not enabled it must not be able to mint a login link by
+		// calling directly. Internal/system callers are not the hosted page and
+		// keep their existing behaviour.
+		if !isInternal && !Client.AllowMagicLink {
+			return apperror.NewForbidden("magic-link sign-in is not enabled for this application")
+		}
+
 		// Find the user by email within the resolved tenant. This interactive
 		// passwordless flow intentionally reports an unknown address so the login
 		// page can tell the requester that no account exists.

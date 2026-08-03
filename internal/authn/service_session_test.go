@@ -240,7 +240,7 @@ func TestSessionService_CreateSession(t *testing.T) {
 		result, err := svc.CreateSessionWithPolicy(context.Background(), 1, 1, "", "", secpolicy.EffectiveSessionPolicy{
 			IdleTimeoutSeconds:     600,
 			AbsoluteTimeoutSeconds: 7200,
-		})
+		}, SessionAttributes{})
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})

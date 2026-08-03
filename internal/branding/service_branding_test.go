@@ -2,6 +2,7 @@ package branding
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -13,6 +14,14 @@ import (
 
 func newBrandingSvc(repo *mockBrandingRepo) BrandingService {
 	return NewBrandingService(repo)
+}
+
+func testBrandingMetadata(values map[string]any) datatypes.JSON {
+	data, err := json.Marshal(values)
+	if err != nil {
+		panic(err)
+	}
+	return datatypes.JSON(data)
 }
 
 // ---------------------------------------------------------------------------
@@ -50,12 +59,14 @@ func TestBrandingService_GetPublicByID(t *testing.T) {
 			findByIDFn: func(got any) (*Branding, error) {
 				assert.Equal(t, int64(7), got)
 				return &Branding{
-					BrandingUUID:  id,
-					TenantID:      1,
-					Name:          "client",
-					CompanyName:   "Client App",
-					LogoLabel:     "Client",
-					ShowLogoLabel: true,
+					BrandingUUID: id,
+					TenantID:     1,
+					Name:         "client",
+					CompanyName:  "Client App",
+					Metadata: testBrandingMetadata(map[string]any{
+						BrandingMetadataLogoLabel:     "Client",
+						BrandingMetadataShowLogoLabel: true,
+					}),
 				}, nil
 			},
 		})
@@ -93,8 +104,13 @@ func TestBrandingService_Update(t *testing.T) {
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 		res, err := svc.Update(context.Background(), 1,
-			"", "Acme", "Acme IAM", true, "https://logo.png", "https://favicon.ico",
-			datatypes.JSON([]byte(`{"colors":{"primary":"#111"}}`)),
+			"", "Acme", "https://logo.png", "https://favicon.ico",
+			testBrandingMetadata(map[string]any{
+				BrandingMetadataLayout:         "centered",
+				BrandingMetadataLogoLabel:      "Acme IAM",
+				BrandingMetadataShowLogoLabel:  true,
+				"colors":                       map[string]string{"primary": "#111"},
+			}),
 			"https://support", "https://privacy", "https://terms",
 		)
 		require.NoError(t, err)
@@ -102,7 +118,7 @@ func TestBrandingService_Update(t *testing.T) {
 		assert.Equal(t, "Acme IAM", res.LogoLabel)
 		assert.True(t, res.ShowLogoLabel)
 		assert.Equal(t, "https://logo.png", res.LogoURL)
-		assert.JSONEq(t, `{"colors":{"primary":"#111"}}`, string(res.Metadata))
+		assert.JSONEq(t, `{"layout":"centered","logo_label":"Acme IAM","show_logo_label":true,"colors":{"primary":"#111"}}`, string(res.Metadata))
 		assert.Equal(t, "https://support", res.SupportURL)
 		assert.Equal(t, "centered", res.Layout)
 	})
@@ -116,7 +132,7 @@ func TestBrandingService_Update(t *testing.T) {
 			},
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
-		res, err := svc.Update(context.Background(), 1, "", "X", "", true, "", "", datatypes.JSON(nil), "", "", "")
+		res, err := svc.Update(context.Background(), 1, "", "X", "", "", datatypes.JSON(nil), "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "X", res.CompanyName)
 		assert.Equal(t, "X", res.LogoLabel)
@@ -126,7 +142,7 @@ func TestBrandingService_Update(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
 			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, errors.New("db") },
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", "", true, "", "", datatypes.JSON(nil), "", "", "")
+		_, err := svc.Update(context.Background(), 1, "", "", "", "", datatypes.JSON(nil), "", "", "")
 		require.Error(t, err)
 	})
 
@@ -139,7 +155,7 @@ func TestBrandingService_Update(t *testing.T) {
 				return nil, errors.New("save err")
 			},
 		})
-		_, err := svc.Update(context.Background(), 1, "", "", "", true, "", "", datatypes.JSON(nil), "", "", "")
+		_, err := svc.Update(context.Background(), 1, "", "", "", "", datatypes.JSON(nil), "", "", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -158,7 +174,13 @@ func TestBrandingService_Create(t *testing.T) {
 			},
 		})
 
-		res, err := svc.Create(context.Background(), 1, "Acme", "split", "Acme", "Acme IAM", true, "", "", nil, "", "", "")
+		res, err := svc.Create(context.Background(), 1, "Acme", "Acme", "", "",
+			testBrandingMetadata(map[string]any{
+				BrandingMetadataLayout:        "split",
+				BrandingMetadataLogoLabel:     "Acme IAM",
+				BrandingMetadataShowLogoLabel: true,
+			}),
+			"", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "split", res.Layout)
 		assert.Equal(t, "Acme IAM", res.LogoLabel)
@@ -170,7 +192,7 @@ func TestBrandingService_Create(t *testing.T) {
 			createFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 
-		res, err := svc.Create(context.Background(), 1, "Acme", "", "Acme", "", true, "", "", nil, "", "", "")
+		res, err := svc.Create(context.Background(), 1, "Acme", "Acme", "", "", nil, "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "centered", res.Layout)
 		assert.Equal(t, "Acme", res.LogoLabel)
@@ -178,7 +200,9 @@ func TestBrandingService_Create(t *testing.T) {
 
 	t.Run("rejects unsupported layout", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{})
-		_, err := svc.Create(context.Background(), 1, "Acme", "sidebar", "Acme", "", true, "", "", nil, "", "", "")
+		_, err := svc.Create(context.Background(), 1, "Acme", "Acme", "", "",
+			testBrandingMetadata(map[string]any{BrandingMetadataLayout: "sidebar"}),
+			"", "", "")
 		require.Error(t, err)
 	})
 }
@@ -193,12 +217,18 @@ func TestBrandingService_UpdateByUUID_Layout(t *testing.T) {
 	t.Run("updates selected layout", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
 			findByUUIDFn: func(_ uuid.UUID) (*Branding, error) {
-				return &Branding{BrandingUUID: id, TenantID: 1, Layout: "centered"}, nil
+				return &Branding{BrandingUUID: id, TenantID: 1, Metadata: testBrandingMetadata(map[string]any{BrandingMetadataLayout: "centered"})}, nil
 			},
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 
-		res, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "full_page", "Acme", "Acme Console", false, "", "", nil, "", "", "")
+		res, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "Acme", "", "",
+			testBrandingMetadata(map[string]any{
+				BrandingMetadataLayout:        "full_page",
+				BrandingMetadataLogoLabel:     "Acme Console",
+				BrandingMetadataShowLogoLabel: false,
+			}),
+			"", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "full_page", res.Layout)
 		assert.Equal(t, "Acme Console", res.LogoLabel)
@@ -208,12 +238,12 @@ func TestBrandingService_UpdateByUUID_Layout(t *testing.T) {
 	t.Run("preserves layout when omitted", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
 			findByUUIDFn: func(_ uuid.UUID) (*Branding, error) {
-				return &Branding{BrandingUUID: id, TenantID: 1, Layout: "split"}, nil
+				return &Branding{BrandingUUID: id, TenantID: 1, Metadata: testBrandingMetadata(map[string]any{BrandingMetadataLayout: "split"})}, nil
 			},
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 
-		res, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "", "Acme", "", true, "", "", nil, "", "", "")
+		res, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "Acme", "", "", nil, "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "split", res.Layout)
 	})
@@ -226,7 +256,7 @@ func TestBrandingService_UpdateByUUID_Layout(t *testing.T) {
 			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 
-		res, err := svc.UpdateByUUID(context.Background(), id, 1, "renamed-default", "centered", "Acme", "", true, "", "", nil, "", "", "")
+		res, err := svc.UpdateByUUID(context.Background(), id, 1, "renamed-default", "Acme", "", "", nil, "", "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "default", res.Name)
 	})
@@ -238,7 +268,9 @@ func TestBrandingService_UpdateByUUID_Layout(t *testing.T) {
 			},
 		})
 
-		_, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "sidebar", "Acme", "", true, "", "", nil, "", "", "")
+		_, err := svc.UpdateByUUID(context.Background(), id, 1, "Acme", "Acme", "", "",
+			testBrandingMetadata(map[string]any{BrandingMetadataLayout: "sidebar"}),
+			"", "", "")
 		require.Error(t, err)
 	})
 }
@@ -259,23 +291,24 @@ func TestBrandingService_RestoreSystem(t *testing.T) {
 					Name:             "dark",
 					IsSystem:         true,
 					IsActive:         true,
-					Layout:           "split",
 					CompanyName:      "Changed",
-					LogoLabel:        "Changed",
-					ShowLogoLabel:    false,
 					LogoURL:          "https://example.com/logo.png",
 					LogoData:         []byte("logo"),
 					LogoContentType:  "image/png",
 					FaviconURL:       "https://example.com/favicon.ico",
 					SupportURL:       "https://example.com/support",
 					PrivacyPolicyURL: "https://example.com/privacy",
+					Metadata:         testBrandingMetadata(map[string]any{BrandingMetadataLayout: "split", BrandingMetadataLogoLabel: "Changed"}),
 				}, nil
 			},
 			createOrUpdateFn: func(e *Branding) (*Branding, error) {
-				assert.Equal(t, "centered", e.Layout)
+				assert.Equal(t, "centered", metadataString(e.Metadata, BrandingMetadataLayout))
 				assert.Equal(t, "Maintainerd-Auth", e.CompanyName)
-				assert.Equal(t, "Maintainerd-IAM", e.LogoLabel)
-				assert.True(t, e.ShowLogoLabel)
+				assert.Equal(t, "Maintainerd-IAM", metadataString(e.Metadata, BrandingMetadataLogoLabel))
+				assert.Equal(t, "Identity and Access Management", metadataString(e.Metadata, BrandingMetadataLogoDetail))
+				assert.Equal(t, "Maintainerd", metadataString(e.Metadata, BrandingMetadataIdentityLogoLabel))
+				assert.True(t, metadataBool(e.Metadata, BrandingMetadataShowLogoLabel, false))
+				assert.True(t, metadataBool(e.Metadata, BrandingMetadataIdentityShowLogoLabel, false))
 				assert.Empty(t, e.LogoURL)
 				assert.Empty(t, e.LogoData)
 				assert.Empty(t, e.LogoContentType)

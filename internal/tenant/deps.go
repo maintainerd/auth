@@ -77,6 +77,36 @@ type SurfaceClientReader interface {
 	GetSurfaceClient(ctx context.Context, tenantName, surface string) (*SurfaceClient, error)
 }
 
+// SurfaceConnection is tenant's projection of one federated login option
+// (identity provider) enabled on a surface client, used by the domain-bootstrap
+// endpoint so the hosted login page can render provider buttons at init.
+type SurfaceConnection struct {
+	Identifier   string
+	DisplayName  string
+	Provider     string
+	ProviderType string
+	IsDefault    bool
+	DisplayOrder int
+}
+
+// SurfaceConnectionsReader lists the enabled identity-provider connections for a
+// client identifier, ordered by display order. Like SurfaceClientReader it is
+// implemented by an app-layer adapter — here over the oauth connections service
+// — so the tenant package does not import oauth. clientIdentifier is the public
+// OAuth client_id, not the internal row ID.
+type SurfaceConnectionsReader interface {
+	ListSurfaceConnections(ctx context.Context, clientIdentifier string) (SurfaceLoginMethods, error)
+}
+
+// SurfaceLoginMethods is the set of login options enabled on a surface client:
+// the federated providers plus the passwordless toggle. Password and
+// registration availability already reach the app through other bootstrap
+// fields, so they are not duplicated here.
+type SurfaceLoginMethods struct {
+	Connections      []SurfaceConnection
+	MagicLinkEnabled bool
+}
+
 // AccessActor exposes the tenant-relevant identity data needed for access
 // control checks. The user domain implements this on its User.
 type AccessActor interface {

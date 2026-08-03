@@ -163,6 +163,9 @@ func initHandlers(application *Application) *handlers {
 	// Domain-bootstrap endpoint: resolve a tenant's seeded system client per surface.
 	h.tenant.SetSurfaceClientReader(surfaceClientReaderAdapter{svc: application.ClientService})
 	h.tenant.SetClientBrandingReader(application.TenantClientBrandingReader)
+	// …and the federated login options enabled on that client, so the hosted
+	// login page can render its provider buttons straight from initialization.
+	h.tenant.SetSurfaceConnectionsReader(surfaceConnectionsReaderAdapter{svc: application.OAuthConnectionsService})
 	// Public auth surface: make the subdomain tenant (tenant_id = slug) authoritative
 	// by resolving the slug to a tenant ID. authn enforces client-vs-subdomain binding.
 	authn.SetTenantResolver(authnTenantResolverAdapter{svc: application.TenantService})

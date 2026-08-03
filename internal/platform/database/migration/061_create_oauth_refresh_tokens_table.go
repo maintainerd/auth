@@ -28,6 +28,16 @@ CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
     -- Auth strength carried forward so introspection avoids a join.
     acr                      VARCHAR(10)  NOT NULL DEFAULT '1',
     amr                      TEXT[]       NOT NULL DEFAULT '{}',
+    -- RFC 9449 §5: when the token set was issued to a DPoP-proofing client, the
+    -- refresh token is bound to that client's key thumbprint (jkt) and may only
+    -- be redeemed by a caller proving possession of the SAME key. NULL means the
+    -- token was issued without DPoP and stays a bearer credential.
+    dpop_jkt                 TEXT,
+    -- The user_sessions row this token belongs to, so ending ONE session revokes
+    -- exactly its refresh tokens and leaves the user's other browsers and mobile
+    -- devices alone. NULL means the token predates session binding or was issued
+    -- outside a browser session.
+    user_session_uuid        UUID,
     created_at               TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 
     CONSTRAINT chk_oauth_refresh_revoked CHECK (
@@ -73,6 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_oauth_refresh_revoked       ON oauth_refresh_toke
 CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_scope  ON oauth_refresh_tokens USING GIN (scope);
 CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_active ON oauth_refresh_tokens (user_id, client_id) WHERE is_revoked = false;
 CREATE INDEX IF NOT EXISTS idx_oauth_refresh_amr           ON oauth_refresh_tokens USING GIN (amr);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_session       ON oauth_refresh_tokens (user_session_uuid) WHERE user_session_uuid IS NOT NULL;
 `
 	return db.Exec(sql).Error
 }

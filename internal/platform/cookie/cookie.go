@@ -64,10 +64,20 @@ func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int, 
 	if opts.HTTPOnly != nil {
 		httpOnly = *opts.HTTPOnly
 	}
+	// __Host- forbids a Domain attribute; only __Secure-/unprefixed names may
+	// carry one. This applies to deletes too: a Domain-scoped cookie can ONLY be
+	// removed by a Set-Cookie carrying the same Domain, so never make this
+	// conditional on maxAge.
+	domain := ""
+	if !strings.HasPrefix(name, "__Host-") {
+		domain = sharedCookieDomain()
+	}
+
 	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- cookie attributes set per-name via helpers
 		Name:     name,
 		Value:    value,
 		Path:     path,
+		Domain:   domain,
 		MaxAge:   maxAge,
 		HttpOnly: httpOnly,
 		Secure:   secure,
@@ -79,9 +89,30 @@ func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int, 
 // browser-enforced hardening (host-only, Secure-required) and are honored on
 // localhost, which browsers treat as a secure context. secureForCookieName
 // forces Secure=true for any prefixed name regardless of COOKIE_SECURE.
-func accessTokenCookieName() string { return "__Host-access_token" }
+// sharedCookieDomain reports the configured parent domain for first-party
+// single sign-on/out, normalized without a leading dot (Go adds host matching).
+// Empty = host-only cookies, i.e. every surface keeps its own session.
+//
+// The domain IS the first-party boundary: anything the operator hosts under it
+// shares the session, anything on another domain is a third-party relying party
+// with its own. No registration or per-client flag is involved.
+func sharedCookieDomain() string {
+	return strings.TrimPrefix(strings.TrimSpace(config.CookieDomain), ".")
+}
 
-func idTokenCookieName() string { return "__Host-id_token" }
+// authCookiePrefix picks the strongest prefix compatible with the deployment.
+// __Host- is preferred (host-only, Path=/, Secure) but forbids a Domain
+// attribute by definition, so a shared-domain deployment must use __Secure-.
+func authCookiePrefix() string {
+	if sharedCookieDomain() != "" {
+		return "__Secure-"
+	}
+	return "__Host-"
+}
+
+func accessTokenCookieName() string { return authCookiePrefix() + "access_token" }
+
+func idTokenCookieName() string { return authCookiePrefix() + "id_token" }
 
 func refreshTokenCookieName() string { return "__Secure-refresh_token" }
 
@@ -292,10 +323,13 @@ func ClearDeviceIDCookie(w http.ResponseWriter) {
 
 // ClearAuthCookies clears all authentication-related cookies.
 func ClearAuthCookies(w http.ResponseWriter) {
-	for _, name := range []string{accessTokenCookieName(), "access_token"} {
+	// Clear BOTH prefixes, not just the one this deployment currently issues:
+	// changing COOKIE_DOMAIN changes the prefix, and a cookie left behind under
+	// the old name would keep a "logged out" user authenticated.
+	for _, name := range []string{"__Host-access_token", "__Secure-access_token", "access_token"} {
 		setAuthCookie(w, name, "", "/", -1, authCookieOptions{})
 	}
-	for _, name := range []string{idTokenCookieName(), "id_token"} {
+	for _, name := range []string{"__Host-id_token", "__Secure-id_token", "id_token"} {
 		setAuthCookie(w, name, "", "/", -1, authCookieOptions{})
 	}
 	for _, name := range []string{refreshTokenCookieName(), "refresh_token"} {
