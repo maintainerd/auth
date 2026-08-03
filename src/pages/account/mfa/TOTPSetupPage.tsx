@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { ListingItemIcon } from "@/components/details/ListingItemCard"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -130,9 +131,9 @@ export default function TOTPSetupPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-emerald-600">
+                <ListingItemIcon className="size-10 text-emerald-600">
                   <ShieldCheck className="size-5" />
-                </div>
+                </ListingItemIcon>
                 <div>
                   <CardTitle className="text-base">Authenticator app is active</CardTitle>
                   <CardDescription>Your authenticator app generates sign-in codes for this account.</CardDescription>
@@ -155,9 +156,9 @@ export default function TOTPSetupPage() {
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <ListingItemIcon className="size-10">
                     <RefreshCw className="size-5 text-muted-foreground" />
-                  </div>
+                  </ListingItemIcon>
                   <div>
                     <CardTitle className="text-base">Backup codes</CardTitle>
                     <CardDescription>
@@ -193,9 +194,9 @@ export default function TOTPSetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <ListingItemIcon className="size-10">
                 <Smartphone className="size-5 text-muted-foreground" />
-              </div>
+              </ListingItemIcon>
               <div>
                 <CardTitle className="text-base">Set up authenticator app</CardTitle>
                 <CardDescription>Works with Google Authenticator, Authy, 1Password, or any TOTP app.</CardDescription>

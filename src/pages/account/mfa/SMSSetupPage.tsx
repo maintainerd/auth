@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { ListingItemIcon } from "@/components/details/ListingItemCard"
 import { useToast } from "@/hooks/useToast"
 import { beginSMSEnrollment, verifySMSEnrollment, disableSMS, fetchMFAStatus } from "@/services/api/mfa"
 import { MFASetupShell, ConfirmRemoveDialog, MfaSetupSkeleton, MFA_HUB_ROUTE } from "./MfaShell"
@@ -60,9 +61,9 @@ export default function SMSSetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-emerald-600">
+              <ListingItemIcon className="size-10 text-emerald-600">
                 <ShieldCheck className="size-5" />
-              </div>
+              </ListingItemIcon>
               <div>
                 <CardTitle className="text-base">SMS authentication is active</CardTitle>
                 <CardDescription>One-time codes are sent to your verified phone at sign-in.</CardDescription>
@@ -100,9 +101,9 @@ export default function SMSSetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <ListingItemIcon className="size-10">
                 <MessageSquare className="size-5 text-muted-foreground" />
-              </div>
+              </ListingItemIcon>
               <div>
                 <CardTitle className="text-base">Set up text message authentication</CardTitle>
                 <CardDescription>Verify your phone number to receive sign-in codes by SMS.</CardDescription>

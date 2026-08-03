@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { ListingItemCard, ListingItemIcon } from "@/components/details/ListingItemCard"
 import { useToast } from "@/hooks/useToast"
 import {
   beginWebAuthnRegistration, finishWebAuthnRegistration, deleteWebAuthnCredential, fetchMFAStatus,
@@ -73,9 +74,9 @@ export default function PasskeySetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <ListingItemIcon className="size-10">
                 <Key className="size-5 text-muted-foreground" />
-              </div>
+              </ListingItemIcon>
               <div>
                 <CardTitle className="text-base">Register a passkey</CardTitle>
                 <CardDescription>Use Face ID, Touch ID, Windows Hello, or a physical security key.</CardDescription>
@@ -112,27 +113,29 @@ export default function PasskeySetupPage() {
             ) : (
               <div className="space-y-2">
                 {keys.map((key) => (
-                  <div key={key.credential_uuid} data-md-listing-item className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <Key className="size-4 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{key.name || "Passkey"}</p>
-                        <p className="text-xs capitalize text-muted-foreground">{key.transport || "Unknown transport"}</p>
-                      </div>
+                  <ListingItemCard
+                    key={key.credential_uuid}
+                    icon={Key}
+                    className="items-center p-3"
+                    contentClassName="items-center"
+                    action={(
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-destructive hover:text-destructive"
+                        onClick={() => setPendingDelete(key)}
+                        title="Remove passkey"
+                        aria-label={`Remove passkey ${key.name || key.credential_uuid}`}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{key.name || "Passkey"}</p>
+                      <p className="text-xs capitalize text-muted-foreground">{key.transport || "Unknown transport"}</p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-destructive hover:text-destructive"
-                      onClick={() => setPendingDelete(key)}
-                      title="Remove passkey"
-                      aria-label={`Remove passkey ${key.name || key.credential_uuid}`}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
+                  </ListingItemCard>
                 ))}
               </div>
             )}

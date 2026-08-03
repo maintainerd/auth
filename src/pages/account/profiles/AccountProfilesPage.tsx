@@ -5,6 +5,7 @@ import { User, Plus, Star, Trash2, Pencil, MoreHorizontal } from 'lucide-react'
 import AccountLayout from '@/components/layout/AccountLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ListingItemCard, ListingItemIcon } from '@/components/details/ListingItemCard'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
@@ -194,19 +195,27 @@ export default function AccountProfilesPage() {
 
             <div className="space-y-2">
               {profiles.map((profile: UserProfile) => (
-                <div
+                <ListingItemCard
                   key={profile.profile_id}
-                  data-md-listing-item
-                  className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                  className="items-center p-3"
+                  contentClassName="items-center"
+                  action={(
+                    <ProfileActions
+                      profile={profile}
+                      onEdit={() => navigate(`/account/profile/${profile.profile_id}/edit`)}
+                      onSetDefault={() => setDefaultMutation.mutate(profile.profile_id)}
+                      onDelete={() => setPendingDelete(profile)}
+                    />
+                  )}
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                    <ListingItemIcon className="overflow-hidden rounded-full">
                       {profile.profile_url ? (
                         <img src={profile.profile_url} alt="" className="size-9 rounded-full object-cover" />
                       ) : (
                         <User className="size-4 text-muted-foreground" />
                       )}
-                    </div>
+                    </ListingItemIcon>
                     <div className="flex min-w-0 items-center gap-2">
                       <p className="truncate text-sm font-medium">{profileName(profile)}</p>
                       {profile.is_default && (
@@ -216,13 +225,7 @@ export default function AccountProfilesPage() {
                       )}
                     </div>
                   </div>
-                  <ProfileActions
-                    profile={profile}
-                    onEdit={() => navigate(`/account/profile/${profile.profile_id}/edit`)}
-                    onSetDefault={() => setDefaultMutation.mutate(profile.profile_id)}
-                    onDelete={() => setPendingDelete(profile)}
-                  />
-                </div>
+                </ListingItemCard>
               ))}
             </div>
           </CardContent>

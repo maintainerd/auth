@@ -7,7 +7,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import { ListingItemCard, ListingItemIcon } from "@/components/details/ListingItemCard"
 import AccountLayout from "@/components/layout/AccountLayout"
 import { useToast } from "@/hooks/useToast"
 import { cn } from "@/lib/utils"
@@ -45,11 +45,11 @@ export default function MFAPage() {
         {/* Security status */}
         <Card data-md-listing-item className="auth-security-panel">
           <CardContent className="flex items-center gap-4">
-            <div data-md-listing-icon className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted">
+            <ListingItemIcon className="size-11 rounded-full">
               {isProtected
                 ? <ShieldCheck className="size-6 text-emerald-600" />
                 : <ShieldAlert className="size-6 text-amber-600" />}
-            </div>
+            </ListingItemIcon>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">
                 {isProtected ? "Your account is protected" : "Your account is not protected"}
@@ -67,7 +67,7 @@ export default function MFAPage() {
         <div>
           <h2 className="mb-2 px-1 text-sm font-medium text-muted-foreground">Authentication methods</h2>
           <Card className="overflow-hidden py-0">
-            <CardContent className="p-0">
+            <CardContent className="space-y-2 p-3">
               <MethodRow
                 icon={Smartphone}
                 title="Authenticator app"
@@ -75,7 +75,6 @@ export default function MFAPage() {
                 active={totpOn}
                 onClick={() => navigate("/account/mfa/totp")}
               />
-              <Separator />
               <MethodRow
                 icon={Key}
                 title="Passkeys"
@@ -84,7 +83,6 @@ export default function MFAPage() {
                 activeLabel={passkeyOn ? `${passkeyCount} registered` : undefined}
                 onClick={() => navigate("/account/mfa/passkeys")}
               />
-              <Separator />
               <MethodRow
                 icon={MessageSquare}
                 title="Text message (SMS)"
@@ -92,7 +90,6 @@ export default function MFAPage() {
                 active={smsOn}
                 onClick={() => navigate("/account/mfa/sms")}
               />
-              <Separator />
               <MethodRow
                 icon={Mail}
                 title="Email OTP"
@@ -109,7 +106,7 @@ export default function MFAPage() {
           <div>
             <h2 className="mb-2 px-1 text-sm font-medium text-muted-foreground">Recovery</h2>
             <Card className="overflow-hidden py-0">
-              <CardContent className="p-0">
+              <CardContent className="p-3">
                 <MethodRow
                   icon={KeyRound}
                   title="Backup codes"
@@ -198,15 +195,21 @@ interface MethodRowProps {
 
 function MethodRow({ icon: Icon, title, description, active, activeLabel, onClick }: MethodRowProps) {
   return (
-    <button
-      type="button"
+    <ListingItemCard
+      as="button"
       onClick={onClick}
-      data-md-listing-item
-      className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none"
+      icon={Icon}
+      iconClassName="size-10"
+      contentClassName="items-center gap-4"
+      className="items-center p-3 focus-visible:bg-accent/50"
+      actionClassName="flex shrink-0 items-center gap-2 text-sm text-muted-foreground"
+      action={(
+        <>
+          <span className="hidden sm:inline">{active ? "Manage" : "Set up"}</span>
+          <ChevronRight className="size-4" />
+        </>
+      )}
     >
-      <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        <Icon className="size-5" />
-      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium">{title}</p>
@@ -215,11 +218,7 @@ function MethodRow({ icon: Icon, title, description, active, activeLabel, onClic
         </div>
         <p className="mt-0.5 truncate text-sm text-muted-foreground">{description}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-        <span className="hidden sm:inline">{active ? "Manage" : "Set up"}</span>
-        <ChevronRight className="size-4" />
-      </div>
-    </button>
+    </ListingItemCard>
   )
 }
 

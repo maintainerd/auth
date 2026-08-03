@@ -4,6 +4,7 @@ import { MonitorSmartphone, Trash2, Globe, MapPin, Clock, Calendar, ShieldCheck 
 import AccountLayout from '@/components/layout/AccountLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ListingItemCard, ListingItemMeta } from '@/components/details/ListingItemCard'
 import { useToast } from '@/hooks/useToast'
 import { formatUserAgent } from '@/lib/userAgent'
 import {
@@ -34,55 +35,12 @@ function DeviceRow({
   const label = device.device_name || formatUserAgent(device.user_agent)
 
   return (
-    <li data-md-listing-item className="flex items-start justify-between gap-4 py-4">
-      <div className="flex min-w-0 items-start gap-3">
-        <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <MonitorSmartphone className="size-4" />
-        </div>
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-medium" title={device.user_agent ?? undefined}>
-              {label}
-            </p>
-            {device.current && (
-              <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                This device
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            {device.location && (
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="size-3" />
-                {device.location}
-              </span>
-            )}
-            {device.ip_address && (
-              <span className="inline-flex items-center gap-1 font-mono">
-                <Globe className="size-3" />
-                {device.ip_address}
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1">
-              <Clock className="size-3" />
-              Last used {fmt(device.last_seen_at)}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="size-3" />
-              Trusted {fmt(device.created_at)}
-            </span>
-            {device.trusted_until && (
-              <span className="inline-flex items-center gap-1">
-                <ShieldCheck className="size-3" />
-                Expires {fmt(device.trusted_until)}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2">
-        {confirming ? (
+    <li>
+      <ListingItemCard
+        icon={MonitorSmartphone}
+        className="items-start p-3"
+        actionClassName="flex shrink-0 items-center gap-2"
+        action={confirming ? (
           <>
             <Button
               size="sm"
@@ -117,7 +75,48 @@ function DeviceRow({
             Revoke
           </Button>
         )}
-      </div>
+      >
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm font-medium" title={device.user_agent ?? undefined}>
+              {label}
+            </p>
+            {device.current && (
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                This device
+              </span>
+            )}
+          </div>
+          <ListingItemMeta>
+            {device.location && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="size-3" />
+                {device.location}
+              </span>
+            )}
+            {device.ip_address && (
+              <span className="inline-flex items-center gap-1 font-mono">
+                <Globe className="size-3" />
+                {device.ip_address}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1">
+              <Clock className="size-3" />
+              Last used {fmt(device.last_seen_at)}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="size-3" />
+              Trusted {fmt(device.created_at)}
+            </span>
+            {device.trusted_until && (
+              <span className="inline-flex items-center gap-1">
+                <ShieldCheck className="size-3" />
+                Expires {fmt(device.trusted_until)}
+              </span>
+            )}
+          </ListingItemMeta>
+        </div>
+      </ListingItemCard>
     </li>
   )
 }
@@ -158,7 +157,7 @@ export default function AccountDevicesPage() {
                 </p>
               </div>
             )}
-            <ul className="divide-y">
+            <ul className="space-y-2">
               {devices.map((device: TrustedDevice) => (
                 <DeviceRow
                   key={device.uuid}

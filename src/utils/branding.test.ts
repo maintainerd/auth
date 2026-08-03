@@ -87,6 +87,58 @@ describe('applyBranding', () => {
             textColor: '#f9fafb',
             size: 'sm',
           },
+          sidePanelItem: {
+            background: '#0f172a',
+            hoverColor: '#1e293b',
+            borderColor: '#334155',
+            borderRadius: '6px',
+            textColor: '#cbd5e1',
+            size: 'sm',
+          },
+          sidePanelItemActive: {
+            background: '#2563eb',
+            borderColor: '#60a5fa',
+            textColor: '#ffffff',
+            size: 'sm',
+          },
+          listingItem: {
+            background: '#ffffff',
+            hoverColor: '#f8fafc',
+            borderColor: '#dbe4ef',
+            borderRadius: '8px',
+            textColor: '#111827',
+          },
+          listingItemIcon: {
+            background: '#e0f2fe',
+            borderColor: '#bae6fd',
+            borderRadius: '7px',
+            textColor: '#075985',
+            size: 'sm',
+          },
+          listingItemMeta: {
+            textColor: '#64748b',
+            size: 'sm',
+          },
+          listingSubContainer: {
+            background: '#f8fafc',
+            borderColor: '#e2e8f0',
+            borderRadius: '6px',
+            textColor: '#334155',
+          },
+          switchSubContainer: {
+            background: '#f8fafc',
+            hoverColor: '#eef2ff',
+            borderColor: '#cbd5e1',
+            borderRadius: '6px',
+            textColor: '#334155',
+          },
+          checkboxSubContainer: {
+            background: '#f8fafc',
+            hoverColor: '#eef2ff',
+            borderColor: '#cbd5e1',
+            borderRadius: '6px',
+            textColor: '#334155',
+          },
         },
       },
     })
@@ -138,12 +190,25 @@ describe('applyBranding', () => {
     expect(style.getPropertyValue('--md-top-profile-radius')).toBe('999px')
     expect(style.getPropertyValue('--md-top-profile-text')).toBe('#f9fafb')
     expect(style.getPropertyValue('--md-top-profile-height')).toBe('2.25rem')
+    expect(style.getPropertyValue('--md-sidebar-item-bg')).toBe('#0f172a')
+    expect(style.getPropertyValue('--md-sidebar-item-hover')).toBe('#1e293b')
+    expect(style.getPropertyValue('--md-sidebar-item-active-bg')).toBe('#2563eb')
+    expect(style.getPropertyValue('--md-listing-item-bg')).toBe('#ffffff')
+    expect(style.getPropertyValue('--md-listing-item-hover')).toBe('#f8fafc')
+    expect(style.getPropertyValue('--md-listing-icon-bg')).toBe('#e0f2fe')
+    expect(style.getPropertyValue('--md-listing-icon-height')).toBe('2.25rem')
+    expect(style.getPropertyValue('--md-listing-meta-text')).toBe('#64748b')
+    expect(style.getPropertyValue('--md-listing-sub-bg')).toBe('#f8fafc')
+    expect(style.getPropertyValue('--md-switch-sub-bg')).toBe('#f8fafc')
+    expect(style.getPropertyValue('--md-checkbox-sub-bg')).toBe('#f8fafc')
 
     cleanup()
     expect(style.getPropertyValue('--primary')).toBe('')
     expect(style.getPropertyValue('--font-family')).toBe('')
     expect(style.getPropertyValue('--md-button-primary-bg')).toBe('')
     expect(style.getPropertyValue('--md-top-profile-text')).toBe('')
+    expect(style.getPropertyValue('--md-listing-icon-bg')).toBe('')
+    expect(style.getPropertyValue('--md-switch-sub-bg')).toBe('')
     expect(document.documentElement).not.toHaveAttribute('data-identity-theme')
   })
 

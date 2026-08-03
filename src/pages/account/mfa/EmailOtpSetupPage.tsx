@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { ListingItemIcon } from "@/components/details/ListingItemCard"
 import { useAuth } from "@/hooks/useAuth"
 import { useToast } from "@/hooks/useToast"
 import { beginEmailOtpEnrollment, verifyEmailOtpEnrollment, disableEmailOtp, fetchMFAStatus } from "@/services/api/mfa"
@@ -62,9 +63,9 @@ export default function EmailOtpSetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-emerald-600">
+              <ListingItemIcon className="size-10 text-emerald-600">
                 <ShieldCheck className="size-5" />
-              </div>
+              </ListingItemIcon>
               <div>
                 <CardTitle className="text-base">Email OTP authentication is active</CardTitle>
                 <CardDescription>One-time codes are sent to your verified email at sign-in.</CardDescription>
@@ -102,9 +103,9 @@ export default function EmailOtpSetupPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div data-md-listing-icon className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <ListingItemIcon className="size-10">
                 <Mail className="size-5 text-muted-foreground" />
-              </div>
+              </ListingItemIcon>
               <div>
                 <CardTitle className="text-base">Set up email OTP authentication</CardTitle>
                 <CardDescription>Verify your email address to receive sign-in codes by email.</CardDescription>

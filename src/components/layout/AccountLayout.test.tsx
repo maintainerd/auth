@@ -45,6 +45,7 @@ describe('AccountLayout', () => {
     expect(container.querySelector('[data-md-top-panel]')).toBeInTheDocument()
     expect(container.querySelector('[data-md-top-profile-trigger]')).toBeInTheDocument()
     expect(container.querySelector('[data-md-sidebar]')).toBeInTheDocument()
+    expect(container.querySelector('[data-md-sidebar-section]')).toBeInTheDocument()
     expect(container.querySelector('[data-md-sidebar-section-label]')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Security' })).toHaveAttribute('data-active', 'true')
     expect(screen.getByText('Account content')).toBeInTheDocument()

@@ -23,6 +23,12 @@ const navItems = [
   { href: '/account/data', label: 'Data & Privacy', icon: Database },
 ]
 
+const accountMenuClass =
+  'flex h-9 items-center gap-2.5 rounded-md border border-transparent px-2 text-sm font-medium transition-colors [&>svg]:size-[18px]'
+
+const accountMenuActiveClass =
+  'auth-account-nav-active font-semibold shadow-sm'
+
 export default function AccountLayout({
   children,
   title,
@@ -83,8 +89,9 @@ export default function AccountLayout({
           {/* Sidebar */}
           <aside data-md-sidebar className="w-56 shrink-0 space-y-1 self-start">
             <p
+              data-md-sidebar-section
               data-md-sidebar-section-label
-              className="mb-3 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              className="mb-3 flex items-center px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Account
             </p>
@@ -99,9 +106,9 @@ export default function AccountLayout({
                   data-md-sidebar-item
                   data-active={active ? 'true' : undefined}
                   className={cn(
-                    'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    accountMenuClass,
                     active
-                      ? 'auth-account-nav-active font-semibold shadow-sm'
+                      ? accountMenuActiveClass
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >
