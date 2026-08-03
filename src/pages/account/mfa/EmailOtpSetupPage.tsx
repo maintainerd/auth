@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Mail, ShieldCheck, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FormInputField } from "@/components/form"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ListingItemIcon } from "@/components/details/ListingItemCard"
 import { useAuth } from "@/hooks/useAuth"
@@ -113,11 +112,15 @@ export default function EmailOtpSetupPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
-              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <p className="text-xs text-muted-foreground">We&apos;ll send a 6-digit verification code to this address.</p>
-            </div>
+            <FormInputField
+              id="email"
+              label="Email address"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              description="We'll send a 6-digit verification code to this address."
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => navigate(MFA_HUB_ROUTE)}>Cancel</Button>
               <Button onClick={() => sendMutation.mutate(email.trim())} disabled={!email.trim() || sendMutation.isPending}>
@@ -133,22 +136,20 @@ export default function EmailOtpSetupPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Enter verification code</CardTitle>
-            <CardDescription>Enter the 6-digit code sent to {email}.</CardDescription>
+          <CardDescription>Enter the 6-digit code sent to {email}.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email-otp-code">Verification code</Label>
-              <Input
-                id="email-otp-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="000000"
-                maxLength={6}
-                className="text-center font-mono tracking-[0.5em]"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              />
-            </div>
+            <FormInputField
+              id="email-otp-code"
+              label="Verification code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              maxLength={6}
+              className="text-center font-mono tracking-[0.5em]"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            />
             <div className="flex justify-between gap-2">
               <Button variant="ghost" onClick={() => { setStep("idle"); setCode("") }}>Back</Button>
               <Button disabled={code.length !== 6 || verifyMutation.isPending} onClick={() => verifyMutation.mutate({ email, code })}>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import { ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FormInputField } from "@/components/form"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { getAssertion } from "@/lib/webauthn"
@@ -162,23 +162,17 @@ export function StepUpDialog({ open, onOpenChange, onVerified, onCancel, title, 
                   </Button>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="stepup-code">{numeric ? `${meta?.label} code` : (meta?.label ?? "Code")}</Label>
-                  <Input
-                    id="stepup-code"
-                    inputMode={numeric ? "numeric" : "text"}
-                    autoComplete="one-time-code"
-                    placeholder={numeric ? "000000" : "Enter one backup code"}
-                    className={numeric ? "font-mono tracking-[0.4em] text-center" : "font-mono"}
-                    value={code}
-                    onChange={(e) => setCode(numeric ? e.target.value.replace(/\D/g, "").slice(0, 6) : e.target.value)}
-                  />
-                  {method === "backup_code" && (
-                    <p className="text-xs text-muted-foreground">
-                      Enter a single code from your saved list — each one works only once.
-                    </p>
-                  )}
-                </div>
+                <FormInputField
+                  id="stepup-code"
+                  label={numeric ? `${meta?.label} code` : (meta?.label ?? "Code")}
+                  inputMode={numeric ? "numeric" : "text"}
+                  autoComplete="one-time-code"
+                  placeholder={numeric ? "000000" : "Enter one backup code"}
+                  className={numeric ? "font-mono tracking-[0.4em] text-center" : "font-mono"}
+                  value={code}
+                  onChange={(e) => setCode(numeric ? e.target.value.replace(/\D/g, "").slice(0, 6) : e.target.value)}
+                  description={method === "backup_code" ? "Enter a single code from your saved list. Each one works only once." : undefined}
+                />
               </>
             )}
           </div>

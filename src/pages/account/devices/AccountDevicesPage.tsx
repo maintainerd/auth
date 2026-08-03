@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { MonitorSmartphone, Trash2, Globe, MapPin, Clock, Calendar, ShieldCheck } from 'lucide-react'
 import AccountLayout from '@/components/layout/AccountLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SettingsCard } from '@/components/card'
 import { Button } from '@/components/ui/button'
-import { ListingItemCard, ListingItemMeta } from '@/components/details/ListingItemCard'
+import { ListingItemCard, ListingItemMeta } from '@/components/details'
 import { useToast } from '@/hooks/useToast'
 import { formatUserAgent } from '@/lib/userAgent'
 import {
@@ -141,35 +141,31 @@ export default function AccountDevicesPage() {
 
   return (
     <AccountLayout title="Trusted Devices">
-      <div className="space-y-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Devices that skip MFA</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading && <p className="text-sm text-muted-foreground">Loading devices…</p>}
-            {!isLoading && devices.length === 0 && (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <MonitorSmartphone className="size-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">No trusted devices</p>
-                <p className="text-xs text-muted-foreground">
-                  Devices are added when you choose &ldquo;Trust this device&rdquo; during MFA.
-                </p>
-              </div>
-            )}
-            <ul className="space-y-2">
-              {devices.map((device: TrustedDevice) => (
-                <DeviceRow
-                  key={device.uuid}
-                  device={device}
-                  onRevoke={(uuid) => revokeMutation.mutate(uuid)}
-                  revoking={revokeMutation.isPending}
-                />
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
+      <SettingsCard
+        title="Devices that skip MFA"
+        description="Devices are added when you choose to trust them during MFA."
+        icon={MonitorSmartphone}
+      >
+        {isLoading && <p className="text-sm text-muted-foreground">Loading devices…</p>}
+        {!isLoading && devices.length === 0 && (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <MonitorSmartphone className="size-8 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">No trusted devices</p>
+          </div>
+        )}
+        {!isLoading && devices.length > 0 && (
+          <ul className="space-y-2">
+            {devices.map((device: TrustedDevice) => (
+              <DeviceRow
+                key={device.uuid}
+                device={device}
+                onRevoke={(uuid) => revokeMutation.mutate(uuid)}
+                revoking={revokeMutation.isPending}
+              />
+            ))}
+          </ul>
+        )}
+      </SettingsCard>
     </AccountLayout>
   )
 }

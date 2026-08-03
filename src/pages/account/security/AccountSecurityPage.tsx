@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { Mail, AtSign, KeyRound } from 'lucide-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { AtSign, KeyRound, Mail } from 'lucide-react'
 import AccountLayout from '@/components/layout/AccountLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SettingsCard } from '@/components/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { PasswordRequirements } from '@/components/form'
+import { FormInputField, FormPasswordField, PasswordRequirements } from '@/components/form'
 import { useToast } from '@/hooks/useToast'
 import { useTenant } from '@/hooks/useTenant'
-import { changeUsername, initiateEmailChange, fetchAccountInfo, changePassword } from '@/services/api/account'
+import { changePassword, changeUsername, fetchAccountInfo, initiateEmailChange } from '@/services/api/account'
 import { forgotPassword } from '@/services/api/auth'
 
 interface UsernameForm {
@@ -34,9 +32,6 @@ export default function AccountSecurityPage() {
   const [passwordResetSent, setPasswordResetSent] = useState(false)
   const [useResetLink, setUseResetLink] = useState(false)
 
-  // Tenant-scoped password policy drives the live requirements checklist, the
-  // same source the register form uses (multitenancy: the current tenant is
-  // resolved from the request host at bootstrap).
   const passwordConfig = getCurrentTenant()?.password_config
 
   const { data: account } = useQuery({
@@ -65,9 +60,9 @@ export default function AccountSecurityPage() {
       const status = (err as { status?: number }).status
       if (status === 403) {
         showError(new Error('Step-up authentication required. Please verify your identity first.'))
-      } else {
-        showError(err, 'Could not initiate email change')
+        return
       }
+      showError(err, 'Could not initiate email change')
     },
   })
 
@@ -77,10 +72,6 @@ export default function AccountSecurityPage() {
     onError: (err) => showError(err, 'Could not send password reset'),
   })
 
-  // Authenticated self-service change. Distinct from the reset-link flow: a
-  // signed-in user proves knowledge of their current password rather than going
-  // through their inbox. The backend enforces the tenant policy + history and
-  // revokes the user's OTHER sessions on success.
   const passwordChangeMutation = useMutation({
     mutationFn: (data: PasswordForm) => changePassword(data.current_password, data.new_password),
     onSuccess: (result) => {
@@ -99,8 +90,6 @@ export default function AccountSecurityPage() {
         passwordForm.setError('current_password', { message: 'Current password is incorrect.' })
         return
       }
-      // The tenant policy (length, history, breach, etc.) rejected the new one;
-      // surface the backend message against the new-password field.
       const message = err instanceof Error ? err.message : 'Could not change password'
       passwordForm.setError('new_password', { message })
     },
@@ -116,141 +105,77 @@ export default function AccountSecurityPage() {
 
   return (
     <AccountLayout title="Security">
-      <div className="space-y-4">
-        {/* Username */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <AtSign className="size-4" />
-              Username
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      <div className="grid gap-6">
+        <SettingsCard title="Username" description="Update the username attached to your account." icon={AtSign}>
+          <form
+            onSubmit={usernameForm.handleSubmit((data) => usernameMutation.mutate(data))}
+            className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          >
+            <FormInputField
+              label="New username"
+              placeholder="New username"
+              containerClassName="flex-1"
+              {...usernameForm.register('username', { required: true })}
+            />
+            <Button type="submit" disabled={usernameMutation.isPending}>
+              {usernameMutation.isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </form>
+        </SettingsCard>
+
+        <SettingsCard title="Email address" description="Change the email you use for sign-in." icon={Mail}>
+          {emailSent ? (
+            <p className="text-sm text-muted-foreground">
+              Check your new inbox for a verification link to confirm the change.
+            </p>
+          ) : (
             <form
-              onSubmit={usernameForm.handleSubmit((data) => usernameMutation.mutate(data))}
-              className="flex gap-2"
+              onSubmit={emailForm.handleSubmit((data) => emailMutation.mutate(data))}
+              className="flex flex-col gap-3 sm:flex-row sm:items-end"
             >
-              <div className="flex-1">
-                <Label htmlFor="username" className="sr-only">
-                  New username
-                </Label>
-                <Input
-                  id="username"
-                  placeholder="New username"
-                  {...usernameForm.register('username', { required: true })}
-                />
-              </div>
-              <Button type="submit" disabled={usernameMutation.isPending}>
-                Save
+              <FormInputField
+                label="New email address"
+                type="email"
+                placeholder="New email address"
+                containerClassName="flex-1"
+                {...emailForm.register('new_email', { required: true })}
+              />
+              <Button type="submit" disabled={emailMutation.isPending}>
+                {emailMutation.isPending ? 'Sending…' : 'Send link'}
               </Button>
             </form>
-          </CardContent>
-        </Card>
+          )}
+        </SettingsCard>
 
-        {/* Email */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Mail className="size-4" />
-              Email address
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {emailSent ? (
-              <p className="text-sm text-muted-foreground">
-                Check your new inbox for a verification link to confirm the change.
-              </p>
-            ) : (
-              <form
-                onSubmit={emailForm.handleSubmit((data) => emailMutation.mutate(data))}
-                className="flex gap-2"
-              >
-                <div className="flex-1">
-                  <Label htmlFor="new_email" className="sr-only">
-                    New email address
-                  </Label>
-                  <Input
-                    id="new_email"
-                    type="email"
-                    placeholder="New email address"
-                    {...emailForm.register('new_email', { required: true })}
-                  />
-                </div>
-                <Button type="submit" disabled={emailMutation.isPending}>
-                  Send link
-                </Button>
-              </form>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Password */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <KeyRound className="size-4" />
-              Password
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Primary path: authenticated change — the user knows their current
-                password, so no inbox round-trip is needed. */}
-            <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="current_password">Current password</Label>
-                <Input
-                  id="current_password"
-                  type="password"
-                  autoComplete="current-password"
-                  {...passwordForm.register('current_password', { required: true })}
-                />
-                {passwordForm.formState.errors.current_password?.message && (
-                  <p className="text-xs text-destructive">
-                    {passwordForm.formState.errors.current_password.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="new_password">New password</Label>
-                <Input
-                  id="new_password"
-                  type="password"
+        <SettingsCard title="Password" description="Change your password without leaving your account." icon={KeyRound}>
+          <div className="space-y-4">
+            <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-4">
+              <FormPasswordField
+                label="Current password"
+                autoComplete="current-password"
+                error={passwordForm.formState.errors.current_password?.message}
+                {...passwordForm.register('current_password', { required: true })}
+              />
+              <div className="space-y-2">
+                <FormPasswordField
+                  label="New password"
                   autoComplete="new-password"
+                  error={passwordForm.formState.errors.new_password?.message}
                   {...passwordForm.register('new_password', { required: true })}
                 />
-                {passwordForm.formState.errors.new_password?.message && (
-                  <p className="text-xs text-destructive">
-                    {passwordForm.formState.errors.new_password.message}
-                  </p>
-                )}
-                {newPasswordValue && (
-                  <PasswordRequirements password={newPasswordValue} config={passwordConfig} />
-                )}
+                {newPasswordValue && <PasswordRequirements password={newPasswordValue} config={passwordConfig} />}
               </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="confirm_password">Confirm new password</Label>
-                <Input
-                  id="confirm_password"
-                  type="password"
-                  autoComplete="new-password"
-                  {...passwordForm.register('confirm_password', { required: true })}
-                />
-                {passwordForm.formState.errors.confirm_password?.message && (
-                  <p className="text-xs text-destructive">
-                    {passwordForm.formState.errors.confirm_password.message}
-                  </p>
-                )}
-              </div>
-
+              <FormPasswordField
+                label="Confirm new password"
+                autoComplete="new-password"
+                error={passwordForm.formState.errors.confirm_password?.message}
+                {...passwordForm.register('confirm_password', { required: true })}
+              />
               <Button type="submit" disabled={passwordChangeMutation.isPending}>
-                Change password
+                {passwordChangeMutation.isPending ? 'Changing…' : 'Change password'}
               </Button>
             </form>
 
-            {/* Fallback: a user who has forgotten their current password can still
-                reset it via the emailed link. */}
             <div className="border-t pt-3 text-sm text-muted-foreground">
               {passwordResetSent ? (
                 <p className="text-green-600">Check your email for a password reset link.</p>
@@ -261,7 +186,7 @@ export default function AccountSecurityPage() {
                   disabled={passwordResetMutation.isPending || !account?.email}
                   onClick={() => passwordResetMutation.mutate()}
                 >
-                  Send password reset link
+                  {passwordResetMutation.isPending ? 'Sending…' : 'Send password reset link'}
                 </Button>
               ) : (
                 <button
@@ -273,8 +198,8 @@ export default function AccountSecurityPage() {
                 </button>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </SettingsCard>
       </div>
     </AccountLayout>
   )

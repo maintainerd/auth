@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { User, Plus, Star, Trash2, Pencil, MoreHorizontal } from 'lucide-react'
 import AccountLayout from '@/components/layout/AccountLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SettingsCard } from '@/components/card'
+import { CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ListingItemCard, ListingItemIcon } from '@/components/details/ListingItemCard'
+import { ListingItemCard, ListingItemIcon } from '@/components/details'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
@@ -119,62 +120,62 @@ export default function AccountProfilesPage() {
       <div className="space-y-6">
         {/* Default profile — full details */}
         {!isLoading && defaultProfile && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                  {defaultProfile.profile_url ? (
-                    <img src={defaultProfile.profile_url} alt="" className="size-16 rounded-full object-cover" />
-                  ) : (
-                    <span className="text-lg font-semibold text-muted-foreground">
-                      {profileName(defaultProfile).slice(0, 2).toUpperCase()}
+          <SettingsCard title="Default profile" description="The profile used first across identity flows." icon={User}>
+            <div className="flex items-center gap-4">
+              <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                {defaultProfile.profile_url ? (
+                  <img src={defaultProfile.profile_url} alt="" className="size-16 rounded-full object-cover" />
+                ) : (
+                  <span className="text-lg font-semibold text-muted-foreground">
+                    {profileName(defaultProfile).slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTitle className="truncate text-lg">{profileName(defaultProfile)}</CardTitle>
+                  {defaultProfile.is_default && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                      Default
                     </span>
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle className="truncate text-lg">{profileName(defaultProfile)}</CardTitle>
-                    {defaultProfile.is_default && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        Default
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {defaultProfile.is_default ? 'Your default profile' : 'Your profile'}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0 gap-1.5"
-                  onClick={() => navigate(`/account/profile/${defaultProfile.profile_id}/edit`)}
-                >
-                  <Pencil className="size-3.5" /> Edit
-                </Button>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {defaultProfile.is_default ? 'Your default profile' : 'Your profile'}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                <ViewField label="Display name" value={defaultProfile.display_name} />
-                <ViewField label="First name" value={defaultProfile.first_name} />
-                <ViewField label="Middle name" value={defaultProfile.middle_name} />
-                <ViewField label="Last name" value={defaultProfile.last_name} />
-                <ViewField label="Email" value={defaultProfile.email} />
-                <ViewField label="Gender" value={defaultProfile.gender} />
-                <ViewField label="Date of birth" value={fmtDate(defaultProfile.birthdate)} />
-                <ViewField label="Timezone" value={defaultProfile.timezone} />
-                <ViewField label="Language" value={defaultProfile.language} />
-                <ViewField label="Added" value={fmtDate(defaultProfile.created_at)} />
-              </div>
-            </CardContent>
-          </Card>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1.5"
+                onClick={() => navigate(`/account/profile/${defaultProfile.profile_id}/edit`)}
+              >
+                <Pencil className="size-3.5" /> Edit
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              <ViewField label="Display name" value={defaultProfile.display_name} />
+              <ViewField label="First name" value={defaultProfile.first_name} />
+              <ViewField label="Middle name" value={defaultProfile.middle_name} />
+              <ViewField label="Last name" value={defaultProfile.last_name} />
+              <ViewField label="Email" value={defaultProfile.email} />
+              <ViewField label="Gender" value={defaultProfile.gender} />
+              <ViewField label="Date of birth" value={fmtDate(defaultProfile.birthdate)} />
+              <ViewField label="Timezone" value={defaultProfile.timezone} />
+              <ViewField label="Language" value={defaultProfile.language} />
+              <ViewField label="Added" value={fmtDate(defaultProfile.created_at)} />
+            </div>
+          </SettingsCard>
         )}
 
         {/* All profiles */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base">Profiles</CardTitle>
+        <SettingsCard
+          title="Profiles"
+          description="Manage the profiles available to your account."
+          icon={User}
+          contentClassName="space-y-4"
+        >
+          <div className="flex justify-end">
             <Button
               size="sm"
               variant="outline"
@@ -183,16 +184,16 @@ export default function AccountProfilesPage() {
             >
               <Plus className="size-3.5" /> Add profile
             </Button>
-          </CardHeader>
-          <CardContent>
-            {isLoading && <p className="text-sm text-muted-foreground">Loading profiles…</p>}
-            {!isLoading && profiles.length === 0 && (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <User className="size-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">No profiles yet</p>
-              </div>
-            )}
+          </div>
+          {isLoading && <p className="text-sm text-muted-foreground">Loading profiles…</p>}
+          {!isLoading && profiles.length === 0 && (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <User className="size-8 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">No profiles yet</p>
+            </div>
+          )}
 
+          {!isLoading && profiles.length > 0 && (
             <div className="space-y-2">
               {profiles.map((profile: UserProfile) => (
                 <ListingItemCard
@@ -228,8 +229,8 @@ export default function AccountProfilesPage() {
                 </ListingItemCard>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </SettingsCard>
       </div>
 
       <Dialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null) }}>

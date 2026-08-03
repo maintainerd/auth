@@ -2,8 +2,7 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Key, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FormInputField } from "@/components/form"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ListingItemCard, ListingItemIcon } from "@/components/details/ListingItemCard"
 import { useToast } from "@/hooks/useToast"
@@ -84,10 +83,13 @@ export default function PasskeySetupPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="key-name">Passkey name (optional)</Label>
-              <Input id="key-name" placeholder="My YubiKey" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
+            <FormInputField
+              id="key-name"
+              label="Passkey name (optional)"
+              placeholder="My YubiKey"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
             <div className="flex justify-end">
               <Button onClick={() => registerMutation.mutate()} disabled={registerMutation.isPending}>
                 <Plus className="mr-2 size-4" />

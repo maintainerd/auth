@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Smartphone, ShieldCheck, RefreshCw, Copy, Check, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FormInputField } from "@/components/form"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ListingItemIcon } from "@/components/details/ListingItemCard"
 import {
@@ -245,22 +245,20 @@ export default function TOTPSetupPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Enter verification code</CardTitle>
-            <CardDescription>Enter the 6-digit code from your authenticator app.</CardDescription>
+          <CardDescription>Enter the 6-digit code from your authenticator app.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="totp-code">Verification code</Label>
-              <Input
-                id="totp-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="000000"
-                maxLength={6}
-                className="text-center font-mono tracking-[0.5em]"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              />
-            </div>
+            <FormInputField
+              id="totp-code"
+              label="Verification code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              maxLength={6}
+              className="text-center font-mono tracking-[0.5em]"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            />
             <div className="flex justify-between gap-2">
               <Button variant="ghost" onClick={() => { setStep("scan"); setCode("") }}>Back</Button>
               <Button disabled={code.length !== 6 || verifyMutation.isPending} onClick={() => verifyMutation.mutate(code)}>

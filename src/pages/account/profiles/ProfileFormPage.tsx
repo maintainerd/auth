@@ -4,10 +4,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import AccountLayout from '@/components/layout/AccountLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SettingsCard } from '@/components/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FormInputField } from '@/components/form'
 import { useToast } from '@/hooks/useToast'
 import { fetchProfiles, createProfile, updateProfile, type UserProfile } from '@/services/api/account'
 
@@ -84,41 +84,45 @@ export default function ProfileFormPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{isEdit ? 'Edit profile' : 'New profile'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Label htmlFor="display_name">Display name</Label>
-                  <Input id="display_name" placeholder="Display name" {...form.register('display_name')} className="mt-1" />
-                </div>
-                <div>
-                  <Label htmlFor="first_name">First name</Label>
-                  <Input id="first_name" placeholder="First name" {...form.register('first_name')} className="mt-1" />
-                </div>
-                <div>
-                  <Label htmlFor="last_name">Last name</Label>
-                  <Input id="last_name" placeholder="Last name" {...form.register('last_name')} className="mt-1" />
-                </div>
-                <div className="sm:col-span-2">
-                  <Label htmlFor="profile_url">Avatar URL</Label>
-                  <Input id="profile_url" placeholder="https://…" {...form.register('profile_url')} className="mt-1" />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => navigate('/account/profile')}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={pending}>
-                  {pending ? 'Saving…' : isEdit ? 'Save changes' : 'Create profile'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <SettingsCard
+          title={isEdit ? 'Edit profile' : 'New profile'}
+          description="Keep your display details consistent across the identity experience."
+        >
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormInputField
+                label="Display name"
+                placeholder="Display name"
+                containerClassName="sm:col-span-2"
+                {...form.register('display_name')}
+              />
+              <FormInputField
+                label="First name"
+                placeholder="First name"
+                {...form.register('first_name')}
+              />
+              <FormInputField
+                label="Last name"
+                placeholder="Last name"
+                {...form.register('last_name')}
+              />
+              <FormInputField
+                label="Avatar URL"
+                placeholder="https://..."
+                containerClassName="sm:col-span-2"
+                {...form.register('profile_url')}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => navigate('/account/profile')}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? 'Saving…' : isEdit ? 'Save changes' : 'Create profile'}
+              </Button>
+            </div>
+          </form>
+        </SettingsCard>
       )}
     </AccountLayout>
   )

@@ -3,8 +3,7 @@ import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Phone, ArrowLeft, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FormInputField } from "@/components/form"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import LoginLayout from "@/components/layout/LoginLayout"
 import { useToast } from "@/hooks/useToast"
@@ -95,19 +94,17 @@ export default function VerifyPhonePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-1">
-                <Label htmlFor="phone">Phone number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+15551234567"
-                  disabled={codeSent || sendMut.isPending}
-                />
-              </div>
+              <FormInputField
+                id="phone"
+                label="Phone number"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+15551234567"
+                disabled={codeSent || sendMut.isPending}
+              />
 
               {!codeSent ? (
                 <Button
@@ -119,17 +116,15 @@ export default function VerifyPhonePage() {
                 </Button>
               ) : (
                 <>
-                  <div className="space-y-1">
-                    <Label htmlFor="code">Verification code</Label>
-                    <Input
-                      id="code"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      placeholder="123456"
-                    />
-                  </div>
+                  <FormInputField
+                    id="code"
+                    label="Verification code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="123456"
+                  />
                   <div className="flex gap-2">
                     <Button
                       className="flex-1"

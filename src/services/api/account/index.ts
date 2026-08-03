@@ -154,9 +154,6 @@ export const revokeTrustedDevice = (uuid: string): Promise<void> =>
 export interface UserSettings {
   language?: string
   timezone?: string
-  theme?: string
-  email_notifications?: boolean
-  marketing_emails?: boolean
 }
 
 export const fetchUserSettings = (): Promise<UserSettings> =>
