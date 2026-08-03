@@ -54,6 +54,7 @@ export default function AccountDataPage() {
                 {exportMutation.isPending ? 'Requesting…' : 'Request export'}
               </Button>
               )}
+              className="py-3"
             />
           )}
         </SettingsCard>
@@ -73,7 +74,7 @@ export default function AccountDataPage() {
                 <Link to="/account/erasure">Delete my account</Link>
               </Button>
             )}
-            className="py-0"
+            className="py-3"
           />
         </SettingsCard>
       </div>

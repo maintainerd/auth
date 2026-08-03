@@ -7,7 +7,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { ListingItemCard, ListingItemIcon } from "@/components/details/ListingItemCard"
+import { ListingItemIcon } from "@/components/details/ListingItemCard"
+import { Separator } from "@/components/ui/separator"
 import AccountLayout from "@/components/layout/AccountLayout"
 import { useToast } from "@/hooks/useToast"
 import { cn } from "@/lib/utils"
@@ -67,7 +68,7 @@ export default function MFAPage() {
         <div>
           <h2 className="mb-2 px-1 text-sm font-medium text-muted-foreground">Authentication methods</h2>
           <Card className="overflow-hidden py-0">
-            <CardContent className="space-y-2 p-3">
+            <CardContent className="p-0">
               <MethodRow
                 icon={Smartphone}
                 title="Authenticator app"
@@ -75,14 +76,7 @@ export default function MFAPage() {
                 active={totpOn}
                 onClick={() => navigate("/account/mfa/totp")}
               />
-              <MethodRow
-                icon={Key}
-                title="Passkeys"
-                description="Sign in with Face ID, Touch ID, Windows Hello, or a security key."
-                active={passkeyOn}
-                activeLabel={passkeyOn ? `${passkeyCount} registered` : undefined}
-                onClick={() => navigate("/account/mfa/passkeys")}
-              />
+              <Separator />
               <MethodRow
                 icon={MessageSquare}
                 title="Text message (SMS)"
@@ -90,12 +84,22 @@ export default function MFAPage() {
                 active={smsOn}
                 onClick={() => navigate("/account/mfa/sms")}
               />
+              <Separator />
               <MethodRow
                 icon={Mail}
                 title="Email OTP"
                 description="Receive one-time codes at your verified email address."
                 active={emailOn}
                 onClick={() => navigate("/account/mfa/email-otp")}
+              />
+              <Separator />
+              <MethodRow
+                icon={Key}
+                title="Passkeys"
+                description="Sign in with Face ID, Touch ID, Windows Hello, or a security key."
+                active={passkeyOn}
+                activeLabel={passkeyOn ? `${passkeyCount} registered` : undefined}
+                onClick={() => navigate("/account/mfa/passkeys")}
               />
             </CardContent>
           </Card>
@@ -106,7 +110,7 @@ export default function MFAPage() {
           <div>
             <h2 className="mb-2 px-1 text-sm font-medium text-muted-foreground">Recovery</h2>
             <Card className="overflow-hidden py-0">
-              <CardContent className="p-3">
+              <CardContent className="p-0">
                 <MethodRow
                   icon={KeyRound}
                   title="Backup codes"
@@ -195,21 +199,14 @@ interface MethodRowProps {
 
 function MethodRow({ icon: Icon, title, description, active, activeLabel, onClick }: MethodRowProps) {
   return (
-    <ListingItemCard
-      as="button"
+    <button
+      type="button"
       onClick={onClick}
-      icon={Icon}
-      iconClassName="size-10"
-      contentClassName="items-center gap-4"
-      className="items-center p-3 focus-visible:bg-accent/50"
-      actionClassName="flex shrink-0 items-center gap-2 text-sm text-muted-foreground"
-      action={(
-        <>
-          <span className="hidden sm:inline">{active ? "Manage" : "Set up"}</span>
-          <ChevronRight className="size-4" />
-        </>
-      )}
+      className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none first:rounded-t-xl last:rounded-b-xl"
     >
+      <ListingItemIcon className="size-10">
+        <Icon className="size-5" />
+      </ListingItemIcon>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium">{title}</p>
@@ -218,7 +215,11 @@ function MethodRow({ icon: Icon, title, description, active, activeLabel, onClic
         </div>
         <p className="mt-0.5 truncate text-sm text-muted-foreground">{description}</p>
       </div>
-    </ListingItemCard>
+      <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+        <span className="hidden sm:inline">{active ? "Manage" : "Set up"}</span>
+        <ChevronRight className="size-4" />
+      </div>
+    </button>
   )
 }
 

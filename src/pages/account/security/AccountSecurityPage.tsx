@@ -7,6 +7,8 @@ import { SettingsCard } from '@/components/card'
 import { Button } from '@/components/ui/button'
 import { FormInputField, FormPasswordField } from '@/components/form'
 import { FormEmailField, FormPasswordFieldWithPolicy } from '@/components/inputs'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { SettingsActionRow } from '@/components/settings'
 import { useToast } from '@/hooks/useToast'
 import { useTenant } from '@/hooks/useTenant'
 import { changePassword, changeUsername, fetchAccountInfo, initiateEmailChange } from '@/services/api/account'
@@ -30,6 +32,9 @@ export default function AccountSecurityPage() {
   const { showError, showSuccess } = useToast()
   const { getCurrentTenant } = useTenant()
   const [emailSent, setEmailSent] = useState(false)
+  const [usernameOpen, setUsernameOpen] = useState(false)
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [passwordResetSent, setPasswordResetSent] = useState(false)
   const [useResetLink, setUseResetLink] = useState(false)
 
@@ -46,7 +51,11 @@ export default function AccountSecurityPage() {
 
   const usernameMutation = useMutation({
     mutationFn: (data: UsernameForm) => changeUsername(data.username),
-    onSuccess: () => usernameForm.reset(),
+    onSuccess: () => {
+      usernameForm.reset()
+      setUsernameOpen(false)
+      showSuccess('Username updated')
+    },
     onError: (err) => showError(err, 'Could not update username'),
   })
 
@@ -76,6 +85,9 @@ export default function AccountSecurityPage() {
     mutationFn: (data: PasswordForm) => changePassword(data.current_password, data.new_password),
     onSuccess: (result) => {
       passwordForm.reset()
+      setPasswordOpen(false)
+      setUseResetLink(false)
+      setPasswordResetSent(false)
       showSuccess(
         result.reauthentication_required
           ? 'Password changed. Please sign in again.'
@@ -103,81 +115,148 @@ export default function AccountSecurityPage() {
     passwordChangeMutation.mutate(data)
   }
 
+  const handleUsernameOpenChange = (open: boolean) => {
+    setUsernameOpen(open)
+    if (!open) usernameForm.reset()
+  }
+
+  const handleEmailOpenChange = (open: boolean) => {
+    setEmailOpen(open)
+    if (!open) {
+      emailForm.reset()
+      setEmailSent(false)
+    }
+  }
+
+  const handlePasswordOpenChange = (open: boolean) => {
+    setPasswordOpen(open)
+    if (!open) {
+      passwordForm.reset()
+      setUseResetLink(false)
+      setPasswordResetSent(false)
+    }
+  }
+
   return (
     <AccountLayout title="Security">
-      <div className="grid gap-6">
-        <SettingsCard title="Username" description="Update the username attached to your account." icon={AtSign}>
-          <form
-            onSubmit={usernameForm.handleSubmit((data) => usernameMutation.mutate(data))}
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          >
+      <SettingsCard
+        title="Sign-in details"
+        description="Manage the identifiers and password used to access your account."
+        icon={AtSign}
+      >
+        <div className="divide-y">
+          <SettingsActionRow
+            icon={Mail}
+            title="Email address"
+            description="Change the email address you use for sign-in."
+            actionLabel="Change"
+            onAction={() => setEmailOpen(true)}
+          />
+          <SettingsActionRow
+            icon={AtSign}
+            title="Username"
+            description="Update the username attached to your account."
+            actionLabel="Change"
+            onAction={() => setUsernameOpen(true)}
+          />
+          <SettingsActionRow
+            icon={KeyRound}
+            title="Password"
+            description="Change your password without leaving your account."
+            actionLabel="Change"
+            onAction={() => setPasswordOpen(true)}
+          />
+        </div>
+      </SettingsCard>
+
+      <Dialog open={usernameOpen} onOpenChange={handleUsernameOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={usernameForm.handleSubmit((data) => usernameMutation.mutate(data))} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Change username</DialogTitle>
+              <DialogDescription>Enter the new username you want attached to your account.</DialogDescription>
+            </DialogHeader>
             <FormInputField
               label="New username"
               placeholder="New username"
-              containerClassName="flex-1"
-              {...usernameForm.register('username', { required: true })}
+              error={usernameForm.formState.errors.username?.message}
+              {...usernameForm.register('username', { required: 'Username is required.' })}
             />
-            <Button type="submit" disabled={usernameMutation.isPending}>
-              {usernameMutation.isPending ? 'Saving…' : 'Save'}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => handleUsernameOpenChange(false)}>Cancel</Button>
+              <Button type="submit" disabled={usernameMutation.isPending}>
+                {usernameMutation.isPending ? 'Saving…' : 'Save'}
+              </Button>
+            </DialogFooter>
           </form>
-        </SettingsCard>
+        </DialogContent>
+      </Dialog>
 
-        <SettingsCard title="Email address" description="Change the email you use for sign-in." icon={Mail}>
-          {emailSent ? (
-            <p className="text-sm text-muted-foreground">
-              Check your new inbox for a verification link to confirm the change.
-            </p>
-          ) : (
-            <form
-              onSubmit={emailForm.handleSubmit((data) => emailMutation.mutate(data))}
-              className="flex flex-col gap-3 sm:flex-row sm:items-end"
-            >
+      <Dialog open={emailOpen} onOpenChange={handleEmailOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={emailForm.handleSubmit((data) => emailMutation.mutate(data))} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Change email address</DialogTitle>
+              <DialogDescription>We will send a verification link before the new email becomes active.</DialogDescription>
+            </DialogHeader>
+            {emailSent ? (
+              <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+                Check your new inbox for a verification link to confirm the change.
+              </p>
+            ) : (
               <FormEmailField
                 label="New email address"
                 placeholder="New email address"
-                containerClassName="flex-1"
-                {...emailForm.register('new_email', { required: true })}
+                error={emailForm.formState.errors.new_email?.message}
+                {...emailForm.register('new_email', { required: 'Email is required.' })}
               />
-              <Button type="submit" disabled={emailMutation.isPending}>
-                {emailMutation.isPending ? 'Sending…' : 'Send link'}
+            )}
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => handleEmailOpenChange(false)}>
+                {emailSent ? 'Close' : 'Cancel'}
               </Button>
-            </form>
-          )}
-        </SettingsCard>
+              {!emailSent && (
+                <Button type="submit" disabled={emailMutation.isPending}>
+                  {emailMutation.isPending ? 'Sending…' : 'Send link'}
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-        <SettingsCard title="Password" description="Change your password without leaving your account." icon={KeyRound}>
-          <div className="space-y-4">
-            <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-4">
-              <FormPasswordField
-                label="Current password"
-                autoComplete="current-password"
-                error={passwordForm.formState.errors.current_password?.message}
-                {...passwordForm.register('current_password', { required: true })}
-              />
-              <FormPasswordFieldWithPolicy
-                label="New password"
-                autoComplete="new-password"
-                error={passwordForm.formState.errors.new_password?.message}
-                passwordConfig={passwordConfig}
-                {...passwordForm.register('new_password', { required: true })}
-              />
-              <FormPasswordField
-                label="Confirm new password"
-                autoComplete="new-password"
-                error={passwordForm.formState.errors.confirm_password?.message}
-                {...passwordForm.register('confirm_password', { required: true })}
-              />
-              <Button type="submit" disabled={passwordChangeMutation.isPending}>
-                {passwordChangeMutation.isPending ? 'Changing…' : 'Change password'}
-              </Button>
-            </form>
-
+      <Dialog open={passwordOpen} onOpenChange={handlePasswordOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Change password</DialogTitle>
+              <DialogDescription>Enter your current password, then choose a new one.</DialogDescription>
+            </DialogHeader>
+            <FormPasswordField
+              label="Current password"
+              autoComplete="current-password"
+              error={passwordForm.formState.errors.current_password?.message}
+              {...passwordForm.register('current_password', { required: 'Current password is required.' })}
+            />
+            <FormPasswordFieldWithPolicy
+              label="New password"
+              autoComplete="new-password"
+              error={passwordForm.formState.errors.new_password?.message}
+              passwordConfig={passwordConfig}
+              {...passwordForm.register('new_password', { required: 'New password is required.' })}
+            />
+            <FormPasswordField
+              label="Confirm new password"
+              autoComplete="new-password"
+              error={passwordForm.formState.errors.confirm_password?.message}
+              {...passwordForm.register('confirm_password', { required: 'Please confirm your new password.' })}
+            />
             <div className="border-t pt-3 text-sm text-muted-foreground">
               {passwordResetSent ? (
                 <p className="text-green-600">Check your email for a password reset link.</p>
               ) : useResetLink ? (
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   disabled={passwordResetMutation.isPending || !account?.email}
@@ -195,9 +274,15 @@ export default function AccountSecurityPage() {
                 </button>
               )}
             </div>
-          </div>
-        </SettingsCard>
-      </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => handlePasswordOpenChange(false)}>Cancel</Button>
+              <Button type="submit" disabled={passwordChangeMutation.isPending}>
+                {passwordChangeMutation.isPending ? 'Changing…' : 'Change password'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AccountLayout>
   )
 }

@@ -36,7 +36,7 @@ function fmtDate(value?: string | null): string | undefined {
 
 function ViewField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="min-w-0 space-y-1 border-border/60 px-4 py-3 sm:border-r [&:nth-child(2n)]:sm:border-r-0 lg:[&:nth-child(2n)]:border-r lg:[&:nth-child(3n)]:border-r-0">
+    <div className="min-w-0 space-y-1 rounded-md px-3 py-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="truncate text-sm font-medium">{value || <span className="font-normal text-muted-foreground">Not set</span>}</p>
     </div>
@@ -159,7 +159,7 @@ export default function AccountProfilesPage() {
                 <Pencil className="size-3.5" /> Edit
               </Button>
             </div>
-            <div data-md-listing-nested className="grid overflow-hidden rounded-md border bg-muted/20 sm:grid-cols-2 lg:grid-cols-3">
+            <div data-md-listing-nested className="grid gap-2 rounded-md bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3">
               <ViewField label="Display name" value={defaultProfile.display_name} />
               <ViewField label="First name" value={defaultProfile.first_name} />
               <ViewField label="Middle name" value={defaultProfile.middle_name} />
