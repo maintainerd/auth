@@ -41,7 +41,7 @@ type WebhookEndpointServiceListResult struct {
 
 // WebhookEndpointService defines business operations on webhook endpoints.
 type WebhookEndpointService interface {
-	GetAll(ctx context.Context, tenantID int64, status []string, page, limit int, sortBy, sortOrder string) (*WebhookEndpointServiceListResult, error)
+	GetAll(ctx context.Context, tenantID int64, status []string, url *string, page, limit int, sortBy, sortOrder string) (*WebhookEndpointServiceListResult, error)
 	GetByUUID(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID) (*WebhookEndpointServiceDataResult, error)
 	Create(ctx context.Context, tenantID int64, url string, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
 	Update(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID, url string, rotateSecret bool, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
@@ -75,7 +75,7 @@ func toWebhookEndpointServiceDataResult(we *WebhookEndpoint) WebhookEndpointServ
 }
 
 // GetAll retrieves a paginated list of webhook endpoints for a tenant.
-func (s *webhookEndpointService) GetAll(ctx context.Context, tenantID int64, status []string, page, limit int, sortBy, sortOrder string) (*WebhookEndpointServiceListResult, error) {
+func (s *webhookEndpointService) GetAll(ctx context.Context, tenantID int64, status []string, url *string, page, limit int, sortBy, sortOrder string) (*WebhookEndpointServiceListResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "webhookEndpoint.list")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
@@ -83,6 +83,7 @@ func (s *webhookEndpointService) GetAll(ctx context.Context, tenantID int64, sta
 	result, err := s.webhookEndpointRepo.FindPaginated(WebhookEndpointRepositoryGetFilter{
 		TenantID:  &tenantID,
 		Status:    status,
+		URL:       url,
 		Page:      page,
 		Limit:     limit,
 		SortBy:    sortBy,

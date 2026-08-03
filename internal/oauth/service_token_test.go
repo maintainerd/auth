@@ -145,9 +145,31 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 		assert.Contains(t, oerr.Description, "redirect_uri is required")
 	})
 
-	t.Run("authorization_code — missing code_verifier", func(t *testing.T) {
-		db, _ := newMockDB(t)
-		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
+	// PKCE binds per authorization request, not globally. /authorize only demands
+	// a code_challenge when the client's RequirePKCE policy is on, so a
+	// confidential client legitimately running without PKCE gets a code with no
+	// challenge. The token endpoint used to reject any request lacking a
+	// code_verifier before it even loaded the code, so that client could obtain a
+	// code and then never redeem it.
+	t.Run("authorization_code — a code WITH a challenge still requires a verifier", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		svc := newOAuthTokenSvc(db, &mockClientRepo{},
+			&mockOAuthAuthCodeRepo{
+				findByCodeHashFn: func(string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
+						ClientID:            10,
+						TenantID:            1,
+						RedirectURI:         "https://example.com/callback",
+						ExpiresAt:           time.Now().Add(time.Minute),
+						CodeChallenge:       "a-stored-challenge",
+						CodeChallengeMethod: "S256",
+					}, nil
+				},
+			},
+			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
 
 		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:   "authorization_code",
@@ -155,7 +177,40 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 			RedirectURI: "https://example.com/callback",
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
-		assert.Contains(t, oerr.Description, "code_verifier is required")
+		assert.Contains(t, oerr.Description, "code_verifier is required",
+			"a public client must not be able to strip PKCE by omitting the verifier")
+	})
+
+	t.Run("authorization_code — a code WITHOUT a challenge does not demand a verifier", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		svc := newOAuthTokenSvc(db, &mockClientRepo{},
+			&mockOAuthAuthCodeRepo{
+				findByCodeHashFn: func(string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
+						ClientID:    10,
+						TenantID:    1,
+						RedirectURI: "https://example.com/callback",
+						ExpiresAt:   time.Now().Add(time.Minute),
+						// No PKCE was used for this authorization.
+					}, nil
+				},
+			},
+			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:   "authorization_code",
+			Code:        "code123",
+			RedirectURI: "https://example.com/callback",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		// It may still fail further down on unrelated mock plumbing; it must just
+		// not fail on a missing PKCE verifier.
+		if oerr != nil {
+			assert.NotContains(t, oerr.Description, "code_verifier")
+			assert.NotContains(t, oerr.Description, "PKCE")
+		}
 	})
 
 	t.Run("authorization_code — client auth missing client_id", func(t *testing.T) {

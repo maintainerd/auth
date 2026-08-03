@@ -8,13 +8,17 @@ import (
 
 type DeliveryHistoryResponseDTO struct {
 	DeliveryHistoryUUID uuid.UUID `json:"delivery_history_uuid"`
-	EventType           string    `json:"event_type"`
-	AttemptCount        int       `json:"attempt_count"`
-	FinalStatus         string    `json:"final_status"`
-	ResponseStatus      *int      `json:"response_status,omitempty"`
-	ResponseSummary     string    `json:"response_summary"`
-	IsReplay            bool      `json:"is_replay"`
-	CreatedAt           time.Time `json:"created_at"`
+	// EventID is what POST /webhook-replay actually replays. The DTO omitted it,
+	// so the console had nothing to send and posted the delivery-history UUID
+	// under the wrong key instead — every replay 400'd on "Invalid event_id UUID".
+	EventID         uuid.UUID `json:"event_id"`
+	EventType       string    `json:"event_type"`
+	AttemptCount    int       `json:"attempt_count"`
+	FinalStatus     string    `json:"final_status"`
+	ResponseStatus  *int      `json:"response_status,omitempty"`
+	ResponseSummary string    `json:"response_summary"`
+	IsReplay        bool      `json:"is_replay"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // WebhookEndpointResponseDTO is the JSON representation of a webhook endpoint.
@@ -63,6 +67,7 @@ type WebhookEndpointUpdateStatusRequestDTO struct {
 // WebhookEndpointFilterDTO holds filter parameters for listing webhook
 // endpoints.
 type WebhookEndpointFilterDTO struct {
+	URL    *string
 	Status []string `json:"status"`
 	PaginationRequestDTO
 }

@@ -183,9 +183,12 @@ type UserIdentityResponseDTO struct {
 }
 
 type UserMFAResponseDTO struct {
-	IsTOTPEnabled      bool                    `json:"is_totp_enabled"`
-	IsWebAuthnEnabled  bool                    `json:"is_webauthn_enabled"`
-	IsSMSEnabled       bool                    `json:"is_sms_enabled"`
+	IsTOTPEnabled     bool `json:"is_totp_enabled"`
+	IsWebAuthnEnabled bool `json:"is_webauthn_enabled"`
+	IsSMSEnabled      bool `json:"is_sms_enabled"`
+	// IsEmailOTPEnabled was read by the admin User → MFA tab but never sent, so
+	// Email OTP always rendered as disabled regardless of the user's real state.
+	IsEmailOTPEnabled  bool                    `json:"is_email_otp_enabled"`
 	BackupCodesCount   int                     `json:"backup_codes_count"`
 	WebAuthnKeys       []UserMFAWebAuthnKeyDTO `json:"webauthn_keys,omitempty"`
 	FirstMFAEnrolledAt *string                 `json:"mfa_enabled_at,omitempty"`

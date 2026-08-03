@@ -106,10 +106,10 @@ func TestBrandingService_Update(t *testing.T) {
 		res, err := svc.Update(context.Background(), 1,
 			"", "Acme", "https://logo.png", "https://favicon.ico",
 			testBrandingMetadata(map[string]any{
-				BrandingMetadataLayout:         "centered",
-				BrandingMetadataLogoLabel:      "Acme IAM",
-				BrandingMetadataShowLogoLabel:  true,
-				"colors":                       map[string]string{"primary": "#111"},
+				BrandingMetadataLayout:        "centered",
+				BrandingMetadataLogoLabel:     "Acme IAM",
+				BrandingMetadataShowLogoLabel: true,
+				"colors":                      map[string]string{"primary": "#111"},
 			}),
 			"https://support", "https://privacy", "https://terms",
 		)

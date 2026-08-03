@@ -52,7 +52,7 @@ func TestWebhookEndpointService_GetAll(t *testing.T) {
 				}, nil
 			},
 		})
-		res, err := svc.GetAll(context.Background(), 1, nil, 1, 10, "created_at", "desc")
+		res, err := svc.GetAll(context.Background(), 1, nil, nil, 1, 10, "created_at", "desc")
 		require.NoError(t, err)
 		assert.Len(t, res.Data, 1)
 		assert.Equal(t, int64(1), res.Total)
@@ -70,7 +70,7 @@ func TestWebhookEndpointService_GetAll(t *testing.T) {
 				}, nil
 			},
 		})
-		res, err := svc.GetAll(context.Background(), 1, nil, 1, 10, "created_at", "desc")
+		res, err := svc.GetAll(context.Background(), 1, nil, nil, 1, 10, "created_at", "desc")
 		require.NoError(t, err)
 		assert.Empty(t, res.Data)
 	})
@@ -81,7 +81,7 @@ func TestWebhookEndpointService_GetAll(t *testing.T) {
 				return nil, errors.New("db")
 			},
 		})
-		_, err := svc.GetAll(context.Background(), 1, nil, 1, 10, "", "")
+		_, err := svc.GetAll(context.Background(), 1, nil, nil, 1, 10, "", "")
 		require.Error(t, err)
 	})
 }

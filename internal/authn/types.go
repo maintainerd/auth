@@ -141,17 +141,20 @@ type RegisterInviteQueryDTO struct {
 
 // RegisterResponseDTO is the response structure for registration operations
 type RegisterResponseDTO struct {
-	AccessToken             string `json:"access_token"`
-	IDToken                 string `json:"id_token"`
-	RefreshToken            string `json:"refresh_token,omitempty"`
-	ExpiresIn               int64  `json:"expires_in"`
-	TokenType               string `json:"token_type"`
-	IssuedAt                int64  `json:"issued_at"`
-	CookieSecure            *bool  `json:"-"`
-	CookieHTTPOnly          *bool  `json:"-"`
-	CookieSameSite          string `json:"-"`
-	RefreshTokenMaxAge      int    `json:"-"`
-	AccessTokenCookieMaxAge int64  `json:"-"`
+	AccessToken  string `json:"access_token"`
+	IDToken      string `json:"id_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	// SessionID mirrors LoginResponseDTO. Registration signs the user in and now
+	// creates a real session, so it reports the same thing login does.
+	SessionID               *string `json:"session_id,omitempty"`
+	ExpiresIn               int64   `json:"expires_in"`
+	TokenType               string  `json:"token_type"`
+	IssuedAt                int64   `json:"issued_at"`
+	CookieSecure            *bool   `json:"-"`
+	CookieHTTPOnly          *bool   `json:"-"`
+	CookieSameSite          string  `json:"-"`
+	RefreshTokenMaxAge      int     `json:"-"`
+	AccessTokenCookieMaxAge int64   `json:"-"`
 }
 
 // ResetPasswordRequestDTO represents the request to reset a password

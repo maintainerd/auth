@@ -17,8 +17,12 @@ const defaultCaptchaVerifyURL = "https://www.google.com/recaptcha/api/siteverify
 const defaultCaptchaMinScore = 0.5
 
 type captchaVerifyResponse struct {
-	Success    bool     `json:"success"`
-	Score      float64  `json:"score"`
+	Success bool `json:"success"`
+	// Score is a POINTER because "no score" and "score 0.0" are different
+	// answers. Only reCAPTCHA v3 scores a request; reCAPTCHA v2, hCaptcha's free
+	// tier and Cloudflare Turnstile all omit the field on an otherwise
+	// successful verification.
+	Score      *float64 `json:"score"`
 	Action     string   `json:"action"`
 	ErrorCodes []string `json:"error-codes"`
 }
@@ -89,9 +93,17 @@ func VerifyCaptcha(ctx context.Context, responseToken, remoteIP string) error {
 	if !body.Success {
 		return fmt.Errorf("captcha verification failed")
 	}
-	minScore := captchaMinScore()
-	if body.Score < minScore {
-		return fmt.Errorf("captcha score %.2f is below minimum threshold %.2f", body.Score, minScore)
+	// Apply the risk threshold only when the provider actually scored the
+	// request. As a plain float64 this defaulted to 0.0 for every provider that
+	// does not score, which is below the 0.5 default — so a successful Turnstile,
+	// hCaptcha or reCAPTCHA-v2 verification was rejected anyway, and the endpoint
+	// was effectively locked to reCAPTCHA v3. Every provider's own pass/fail
+	// verdict is `success`, which is checked above.
+	if body.Score != nil {
+		minScore := captchaMinScore()
+		if *body.Score < minScore {
+			return fmt.Errorf("captcha score %.2f is below minimum threshold %.2f", *body.Score, minScore)
+		}
 	}
 	return nil
 }

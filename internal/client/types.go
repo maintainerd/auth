@@ -298,3 +298,16 @@ type IdentityProviderResponseDTO struct {
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
+
+// ClientSetStatusRequestDTO is the request body for PATCH
+// /clients/{client_uuid}/status.
+//
+// The handler used to ignore the body entirely and blind-toggle from whatever
+// was currently in the DB. The console always sends an explicit target status,
+// so under any staleness — a double-click, another admin flipping it first, a
+// stale cache — the toggle could land on the opposite of what the operator
+// picked while still reporting success, silently enabling or disabling an
+// OAuth client.
+type ClientSetStatusRequestDTO struct {
+	Status string `json:"status"`
+}

@@ -15,6 +15,7 @@ import (
 // WebhookEndpointRepositoryGetFilter holds query parameters for paginated
 // webhook endpoint lookups.
 type WebhookEndpointRepositoryGetFilter struct {
+	URL       *string
 	TenantID  *int64
 	Status    []string
 	Page      int
@@ -102,6 +103,9 @@ func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointReposito
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
+	}
+	if filter.URL != nil && *filter.URL != "" {
+		query = query.Where("url ILIKE ?", "%"+*filter.URL+"%")
 	}
 
 	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))

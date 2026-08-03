@@ -61,6 +61,7 @@ func (h *DeliveryHistoryHandler) GetDeliveries(w http.ResponseWriter, r *http.Re
 
 func toDeliveryHistoryResponse(dh *DeliveryHistory) DeliveryHistoryResponseDTO {
 	return DeliveryHistoryResponseDTO{
+		EventID:             dh.EventID,
 		DeliveryHistoryUUID: dh.DeliveryHistoryUUID,
 		EventType:           dh.EventType,
 		AttemptCount:        dh.AttemptCount,

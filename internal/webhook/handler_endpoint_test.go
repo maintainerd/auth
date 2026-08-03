@@ -44,7 +44,7 @@ func TestWebhookEndpointHandler_GetAll_ValidationError(t *testing.T) {
 
 func TestWebhookEndpointHandler_GetAll_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		getAllFn: func(_ int64, _ []string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
+		getAllFn: func(_ int64, _ []string, _ *string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -57,7 +57,7 @@ func TestWebhookEndpointHandler_GetAll_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_GetAll_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		getAllFn: func(_ int64, _ []string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
+		getAllFn: func(_ int64, _ []string, _ *string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
 			return &WebhookEndpointServiceListResult{
 				Data:       []WebhookEndpointServiceDataResult{*webhookResult()},
 				Total:      1,
@@ -76,7 +76,7 @@ func TestWebhookEndpointHandler_GetAll_Success(t *testing.T) {
 
 func TestWebhookEndpointHandler_GetAll_WithStatusFilter(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		getAllFn: func(_ int64, status []string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
+		getAllFn: func(_ int64, status []string, _ *string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
 			assert.Equal(t, []string{"active"}, status)
 			return &WebhookEndpointServiceListResult{}, nil
 		},

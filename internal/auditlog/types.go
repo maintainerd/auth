@@ -5,9 +5,17 @@ package auditlog
 type ManagementAuditLogFilter struct {
 	ResourceType string
 	Action       string
-	ActorUserID  *int64
-	Page         int
-	Limit        int
+	// Outcome is a real column on the row and is returned in the DTO, but was
+	// never accepted as a filter — so the console's Outcome chips silently
+	// returned the full unfiltered list.
+	Outcome     string
+	ActorUserID *int64
+	// SortBy/SortOrder were likewise sent by every request and ignored; the
+	// repository hardcoded created_at DESC, so column headers did nothing.
+	SortBy    string
+	SortOrder string
+	Page      int
+	Limit     int
 }
 
 // ManagementAuditLogFilterDTO is the request shape for filter parameters

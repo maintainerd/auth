@@ -2,7 +2,9 @@ package webhook
 
 import (
 	"encoding/json"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -34,13 +36,21 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 
 	q := r.URL.Query()
 
+	// The console's multi-select sends the chosen statuses comma-joined
+	// ("active,inactive"). Appending the raw string produced
+	// `status IN ('active,inactive')`, which matches nothing — picking more than
+	// one status looked like "no webhooks exist". Split like every other
+	// resource does (see tenant.Get).
 	var status []string
 	if v := q.Get("status"); v != "" {
-		status = append(status, v)
+		status = strings.Split(v, ",")
 	}
 
 	filter := WebhookEndpointFilterDTO{
-		Status:               status,
+		Status: status,
+		// The listing's search box is labelled "Search webhooks by URL..." and
+		// sends ?url=; nothing read it, so typing in it did nothing at all.
+		URL:                  ptr.PtrOrNil(q.Get("url")),
 		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
@@ -52,6 +62,7 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 	result, err := h.webhookEndpointService.GetAll(
 		r.Context(), tenant.TenantID,
 		filter.Status,
+		filter.URL,
 		filter.Page, filter.Limit,
 		filter.SortBy, filter.SortOrder,
 	)

@@ -2,6 +2,7 @@ package auditlog
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
@@ -69,6 +70,9 @@ func (r *managementAuditLogRepository) FindPaginated(tenantID int64, filter Mana
 	if filter.Action != "" {
 		query = query.Where("management_audit_log.action = ?", filter.Action)
 	}
+	if filter.Outcome != "" {
+		query = query.Where("management_audit_log.outcome = ?", filter.Outcome)
+	}
 	if filter.ActorUserID != nil {
 		query = query.Where("management_audit_log.actor_user_id = ?", *filter.ActorUserID)
 	}
@@ -88,7 +92,7 @@ func (r *managementAuditLogRepository) FindPaginated(tenantID int64, filter Mana
 		page = 1
 	}
 	if err := withActorLabels(query).
-		Order("management_audit_log.created_at DESC").
+		Order(managementAuditLogOrder(filter)).
 		Limit(limit).
 		Offset((page - 1) * limit).
 		Find(&logs).Error; err != nil {
@@ -112,4 +116,26 @@ func (r *managementAuditLogRepository) FindByUUIDAndTenantID(auditLogUUID uuid.U
 		return nil, err
 	}
 	return &log, nil
+}
+
+// managementAuditLogOrder maps the caller's sort request onto a fixed set of
+// columns. An allowlist rather than interpolation: the value arrives straight
+// from a query string and would otherwise be an injection point in an ORDER BY,
+// which GORM does not parameterise. Anything unrecognised falls back to the
+// previous behaviour (newest first).
+func managementAuditLogOrder(filter ManagementAuditLogFilter) string {
+	sortable := map[string]string{
+		"created_at":    "management_audit_log.created_at",
+		"action":        "management_audit_log.action",
+		"resource_type": "management_audit_log.resource_type",
+		"outcome":       "management_audit_log.outcome",
+	}
+	column, ok := sortable[filter.SortBy]
+	if !ok {
+		column = "management_audit_log.created_at"
+	}
+	if strings.EqualFold(filter.SortOrder, "asc") {
+		return column + " ASC"
+	}
+	return column + " DESC"
 }

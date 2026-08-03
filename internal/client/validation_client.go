@@ -227,3 +227,14 @@ func (r RotateSecretRequestDTO) Validate() error {
 		),
 	)
 }
+
+// Validate ensures the caller named a real status rather than relying on a
+// server-side toggle.
+func (r ClientSetStatusRequestDTO) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Status,
+			validation.Required,
+			validation.In(shared.StatusActive, shared.StatusInactive),
+		),
+	)
+}
