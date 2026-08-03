@@ -941,11 +941,15 @@ func buildIDTokenParamsWithPolicy(repo secpolicy.SecuritySettingRepository, scop
 	for _, claim := range tokenPolicy.AdditionalIDTokenClaims {
 		switch claim {
 		case "tenant_id":
+			// Stamp the tenant's opaque UUID, never the internal PK (least-disclosure
+			// per RFC 9068). Resolver is a cached, ctx-agnostic lookup.
 			if client != nil && client.TenantID > 0 {
-				if params.ExtraClaims == nil {
-					params.ExtraClaims = map[string]any{}
+				if s := shared.TenantUUIDStringByID(context.Background(), client.TenantID); s != "" {
+					if params.ExtraClaims == nil {
+						params.ExtraClaims = map[string]any{}
+					}
+					params.ExtraClaims["tenant_id"] = s
 				}
-				params.ExtraClaims["tenant_id"] = client.TenantID
 			}
 		case "roles":
 			if len(userRoles) > 0 {

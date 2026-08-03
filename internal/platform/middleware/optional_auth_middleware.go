@@ -73,7 +73,7 @@ func OptionalUserContextMiddleware(userProvider UserContextProvider, appCache *c
 				return
 			}
 
-			claims := buildJWTClaims(rawClaims)
+			claims := buildJWTClaims(r.Context(), rawClaims)
 			ctx := ContextWithJWTClaims(r.Context(), claims)
 			r = r.WithContext(ctx)
 

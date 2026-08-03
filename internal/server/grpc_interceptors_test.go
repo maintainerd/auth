@@ -14,10 +14,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -29,6 +31,28 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
+
+// staticServerTenantRef is a test double for shared.TenantRefResolver mapping one
+// tenant's internal id to its uuid, so a token carrying the opaque tenant_id UUID
+// resolves back to the internal id the interceptor's policy lookup needs.
+type staticServerTenantRef struct {
+	id      int64
+	id2uuid uuid.UUID
+}
+
+func (s staticServerTenantRef) TenantUUIDByID(_ context.Context, id int64) (uuid.UUID, bool) {
+	if id == s.id {
+		return s.id2uuid, true
+	}
+	return uuid.Nil, false
+}
+
+func (s staticServerTenantRef) TenantIDByUUID(_ context.Context, u uuid.UUID) (int64, bool) {
+	if u == s.id2uuid {
+		return s.id, true
+	}
+	return 0, false
+}
 
 func TestGRPCLimiter(t *testing.T) {
 	limiter := newGRPCLimiter(2, time.Minute)
@@ -188,12 +212,17 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 
 	t.Run("authz allows protected permission", func(t *testing.T) {
 		initServerTestJWTKeys(t)
+		// The tenant_id claim VALUE is the tenant's opaque UUID; the parse layer
+		// resolves it back to the internal id (1 here) via the injected resolver.
+		tenantUUID := uuid.New()
+		shared.SetTenantRefResolver(staticServerTenantRef{id: 1, id2uuid: tenantUUID})
+		t.Cleanup(func() { shared.SetTenantRefResolver(nil) })
 		token, err := jwt.GenerateAccessTokenWithOptions("svc-auth", "read", "https://auth.example.com", "auth", "client-1", "provider-1", &jwt.AccessTokenOptions{
 			Service:     "auth",
 			SubjectType: "service",
 			// A service token must carry its tenant: the policy lookup resolves the
 			// principal by name, which is unique per tenant, not globally.
-			ExtraClaims: map[string]any{"tenant_id": 1},
+			ExtraClaims: map[string]any{"tenant_id": tenantUUID.String()},
 		})
 		require.NoError(t, err)
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))

@@ -72,14 +72,16 @@ func validPagination() PaginationRequestDTO {
 // ---------------------------------------------------------------------------
 
 type mockBrandingService struct {
-	getFn          func(tenantID int64) (*BrandingServiceDataResult, error)
-	updateFn       func(tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
-	listFn         func(tenantID int64) ([]*BrandingServiceDataResult, error)
-	createFn       func(tenantID int64, name, layout, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
-	updateByUUIDFn func(brandingUUID uuid.UUID, tenantID int64, name, layout, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
-	activateFn     func(brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
-	deleteFn       func(brandingUUID uuid.UUID, tenantID int64) error
-	getPublicFn    func(tenantID int64) (*BrandingServiceDataResult, error)
+	getFn           func(tenantID int64) (*BrandingServiceDataResult, error)
+	updateFn        func(tenantID int64, name, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	listFn          func(tenantID int64) ([]*BrandingServiceDataResult, error)
+	createFn        func(tenantID int64, name, layout, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	updateByUUIDFn  func(brandingUUID uuid.UUID, tenantID int64, name, layout, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error)
+	activateFn      func(brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
+	restoreFn       func(brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error)
+	deleteFn        func(brandingUUID uuid.UUID, tenantID int64) error
+	getPublicFn     func(tenantID int64) (*BrandingServiceDataResult, error)
+	getPublicByIDFn func(tenantID, brandingID int64) (*BrandingServiceDataResult, error)
 }
 
 func (m *mockBrandingService) Get(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error) {
@@ -94,27 +96,33 @@ func (m *mockBrandingService) List(ctx context.Context, tenantID int64) ([]*Bran
 	}
 	return nil, nil
 }
-func (m *mockBrandingService) Create(ctx context.Context, tenantID int64, name, layout, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+func (m *mockBrandingService) Create(ctx context.Context, tenantID int64, name, layout, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	if m.createFn != nil {
-		return m.createFn(tenantID, name, layout, companyName, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL)
+		return m.createFn(tenantID, name, layout, companyName, logoLabel, showLogoLabel, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL)
 	}
 	return &BrandingServiceDataResult{}, nil
 }
-func (m *mockBrandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, layout, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+func (m *mockBrandingService) UpdateByUUID(ctx context.Context, brandingUUID uuid.UUID, tenantID int64, name, layout, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	if m.updateByUUIDFn != nil {
-		return m.updateByUUIDFn(brandingUUID, tenantID, name, layout, companyName, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL)
+		return m.updateByUUIDFn(brandingUUID, tenantID, name, layout, companyName, logoLabel, showLogoLabel, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL)
 	}
 	return &BrandingServiceDataResult{}, nil
 }
-func (m *mockBrandingService) Update(ctx context.Context, tenantID int64, name, companyName, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
+func (m *mockBrandingService) Update(ctx context.Context, tenantID int64, name, companyName, logoLabel string, showLogoLabel bool, logoURL, faviconURL string, metadata datatypes.JSON, supportURL, privacyPolicyURL, termsOfServiceURL string) (*BrandingServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(tenantID, name, companyName, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL)
+		return m.updateFn(tenantID, name, companyName, logoLabel, showLogoLabel, logoURL, faviconURL, metadata, supportURL, privacyPolicyURL, termsOfServiceURL)
 	}
 	return nil, nil
 }
 func (m *mockBrandingService) Activate(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error) {
 	if m.activateFn != nil {
 		return m.activateFn(brandingUUID, tenantID)
+	}
+	return &BrandingServiceDataResult{}, nil
+}
+func (m *mockBrandingService) RestoreSystem(ctx context.Context, brandingUUID uuid.UUID, tenantID int64) (*BrandingServiceDataResult, error) {
+	if m.restoreFn != nil {
+		return m.restoreFn(brandingUUID, tenantID)
 	}
 	return &BrandingServiceDataResult{}, nil
 }
@@ -127,6 +135,12 @@ func (m *mockBrandingService) Delete(ctx context.Context, brandingUUID uuid.UUID
 func (m *mockBrandingService) GetPublic(ctx context.Context, tenantID int64) (*BrandingServiceDataResult, error) {
 	if m.getPublicFn != nil {
 		return m.getPublicFn(tenantID)
+	}
+	return nil, nil
+}
+func (m *mockBrandingService) GetPublicByID(ctx context.Context, tenantID, brandingID int64) (*BrandingServiceDataResult, error) {
+	if m.getPublicByIDFn != nil {
+		return m.getPublicByIDFn(tenantID, brandingID)
 	}
 	return nil, nil
 }

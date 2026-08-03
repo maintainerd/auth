@@ -15,6 +15,8 @@ type Branding struct {
 	Name              string    `gorm:"column:name;type:varchar(100)" json:"name"`
 	Layout            string    `gorm:"column:layout;type:varchar(32);not null;default:centered" json:"layout"`
 	CompanyName       string    `gorm:"column:company_name;type:varchar(255)" json:"company_name"`
+	LogoLabel         string    `gorm:"column:logo_label;type:varchar(255)" json:"logo_label"`
+	ShowLogoLabel     bool      `gorm:"column:show_logo_label;not null;default:true" json:"show_logo_label"`
 	LogoURL           string    `gorm:"column:logo_url;type:varchar(2048)" json:"logo_url"`
 	LogoData          []byte    `gorm:"column:logo_data;type:bytes" json:"-"`
 	LogoContentType   string    `gorm:"column:logo_content_type;type:varchar(255)" json:"-"`

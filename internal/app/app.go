@@ -38,6 +38,7 @@ type App struct {
 	PolicyService                iam.PolicyService
 	TenantService                tenant.TenantService
 	TenantMemberService          tenant.TenantMemberService
+	TenantClientBrandingReader   tenant.PublicClientBrandingReader
 	IdentityProviderService      idp.IdentityProviderService
 	ClientService                client.ClientService
 	RoleService                  iam.RoleService
@@ -133,6 +134,7 @@ func NewApp(ctx context.Context, db *gorm.DB, redisClient *redis.Client) (*App, 
 		PolicyService:                     s.policyService,
 		TenantService:                     s.tenantService,
 		TenantMemberService:               s.tenantMemberService,
+		TenantClientBrandingReader:        newTenantClientBrandingReader(r.clientRepo, s.brandingService),
 		IdentityProviderService:           s.idpService,
 		ClientService:                     s.clientService,
 		RoleService:                       s.roleService,

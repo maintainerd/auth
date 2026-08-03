@@ -98,13 +98,17 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 	}
 	if len(authCtx.ExtraAccessClaims) > 0 {
 		accessOpts.ExtraClaims = authCtx.ExtraAccessClaims
-		// The policy layer requests the tenant_id claim with a 0 placeholder
+		// The policy layer requests the tenant_id claim with a placeholder
 		// (tokenAuthContextWithPolicy has no client/tenant context). Stamp the
-		// authoritative tenant here so authn-issued access tokens never carry
-		// tenant_id: 0 — mirroring the OAuth token path (oauth/service_token.go),
-		// which already sets client.TenantID.
+		// tenant's opaque UUID here — NEVER the internal PK (least-disclosure per
+		// RFC 9068, consistent with the dual-key design). The JWT parse layer
+		// resolves it back to the internal id. Mirrors the OAuth token path.
 		if _, ok := accessOpts.ExtraClaims["tenant_id"]; ok {
-			accessOpts.ExtraClaims["tenant_id"] = clientTenantID(client)
+			if s := shared.TenantUUIDStringByID(ctx, clientTenantID(client)); s != "" {
+				accessOpts.ExtraClaims["tenant_id"] = s
+			} else {
+				delete(accessOpts.ExtraClaims, "tenant_id")
+			}
 		}
 	}
 

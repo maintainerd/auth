@@ -118,7 +118,7 @@ func initHandlers(application *Application) *handlers {
 		ipRestrictionRule:   secpolicy.NewIPRestrictionRuleHandler(application.IPRestrictionRuleService),
 		emailTemplate:       branding.NewEmailTemplateHandler(application.EmailTemplateService),
 		smsTemplate:         branding.NewSMSTemplateHandler(application.SMSTemplateService),
-		branding:            branding.NewBrandingHandler(application.BrandingService),
+		branding:            branding.NewBrandingHandler(application.BrandingService, application.Cache),
 		tenantSetting:       tenant.NewTenantSettingHandler(application.TenantSettingService, application.AuthEventService),
 		emailConfig:         notifier.NewEmailConfigHandler(application.EmailConfigService),
 		smsConfig:           notifier.NewSMSConfigHandler(application.SMSConfigService),
@@ -162,6 +162,7 @@ func initHandlers(application *Application) *handlers {
 	h.tenant.SetAuditLogger(al)
 	// Domain-bootstrap endpoint: resolve a tenant's seeded system client per surface.
 	h.tenant.SetSurfaceClientReader(surfaceClientReaderAdapter{svc: application.ClientService})
+	h.tenant.SetClientBrandingReader(application.TenantClientBrandingReader)
 	// Public auth surface: make the subdomain tenant (tenant_id = slug) authoritative
 	// by resolving the slug to a tenant ID. authn enforces client-vs-subdomain binding.
 	authn.SetTenantResolver(authnTenantResolverAdapter{svc: application.TenantService})

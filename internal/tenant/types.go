@@ -1,9 +1,11 @@
 package tenant
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/branding"
 	"gorm.io/datatypes"
 )
 
@@ -71,6 +73,13 @@ type TenantBootstrapClientDTO struct {
 	ClientType  string `json:"client_type"`
 }
 
+// PublicClientBrandingReader resolves a client-attached theme for a public
+// tenant bootstrap response. Implemented outside the tenant package so this
+// handler does not need to know how clients store branding relationships.
+type PublicClientBrandingReader interface {
+	GetPublicClientBranding(ctx context.Context, tenantID int64, clientIdentifier string) (*branding.BrandingServiceDataResult, error)
+}
+
 type PasswordConfigPublic struct {
 	MinLength        int  `json:"min_length"`
 	MaxLength        int  `json:"max_length"`
@@ -96,6 +105,8 @@ type RegistrationConfigPublic struct {
 type BrandingPublic struct {
 	Layout            string         `json:"layout"`
 	CompanyName       string         `json:"company_name"`
+	LogoLabel         string         `json:"logo_label"`
+	ShowLogoLabel     bool           `json:"show_logo_label"`
 	LogoURL           string         `json:"logo_url"`
 	FaviconURL        string         `json:"favicon_url"`
 	SupportURL        string         `json:"support_url"`

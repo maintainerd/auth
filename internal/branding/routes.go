@@ -25,6 +25,8 @@ func BrandingRoute(
 			Post("/", brandingHandler.Create)
 		r.With(middleware.PermissionMiddleware([]string{"branding:update"})).
 			Put("/{branding_uuid}", brandingHandler.Update)
+		r.With(middleware.PermissionMiddleware([]string{"branding:update"})).
+			Patch("/{branding_uuid}/restore", brandingHandler.RestoreSystem)
 		r.With(middleware.PermissionMiddleware([]string{"branding:activate"})).
 			Patch("/{branding_uuid}/activate", brandingHandler.Activate)
 		r.With(middleware.PermissionMiddleware([]string{"branding:delete"})).

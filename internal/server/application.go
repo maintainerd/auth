@@ -38,6 +38,7 @@ type Application struct {
 	PolicyService                iam.PolicyService
 	TenantService                tenant.TenantService
 	TenantMemberService          tenant.TenantMemberService
+	TenantClientBrandingReader   tenant.PublicClientBrandingReader
 	IdentityProviderService      idp.IdentityProviderService
 	ClientService                client.ClientService
 	RoleService                  iam.RoleService
