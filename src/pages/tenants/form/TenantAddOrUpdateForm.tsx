@@ -27,6 +27,10 @@ import type { TenantStatus } from "@/services/api/tenants/types"
 const STATUS_OPTIONS: SelectOption[] = [
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
+  // Accepted by the create/update DTOs (maintainerd-auth
+  // internal/tenant/validation_tenant.go:78, :97) and the state setup leaves a
+  // new tenant in until its first owner is assigned.
+  { value: "pending", label: "Pending" },
   { value: "suspended", label: "Suspended" },
 ]
 
@@ -37,6 +41,42 @@ const BACKEND_FIELD_MAP: Record<string, keyof CreateTenantFormData> = {
   description: "description",
   status: "status",
 }
+
+// Service-layer errors come back as a flat message with no field map (the
+// handler calls resp.HandleServiceError, which sends only a string — unlike the
+// DTO-layer path, which sends a keyed details object). These are matched
+// against the exact strings the Go code emits, most specific first, so the
+// error lands on the field that caused it instead of only in a toast.
+//
+// The third element replaces the server's wording where the raw text does not
+// tell the user what to do about it.
+const SERVER_ERROR_FIELD_HINTS: Array<
+  [keyword: string, field: keyof CreateTenantFormData, override?: string]
+> = [
+  // internal/tenant/validation_tenant.go:49 / :59 — matched ahead of the bare
+  // "name" keyword below so the user gets actionable copy, not the raw string.
+  [
+    "is reserved",
+    "name",
+    "This tenant name is reserved by the platform. Choose a different name.",
+  ],
+  // internal/tenant/service_tenant.go conflict on create and on rename:
+  // apperror.NewConflict(name + " tenant already exists"). It contains neither
+  // "name" nor any other keyword below, so it previously fell through to a
+  // generic toast with no field highlighted.
+  [
+    "tenant already exists",
+    "name",
+    "This tenant name is already taken. Choose a different name.",
+  ],
+  // internal/tenant/validation_tenant.go:46 — the slug pattern rejection.
+  ["dns-safe slug", "name"],
+  ["display name", "display_name"],
+  ["display_name", "display_name"],
+  ["description", "description"],
+  ["status", "status"],
+  ["name", "name"],
+]
 
 export default function TenantAddOrUpdateForm() {
   const { id } = useParams<{ id?: string }>()
@@ -126,16 +166,10 @@ export default function TenantAddOrUpdateForm() {
       }
       if (!mappedToField) {
         const lower = parsed.message.toLowerCase()
-        const keywordOrder: Array<[string, keyof CreateTenantFormData]> = [
-          ["display name", "display_name"],
-          ["display_name", "display_name"],
-          ["description", "description"],
-          ["status", "status"],
-          ["name", "name"],
-        ]
-        const hit = keywordOrder.find(([keyword]) => lower.includes(keyword))
+        const hit = SERVER_ERROR_FIELD_HINTS.find(([keyword]) => lower.includes(keyword))
         if (hit) {
-          setError(hit[1], { type: "server", message: parsed.message })
+          const [, field, override] = hit
+          setError(field, { type: "server", message: override ?? parsed.message })
         }
       }
       showError(error)

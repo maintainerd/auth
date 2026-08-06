@@ -13,8 +13,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { usePolicies } from "@/hooks/usePolicies"
+import { useDebouncedSearch } from "@/hooks/useDebouncedSearch"
 import { useServicePolicyMutations } from "../hooks/useServicePolicyMutations"
 import { useToast } from "@/hooks/useToast"
+
+/**
+ * One page is all this dialog fetches. Search is server-side, so this is a cap
+ * on what one query returns, not a cap on what is reachable — see PAGE_LIMIT's
+ * use alongside the "refine your search" hint below.
+ */
+const PAGE_LIMIT = 100
 
 interface PolicyAssignDialogProps {
   open: boolean
@@ -30,7 +38,11 @@ export function PolicyAssignDialog({
   existingPolicyIds,
 }: PolicyAssignDialogProps) {
   const [selectedPolicies, setSelectedPolicies] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
+  // Search is sent to the API (PolicyFilterDTO.Name is matched with ILIKE), not
+  // applied to an already-truncated page — a client-side filter over the first
+  // 100 rows made policy 101 unreachable in a required picker.
+  const { searchInput, debouncedValue, handleSearchChange, handleKeyDown, setSearchValue } =
+    useDebouncedSearch()
 
   const { showSuccess, showError } = useToast()
   const { assignPolicy } = useServicePolicyMutations(serviceId)
@@ -38,9 +50,10 @@ export function PolicyAssignDialog({
   const { data: policiesData, isLoading: isLoadingPolicies } = usePolicies(
     {
       page: 1,
-      limit: 100,
+      limit: PAGE_LIMIT,
       sort_by: 'name',
-      sort_order: 'asc'
+      sort_order: 'asc',
+      name: debouncedValue || undefined,
     },
     { enabled: open }
   )
@@ -48,9 +61,9 @@ export function PolicyAssignDialog({
   useEffect(() => {
     if (!open) {
       setSelectedPolicies([])
-      setSearchQuery("")
+      setSearchValue("")
     }
-  }, [open])
+  }, [open, setSearchValue])
 
   const handlePolicyToggle = (policyId: string) => {
     setSelectedPolicies(prev =>
@@ -58,19 +71,6 @@ export function PolicyAssignDialog({
         ? prev.filter(id => id !== policyId)
         : [...prev, policyId]
     )
-  }
-
-  const handleSelectAll = () => {
-    const availablePolicies = (policiesData?.rows ?? []).filter(
-      policy => !existingPolicyIds.includes(policy.policy_id)
-    )
-    const availablePolicyIds = availablePolicies.map(p => p.policy_id)
-
-    if (selectedPolicies.length === availablePolicyIds.length) {
-      setSelectedPolicies([])
-    } else {
-      setSelectedPolicies(availablePolicyIds)
-    }
   }
 
   const handleSubmit = async (e?: FormEvent) => {
@@ -94,15 +94,37 @@ export function PolicyAssignDialog({
 
   const isLoading = assignPolicy.isPending
 
-  const filteredPolicies = policiesData?.rows?.filter(policy =>
-    !existingPolicyIds.includes(policy.policy_id) &&
-    (policy.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (policy.description ?? "").toLowerCase().includes(searchQuery.toLowerCase()))
+  // The API has no "exclude these ids" filter, so already-assigned policies are
+  // the one thing still dropped client-side.
+  const filteredPolicies = policiesData?.rows?.filter(
+    policy => !existingPolicyIds.includes(policy.policy_id)
   ) ?? []
 
-  const availablePoliciesCount = policiesData?.rows?.filter(
-    policy => !existingPolicyIds.includes(policy.policy_id)
-  ).length ?? 0
+  const visiblePolicyIds = filteredPolicies.map(p => p.policy_id)
+  // Compared against the rendered rows only. Under a search the fetched page is
+  // already narrowed, so "all selected" must mean "all of what you can see".
+  const selectedVisibleCount = visiblePolicyIds.filter(id => selectedPolicies.includes(id)).length
+  const allVisibleSelected =
+    visiblePolicyIds.length > 0 && selectedVisibleCount === visiblePolicyIds.length
+  // Tri-state, so a partial selection reports aria-checked="mixed" instead of
+  // an unchecked box that hides the fact that some rows are already ticked.
+  const selectAllState: boolean | "indeterminate" = allVisibleSelected
+    ? true
+    : selectedVisibleCount > 0
+      ? "indeterminate"
+      : false
+
+  const handleSelectAll = () => {
+    setSelectedPolicies(prev =>
+      allVisibleSelected
+        ? prev.filter(id => !visiblePolicyIds.includes(id))
+        : [...new Set([...prev, ...visiblePolicyIds])]
+    )
+  }
+
+  // The server may hold more matches than one page returns; saying so is what
+  // stops a user concluding their policy does not exist.
+  const hasMoreMatches = (policiesData?.total ?? 0) > (policiesData?.rows?.length ?? 0)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,18 +140,21 @@ export function PolicyAssignDialog({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>Select Policies</Label>
-              {availablePoliciesCount > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSelectAll}
-                  className="h-7 text-xs"
-                >
-                  {selectedPolicies.length === availablePoliciesCount
-                    ? "Deselect All"
-                    : "Select All"}
-                </Button>
+              {filteredPolicies.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="select-all-policies"
+                    checked={selectAllState}
+                    onCheckedChange={handleSelectAll}
+                    disabled={isLoading}
+                  />
+                  <Label
+                    htmlFor="select-all-policies"
+                    className="cursor-pointer text-xs font-normal"
+                  >
+                    Select all
+                  </Label>
+                </div>
               )}
             </div>
 
@@ -137,8 +162,9 @@ export function PolicyAssignDialog({
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search policies..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={handleKeyDown}
                 className="pl-8"
               />
             </div>
@@ -153,7 +179,7 @@ export function PolicyAssignDialog({
 
             {!isLoadingPolicies && filteredPolicies.length === 0 && (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                {searchQuery
+                {debouncedValue
                   ? "No policies found matching your search"
                   : "All available policies are already assigned"}
               </div>
@@ -193,6 +219,12 @@ export function PolicyAssignDialog({
               </div>
             )}
           </div>
+
+          {!isLoadingPolicies && hasMoreMatches && (
+            <p className="text-sm text-muted-foreground">
+              Showing the first {policiesData?.rows?.length ?? 0} of {policiesData?.total ?? 0} policies. Refine your search to narrow the list.
+            </p>
+          )}
 
           {selectedPolicies.length > 0 && (
             <p className="text-sm text-muted-foreground">

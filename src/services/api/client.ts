@@ -88,6 +88,12 @@ const axiosInstance = axios.create({
 // Endpoints where a 401 is a genuine credential failure rather than an expired
 // session, so it must not trigger re-authentication.
 const NO_REAUTH_ENDPOINTS = [
+  // The session probe. A 401 here is the NORMAL answer for a logged-out
+  // visitor, not a dead session — bootstrap calls it precisely to find out
+  // which. Treating it as an expired session made every cold visit to a public
+  // page try to recover from a session that never existed.
+  API_ENDPOINTS.AUTH.ACCOUNT,
+  API_ENDPOINTS.AUTH.PROFILE,
   API_ENDPOINTS.AUTH.LOGIN,
   API_ENDPOINTS.AUTH.REGISTER,
   API_ENDPOINTS.AUTH.LOGOUT,
@@ -102,6 +108,16 @@ const NO_REAUTH_ENDPOINTS = [
 // the session.
 const UNAUTHENTICATED_ROUTES = ['/login', '/logout', '/auth/callback', '/setup/', '/no-access', '/service-unavailable']
 
+// The landing route is matched EXACTLY. It cannot go in the list above, where
+// membership is tested with startsWith — '/' prefixes every path, so including
+// it there would exempt the entire app and silently disable re-authentication.
+const LANDING_ROUTE = '/'
+
+function isUnauthenticatedRoute(path: string): boolean {
+  if (path === LANDING_ROUTE) return true
+  return UNAUTHENTICATED_ROUTES.some((route) => path === route || path.startsWith(route))
+}
+
 // Survives the reload below, so a page that 401s again immediately after
 // re-authenticating falls through to the login page instead of reload-looping.
 const REAUTH_ATTEMPT_KEY = 'maintainerd.console.reauth-attempted'
@@ -109,6 +125,29 @@ const REAUTH_ATTEMPT_KEY = 'maintainerd.console.reauth-attempted'
 // Fire once per page. A dashboard fans out and several requests 401 together;
 // without this each would trigger its own navigation and they would race.
 let reauthStarted = false
+
+// AppBootstrap owns routing until the session verdict is in. Until then this
+// module must not navigate at all.
+//
+// Without this gate the interceptor raced the bootstrap it was supposed to be
+// downstream of: the tenant lookup returned 200 while the session probe
+// returned 401, and depending on which landed first the reload guard was wiped
+// and the page reloaded again — the URL flickering between / and /login a
+// dozen-plus times before it happened to settle. Redirecting on a state that is
+// still being determined is the bug; this makes that structurally impossible.
+let bootstrapSettled = false
+
+/**
+ * Called by AppBootstrap once auth AND tenant have settled. `authenticated`
+ * reports the verdict: a successful authenticated boot retires the reload guard,
+ * which is the only thing that should ever clear it.
+ */
+export function setBootstrapSettled(authenticated: boolean): void {
+  bootstrapSettled = true
+  if (authenticated) {
+    window.sessionStorage.removeItem(REAUTH_ATTEMPT_KEY)
+  }
+}
 
 // The console deliberately holds NO refresh token.
 //
@@ -129,9 +168,12 @@ let reauthStarted = false
 // this same browser fails `prompt=none` and lands on the login page — which is
 // exactly the cross-app sign-out behaviour we want.
 function reauthenticate(): void {
+  // Bootstrap has not decided yet — it, not this interceptor, decides where an
+  // undetermined session belongs.
+  if (!bootstrapSettled) return
   if (reauthStarted) return
   const path = window.location.pathname
-  if (UNAUTHENTICATED_ROUTES.some((route) => path === route || path.startsWith(route))) return
+  if (isUnauthenticatedRoute(path)) return
   reauthStarted = true
   clearOAuthSession()
 
@@ -150,13 +192,12 @@ type RetriableRequestConfig = InternalAxiosRequestConfig & { _retry?: boolean; _
 
 // Response interceptor for error handling
 axiosInstance.interceptors.response.use(
-  (response) => {
-    // A successful call means the session is healthy again, so retire the
-    // loop guard — otherwise a marker left over from an earlier re-auth would
-    // send the next unrelated 401 straight to /login instead of retrying.
-    window.sessionStorage.removeItem(REAUTH_ATTEMPT_KEY)
-    return response
-  },
+  // Deliberately does NOT clear the reload guard. Any successful response used
+  // to retire it, which meant a parallel 200 (the tenant lookup) could wipe the
+  // guard set moments earlier by a 401 (the session probe) — and the page
+  // reloaded forever. Only a completed, authenticated bootstrap clears it now,
+  // via setBootstrapSettled.
+  (response) => response,
   async (error: AxiosError) => {
     // On a 401 the access token is gone or expired. The console has no refresh
     // token by design, so recovery is a hosted-identity re-authorization rather

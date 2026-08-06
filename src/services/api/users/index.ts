@@ -205,3 +205,33 @@ export const unlockUser = (userId: string): Promise<void> =>
   post<ApiResponse<void>>(`${base}/${userId}/unlock`).then((r) =>
     assertSuccess(r, 'unlock account'),
   )
+
+/**
+ * Membership candidates: the SYSTEM-tenant users that a tenant may add as
+ * members. `CreateByUserUUID` accepts only those, and the ordinary user list is
+ * pinned to the caller's own tenant — so this is the only source that yields
+ * choices which will actually succeed. The tenant is resolved server-side, so
+ * there is nothing to pass and nothing to point elsewhere.
+ */
+export interface MembershipCandidate {
+  user_id: string
+  username: string
+  email: string
+  fullname?: string
+}
+
+export interface MembershipCandidateListResponse {
+  rows: MembershipCandidate[]
+  total: number
+  page: number
+  limit: number
+  total_pages: number
+}
+
+export const fetchMembershipCandidates = (
+  params?: { search?: string; page?: number; limit?: number },
+): Promise<MembershipCandidateListResponse> =>
+  get<ApiResponse<MembershipCandidateListResponse>>(
+    `${API_ENDPOINTS.USER}/membership-candidates`,
+    params as Record<string, unknown> | undefined,
+  ).then((r) => unwrap(r, 'fetch membership candidates'))

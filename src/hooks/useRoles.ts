@@ -134,6 +134,20 @@ export function useUpdateRoleStatus() {
 }
 
 /**
+ * Invalidates every cache entry a role's permission set feeds.
+ *
+ * The permissions listing is the obvious one, but RoleResponseDTO itself carries
+ * a `permissions` array (internal/iam/types.go), so the role detail and the role
+ * lists also go stale the moment a permission is attached or removed —
+ * previously they kept serving the pre-mutation permission set.
+ */
+function invalidateRolePermissionQueries(queryClient: ReturnType<typeof useQueryClient>, roleId: string) {
+  queryClient.invalidateQueries({ queryKey: roleKeys.permissions(roleId) })
+  queryClient.invalidateQueries({ queryKey: roleKeys.detail(roleId) })
+  queryClient.invalidateQueries({ queryKey: roleKeys.lists() })
+}
+
+/**
  * Hook to add permissions to a role
  */
 export function useAddRolePermissions() {
@@ -143,8 +157,7 @@ export function useAddRolePermissions() {
     mutationFn: ({ roleId, data }: { roleId: string; data: AddRolePermissionsRequest }) =>
       addRolePermissions(roleId, data),
     onSuccess: (_, variables) => {
-      // Invalidate role permissions queries to refetch
-      queryClient.invalidateQueries({ queryKey: roleKeys.permissions(variables.roleId) })
+      invalidateRolePermissionQueries(queryClient, variables.roleId)
     },
   })
 }
@@ -159,7 +172,7 @@ export function useRemoveRolePermission() {
     mutationFn: ({ roleId, permissionId }: { roleId: string; permissionId: string }) =>
       removeRolePermission(roleId, permissionId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: roleKeys.permissions(variables.roleId) })
+      invalidateRolePermissionQueries(queryClient, variables.roleId)
     },
   })
 }

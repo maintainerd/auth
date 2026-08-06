@@ -100,19 +100,12 @@ export type UserIdentity = {
   provider: string
   sub: string
   metadata: Record<string, unknown> | null
-  // The backend omits `client` when the identity has no linked client.
-  client?: {
-    client_id: string
-    name: string
-    display_name: string
-    client_type: string
-    domain?: string
-    status: string
-    is_default: boolean
-    is_system: boolean
-    created_at: string
-    updated_at: string
-  }
+  // An identity belongs to the identity provider that issued it, never to a
+  // single application: every client connected to that provider authenticates
+  // with the same identity. The backend omits these when the provider could
+  // not be resolved for the caller's tenant.
+  identity_provider_id?: string
+  identity_provider_name?: string
   created_at: string
   updated_at: string
   jit_provisioned_at?: string | null

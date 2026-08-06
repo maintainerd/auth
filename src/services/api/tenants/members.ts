@@ -9,8 +9,9 @@ export interface TenantMemberUser {
   phone: string
   is_email_verified: boolean
   is_phone_verified: boolean
-  is_profile_completed: boolean
-  is_account_completed: boolean
+  // No is_profile_completed / is_account_completed: member rows serialize
+  // MemberUserResponseDTO, which emits neither (maintainerd-auth
+  // internal/tenant/types.go:188-200). They were always undefined at runtime.
   status: string
   metadata: Record<string, unknown>
   created_at: string
@@ -40,7 +41,11 @@ export interface TenantMembersListResponse {
     total: number
     page: number
     limit: number
-    totalPages: number
+    // snake_case, not totalPages: the paginated envelope is emitted by
+    // PaginatedResponseDTO with a `total_pages` json tag (maintainerd-auth
+    // internal/platform/pagination/pagination.go:53). Reading `totalPages` gave
+    // undefined, so page counts had to be guessed from the current page's rows.
+    total_pages: number
   }
   message?: string
 }

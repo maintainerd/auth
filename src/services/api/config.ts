@@ -115,6 +115,11 @@ export const API_ENDPOINTS = {
   POLICY: '/policies',
   IDENTITY_PROVIDER: '/identity_providers',
   IDENTITY_PROVIDER_TEST: '/identity_providers/test',
+  // Unauthenticated DATA-plane endpoint serving the SAML service-provider
+  // metadata the upstream IdP consumes. Keyed by the provider's `identifier`
+  // (the value the backend routes on), never by its UUID.
+  SAML_SP_METADATA: (identifier: string) =>
+    `/federation/saml/metadata/${encodeURIComponent(identifier)}`,
   CLIENT: '/clients',
   ROLE: '/roles',
   USER: '/users',

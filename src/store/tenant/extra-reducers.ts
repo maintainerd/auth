@@ -86,7 +86,6 @@ export const tenantExtraReducers = (builder: ActionReducerMapBuilder<TenantState
         display_name: t.display_name,
         description: t.description,
         status: t.status,
-        is_default: false,
         is_system: t.is_system,
         created_at: '',
         updated_at: '',

@@ -18,8 +18,6 @@ const member: TenantMember = {
     phone: "+15555550123",
     is_email_verified: true,
     is_phone_verified: true,
-    is_profile_completed: true,
-    is_account_completed: true,
     status: "active",
     metadata: {},
     created_at: "2025-01-01T00:00:00.000Z",

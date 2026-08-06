@@ -17,7 +17,19 @@ interface StatusAction {
   icon: LucideIcon
 }
 
-const STATUS_ACTIONS: Record<TenantStatus, StatusAction[]> = {
+// The backend applies no from-state transition guard — PUT /tenants/{id}/status
+// accepts any of the four statuses regardless of the current one
+// (maintainerd-auth internal/tenant/service_tenant.go:342-390; the target value
+// is constrained to active/inactive/pending/suspended by
+// internal/tenant/validation_tenant.go:102-109). So this map curates the
+// transitions worth OFFERING per status; it does not encode a state machine.
+//
+// Partial<> is load-bearing, not cosmetic: a status with no entry must degrade
+// to "no status actions" rather than yield undefined at the lookup below. A
+// `pending` tenant — the state setup leaves the system tenant in until its
+// first owner is assigned — hit exactly that hole and threw on .map(), blanking
+// the entire tenants listing on render.
+const STATUS_ACTIONS: Partial<Record<TenantStatus, StatusAction[]>> = {
   inactive: [
     {
       status: "active",
@@ -52,6 +64,26 @@ const STATUS_ACTIONS: Record<TenantStatus, StatusAction[]> = {
       icon: Play,
     },
   ],
+  // A pending tenant is one still awaiting its first owner. Assigning an owner
+  // flips it to active on the backend automatically
+  // (internal/tenant/service_member.go:151-156); these are the manual overrides
+  // for operators who do not want to wait for or grant ownership.
+  pending: [
+    {
+      status: "active",
+      label: "Activate Tenant",
+      title: "Activate Tenant",
+      description: "Are you sure you want to activate this pending tenant? Users will be able to sign in before an owner is assigned.",
+      icon: Play,
+    },
+    {
+      status: "suspended",
+      label: "Suspend Tenant",
+      title: "Suspend Tenant",
+      description: "Are you sure you want to suspend this pending tenant? It will stay unavailable until it is reactivated.",
+      icon: Ban,
+    },
+  ],
 }
 
 export function TenantActions({ tenant }: TenantActionsProps) {
@@ -82,7 +114,9 @@ export function TenantActions({ tenant }: TenantActionsProps) {
       icon: Edit,
       onSelect: () => navigate(`/tenants/${tenant.tenant_id}/edit`),
     },
-    ...STATUS_ACTIONS[tenant.status].map(
+    // `?? []` keeps an unmapped status (a value a newer backend emits that this
+    // build has never heard of) to a degraded menu instead of a render crash.
+    ...(STATUS_ACTIONS[tenant.status] ?? []).map(
       (action): RowActionItem => ({
         key: `status-${action.status}`,
         label: action.label,

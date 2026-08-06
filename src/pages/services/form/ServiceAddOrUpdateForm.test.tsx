@@ -49,6 +49,20 @@ vi.mock("@/hooks/useToast", () => ({
 
 const u = () => userEvent.setup({ pointerEventsCheck: 0 })
 
+/**
+ * Whether the field labelled `text` renders FieldShell's required marker.
+ * The marker is a trailing `*` span inside the <label>, so the label's own text
+ * content is the only place it can be observed — Status is a Radix select whose
+ * trigger isn't reachable via getByLabelText.
+ */
+function hasRequiredMarker(text: string): boolean {
+  const label = Array.from(document.querySelectorAll("label")).find(
+    (l) => l.textContent?.replace(/\s*\*\s*$/, "").trim() === text,
+  )
+  if (!label) throw new Error(`No label found with text "${text}"`)
+  return label.textContent?.trim().endsWith("*") ?? false
+}
+
 function setCreateMode() {
   vi.mocked(useParams).mockReturnValue({})
 }
@@ -135,6 +149,38 @@ describe("ServiceAddOrUpdateForm", () => {
     // a create the server would have accepted.
     expect(screen.queryByText(/description is required/i)).not.toBeInTheDocument()
     expect(createMutateAsync).not.toHaveBeenCalled()
+  })
+
+  // Each marker has to track serviceSchema: an asterisk on an optional field
+  // promises an error the form never raises, and a missing one on a required
+  // field hides a submit that is going to fail.
+  it("marks every schema-required field and only those", () => {
+    renderWithProviders(<ServiceAddOrUpdateForm />)
+    expect(hasRequiredMarker("Service Name")).toBe(true)
+    expect(hasRequiredMarker("Display Name")).toBe(true)
+    expect(hasRequiredMarker("Version")).toBe(true)
+    expect(hasRequiredMarker("Status")).toBe(true)
+    // serviceSchema only bounds description's length (max 255) and defaults it to
+    // "", matching the backend's Length(0, 255) with no Required rule.
+    expect(hasRequiredMarker("Description")).toBe(false)
+  })
+
+  it("creates a service with the description left blank", async () => {
+    createMutateAsync.mockResolvedValueOnce(undefined)
+    renderWithProviders(<ServiceAddOrUpdateForm />)
+    await u().type(screen.getByLabelText(/^service name/i), "billing")
+    await u().type(screen.getByLabelText(/^display name/i), "Billing Service")
+    await u().click(screen.getByRole("button", { name: /create service/i }))
+
+    await waitFor(() =>
+      expect(createMutateAsync).toHaveBeenCalledWith({
+        name: "billing",
+        display_name: "Billing Service",
+        description: "",
+        version: "v0.1.0",
+        status: "active",
+      }),
+    )
   })
 
   // Every bound below used to disagree with the server, so the form accepted values

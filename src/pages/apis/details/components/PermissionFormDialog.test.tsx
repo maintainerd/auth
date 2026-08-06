@@ -85,9 +85,22 @@ describe("PermissionFormDialog", () => {
     await u().click(screen.getByRole("button", { name: /create permission/i }))
 
     expect(
-      await screen.findByText(/must follow format: resource:action/i),
+      await screen.findByText(/lowercase colon-separated segments/i),
     ).toBeInTheDocument()
     expect(createMutateAsync).not.toHaveBeenCalled()
+  })
+
+  // The client rule used to mandate exactly one colon, which blocked
+  // `users:read:own` — a name the server accepts. A client stricter than the
+  // server makes valid names unreachable, so pin the looser form.
+  it("accepts a three-segment name the server allows", async () => {
+    createMutateAsync.mockResolvedValueOnce(undefined)
+    renderWithProviders(<PermissionFormDialog {...baseProps} />)
+    await u().type(screen.getByLabelText(/^permission name/i), "users:read:own")
+    await u().type(screen.getByLabelText(/^description/i), "Read your own user")
+    await u().click(screen.getByRole("button", { name: /create permission/i }))
+
+    await waitFor(() => expect(createMutateAsync).toHaveBeenCalled())
   })
 
   it("pre-fills and updates an existing permission via the status select", async () => {

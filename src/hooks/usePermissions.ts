@@ -3,9 +3,9 @@
  * Custom hook for fetching permissions using TanStack Query
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  fetchPermissions, 
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import {
+  fetchPermissions,
   fetchPermissionById, 
   createPermission, 
   updatePermission, 
@@ -31,13 +31,42 @@ export const permissionKeys = {
 }
 
 /**
- * Hook to fetch permissions with optional filters
+ * Hook to fetch permissions with optional filters.
+ *
+ * `options.enabled` lets a caller hold the request until it is actually wanted
+ * (a closed dialog, a picker with no API chosen yet). Without it, callers had
+ * to conditionally mount the whole component to avoid fetching every permission
+ * in the system on page load.
+ *
+ * `keepPreviousData` keeps the current rows on screen while a new `name` search
+ * resolves, so a server-side search does not blank the list on every keystroke.
  */
-export function usePermissions(params?: PermissionQueryParams) {
+export function usePermissions(params?: PermissionQueryParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: permissionKeys.list(params),
     queryFn: () => fetchPermissions(params),
+    placeholderData: keepPreviousData,
+    enabled: options?.enabled,
   })
+}
+
+/**
+ * Hook to fetch permissions for the standard listing page.
+ * The shared listing filter uses human labels for system/regular, while the
+ * permission API expects an `is_system` boolean.
+ */
+export function usePermissionsList(params: Record<string, unknown>) {
+  const { is_system, ...rest } = params
+  const queryParams: PermissionQueryParams = {
+    ...rest as PermissionQueryParams,
+  }
+
+  if (typeof is_system === 'string') {
+    if (is_system === 'system') queryParams.is_system = true
+    else if (is_system === 'regular') queryParams.is_system = false
+  }
+
+  return usePermissions(queryParams)
 }
 
 /**

@@ -19,7 +19,13 @@ export type Api = {
   display_name: string
   description: string
   identifier: string
-  service: Service
+  /**
+   * Absent when the API has no owning service. The Go DTO declares it
+   * `Service *ServiceResponseDTO \`json:"service,omitempty"\`` (internal/iam/types.go),
+   * and toAPIResponseDTO only fills it when the preloaded relation is non-nil,
+   * so the key is dropped from the payload entirely rather than sent as null.
+   */
+  service?: Service
   status: ApiStatus
   is_system: boolean
   created_at: string

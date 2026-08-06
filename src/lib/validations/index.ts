@@ -34,7 +34,11 @@ export {
 // Permission schemas
 export {
   permissionSchema,
-  type PermissionFormData
+  permissionWithApiSchema,
+  PERMISSION_LIMITS,
+  PERMISSION_NAME_REGEX,
+  type PermissionFormData,
+  type PermissionWithApiFormData
 } from './permissionSchema'
 
 // Policy schemas
@@ -111,6 +115,7 @@ export {
 // Tenant schemas
 export {
   createTenantSchema,
+  RESERVED_TENANT_SLUGS,
   type CreateTenantFormData
 } from './tenantSchema'
 

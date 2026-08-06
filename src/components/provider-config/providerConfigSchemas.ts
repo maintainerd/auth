@@ -451,7 +451,9 @@ export const PROVIDER_CONFIG_SCHEMAS: Record<ProviderOption, ProviderConfigSchem
 
   saml: {
     kind: "saml",
-    summary: "Connect a SAML 2.0 identity provider. Maintainerd acts as the service provider and validates assertions signed by your enterprise IdP.",
+    // A SAML connection is two-way, and the outbound half was invisible: after
+    // saving, the Connection tab publishes the SP values the IdP needs back.
+    summary: "Connect a SAML 2.0 identity provider. Maintainerd acts as the service provider and validates assertions signed by your enterprise IdP. Save the provider first — its Connection tab then publishes the entity ID, ACS URL and metadata URL your IdP needs in return.",
     groups: [
       {
         title: "Identity Provider",

@@ -2,7 +2,6 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Building2, CalendarDays, Edit, Fingerprint, Hash, MoreVertical, User, Trash2, Play, Pause, Ban } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +30,16 @@ interface StatusAction {
   icon: typeof Play
 }
 
-const STATUS_ACTIONS: Record<TenantStatus, StatusAction[]> = {
+// Partial + a `?? []` fallback at the call site: an unmapped status must
+// degrade to "no status actions", never to undefined that the caller maps over.
+const STATUS_ACTIONS: Partial<Record<TenantStatus, StatusAction[]>> = {
+  // A pending tenant is still awaiting its first owner; assigning one flips it
+  // to active automatically (internal/tenant/service_member.go:151-156). These
+  // are the manual overrides for operators who do not want to wait.
+  pending: [
+    { status: "active", label: "Activate Tenant", title: "Activate Tenant", description: "Are you sure you want to activate this pending tenant? Users will be able to sign in before an owner is assigned.", icon: Play },
+    { status: "suspended", label: "Suspend Tenant", title: "Suspend Tenant", description: "Are you sure you want to suspend this tenant? All active sessions will be terminated.", icon: Ban },
+  ],
   inactive: [
     { status: "active", label: "Activate Tenant", title: "Activate Tenant", description: "Are you sure you want to activate this tenant? Users will be able to sign in.", icon: Play },
   ],
@@ -76,7 +84,7 @@ export function TenantHeader({ tenant, tenantId }: TenantHeaderProps) {
 
   const statusActions = tenant.is_system
     ? []
-    : STATUS_ACTIONS[tenant.status]
+    : (STATUS_ACTIONS[tenant.status] ?? [])
 
   const attributes: DetailAttribute[] = [
     { icon: Fingerprint, label: "Tenant ID", value: <span className="font-mono text-xs">{tenant.tenant_id}</span> },
@@ -99,7 +107,6 @@ export function TenantHeader({ tenant, tenantId }: TenantHeaderProps) {
           <div className="flex items-center gap-2">
             <StatusBadge status={tenant.status} />
             {tenant.is_system && <SystemBadge isSystem />}
-            {tenant.is_default && <Badge variant="outline" className="text-xs">Default</Badge>}
           </div>
         }
         subtitle={<span className="font-mono text-xs text-muted-foreground">{tenant.name}</span>}

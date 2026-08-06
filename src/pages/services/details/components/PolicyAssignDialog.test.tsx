@@ -47,7 +47,21 @@ function setPolicies(rows: Policy[], overrides: Record<string, unknown> = {}) {
   usePoliciesMock.mockReturnValue({ data: { rows, total: rows.length }, isLoading: false, ...overrides })
 }
 
+/** Search is debounced before it reaches the query, so assertions must outlast it. */
+const DEBOUNCE_TIMEOUT = 3000
+
 const u = () => userEvent.setup({ pointerEventsCheck: 0 })
+
+/**
+ * Select-all is a real tri-state checkbox now, so it is queried by role
+ * "checkbox" and its state is read off aria-checked rather than off a button
+ * label that flipped between "Select All" and "Deselect All".
+ */
+const selectAll = () => screen.getByRole("checkbox", { name: /select all/i })
+
+/** A policy row's own checkbox, named by the label the row renders. */
+const policyCheckbox = (name: string) =>
+  screen.getByRole("checkbox", { name: new RegExp(name) })
 
 const baseProps = {
   open: true,
@@ -82,11 +96,80 @@ describe("PolicyAssignDialog", () => {
     expect(screen.queryByText("read-only")).not.toBeInTheDocument()
   })
 
-  it("filters by search and shows the no-match state", async () => {
+  it("sends the search term to the API instead of filtering the fetched page", async () => {
+    // A client-side filter over a single limit:100 page made policy 101
+    // unreachable; the term has to reach PolicyFilterDTO.Name to find it.
     setPolicies([makePolicy()])
     renderWithProviders(<PolicyAssignDialog {...baseProps} />)
+    await u().type(screen.getByPlaceholderText("Search policies..."), "admin")
+
+    await waitFor(
+      () =>
+        expect(usePoliciesMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({ name: "admin" }),
+          { enabled: true },
+        ),
+      { timeout: DEBOUNCE_TIMEOUT },
+    )
+  })
+
+  it("omits the name param when the search is empty", () => {
+    setPolicies([makePolicy()])
+    renderWithProviders(<PolicyAssignDialog {...baseProps} />)
+    expect(usePoliciesMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: undefined }),
+      { enabled: true },
+    )
+  })
+
+  it("shows the no-match state when the server returns nothing for a search", async () => {
+    setPolicies([makePolicy()])
+    renderWithProviders(<PolicyAssignDialog {...baseProps} />)
+    setPolicies([])
     await u().type(screen.getByPlaceholderText("Search policies..."), "zzz")
-    expect(screen.getByText("No policies found matching your search")).toBeInTheDocument()
+
+    await waitFor(
+      () => expect(screen.getByText("No policies found matching your search")).toBeInTheDocument(),
+      { timeout: DEBOUNCE_TIMEOUT },
+    )
+  })
+
+  it("tells the user when more matches exist than the page returned", () => {
+    usePoliciesMock.mockReturnValue({
+      data: { rows: [makePolicy()], total: 250 },
+      isLoading: false,
+    })
+    renderWithProviders(<PolicyAssignDialog {...baseProps} />)
+    expect(
+      screen.getByText(/Showing the first 1 of 250 policies/),
+    ).toBeInTheDocument()
+  })
+
+  it("hides the refine hint when the page holds every match", () => {
+    setPolicies([makePolicy()])
+    renderWithProviders(<PolicyAssignDialog {...baseProps} />)
+    expect(screen.queryByText(/Showing the first/)).not.toBeInTheDocument()
+  })
+
+  it("select all only selects the rows on screen", async () => {
+    // p2 is already assigned, so it is not rendered — and must not be selected.
+    setPolicies([makePolicy(), makePolicy({ policy_id: "p2", name: "admin-policy" })])
+    renderWithProviders(<PolicyAssignDialog {...baseProps} existingPolicyIds={["p2"]} />)
+
+    await u().click(selectAll())
+    expect(screen.getByText("1 policy selected")).toBeInTheDocument()
+  })
+
+  it("assigns only the rows select-all could see", async () => {
+    assignMutateAsync.mockResolvedValue(undefined)
+    setPolicies([makePolicy(), makePolicy({ policy_id: "p2", name: "admin-policy" })])
+    renderWithProviders(<PolicyAssignDialog {...baseProps} existingPolicyIds={["p2"]} />)
+
+    await u().click(selectAll())
+    await u().click(screen.getByRole("button", { name: /assign policies/i }))
+
+    await waitFor(() => expect(assignMutateAsync).toHaveBeenCalledTimes(1))
+    expect(assignMutateAsync).toHaveBeenCalledWith("p1")
   })
 
   it("renders the system badge on policies", () => {
@@ -95,12 +178,25 @@ describe("PolicyAssignDialog", () => {
     expect(screen.getByText("System")).toBeInTheDocument()
   })
 
+  it("reports a partial selection as mixed, not unchecked", async () => {
+    // A ghost button could only say "Select All"; a tri-state box has to tell
+    // assistive tech that some of the visible rows are already ticked.
+    setPolicies([makePolicy(), makePolicy({ policy_id: "p2", name: "admin-policy" })])
+    renderWithProviders(<PolicyAssignDialog {...baseProps} />)
+
+    expect(selectAll()).toHaveAttribute("aria-checked", "false")
+    await u().click(policyCheckbox("read-only"))
+    expect(selectAll()).toHaveAttribute("aria-checked", "mixed")
+    await u().click(policyCheckbox("admin-policy"))
+    expect(selectAll()).toHaveAttribute("aria-checked", "true")
+  })
+
   it("toggles select-all and deselect-all", async () => {
     setPolicies([makePolicy(), makePolicy({ policy_id: "p2", name: "admin-policy" })])
     renderWithProviders(<PolicyAssignDialog {...baseProps} />)
-    await u().click(screen.getByRole("button", { name: "Select All" }))
+    await u().click(selectAll())
     expect(screen.getByText("2 policies selected")).toBeInTheDocument()
-    await u().click(screen.getByRole("button", { name: "Deselect All" }))
+    await u().click(selectAll())
     expect(screen.queryByText("2 policies selected")).not.toBeInTheDocument()
   })
 
@@ -116,7 +212,7 @@ describe("PolicyAssignDialog", () => {
     setPolicies([makePolicy()])
     renderWithProviders(<PolicyAssignDialog {...baseProps} onOpenChange={onOpenChange} />)
 
-    await u().click(screen.getByRole("checkbox"))
+    await u().click(policyCheckbox("read-only"))
     await u().click(screen.getByRole("button", { name: /assign policies/i }))
 
     await waitFor(() => expect(assignMutateAsync).toHaveBeenCalledWith("p1"))
@@ -129,7 +225,7 @@ describe("PolicyAssignDialog", () => {
     setPolicies([makePolicy(), makePolicy({ policy_id: "p2", name: "admin-policy" })])
     renderWithProviders(<PolicyAssignDialog {...baseProps} />)
 
-    await u().click(screen.getByRole("button", { name: "Select All" }))
+    await u().click(selectAll())
     await u().click(screen.getByRole("button", { name: /assign policies/i }))
 
     await waitFor(() => expect(assignMutateAsync).toHaveBeenCalledTimes(2))
@@ -142,7 +238,7 @@ describe("PolicyAssignDialog", () => {
     setPolicies([makePolicy()])
     renderWithProviders(<PolicyAssignDialog {...baseProps} />)
 
-    await u().click(screen.getByRole("checkbox"))
+    await u().click(policyCheckbox("read-only"))
     await u().click(screen.getByRole("button", { name: /assign policies/i }))
 
     await waitFor(() => expect(showErrorMock).toHaveBeenCalledWith(err))

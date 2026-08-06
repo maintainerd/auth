@@ -16,7 +16,7 @@ import {
 } from "@tanstack/react-table"
 
 /**
- * A multi-select (checkbox) filter group for a listing.
+ * A filter group for a listing.
  *
  * The `key` is the state key, the URL query key, and (by default) the API param
  * name; set `apiKey` if the backend expects a different name.
@@ -26,6 +26,17 @@ export interface FilterGroup {
   label: string
   options: readonly string[]
   apiKey?: string
+  /**
+   * Opt in to selecting several values at once. Defaults to `false`.
+   *
+   * Only some list endpoints split their filter param on commas into an
+   * `IN (...)` clause; the rest compare the param against the column verbatim.
+   * Sending `status=active,maintenance` to one of those compares the column
+   * against the literal string "active,maintenance", which matches no row — so
+   * the filter looks applied while guaranteeing an empty table. Set this only
+   * for a group whose endpoint is known to split the value.
+   */
+  multiple?: boolean
 }
 
 /** Listing filter state: each group key → the selected values. */
@@ -94,6 +105,30 @@ function resolveSortField<TRow>(columns: ColumnDef<TRow>[], columnId: string): s
 }
 
 /**
+ * Drops all but the newest selection from every group that isn't `multiple`.
+ *
+ * A group without `multiple` is backed by an endpoint that compares its filter
+ * param verbatim, so a two-value selection serialized as "a,b" matches nothing
+ * and the listing silently renders zero rows. Clamping here — rather than in
+ * the toolbar — keeps the guarantee on every path into filter state (URL seed,
+ * checkbox toggle, programmatic set), so no caller can produce that query.
+ *
+ * The newest value wins because the toolbar appends on check: keeping the first
+ * would leave the box the user just clicked unchecked and look like a dead control.
+ */
+function clampToGroupArity(
+  filterGroups: readonly FilterGroup[],
+  filters: ListingFilters,
+): ListingFilters {
+  const clamped: ListingFilters = {}
+  for (const group of filterGroups) {
+    const values = filters[group.key] ?? []
+    clamped[group.key] = group.multiple ? values : values.slice(-1)
+  }
+  return clamped
+}
+
+/**
  * The shared engine for server-driven listing tables: URL-synced search / filters /
  * sorting / pagination, API-param assembly, and the TanStack table — so a listing
  * page only declares its columns + a small config instead of re-implementing all of it.
@@ -112,12 +147,12 @@ export function useServerDataTable<TRow, TParams = Record<string, unknown>>({
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [search, setSearch] = React.useState(() => searchParams.get("search") || "")
-  const [filters, setFilters] = React.useState<ListingFilters>(() => {
+  const [filters, setFiltersState] = React.useState<ListingFilters>(() => {
     const initial: ListingFilters = {}
     for (const group of filterGroups) {
       initial[group.key] = searchParams.get(group.key)?.split(",").filter(Boolean) ?? []
     }
-    return initial
+    return clampToGroupArity(filterGroups, initial)
   })
   const [sorting, setSorting] = React.useState<SortingState>(() => {
     const sortBy = searchParams.get("sortBy")
@@ -145,6 +180,11 @@ export function useServerDataTable<TRow, TParams = Record<string, unknown>>({
     }
     for (const group of filterGroups) {
       const values = filters[group.key]
+      // Comma is the server's own multi-value encoding — the handlers that accept
+      // several values split the raw param on "," and build an IN (...) clause.
+      // Repeating the param instead would not work: the query builder appends one
+      // entry per key and the handlers read only the first occurrence. Groups
+      // without `multiple` are clamped to one value, so this join is a no-op there.
       if (values?.length) params[group.apiKey ?? group.key] = values.join(",")
     }
     return params
@@ -196,10 +236,17 @@ export function useServerDataTable<TRow, TParams = Record<string, unknown>>({
     return chips
   }, [filters, filterGroups])
 
+  // Every write to filter state goes through the clamp, so a single-select group
+  // can never hold the two values that would serialize to an unmatchable "a,b".
+  const setFilters = React.useCallback(
+    (next: ListingFilters) => setFiltersState(clampToGroupArity(filterGroups, next)),
+    [filterGroups],
+  )
+
   const clearFilters = React.useCallback(() => {
     const cleared: ListingFilters = {}
     for (const group of filterGroups) cleared[group.key] = []
-    setFilters(cleared)
+    setFiltersState(cleared)
   }, [filterGroups])
 
   return {

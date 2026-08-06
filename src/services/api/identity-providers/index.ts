@@ -3,8 +3,13 @@
  * Handles identity provider-related API calls
  */
 
+import axios from 'axios'
 import { get, post, put, deleteRequest } from '../client'
-import { API_ENDPOINTS } from '../config'
+import { API_CONFIG, API_ENDPOINTS } from '../config'
+import {
+  parseSamlServiceProviderMetadata,
+  type SamlServiceProviderMetadata,
+} from '@/utils/samlMetadata'
 import type { ApiResponse } from '../types'
 import type {
   IdentityProviderListResponse,
@@ -148,6 +153,38 @@ export interface TestConnectionResult {
 export async function testIdentityProviderConnection(data: Record<string, unknown>): Promise<TestConnectionResult> {
   const response = await post<ApiResponse<TestConnectionResult>>(API_ENDPOINTS.IDENTITY_PROVIDER_TEST, data)
   return (response.data ?? { success: false, message: response.message ?? "Unknown error" }) as TestConnectionResult
+}
+
+export interface SamlServiceProviderDetails extends SamlServiceProviderMetadata {
+  /** The metadata document verbatim, for IdPs that import a file. */
+  xml: string
+}
+
+/**
+ * Fetch the SAML service-provider metadata Maintainerd publishes for a provider.
+ *
+ * This is the ONLY source for the entity ID / ACS URL an admin must give the
+ * upstream IdP: those values are composed from the backend's public hostname,
+ * which the console does not know. Deriving them here would risk advertising an
+ * endpoint that never receives the assertion.
+ *
+ * The endpoint lives on the PUBLIC (data) plane and is unauthenticated — it is
+ * fetched with plain axios rather than the control-plane client so that a 404
+ * (e.g. the provider was renamed) cannot trip the session-recovery interceptor.
+ */
+export async function fetchSamlServiceProviderMetadata(identifier: string): Promise<SamlServiceProviderDetails> {
+  const url = `${API_CONFIG.PUBLIC_BASE_URL}${API_ENDPOINTS.SAML_SP_METADATA(identifier)}`
+  const response = await axios.get<string>(url, {
+    // Axios sniffs XML-ish payloads into a Document under jsdom; force text so
+    // the parser below always receives the raw bytes the IdP would also read.
+    responseType: 'text',
+    transformResponse: [(data: unknown) => data],
+    headers: { Accept: 'application/samlmetadata+xml, application/xml, text/xml' },
+    timeout: API_CONFIG.TIMEOUT,
+  })
+
+  const xml = typeof response.data === 'string' ? response.data : String(response.data ?? '')
+  return { ...parseSamlServiceProviderMetadata(xml), xml }
 }
 
 // Export as identity provider object

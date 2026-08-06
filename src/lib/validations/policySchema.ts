@@ -38,30 +38,46 @@ export const policyDocumentSchema = yup.object({
 })
 
 /**
+ * Policy name character set, mirroring the server's `policyNamePattern`
+ * (internal/iam/validation_policy.go). Forward and back slashes are part of the
+ * server's set — omitting them rejected valid ARN-style names client-side.
+ */
+const POLICY_NAME_PATTERN = /^[a-z0-9_:/\\-]+$/
+
+/**
  * Policy form validation schema
+ *
+ * Every rule below mirrors PolicyCreateRequestDTO/PolicyUpdateRequestDTO
+ * validation in internal/iam/validation_policy.go. Rules that are stricter than
+ * the server reject payloads the API would have accepted; rules that are looser
+ * surface as a 422 after submit instead of inline.
  */
 export const policySchema = yup.object({
   name: yup
     .string()
     .required('Policy name is required')
     .min(3, 'Policy name must be at least 3 characters')
-    .max(100, 'Policy name must not exceed 100 characters')
+    .max(150, 'Policy name must not exceed 150 characters')
     .matches(
-      /^[a-z0-9-:_]+$/,
-      'Policy name can only contain lowercase letters, numbers, hyphens, colons, and underscores'
+      POLICY_NAME_PATTERN,
+      'Policy name can only contain lowercase letters, numbers, underscores, colons, forward slashes, backslashes, and hyphens'
     ),
+  // Optional server-side (`*string`, Length(0, 500)) and stored as TEXT NOT NULL
+  // DEFAULT '' — so an empty description is valid, not a validation failure.
   description: yup
     .string()
-    .required('Description is required')
-    .min(10, 'Description must be at least 10 characters')
+    .defined()
     .max(500, 'Description must not exceed 500 characters'),
+  // The server accepts any 1-20 char string, not semver. The backend's own
+  // seeder writes "v1" (internal/setup/seeder/013_control_policy.go), which a
+  // semver rule rejects — making seeded policies uneditable in the console.
   version: yup
     .string()
     .required('Version is required')
-    .matches(
-      /^\d+\.\d+\.\d+$/,
-      'Version must be in semantic versioning format (e.g., 1.0.0)'
-    ),
+    .max(20, 'Version must not exceed 20 characters')
+    // The policies table has CHECK (btrim(version) <> ''), so a whitespace-only
+    // version passes `required` here but fails at insert time.
+    .matches(/\S/, 'Version is required'),
   status: yup
     .string()
     .oneOf(['active', 'inactive'], 'Status must be either active or inactive')

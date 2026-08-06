@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   fetchUsers,
+  fetchMembershipCandidates,
   fetchUserById,
   createUser,
   updateUser,
@@ -67,6 +68,8 @@ export const userKeys = {
   identities: (id: string) => [...userKeys.all, 'identities', id] as const,
   identitiesList: (id: string, params?: UserIdentitiesQueryParams) => [...userKeys.identities(id), params] as const,
   profiles: (id: string) => [...userKeys.all, 'profiles', id] as const,
+  membershipCandidates: (params?: { search?: string; page?: number; limit?: number }) =>
+    [...userKeys.all, 'membership-candidates', params] as const,
   profilesList: (id: string, params?: UserProfilesQueryParams) => [...userKeys.profiles(id), params] as const,
   activity: (id: string) => [...userKeys.all, 'activity', id] as const,
   activityList: (id: string, params?: UserActivityQueryParams) => [...userKeys.activity(id), params] as const,
@@ -525,5 +528,24 @@ export function useUnlockUser() {
     onSuccess: (_data, userId) => {
       queryClient.invalidateQueries({ queryKey: userKeys.detail(userId) })
     },
+  })
+}
+
+/**
+ * SYSTEM-tenant users that may be added as members of a tenant.
+ *
+ * The ordinary user list is pinned to the caller's own tenant, so outside the
+ * system tenant every option it offered was guaranteed to 403. `enabled` lets a
+ * dialog avoid fetching until it is actually open.
+ */
+export function useMembershipCandidates(
+  params?: { search?: string; page?: number; limit?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: userKeys.membershipCandidates(params),
+    queryFn: () => fetchMembershipCandidates(params),
+    enabled: options?.enabled ?? true,
+    placeholderData: keepPreviousData,
   })
 }

@@ -35,11 +35,17 @@ export const apiColumns: ColumnDef<Api>[] = [
     accessorKey: "service",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Service" />,
     cell: ({ row }) => {
-      const api = row.original
+      const service = row.original.service
+      // `service` is omitted from the payload when the API has no owning
+      // service, so reading `.display_name` off it threw and took down the
+      // whole listing render, not just this cell.
+      if (!service) {
+        return <span className="px-3 py-1 text-muted-foreground">&mdash;</span>
+      }
       return (
         <div className="flex items-center gap-2 px-3 py-1">
           <Server className="size-4 text-muted-foreground" />
-          <span className="font-medium">{api.service.display_name}</span>
+          <span className="font-medium">{service.display_name}</span>
         </div>
       )
     },

@@ -4,8 +4,9 @@ import {
   fetchIdentityProviderById, 
   createIdentityProvider, 
   updateIdentityProvider, 
-  deleteIdentityProvider, 
-  updateIdentityProviderStatus 
+  deleteIdentityProvider,
+  updateIdentityProviderStatus,
+  fetchSamlServiceProviderMetadata
 } from '@/services/api/identity-providers'
 import type {
   IdentityProviderQueryParams,
@@ -23,6 +24,8 @@ export const identityProviderKeys = {
   list: (params?: IdentityProviderQueryParams) => [...identityProviderKeys.lists(), params] as const,
   details: () => [...identityProviderKeys.all, 'detail'] as const,
   detail: (id: string) => [...identityProviderKeys.details(), id] as const,
+  samlServiceProvider: (identifier: string) =>
+    [...identityProviderKeys.all, 'saml-sp-metadata', identifier] as const,
 }
 
 /**
@@ -63,6 +66,25 @@ export function useIdentityProvider(identityProviderId: string) {
     queryKey: identityProviderKeys.detail(identityProviderId),
     queryFn: () => fetchIdentityProviderById(identityProviderId),
     enabled: !!identityProviderId,
+  })
+}
+
+/**
+ * Hook to fetch the SAML service-provider metadata published for a provider.
+ *
+ * Only meaningful for SAML providers, so callers pass `enabled` rather than the
+ * hook guessing: a non-SAML identifier would 404 on every detail page view.
+ * The document changes only when the backend's public hostname or the provider
+ * identifier changes, so it is cached for the session and not retried — a
+ * missing document is a configuration fact to surface, not a transient error.
+ */
+export function useSamlServiceProviderMetadata(identifier: string, enabled: boolean) {
+  return useQuery({
+    queryKey: identityProviderKeys.samlServiceProvider(identifier),
+    queryFn: () => fetchSamlServiceProviderMetadata(identifier),
+    enabled: enabled && !!identifier,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
   })
 }
 

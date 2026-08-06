@@ -271,13 +271,16 @@ export default function ServiceAddOrUpdateForm() {
                 />
               </div>
 
+              {/* No `required`: serviceSchema only bounds the length (max 255) and
+                  defaults to "", matching the backend, which validates Length(0, 255)
+                  with no Required rule. The asterisk promised a validation error the
+                  form never raises and the server never returns. */}
               <FormTextareaField
                 label="Description"
                 placeholder="Enter service description"
                 rows={3}
                 disabled={isLoading}
                 error={errors.description?.message}
-                required
                 {...register("description")}
               />
 

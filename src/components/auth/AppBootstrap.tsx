@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTenant } from '@/hooks/useTenant'
 import { SERVICE_UNAVAILABLE_ROUTE, isPublicConsoleRoute } from '@/utils/postAuthRoute'
 import AppLoadingScreen from '@/components/layout/AppLoadingScreen'
+import { setBootstrapSettled } from '@/services/api/client'
 import { RouteGuard } from './RouteGuard'
 
 /**
@@ -66,6 +67,20 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
   // signed-in user through SSO. Waiting on a resolved status is what removes the
   // flash of the login / no-access page.
   const authResolved = isInitialized && authStatus !== 'unknown'
+
+  // Tell the API layer the verdict is in. Until this fires the axios interceptor
+  // must not navigate on a 401 — during boot a 401 from the session probe is the
+  // expected answer for a logged-out visitor, not a session to recover. It used
+  // to act on that immediately, racing this very component: the tenant lookup
+  // resolved 200 while the probe resolved 401, and whichever landed last decided
+  // whether the reload guard survived. When it did not, the page reloaded again,
+  // and the URL flickered between / and /login until the timing happened to
+  // break the cycle.
+  useEffect(() => {
+    if (!authResolved || !tenantSettled) return
+    setBootstrapSettled(authStatus === 'authenticated')
+  }, [authResolved, tenantSettled, authStatus])
+
   if (!authResolved || !tenantSettled) {
     return <AppLoadingScreen branding={currentTenant?.branding} />
   }

@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { Key, Calendar, Globe, Unlink } from "lucide-react"
 import { safeFormat } from "@/lib/formatDate"
 import { InformationCard } from "@/components/card"
@@ -116,34 +115,18 @@ export function UserIdentities({ userId }: UserIdentitiesProps) {
                           </div>
                         </div>
 
-                        {/* Linked client */}
-                        {identity.client && (
+                        {/* Issuing identity provider — not a client. Which
+                            applications can use this identity is configured on
+                            the provider's connections, not stored here. */}
+                        {identity.identity_provider_name && (
                           <div data-md-listing-nested className="space-y-2 rounded-md border bg-muted/30 p-3">
                             <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                               <Globe className="size-3.5" />
-                              Linked client
+                              Identity provider
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-medium">{identity.client.display_name}</span>
-                              <Badge variant="secondary" className="font-normal capitalize">
-                                {identity.client.client_type}
-                              </Badge>
-                              {identity.client.is_default && (
-                                <Badge variant="outline" className="font-normal">
-                                  Default
-                                </Badge>
-                              )}
-                              {identity.client.is_system && (
-                                <Badge variant="outline" className="font-normal">
-                                  System
-                                </Badge>
-                              )}
+                              <span className="text-sm font-medium">{identity.identity_provider_name}</span>
                             </div>
-                            {identity.client.domain && (
-                              <p className="break-all font-mono text-xs text-muted-foreground">
-                                {identity.client.domain}
-                              </p>
-                            )}
                           </div>
                         )}
 

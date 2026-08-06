@@ -51,12 +51,15 @@ export function RoleHeader({ role, roleId }: RoleHeaderProps) {
     }
   }
 
-  // Availability mirrors the backend rules: system roles can't change status or
-  // be deleted; the default (registration) role can't be deactivated or deleted.
+  // Availability mirrors the backend rules: system roles can't be edited, change
+  // status, or be deleted; the default (registration) role can't be deactivated
+  // or deleted. System roles hide the whole actions block — matching ApiHeader,
+  // PolicyHeader, and ServiceHeader — rather than offering an Edit button that
+  // only ever opens a permanently disabled form.
   const isActive = role.status === "active"
-  const canActivate = !role.is_system && !isActive
-  const canDeactivate = !role.is_system && isActive && !role.is_default
-  const canDelete = !role.is_system && !role.is_default
+  const canActivate = !isActive
+  const canDeactivate = isActive && !role.is_default
+  const canDelete = !role.is_default
   const hasMenu = canActivate || canDeactivate || canDelete
 
   const attributes: DetailAttribute[] = [
@@ -93,75 +96,76 @@ export function RoleHeader({ role, roleId }: RoleHeaderProps) {
         subtitle={role.description}
         attributes={attributes}
         actions={
-          <>
-            <Button
-              data-md-details-edit-button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-2"
-              onClick={() =>
-                navigate(`/roles/${roleId}/edit`, {
-                  state: { from: `/roles/${roleId}`, backLabel: "Back to Role Details" },
-                })
-              }
-            >
-              <Edit className="size-4" />
-              Edit
-            </Button>
-            {hasMenu && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button data-md-details-menu-button variant="outline" size="sm" className="h-9 w-9 p-0">
-                    <span className="sr-only">Open actions</span>
-                    <MoreVertical className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {canActivate && (
-                    <DropdownMenuItem
-                      onClick={() =>
-                        setStatusAction({
-                          status: "active",
-                          title: "Activate Role",
-                          description: "Are you sure you want to activate this role? It can be assigned to users again.",
-                        })
-                      }
-                    >
-                      <Play className="mr-2 size-4" />
-                      Activate Role
-                    </DropdownMenuItem>
-                  )}
-                  {canDeactivate && (
-                    <DropdownMenuItem
-                      onClick={() =>
-                        setStatusAction({
-                          status: "inactive",
-                          title: "Deactivate Role",
-                          description: "Are you sure you want to deactivate this role? It can no longer be assigned to users.",
-                        })
-                      }
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Pause className="mr-2 size-4" />
-                      Deactivate Role
-                    </DropdownMenuItem>
-                  )}
-                  {canDelete && (
-                    <>
-                      <DropdownMenuSeparator />
+          !role.is_system && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-2"
+                onClick={() =>
+                  navigate(`/roles/${roleId}/edit`, {
+                    state: { from: `/roles/${roleId}`, backLabel: "Back to Role Details" },
+                  })
+                }
+              >
+                <Edit className="size-4" />
+                Edit
+              </Button>
+              {hasMenu && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button data-md-details-menu-button variant="outline" size="sm" className="h-9 w-9 p-0">
+                      <span className="sr-only">Open actions</span>
+                      <MoreVertical className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {canActivate && (
                       <DropdownMenuItem
-                        onClick={() => setShowDeleteDialog(true)}
+                        onClick={() =>
+                          setStatusAction({
+                            status: "active",
+                            title: "Activate Role",
+                            description: "Are you sure you want to activate this role? It can be assigned to users again.",
+                          })
+                        }
+                      >
+                        <Play className="mr-2 size-4" />
+                        Activate Role
+                      </DropdownMenuItem>
+                    )}
+                    {canDeactivate && (
+                      <DropdownMenuItem
+                        onClick={() =>
+                          setStatusAction({
+                            status: "inactive",
+                            title: "Deactivate Role",
+                            description: "Are you sure you want to deactivate this role? It can no longer be assigned to users.",
+                          })
+                        }
                         className="text-destructive focus:text-destructive"
                       >
-                        <Trash2 className="mr-2 size-4" />
-                        Delete Role
+                        <Pause className="mr-2 size-4" />
+                        Deactivate Role
                       </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </>
+                    )}
+                    {canDelete && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setShowDeleteDialog(true)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 size-4" />
+                          Delete Role
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </>
+          )
         }
       />
 

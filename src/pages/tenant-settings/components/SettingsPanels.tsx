@@ -10,6 +10,7 @@ import { useAuditConfig, useUpdateAuditConfig } from "@/hooks/useAuditConfig"
 import { useMaintenanceConfig, useUpdateMaintenanceConfig } from "@/hooks/useMaintenanceConfig"
 import { useRateLimitConfig, useUpdateRateLimitConfig } from "@/hooks/useRateLimitConfig"
 import { useToast } from "@/hooks/useToast"
+import { toDatetimeLocalInput, toRfc3339 } from "@/lib/datetime"
 import {
   auditConfigSchema,
   maintenanceConfigSchema,
@@ -52,7 +53,7 @@ export function RateLimitSettingsPanel() {
 
   const { handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<RateLimitConfigFormData>({
     resolver: yupResolver(rateLimitConfigSchema),
-    defaultValues: { enabled: false, requests_per_window: 100, window_duration_seconds: 60, per_ip: true, per_api_key: true },
+    defaultValues: { enabled: false, requests_per_window: 100, window_duration_seconds: 60, per_ip: true },
     mode: "onSubmit",
   })
 
@@ -65,7 +66,6 @@ export function RateLimitSettingsPanel() {
         requests_per_window: savedConfig.requests_per_window ?? 100,
         window_duration_seconds: savedConfig.window_duration_seconds ?? 60,
         per_ip: savedConfig.per_ip ?? true,
-        per_api_key: savedConfig.per_api_key ?? true,
       })
     }
   }, [savedConfig, reset])
@@ -118,19 +118,15 @@ export function RateLimitSettingsPanel() {
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Scope" description="Apply rate limits per IP address and/or per API key.">
+      {/* Per-IP is the only scope the limiter implements — rate_limit.go reads
+          per_ip and nothing else — so there is no "Per API Key" switch here. */}
+      <SettingsCard title="Scope" description="Apply rate limits per IP address.">
         <div className="space-y-4">
           <FormSwitchSubContainer
             label="Per IP"
             description="Track and limit requests per unique IP address."
             checked={formValues.per_ip}
             onCheckedChange={(v) => handleUpdate({ per_ip: v })}
-          />
-          <FormSwitchSubContainer
-            label="Per API Key"
-            description="Track and limit requests per API key."
-            checked={formValues.per_api_key}
-            onCheckedChange={(v) => handleUpdate({ per_api_key: v })}
           />
         </div>
       </SettingsCard>
@@ -253,8 +249,12 @@ export function MaintenanceSettingsPanel() {
       reset({
         enabled: savedConfig.enabled ?? false,
         message: savedConfig.message ?? "",
-        scheduled_start: savedConfig.scheduled_start ?? null,
-        scheduled_end: savedConfig.scheduled_end ?? null,
+        // The schedule fields are edited as datetime-local, so the RFC3339
+        // timestamps the API returns have to be narrowed to that shape here —
+        // a raw RFC3339 string is not a value the input will display at all,
+        // and the field would silently render blank over a live schedule.
+        scheduled_start: toDatetimeLocalInput(savedConfig.scheduled_start),
+        scheduled_end: toDatetimeLocalInput(savedConfig.scheduled_end),
       })
     }
   }, [savedConfig, reset])
@@ -267,7 +267,15 @@ export function MaintenanceSettingsPanel() {
 
   const onSubmit = async (data: MaintenanceConfigFormData) => {
     try {
-      await updateMutation.mutateAsync(data)
+      // The form holds datetime-local values ("2026-08-05T14:30"); the API parses
+      // these with time.RFC3339 and rejects an empty string as well, so both
+      // fields have to cross the boundary as a full timestamp or an explicit
+      // null. Submitting the input values as-is is always a 422.
+      await updateMutation.mutateAsync({
+        ...data,
+        scheduled_start: toRfc3339(data.scheduled_start),
+        scheduled_end: toRfc3339(data.scheduled_end),
+      })
       showSuccess("Maintenance config saved successfully")
     } catch (error) {
       showError(error)

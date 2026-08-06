@@ -3,7 +3,7 @@
  * Custom hook for fetching APIs using TanStack Query
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { fetchApis, fetchApiById, createApi, updateApi, deleteApi, updateApiStatus } from '@/services/api/api'
 import type {
   ApiQueryParams,
@@ -24,12 +24,22 @@ export const apiKeys = {
 }
 
 /**
- * Hook to fetch APIs with optional filters and pagination
+ * Hook to fetch APIs with optional filters and pagination.
+ *
+ * `options.enabled` lets a caller hold the request until it is actually wanted
+ * (a closed dialog, for instance). Without it, callers had to conditionally
+ * mount the whole component to avoid fetching on page load.
+ *
+ * `keepPreviousData` keeps the current rows on screen while a new `name` /
+ * `display_name` search resolves, so a server-side search does not blank the
+ * list on every keystroke.
  */
-export function useApis(params?: ApiQueryParams) {
+export function useApis(params?: ApiQueryParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: apiKeys.list(params),
     queryFn: () => fetchApis(params),
+    placeholderData: keepPreviousData,
+    enabled: options?.enabled,
   })
 }
 

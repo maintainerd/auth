@@ -8,7 +8,6 @@ import { useToast } from '@/hooks/useToast'
 import {
   createTenantWithDefaults,
   createAdmin,
-  createProfile,
   completeSetup,
   getSetupStatus,
 } from '@/services'
@@ -79,39 +78,25 @@ export function useSetupAdmin() {
   const { showError, showSuccess } = useToast()
   const [isLoading, setIsLoading] = useState(false)
 
-  // Setup is a THREE-step server-side sequence, not two: create_admin,
-  // create_profile, then complete. Only complete flips the tenant from
-  // `pending` to `active`, and AuthEndpointTenantStatusMiddleware rejects every
-  // login against a non-active tenant with 403 "tenant_unavailable".
+  // create_admin then complete. Only complete flips the tenant from `pending`
+  // to `active`, and AuthEndpointTenantStatusMiddleware rejects every login
+  // against a non-active tenant with 403 "tenant_unavailable" — so stopping
+  // after create_admin produced a tenant nobody could ever sign in to.
   //
-  // This used to stop after create_admin and navigate away, so running the
-  // wizard to the end produced a tenant nobody could ever sign in to — the
-  // button says "Complete setup" and it genuinely did not. /setup/complete
-  // additionally refuses to run unless IsProfileSetup is true, which is why the
-  // profile step is mandatory rather than cosmetic.
+  // The admin's PROFILE is not created here. The admin signs in through the
+  // identity app, which asks for their name when no profile exists yet and
+  // derives the display name from it. /setup/complete does not gate on it.
   const createAdminAccount = useCallback(
-    async (data: { fullName: string; email: string; password: string }) => {
+    async (data: { email: string; password: string }) => {
       setIsLoading(true)
       try {
-        const fullName = data.fullName.trim()
         const adminData: CreateAdminRequest = {
           username: data.email,
-          fullname: fullName,
+          fullname: data.email.split('@')[0],
           password: data.password,
           email: data.email,
         }
         await createAdmin(adminData)
-
-        // Split on the first space: everything after it is the surname. The
-        // backend only requires first_name, so a mononym is fine.
-        const [firstName, ...rest] = fullName.split(/\s+/)
-        const lastName = rest.join(' ')
-        await createProfile({
-          first_name: firstName,
-          ...(lastName ? { last_name: lastName } : {}),
-          email: data.email,
-        })
-
         await completeSetup()
 
         showSuccess('Setup completed successfully!')

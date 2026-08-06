@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react"
+import { useMemo, useEffect, useState } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { useForm, Controller } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
@@ -15,7 +15,7 @@ import {
   FormSubmitButton,
   type SelectOption
 } from "@/components/form"
-import { FormSlugField } from "@/components/inputs"
+import { FormSlugField, FormSearchableSelectField, type SearchableSelectOption } from "@/components/inputs"
 import { ConfirmationDialog } from "@/components/dialog"
 import { apiSchema, type ApiFormData } from "@/lib/validations"
 import { sanitizeName } from "@/lib/validations/regex"
@@ -59,22 +59,42 @@ export default function ApiAddOrUpdateForm() {
   const createApiMutation = useCreateApi()
   const updateApiMutation = useUpdateApi()
 
-  // Fetch services for dropdown
+  // Services for the picker. The previous single `limit: 100` fetch made every
+  // service past the hundredth unselectable, and Service is required — so those
+  // APIs simply could not be created. The list endpoint ILIKEs `display_name`
+  // (repository_service.go FindPaginated), so the term is pushed to the server
+  // and only a page of matches is held in memory.
+  const [serviceSearch, setServiceSearch] = useState("")
+
   const { data: servicesData, isLoading: isFetchingServices } = useServices({
+    display_name: serviceSearch || undefined,
     page: 1,
-    limit: 100,
+    limit: 20,
     sort_by: 'display_name',
     sort_order: 'asc'
   })
 
-  // Convert services to select options
-  const serviceOptions: SelectOption[] = useMemo(() => {
-    if (!servicesData?.rows) return []
-    return servicesData.rows.map(service => ({
+  // Convert services to select options. The API's own service is merged in when
+  // the current page doesn't contain it, so opening the edit form on service
+  // #500 still renders its name instead of an empty trigger.
+  const serviceOptions: SearchableSelectOption[] = useMemo(() => {
+    const options = (servicesData?.rows ?? []).map(service => ({
       value: service.service_id,
       label: service.display_name,
+      keywords: service.name,
     }))
-  }, [servicesData])
+
+    const current = apiData?.service
+    if (current && !options.some(option => option.value === current.service_id)) {
+      options.unshift({
+        value: current.service_id,
+        label: current.display_name,
+        keywords: current.name,
+      })
+    }
+
+    return options
+  }, [servicesData, apiData])
 
   // React Hook Form setup
   const {
@@ -97,23 +117,21 @@ export default function ApiAddOrUpdateForm() {
     reValidateMode: 'onChange',
   })
 
-  // Reset form with API data when both API and services are loaded
+  // Reset form once the API loads. This no longer waits on the services page:
+  // the picker is server-searched, so the owning service may legitimately never
+  // appear in it — serviceOptions merges it in instead.
   useEffect(() => {
     if (!isEditing) return
     if (!apiData) return
-    if (!servicesData?.rows?.length) return
-
-    // Ensure the service exists in the options before setting it
-    const serviceId = apiData.service?.service_id || ""
 
     reset({
       name: apiData.name,
       displayName: apiData.display_name,
       description: apiData.description,
       status: apiData.status,
-      serviceId: serviceId,
+      serviceId: apiData.service?.service_id || "",
     })
-  }, [isEditing, apiData, servicesData, reset])
+  }, [isEditing, apiData, reset])
 
   const isLoading = createApiMutation.isPending || updateApiMutation.isPending || isSubmitting
   const existingApi = apiData
@@ -292,13 +310,15 @@ export default function ApiAddOrUpdateForm() {
                 />
               </div>
 
+              {/* Optional: the server's APICreateRequestDTO has no Required rule
+                  on description, so the asterisk was blocking a submission the
+                  API would have accepted. */}
               <FormTextareaField
                 label="Description"
                 placeholder="Enter API description"
                 rows={3}
                 disabled={isLoading}
                 error={errors.description?.message}
-                required
                 {...register("description")}
               />
 
@@ -307,14 +327,18 @@ export default function ApiAddOrUpdateForm() {
                   name="serviceId"
                   control={control}
                   render={({ field }) => (
-                    <FormSelectField
-                      key={`service-${field.value || 'empty'}`}
+                    <FormSearchableSelectField
+                      id="service"
                       label="Service"
                       placeholder={isFetchingServices ? "Loading services..." : "Select service"}
+                      emptyText="No service found."
                       options={serviceOptions}
                       value={field.value}
                       onValueChange={field.onChange}
-                      disabled={isLoading || isFetchingServices || (existingApi?.is_system && isEditing)}
+                      searchValue={serviceSearch}
+                      onSearchChange={setServiceSearch}
+                      loading={isFetchingServices}
+                      disabled={isLoading || (existingApi?.is_system && isEditing)}
                       error={errors.serviceId?.message}
                       required
                     />

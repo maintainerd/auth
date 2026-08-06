@@ -215,7 +215,7 @@ export function UserMFA({ userId }: UserMFAProps) {
                         <p className="break-words text-sm font-medium">{key.name}</p>
                       <div data-md-listing-meta className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         {key.transport && key.transport.length > 0 && (
-                          <span className="capitalize">{key.transport.join(", ")}</span>
+                          <span className="capitalize">{key.transport.split(",").join(", ")}</span>
                         )}
                         <span className="inline-flex items-center gap-1">
                           <Clock className="size-3" />

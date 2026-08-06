@@ -25,6 +25,10 @@ const SEARCH_FIELDS = ["name"]
 const FILTER_GROUPS: readonly FilterGroup[] = [
   { key: "status", label: "Status", options: ["active", "inactive"] },
 ]
+/** Backed by an endpoint that splits the param on "," into an IN (...) clause. */
+const MULTI_FILTER_GROUPS: readonly FilterGroup[] = [
+  { key: "status", label: "Status", options: ["active", "inactive"], multiple: true },
+]
 
 /** Spy hook capturing the params the engine assembles. */
 function makeUseData(result?: { rows: Row[]; total: number }) {
@@ -94,7 +98,7 @@ describe("useServerDataTable", () => {
     const { spy, useData } = makeUseData({ rows: [], total: 0 })
     renderHarness(
       {
-        options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, filterGroups: FILTER_GROUPS, useData },
+        options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, filterGroups: MULTI_FILTER_GROUPS, useData },
       },
       "/t1?search=bob&status=active,inactive&sortBy=name&sortOrder=desc&page=3&limit=25",
     )
@@ -198,6 +202,111 @@ describe("useServerDataTable", () => {
     act(() => {
       captured!.clearFilters()
     })
+    expect(captured!.activeFilters).toEqual([])
+  })
+})
+
+// Most list endpoints compare a filter param against the column verbatim; only the
+// handlers that explicitly split on "," build an IN (...) clause. Serializing two
+// selections as "a,b" to a verbatim endpoint matches the literal string "a,b" and
+// returns zero rows, so the filter looked applied while guaranteeing an empty table.
+// Multi-value is therefore opt-in per group via `multiple`.
+describe("filter group arity", () => {
+  it("clamps a single-select group seeded with several values from the URL", () => {
+    const { spy, useData } = makeUseData({ rows: [], total: 0 })
+    renderHarness(
+      {
+        options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, filterGroups: FILTER_GROUPS, useData },
+      },
+      "/t1?status=active,inactive",
+    )
+    const params = spy.mock.calls.at(-1)?.[0]
+    expect(params.status).toBe("inactive")
+    expect(screen.getByTestId("chips").textContent).toBe("Status: inactive")
+  })
+
+  it("keeps every value for a group that opts in with multiple", () => {
+    const { spy, useData } = makeUseData({ rows: [], total: 0 })
+    renderHarness(
+      {
+        options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, filterGroups: MULTI_FILTER_GROUPS, useData },
+      },
+      "/t1?status=active,inactive",
+    )
+    const params = spy.mock.calls.at(-1)?.[0]
+    expect(params.status).toBe("active,inactive")
+  })
+
+  it("clamps a multi-value setFilters call on a single-select group", () => {
+    const { spy, useData } = makeUseData({ rows: [], total: 0 })
+    let captured: UseServerDataTableResult<Row> | undefined
+    renderHarness({
+      options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, filterGroups: FILTER_GROUPS, useData },
+      onResult: (r) => {
+        captured = r
+      },
+    })
+    act(() => {
+      captured!.setFilters({ status: ["active", "inactive"] })
+    })
+    expect(captured!.filters.status).toEqual(["inactive"])
+    expect(spy.mock.calls.at(-1)?.[0].status).toBe("inactive")
+  })
+
+  it("keeps a multi-value setFilters call on a multiple group", () => {
+    const { spy, useData } = makeUseData({ rows: [], total: 0 })
+    let captured: UseServerDataTableResult<Row> | undefined
+    renderHarness({
+      options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, filterGroups: MULTI_FILTER_GROUPS, useData },
+      onResult: (r) => {
+        captured = r
+      },
+    })
+    act(() => {
+      captured!.setFilters({ status: ["active", "inactive"] })
+    })
+    expect(captured!.filters.status).toEqual(["active", "inactive"])
+    expect(spy.mock.calls.at(-1)?.[0].status).toBe("active,inactive")
+  })
+
+  // The toolbar appends on check, so the newest value has to win — keeping the
+  // first would leave the box the user just clicked unchecked and look like a
+  // dead control.
+  it("replaces the selection when a single-select group is toggled again", () => {
+    const { useData } = makeUseData({ rows: [], total: 0 })
+    let captured: UseServerDataTableResult<Row> | undefined
+    renderHarness(
+      {
+        options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, filterGroups: FILTER_GROUPS, useData },
+        onResult: (r) => {
+          captured = r
+        },
+      },
+      "/t1?status=active",
+    )
+    // How ListingToolbar reports a check: append to the group's current values.
+    act(() => {
+      captured!.setFilters({ status: [...captured!.filters.status, "inactive"] })
+    })
+    expect(captured!.filters.status).toEqual(["inactive"])
+  })
+
+  it("still clears to empty via an unchecking setFilters call", () => {
+    const { useData } = makeUseData({ rows: [], total: 0 })
+    let captured: UseServerDataTableResult<Row> | undefined
+    renderHarness(
+      {
+        options: { defaultSort: DEFAULT_SORT, searchFields: SEARCH_FIELDS, filterGroups: FILTER_GROUPS, useData },
+        onResult: (r) => {
+          captured = r
+        },
+      },
+      "/t1?status=active",
+    )
+    act(() => {
+      captured!.setFilters({ status: [] })
+    })
+    expect(captured!.filters.status).toEqual([])
     expect(captured!.activeFilters).toEqual([])
   })
 })

@@ -7,8 +7,16 @@ import type { ApiResponse, PaginatedResponse } from '../types'
 
 /**
  * Tenant status type
+ *
+ * All four values the backend accepts and emits. `pending` was missing here,
+ * which is how an unmapped status reached UI code keyed on this union and
+ * crashed it: setup creates the system tenant as `pending` and it only flips to
+ * `active` once a first owner is assigned, so `pending` really does arrive on
+ * the wire. (maintainerd-auth internal/shared/constants.go:8-11,
+ * internal/tenant/validation_tenant.go:78, internal/setup/service_setup.go:179,
+ * internal/tenant/service_member.go:151.)
  */
-export type TenantStatus = 'active' | 'inactive' | 'suspended'
+export type TenantStatus = 'active' | 'inactive' | 'pending' | 'suspended'
 
 export interface RegistrationConfigPublic {
   self_registration_enabled: boolean
@@ -56,7 +64,11 @@ export interface TenantEntity {
   display_name: string
   description: string
   status: TenantStatus
-  is_default: boolean
+  // No is_default: the tenant CRUD/list endpoints all serialize
+  // TenantResponseDTO, which has no such json tag (maintainerd-auth
+  // internal/tenant/types.go:13-23) — only the unauthenticated
+  // TenantPublicResponseDTO carries is_default, and that is a different shape.
+  // Declaring it here let callers branch on a field that is always undefined.
   is_system: boolean
   created_at: string
   updated_at: string
@@ -73,7 +85,10 @@ export interface TenantListParams {
   display_name?: string
   description?: string
   status?: TenantStatus
-  is_default?: boolean
+  // No is_default: TenantFilterDTO (maintainerd-auth internal/tenant/types.go:
+  // 166-175) has no IsDefault field and the list handler never reads such a
+  // query param, so declaring it here only advertised a filter that silently
+  // did nothing.
   is_system?: boolean
   page?: number
   limit?: number

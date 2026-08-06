@@ -62,66 +62,35 @@ describe("UserIdentities", () => {
     renderWithProviders(<UserIdentities userId="u1" />)
     expect(screen.getByText("google")).toBeInTheDocument()
     expect(screen.getByText("sub-123")).toBeInTheDocument()
-    expect(screen.queryByText("Linked client")).not.toBeInTheDocument()
+    expect(screen.queryByText("Identity provider")).not.toBeInTheDocument()
   })
 
-  it("renders an identity with a client incl. default/system badges and domain", () => {
+  it("renders the issuing identity provider, not a client", () => {
     useUserIdentitiesMock.mockReturnValue({
       data: response([
         makeIdentity({
-          client: {
-            client_id: "c1",
-            name: "web",
-            display_name: "Web App",
-            client_type: "spa",
-            domain: "app.example.com",
-            status: "active",
-            is_default: true,
-            is_system: true,
-            created_at: "2024-01-01T00:00:00Z",
-            updated_at: "2024-01-01T00:00:00Z",
-          },
+          identity_provider_id: "idp-1",
+          identity_provider_name: "Google Workspace",
         }),
       ]),
       isLoading: false,
       isError: false,
     })
     renderWithProviders(<UserIdentities userId="u1" />)
-    expect(screen.getByText("Linked client")).toBeInTheDocument()
-    expect(screen.getByText("Web App")).toBeInTheDocument()
-    expect(screen.getByText("spa")).toBeInTheDocument()
-    expect(screen.getByText("Default")).toBeInTheDocument()
-    expect(screen.getByText("System")).toBeInTheDocument()
-    expect(screen.getByText("app.example.com")).toBeInTheDocument()
+    expect(screen.getByText("Identity provider")).toBeInTheDocument()
+    expect(screen.getByText("Google Workspace")).toBeInTheDocument()
+    // An identity is never presented as belonging to one application.
+    expect(screen.queryByText("Linked client")).not.toBeInTheDocument()
   })
 
-  it("renders a client without default/system badges and without a domain", () => {
+  it("omits the provider block when the provider could not be resolved", () => {
     useUserIdentitiesMock.mockReturnValue({
-      data: response(
-        [
-          makeIdentity({
-            client: {
-              client_id: "c2",
-              name: "web2",
-              display_name: "Other App",
-              client_type: "web",
-              status: "active",
-              is_default: false,
-              is_system: false,
-              created_at: "2024-01-01T00:00:00Z",
-              updated_at: "2024-01-01T00:00:00Z",
-            },
-          }),
-        ],
-        3,
-      ),
+      data: response([makeIdentity()], 3),
       isLoading: false,
       isError: false,
     })
     renderWithProviders(<UserIdentities userId="u1" />)
-    expect(screen.getByText("Other App")).toBeInTheDocument()
-    expect(screen.queryByText("Default")).not.toBeInTheDocument()
-    expect(screen.queryByText("System")).not.toBeInTheDocument()
+    expect(screen.queryByText("Identity provider")).not.toBeInTheDocument()
     // total > 0 -> pagination shown.
     expect(screen.getByText("Rows per page")).toBeInTheDocument()
   })

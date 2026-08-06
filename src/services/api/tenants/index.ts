@@ -49,9 +49,13 @@ export async function fetchTenantList(params?: TenantListParams): Promise<Tenant
   // Always include all expected params, even if empty, and use correct defaults
   const qp: Record<string, string> = {
     name: params?.name ?? '',
+    // display_name is read by the list handler (maintainerd-auth
+    // internal/tenant/handler_tenant.go:110) but was never serialized, so the
+    // param was silently dropped. There is no is_default counterpart — the
+    // handler reads no such key, so sending it was pure noise.
+    display_name: params?.display_name ?? '',
     description: params?.description ?? '',
     status: params?.status ?? '',
-    is_default: params?.is_default !== undefined ? String(params.is_default) : '',
     is_system: params?.is_system !== undefined ? String(params.is_system) : '',
     page: params?.page !== undefined ? String(params.page) : '1',
     limit: params?.limit !== undefined ? String(params.limit) : '10',

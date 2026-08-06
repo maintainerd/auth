@@ -34,7 +34,12 @@ export interface PermissionQueryParams {
   api_id?: string
   role_id?: string
   client_id?: string
-  is_active?: boolean
+  // `status` and `is_system` are what PermissionFilterDTO actually reads
+  // (internal/iam/handler_permission.go). There is no `is_active` query param on
+  // the permission list endpoint; the old key here had no consumers and no
+  // server-side effect.
+  status?: string
+  is_system?: boolean
   page?: number
   limit?: number
   sort_by?: string

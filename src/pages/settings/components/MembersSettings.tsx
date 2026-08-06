@@ -69,7 +69,11 @@ export function MembersSettings({ tenantId: propTenantId, isSystemTenant }: Memb
   const table = useReactTable({
     data: tableData,
     columns,
-    pageCount: Math.ceil((tableData.length) / pagination.pageSize),
+    // Server-side pagination: the page count has to come from the server's
+    // total_pages. Deriving it from tableData.length only ever sees the rows of
+    // the CURRENT page, so a full page always computed to 1 page and every
+    // member past the first page was unreachable.
+    pageCount: data?.data?.total_pages ?? 0,
     state: {
       pagination,
     },
@@ -183,7 +187,7 @@ export function MembersSettings({ tenantId: propTenantId, isSystemTenant }: Memb
           {/* Pagination controls */}
           {data && data.data && data.data.rows && data.data.rows.length > 0 && !searchQuery && (
             <div className="pt-4 border-t">
-              <DataTablePagination table={table} rowCount={data.data.rows.length} />
+              <DataTablePagination table={table} rowCount={data.data.total} />
             </div>
           )}
         </div>

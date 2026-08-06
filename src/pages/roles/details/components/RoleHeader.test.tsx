@@ -100,4 +100,26 @@ describe("RoleHeader", () => {
     renderWithProviders(<RoleHeader role={makeRole({ is_system: true })} roleId="r1" />)
     expect(screen.queryByRole("button", { name: /open actions/i })).not.toBeInTheDocument()
   })
+
+  it("hides the edit button for system roles", () => {
+    // The role form is permanently disabled for system roles, so offering Edit
+    // only ever navigates to a dead end — ApiHeader/PolicyHeader/ServiceHeader
+    // all hide the whole actions block instead.
+    renderWithProviders(<RoleHeader role={makeRole({ is_system: true })} roleId="r1" />)
+    expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument()
+  })
+
+  it("keeps the edit button for a non-system default role", () => {
+    // is_default only blocks deactivate/delete — the role is still editable, so
+    // the actions block stays even though the dropdown has nothing to offer.
+    renderWithProviders(<RoleHeader role={makeRole({ is_default: true })} roleId="r1" />)
+    expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /open actions/i })).not.toBeInTheDocument()
+  })
+
+  it("offers activate for an inactive non-system role", async () => {
+    renderWithProviders(<RoleHeader role={makeRole({ status: "inactive" })} roleId="r1" />)
+    await u().click(screen.getByRole("button", { name: /open actions/i }))
+    expect(await screen.findByText("Activate Role")).toBeInTheDocument()
+  })
 })

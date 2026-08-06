@@ -25,16 +25,6 @@ export const setupTenantSchema = yup.object({
 
 // Setup Admin Form Schema
 export const setupAdminSchema = yup.object({
-  // The backend requires a first_name on /setup/create_profile, and that step is
-  // mandatory before /setup/complete. Collecting the name here keeps setup a
-  // two-page flow instead of adding a third page just for one field — and it
-  // replaces the old fullname, which was the email's local-part.
-  fullName: yup
-    .string()
-    .required('Name is required')
-    .trim()
-    .min(1, 'Name is required')
-    .max(100, 'Name must not exceed 100 characters'),
   email: yup
     .string()
     .required('Email is required')

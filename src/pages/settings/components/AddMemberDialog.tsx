@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Badge } from "@/components/ui/badge"
 import { FormSelectField } from "@/components/form"
 import {
   Dialog,
@@ -15,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAddTenantMember, useTenantMembers } from "@/hooks/useTenantMembers"
-import { useUsers } from "@/hooks/useUsers"
+import { useMembershipCandidates } from "@/hooks/useUsers"
 import { useToast } from "@/hooks/useToast"
 import { useAppSelector } from '@/store/hooks'
 
@@ -34,15 +33,21 @@ export function AddMemberDialog({ open, onOpenChange, tenantId: propTenantId }: 
   const [userSearchQuery, setUserSearchQuery] = useState("")
   
   const addMemberMutation = useAddTenantMember(tenantId)
-  
-  // Fetch users for selection
-  const { data: usersData, isLoading: isLoadingUsers } = useUsers({
-    page: 1,
-    limit: 100,
-    status: 'active',
-    sort_by: 'fullname',
-    sort_order: 'asc'
-  })
+
+  // Tenant members are only ever sourced from the SYSTEM tenant's shared user
+  // pool: the backend rejects any user whose home tenant is not the system
+  // tenant with a 403 (maintainerd-auth internal/tenant/service_member.go:
+  // 210-220). GET /users, meanwhile, is hard-scoped to the caller's own tenant
+  // — the handler ignores any tenant filter and always passes its own
+  // tenant.CreateByUserUUID accepts ONLY system-tenant users, and the ordinary
+  // user list is pinned to the caller's own tenant — so this dialog used to
+  // offer choices that were guaranteed to 403 outside the system tenant.
+  // /users/membership-candidates is the endpoint that returns the set the
+  // backend will actually accept; the tenant is resolved server-side.
+  const { data: candidatesData, isLoading: isLoadingUsers } = useMembershipCandidates(
+    { search: userSearchQuery || undefined, page: 1, limit: 100 },
+    { enabled: open },
+  )
 
   // Fetch existing members to filter them out
   const { data: membersData } = useTenantMembers(tenantId, {
@@ -79,7 +84,7 @@ export function AddMemberDialog({ open, onOpenChange, tenantId: propTenantId }: 
 
   const isLoading = addMemberMutation.isPending
 
-  const users = usersData?.rows ?? []
+  const users = candidatesData?.rows ?? []
   const existingMemberUserIds = membersData?.data?.rows?.map(m => m.user.user_id) ?? []
   const hasOwner = membersData?.data?.rows?.some(m => m.role === 'owner') ?? false
 
@@ -94,12 +99,10 @@ export function AddMemberDialog({ open, onOpenChange, tenantId: propTenantId }: 
     user => !existingMemberUserIds.includes(user.user_id)
   )
 
-  // Filter users based on search query
-  const filteredUsers = availableUsers.filter(user =>
-    user.fullname.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-    user.username.toLowerCase().includes(userSearchQuery.toLowerCase())
-  )
+  // No client-side search filter: the endpoint already applied `search`, and
+  // re-filtering here would drop rows the server matched on a field this
+  // projection does not carry.
+  const filteredUsers = availableUsers
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,9 +110,11 @@ export function AddMemberDialog({ open, onOpenChange, tenantId: propTenantId }: 
         <DialogHeader>
           <DialogTitle>Add Member to Tenant</DialogTitle>
           <DialogDescription>
-            Select a user and assign them a role for this tenant.
+            Select a user and assign them a role for this tenant. Members are
+            drawn from the system tenant's shared user pool.
           </DialogDescription>
         </DialogHeader>
+
 
         <div className="space-y-6 py-4">
           {/* Role Selection — only shown when tenant has no owner yet */}
@@ -195,11 +200,6 @@ export function AddMemberDialog({ open, onOpenChange, tenantId: propTenantId }: 
                         <div className="flex items-center gap-2 mb-1">
                           <User className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">{user.fullname}</span>
-                          {user.is_email_verified && (
-                            <Badge variant="outline" className="text-xs">
-                              Verified
-                            </Badge>
-                          )}
                         </div>
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                         {user.username && user.username !== user.email && (

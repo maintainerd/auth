@@ -185,8 +185,11 @@ export default function RegistrationConfigPage() {
                 {/* Shipping in a later release: the backend verifies a captcha token when
                     CAPTCHA_SECRET is configured, but no widget is rendered on the hosted
                     registration form yet, so enabling this would make signup impossible to
-                    complete. Left visible (and off) so the roadmap is discoverable. */}
-                <FormSwitchSubContainer label="CAPTCHA on Signup (Coming soon)" description="Bot protection during registration. Not yet available — the hosted signup form does not render a captcha challenge." checked={false} onCheckedChange={() => {}} disabled />
+                    complete. The control stays disabled — but it must show the PERSISTED
+                    value, not a hardcoded false. Hardcoding it meant a tenant whose stored
+                    flag was true (the old seeded default) saw "off" here while every signup
+                    was being rejected, and the page offered no way to discover or fix it. */}
+                <FormSwitchSubContainer label="CAPTCHA on Signup (Coming soon)" description={formValues.captcha_on_signup ? "Enabled for this tenant, but the hosted signup form does not render a captcha challenge yet — registration will be rejected until this is turned off." : "Bot protection during registration. Not yet available — the hosted signup form does not render a captcha challenge."} checked={formValues.captcha_on_signup} onCheckedChange={(v) => handleUpdate({ captcha_on_signup: v })} disabled={isBusy || !formValues.captcha_on_signup} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInputField label="Rate Limit (per IP per hour)" type="number" value={formValues.registration_rate_limit_per_ip_per_hour.toString()} onChange={(e) => handleUpdate({ registration_rate_limit_per_ip_per_hour: parseInt(e.target.value) || 1 })} error={errors.registration_rate_limit_per_ip_per_hour?.message} disabled={isBusy} />
