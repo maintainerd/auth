@@ -103,16 +103,26 @@ export default function AccountLayout({
       </header>
 
       <div className="mx-auto max-w-5xl px-4 pb-8 pt-20">
-        <div className="flex gap-6">
+        {/* Stacks on mobile. The sidebar is a fixed 224px and cannot shrink, so
+            side-by-side at 375px left the main column around 95px wide and every
+            account page unusable. Below md the nav becomes a horizontally
+            scrollable strip above the content instead. */}
+        <div className="flex flex-col gap-6 md:flex-row">
           {/* Sidebar */}
-          <aside data-md-sidebar className="w-56 shrink-0 space-y-1 self-start">
+          <aside
+            data-md-sidebar
+            className="-mx-4 w-auto self-stretch px-4 md:mx-0 md:w-56 md:shrink-0 md:space-y-1 md:self-start md:px-0"
+          >
             <p
               data-md-sidebar-section
               data-md-sidebar-section-label
-              className="mb-3 flex items-center px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              className="mb-3 hidden items-center px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground md:flex"
             >
               Account
             </p>
+            {/* Horizontal, edge-to-edge and scrollable on mobile; a plain
+                vertical list from md up. */}
+            <div className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:flex-col md:gap-0 md:space-y-1 md:overflow-visible md:pb-0">
             {navItems.map(({ href, label, icon: Icon }) => {
               const active =
                 location.pathname === href ||
@@ -125,6 +135,9 @@ export default function AccountLayout({
                   data-active={active ? 'true' : undefined}
                   className={cn(
                     accountMenuClass,
+                    // Must not wrap or shrink inside the scroll strip, and needs
+                    // a 40px touch target on a phone.
+                    'h-10 shrink-0 whitespace-nowrap px-3 md:h-9 md:px-2',
                     active
                       ? accountMenuActiveClass
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -135,6 +148,7 @@ export default function AccountLayout({
                 </Link>
               )
             })}
+            </div>
           </aside>
 
           {/* Main content */}

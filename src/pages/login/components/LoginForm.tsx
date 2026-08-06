@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { AlertCircle, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react"
-import { FormPasswordField, FormSubmitButton } from "@/components/form"
-import { FormEmailField } from "@/components/inputs"
+import { FormInputField, FormPasswordField, FormSubmitButton } from "@/components/form"
 import { buildLoginSchema, type LoginFormData } from "@/lib/validations"
 import { useToast } from "@/hooks/useToast"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
@@ -136,6 +135,7 @@ const LoginForm = () => {
     handleSubmit,
     getValues,
     trigger,
+    setError,
     formState: { errors, isSubmitting }
   } = useForm<LoginFormData>({
     resolver: yupResolver(loginSchema),
@@ -202,13 +202,23 @@ const LoginForm = () => {
   }
 
   const handleMagicLink = async () => {
-    const emailIsValid = await trigger('email')
-    if (!emailIsValid) return
+    const identifierIsValid = await trigger('email')
+    if (!identifierIsValid) return
+
+    // The shared field accepts a username OR an email because that is what
+    // password sign-in supports. A magic link has to be delivered somewhere, so
+    // this path needs an actual address — checked here rather than in the schema
+    // so it does not leak back onto the password path.
+    const identifier = getValues('email').trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+      setError('email', { message: 'Enter an email address to receive a sign-in link.' })
+      return
+    }
 
     setLoginError(null)
     setIsSendingMagicLink(true)
     try {
-      await sendMagicLink(getValues('email'), {
+      await sendMagicLink(identifier, {
         clientId,
         tenantId,
       })
@@ -361,9 +371,15 @@ const LoginForm = () => {
               </div>
             )}
 
-            <FormEmailField
-              label="Email"
+            {/* FormInputField, not FormEmailField: sign-in accepts a username
+                or an email, so type="email" would let the browser block a valid
+                username before submit. autoComplete="username" is the correct
+                token for a sign-in identifier even when it holds an email —
+                it is what pairs with current-password for password managers. */}
+            <FormInputField
+              label="Email or username"
               placeholder="you@company.com"
+              autoComplete="username"
               disabled={isSubmitting || isLoadingConnections}
               error={errors.email?.message}
               required

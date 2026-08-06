@@ -124,7 +124,7 @@ export default function PasskeySetupPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-destructive hover:text-destructive"
+                        className="size-10 text-destructive hover:text-destructive sm:size-8"
                         onClick={() => setPendingDelete(key)}
                         title="Remove passkey"
                         aria-label={`Remove passkey ${key.name || key.credential_uuid}`}

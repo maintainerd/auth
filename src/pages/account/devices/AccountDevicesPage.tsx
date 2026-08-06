@@ -45,7 +45,7 @@ function DeviceRow({
             <Button
               size="sm"
               variant="destructive"
-              className="h-7 text-xs"
+              className="h-9 sm:h-7 text-xs"
               disabled={revoking}
               onClick={() => {
                 onRevoke(device.uuid)
@@ -57,7 +57,7 @@ function DeviceRow({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 text-xs"
+              className="h-9 sm:h-7 text-xs"
               onClick={() => setConfirming(false)}
             >
               Cancel
@@ -67,7 +67,7 @@ function DeviceRow({
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+            className="h-9 sm:h-7 gap-1 text-xs text-destructive hover:text-destructive"
             disabled={revoking}
             onClick={() => setConfirming(true)}
           >
@@ -97,7 +97,7 @@ function DeviceRow({
             {device.ip_address && (
               <span className="inline-flex items-center gap-1 font-mono">
                 <Globe className="size-3" />
-                {device.ip_address}
+                <span className="break-all">{device.ip_address}</span>
               </span>
             )}
             <span className="inline-flex items-center gap-1">

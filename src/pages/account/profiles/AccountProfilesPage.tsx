@@ -34,6 +34,23 @@ function fmtDate(value?: string | null): string | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d.toLocaleDateString()
 }
 
+/**
+ * Formats a bare "YYYY-MM-DD" (the shape ProfileResponseDTO sends for
+ * birthdate) as a local calendar date.
+ *
+ * `new Date("1990-01-25")` is specified to parse as UTC midnight, so
+ * toLocaleDateString() renders the 24th for anyone west of Greenwich — the user
+ * sees a birthday one day earlier than the one they entered. Splitting the parts
+ * and building a local date keeps the calendar day the user typed.
+ */
+function fmtCalendarDate(value?: string | null): string | undefined {
+  if (!value) return undefined
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim())
+  if (!match) return fmtDate(value)
+  const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  return Number.isNaN(d.getTime()) ? undefined : d.toLocaleDateString()
+}
+
 function ViewField({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="min-w-0 space-y-1 rounded-md px-3 py-2">
@@ -54,7 +71,7 @@ function ProfileActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="size-8 p-0">
+        <Button variant="ghost" className="size-10 p-0 sm:size-8">
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="size-4" />
         </Button>
@@ -166,7 +183,7 @@ export default function AccountProfilesPage() {
               <ViewField label="Last name" value={defaultProfile.last_name} />
               <ViewField label="Email" value={defaultProfile.email} />
               <ViewField label="Gender" value={defaultProfile.gender} />
-              <ViewField label="Date of birth" value={fmtDate(defaultProfile.birthdate)} />
+              <ViewField label="Date of birth" value={fmtCalendarDate(defaultProfile.birthdate)} />
               <ViewField label="Timezone" value={defaultProfile.timezone} />
               <ViewField label="Language" value={defaultProfile.language} />
               <ViewField label="Added" value={fmtDate(defaultProfile.created_at)} />

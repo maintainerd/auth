@@ -1,10 +1,15 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe, Monitor, Smartphone, Trash2 } from 'lucide-react'
 import AccountLayout from '@/components/layout/AccountLayout'
 import { SettingsCard } from '@/components/card'
 import { ListingItemCard, ListingItemMeta } from '@/components/details'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import {
   fetchSessions,
@@ -67,7 +72,7 @@ function SessionRow({
               <Button
                 size="sm"
                 variant="destructive"
-                className="h-7 text-xs"
+                className="h-9 sm:h-7 text-xs"
                 disabled={revoking}
                 onClick={() => {
                   onRevoke(session.session_id)
@@ -79,7 +84,7 @@ function SessionRow({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 text-xs"
+                className="h-9 sm:h-7 text-xs"
                 onClick={() => setConfirming(false)}
               >
                 Cancel
@@ -89,7 +94,7 @@ function SessionRow({
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+              className="h-9 sm:h-7 gap-1 text-xs text-destructive hover:text-destructive"
               disabled={revoking}
               onClick={() => setConfirming(true)}
             >
@@ -101,16 +106,14 @@ function SessionRow({
       )}
     >
       <div className="min-w-0">
+        {/* No "Current" badge: /account/sessions does not return an
+            is_current flag, and the previous truthiness check on a
+            non-existent field marked nothing while implying it did. */}
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-sm font-medium">{label}</p>
-          {session.is_current && (
-            <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
-              Current
-            </span>
-          )}
         </div>
         <ListingItemMeta>
-          <span>{session.ip_address ?? 'Unknown IP'}</span>
+          <span className="break-all">{session.ip_address ?? 'Unknown IP'}</span>
           {session.created_at && <span>Signed in {fmt(session.created_at)}</span>}
           {session.last_used_at && <span>Last active {fmt(session.last_used_at)}</span>}
         </ListingItemMeta>
@@ -121,6 +124,8 @@ function SessionRow({
 
 export default function AccountSessionsPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { logout } = useAuth()
   const { showError, showSuccess } = useToast()
   const [confirmingAll, setConfirmingAll] = useState(false)
 
@@ -138,52 +143,41 @@ export default function AccountSessionsPage() {
     onError: (err) => showError(err, 'Could not revoke session'),
   })
 
+  // DELETE /account/sessions calls RevokeAllSessions, which revokes EVERY
+  // session for the user — the caller's included — plus every OAuth refresh
+  // token. The old label ("Revoke all others") and toast ("All other sessions
+  // revoked") described a sign-out-others action the endpoint does not perform,
+  // so the user was signed out of the browser in front of them while being told
+  // it had been spared. The copy now states what happens, and this browser
+  // follows the server: local auth state is cleared and we land on /login
+  // instead of leaving a dead session rendering account pages.
   const revokeAllMutation = useMutation({
     mutationFn: revokeAllSessions,
-    onSuccess: () => {
-      showSuccess('All other sessions revoked')
+    onSuccess: async () => {
+      showSuccess('Signed out on every device')
       setConfirmingAll(false)
-      queryClient.invalidateQueries({ queryKey: ['account', 'sessions'] })
+      queryClient.removeQueries({ queryKey: ['account'] })
+      try {
+        await logout()
+      } catch {
+        // The session backing this browser is already gone, so /logout answering
+        // 401 is expected — the store clears auth state either way.
+      }
+      navigate('/login', { replace: true })
     },
-    onError: (err) => showError(err, 'Could not revoke all sessions'),
+    onError: (err) => showError(err, 'Could not sign out everywhere'),
   })
 
-  // The response carries no "is this me" marker, so every listed session is
-  // revocable. Revoking the current one simply signs this browser out, which is
-  // a legitimate action and what the button already claims to do.
-  const otherSessions = sessions
-  const revokeAllAction = otherSessions.length > 0 ? (
-    <div className="flex w-full justify-end gap-2 sm:w-auto">
-      {confirmingAll ? (
-        <>
-          <Button
-            size="sm"
-            variant="destructive"
-            className="h-7 flex-1 text-xs sm:flex-none"
-            disabled={revokeAllMutation.isPending}
-            onClick={() => revokeAllMutation.mutate()}
-          >
-            Confirm revoke all
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 flex-1 text-xs sm:flex-none"
-            onClick={() => setConfirmingAll(false)}
-          >
-            Cancel
-          </Button>
-        </>
-      ) : (
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 w-full text-xs text-destructive hover:text-destructive sm:w-auto"
-          onClick={() => setConfirmingAll(true)}
-        >
-          Revoke all others
-        </Button>
-      )}
+  const revokeAllAction = sessions.length > 0 ? (
+    <div className="flex w-full justify-end sm:w-auto">
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-9 sm:h-7 w-full text-xs text-destructive hover:text-destructive sm:w-auto"
+        onClick={() => setConfirmingAll(true)}
+      >
+        Sign out everywhere
+      </Button>
     </div>
   ) : undefined
 
@@ -217,6 +211,32 @@ export default function AccountSessionsPage() {
           )}
         </div>
       </SettingsCard>
+
+      {/* A dialog rather than a pair of inline buttons: this action ends the
+          session the user is reading the page in, and that needs a sentence to
+          say so, not a header button with no room for one. */}
+      <Dialog open={confirmingAll} onOpenChange={(open) => { if (!open) setConfirmingAll(false) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sign out everywhere?</DialogTitle>
+            <DialogDescription>
+              This ends every session on your account — including this one, on this device.
+              Apps you have connected will also need you to sign in again. You will be returned
+              to the sign-in page.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmingAll(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={revokeAllMutation.isPending}
+              onClick={() => revokeAllMutation.mutate()}
+            >
+              {revokeAllMutation.isPending ? 'Signing out…' : 'Sign out everywhere'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AccountLayout>
   )
 }

@@ -97,7 +97,7 @@ export default function LoginSuccessPage() {
           </div>
         )}
         {/* Account sections */}
-        <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
             { href: '/account/profile', label: 'Profile', description: 'Names & avatar', icon: User },
             { href: '/account/security', label: 'Security', description: 'Password & email', icon: Shield },

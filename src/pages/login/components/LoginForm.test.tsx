@@ -52,13 +52,13 @@ describe('LoginForm passwordless sign-in', () => {
     sessionStorage.clear()
   })
 
-  it('requires a valid email without requiring a password', async () => {
+  it('requires an identifier without requiring a password', async () => {
     const user = userEvent.setup()
     renderWithProviders(<LoginForm />, { route: '/login?client_id=identity', path: '/login' })
 
     await user.click(screen.getByRole('button', { name: 'Email me a sign-in link' }))
 
-    expect(await screen.findByText('Email is required')).toBeInTheDocument()
+    expect(await screen.findByText('Email or username is required')).toBeInTheDocument()
     expect(sendMagicLinkMock).not.toHaveBeenCalled()
   })
 

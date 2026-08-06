@@ -1,41 +1,59 @@
-import { get, post, put, deleteRequest } from '@/services/api/client'
+import { ApiError, get, post, put, deleteRequest } from '@/services/api/client'
 import { unwrap, assertSuccess } from '@/services/api/_lib/unwrap'
 import type { ApiResponse } from '@/services/api/types'
+import type { AccountEntity } from '@/services/api/auth/types'
 
 // ---------------------------------------------------------------------------
 // Profiles
 // ---------------------------------------------------------------------------
 
+// Mirrors user.ProfileResponseDTO (internal/user/types.go).
 export interface UserProfile {
   profile_id: string
   display_name?: string
   first_name?: string
   middle_name?: string
   last_name?: string
+  /** YYYY-MM-DD — a calendar date, not an instant. Same shape the write DTO takes. */
   birthdate?: string
   gender?: string
   email?: string
   timezone?: string
   language?: string
   profile_url?: string
+  /** Extended data. Carries the OIDC `address` claim under `metadata.address`. */
+  metadata?: Record<string, unknown>
   is_default: boolean
   created_at: string
 }
 
-export interface CreateProfileRequest {
-  display_name?: string
-  first_name?: string
+// Mirrors user.ProfileRequestDTO. This is a genuine partial update: the service
+// (applyProfileFields) assigns only the pointers the caller actually sent, so an
+// omitted key means "leave this field alone". `""` is NOT the way to clear a
+// field — NilOrNotEmpty rejects it — so clearing a stored value is not
+// expressible through this DTO at all.
+export interface ProfileRequest {
+  first_name: string
+  middle_name?: string
   last_name?: string
+  display_name?: string
+  /** YYYY-MM-DD. Any other format fails validateDateFormat server-side. */
+  birthdate?: string
+  gender?: string
+  email?: string
+  timezone?: string
+  language?: string
   profile_url?: string
+  metadata?: Record<string, unknown>
 }
 
 export const fetchProfiles = (): Promise<UserProfile[]> =>
   get<ApiResponse<UserProfile[]>>('/profiles').then(r => unwrap(r, 'fetch profiles') as UserProfile[])
 
-export const createProfile = (data: CreateProfileRequest): Promise<UserProfile> =>
+export const createProfile = (data: ProfileRequest): Promise<UserProfile> =>
   post<ApiResponse<UserProfile>>('/profiles', data).then(r => unwrap(r, 'create profile') as UserProfile)
 
-export const updateProfile = (uuid: string, data: Partial<CreateProfileRequest>): Promise<UserProfile> =>
+export const updateProfile = (uuid: string, data: ProfileRequest): Promise<UserProfile> =>
   put<ApiResponse<UserProfile>>(`/profiles/${uuid}`, data).then(r => unwrap(r, 'update profile') as UserProfile)
 
 export const deleteProfile = (uuid: string): Promise<void> =>
@@ -48,26 +66,33 @@ export const setDefaultProfile = (uuid: string): Promise<UserProfile> =>
 // Account info
 // ---------------------------------------------------------------------------
 
-export interface AccountInfo {
-  user_uuid: string
-  email: string
-  username: string
-  phone?: string
-  is_email_verified: boolean
-  is_phone_verified: boolean
-  status: string
-  created_at: string
-}
+// GET /account returns user.AccountResponseDTO, which the auth service already
+// models as AccountEntity — so this is an alias, not a second declaration.
+// The hand-written shape it replaces (user_uuid / username / is_email_verified /
+// is_phone_verified / status / created_at) matched no field the endpoint sends;
+// the response was cast rather than parsed, so every read silently produced
+// undefined — an unverified-looking account for a verified user.
+export type AccountInfo = AccountEntity
 
-export const fetchAccountInfo = (): Promise<AccountInfo | null> =>
-  get<ApiResponse<AccountInfo>>('/account').then(r => (r.data ?? null) as AccountInfo | null).catch(() => null)
+// Errors propagate. Swallowing them with `.catch(() => null)` rendered a 401, a
+// 429 and a 500 all as "no account data", which left dependent controls (the
+// password-reset button) disabled with nothing on screen to explain why.
+export const fetchAccountInfo = (): Promise<AccountInfo> =>
+  get<ApiResponse<AccountInfo>>('/account').then(r => unwrap(r, 'load your account'))
 
 // ---------------------------------------------------------------------------
 // Username change
 // ---------------------------------------------------------------------------
 
-export const changeUsername = (username: string): Promise<void> =>
-  put<ApiResponse<void>>('/account/username', { username }).then(r => assertSuccess(r, 'change username'))
+// Field names mirror user.ChangeUsernameDTO. This sent `{ username }`, which
+// the DTO reads as `new_username` — so the server saw an empty value and
+// rejected every request — and it omitted current_password entirely, which the
+// service compares against the stored hash. The feature could never succeed.
+export const changeUsername = (newUsername: string, currentPassword: string): Promise<void> =>
+  put<ApiResponse<void>>('/account/username', {
+    new_username: newUsername,
+    current_password: currentPassword,
+  }).then(r => assertSuccess(r, 'change username'))
 
 // ---------------------------------------------------------------------------
 // Password change (authenticated self-service)
@@ -86,20 +111,42 @@ export interface ChangePasswordResult {
 // endpoint (PUT /account/password), which enforces the tenant password policy,
 // history, and session revocation. This is distinct from the forgot-password
 // email flow — a logged-in user should not have to go through their inbox.
+//
+// The result is unwrapped rather than defaulted. Defaulting a missing body to
+// `{ other_sessions_revoked: false, reauthentication_required: false }` let the
+// UI announce a plain "Password changed successfully" for a response that never
+// carried that verdict — and when the server had actually set
+// reauthentication_required, the user was silently signed out on their next
+// request with no warning. No body means we do not know what happened, which is
+// an error, not a quiet success.
 export const changePassword = (current_password: string, new_password: string): Promise<ChangePasswordResult> =>
-  put<ApiResponse<ChangePasswordResult>>('/account/password', { current_password, new_password }).then(
-    r => (r.data ?? { other_sessions_revoked: false, reauthentication_required: false }) as ChangePasswordResult,
-  )
+  put<ApiResponse<ChangePasswordResult>>('/account/password', { current_password, new_password }).then(r => {
+    const result = r.success ? r.data : undefined
+    if (!result) {
+      throw new ApiError({
+        message: 'Your password may have been changed, but we could not confirm it. Sign in again to check before retrying.',
+        status: 0,
+      })
+    }
+    return result
+  })
 
 // ---------------------------------------------------------------------------
 // Email change
 // ---------------------------------------------------------------------------
 
-export const initiateEmailChange = (new_email: string): Promise<void> =>
-  post<ApiResponse<void>>('/account/email/change', { new_email }).then(r => assertSuccess(r, 'initiate email change'))
+// user.ChangeEmailRequestDTO requires current_password as well; omitting it
+// failed validation on every attempt.
+export const initiateEmailChange = (newEmail: string, currentPassword: string): Promise<void> =>
+  post<ApiResponse<void>>('/account/email/change', {
+    new_email: newEmail,
+    current_password: currentPassword,
+  }).then(r => assertSuccess(r, 'initiate email change'))
 
-export const verifyEmailChange = (token: string): Promise<void> =>
-  post<ApiResponse<void>>('/account/email/verify', { token }).then(r => assertSuccess(r, 'verify email change'))
+// user.VerifyEmailChangeDTO reads `otp`, not `token` — sending the wrong key
+// meant the server saw an empty code and rejected every confirmation.
+export const verifyEmailChange = (otp: string): Promise<void> =>
+  post<ApiResponse<void>>('/account/email/verify', { otp }).then(r => assertSuccess(r, 'verify email change'))
 
 // ---------------------------------------------------------------------------
 // Sessions

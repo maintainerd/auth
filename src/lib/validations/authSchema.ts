@@ -52,11 +52,16 @@ export function buildPasswordValidation(cfg?: PasswordConfigPublic) {
 
 export function buildLoginSchema() {
   return yup.object({
+    // Sign-in accepts a USERNAME or an email: the backend looks the identifier
+    // up by username first and falls back to email (authn.service_login). This
+    // enforced .email(), so any account whose username was not email-shaped —
+    // every admin-created user, since usernames are only length-checked — could
+    // never sign in through this app. The client rejected the input before it
+    // was ever sent, and the field label said "Email", so there was no clue.
     email: yup
       .string()
-      .required('Email is required')
-      .email('Please enter a valid email address')
-      .max(255, 'Email must not exceed 255 characters'),
+      .required('Email or username is required')
+      .max(255, 'Must not exceed 255 characters'),
     // Existing passwords remain valid after an administrator strengthens the
     // tenant policy. Complexity rules apply only when a password is created or
     // changed; login should validate presence and let the server authenticate.

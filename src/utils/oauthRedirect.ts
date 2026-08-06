@@ -126,19 +126,44 @@ export function oauthLoginRoute(pathname: string, search: string): string {
   return query ? `/login?${query}` : '/login'
 }
 
-function safeExternalRedirect(url: string | null | undefined): string | null {
-  if (!url || !url.startsWith('https://')) return null
+/**
+ * Shape guard for the one cross-origin redirect this app performs: the invite
+ * callback.
+ *
+ * AUTHORIZATION is the server's job and is NOT re-derivable here — the backend
+ * validates an invite's callback against the inviting client's registered
+ * redirect URIs before it stores the invite, so the only value allowed to reach
+ * this function is the server-validated one returned by the invite-context
+ * probe. Never pass it a raw `callback_url` query parameter: this app cannot
+ * check the invite URL's signature, so a rewritten link would otherwise bounce a
+ * freshly registered user to an attacker origin from the tenant's own identity
+ * domain.
+ *
+ * This guard is the second line of defence and rejects, beyond the plain https
+ * requirement:
+ *  - embedded credentials (`https://login.tenant.example@evil.test/`), which
+ *    read as the tenant's own host while navigating to the attacker's;
+ *  - scheme-relative / non-absolute / opaque values, which inherit whatever
+ *    origin they are resolved against.
+ * It returns the parsed, normalized URL rather than the caller's string so the
+ * value handed to `location.assign` is exactly the origin that was inspected —
+ * backslash and whitespace tricks cannot smuggle a different one past it.
+ */
+export function safeInviteCallback(url: string | null | undefined): string | null {
+  if (!url || !/^https:\/\//i.test(url)) return null
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== 'https:') return null
-    return url
+    if (parsed.username || parsed.password) return null
+    if (!parsed.hostname) return null
+    return parsed.toString()
   } catch {
     return null
   }
 }
 
 export function rememberInviteCallback(url: string | null | undefined): string | null {
-  const safe = safeExternalRedirect(url)
+  const safe = safeInviteCallback(url)
   if (safe) sessionStorage.setItem(INVITE_CALLBACK_KEY, safe)
   return safe
 }
@@ -146,7 +171,7 @@ export function rememberInviteCallback(url: string | null | undefined): string |
 export function consumeInviteCallback(): string | null {
   const value = sessionStorage.getItem(INVITE_CALLBACK_KEY)
   sessionStorage.removeItem(INVITE_CALLBACK_KEY)
-  return safeExternalRedirect(value)
+  return safeInviteCallback(value)
 }
 
 /**
@@ -156,7 +181,7 @@ export function consumeInviteCallback(): string | null {
  * the dashboard. Does NOT remove the stored value.
  */
 export function hasPendingInviteCallback(): boolean {
-  return safeExternalRedirect(sessionStorage.getItem(INVITE_CALLBACK_KEY)) !== null
+  return safeInviteCallback(sessionStorage.getItem(INVITE_CALLBACK_KEY)) !== null
 }
 
 export function clearInviteCallback(): void {

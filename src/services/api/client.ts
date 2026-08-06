@@ -103,6 +103,16 @@ const NO_REFRESH_ENDPOINTS = [
   API_ENDPOINTS.AUTH.RESET_PASSWORD,
 ]
 
+// Signed-in, in-page surfaces whose 429 must NOT navigate away.
+//
+// The /account endpoints share a per-account password-verification throttle
+// (checkAccountPasswordThrottle, internal/user/handler_account.go). Sending the
+// user to the full-screen /too-many-requests page for one of those throws away
+// the form they were half-way through and offers them a "Back to Login" button
+// while they are already signed in. The page still owns login-flow 429s, where
+// there is no form state to lose and signing in IS the next step.
+const NO_LIMIT_REDIRECT_ENDPOINTS = ['/account', '/profile', '/me/', '/recovery/']
+
 // Single-flight refresh: concurrent 401s share one refresh request instead of
 // stampeding the refresh endpoint.
 let refreshPromise: Promise<void> | null = null
@@ -209,7 +219,9 @@ axiosInstance.interceptors.response.use(
     if (error.response) {
       if (error.response.status === 429) {
         const retryAfter = parseRetryAfter(error.response.headers?.['retry-after'])
-        limitRedirectHandler?.('rate_limited', retryAfter)
+        if (!NO_LIMIT_REDIRECT_ENDPOINTS.some((endpoint) => requestUrl.includes(endpoint))) {
+          limitRedirectHandler?.('rate_limited', retryAfter)
+        }
         return Promise.reject(new ApiError({
           message: retryAfter !== undefined
             ? `Too many requests — please wait ${retryAfter}s and try again`

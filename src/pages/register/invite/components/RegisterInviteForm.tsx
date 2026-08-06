@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
-import { AlertCircle, Mail } from "lucide-react"
+import { AlertCircle, Loader2, Mail } from "lucide-react"
 import { FormSubmitButton, FormPasswordField, PasswordRequirements, FormConsentCheckbox } from "@/components/form"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { FieldGroup } from "@/components/ui/field"
@@ -43,28 +43,60 @@ const RegisterInviteForm = () => {
   const { getCurrentTenant } = useTenant()
   const { showSuccess } = useToast()
   const [registerError, setRegisterError] = useState<string | null>(null)
-  const [inviteCallback, setInviteCallback] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
 
-  const invitedEmail = searchParams.get('email') || ''
+  const urlEmail = searchParams.get('email') || ''
   const inviteToken = searchParams.get('invite_token') || ''
-  // The signed invite URL now carries the post-registration callback directly;
-  // prefer it and only fall back to the invite-context fetch when it's absent.
-  const urlCallback = searchParams.get('callback_url')
+
+  // The invite is checked BEFORE the form renders. The probe used to run only
+  // when callback_url was missing, kept nothing but callback_url, and dropped
+  // every error — so a revoked or expired invite (410 Gone) looked exactly like
+  // a valid one until the user had filled in the form, chosen a password and
+  // pressed submit. Verifying up front costs one request and turns that dead end
+  // into something the user can act on.
+  const [inviteCheck, setInviteCheck] = useState<
+    { state: 'checking' } | { state: 'valid'; email?: string; callbackUrl?: string | null } | { state: 'invalid'; message: string }
+  >(inviteToken ? { state: 'checking' } : { state: 'valid' })
 
   useEffect(() => {
-    if (urlCallback) {
-      setInviteCallback(urlCallback)
+    if (!inviteToken) {
+      setInviteCheck({ state: 'valid' })
       return
     }
-    if (!inviteToken) return
     let cancelled = false
-    fetchInviteContext(inviteToken).then((ctx) => {
-      if (cancelled || !ctx?.callback_url) return
-      setInviteCallback(ctx.callback_url)
-    }).catch(() => {})
+    setInviteCheck({ state: 'checking' })
+    fetchInviteContext(inviteToken)
+      .then((ctx) => {
+        if (cancelled) return
+        setInviteCheck({ state: 'valid', email: ctx.email, callbackUrl: ctx.callback_url })
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setInviteCheck({
+          state: 'invalid',
+          message: error instanceof Error && error.message
+            ? error.message
+            : 'This invitation is no longer valid.',
+        })
+      })
     return () => { cancelled = true }
-  }, [inviteToken, urlCallback])
+  }, [inviteToken])
+
+  // The signed URL's email is authoritative — it is covered by the signature —
+  // but the probe's copy is a valid fallback for a link that omitted it, which
+  // previously dead-ended on "missing the email parameter".
+  const invitedEmail = urlEmail || (inviteCheck.state === 'valid' ? inviteCheck.email ?? '' : '')
+
+  // The post-registration callback comes ONLY from the invite-context probe. The
+  // backend validated that value against the inviting client's registered
+  // redirect URIs before storing the invite; the link's own `callback_url`
+  // parameter carries no guarantee this app can check, because the signature
+  // covering it is only ever verified server-side. Preferring the parameter — as
+  // this did — meant a rewritten invite link could bounce the newly registered
+  // user to an attacker origin, launched from the tenant's own identity domain
+  // and from a page they had every reason to trust. No probe value means no
+  // external redirect at all.
+  const inviteCallback = inviteCheck.state === 'valid' ? inviteCheck.callbackUrl ?? null : null
 
   const passwordConfig = getCurrentTenant()?.password_config
   const inviteSchema = useMemo(() => buildInviteSchema(passwordConfig), [passwordConfig])
@@ -102,18 +134,16 @@ const RegisterInviteForm = () => {
       }
       showSuccess('Account created successfully!')
 
-      if (inviteCallback) {
-        rememberInviteCallback(inviteCallback)
-      }
+      // Store the guard's own output, never the caller's string, so the value a
+      // registration detour later resumes is byte-for-byte the one that passed
+      // the check. A rejected callback is simply not remembered.
+      const safeCallback = rememberInviteCallback(inviteCallback)
 
       const account = await refreshAccount()
       const dest = resolvePostAuthRoute(account, getCurrentTenant())
-      if (dest === loginSuccessRoute() && inviteCallback) {
-        const safe = rememberInviteCallback(inviteCallback)
-        if (safe) {
-          window.location.assign(safe)
-          return
-        }
+      if (dest === loginSuccessRoute() && safeCallback) {
+        window.location.assign(safeCallback)
+        return
       }
       const oauthReturnTo = dest === loginSuccessRoute()
         ? rememberOAuthReturnTo(searchParams.get('return_to'))
@@ -126,6 +156,35 @@ const RegisterInviteForm = () => {
       const errorMessage = error instanceof Error ? error.message : "Registration failed. Please try again."
       setRegisterError(errorMessage)
     }
+  }
+
+  if (inviteCheck.state === 'checking') {
+    return (
+      <div className="flex flex-col items-center gap-3 py-10 text-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Checking your invitation…</p>
+      </div>
+    )
+  }
+
+  if (inviteCheck.state === 'invalid') {
+    return (
+      <div className="flex flex-col gap-8 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
+            <AlertCircle className="size-7 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">This invitation can't be used</h1>
+          <p className="max-w-xs text-sm text-muted-foreground">
+            {inviteCheck.message} Ask whoever invited you to send a new invitation.
+          </p>
+        </div>
+
+        <Button asChild className="w-full">
+          <Link to="/login">Back to sign in</Link>
+        </Button>
+      </div>
+    )
   }
 
   // An invite is addressed to a specific email. If a different account is already

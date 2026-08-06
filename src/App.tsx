@@ -49,6 +49,9 @@ const ErasurePage = lazy(() => import('./pages/account/erasure/ErasurePage'))
 const AccountProfilesPage = lazy(() => import('./pages/account/profiles/AccountProfilesPage'))
 const AccountProfileFormPage = lazy(() => import('./pages/account/profiles/ProfileFormPage'))
 const AccountSecurityPage = lazy(() => import('./pages/account/security/AccountSecurityPage'))
+const ChangeEmailPage = lazy(() => import('./pages/account/security/ChangeEmailPage'))
+const ChangeUsernamePage = lazy(() => import('./pages/account/security/ChangeUsernamePage'))
+const ChangePasswordPage = lazy(() => import('./pages/account/security/ChangePasswordPage'))
 const AccountSessionsPage = lazy(() => import('./pages/account/sessions/AccountSessionsPage'))
 const AccountDevicesPage = lazy(() => import('./pages/account/devices/AccountDevicesPage'))
 const AccountSettingsPage = lazy(() => import('./pages/account/settings/AccountSettingsPage'))
@@ -108,6 +111,9 @@ function App() {
         <Route path="/account/profile/new" element={<AccountProfileFormPage />} />
         <Route path="/account/profile/:profileId/edit" element={<AccountProfileFormPage />} />
         <Route path="/account/security" element={<AccountSecurityPage />} />
+        <Route path="/account/security/email" element={<ChangeEmailPage />} />
+        <Route path="/account/security/username" element={<ChangeUsernamePage />} />
+        <Route path="/account/security/password" element={<ChangePasswordPage />} />
         <Route path="/account/sessions" element={<AccountSessionsPage />} />
         <Route path="/account/devices" element={<AccountDevicesPage />} />
         <Route path="/account/settings" element={<AccountSettingsPage />} />

@@ -95,6 +95,11 @@ export const API_ENDPOINTS = {
     ACCOUNT: '/account',
     ACCOUNT_IDENTITIES: '/account/identities',
     ACCOUNT_IDENTITIES_LINK: '/account/identities/link',
+    // OAuth2 account linking. The user is redirected to the provider and back;
+    // the code is exchanged server-side so the provider client secret and the
+    // resulting id_token never reach the browser.
+    ACCOUNT_IDENTITIES_LINK_START: '/account/identities/link/start',
+    ACCOUNT_IDENTITIES_LINK_CALLBACK: '/account/identities/link/callback',
     ACCOUNT_PHONE_SEND_VERIFICATION: '/account/phone/send-verification',
     ACCOUNT_PHONE_VERIFY: '/account/phone/verify',
     RECOVERY_BACKUP_CODE: '/recovery/backup-code',

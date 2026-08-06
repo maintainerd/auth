@@ -328,14 +328,17 @@ export interface InviteContextResponse {
   status: string
 }
 
-export async function fetchInviteContext(inviteToken: string): Promise<InviteContextResponse | null> {
-  try {
-    const response = await get<ApiResponse<InviteContextResponse>>(`/invite?invite_token=${encodeURIComponent(inviteToken)}`)
-    if (response.success && response.data) return response.data
-    return null
-  } catch {
-    return null
-  }
+/**
+ * Look up a pending invite by its token.
+ *
+ * Errors propagate. The backend answers 410 Gone for a revoked or expired
+ * invite, and swallowing that meant the caller could never tell a dead link from
+ * a live one — the user filled in the whole form and chose a password before the
+ * failure surfaced, as a raw backend string, on submit.
+ */
+export async function fetchInviteContext(inviteToken: string): Promise<InviteContextResponse> {
+  const response = await get<ApiResponse<InviteContextResponse>>(`/invite?invite_token=${encodeURIComponent(inviteToken)}`)
+  return unwrap(response, 'load this invitation')
 }
 
 // Confirm a pending account link request. Requires an authenticated session as
