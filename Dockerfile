@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -o /auth ./cmd/server
 
 # --- Stage 2: Runtime ---
-FROM alpine:3.21
+FROM alpine:3.24
 
 RUN apk add --no-cache ca-certificates && \
     adduser -D -u 65532 -g 65532 m9d
