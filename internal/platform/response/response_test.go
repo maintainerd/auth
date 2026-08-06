@@ -10,10 +10,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 )
@@ -180,6 +182,7 @@ func TestHandleServiceError(t *testing.T) {
 		{"forbidden", apperror.NewForbidden("profile does not belong to user"), http.StatusForbidden, "profile does not belong to user"},
 		{"unauthorized", apperror.NewUnauthorized("invalid credentials"), http.StatusUnauthorized, "invalid credentials"},
 		{"validation", apperror.NewValidation("cannot delete system policy"), http.StatusBadRequest, "cannot delete system policy"},
+		{"too many requests", apperror.NewTooManyRequests("too many verification attempts"), http.StatusTooManyRequests, "too many verification attempts"},
 		{"internal", apperror.NewInternal("hash password", errors.New("bcrypt failed")), http.StatusInternalServerError, "fallback message"},
 		{"untyped", errors.New("unexpected db error"), http.StatusInternalServerError, "fallback message"},
 	}
@@ -194,6 +197,85 @@ func TestHandleServiceError(t *testing.T) {
 			body := decodeBody(t, rr)
 			assert.False(t, body.Success)
 			assert.Equal(t, tc.wantError, body.Error)
+		})
+	}
+}
+
+func TestHandleServiceError_RetryAfter(t *testing.T) {
+	cases := []struct {
+		name           string
+		err            error
+		wantRetryAfter string
+	}{
+		{"no hint omits the header", apperror.NewTooManyRequests("slow down"), ""},
+		{"whole seconds", apperror.NewTooManyRequestsAfter("slow down", 30*time.Second), "30"},
+		// Rounding down would land the retry back inside the window.
+		{"partial seconds round up", apperror.NewTooManyRequestsAfter("slow down", 1500*time.Millisecond), "2"},
+		{"sub-second still yields one", apperror.NewTooManyRequestsAfter("slow down", 200*time.Millisecond), "1"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			HandleServiceError(rr, req, "fallback message", tc.err)
+
+			assert.Equal(t, http.StatusTooManyRequests, rr.Code)
+			assert.Equal(t, tc.wantRetryAfter, rr.Header().Get("Retry-After"))
+		})
+	}
+}
+
+// The duplicate-key backstop only works if the gorm sentinels are matched
+// before InternalError — services wrap driver errors in one, and InternalError
+// unwraps, so the sentinel is always reachable through it.
+func TestHandleServiceError_DuplicateKeyWrappedInInternal(t *testing.T) {
+	cases := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantError  string
+	}{
+		{
+			"duplicate key wrapped in InternalError",
+			apperror.NewInternal("create tenant", gorm.ErrDuplicatedKey),
+			http.StatusConflict,
+			"A record with these values already exists",
+		},
+		{
+			"foreign key violation wrapped in InternalError",
+			apperror.NewInternal("create membership", gorm.ErrForeignKeyViolated),
+			http.StatusBadRequest,
+			"A referenced record does not exist",
+		},
+		{
+			"bare duplicate key",
+			gorm.ErrDuplicatedKey,
+			http.StatusConflict,
+			"A record with these values already exists",
+		},
+		{
+			"a domain conflict still wins over the backstop",
+			apperror.NewConflict("email already registered"),
+			http.StatusConflict,
+			"email already registered",
+		},
+		{
+			"an InternalError with no sentinel is still a 500",
+			apperror.NewInternal("create tenant", errors.New("connection refused")),
+			http.StatusInternalServerError,
+			"fallback message",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			HandleServiceError(rr, req, "fallback message", tc.err)
+
+			assert.Equal(t, tc.wantStatus, rr.Code)
+			assert.Equal(t, tc.wantError, decodeBody(t, rr).Error)
 		})
 	}
 }

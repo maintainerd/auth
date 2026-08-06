@@ -21,26 +21,29 @@ const accountLinkTTL = 15 * time.Minute
 // AccountIdentityLinker is the narrow capability the account-link flow needs to
 // inspect and create external identity links. It is satisfied by an app-layer
 // adapter over the user_identities repository, so the authn package does not
-// import the user domain and can create a client-less (NULL client_id) link.
+// import the user domain.
 type AccountIdentityLinker interface {
 	// FindLinkedUserID returns the user_id an external (provider, sub) identity
 	// is already linked to within a tenant, or found=false when unlinked.
 	FindLinkedUserID(tenantID int64, provider, sub string) (userID int64, found bool, err error)
 	// LinkIdentity creates a user_identities row attaching the external identity
-	// to userID. client_id is left NULL (identity is user data, not client data).
-	LinkIdentity(tenantID, userID int64, provider, sub string, claims []byte) error
+	// to userID under identityProviderID. Identities are scoped to the provider
+	// that authenticated them, never to a client — which clients may use the
+	// identity is resolved through client_identity_providers.
+	LinkIdentity(tenantID, userID, identityProviderID int64, provider, sub string, claims []byte) error
 }
 
 // InitiateAccountLinkInput carries the parameters for creating a pending link
 // request when a social login collides with an existing local account.
 type InitiateAccountLinkInput struct {
-	TenantID        int64
-	ExistingUserID  int64
-	ProviderName    string
-	ProviderSubject string
-	ProviderEmail   string
-	ProviderClaims  []byte
-	IPAddress       string
+	TenantID           int64
+	ExistingUserID     int64
+	IdentityProviderID int64
+	ProviderName       string
+	ProviderSubject    string
+	ProviderEmail      string
+	ProviderClaims     []byte
+	IPAddress          string
 }
 
 // AccountLinkConfirmResult is returned after a successful confirmation.
@@ -94,16 +97,17 @@ func (s *accountLinkRequestService) Initiate(ctx context.Context, in InitiateAcc
 	}
 
 	req := &AccountLinkRequest{
-		TenantID:          in.TenantID,
-		ExistingUserID:    in.ExistingUserID,
-		ProviderName:      in.ProviderName,
-		ProviderSubject:   in.ProviderSubject,
-		ProviderEmail:     strPtrOrNil(in.ProviderEmail),
-		ProviderClaims:    claims,
-		Status:            "pending",
-		ConfirmationToken: token,
-		IPAddress:         strPtrOrNil(in.IPAddress),
-		ExpiresAt:         time.Now().Add(accountLinkTTL),
+		TenantID:           in.TenantID,
+		ExistingUserID:     in.ExistingUserID,
+		IdentityProviderID: in.IdentityProviderID,
+		ProviderName:       in.ProviderName,
+		ProviderSubject:    in.ProviderSubject,
+		ProviderEmail:      strPtrOrNil(in.ProviderEmail),
+		ProviderClaims:     claims,
+		Status:             "pending",
+		ConfirmationToken:  token,
+		IPAddress:          strPtrOrNil(in.IPAddress),
+		ExpiresAt:          time.Now().Add(accountLinkTTL),
 	}
 	created, err := s.repo.Create(req)
 	if err != nil {
@@ -167,7 +171,7 @@ func (s *accountLinkRequestService) Confirm(ctx context.Context, token string, a
 
 	// Attach the external identity (idempotent when it already points at this user).
 	if !found {
-		if err := s.linker.LinkIdentity(req.TenantID, req.ExistingUserID, req.ProviderName, req.ProviderSubject, []byte(req.ProviderClaims)); err != nil {
+		if err := s.linker.LinkIdentity(req.TenantID, req.ExistingUserID, req.IdentityProviderID, req.ProviderName, req.ProviderSubject, []byte(req.ProviderClaims)); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "link creation failed")
 			return nil, apperror.NewInternal("failed to link identity", err)

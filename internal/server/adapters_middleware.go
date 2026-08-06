@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/maintainerd/maintainerd-auth/internal/user"
 )
 
@@ -20,14 +21,27 @@ func (p *middlewareUserContextProvider) FindBySubAndClientID(ctx context.Context
 	if err != nil || u == nil {
 		return nil, err
 	}
-	return toUserContext(u, clientID), nil
+	// The repository already proved this client may use the identity's provider
+	// (client_identity_providers). Resolving the client here is purely to
+	// populate the context.
+	c, err := p.userService.FindClientByIdentifier(ctx, clientID)
+	if err != nil {
+		return nil, err
+	}
+	return toUserContext(u, sub, c), nil
 }
 
-// toUserContext builds the full auth context for a resolved user. The tenant,
-// identity provider, and client are taken from the user identity whose client
-// identifier matches the clientID the subject authenticated with — the same
-// identity the lookup query matched on.
-func toUserContext(u *user.User, clientID string) *authctx.UserContext {
+// toUserContext builds the auth context for a resolved user.
+//
+// The identity is selected by SUB, which is unique per (tenant, provider, sub)
+// — it is exactly the row the lookup matched. Tenant and identity provider come
+// from that identity; the CLIENT comes from the request, because an identity
+// belongs to a provider and is usable from every client connected to it.
+//
+// This previously matched on identity.Client.Identifier, which required every
+// identity to be bound to one client — the thing that made the same person a
+// different subject on every application.
+func toUserContext(u *user.User, sub string, requestClient *user.Client) *authctx.UserContext {
 	var tenantID int64
 	var tenant *authctx.AuthTenant
 	var provider *authctx.AuthProvider
@@ -35,7 +49,7 @@ func toUserContext(u *user.User, clientID string) *authctx.UserContext {
 
 	for i := range u.UserIdentities {
 		identity := &u.UserIdentities[i]
-		if identity.Client == nil || identity.Client.Identifier == nil || *identity.Client.Identifier != clientID {
+		if identity.Sub != sub {
 			continue
 		}
 
@@ -55,19 +69,21 @@ func toUserContext(u *user.User, clientID string) *authctx.UserContext {
 			}
 		}
 
-		client = &authctx.AuthClient{
-			ClientID:   identity.Client.ClientID,
-			ClientUUID: identity.Client.ClientUUID,
-			Identifier: identity.Client.Identifier,
-		}
-
-		if identity.Client.IdentityProvider != nil {
+		if identity.IdentityProvider != nil {
 			provider = &authctx.AuthProvider{
-				IdentityProviderID:   identity.Client.IdentityProvider.IdentityProviderID,
-				IdentityProviderUUID: identity.Client.IdentityProvider.IdentityProviderUUID,
+				IdentityProviderID:   identity.IdentityProvider.IdentityProviderID,
+				IdentityProviderUUID: identity.IdentityProvider.IdentityProviderUUID,
 			}
 		}
 		break
+	}
+
+	if requestClient != nil {
+		client = &authctx.AuthClient{
+			ClientID:   requestClient.ClientID,
+			ClientUUID: requestClient.ClientUUID,
+			Identifier: requestClient.Identifier,
+		}
 	}
 
 	return &authctx.UserContext{
@@ -121,8 +137,18 @@ func toAuthUser(u *user.User, tenantID int64) *authctx.AuthUser {
 		if tenantID != 0 && role.TenantID != tenantID {
 			continue
 		}
+		// Deactivating a role or permission is a revocation — SetStatus even
+		// revokes the affected sessions to force a reload. Without this filter the
+		// reload handed the permission straight back, so "inactive" only ever
+		// changed how the row rendered in the console.
+		if !statusGrants(role.Status) {
+			continue
+		}
 		perms := make([]authctx.AuthPermission, 0, len(role.RolePermissions))
 		for _, rp := range role.RolePermissions {
+			if !statusGrants(rp.Permission.Status) {
+				continue
+			}
 			perms = append(perms, authctx.AuthPermission{
 				PermissionID:   rp.Permission.PermissionID,
 				PermissionUUID: rp.Permission.PermissionUUID,
@@ -150,6 +176,7 @@ func toAuthUser(u *user.User, tenantID int64) *authctx.AuthUser {
 	return &authctx.AuthUser{
 		UserID:          u.UserID,
 		UserUUID:        u.UserUUID,
+		Status:          u.Status,
 		Roles:           roles,
 		Email:           u.Email,
 		IsEmailVerified: u.IsEmailVerified,
@@ -159,4 +186,12 @@ func toAuthUser(u *user.User, tenantID int64) *authctx.AuthUser {
 		UpdatedAt:       u.UpdatedAt,
 		Profile:         profile,
 	}
+}
+
+// statusGrants reports whether a role or permission in this state still confers
+// access. An empty status is treated as granting: several projections select a
+// subset of columns and legitimately leave it blank, and failing closed there
+// would lock every user out rather than deny one permission.
+func statusGrants(status string) bool {
+	return status == "" || status == shared.StatusActive
 }

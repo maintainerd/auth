@@ -3,6 +3,7 @@ package apperror
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -24,6 +25,7 @@ func TestToGRPCError(t *testing.T) {
 		{"forbidden", NewForbidden("denied"), codes.PermissionDenied, "denied"},
 		{"unauthorized", NewUnauthorized("bad token"), codes.Unauthenticated, "bad token"},
 		{"validation", NewValidation("bad request"), codes.InvalidArgument, "bad request"},
+		{"too many requests", NewTooManyRequests("slow down"), codes.ResourceExhausted, "slow down"},
 		{"internal", NewInternal("database failed", errors.New("boom")), codes.Internal, "database failed"},
 		{"unknown", errors.New("boom"), codes.Internal, "internal server error"},
 	}
@@ -41,6 +43,34 @@ func TestToGRPCError(t *testing.T) {
 			assert.Equal(t, tc.message, st.Message())
 		})
 	}
+}
+
+func TestToGRPCError_RetryInfo(t *testing.T) {
+	t.Run("retry hint becomes RetryInfo", func(t *testing.T) {
+		st, ok := status.FromError(ToGRPCError(NewTooManyRequestsAfter("slow down", 30*time.Second)))
+		assert.True(t, ok)
+
+		var sawRetryInfo bool
+		for _, detail := range st.Details() {
+			switch d := detail.(type) {
+			case *errdetails.ErrorInfo:
+				assert.Equal(t, "TOO_MANY_REQUESTS", d.Reason)
+			case *errdetails.RetryInfo:
+				sawRetryInfo = true
+				assert.Equal(t, 30*time.Second, d.RetryDelay.AsDuration())
+			}
+		}
+		assert.True(t, sawRetryInfo)
+	})
+
+	t.Run("no hint means no RetryInfo", func(t *testing.T) {
+		st, ok := status.FromError(ToGRPCError(NewTooManyRequests("slow down")))
+		assert.True(t, ok)
+		for _, detail := range st.Details() {
+			_, isRetryInfo := detail.(*errdetails.RetryInfo)
+			assert.False(t, isRetryInfo)
+		}
+	})
 }
 
 func TestToGRPCError_ValidationDetails(t *testing.T) {

@@ -236,19 +236,28 @@ func (s *policyService) GetServicesByPolicyUUID(ctx context.Context, policyUUID 
 	_, span := otel.Tracer("service").Start(ctx, "policy.getServices")
 	defer span.End()
 	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
-	// First check if policy exists and belongs to tenant
-	_, err := s.policyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
+	// First check if policy exists and belongs to tenant. The returned policy must
+	// be inspected, not just err: FindByUUIDAndTenantID reports not-found as
+	// (nil, nil), so checking err alone let a foreign policy UUID fall straight
+	// through to the service listing below.
+	policy, err := s.policyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "get services by policy failed")
 		return nil, err
 	}
+	if policy == nil {
+		return nil, apperror.NewNotFoundWithReason("policy not found or access denied")
+	}
 
-	// Convert filter to repository filter
+	// Convert filter to repository filter. TenantID is carried into the repository
+	// so the join is scoped there too — the policy check above proves the caller
+	// owns the POLICY, not that every service linked to it is theirs.
 	repoFilter := ServiceRepositoryGetFilter{
 		Name:        filter.Name,
 		DisplayName: filter.DisplayName,
 		Description: filter.Description,
+		TenantID:    &tenantID,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
 		SortBy:      filter.SortBy,
@@ -524,6 +533,8 @@ func (s *policyService) SetStatusByUUID(ctx context.Context, policyUUID uuid.UUI
 			return apperror.NewValidation("system policy status cannot be updated")
 		}
 
+		statusChanged := policy.Status != status
+
 		// Update status
 		if err := txPolicyRepo.SetStatusByUUID(policyUUID, tenantID, status); err != nil {
 			return err
@@ -533,6 +544,18 @@ func (s *policyService) SetStatusByUUID(ctx context.Context, policyUUID uuid.UUI
 		updatedPolicy, err = txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
 			return err
+		}
+
+		// Create/Update/Delete all emit; this path did not, so deactivating a policy —
+		// the revocation path, the change downstream bundle consumers most need to
+		// hear about — was invisible to both the outbox and the audit trail.
+		if s.eventService != nil && statusChanged {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeIAMPolicyUpdated, 1, tenantID,
+			).SetSubject(&updatedPolicy.PolicyUUID, "policy").
+				SetChangedFields("status")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -545,6 +568,14 @@ func (s *policyService) SetStatusByUUID(ctx context.Context, policyUUID uuid.UUI
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeIAMPolicyUpdated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr("IAM policy status set to " + updatedPolicy.Status),
+	})
 	return &PolicyServiceDataResult{
 		PolicyUUID:  updatedPolicy.PolicyUUID,
 		Name:        updatedPolicy.Name,

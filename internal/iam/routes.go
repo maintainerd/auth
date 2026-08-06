@@ -24,16 +24,25 @@ func APIRoute(
 		r.With(middleware.PermissionMiddleware([]string{"api:read"})).
 			Get("/{api_uuid}", apiHandler.GetByUUID)
 
+		// Create stays outside the step-up gate across this package: a brand-new
+		// API/permission/policy/service grants nothing until it is wired to a role
+		// or a service, and both of those edges ARE step-up gated. Editing or
+		// deleting an EXISTING row is what silently re-points authorization that
+		// is already in force, which is why the rest of these routes are gated.
 		r.With(middleware.PermissionMiddleware([]string{"api:create"})).
 			Post("/", apiHandler.Create)
 
-		r.With(middleware.PermissionMiddleware([]string{"api:update"})).
+		// An API's identifier is the audience/resource that token issuance and
+		// permission scoping resolve against, so rewriting or retiring one moves
+		// every permission hanging off it. Same privilege-escalation surface as a
+		// role edit — same acr=2 requirement, so a stolen acr=1 session cannot do it.
+		r.With(middleware.PermissionMiddleware([]string{"api:update"}), middleware.RequireStepUp).
 			Put("/{api_uuid}", apiHandler.Update)
 
-		r.With(middleware.PermissionMiddleware([]string{"api:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"api:update"}), middleware.RequireStepUp).
 			Put("/{api_uuid}/status", apiHandler.SetStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"api:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"api:delete"}), middleware.RequireStepUp).
 			Delete("/{api_uuid}", apiHandler.Delete)
 	})
 }
@@ -59,13 +68,21 @@ func PermissionRoute(
 		r.With(middleware.PermissionMiddleware([]string{"permission:create"})).
 			Post("/", oermissionHandler.Create)
 
-		r.With(middleware.PermissionMiddleware([]string{"permission:update"})).
+		// PermissionMiddleware matches route guards on the permission NAME, and
+		// role grants point at the permission ROW — so a rename re-points every
+		// existing grant at a different guard without touching a single role.
+		// validation_permission.go blocks the reserved namespaces, but renaming
+		// inside the unreserved space still silently redefines what everyone
+		// already holds; that has to cost a fresh acr=2 proof of presence.
+		r.With(middleware.PermissionMiddleware([]string{"permission:update"}), middleware.RequireStepUp).
 			Put("/{permission_uuid}", oermissionHandler.Update)
 
-		r.With(middleware.PermissionMiddleware([]string{"permission:update"})).
+		// Deactivating a permission revokes it everywhere at once (inactive rows no
+		// longer grant), so it is an availability weapon as much as an escalation one.
+		r.With(middleware.PermissionMiddleware([]string{"permission:update"}), middleware.RequireStepUp).
 			Put("/{permission_uuid}/status", oermissionHandler.SetStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"permission:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"permission:delete"}), middleware.RequireStepUp).
 			Delete("/{permission_uuid}", oermissionHandler.Delete)
 	})
 }
@@ -102,13 +119,17 @@ func PolicyRoute(
 		r.With(middleware.PermissionMiddleware([]string{"policy:create"})).
 			Post("/", policyHandler.Create)
 
-		r.With(middleware.PermissionMiddleware([]string{"policy:update"})).
+		// A policy document IS the authorization decision for every service it is
+		// bound to (policy_evaluator.go), so editing, disabling or deleting one
+		// rewrites allow/deny for traffic already in flight — no role or grant
+		// changes hands, and nothing else in the chain re-checks the caller.
+		r.With(middleware.PermissionMiddleware([]string{"policy:update"}), middleware.RequireStepUp).
 			Put("/{policy_uuid}", policyHandler.Update)
 
-		r.With(middleware.PermissionMiddleware([]string{"policy:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"policy:update"}), middleware.RequireStepUp).
 			Put("/{policy_uuid}/status", policyHandler.UpdateStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"policy:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"policy:delete"}), middleware.RequireStepUp).
 			Delete("/{policy_uuid}", policyHandler.Delete)
 	})
 }
@@ -184,20 +205,27 @@ func ServiceRoute(
 			r.With(middleware.PermissionMiddleware([]string{"service:create"})).
 				Post("/", serviceHandler.Create)
 
-			r.With(middleware.PermissionMiddleware([]string{"service:update"})).
+			// A service row is the identity policy bundles are served to
+			// (/services/me/policy-bundle keys off it), so renaming, disabling or
+			// deleting one redirects or blanks the authorization rules a running
+			// workload enforces.
+			r.With(middleware.PermissionMiddleware([]string{"service:update"}), middleware.RequireStepUp).
 				Put("/{service_uuid}", serviceHandler.Update)
 
-			r.With(middleware.PermissionMiddleware([]string{"service:update"})).
+			r.With(middleware.PermissionMiddleware([]string{"service:update"}), middleware.RequireStepUp).
 				Put("/{service_uuid}/status", serviceHandler.SetStatus)
 
-			r.With(middleware.PermissionMiddleware([]string{"service:delete"})).
+			r.With(middleware.PermissionMiddleware([]string{"service:delete"}), middleware.RequireStepUp).
 				Delete("/{service_uuid}", serviceHandler.Delete)
 
-			// Service-Policy Assignment endpoints
-			r.With(middleware.PermissionMiddleware([]string{"service:policy:assign"})).
+			// Service-Policy Assignment endpoints. This edge is where an inert policy
+			// document starts deciding real requests — the exact counterpart of
+			// attaching a permission to a role, which is step-up gated for the same
+			// reason. Removal is gated too: dropping the deny policy is the attack.
+			r.With(middleware.PermissionMiddleware([]string{"service:policy:assign"}), middleware.RequireStepUp).
 				Post("/{service_uuid}/policies/{policy_uuid}", serviceHandler.AssignPolicy)
 
-			r.With(middleware.PermissionMiddleware([]string{"service:policy:remove"})).
+			r.With(middleware.PermissionMiddleware([]string{"service:policy:remove"}), middleware.RequireStepUp).
 				Delete("/{service_uuid}/policies/{policy_uuid}", serviceHandler.RemovePolicy)
 		})
 	})

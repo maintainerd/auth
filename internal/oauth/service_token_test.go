@@ -81,6 +81,28 @@ func mockClientRows() *sqlmock.Rows {
 	)
 }
 
+// mockConfidentialClientRows is mockClientRows as a CONFIDENTIAL client: a web
+// app that authenticates with a secret. Needed because mockClientRows is an SPA
+// with token_endpoint_auth_method "none", and a public client is now required to
+// use PKCE — so it can no longer stand in for flows that legitimately run
+// without a code_challenge.
+func mockConfidentialClientRows(t *testing.T) *sqlmock.Rows {
+	t.Helper()
+	return sqlmock.NewRows([]string{
+		"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+		"client_type", "domain", "identifier", "secret", "status",
+		"is_default", "is_system", "token_endpoint_auth_method",
+		"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+		"require_consent", "created_at", "updated_at",
+	}).AddRow(
+		10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+		"web", "https://auth.example.com", "my-client", testM2MSecretHash(t), "active",
+		false, false, "client_secret_post",
+		`{authorization_code,refresh_token}`, `{code}`, nil, nil,
+		true, time.Now(), time.Now(),
+	)
+}
+
 // mockTenantRows returns sqlmock rows for the Client.Tenant preload.
 func mockTenantRows() *sqlmock.Rows {
 	return sqlmock.NewRows([]string{
@@ -181,9 +203,14 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 			"a public client must not be able to strip PKCE by omitting the verifier")
 	})
 
-	t.Run("authorization_code — a code WITHOUT a challenge does not demand a verifier", func(t *testing.T) {
+	// MOVED TO A CONFIDENTIAL CLIENT: this case used mockClientRows, which is an
+	// SPA with token_endpoint_auth_method "none". A public client redeeming a
+	// challenge-less code is exactly the hole being closed (see the subtest
+	// below), so the "challenge-less codes are fine" contract now has to be
+	// demonstrated with a client that actually authenticates.
+	t.Run("authorization_code — a confidential client's code WITHOUT a challenge does not demand a verifier", func(t *testing.T) {
 		db, mock := newMockDB(t)
-		expectClientLookup(mock, mockClientRows())
+		expectClientLookup(mock, mockConfidentialClientRows(t))
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
 				findByCodeHashFn: func(string) (*OAuthAuthorizationCode, error) {
@@ -201,16 +228,48 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 			&mockAuthEventService{})
 
 		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
-			GrantType:   "authorization_code",
-			Code:        "code123",
-			RedirectURI: "https://example.com/callback",
-		}, OAuthClientCredentials{ClientID: "my-client"})
+			GrantType:    "authorization_code",
+			Code:         "code123",
+			RedirectURI:  "https://example.com/callback",
+			ClientSecret: testM2MSecret,
+		}, OAuthClientCredentials{ClientID: "my-client", ClientSecret: testM2MSecret})
 		// It may still fail further down on unrelated mock plumbing; it must just
 		// not fail on a missing PKCE verifier.
 		if oerr != nil {
 			assert.NotContains(t, oerr.Description, "code_verifier")
 			assert.NotContains(t, oerr.Description, "PKCE")
 		}
+	})
+
+	// A public client presents no credential at this endpoint, so without PKCE
+	// the code is the only secret in the flow and whoever observes it — custom
+	// scheme hijack, Referer leak, proxy log — redeems it. RFC 9700 §2.1.1.
+	t.Run("authorization_code — a public client's code WITHOUT a challenge is refused", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows()) // spa + token_endpoint_auth_method "none"
+		svc := newOAuthTokenSvc(db, &mockClientRepo{},
+			&mockOAuthAuthCodeRepo{
+				findByCodeHashFn: func(string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
+						ClientID:    10,
+						TenantID:    1,
+						RedirectURI: "https://example.com/callback",
+						ExpiresAt:   time.Now().Add(time.Minute),
+					}, nil
+				},
+			},
+			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:   "authorization_code",
+			Code:        "code123",
+			RedirectURI: "https://example.com/callback",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.Contains(t, oerr.Description, "PKCE is required")
 	})
 
 	t.Run("authorization_code — client auth missing client_id", func(t *testing.T) {
@@ -1989,8 +2048,11 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			&mockOAuthRefreshTokenRepo{
 				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
 					return &OAuthRefreshToken{
-						UserID:    1,
-						ClientID:  10,
+						UserID:   1,
+						ClientID: 10,
+						// Introspection is now scoped to the caller's tenant, so the
+						// stored row has to name the tenant the mock client belongs to.
+						TenantID:  1,
 						Scope:     parseScopeFields("openid"),
 						ExpiresAt: now.Add(7 * 24 * time.Hour),
 						CreatedAt: now,
@@ -2043,6 +2105,7 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 					return &OAuthRefreshToken{
 						UserID:    1,
 						ClientID:  10,
+						TenantID:  1,
 						Scope:     parseScopeFields("openid"),
 						ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 						CreatedAt: time.Now(),
@@ -2061,6 +2124,67 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		require.Nil(t, oerr)
 		assert.True(t, result.Active)
 		assert.Empty(t, result.Sub) // sub couldn't be resolved
+	})
+
+	// RFC 7662 §2.2. All tenants' tokens are signed with the same key, so a valid
+	// signature says nothing about which tenant a token came from; without an
+	// explicit tenant check this endpoint reported sub/scope/client_id for any
+	// token this server ever issued.
+	t.Run("refresh token belonging to another tenant is reported inactive", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows()) // caller is in tenant 1
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
+						UserID:    77,
+						ClientID:  99,
+						TenantID:  2, // a different tenant
+						Scope:     parseScopeFields("openid"),
+						ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+						CreatedAt: time.Now(),
+					}, nil
+				},
+			},
+			&mockUserRepo{},
+			&mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "other-tenant-user"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		assert.False(t, result.Active)
+		assert.Empty(t, result.Sub, "another tenant's subject must not leak")
+		assert.Empty(t, result.Scope)
+	})
+
+	t.Run("JWT issued to a client in another tenant is reported inactive", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		db, mock := newMockDB(t)
+		// 1: the caller authenticating (my-client, tenant 1).
+		expectClientLookup(mock, mockClientRows())
+		// 2: resolving the tenant of the token's own client — not found, so it
+		// cannot be attributed to the caller's tenant.
+		expectClientNotFound(mock)
+
+		token, err := jwt.GenerateAccessToken("victim-sub", "openid admin", "https://other.example.com", "other-client", "other-client", "default-provider")
+		require.NoError(t, err)
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{},
+			&mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: token}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		assert.False(t, result.Active)
+		assert.Empty(t, result.Sub, "another tenant's subject must not leak")
+		assert.Empty(t, result.Scope, "another tenant's scopes must not leak")
+		assert.Empty(t, result.ClientID)
 	})
 
 	t.Run("valid JWT access token", func(t *testing.T) {
@@ -2232,7 +2356,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 
 	t.Run("access token auth context", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil)
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil, "")
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 
@@ -2245,14 +2369,14 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 	t.Run("nil Domain, nil Identifier, nil IdentityProvider", func(t *testing.T) {
 		initTestJWTKeysService(t)
 		nilClient := &Client{ClientID: 10, TenantID: 1}
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, nilClient, "openid profile", nil, "", false, nil)
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, nilClient, "openid profile", nil, "", false, nil, "")
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("non-empty dpopThumbprint", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "thumbprint123", false, nil)
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "thumbprint123", false, nil, "")
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Equal(t, "DPoP", result.TokenType)
@@ -2264,7 +2388,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 	t.Run("with nonce", func(t *testing.T) {
 		initTestJWTKeysService(t)
 		nonce := "nonce-abc-123"
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", &nonce, "", false, nil)
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", &nonce, "", false, nil, "")
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.NotEmpty(t, result.IDToken)
@@ -2272,7 +2396,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 
 	t.Run("without offline_access scope", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil)
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil, "")
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.NotEmpty(t, result.AccessToken)
@@ -2293,7 +2417,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 				Identifier: "default-provider",
 			},
 		}
-		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, ttlClient, "openid profile", nil, "", false, nil)
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, ttlClient, "openid profile", nil, "", false, nil, "")
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Equal(t, int64(900), result.ExpiresIn)
@@ -2303,7 +2427,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 		jwt.ResetJWTKeys()
 		defer jwt.ResetJWTKeys()
 
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil)
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil, "")
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -2316,7 +2440,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 			return "", errors.New("id token error")
 		}
 
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil)
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "", false, nil, "")
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -2329,7 +2453,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 			return "", errors.New("random error")
 		}
 
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "", true, nil)
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "", true, nil, "")
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -2344,7 +2468,7 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 			},
 		}
 
-		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "", true, nil)
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "", true, nil, "")
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})

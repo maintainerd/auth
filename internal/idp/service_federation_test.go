@@ -46,6 +46,7 @@ func initTestJWTKeysService(t *testing.T) {
 }
 
 type mockFederationUserIdentityRepo struct {
+	findByTenantAndSubFn func(int64, string) (*UserIdentity, error)
 	mockBaseRepo[UserIdentity]
 	findByUserIDFn               func(int64) ([]UserIdentity, error)
 	findByUserIDAndProviderFn    func(int64, string) (*UserIdentity, error)
@@ -70,6 +71,13 @@ func (m *mockFederationUserIdentityRepo) FindByUserID(userID int64) ([]UserIdent
 func (m *mockFederationUserIdentityRepo) FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error) {
 	if m.findByTenantProviderAndSubFn != nil {
 		return m.findByTenantProviderAndSubFn(tenantID, provider, sub)
+	}
+	return nil, nil
+}
+
+func (m *mockFederationUserIdentityRepo) FindByTenantAndSub(tenantID int64, sub string) (*UserIdentity, error) {
+	if m.findByTenantAndSubFn != nil {
+		return m.findByTenantAndSubFn(tenantID, sub)
 	}
 	return nil, nil
 }
@@ -145,7 +153,13 @@ func (m *mockAuthEventService) DeleteOlderThan(ctx context.Context, cutoff time.
 
 func (m *mockAuthEventService) Shutdown() {}
 
-type mockSessionService struct{}
+type mockSessionService struct {
+	// revokedAllUserIDs records every user whose sessions were globally revoked,
+	// so a logout test can assert the sessions were actually ended rather than
+	// just that the call returned a redirect.
+	revokedAllUserIDs []int64
+	revokeAllErr      error
+}
 
 func (m *mockSessionService) ListSessions(ctx context.Context, userID int64) ([]*authn.SessionDataResult, error) {
 	return nil, nil
@@ -154,7 +168,8 @@ func (m *mockSessionService) RevokeSession(ctx context.Context, userID int64, se
 	return nil
 }
 func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64, reason string) error {
-	return nil
+	m.revokedAllUserIDs = append(m.revokedAllUserIDs, userID)
+	return m.revokeAllErr
 }
 func (m *mockSessionService) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (*authn.UserSession, error) {
 	return &authn.UserSession{}, nil
@@ -735,12 +750,19 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("client falls back to default IDP", func(t *testing.T) {
+	// Inverted: this used to assert that a client NOT connected to the requesting
+	// provider was still accepted if it was connected to the tenant's default
+	// one. That defeats the client↔provider connection model, and once the client
+	// lookup began rejecting disabled connections it became the way to route
+	// around a connection an admin had just disabled. It must now be refused.
+	t.Run("client not connected to the requesting provider is refused", func(t *testing.T) {
 		stubOIDCClaims(t, map[string]interface{}{"sub": "external-sub"})
 		stubFederationTokenHooks(t)
 		gdb, mock := newMockGormDB(t)
+		// Client resolution happens inside the provisioning transaction, so the
+		// refusal must roll it back — no user is left behind.
 		mock.ExpectBegin()
-		mock.ExpectCommit()
+		mock.ExpectRollback()
 
 		idp := activeOIDCProvider("idp-1")
 		setIDPConfigJSON(idp, jitOIDCConfigJSON())
@@ -777,9 +799,9 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		resp, err := svc.ExchangeExternalToken(context.Background(), req)
-		require.NoError(t, err)
-		assert.Equal(t, "access-token", resp.AccessToken)
+		_, err := svc.ExchangeExternalToken(context.Background(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "client not found for this provider")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -1886,7 +1908,7 @@ func TestFederationService_UnlinkIdentity(t *testing.T) {
 			UserIdentityID:     10,
 			UserIdentityUUID:   identUUID,
 			Provider:           shared.ProviderMaintainerd,
-			IdentityProviderID: &extIDPID,
+			IdentityProviderID: extIDPID,
 			TenantID:           1,
 			UserID:             userID,
 		}
@@ -1921,7 +1943,7 @@ func TestFederationService_UnlinkIdentity(t *testing.T) {
 			UserIdentityID:     10,
 			UserIdentityUUID:   identUUID,
 			Provider:           shared.ProviderMaintainerd,
-			IdentityProviderID: &systemIDPID,
+			IdentityProviderID: systemIDPID,
 			TenantID:           1,
 			UserID:             userID,
 		}
@@ -1966,8 +1988,8 @@ func TestFederationService_ResolveExistingUserIdentity_DisambiguatesMaintainerd(
 		Provider:           shared.ProviderMaintainerd,
 		ProviderType:       shared.IDPTypeEnterprise,
 	}
-	systemIdentity := &UserIdentity{UserID: theUserID, Provider: shared.ProviderMaintainerd, Sub: "system-sub", IdentityProviderID: int64Ptr(systemIDPID)}
-	externalIdentity := &UserIdentity{UserID: theUserID, Provider: shared.ProviderMaintainerd, Sub: "external-sub", IdentityProviderID: int64Ptr(externalIDID)}
+	systemIdentity := &UserIdentity{UserID: theUserID, Provider: shared.ProviderMaintainerd, Sub: "system-sub", IdentityProviderID: systemIDPID}
+	externalIdentity := &UserIdentity{UserID: theUserID, Provider: shared.ProviderMaintainerd, Sub: "external-sub", IdentityProviderID: externalIDID}
 
 	newSvc := func() *federationService {
 		return &federationService{

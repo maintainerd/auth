@@ -196,32 +196,22 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
 }
 
-// MFALoginVerifyInternal completes the internal login MFA second step.
-// Internal login is tenant-scoped and rejects client_id.
-func (h *LoginHandler) MFALoginVerifyInternal(w http.ResponseWriter, r *http.Request) {
-	h.mfaLoginVerify(w, r, false)
-}
-
 // MFALoginVerifyPublic completes the public login MFA second step. Public
 // login is client-scoped and accepts only client_id.
 func (h *LoginHandler) MFALoginVerifyPublic(w http.ResponseWriter, r *http.Request) {
-	h.mfaLoginVerify(w, r, true)
+	h.mfaLoginVerify(w, r)
 }
 
-func (h *LoginHandler) mfaLoginVerify(w http.ResponseWriter, r *http.Request, public bool) {
+func (h *LoginHandler) mfaLoginVerify(w http.ResponseWriter, r *http.Request) {
 	var req MFALoginVerifyRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
 		return
 	}
 
-	clientID, tenantID, ok := mfaAuthenticationContextQuery(r, public)
+	clientID, tenantID, ok := authenticationContextQuery(r)
 	if !ok {
-		if public {
-			resp.Error(w, http.StatusBadRequest, "Public MFA verification requires client_id and does not accept tenant_id")
-		} else {
-			resp.Error(w, http.StatusBadRequest, "Internal MFA verification requires tenant_id and does not accept client_id")
-		}
+		resp.Error(w, http.StatusBadRequest, "Public MFA verification requires client_id and does not accept tenant_id")
 		return
 	}
 	ctx := contextWithRememberDevice(r.Context(), req.RememberDevice)
@@ -265,11 +255,6 @@ func (h *LoginHandler) mfaLoginVerify(w http.ResponseWriter, r *http.Request, pu
 	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
 }
 
-// MFALoginSendSMSInternal sends an SMS OTP for an internal login MFA challenge.
-func (h *LoginHandler) MFALoginSendSMSInternal(w http.ResponseWriter, r *http.Request) {
-	h.mfaLoginSendSMS(w, r)
-}
-
 // MFALoginSendSMSPublic sends an SMS OTP for a public login MFA challenge.
 func (h *LoginHandler) MFALoginSendSMSPublic(w http.ResponseWriter, r *http.Request) {
 	h.mfaLoginSendSMS(w, r)
@@ -286,10 +271,6 @@ func (h *LoginHandler) mfaLoginSendSMS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp.Success(w, nil, "SMS code sent")
-}
-
-func (h *LoginHandler) MFALoginSendEmailOTPInternal(w http.ResponseWriter, r *http.Request) {
-	h.mfaLoginSendEmailOTP(w, r)
 }
 
 func (h *LoginHandler) MFALoginSendEmailOTPPublic(w http.ResponseWriter, r *http.Request) {
@@ -309,12 +290,8 @@ func (h *LoginHandler) mfaLoginSendEmailOTP(w http.ResponseWriter, r *http.Reque
 	resp.Success(w, nil, "Email OTP code sent")
 }
 
-// MFALoginWebAuthnBegin starts a passkey assertion ceremony for the in-flight
-// login MFA challenge and returns the assertion options.
-func (h *LoginHandler) MFALoginWebAuthnBeginInternal(w http.ResponseWriter, r *http.Request) {
-	h.mfaLoginWebAuthnBegin(w, r)
-}
-
+// MFALoginWebAuthnBeginPublic starts a passkey assertion ceremony for the
+// in-flight login MFA challenge and returns the assertion options.
 func (h *LoginHandler) MFALoginWebAuthnBeginPublic(w http.ResponseWriter, r *http.Request) {
 	h.mfaLoginWebAuthnBegin(w, r)
 }
@@ -348,14 +325,6 @@ func optionalClientQuery(r *http.Request) (clientID, tenantID *string) {
 func authenticationContextQuery(r *http.Request) (clientID, tenantID *string, ok bool) {
 	clientID, tenantID = optionalClientQuery(r)
 	return clientID, nil, clientID != nil && tenantID == nil
-}
-
-func mfaAuthenticationContextQuery(r *http.Request, public bool) (clientID, tenantID *string, ok bool) {
-	if public {
-		return authenticationContextQuery(r)
-	}
-	clientID, tenantID = optionalClientQuery(r)
-	return nil, tenantID, tenantID != nil && clientID == nil
 }
 
 func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -484,99 +453,4 @@ func (h *LoginHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		cookie.SetAuthCookies(w, tokenResponse)
 	}
 	resp.Success(w, tokenResponse, "Token refreshed successfully")
-}
-
-func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-	sc := extractSecurityContext(r)
-	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
-
-	// Internal login is tenant-scoped and always uses that tenant's system client.
-	tenantID := strings.TrimSpace(r.URL.Query().Get("tenant_id"))
-	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
-		resp.Error(w, http.StatusBadRequest, "Internal login requires tenant_id and does not accept client_id")
-		return
-	}
-	tenantIDPtr := &tenantID
-
-	// Validate body payload
-	var req LoginRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.BadRequestBody(w)
-		return
-	}
-
-	// Validate using DTO convention (includes sanitization)
-	if err := req.Validate(); err != nil {
-		security.LogSecurityEvent(security.SecurityEvent{
-			EventType: "login_validation_failure",
-			UserID:    req.Username,
-			ClientIP:  clientIPStr,
-			UserAgent: userAgentStr,
-			RequestID: requestIDStr,
-			Endpoint:  "/login",
-			Method:    r.Method,
-			Timestamp: startTime,
-			Details:   "Request body validation failed",
-			Severity:  "MEDIUM",
-		})
-		resp.ValidationError(w, err)
-		return
-	}
-
-	// Internal login attempt (tenant system client only). Trusted-device secret
-	// comes from the body or, for cookie-based clients, the httpOnly cookie.
-	trustedDeviceToken := req.TrustedDeviceToken
-	if trustedDeviceToken == "" {
-		trustedDeviceToken = cookie.TrustedDeviceValue(r)
-	}
-	ctx := contextWithTrustedDeviceToken(r.Context(), trustedDeviceToken)
-	tokenResponse, err := h.loginService.Login(
-		ctx, req.Username, req.Password, nil, tenantIDPtr,
-	)
-	if err != nil {
-		security.LogSecurityEvent(security.SecurityEvent{
-			EventType: "login_failure",
-			UserID:    req.Username,
-			ClientID:  "internal",
-			ClientIP:  clientIPStr,
-			UserAgent: userAgentStr,
-			RequestID: requestIDStr,
-			Endpoint:  "/login",
-			Method:    r.Method,
-			Timestamp: startTime,
-			Details:   "Internal authentication failed",
-			Severity:  "MEDIUM",
-		})
-		resp.HandleServiceError(w, r, "Authentication failed", err)
-		return
-	}
-
-	if tokenResponse == nil {
-		resp.Error(w, http.StatusInternalServerError, "Login service returned an empty response")
-		return
-	}
-
-	// authevent.Log successful login
-	security.LogSecurityEvent(security.SecurityEvent{
-		EventType: "login_success",
-		UserID:    req.Username,
-		ClientID:  "internal",
-		ClientIP:  clientIPStr,
-		UserAgent: userAgentStr,
-		RequestID: requestIDStr,
-		Endpoint:  "/login",
-		Method:    r.Method,
-		Timestamp: startTime,
-		Details:   "User successfully authenticated via internal endpoint",
-		Severity:  "LOW",
-	})
-
-	if tokenResponse.MFARequired {
-		resp.Success(w, tokenResponse, "MFA verification required")
-		return
-	}
-
-	// Response with optional cookie delivery based on X-Token-Delivery header
-	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
 }

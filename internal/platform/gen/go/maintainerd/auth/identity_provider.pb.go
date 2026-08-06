@@ -2523,24 +2523,7 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x1b\n" +
 	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\">\n" +
 	"\"RemoveRegistrationFlowRoleResponse\x12\x18\n" +
-	"\aremoved\x18\x01 \x01(\bR\aremoved2\xac\x06\n" +
-	"\x17IdentityProviderService\x12~\n" +
-	"\x15ListIdentityProviders\x121.maintainerd.auth.v1.ListIdentityProvidersRequest\x1a2.maintainerd.auth.v1.ListIdentityProvidersResponse\x12x\n" +
-	"\x13GetIdentityProvider\x12/.maintainerd.auth.v1.GetIdentityProviderRequest\x1a0.maintainerd.auth.v1.GetIdentityProviderResponse\x12\x81\x01\n" +
-	"\x16CreateIdentityProvider\x122.maintainerd.auth.v1.CreateIdentityProviderRequest\x1a3.maintainerd.auth.v1.CreateIdentityProviderResponse\x12\x81\x01\n" +
-	"\x16UpdateIdentityProvider\x122.maintainerd.auth.v1.UpdateIdentityProviderRequest\x1a3.maintainerd.auth.v1.UpdateIdentityProviderResponse\x12\x8a\x01\n" +
-	"\x19SetIdentityProviderStatus\x125.maintainerd.auth.v1.SetIdentityProviderStatusRequest\x1a6.maintainerd.auth.v1.SetIdentityProviderStatusResponse\x12\x81\x01\n" +
-	"\x16DeleteIdentityProvider\x122.maintainerd.auth.v1.DeleteIdentityProviderRequest\x1a3.maintainerd.auth.v1.DeleteIdentityProviderResponse2\xdc\t\n" +
-	"\x17RegistrationFlowService\x12~\n" +
-	"\x15ListRegistrationFlows\x121.maintainerd.auth.v1.ListRegistrationFlowsRequest\x1a2.maintainerd.auth.v1.ListRegistrationFlowsResponse\x12x\n" +
-	"\x13GetRegistrationFlow\x12/.maintainerd.auth.v1.GetRegistrationFlowRequest\x1a0.maintainerd.auth.v1.GetRegistrationFlowResponse\x12\x81\x01\n" +
-	"\x16CreateRegistrationFlow\x122.maintainerd.auth.v1.CreateRegistrationFlowRequest\x1a3.maintainerd.auth.v1.CreateRegistrationFlowResponse\x12\x81\x01\n" +
-	"\x16UpdateRegistrationFlow\x122.maintainerd.auth.v1.UpdateRegistrationFlowRequest\x1a3.maintainerd.auth.v1.UpdateRegistrationFlowResponse\x12\x8a\x01\n" +
-	"\x19SetRegistrationFlowStatus\x125.maintainerd.auth.v1.SetRegistrationFlowStatusRequest\x1a6.maintainerd.auth.v1.SetRegistrationFlowStatusResponse\x12\x81\x01\n" +
-	"\x16DeleteRegistrationFlow\x122.maintainerd.auth.v1.DeleteRegistrationFlowRequest\x1a3.maintainerd.auth.v1.DeleteRegistrationFlowResponse\x12\x90\x01\n" +
-	"\x1bAssignRegistrationFlowRoles\x127.maintainerd.auth.v1.AssignRegistrationFlowRolesRequest\x1a8.maintainerd.auth.v1.AssignRegistrationFlowRolesResponse\x12\x8a\x01\n" +
-	"\x19ListRegistrationFlowRoles\x125.maintainerd.auth.v1.ListRegistrationFlowRolesRequest\x1a6.maintainerd.auth.v1.ListRegistrationFlowRolesResponse\x12\x8d\x01\n" +
-	"\x1aRemoveRegistrationFlowRole\x126.maintainerd.auth.v1.RemoveRegistrationFlowRoleRequest\x1a7.maintainerd.auth.v1.RemoveRegistrationFlowRoleResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\aremoved\x18\x01 \x01(\bR\aremovedBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_identity_provider_proto_rawDescOnce sync.Once
@@ -2627,38 +2610,8 @@ var file_maintainerd_auth_v1_identity_provider_proto_depIdxs = []int32{
 	35, // 29: maintainerd.auth.v1.ListRegistrationFlowRolesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
 	2,  // 30: maintainerd.auth.v1.ListRegistrationFlowRolesResponse.roles:type_name -> maintainerd.auth.v1.RegistrationFlowRole
 	36, // 31: maintainerd.auth.v1.ListRegistrationFlowRolesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
-	3,  // 32: maintainerd.auth.v1.IdentityProviderService.ListIdentityProviders:input_type -> maintainerd.auth.v1.ListIdentityProvidersRequest
-	5,  // 33: maintainerd.auth.v1.IdentityProviderService.GetIdentityProvider:input_type -> maintainerd.auth.v1.GetIdentityProviderRequest
-	7,  // 34: maintainerd.auth.v1.IdentityProviderService.CreateIdentityProvider:input_type -> maintainerd.auth.v1.CreateIdentityProviderRequest
-	9,  // 35: maintainerd.auth.v1.IdentityProviderService.UpdateIdentityProvider:input_type -> maintainerd.auth.v1.UpdateIdentityProviderRequest
-	11, // 36: maintainerd.auth.v1.IdentityProviderService.SetIdentityProviderStatus:input_type -> maintainerd.auth.v1.SetIdentityProviderStatusRequest
-	13, // 37: maintainerd.auth.v1.IdentityProviderService.DeleteIdentityProvider:input_type -> maintainerd.auth.v1.DeleteIdentityProviderRequest
-	15, // 38: maintainerd.auth.v1.RegistrationFlowService.ListRegistrationFlows:input_type -> maintainerd.auth.v1.ListRegistrationFlowsRequest
-	17, // 39: maintainerd.auth.v1.RegistrationFlowService.GetRegistrationFlow:input_type -> maintainerd.auth.v1.GetRegistrationFlowRequest
-	19, // 40: maintainerd.auth.v1.RegistrationFlowService.CreateRegistrationFlow:input_type -> maintainerd.auth.v1.CreateRegistrationFlowRequest
-	21, // 41: maintainerd.auth.v1.RegistrationFlowService.UpdateRegistrationFlow:input_type -> maintainerd.auth.v1.UpdateRegistrationFlowRequest
-	23, // 42: maintainerd.auth.v1.RegistrationFlowService.SetRegistrationFlowStatus:input_type -> maintainerd.auth.v1.SetRegistrationFlowStatusRequest
-	25, // 43: maintainerd.auth.v1.RegistrationFlowService.DeleteRegistrationFlow:input_type -> maintainerd.auth.v1.DeleteRegistrationFlowRequest
-	27, // 44: maintainerd.auth.v1.RegistrationFlowService.AssignRegistrationFlowRoles:input_type -> maintainerd.auth.v1.AssignRegistrationFlowRolesRequest
-	29, // 45: maintainerd.auth.v1.RegistrationFlowService.ListRegistrationFlowRoles:input_type -> maintainerd.auth.v1.ListRegistrationFlowRolesRequest
-	31, // 46: maintainerd.auth.v1.RegistrationFlowService.RemoveRegistrationFlowRole:input_type -> maintainerd.auth.v1.RemoveRegistrationFlowRoleRequest
-	4,  // 47: maintainerd.auth.v1.IdentityProviderService.ListIdentityProviders:output_type -> maintainerd.auth.v1.ListIdentityProvidersResponse
-	6,  // 48: maintainerd.auth.v1.IdentityProviderService.GetIdentityProvider:output_type -> maintainerd.auth.v1.GetIdentityProviderResponse
-	8,  // 49: maintainerd.auth.v1.IdentityProviderService.CreateIdentityProvider:output_type -> maintainerd.auth.v1.CreateIdentityProviderResponse
-	10, // 50: maintainerd.auth.v1.IdentityProviderService.UpdateIdentityProvider:output_type -> maintainerd.auth.v1.UpdateIdentityProviderResponse
-	12, // 51: maintainerd.auth.v1.IdentityProviderService.SetIdentityProviderStatus:output_type -> maintainerd.auth.v1.SetIdentityProviderStatusResponse
-	14, // 52: maintainerd.auth.v1.IdentityProviderService.DeleteIdentityProvider:output_type -> maintainerd.auth.v1.DeleteIdentityProviderResponse
-	16, // 53: maintainerd.auth.v1.RegistrationFlowService.ListRegistrationFlows:output_type -> maintainerd.auth.v1.ListRegistrationFlowsResponse
-	18, // 54: maintainerd.auth.v1.RegistrationFlowService.GetRegistrationFlow:output_type -> maintainerd.auth.v1.GetRegistrationFlowResponse
-	20, // 55: maintainerd.auth.v1.RegistrationFlowService.CreateRegistrationFlow:output_type -> maintainerd.auth.v1.CreateRegistrationFlowResponse
-	22, // 56: maintainerd.auth.v1.RegistrationFlowService.UpdateRegistrationFlow:output_type -> maintainerd.auth.v1.UpdateRegistrationFlowResponse
-	24, // 57: maintainerd.auth.v1.RegistrationFlowService.SetRegistrationFlowStatus:output_type -> maintainerd.auth.v1.SetRegistrationFlowStatusResponse
-	26, // 58: maintainerd.auth.v1.RegistrationFlowService.DeleteRegistrationFlow:output_type -> maintainerd.auth.v1.DeleteRegistrationFlowResponse
-	28, // 59: maintainerd.auth.v1.RegistrationFlowService.AssignRegistrationFlowRoles:output_type -> maintainerd.auth.v1.AssignRegistrationFlowRolesResponse
-	30, // 60: maintainerd.auth.v1.RegistrationFlowService.ListRegistrationFlowRoles:output_type -> maintainerd.auth.v1.ListRegistrationFlowRolesResponse
-	32, // 61: maintainerd.auth.v1.RegistrationFlowService.RemoveRegistrationFlowRole:output_type -> maintainerd.auth.v1.RemoveRegistrationFlowRoleResponse
-	47, // [47:62] is the sub-list for method output_type
-	32, // [32:47] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for method output_type
+	32, // [32:32] is the sub-list for method input_type
 	32, // [32:32] is the sub-list for extension type_name
 	32, // [32:32] is the sub-list for extension extendee
 	0,  // [0:32] is the sub-list for field type_name
@@ -2679,7 +2632,7 @@ func file_maintainerd_auth_v1_identity_provider_proto_init() {
 			NumEnums:      0,
 			NumMessages:   33,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   0,
 		},
 		GoTypes:           file_maintainerd_auth_v1_identity_provider_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_identity_provider_proto_depIdxs,

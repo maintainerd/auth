@@ -117,46 +117,6 @@ func TestRegisterHandler_RegisterPublic_Success(t *testing.T) {
 // Register (internal)
 // ---------------------------------------------------------------------------
 
-func TestRegisterHandler_Register_InvalidBody(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
-	r := httptest.NewRequest(http.MethodPost, "/register?tenant_id=system", bytes.NewBufferString(`{bad}`))
-	r.Header.Set("Content-Type", "application/json")
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.Register(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestRegisterHandler_Register_ServiceError(t *testing.T) {
-	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string, _ string) (*RegisterResponseDTO, error) {
-			return nil, assert.AnError
-		},
-	}
-	h := NewRegisterHandler(svc)
-	r := regRequest(t, "/register?tenant_id=system", map[string]string{
-		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
-	})
-	w := httptest.NewRecorder()
-	h.Register(w, r)
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestRegisterHandler_Register_Success(t *testing.T) {
-	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string, _ string) (*RegisterResponseDTO, error) {
-			return &RegisterResponseDTO{}, nil
-		},
-	}
-	h := NewRegisterHandler(svc)
-	r := regRequest(t, "/register?tenant_id=system", map[string]string{
-		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
-	})
-	w := httptest.NewRecorder()
-	h.Register(w, r)
-	assert.Equal(t, http.StatusCreated, w.Code)
-}
-
 func testInvitePublicURL(clientID, inviteToken string) string {
 	params := map[string]string{"client_id": clientID, "invite_token": inviteToken}
 	u, _ := signedurl.GenerateSignedURL("/public/register/invite", params, time.Hour)
@@ -213,39 +173,6 @@ func TestRegisterHandler_RegisterPublic_ValidationError(t *testing.T) {
 }
 
 // ── Register ──────────────────────────────────────────────────────────────────
-
-// ValidationError: covers the ValidateForRegistration() error path + weak-password branch.
-func TestRegisterHandler_Register_ValidationError(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
-	r := regRequest(t, "/register?tenant_id=system", map[string]string{
-		"username": "user1",
-		"fullname": "User One",
-		// Too short for the DTO's absolute bound. Password STRENGTH is the tenant's
-		// policy and is applied in the service layer, so the handler can only reject
-		// a malformed request — it must not re-impose a hardcoded composition rule.
-		"password": "short",
-	})
-	w := httptest.NewRecorder()
-	h.Register(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// WithOptionalParams: passes ?client_id and ?provider_id → covers the two
-// pointer-assign branches (lines 163-165, 166-168).
-func TestRegisterHandler_Register_RejectsClientContext(t *testing.T) {
-	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string, _ string) (*RegisterResponseDTO, error) {
-			return &RegisterResponseDTO{}, nil
-		},
-	}
-	h := NewRegisterHandler(svc)
-	r := regRequest(t, "/register?client_id=c1", map[string]string{
-		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
-	})
-	w := httptest.NewRecorder()
-	h.Register(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
 
 // ── RegisterInvitePublic ──────────────────────────────────────────────────────
 
@@ -333,23 +260,4 @@ func TestRegisterHandler_RegisterPublic_OmittedRegistrationFlowIsEmpty(t *testin
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.Empty(t, got, "an absent selector must reach the service as the empty string")
-}
-
-func TestRegisterHandler_Register_ForwardsRegistrationFlow(t *testing.T) {
-	var got string
-	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string, registrationFlow string) (*RegisterResponseDTO, error) {
-			got = registrationFlow
-			return &RegisterResponseDTO{}, nil
-		},
-	}
-	h := NewRegisterHandler(svc)
-	r := regRequest(t, "/register?tenant_id=system&registration_flow=internal-flow-abcd1234", map[string]string{
-		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
-	})
-	w := httptest.NewRecorder()
-	h.Register(w, r)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-	assert.Equal(t, "internal-flow-abcd1234", got)
 }

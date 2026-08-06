@@ -80,6 +80,10 @@ type UserRepository interface {
 	BaseRepositoryMethods[User]
 	WithTx(tx *gorm.DB) UserRepository
 	FindByUUID(uuid any, preloads ...string) (*User, error)
+	// EffectivePermissionNames returns the permission names a user actually holds
+	// in a tenant, through active, non-deleted roles and permissions. It is the
+	// authority for "may this actor grant this?" — see assertNoPrivilegeEscalation.
+	EffectivePermissionNames(userID, tenantID int64) ([]string, error)
 }
 
 type ClientRepository interface {

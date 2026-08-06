@@ -76,6 +76,8 @@ func (h *PermissionGRPCHandler) CreatePermission(ctx context.Context, req *authv
 	if err != nil {
 		return nil, err
 	}
+	// The tenant boundary is enforced BEFORE the ledger claim so a caller that may
+	// not act on this tenant cannot consume — or occupy — a key it may not spend.
 	dto := PermissionCreateRequestDTO{Name: req.GetName(), Description: req.GetDescription(), Status: req.GetStatus(), APIUUID: req.GetApiUuid()}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))

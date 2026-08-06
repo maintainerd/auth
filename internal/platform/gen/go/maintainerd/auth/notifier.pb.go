@@ -792,13 +792,7 @@ const file_maintainerd_auth_v1_notifier_proto_rawDesc = "" +
 	"\n" +
 	"_test_mode\"Q\n" +
 	"\x17UpdateSMSConfigResponse\x126\n" +
-	"\x06config\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.SMSConfigR\x06config2\xf3\x01\n" +
-	"\x12EmailConfigService\x12i\n" +
-	"\x0eGetEmailConfig\x12*.maintainerd.auth.v1.GetEmailConfigRequest\x1a+.maintainerd.auth.v1.GetEmailConfigResponse\x12r\n" +
-	"\x11UpdateEmailConfig\x12-.maintainerd.auth.v1.UpdateEmailConfigRequest\x1a..maintainerd.auth.v1.UpdateEmailConfigResponse2\xe5\x01\n" +
-	"\x10SMSConfigService\x12c\n" +
-	"\fGetSMSConfig\x12(.maintainerd.auth.v1.GetSMSConfigRequest\x1a).maintainerd.auth.v1.GetSMSConfigResponse\x12l\n" +
-	"\x0fUpdateSMSConfig\x12+.maintainerd.auth.v1.UpdateSMSConfigRequest\x1a,.maintainerd.auth.v1.UpdateSMSConfigResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x06config\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.SMSConfigR\x06configBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_notifier_proto_rawDescOnce sync.Once
@@ -830,16 +824,8 @@ var file_maintainerd_auth_v1_notifier_proto_depIdxs = []int32{
 	0, // 1: maintainerd.auth.v1.UpdateEmailConfigResponse.config:type_name -> maintainerd.auth.v1.EmailConfig
 	5, // 2: maintainerd.auth.v1.GetSMSConfigResponse.config:type_name -> maintainerd.auth.v1.SMSConfig
 	5, // 3: maintainerd.auth.v1.UpdateSMSConfigResponse.config:type_name -> maintainerd.auth.v1.SMSConfig
-	1, // 4: maintainerd.auth.v1.EmailConfigService.GetEmailConfig:input_type -> maintainerd.auth.v1.GetEmailConfigRequest
-	3, // 5: maintainerd.auth.v1.EmailConfigService.UpdateEmailConfig:input_type -> maintainerd.auth.v1.UpdateEmailConfigRequest
-	6, // 6: maintainerd.auth.v1.SMSConfigService.GetSMSConfig:input_type -> maintainerd.auth.v1.GetSMSConfigRequest
-	8, // 7: maintainerd.auth.v1.SMSConfigService.UpdateSMSConfig:input_type -> maintainerd.auth.v1.UpdateSMSConfigRequest
-	2, // 8: maintainerd.auth.v1.EmailConfigService.GetEmailConfig:output_type -> maintainerd.auth.v1.GetEmailConfigResponse
-	4, // 9: maintainerd.auth.v1.EmailConfigService.UpdateEmailConfig:output_type -> maintainerd.auth.v1.UpdateEmailConfigResponse
-	7, // 10: maintainerd.auth.v1.SMSConfigService.GetSMSConfig:output_type -> maintainerd.auth.v1.GetSMSConfigResponse
-	9, // 11: maintainerd.auth.v1.SMSConfigService.UpdateSMSConfig:output_type -> maintainerd.auth.v1.UpdateSMSConfigResponse
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
 	4, // [4:4] is the sub-list for extension extendee
 	0, // [0:4] is the sub-list for field type_name
@@ -860,7 +846,7 @@ func file_maintainerd_auth_v1_notifier_proto_init() {
 			NumEnums:      0,
 			NumMessages:   10,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   0,
 		},
 		GoTypes:           file_maintainerd_auth_v1_notifier_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_notifier_proto_depIdxs,

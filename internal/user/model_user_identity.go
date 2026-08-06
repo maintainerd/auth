@@ -13,8 +13,7 @@ type UserIdentity struct {
 	UserIdentityUUID   uuid.UUID      `gorm:"column:user_identity_uuid;unique"`
 	TenantID           int64          `gorm:"column:tenant_id"`
 	UserID             int64          `gorm:"column:user_id"`
-	ClientID           *int64         `gorm:"column:client_id"`
-	IdentityProviderID *int64         `gorm:"column:identity_provider_id"`
+	IdentityProviderID int64          `gorm:"column:identity_provider_id"`
 	Provider           string         `gorm:"column:provider"`
 	Sub                string         `gorm:"column:sub"`
 	Metadata           datatypes.JSON `gorm:"column:metadata"`
@@ -26,7 +25,6 @@ type UserIdentity struct {
 	// Relationships
 	Tenant           *Tenant           `gorm:"foreignKey:TenantID;references:TenantID;constraint:OnDelete:CASCADE"`
 	User             *User             `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
-	Client           *Client           `gorm:"foreignKey:ClientID;references:ClientID;constraint:OnDelete:SET NULL"`
 	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
 }
 

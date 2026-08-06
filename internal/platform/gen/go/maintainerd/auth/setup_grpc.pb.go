@@ -24,6 +24,10 @@ const (
 	SetupService_CreateAdmin_FullMethodName            = "/maintainerd.auth.v1.SetupService/CreateAdmin"
 	SetupService_CreateProfile_FullMethodName          = "/maintainerd.auth.v1.SetupService/CreateProfile"
 	SetupService_RegisterControlService_FullMethodName = "/maintainerd.auth.v1.SetupService/RegisterControlService"
+	SetupService_EnsureControlClient_FullMethodName    = "/maintainerd.auth.v1.SetupService/EnsureControlClient"
+	SetupService_EnsureResourceAPI_FullMethodName      = "/maintainerd.auth.v1.SetupService/EnsureResourceAPI"
+	SetupService_EnsureRole_FullMethodName             = "/maintainerd.auth.v1.SetupService/EnsureRole"
+	SetupService_EnsureConsoleClient_FullMethodName    = "/maintainerd.auth.v1.SetupService/EnsureConsoleClient"
 	SetupService_CompleteSetup_FullMethodName          = "/maintainerd.auth.v1.SetupService/CompleteSetup"
 )
 
@@ -36,6 +40,15 @@ type SetupServiceClient interface {
 	CreateAdmin(ctx context.Context, in *CreateAdminRequest, opts ...grpc.CallOption) (*CreateAdminResponse, error)
 	CreateProfile(ctx context.Context, in *CreateProfileRequest, opts ...grpc.CallOption) (*CreateProfileResponse, error)
 	RegisterControlService(ctx context.Context, in *RegisterControlServiceRequest, opts ...grpc.CallOption) (*RegisterControlServiceResponse, error)
+	// The Ensure* RPCs below configure everything an orchestrator (core) needs to
+	// control this instance permanently, and are reachable ONLY while setup is
+	// open. They are declarative get-or-create rather than Create*: a retry after
+	// a lost response re-sends the same request and gets the same object back, so
+	// an interrupted provision is resumable without a server-side replay ledger.
+	EnsureControlClient(ctx context.Context, in *EnsureControlClientRequest, opts ...grpc.CallOption) (*EnsureControlClientResponse, error)
+	EnsureResourceAPI(ctx context.Context, in *EnsureResourceAPIRequest, opts ...grpc.CallOption) (*EnsureResourceAPIResponse, error)
+	EnsureRole(ctx context.Context, in *EnsureRoleRequest, opts ...grpc.CallOption) (*EnsureRoleResponse, error)
+	EnsureConsoleClient(ctx context.Context, in *EnsureConsoleClientRequest, opts ...grpc.CallOption) (*EnsureConsoleClientResponse, error)
 	CompleteSetup(ctx context.Context, in *CompleteSetupRequest, opts ...grpc.CallOption) (*CompleteSetupResponse, error)
 }
 
@@ -97,6 +110,46 @@ func (c *setupServiceClient) RegisterControlService(ctx context.Context, in *Reg
 	return out, nil
 }
 
+func (c *setupServiceClient) EnsureControlClient(ctx context.Context, in *EnsureControlClientRequest, opts ...grpc.CallOption) (*EnsureControlClientResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EnsureControlClientResponse)
+	err := c.cc.Invoke(ctx, SetupService_EnsureControlClient_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *setupServiceClient) EnsureResourceAPI(ctx context.Context, in *EnsureResourceAPIRequest, opts ...grpc.CallOption) (*EnsureResourceAPIResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EnsureResourceAPIResponse)
+	err := c.cc.Invoke(ctx, SetupService_EnsureResourceAPI_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *setupServiceClient) EnsureRole(ctx context.Context, in *EnsureRoleRequest, opts ...grpc.CallOption) (*EnsureRoleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EnsureRoleResponse)
+	err := c.cc.Invoke(ctx, SetupService_EnsureRole_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *setupServiceClient) EnsureConsoleClient(ctx context.Context, in *EnsureConsoleClientRequest, opts ...grpc.CallOption) (*EnsureConsoleClientResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EnsureConsoleClientResponse)
+	err := c.cc.Invoke(ctx, SetupService_EnsureConsoleClient_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *setupServiceClient) CompleteSetup(ctx context.Context, in *CompleteSetupRequest, opts ...grpc.CallOption) (*CompleteSetupResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CompleteSetupResponse)
@@ -116,6 +169,15 @@ type SetupServiceServer interface {
 	CreateAdmin(context.Context, *CreateAdminRequest) (*CreateAdminResponse, error)
 	CreateProfile(context.Context, *CreateProfileRequest) (*CreateProfileResponse, error)
 	RegisterControlService(context.Context, *RegisterControlServiceRequest) (*RegisterControlServiceResponse, error)
+	// The Ensure* RPCs below configure everything an orchestrator (core) needs to
+	// control this instance permanently, and are reachable ONLY while setup is
+	// open. They are declarative get-or-create rather than Create*: a retry after
+	// a lost response re-sends the same request and gets the same object back, so
+	// an interrupted provision is resumable without a server-side replay ledger.
+	EnsureControlClient(context.Context, *EnsureControlClientRequest) (*EnsureControlClientResponse, error)
+	EnsureResourceAPI(context.Context, *EnsureResourceAPIRequest) (*EnsureResourceAPIResponse, error)
+	EnsureRole(context.Context, *EnsureRoleRequest) (*EnsureRoleResponse, error)
+	EnsureConsoleClient(context.Context, *EnsureConsoleClientRequest) (*EnsureConsoleClientResponse, error)
 	CompleteSetup(context.Context, *CompleteSetupRequest) (*CompleteSetupResponse, error)
 	mustEmbedUnimplementedSetupServiceServer()
 }
@@ -141,6 +203,18 @@ func (UnimplementedSetupServiceServer) CreateProfile(context.Context, *CreatePro
 }
 func (UnimplementedSetupServiceServer) RegisterControlService(context.Context, *RegisterControlServiceRequest) (*RegisterControlServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterControlService not implemented")
+}
+func (UnimplementedSetupServiceServer) EnsureControlClient(context.Context, *EnsureControlClientRequest) (*EnsureControlClientResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnsureControlClient not implemented")
+}
+func (UnimplementedSetupServiceServer) EnsureResourceAPI(context.Context, *EnsureResourceAPIRequest) (*EnsureResourceAPIResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnsureResourceAPI not implemented")
+}
+func (UnimplementedSetupServiceServer) EnsureRole(context.Context, *EnsureRoleRequest) (*EnsureRoleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnsureRole not implemented")
+}
+func (UnimplementedSetupServiceServer) EnsureConsoleClient(context.Context, *EnsureConsoleClientRequest) (*EnsureConsoleClientResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnsureConsoleClient not implemented")
 }
 func (UnimplementedSetupServiceServer) CompleteSetup(context.Context, *CompleteSetupRequest) (*CompleteSetupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CompleteSetup not implemented")
@@ -256,6 +330,78 @@ func _SetupService_RegisterControlService_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SetupService_EnsureControlClient_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureControlClientRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SetupServiceServer).EnsureControlClient(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SetupService_EnsureControlClient_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SetupServiceServer).EnsureControlClient(ctx, req.(*EnsureControlClientRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SetupService_EnsureResourceAPI_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureResourceAPIRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SetupServiceServer).EnsureResourceAPI(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SetupService_EnsureResourceAPI_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SetupServiceServer).EnsureResourceAPI(ctx, req.(*EnsureResourceAPIRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SetupService_EnsureRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureRoleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SetupServiceServer).EnsureRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SetupService_EnsureRole_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SetupServiceServer).EnsureRole(ctx, req.(*EnsureRoleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SetupService_EnsureConsoleClient_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnsureConsoleClientRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SetupServiceServer).EnsureConsoleClient(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SetupService_EnsureConsoleClient_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SetupServiceServer).EnsureConsoleClient(ctx, req.(*EnsureConsoleClientRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SetupService_CompleteSetup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CompleteSetupRequest)
 	if err := dec(in); err != nil {
@@ -300,6 +446,22 @@ var SetupService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RegisterControlService",
 			Handler:    _SetupService_RegisterControlService_Handler,
+		},
+		{
+			MethodName: "EnsureControlClient",
+			Handler:    _SetupService_EnsureControlClient_Handler,
+		},
+		{
+			MethodName: "EnsureResourceAPI",
+			Handler:    _SetupService_EnsureResourceAPI_Handler,
+		},
+		{
+			MethodName: "EnsureRole",
+			Handler:    _SetupService_EnsureRole_Handler,
+		},
+		{
+			MethodName: "EnsureConsoleClient",
+			Handler:    _SetupService_EnsureConsoleClient_Handler,
 		},
 		{
 			MethodName: "CompleteSetup",

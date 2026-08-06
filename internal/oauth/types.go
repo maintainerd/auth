@@ -22,6 +22,35 @@ type OAuthAuthorizeRequestDTO struct {
 	Prompt              string `json:"prompt"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
+
+	// RequestURI is the RFC 9126 PAR handle. When present every other
+	// authorization parameter is taken from the pushed request instead of the
+	// query string.
+	RequestURI string `json:"request_uri"`
+	// Request is the OIDC JAR request object. It is parsed only so the endpoint
+	// can refuse it explicitly (request_not_supported) — silently ignoring a
+	// signed request object means honouring the unsigned query parameters the
+	// RP intended to override.
+	Request string `json:"request"`
+
+	// ACRValues is the space-separated list of acceptable authentication context
+	// classes (OIDC Core §3.1.2.1). This is how an RP asks for step-up MFA.
+	ACRValues string `json:"acr_values"`
+	// MaxAge is the maximum elapsed time in seconds since the user last actively
+	// authenticated. "" means the RP set no limit; "0" means re-authenticate now.
+	MaxAge string `json:"max_age"`
+	// MaxAgeSeconds is MaxAge parsed, and MaxAgeSet says whether it was present —
+	// max_age=0 is meaningful and cannot be distinguished from "absent" by value.
+	MaxAgeSeconds int64 `json:"-"`
+	MaxAgeSet     bool  `json:"-"`
+	// LoginHint pre-fills the identifier on the hosted login page.
+	LoginHint string `json:"login_hint"`
+	// ResponseMode selects how the response is returned; only "query" is
+	// implemented, and anything else is rejected rather than silently downgraded.
+	ResponseMode string `json:"response_mode"`
+	// UILocales is the RP's preferred rendering locale list, passed through to the
+	// hosted identity app.
+	UILocales string `json:"ui_locales"`
 }
 
 // OAuthAuthorizeResponseDTO is returned on a successful authorization request
@@ -96,6 +125,13 @@ type OAuthTokenRequestDTO struct {
 	CodeVerifier string `json:"code_verifier"`
 	RefreshToken string `json:"refresh_token"`
 	Scope        string `json:"scope"`
+	// Audience / Resource name the registered API this token is for (RFC 8707).
+	// Without them every access token was stamped aud = the client's own
+	// identifier, so a resource server doing the `aud` check RFC 9068 §4 requires
+	// could never be handed a token addressed to it and the apis / client_apis /
+	// api_permissions model was unreachable from a real token.
+	Audience string `json:"audience"`
+	Resource string `json:"resource"`
 	// Client credentials (from body when token_endpoint_auth_method=client_secret_post)
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
@@ -162,21 +198,40 @@ type OAuthIntrospectResponseDTO struct {
 // OAuthDiscoveryResponseDTO is the JSON body for the
 // GET /.well-known/openid-configuration endpoint.
 type OAuthDiscoveryResponseDTO struct {
-	Issuer                string   `json:"issuer"`
-	AuthorizationEndpoint string   `json:"authorization_endpoint"`
-	TokenEndpoint         string   `json:"token_endpoint"`
-	UserinfoEndpoint      string   `json:"userinfo_endpoint"`
-	JwksURI               string   `json:"jwks_uri"`
-	RevocationEndpoint    string   `json:"revocation_endpoint"`
-	IntrospectionEndpoint string   `json:"introspection_endpoint"`
-	ScopesSupported       []string `json:"scopes_supported"`
-	ResponseTypesSupp     []string `json:"response_types_supported"`
-	GrantTypesSupported   []string `json:"grant_types_supported"`
-	SubjectTypesSupported []string `json:"subject_types_supported"`
-	IDTokenSignAlgValues  []string `json:"id_token_signing_alg_values_supported"`
-	TokenEndpointAuth     []string `json:"token_endpoint_auth_methods_supported"`
-	CodeChallengeMethods  []string `json:"code_challenge_methods_supported"`
-	DPoPSigningAlgValues  []string `json:"dpop_signing_alg_values_supported,omitempty"`
+	Issuer                string `json:"issuer"`
+	AuthorizationEndpoint string `json:"authorization_endpoint"`
+	TokenEndpoint         string `json:"token_endpoint"`
+	UserinfoEndpoint      string `json:"userinfo_endpoint"`
+	JwksURI               string `json:"jwks_uri"`
+	RevocationEndpoint    string `json:"revocation_endpoint"`
+	// IntrospectionEndpoint is omitempty because POST /oauth/introspect is mounted
+	// only on the internal control plane. Advertising a URL on the public host
+	// that 404s there sends every conformant resource server down a dead end.
+	IntrospectionEndpoint string `json:"introspection_endpoint,omitempty"`
+	// The endpoints below are all reachable on the public host and were simply
+	// missing from the OIDC document even though the RFC 8414 document listed
+	// them. An RP doing conformant OIDC discovery could not find RP-initiated
+	// logout at all.
+	EndSessionEndpoint          string   `json:"end_session_endpoint,omitempty"`
+	PAREndpoint                 string   `json:"pushed_authorization_request_endpoint,omitempty"`
+	DeviceAuthorizationEndpoint string   `json:"device_authorization_endpoint,omitempty"`
+	BCAuthorizeEndpoint         string   `json:"backchannel_authentication_endpoint,omitempty"`
+	ScopesSupported             []string `json:"scopes_supported"`
+	ResponseTypesSupp           []string `json:"response_types_supported"`
+	ResponseModesSupported      []string `json:"response_modes_supported,omitempty"`
+	GrantTypesSupported         []string `json:"grant_types_supported"`
+	SubjectTypesSupported       []string `json:"subject_types_supported"`
+	IDTokenSignAlgValues        []string `json:"id_token_signing_alg_values_supported"`
+	TokenEndpointAuth           []string `json:"token_endpoint_auth_methods_supported"`
+	// REQUIRED by OIDC Discovery 1.0 §3 whenever private_key_jwt or
+	// client_secret_jwt is advertised, which it is.
+	TokenEndpointAuthSigningAlgValues []string `json:"token_endpoint_auth_signing_alg_values_supported,omitempty"`
+	ACRValuesSupported                []string `json:"acr_values_supported,omitempty"`
+	ClaimsSupported                   []string `json:"claims_supported,omitempty"`
+	CodeChallengeMethods              []string `json:"code_challenge_methods_supported"`
+	RequestParameterSupported         bool     `json:"request_parameter_supported"`
+	RequestURIParameterSupported      bool     `json:"request_uri_parameter_supported"`
+	DPoPSigningAlgValues              []string `json:"dpop_signing_alg_values_supported,omitempty"`
 }
 
 // JWKS (RFC 7517)
@@ -228,25 +283,28 @@ type OAuthConsentGrantResponseDTO struct {
 // GET /.well-known/oauth-authorization-server (RFC 8414). Unlike the OIDC
 // discovery document it omits OIDC-specific fields (userinfo, id_token_alg).
 type OAuthAuthorizationServerMetadataDTO struct {
-	Issuer                        string   `json:"issuer"`
-	AuthorizationEndpoint         string   `json:"authorization_endpoint"`
-	TokenEndpoint                 string   `json:"token_endpoint"`
-	JwksURI                       string   `json:"jwks_uri"`
-	RevocationEndpoint            string   `json:"revocation_endpoint"`
-	IntrospectionEndpoint         string   `json:"introspection_endpoint"`
-	PAREndpoint                   string   `json:"pushed_authorization_request_endpoint,omitempty"`
-	DeviceAuthorizationEndpoint   string   `json:"device_authorization_endpoint,omitempty"`
-	RegistrationEndpoint          string   `json:"registration_endpoint,omitempty"`
-	BCAuthorizeEndpoint           string   `json:"backchannel_authentication_endpoint,omitempty"`
-	EndSessionEndpoint            string   `json:"end_session_endpoint,omitempty"`
-	ScopesSupported               []string `json:"scopes_supported"`
-	ResponseTypesSupported        []string `json:"response_types_supported"`
-	GrantTypesSupported           []string `json:"grant_types_supported"`
-	TokenEndpointAuthMethods      []string `json:"token_endpoint_auth_methods_supported"`
-	CodeChallengeMethods          []string `json:"code_challenge_methods_supported"`
-	BackchannelTokenDeliveryModes []string `json:"backchannel_token_delivery_modes_supported,omitempty"`
-	DPoPSigningAlgValues          []string `json:"dpop_signing_alg_values_supported,omitempty"`
-	DPoPBindingRequired           bool     `json:"dpop_bound_access_tokens_required,omitempty"`
+	Issuer                string `json:"issuer"`
+	AuthorizationEndpoint string `json:"authorization_endpoint"`
+	TokenEndpoint         string `json:"token_endpoint"`
+	JwksURI               string `json:"jwks_uri"`
+	RevocationEndpoint    string `json:"revocation_endpoint"`
+	// omitempty for the same reason as on the OIDC document: introspection is
+	// control-plane only and is not reachable on the public host.
+	IntrospectionEndpoint             string   `json:"introspection_endpoint,omitempty"`
+	PAREndpoint                       string   `json:"pushed_authorization_request_endpoint,omitempty"`
+	DeviceAuthorizationEndpoint       string   `json:"device_authorization_endpoint,omitempty"`
+	RegistrationEndpoint              string   `json:"registration_endpoint,omitempty"`
+	BCAuthorizeEndpoint               string   `json:"backchannel_authentication_endpoint,omitempty"`
+	EndSessionEndpoint                string   `json:"end_session_endpoint,omitempty"`
+	ScopesSupported                   []string `json:"scopes_supported"`
+	ResponseTypesSupported            []string `json:"response_types_supported"`
+	GrantTypesSupported               []string `json:"grant_types_supported"`
+	TokenEndpointAuthMethods          []string `json:"token_endpoint_auth_methods_supported"`
+	TokenEndpointAuthSigningAlgValues []string `json:"token_endpoint_auth_signing_alg_values_supported,omitempty"`
+	CodeChallengeMethods              []string `json:"code_challenge_methods_supported"`
+	BackchannelTokenDeliveryModes     []string `json:"backchannel_token_delivery_modes_supported,omitempty"`
+	DPoPSigningAlgValues              []string `json:"dpop_signing_alg_values_supported,omitempty"`
+	DPoPBindingRequired               bool     `json:"dpop_bound_access_tokens_required,omitempty"`
 }
 
 // Pushed Authorization Requests (RFC 9126)

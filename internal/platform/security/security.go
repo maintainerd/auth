@@ -45,6 +45,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -346,6 +347,55 @@ func InitRateLimiter(rdb *redis.Client) {
 	rateLimiterClient = rdb
 }
 
+// ErrRateLimiterUnavailable is returned on a credential path when the lockout
+// store is configured but cannot be reached, so the caller must refuse the
+// attempt rather than proceed unmetered.
+var ErrRateLimiterUnavailable = errors.New("login is temporarily unavailable, please try again shortly")
+
+// unconfiguredLimiterWarnOnce keeps the "no limiter wired" warning to one line
+// per process rather than one per login attempt.
+var unconfiguredLimiterWarnOnce sync.Once
+
+// limiterOutagePolicy is deliberate and split in two, because "no Redis client"
+// and "Redis client that will not answer" are different situations:
+//
+//	NOT CONFIGURED (rateLimiterClient == nil) — unit tests and local dev that
+//	skip InitRateLimiter. Rejecting every login here would make the package
+//	unusable outside a full deployment, so this stays fail-OPEN, but it is
+//	logged loudly once: a production process in this state has NO brute-force
+//	control at all, and that must not be invisible.
+//
+//	CONFIGURED BUT FAILING (a Redis command errors) — a real outage in a real
+//	deployment. This fails CLOSED. Returning "allow" there removes the last
+//	pre-auth control on online password guessing, and it does so at exactly the
+//	moment an attacker who can cause the outage would want it removed. A short
+//	authentication outage is recoverable; unmetered credential stuffing is not.
+//
+// redis.Nil (key absent) is NOT an outage — it is the normal "no failures
+// recorded yet" answer and must keep returning allow.
+func limiterNotConfigured(op string) {
+	unconfiguredLimiterWarnOnce.Do(func() {
+		slog.Warn("rate limiter is not configured; account lockout and brute-force protection are DISABLED for this process. Call security.InitRateLimiter at startup.",
+			"first_skipped_operation", op)
+	})
+}
+
+// limiterOutage reports a store failure on a credential path and returns the
+// fail-closed error.
+func limiterOutage(op string, err error) error {
+	slog.Error("rate limiter store unavailable; failing the authentication attempt closed rather than allowing it unmetered",
+		"operation", op,
+		"error", err,
+	)
+	return ErrRateLimiterUnavailable
+}
+
+// isLimiterOutage reports whether a Redis error means the store failed, as
+// opposed to the key simply not existing.
+func isLimiterOutage(err error) bool {
+	return err != nil && !errors.Is(err, redis.Nil)
+}
+
 func rateLimitCountKey(identifier string) string {
 	return "rl:count:" + identifier
 }
@@ -362,13 +412,18 @@ func CheckRateLimit(identifier string) error {
 	span.SetAttributes(attribute.String("identifier", identifier))
 
 	if rateLimiterClient == nil {
-		return nil // graceful degradation during unit tests that skip InitRateLimiter
+		limiterNotConfigured("CheckRateLimit")
+		return nil // see limiterNotConfigured for why this stays fail-open
 	}
 
 	ctx := context.Background()
 
 	// Check lock key first
 	lockVal, err := rateLimiterClient.Get(ctx, rateLimitLockKey(identifier)).Result()
+	if isLimiterOutage(err) {
+		span.SetStatus(codes.Error, "rate limiter unavailable")
+		return limiterOutage("CheckRateLimit/lock", err)
+	}
 	if err == nil && lockVal != "" {
 		// Parse remaining TTL for a useful error message
 		ttl, _ := rateLimiterClient.TTL(ctx, rateLimitLockKey(identifier)).Result()
@@ -376,8 +431,13 @@ func CheckRateLimit(identifier string) error {
 		return fmt.Errorf("account is locked for %v due to too many failed login attempts", ttl.Round(time.Minute))
 	}
 
-	// Count check
+	// Count check. redis.Nil here means no attempts yet; any other error means
+	// the counter is unreadable, which is not the same as "zero failures".
 	countStr, err := rateLimiterClient.Get(ctx, rateLimitCountKey(identifier)).Result()
+	if isLimiterOutage(err) {
+		span.SetStatus(codes.Error, "rate limiter unavailable")
+		return limiterOutage("CheckRateLimit/count", err)
+	}
 	if err != nil {
 		return nil // key absent ⇒ no attempts yet
 	}
@@ -409,6 +469,7 @@ func RecordFailedAttempt(identifier string) {
 	span.SetAttributes(attribute.String("identifier", identifier))
 
 	if rateLimiterClient == nil {
+		limiterNotConfigured("RecordFailedAttempt")
 		return
 	}
 	ctx := context.Background()
@@ -416,7 +477,15 @@ func RecordFailedAttempt(identifier string) {
 	pipe := rateLimiterClient.Pipeline()
 	pipe.Incr(ctx, key)
 	pipe.Expire(ctx, key, LoginAttemptWindow)
-	_, _ = pipe.Exec(ctx)
+	// A dropped increment is silent and permanent: the attempt that should have
+	// pushed this identifier over the lockout threshold simply was not counted,
+	// so lockout never fires for it. Surface it — this function cannot fail the
+	// request (the caller has already rejected the credential), but an operator
+	// needs to see that the counter is not being written.
+	if _, err := pipe.Exec(ctx); err != nil {
+		slog.Error("failed login attempt was not recorded; account lockout will under-count this identifier",
+			"error", err)
+	}
 }
 
 // CheckRateLimitWithConfig checks whether identifier is locked out using
@@ -448,11 +517,16 @@ func checkRateLimitWithThresholds(identifier string, maxAttempts int, lockoutDur
 	span.SetAttributes(attribute.String("identifier", identifier))
 
 	if rateLimiterClient == nil {
-		return nil
+		limiterNotConfigured("CheckRateLimitWithConfig")
+		return nil // see limiterNotConfigured for why this stays fail-open
 	}
 	ctx := context.Background()
 
 	lockVal, err := rateLimiterClient.Get(ctx, rateLimitLockKey(identifier)).Result()
+	if isLimiterOutage(err) {
+		span.SetStatus(codes.Error, "rate limiter unavailable")
+		return limiterOutage("CheckRateLimitWithConfig/lock", err)
+	}
 	if err == nil && lockVal != "" {
 		ttl, _ := rateLimiterClient.TTL(ctx, rateLimitLockKey(identifier)).Result()
 		span.SetStatus(codes.Error, "account locked")
@@ -462,7 +536,13 @@ func checkRateLimitWithThresholds(identifier string, maxAttempts int, lockoutDur
 		return fmt.Errorf("account is locked for %v due to too many failed login attempts", ttl.Round(time.Minute))
 	}
 
+	// redis.Nil means no failures recorded yet; anything else means the counter
+	// is unreadable, which must not be read as "zero".
 	countStr, err := rateLimiterClient.Get(ctx, rateLimitCountKey(identifier)).Result()
+	if isLimiterOutage(err) {
+		span.SetStatus(codes.Error, "rate limiter unavailable")
+		return limiterOutage("CheckRateLimitWithConfig/count", err)
+	}
 	if err != nil {
 		return nil
 	}

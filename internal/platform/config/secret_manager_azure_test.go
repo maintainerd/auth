@@ -95,7 +95,7 @@ func TestAzureKeyVaultManager_GetSecret(t *testing.T) {
 
 		_, err := sm.GetSecret("K")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "has no value")
+		assert.ErrorIs(t, err, ErrSecretNotFound, "an absent secret must be reported with the sentinel so callers can distinguish it from an outage")
 	})
 
 	t.Run("api error", func(t *testing.T) {

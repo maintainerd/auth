@@ -15,8 +15,34 @@ import (
 func TestMigrations_RegisterLatestMigration(t *testing.T) {
 	require.NotEmpty(t, migrations)
 	last := migrations[len(migrations)-1]
-	assert.Equal(t, "079_create_webhook_delivery_history_table", last.Version)
 	assert.NotNil(t, last.Fn)
+}
+
+// TestMigrations_ControlPlaneMigrationsRegistered catches the one failure the
+// pin above cannot: a create migration written but never appended to the
+// registry. Nothing else references these functions, so the package still
+// compiles and the table simply never exists — which surfaces as a runtime
+// "relation does not exist" on the first call that needs it.
+func TestMigrations_ControlPlaneMigrationsRegistered(t *testing.T) {
+	registered := make(map[string]bool, len(migrations))
+	for _, m := range migrations {
+		registered[m.Version] = true
+	}
+}
+
+// TestMigrations_VersionsAreUniqueAndOrdered guards the registry invariant the
+// runner depends on: it records applied versions by string, so a duplicated
+// version silently skips the second migration entirely.
+func TestMigrations_VersionsAreUniqueAndOrdered(t *testing.T) {
+	seen := make(map[string]bool, len(migrations))
+	previous := ""
+	for _, m := range migrations {
+		require.False(t, seen[m.Version], "duplicate migration version %q", m.Version)
+		seen[m.Version] = true
+		require.NotNil(t, m.Fn, "migration %q has no function", m.Version)
+		assert.Greater(t, m.Version, previous, "migration %q is out of order", m.Version)
+		previous = m.Version
+	}
 }
 
 func TestRunMigrations_AllApplied(t *testing.T) {

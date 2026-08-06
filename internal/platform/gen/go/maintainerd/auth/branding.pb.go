@@ -2240,24 +2240,7 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"tenantUuid\x12*\n" +
 	"\x11sms_template_uuid\x18\x02 \x01(\tR\x0fsmsTemplateUuid\"`\n" +
 	"\x19DeleteSMSTemplateResponse\x12C\n" +
-	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate2\xde\x01\n" +
-	"\x0fBrandingService\x12`\n" +
-	"\vGetBranding\x12'.maintainerd.auth.v1.GetBrandingRequest\x1a(.maintainerd.auth.v1.GetBrandingResponse\x12i\n" +
-	"\x0eUpdateBranding\x12*.maintainerd.auth.v1.UpdateBrandingRequest\x1a+.maintainerd.auth.v1.UpdateBrandingResponse2\xf0\x05\n" +
-	"\x14EmailTemplateService\x12u\n" +
-	"\x12ListEmailTemplates\x12..maintainerd.auth.v1.ListEmailTemplatesRequest\x1a/.maintainerd.auth.v1.ListEmailTemplatesResponse\x12o\n" +
-	"\x10GetEmailTemplate\x12,.maintainerd.auth.v1.GetEmailTemplateRequest\x1a-.maintainerd.auth.v1.GetEmailTemplateResponse\x12x\n" +
-	"\x13CreateEmailTemplate\x12/.maintainerd.auth.v1.CreateEmailTemplateRequest\x1a0.maintainerd.auth.v1.CreateEmailTemplateResponse\x12x\n" +
-	"\x13UpdateEmailTemplate\x12/.maintainerd.auth.v1.UpdateEmailTemplateRequest\x1a0.maintainerd.auth.v1.UpdateEmailTemplateResponse\x12\x81\x01\n" +
-	"\x16SetEmailTemplateStatus\x122.maintainerd.auth.v1.SetEmailTemplateStatusRequest\x1a3.maintainerd.auth.v1.SetEmailTemplateStatusResponse\x12x\n" +
-	"\x13DeleteEmailTemplate\x12/.maintainerd.auth.v1.DeleteEmailTemplateRequest\x1a0.maintainerd.auth.v1.DeleteEmailTemplateResponse2\xc9\x05\n" +
-	"\x12SMSTemplateService\x12o\n" +
-	"\x10ListSMSTemplates\x12,.maintainerd.auth.v1.ListSMSTemplatesRequest\x1a-.maintainerd.auth.v1.ListSMSTemplatesResponse\x12i\n" +
-	"\x0eGetSMSTemplate\x12*.maintainerd.auth.v1.GetSMSTemplateRequest\x1a+.maintainerd.auth.v1.GetSMSTemplateResponse\x12r\n" +
-	"\x11CreateSMSTemplate\x12-.maintainerd.auth.v1.CreateSMSTemplateRequest\x1a..maintainerd.auth.v1.CreateSMSTemplateResponse\x12r\n" +
-	"\x11UpdateSMSTemplate\x12-.maintainerd.auth.v1.UpdateSMSTemplateRequest\x1a..maintainerd.auth.v1.UpdateSMSTemplateResponse\x12{\n" +
-	"\x14SetSMSTemplateStatus\x120.maintainerd.auth.v1.SetSMSTemplateStatusRequest\x1a1.maintainerd.auth.v1.SetSMSTemplateStatusResponse\x12r\n" +
-	"\x11DeleteSMSTemplate\x12-.maintainerd.auth.v1.DeleteSMSTemplateRequest\x1a..maintainerd.auth.v1.DeleteSMSTemplateResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplateBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_branding_proto_rawDescOnce sync.Once
@@ -2333,36 +2316,8 @@ var file_maintainerd_auth_v1_branding_proto_depIdxs = []int32{
 	18, // 21: maintainerd.auth.v1.UpdateSMSTemplateResponse.sms_template:type_name -> maintainerd.auth.v1.SMSTemplate
 	18, // 22: maintainerd.auth.v1.SetSMSTemplateStatusResponse.sms_template:type_name -> maintainerd.auth.v1.SMSTemplate
 	18, // 23: maintainerd.auth.v1.DeleteSMSTemplateResponse.sms_template:type_name -> maintainerd.auth.v1.SMSTemplate
-	1,  // 24: maintainerd.auth.v1.BrandingService.GetBranding:input_type -> maintainerd.auth.v1.GetBrandingRequest
-	3,  // 25: maintainerd.auth.v1.BrandingService.UpdateBranding:input_type -> maintainerd.auth.v1.UpdateBrandingRequest
-	6,  // 26: maintainerd.auth.v1.EmailTemplateService.ListEmailTemplates:input_type -> maintainerd.auth.v1.ListEmailTemplatesRequest
-	8,  // 27: maintainerd.auth.v1.EmailTemplateService.GetEmailTemplate:input_type -> maintainerd.auth.v1.GetEmailTemplateRequest
-	10, // 28: maintainerd.auth.v1.EmailTemplateService.CreateEmailTemplate:input_type -> maintainerd.auth.v1.CreateEmailTemplateRequest
-	12, // 29: maintainerd.auth.v1.EmailTemplateService.UpdateEmailTemplate:input_type -> maintainerd.auth.v1.UpdateEmailTemplateRequest
-	14, // 30: maintainerd.auth.v1.EmailTemplateService.SetEmailTemplateStatus:input_type -> maintainerd.auth.v1.SetEmailTemplateStatusRequest
-	16, // 31: maintainerd.auth.v1.EmailTemplateService.DeleteEmailTemplate:input_type -> maintainerd.auth.v1.DeleteEmailTemplateRequest
-	19, // 32: maintainerd.auth.v1.SMSTemplateService.ListSMSTemplates:input_type -> maintainerd.auth.v1.ListSMSTemplatesRequest
-	21, // 33: maintainerd.auth.v1.SMSTemplateService.GetSMSTemplate:input_type -> maintainerd.auth.v1.GetSMSTemplateRequest
-	23, // 34: maintainerd.auth.v1.SMSTemplateService.CreateSMSTemplate:input_type -> maintainerd.auth.v1.CreateSMSTemplateRequest
-	25, // 35: maintainerd.auth.v1.SMSTemplateService.UpdateSMSTemplate:input_type -> maintainerd.auth.v1.UpdateSMSTemplateRequest
-	27, // 36: maintainerd.auth.v1.SMSTemplateService.SetSMSTemplateStatus:input_type -> maintainerd.auth.v1.SetSMSTemplateStatusRequest
-	29, // 37: maintainerd.auth.v1.SMSTemplateService.DeleteSMSTemplate:input_type -> maintainerd.auth.v1.DeleteSMSTemplateRequest
-	2,  // 38: maintainerd.auth.v1.BrandingService.GetBranding:output_type -> maintainerd.auth.v1.GetBrandingResponse
-	4,  // 39: maintainerd.auth.v1.BrandingService.UpdateBranding:output_type -> maintainerd.auth.v1.UpdateBrandingResponse
-	7,  // 40: maintainerd.auth.v1.EmailTemplateService.ListEmailTemplates:output_type -> maintainerd.auth.v1.ListEmailTemplatesResponse
-	9,  // 41: maintainerd.auth.v1.EmailTemplateService.GetEmailTemplate:output_type -> maintainerd.auth.v1.GetEmailTemplateResponse
-	11, // 42: maintainerd.auth.v1.EmailTemplateService.CreateEmailTemplate:output_type -> maintainerd.auth.v1.CreateEmailTemplateResponse
-	13, // 43: maintainerd.auth.v1.EmailTemplateService.UpdateEmailTemplate:output_type -> maintainerd.auth.v1.UpdateEmailTemplateResponse
-	15, // 44: maintainerd.auth.v1.EmailTemplateService.SetEmailTemplateStatus:output_type -> maintainerd.auth.v1.SetEmailTemplateStatusResponse
-	17, // 45: maintainerd.auth.v1.EmailTemplateService.DeleteEmailTemplate:output_type -> maintainerd.auth.v1.DeleteEmailTemplateResponse
-	20, // 46: maintainerd.auth.v1.SMSTemplateService.ListSMSTemplates:output_type -> maintainerd.auth.v1.ListSMSTemplatesResponse
-	22, // 47: maintainerd.auth.v1.SMSTemplateService.GetSMSTemplate:output_type -> maintainerd.auth.v1.GetSMSTemplateResponse
-	24, // 48: maintainerd.auth.v1.SMSTemplateService.CreateSMSTemplate:output_type -> maintainerd.auth.v1.CreateSMSTemplateResponse
-	26, // 49: maintainerd.auth.v1.SMSTemplateService.UpdateSMSTemplate:output_type -> maintainerd.auth.v1.UpdateSMSTemplateResponse
-	28, // 50: maintainerd.auth.v1.SMSTemplateService.SetSMSTemplateStatus:output_type -> maintainerd.auth.v1.SetSMSTemplateStatusResponse
-	30, // 51: maintainerd.auth.v1.SMSTemplateService.DeleteSMSTemplate:output_type -> maintainerd.auth.v1.DeleteSMSTemplateResponse
-	38, // [38:52] is the sub-list for method output_type
-	24, // [24:38] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for method output_type
+	24, // [24:24] is the sub-list for method input_type
 	24, // [24:24] is the sub-list for extension type_name
 	24, // [24:24] is the sub-list for extension extendee
 	0,  // [0:24] is the sub-list for field type_name
@@ -2390,7 +2345,7 @@ func file_maintainerd_auth_v1_branding_proto_init() {
 			NumEnums:      0,
 			NumMessages:   31,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   0,
 		},
 		GoTypes:           file_maintainerd_auth_v1_branding_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_branding_proto_depIdxs,

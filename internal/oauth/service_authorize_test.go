@@ -3,6 +3,7 @@ package oauth
 import (
 	"context"
 	"errors"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -1759,13 +1760,36 @@ func TestBuildAuthCodeRedirect(t *testing.T) {
 	})
 
 	t.Run("URI with existing query params", func(t *testing.T) {
+		// Parameter ORDER changed when this moved to url.Values, which encodes
+		// keys sorted. The registered URI's own parameters are still preserved,
+		// which is the part the test is about.
 		u := buildAuthCodeRedirect("https://example.com/callback?foo=bar", "CODE123", "STATE")
-		assert.Equal(t, "https://example.com/callback?foo=bar&code=CODE123&state=STATE", u)
+		assert.Equal(t, "https://example.com/callback?code=CODE123&foo=bar&state=STATE", u)
 	})
 
 	t.Run("no state", func(t *testing.T) {
 		u := buildAuthCodeRedirect("https://example.com/callback", "CODE123", "")
 		assert.Equal(t, "https://example.com/callback?code=CODE123", u)
+	})
+
+	// state is client-controlled and reaches this function already URL-decoded,
+	// so raw concatenation let it re-partition the callback query.
+	t.Run("state cannot inject extra query parameters", func(t *testing.T) {
+		u := buildAuthCodeRedirect("https://example.com/callback", "CODE123", "x&code=attacker")
+		parsed, err := url.Parse(u)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"CODE123"}, parsed.Query()["code"],
+			"the injected code must not appear as a second code parameter")
+		assert.Equal(t, "x&code=attacker", parsed.Query().Get("state"))
+	})
+
+	t.Run("state cannot truncate the query into a fragment", func(t *testing.T) {
+		u := buildAuthCodeRedirect("https://example.com/callback", "CODE123", "x#frag")
+		parsed, err := url.Parse(u)
+		require.NoError(t, err)
+		assert.Empty(t, parsed.Fragment)
+		assert.Equal(t, "x#frag", parsed.Query().Get("state"))
+		assert.Equal(t, "CODE123", parsed.Query().Get("code"))
 	})
 }
 

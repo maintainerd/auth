@@ -21,6 +21,10 @@ type UserRole = user.UserRole
 type Profile = user.Profile
 type Client = client.Client
 type IdentityProvider = client.IdentityProvider
+
+// ClientIdentityProvider is the client↔provider connection. Identities are
+// created against the provider it names, not against the client.
+type ClientIdentityProvider = client.ClientIdentityProvider
 type Role = iam.Role
 type Service = iam.Service
 type Policy = iam.Policy
@@ -41,5 +45,15 @@ type ProfileRepository = user.ProfileRepository
 type ServiceRepository = iam.ServiceRepository
 type PolicyRepository = iam.PolicyRepository
 type ServicePolicyRepository = iam.ServicePolicyRepository
+type APIRepository = iam.APIRepository
+type PermissionRepository = iam.PermissionRepository
+type RolePermissionRepository = iam.RolePermissionRepository
+type ClientURIRepository = client.ClientURIRepository
+type ClientURI = client.ClientURI
+type API = iam.API
+type Permission = iam.Permission
+type RolePermission = iam.RolePermission
+type APIRepositoryGetFilter = iam.APIRepositoryGetFilter
+type PermissionRepositoryGetFilter = iam.PermissionRepositoryGetFilter
 
 var NewProfileResponseDTO = user.NewProfileResponseDTO

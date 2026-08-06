@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"math"
 	"net/http"
+	"strconv"
 
 	"gorm.io/gorm"
 
@@ -153,6 +155,8 @@ func HandleServiceError(w http.ResponseWriter, r *http.Request, fallbackMsg stri
 	var forbidden *apperror.ForbiddenError
 	var unauthorized *apperror.UnauthorizedError
 	var validationErr *apperror.ValidationError
+	var throttled *apperror.TooManyRequestsError
+	var unavailable *apperror.ServiceUnavailableError
 	var internal *apperror.InternalError
 
 	switch {
@@ -166,9 +170,24 @@ func HandleServiceError(w http.ResponseWriter, r *http.Request, fallbackMsg stri
 		Error(w, http.StatusUnauthorized, unauthorized.Error())
 	case errors.As(err, &validationErr):
 		Error(w, http.StatusBadRequest, validationErr.Error())
-	case errors.As(err, &internal):
-		LoggerFromContext(r.Context()).Error("internal service error", "error", internal.Error())
-		Error(w, http.StatusInternalServerError, fallbackMsg)
+	case errors.As(err, &unavailable):
+		// Checked before throttled: a limiter outage produces a refusal that is
+		// about the service, not the caller's rate, and 429 would blame the user
+		// for a fault they did not cause.
+		Error(w, http.StatusServiceUnavailable, unavailable.Error())
+	case errors.As(err, &throttled):
+		// Retry-After is seconds, rounded UP: rounding down hands back a delay
+		// that is still inside the window, so the client's first retry is
+		// guaranteed to be throttled again (RFC 9110 §10.2.3).
+		if throttled.RetryAfter > 0 {
+			seconds := int(math.Ceil(throttled.RetryAfter.Seconds()))
+			w.Header().Set("Retry-After", strconv.Itoa(seconds))
+		}
+		Error(w, http.StatusTooManyRequests, throttled.Error())
+	// The gorm sentinels are matched BEFORE InternalError because services wrap
+	// driver errors in one (apperror.NewInternal) and InternalError unwraps —
+	// so a sentinel reaches here inside an InternalError, and testing the typed
+	// case first would swallow every one of them as a 500.
 	case errors.Is(err, gorm.ErrDuplicatedKey):
 		// A unique index rejected the write. Services pre-check uniqueness and
 		// return a domain Conflict, but a pre-check cannot close the race between
@@ -177,6 +196,9 @@ func HandleServiceError(w http.ResponseWriter, r *http.Request, fallbackMsg stri
 		Error(w, http.StatusConflict, "A record with these values already exists")
 	case errors.Is(err, gorm.ErrForeignKeyViolated):
 		Error(w, http.StatusBadRequest, "A referenced record does not exist")
+	case errors.As(err, &internal):
+		LoggerFromContext(r.Context()).Error("internal service error", "error", internal.Error())
+		Error(w, http.StatusInternalServerError, fallbackMsg)
 	default:
 		// Untyped error — log it and return the fallback message.
 		LoggerFromContext(r.Context()).Error("unhandled service error", "error", err.Error())

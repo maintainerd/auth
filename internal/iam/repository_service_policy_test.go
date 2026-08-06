@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -54,17 +55,28 @@ func TestServicePolicyRepository(t *testing.T) {
 		mock.ExpectExec(`DELETE FROM "service_policies".*`).WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		expectAnySelect(mock, "policies").WillReturnRows(policyRows())
-		expectAnySelect(mock, "services").WillReturnRows(serviceRows())
 		repo := NewServicePolicyRepository(db)
 
 		require.NoError(t, repo.DeleteByServiceAndPolicy(2, 3))
 		policies, err := repo.FindPoliciesByServiceID(2)
 		require.NoError(t, err)
 		assert.Len(t, policies, 1)
-		services, err := repo.FindServicesByPolicyID(3)
-		require.NoError(t, err)
-		assert.Len(t, services, 1)
+		// The FindServicesByPolicyID case went with the method — zero-caller and
+		// tenant-unscoped (see repository_service_policy.go).
 		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	// servicePolicySortColumns replaced the global union allowlist, which accepted
+	// columns `service_policies` does not have (name, status, updated_at) and
+	// turned sort_by=name into a Postgres 42703 → 500.
+	t.Run("FindPaginated sorting is limited to the service_policies table", func(t *testing.T) {
+		for _, sortBy := range []string{"name", "status", "updated_at", "email"} {
+			assert.Equal(t, "created_at DESC",
+				database.SanitizeOrderIn(servicePolicySortColumns, sortBy, SortOrderDesc, "created_at DESC"),
+				"%q is not a service_policies column and must fall back to the default", sortBy)
+		}
+		assert.Equal(t, "policy_id ASC",
+			database.SanitizeOrderIn(servicePolicySortColumns, "policy_id", "asc", "created_at DESC"))
 	})
 
 	t.Run("FindPaginated applies filters", func(t *testing.T) {

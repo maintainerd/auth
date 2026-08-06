@@ -190,7 +190,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 	}
 
 	if user != nil && otp != "" {
-		if err := s.sendVerificationEmail(ctx, user.Email, otp); err != nil {
+		if err := s.sendVerificationEmail(ctx, user.TenantID, user.Email, otp); err != nil {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "email_verification_send_failure",
 				UserID:    user.UserUUID.String(),
@@ -376,7 +376,7 @@ func (s *emailVerificationService) invalidateUserContextCache(ctx context.Contex
 	}
 }
 
-func (s *emailVerificationService) sendVerificationEmail(ctx context.Context, to, otp string) error {
+func (s *emailVerificationService) sendVerificationEmail(ctx context.Context, tenantID int64, to, otp string) error {
 	templateEntity, err := s.emailTemplateRepo.FindByName(EmailVerificationTemplateName)
 	if err != nil {
 		return apperror.NewInternal("failed to fetch verification email template", err)
@@ -387,7 +387,7 @@ func (s *emailVerificationService) sendVerificationEmail(ctx context.Context, to
 		LogoURL string
 	}{
 		OTP:     otp,
-		LogoURL: email.GetLogoURL(ctx, s.db),
+		LogoURL: email.GetLogoURL(ctx, s.db, tenantID),
 	}
 
 	tmpl, err := template.New("verify_html").Parse(templateEntity.BodyHTML)
@@ -413,6 +413,9 @@ func (s *emailVerificationService) sendVerificationEmail(ctx context.Context, to
 	}
 
 	return email.SendEmail(ctx, s.db, email.SendEmailParams{
+		// See sendPasswordResetEmail: tenant 0 silently borrows the system
+		// tenant's mail configuration.
+		TenantID:  tenantID,
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

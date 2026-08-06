@@ -56,8 +56,8 @@ func (s *federationService) InitiateSAMLSSO(ctx context.Context, in SAMLInitiate
 		return nil, err
 	}
 
-	entityID, acsURL, metadataURL := samlSPURLs(in.ProviderIdentifier)
-	sp, err := buildSAMLServiceProvider(cfg, entityID, acsURL, metadataURL)
+	entityID, acsURL, metadataURL, sloURL := samlSPURLs(in.ProviderIdentifier)
+	sp, err := buildSAMLServiceProvider(cfg, entityID, acsURL, metadataURL, sloURL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to build SAML SP", err)
 	}
@@ -111,7 +111,7 @@ func (s *federationService) validateSAMLRedirectURI(clientID int64, redirectURI 
 // or authenticates the user, stores a short-lived exchange code, and returns
 // the redirect URI with the code appended as a query parameter.
 func (s *federationService) HandleSAMLResponse(ctx context.Context, r *http.Request, relayState string) (*SAMLCallbackResult, error) {
-	rs, err := verifyRelayState(relayState)
+	rs, err := verifyRelayStateForPurpose(relayState, samlRelayPurposeSSO)
 	if err != nil {
 		return nil, apperror.NewUnauthorized("invalid or expired relay state")
 	}
@@ -135,8 +135,8 @@ func (s *federationService) HandleSAMLResponse(ctx context.Context, r *http.Requ
 		return nil, apperror.NewValidation(err.Error())
 	}
 
-	entityID, acsURL, metadataURL := samlSPURLs(rs.ProviderIdentifier)
-	sp, err := buildSAMLServiceProvider(cfg, entityID, acsURL, metadataURL)
+	entityID, acsURL, metadataURL, sloURL := samlSPURLs(rs.ProviderIdentifier)
+	sp, err := buildSAMLServiceProvider(cfg, entityID, acsURL, metadataURL, sloURL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to build SAML SP", err)
 	}
@@ -275,17 +275,13 @@ func (s *federationService) enforceRelayStateSingleUse(ctx context.Context, nonc
 	if nonce == "" {
 		return apperror.NewUnauthorized("invalid relay state")
 	}
-	if s.samlStore == nil {
-		return apperror.NewInternal("SAML session store not configured", nil)
+	seen, err := s.markSAMLMessageSeen(ctx, samlRelayNonceKeyPrefix+nonce)
+	if err != nil {
+		return err
 	}
-	key := samlRelayNonceKeyPrefix + nonce
-	var seen bool
-	if err := s.samlStore.GetSession(ctx, key, &seen); err == nil {
+	if seen {
 		// A value exists for this nonce — it has already been consumed.
 		return apperror.NewUnauthorized("SAML relay state has already been used")
-	}
-	if err := s.samlStore.SetSession(ctx, key, true, samlRelayNonceTTL); err != nil {
-		return apperror.NewInternal("failed to record relay state use", err)
 	}
 	return nil
 }
@@ -317,8 +313,8 @@ func (s *federationService) SAMLMetadata(ctx context.Context, identifier string)
 		return nil, apperror.NewValidation(fmt.Sprintf("invalid SAML config: %s", err))
 	}
 
-	entityID, acsURL, metadataURL := samlSPURLs(identifier)
-	sp, err := buildSAMLServiceProvider(cfg, entityID, acsURL, metadataURL)
+	entityID, acsURL, metadataURL, sloURL := samlSPURLs(identifier)
+	sp, err := buildSAMLServiceProvider(cfg, entityID, acsURL, metadataURL, sloURL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to build SAML SP", err)
 	}

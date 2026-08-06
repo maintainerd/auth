@@ -419,7 +419,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
-		mock.ExpectQuery(`SELECT .+ FROM "users".*ORDER BY users.created_at DESC,user_id DESC LIMIT \$[0-9]+`).
+		mock.ExpectQuery(`SELECT .+ FROM "users".*ORDER BY users.created_at DESC,users.user_id DESC LIMIT \$[0-9]+`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id", "user_uuid", "username"}).
 				AddRow(1, testResourceUUID, "user1").
 				AddRow(2, testUserUUID, "user2"))
@@ -437,7 +437,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
-		mock.ExpectQuery(`SELECT .+ FROM "users".*ORDER BY users.created_at DESC,user_id DESC LIMIT \$[0-9]+`).
+		mock.ExpectQuery(`SELECT .+ FROM "users".*ORDER BY users.created_at DESC,users.user_id DESC LIMIT \$[0-9]+`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
 
 		_, err := repo.FindPaginated(UserRepositoryGetFilter{
@@ -468,7 +468,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
-		mock.ExpectQuery(`SELECT .+ FROM "users".*ORDER BY users.created_at DESC,user_id DESC LIMIT \$[0-9]+`).
+		mock.ExpectQuery(`SELECT .+ FROM "users".*ORDER BY users.created_at DESC,users.user_id DESC LIMIT \$[0-9]+`).
 			WillReturnError(errors.New("db error"))
 
 		_, err := repo.FindPaginated(UserRepositoryGetFilter{
@@ -499,7 +499,7 @@ func TestUserRepository_FindPaginated(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 
-		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE users.status IN \(\$1\) AND "users"\."deleted_at" IS NULL ORDER BY users.created_at DESC,user_id DESC LIMIT \$[0-9]+`).
+		mock.ExpectQuery(`SELECT .+ FROM "users" WHERE users.status IN \(\$1\) AND "users"\."deleted_at" IS NULL ORDER BY users.created_at DESC,users.user_id DESC LIMIT \$[0-9]+`).
 			WillReturnRows(sqlmock.NewRows([]string{"user_id", "user_uuid", "username"}).
 				AddRow(1, testResourceUUID, "user1"))
 		expectProfilePreloads(mock, int64(1))
@@ -599,13 +599,20 @@ func TestUserRepository_SetForcePasswordChange(t *testing.T) {
 }
 
 func TestUserRepository_UpdateEmail(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
+	// UPDATED: the statement used to set the email column alone, which left
+	// is_email_verified / email_verified_at describing the OLD address. The only
+	// caller is the OTP-confirmed email change, where the user has just proved
+	// control of the new mailbox — so the verification state must move with it,
+	// in the same statement. Without that an unverified user stayed blocked by
+	// enforceLoginEmailVerification despite having just verified.
+	t.Run("advances verification state atomically with the address", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserRepository(db)
 		userUUID := uuid.New()
 
 		mock.ExpectBegin()
-		mock.ExpectExec(`UPDATE "users" SET "email"=\$1,"updated_at"=\$2 WHERE user_uuid = \$3 AND "users"\."deleted_at" IS NULL`).
+		mock.ExpectExec(`UPDATE "users" SET "email"=\$1,"email_verified_at"=\$2,"is_email_verified"=\$3,"updated_at"=\$4 WHERE user_uuid = \$5 AND "users"\."deleted_at" IS NULL`).
+			WithArgs("new@test.com", sqlmock.AnyArg(), true, sqlmock.AnyArg(), userUUID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 

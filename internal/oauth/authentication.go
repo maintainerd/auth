@@ -12,6 +12,7 @@ import (
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	clientpkg "github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"gorm.io/gorm"
 )
@@ -84,6 +85,26 @@ func clientHasGrant(client *Client, grantType string) bool {
 const (
 	assertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 	assertionMaxAge        = 5 * time.Minute
+	// assertionClockSkew is the only slack allowed on an assertion's time claims.
+	// It used to be assertionMaxAge, handed to jwtlib.WithLeeway, which does not
+	// cap an assertion's age at all — it WIDENS the exp window by five minutes in
+	// both directions, so an assertion stayed usable five minutes past the expiry
+	// its own issuer chose. The age cap is now enforced explicitly in
+	// validateAssertionClaims.
+	assertionClockSkew = 30 * time.Second
+)
+
+var (
+	// assertionRSAAlgs and assertionHMACAlgs are the signing algorithms accepted on
+	// a private_key_jwt / client_secret_jwt assertion respectively. They are
+	// declared here rather than inline at the jwtlib.Parse calls so the discovery
+	// document's token_endpoint_auth_signing_alg_values_supported (REQUIRED by OIDC
+	// Discovery 1.0 §3 once these auth methods are advertised) is derived from what
+	// is actually accepted and cannot drift from it.
+	assertionRSAAlgs  = []string{"RS256", "RS384", "RS512"}
+	assertionHMACAlgs = []string{"HS256", "HS384", "HS512"}
+
+	assertionSigningAlgValues = append(append([]string{}, assertionRSAAlgs...), assertionHMACAlgs...)
 )
 
 func authenticatePrivateKeyJWT(client *Client, creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
@@ -94,7 +115,7 @@ func authenticatePrivateKeyJWT(client *Client, creds OAuthClientCredentials) (*C
 		return nil, apperror.NewOAuthInvalidClient("client_assertion is required")
 	}
 
-	if client.JWKS == nil && client.JWKSUri == nil {
+	if !clientHasVerificationMaterial(client) {
 		return nil, apperror.NewOAuthInvalidClient("client has no JWKS or jwks_uri configured")
 	}
 
@@ -105,7 +126,7 @@ func authenticatePrivateKeyJWT(client *Client, creds OAuthClientCredentials) (*C
 			return nil, err
 		}
 		return key, nil
-	}, jwtlib.WithLeeway(assertionMaxAge), jwtlib.WithValidMethods([]string{"RS256", "RS384", "RS512"}))
+	}, jwtlib.WithLeeway(assertionClockSkew), jwtlib.WithValidMethods(assertionRSAAlgs))
 
 	if err != nil || !token.Valid {
 		return nil, apperror.NewOAuthInvalidClient("client assertion is invalid")
@@ -138,7 +159,7 @@ func authenticateClientSecretJWT(client *Client, creds OAuthClientCredentials) (
 
 	token, err := jwtlib.Parse(creds.ClientAssertion, func(t *jwtlib.Token) (interface{}, error) {
 		return jwtlib.VerificationKeySet{Keys: secrets}, nil
-	}, jwtlib.WithLeeway(assertionMaxAge), jwtlib.WithValidMethods([]string{"HS256", "HS384", "HS512"}))
+	}, jwtlib.WithLeeway(assertionClockSkew), jwtlib.WithValidMethods(assertionHMACAlgs))
 
 	if err != nil || !token.Valid {
 		return nil, apperror.NewOAuthInvalidClient("client assertion is invalid")
@@ -182,13 +203,62 @@ func clientSecretJWTSecrets(client *Client) ([]jwtlib.VerificationKey, error) {
 	return secrets, nil
 }
 
+// authorizationServerAssertionAudiences is the set of `aud` values a client
+// assertion may name.
+//
+// RFC 7523 §3 point 3 requires the audience to identify the AUTHORIZATION SERVER
+// — its issuer, or the endpoint the assertion is presented to. The check used to
+// be `strings.HasPrefix(aud, *client.Domain)`: the client's own domain, matched
+// by prefix. That is wrong twice over. An assertion addressed to the client
+// itself is not addressed to this server, so an assertion the client minted for
+// any other relying party could be replayed here to authenticate it; and a
+// prefix match lets any attacker-controlled host that merely starts with the
+// registered domain (`https://app.example.com.evil.test`) satisfy it.
+func authorizationServerAssertionAudiences() []string {
+	issuer := strings.TrimRight(config.AppPublicHostname, "/")
+	if issuer == "" {
+		return nil
+	}
+	return []string{
+		issuer,
+		issuer + "/",
+		issuer + "/api/v1/oauth/token",
+		issuer + "/api/v1/oauth/par",
+	}
+}
+
+// assertionAudienceValues normalises the `aud` claim, which RFC 7519 §4.1.3
+// allows to be either a single string or an array of strings. Reading it only as
+// a string silently dropped the array form.
+func assertionAudienceValues(raw any) []string {
+	switch v := raw.(type) {
+	case string:
+		if v == "" {
+			return nil
+		}
+		return []string{v}
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok && s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	case []string:
+		return v
+	}
+	return nil
+}
+
 func validateAssertionClaims(claims jwtlib.MapClaims, client *Client) error {
 	iss, _ := claims["iss"].(string)
 	sub, _ := claims["sub"].(string)
-	aud, _ := claims["aud"].(string)
+	jti, _ := claims["jti"].(string)
+	auds := assertionAudienceValues(claims["aud"])
 	exp, _ := claims["exp"].(float64)
 
-	if iss == "" || sub == "" || aud == "" || exp == 0 {
+	if iss == "" || sub == "" || len(auds) == 0 || exp == 0 {
 		return fmt.Errorf("assertion missing required claims")
 	}
 
@@ -199,25 +269,76 @@ func validateAssertionClaims(claims jwtlib.MapClaims, client *Client) error {
 		return fmt.Errorf("assertion subject does not match client_id")
 	}
 
-	if client.Domain == nil || !strings.HasPrefix(aud, *client.Domain) {
+	// Fails CLOSED when APP_PUBLIC_HOSTNAME is unset: with no known issuer there
+	// is no audience this server can prove was meant for it.
+	accepted := authorizationServerAssertionAudiences()
+	if len(accepted) == 0 {
+		return fmt.Errorf("assertion audience cannot be verified")
+	}
+	matched := false
+	for _, aud := range auds {
+		for _, want := range accepted {
+			if strings.TrimRight(aud, "/") == strings.TrimRight(want, "/") {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			break
+		}
+	}
+	if !matched {
 		return fmt.Errorf("assertion audience invalid")
 	}
 
 	now := time.Now()
 	expTime := time.Unix(int64(exp), 0)
-	if now.After(expTime) {
+	if now.After(expTime.Add(assertionClockSkew)) {
 		return fmt.Errorf("assertion expired")
+	}
+	// Cap the lifetime the client may choose. Without this an assertion with a
+	// year-long exp is a bearer credential that never expires, which is exactly
+	// what private_key_jwt exists to avoid.
+	if expTime.After(now.Add(assertionMaxAge + assertionClockSkew)) {
+		return fmt.Errorf("assertion lifetime exceeds the maximum of %s", assertionMaxAge)
+	}
+	if iat, ok := claims["iat"].(float64); ok && iat > 0 {
+		if now.Sub(time.Unix(int64(iat), 0)) > assertionMaxAge+assertionClockSkew {
+			return fmt.Errorf("assertion is older than the maximum of %s", assertionMaxAge)
+		}
+	}
+
+	// RFC 7523 §3 point 7: a jti may authenticate exactly once. Recorded LAST so a
+	// malformed or expired assertion cannot burn a jti the legitimate client is
+	// about to use.
+	if jti == "" {
+		return fmt.Errorf("assertion missing required claims")
+	}
+	if !assertionReplayGuard.remember(jti, now) {
+		return fmt.Errorf("assertion has already been used")
 	}
 
 	return nil
 }
 
 func findClientJWK(client *Client, kid string) (interface{}, error) {
-	if client.JWKS != nil {
+	// An inline JWKS is authoritative when present; jwks_uri is the registry's
+	// other, equally valid form and has to be dereferenced or the client can
+	// never authenticate (see fetchClientJWKS).
+	raw := []byte(client.JWKS)
+	if len(raw) == 0 && client.JWKSUri != nil {
+		fetched, err := fetchClientJWKS(*client.JWKSUri)
+		if err != nil {
+			return nil, err
+		}
+		raw = fetched
+	}
+
+	if len(raw) > 0 {
 		var jwks struct {
 			Keys []json.RawMessage `json:"keys"`
 		}
-		if err := json.Unmarshal(client.JWKS, &jwks); err != nil {
+		if err := json.Unmarshal(raw, &jwks); err != nil {
 			return nil, fmt.Errorf("invalid JWKS format")
 		}
 		for _, rawKey := range jwks.Keys {
@@ -261,6 +382,15 @@ func findClientJWK(client *Client, kid string) (interface{}, error) {
 		return nil, fmt.Errorf("no usable RSA key found in client JWKS")
 	}
 	return nil, fmt.Errorf("no JWKS configured for client")
+}
+
+// clientHasVerificationMaterial reports whether the client can be authenticated
+// with an asymmetric assertion at all.
+func clientHasVerificationMaterial(client *Client) bool {
+	if len(client.JWKS) > 0 {
+		return true
+	}
+	return client.JWKSUri != nil && strings.TrimSpace(*client.JWKSUri) != ""
 }
 
 func ptrOrEmpty(s *string) string {

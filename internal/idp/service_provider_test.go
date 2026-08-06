@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
@@ -218,6 +219,11 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 	t.Run("success → deleted clears child rows", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		// The provider's client connections are soft-deleted in the same tx, so
+		// a deleted provider never shows as still connected to a client.
+		mock.ExpectExec(`UPDATE client_identity_providers`).
+			WithArgs(int64(1)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		idp := newIDP(tenantID, "local")
 		var domainsCleared, audiencesCleared bool
@@ -270,6 +276,9 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 	t.Run("delete repo error", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE client_identity_providers`).
+			WithArgs(int64(1)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectRollback()
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{

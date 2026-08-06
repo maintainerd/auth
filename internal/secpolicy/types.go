@@ -160,6 +160,14 @@ type SecuritySettingClientOverrides struct {
 	SessionAbsoluteTimeout *int
 	RequiredACR            *string
 	RequirePKCE            *bool
+
+	// PublicClient marks a client that cannot hold a credential (SPA, native/
+	// mobile) or that authenticates with token_endpoint_auth_method "none".
+	// Such a client presents nothing at the token endpoint, so PKCE is the only
+	// thing standing between an observed authorization code and the victim's
+	// tokens — it is therefore forced on regardless of tenant or per-client
+	// configuration (RFC 9700 §2.1.1).
+	PublicClient bool
 }
 
 type EffectiveSessionPolicy struct {

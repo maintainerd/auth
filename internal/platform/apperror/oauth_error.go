@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // OAuthError represents an error response following the OAuth 2.0 error format
@@ -37,21 +38,25 @@ func (e *OAuthError) WriteJSON(w http.ResponseWriter) {
 // RedirectURI builds the redirect URI with error parameters appended as query
 // parameters per RFC 6749 §4.1.2.1.
 func (e *OAuthError) RedirectURI(redirectURI, state string) string {
-	sep := "?"
-	for _, c := range redirectURI {
-		if c == '?' {
-			sep = "&"
-			break
-		}
+	// Values are escaped rather than concatenated: `state` reaches us
+	// URL-decoded, so a raw `&` or `#` in it would re-partition the callback
+	// query — letting a caller inject their own parameters or truncate ours into
+	// a fragment. Parse failure falls back to the caller's string unchanged
+	// rather than emitting a malformed URI.
+	u, err := url.Parse(redirectURI)
+	if err != nil {
+		return redirectURI
 	}
-	uri := redirectURI + sep + "error=" + e.Code
+	q := u.Query()
+	q.Set("error", e.Code)
 	if e.Description != "" {
-		uri += "&error_description=" + e.Description
+		q.Set("error_description", e.Description)
 	}
 	if state != "" {
-		uri += "&state=" + state
+		q.Set("state", state)
 	}
-	return uri
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 // Standard OAuth 2.0 error codes (RFC 6749 §4.1.2.1 and §5.2).
@@ -100,6 +105,18 @@ func NewOAuthUnsupportedResponseType(description string) *OAuthError {
 func NewOAuthInvalidScope(description string) *OAuthError {
 	return &OAuthError{
 		Code:        "invalid_scope",
+		Description: description,
+		StatusCode:  http.StatusBadRequest,
+	}
+}
+
+// NewOAuthInvalidTarget creates an error when the requested resource or audience
+// is not one the caller may address. RFC 8693 §2.2.2 defines invalid_target for
+// exactly this; returning invalid_request instead would tell a caller its syntax
+// was wrong rather than its target.
+func NewOAuthInvalidTarget(description string) *OAuthError {
+	return &OAuthError{
+		Code:        "invalid_target",
 		Description: description,
 		StatusCode:  http.StatusBadRequest,
 	}

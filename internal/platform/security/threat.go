@@ -120,7 +120,18 @@ func threatDeviceFingerprint(ip, userAgent string) string {
 // thresholds and feeds a risk score for future step-up decisions.
 func AssessLoginThreat(ctx context.Context, tenantID int64, ip, userAgent string, cfg *ThreatConfig) ThreatDecision {
 	_ = userAgent
-	if cfg == nil || rateLimiterClient == nil {
+	if cfg == nil {
+		return ThreatDecision{}
+	}
+	if rateLimiterClient == nil {
+		// Every signal scored below lives in the shared store, so with no store
+		// there is nothing to read and a zero decision is the only answer
+		// available. That is a fail-open which silently removes brute-force and
+		// credential-stuffing detection, so it is logged rather than returning a
+		// clean bill of health quietly. It stays non-blocking because this is a
+		// SCORING function; the hard control that fails closed on an outage is the
+		// lockout check in CheckRateLimitWithConfig.
+		limiterNotConfigured("AssessLoginThreat")
 		return ThreatDecision{}
 	}
 	if ctx == nil {
@@ -218,7 +229,12 @@ func logVelocityDegraded(ctx context.Context, tenantID int64, err error) {
 // success (an aggregate abuse signal must decay on its own, not be cleared by a
 // single valid login — see RecordLoginThreatSuccess).
 func RecordLoginThreatFailure(ctx context.Context, tenantID int64, ip, identifier string, cfg *ThreatConfig) {
-	if cfg == nil || rateLimiterClient == nil || (!cfg.BruteForceDetectionEnabled && !cfg.VelocityCheckEnabled) {
+	if cfg == nil || (!cfg.BruteForceDetectionEnabled && !cfg.VelocityCheckEnabled) {
+		return
+	}
+	if rateLimiterClient == nil {
+		// Nothing recorded means nothing for AssessLoginThreat to score later.
+		limiterNotConfigured("RecordLoginThreatFailure")
 		return
 	}
 	if ctx == nil {

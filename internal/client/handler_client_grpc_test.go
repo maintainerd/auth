@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -30,10 +32,9 @@ func (m *mockClientTenantResolver) GetByUUID(ctx context.Context, tenantUUID uui
 type testClientService struct {
 	getFn                       func(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
 	getByUUIDFn                 func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
-	getSecretByUUIDFn           func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
 	getConfigByUUIDFn           func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	createFn                    func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error)
-	updateFn                    func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientServiceDataResult, error)
+	createFn                    func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error)
+	updateFn                    func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientServiceDataResult, error)
 	rotateSecretFn              func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error)
 	setStatusByUUIDFn           func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	deleteByUUIDFn              func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
@@ -53,6 +54,11 @@ type testClientService struct {
 }
 
 func (m *testClientService) IsManagementClient(context.Context, string) bool { return false }
+func (m *testClientService) IsFirstPartyClient(context.Context, string) bool { return false }
+
+// No certificate binding by default: these tests exercise the handlers, and the
+// binding is enforced in the gRPC interceptor, not here.
+func (m *testClientService) BoundCertThumbprint(context.Context, string) string { return "" }
 
 func (m *testClientService) Get(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error) {
 	return m.getFn(ctx, filter)
@@ -60,17 +66,14 @@ func (m *testClientService) Get(ctx context.Context, filter ClientServiceGetFilt
 func (m *testClientService) GetByUUID(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error) {
 	return m.getByUUIDFn(ctx, clientUUID, tenantID)
 }
-func (m *testClientService) GetSecretByUUID(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error) {
-	return m.getSecretByUUIDFn(ctx, clientUUID, tenantID)
-}
 func (m *testClientService) GetConfigByUUID(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
 	return m.getConfigByUUIDFn(ctx, clientUUID, tenantID)
 }
-func (m *testClientService) Create(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
-	return m.createFn(ctx, tenantID, name, displayName, clientType, domain, config, status, isDefault, identityProviderUUID, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actorUserUUID, serviceUUID)
+func (m *testClientService) Create(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
+	return m.createFn(ctx, tenantID, name, displayName, clientType, domain, config, status, identityProviderUUID, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actorUserUUID, serviceUUID)
 }
-func (m *testClientService) Update(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
-	return m.updateFn(ctx, clientUUID, tenantID, name, displayName, clientType, domain, config, status, isDefault, brandingUUID, allowRegistration, allowMagicLink, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actorUserUUID, serviceUUID)
+func (m *testClientService) Update(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
+	return m.updateFn(ctx, clientUUID, tenantID, name, displayName, clientType, domain, config, status, brandingUUID, allowRegistration, allowMagicLink, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actorUserUUID, serviceUUID)
 }
 func (m *testClientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error) {
 	return m.rotateSecretFn(ctx, clientUUID, tenantID, actorUserUUID, gracePeriodHours)
@@ -133,8 +136,38 @@ func (m *testClientService) RemoveClientAPIPermission(ctx context.Context, tenan
 	return m.removeClientAPIPermissionFn(ctx, tenantID, clientUUID, apiUUID, permissionUUID)
 }
 
+// grpcCallerCtx gives a test the same thing the interceptor gives production: a
+// tenant-bound token carrying a USER identity. The handlers now refuse a
+// body-supplied actor and fail closed without one, so a bare context.Background()
+// correctly yields PermissionDenied.
+func grpcCallerCtx(tenantID int64) context.Context {
+	return grpcCallerCtxAs(tenantID, uuid.New())
+}
+
+// grpcCallerCtxAs mirrors what the gRPC interceptor actually installs: BOTH the
+// verified claims and the resolved AuthContext.
+//
+// The handlers used to fall back to raw JWT claims when the AuthContext was
+// empty, which let this surface accept a token the tenant surface refused. That
+// fallback is gone — the actor now comes only from the interceptor-populated
+// AuthContext — so a fixture that sets claims alone no longer authenticates,
+// which is exactly the production behaviour.
+func grpcCallerCtxAs(tenantID int64, actor uuid.UUID) context.Context {
+	// Sub carries the same value as UserUUID, as it does on a real token.
+	ctx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{
+		TenantID: tenantID,
+		UserUUID: actor,
+		Sub:      actor.String(),
+	})
+	return middleware.WithAuthContextValue(ctx, &authctx.AuthContext{
+		User:   &authctx.AuthUser{UserUUID: actor},
+		Tenant: &authctx.AuthTenant{TenantID: tenantID},
+	})
+}
+
 func TestClientGRPCHandler_RPCS(t *testing.T) {
-	ctx := context.Background()
+	// mockClientTenantResolver resolves every tenant to TenantID 1.
+	ctx := grpcCallerCtx(1)
 	tenantUUID := uuid.New()
 	clientUUID := uuid.New()
 	uriUUID := uuid.New()
@@ -199,15 +232,23 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 		}
 	})
 
-	t.Run("getSecret message", func(t *testing.T) {
+	// This used to assert err == nil and a non-empty Message — i.e. that
+	// GetClientSecret SUCCEEDS. A generated client then hands its caller an empty
+	// ClientSecret with no error, which reads as "this client has no secret".
+	// Secrets are bcrypt hashed and unreadable, so the only honest answer is
+	// UNIMPLEMENTED.
+	t.Run("getSecret is unimplemented, not a successful empty response", func(t *testing.T) {
 		svc := &testClientService{}
 		h := NewClientGRPCHandler(resolver, svc)
 		res, err := h.GetClientSecret(ctx, &authv1.GetClientSecretRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String()})
-		if err != nil {
-			t.Fatal(err)
+		if err == nil {
+			t.Fatal("expected an error")
 		}
-		if res.Message == "" {
-			t.Error("expected message")
+		if res != nil {
+			t.Error("expected no response body")
+		}
+		if got := status.Code(err); got != codes.Unimplemented {
+			t.Errorf("expected Unimplemented, got %v", got)
 		}
 	})
 
@@ -245,7 +286,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create success", func(t *testing.T) {
 		svc := &testClientService{
-			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
 				return clientCreate, nil
 			},
 		}
@@ -261,7 +302,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testClientService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
 				return &clientResult, nil
 			},
 		}
@@ -514,7 +555,7 @@ func assertGRPCErrCode(t *testing.T, err error, expected codes.Code) {
 }
 
 func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
-	ctx := context.Background()
+	ctx := grpcCallerCtx(1)
 	tUUID := uuid.New()
 	cUUID := uuid.New()
 	uriUUID := uuid.New()
@@ -631,25 +672,48 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
-	t.Run("actor UUID parse errors", func(t *testing.T) {
+	// INVERTED. This used to assert that a malformed body `actor_user_uuid`
+	// produced InvalidArgument — i.e. that the field was parsed and trusted. That
+	// was the vulnerability: the body actor drove both audit attribution and the
+	// tenant-access check, so naming a user in another tenant satisfied it. The
+	// field is now ignored entirely and the actor comes from the verified token,
+	// so garbage in the body must change nothing.
+	t.Run("a body-supplied actor_user_uuid is ignored", func(t *testing.T) {
+		var gotActor uuid.UUID
+		svc := &testClientService{
+			setStatusByUUIDFn: func(_ context.Context, _ uuid.UUID, _ int64, _ string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+				gotActor = actor
+				return &ClientServiceDataResult{ClientUUID: cUUID}, nil
+			},
+		}
+		h := NewClientGRPCHandler(okResolver, svc)
+
+		callerUUID := uuid.New()
+		callerCtx := grpcCallerCtxAs(1, callerUUID)
+
+		_, err := h.SetClientStatus(callerCtx, &authv1.SetClientStatusRequest{
+			TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Status: "inactive",
+			ActorUserUuid: "bad-actor-uuid",
+		})
+		if err != nil {
+			t.Fatalf("a malformed body actor must not fail the call: %v", err)
+		}
+		if gotActor != callerUUID {
+			t.Fatalf("actor must come from the token (%s), got %s", callerUUID, gotActor)
+		}
+	})
+
+	// A caller with no user identity — every service token — must be refused.
+	t.Run("a token with no user identity cannot mutate a client", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		badActor := "bad-actor-uuid"
-		_, err := h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ActorUserUuid: badActor})
-		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.CreateClient(ctx, &authv1.CreateClientRequest{TenantUuid: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderUuid: uuid.New().String(), ActorUserUuid: badActor})
-		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", ActorUserUuid: badActor})
-		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Status: "inactive", ActorUserUuid: badActor})
-		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ActorUserUuid: badActor})
-		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Uri: "https://example.com", Type: "redirect", ActorUserUuid: badActor})
-		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: uriUUID.String(), Uri: "https://example.com", Type: "redirect", ActorUserUuid: badActor})
-		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: uriUUID.String(), ActorUserUuid: badActor})
-		assertGRPCErrCode(t, err, codes.InvalidArgument)
+		serviceCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{
+			TenantID: 1,
+			Service:  "control-plane",
+		})
+		_, err := h.SetClientStatus(serviceCtx, &authv1.SetClientStatusRequest{
+			TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Status: "inactive",
+		})
+		assertGRPCErrCode(t, err, codes.PermissionDenied)
 	})
 
 	t.Run("service errors for all handlers", func(t *testing.T) {
@@ -664,10 +728,10 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 				return "", svcErr
 			},
 			getConfigByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64) (datatypes.JSON, error) { return nil, svcErr },
-			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
 				return nil, svcErr
 			},
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
 				return nil, svcErr
 			},
 			setStatusByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64, status string, actor uuid.UUID) (*ClientServiceDataResult, error) {
@@ -935,7 +999,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("createClient with config", func(t *testing.T) {
 		svc := &testClientService{
-			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
 				return clientCreate, nil
 			},
 		}
@@ -951,7 +1015,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("updateClient with config", func(t *testing.T) {
 		svc := &testClientService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
 				return &clientResult, nil
 			},
 		}
@@ -965,18 +1029,22 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 		}
 	})
 
-	t.Run("createClient with actor UUID", func(t *testing.T) {
-		actorUUID := uuid.New()
+	// INVERTED: the actor is the CALLER from the verified token, not whoever the
+	// request body names. The body value here is a decoy and must be ignored.
+	t.Run("createClient attributes to the token's user, not the body", func(t *testing.T) {
+		callerUUID := uuid.New()
+		decoyUUID := uuid.New()
 		svc := &testClientService{
-			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
-				if actor != actorUUID {
-					t.Errorf("expected actor UUID, got %s", actor)
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+				if actor != callerUUID {
+					t.Errorf("expected the token's user %s, got %s", callerUUID, actor)
 				}
 				return clientCreate, nil
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		_, err := h.CreateClient(ctx, &authv1.CreateClientRequest{TenantUuid: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderUuid: uuid.New().String(), ActorUserUuid: actorUUID.String()})
+		callerCtx := grpcCallerCtxAs(1, callerUUID)
+		_, err := h.CreateClient(callerCtx, &authv1.CreateClientRequest{TenantUuid: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderUuid: uuid.New().String(), ActorUserUuid: decoyUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}

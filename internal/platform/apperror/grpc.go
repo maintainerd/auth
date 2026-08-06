@@ -6,6 +6,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 const grpcErrorDomain = "maintainerd.auth"
@@ -39,6 +40,17 @@ func ToGRPCError(err error) error {
 		}
 	}
 
+	// RetryInfo is the gRPC equivalent of the Retry-After header, and the only
+	// way a throttled gRPC caller learns the backoff instead of guessing one.
+	var throttledErr *TooManyRequestsError
+	if errors.As(err, &throttledErr) && throttledErr.RetryAfter > 0 {
+		if detailed, detailsErr := st.WithDetails(&errdetails.RetryInfo{
+			RetryDelay: durationpb.New(throttledErr.RetryAfter),
+		}); detailsErr == nil {
+			st = detailed
+		}
+	}
+
 	return st.Err()
 }
 
@@ -62,6 +74,16 @@ func classifyGRPCError(err error) (codes.Code, string, string) {
 	var validationErr *ValidationError
 	if errors.As(err, &validationErr) {
 		return codes.InvalidArgument, validationErr.Error(), "VALIDATION"
+	}
+	var unavailableErr *ServiceUnavailableError
+	if errors.As(err, &unavailableErr) {
+		// Checked before the throttle: RESOURCE_EXHAUSTED would tell the caller to
+		// slow down, when what actually happened is a dependency being down.
+		return codes.Unavailable, unavailableErr.Error(), "SERVICE_UNAVAILABLE"
+	}
+	var throttledErr *TooManyRequestsError
+	if errors.As(err, &throttledErr) {
+		return codes.ResourceExhausted, throttledErr.Error(), "TOO_MANY_REQUESTS"
 	}
 	var internalErr *InternalError
 	if errors.As(err, &internalErr) {

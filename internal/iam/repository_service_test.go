@@ -92,9 +92,11 @@ func TestServiceRepository(t *testing.T) {
 		name := "service"
 		flag := true
 
+		scopedTenantID := tenantID
+
 		got, err := NewServiceRepository(db).FindServicesByPolicyUUID(testResourceUUID, ServiceRepositoryGetFilter{
 			Name: &name, DisplayName: &name, Description: &name, Version: &name, Status: []string{"active"},
-			IsSystem: &flag, Page: 1, Limit: 10,
+			IsSystem: &flag, TenantID: &scopedTenantID, Page: 1, Limit: 10,
 		})
 
 		require.NoError(t, err)
@@ -103,11 +105,28 @@ func TestServiceRepository(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	// This query previously had no tenant predicate at all, so an unscoped call
+	// leaked another tenant's services through GET /policies/{uuid}/services. It is
+	// now refused before it reaches the database, as in FindPaginated.
+	t.Run("FindServicesByPolicyUUID refuses an unscoped call", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		zero := int64(0)
+
+		for _, filter := range []ServiceRepositoryGetFilter{{}, {TenantID: &zero}} {
+			got, err := NewServiceRepository(db).FindServicesByPolicyUUID(testResourceUUID, filter)
+
+			require.ErrorContains(t, err, "tenant_id is required")
+			assert.Nil(t, got)
+		}
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("FindServicesByPolicyUUID count error", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		expectAnyCount(mock, "services").WillReturnError(errors.New("count error"))
+		scopedTenantID := tenantID
 
-		got, err := NewServiceRepository(db).FindServicesByPolicyUUID(testResourceUUID, ServiceRepositoryGetFilter{})
+		got, err := NewServiceRepository(db).FindServicesByPolicyUUID(testResourceUUID, ServiceRepositoryGetFilter{TenantID: &scopedTenantID})
 
 		require.Error(t, err)
 		assert.Nil(t, got)

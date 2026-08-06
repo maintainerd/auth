@@ -2,13 +2,16 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	smtypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	awsssm "github.com/aws/aws-sdk-go-v2/service/ssm"
+	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
 // awsLoadDefaultConfig is the AWS config loader, replaceable in tests.
@@ -63,6 +66,13 @@ func (a *awsSecretsManager) GetSecret(key string) ([]byte, error) {
 		SecretId: aws.String(id),
 	})
 	if err != nil {
+		// ResourceNotFoundException is the store answering "no such secret".
+		// Anything else — throttling, credentials, network — is a real failure
+		// and must not be mistaken for an unconfigured key.
+		var notFound *smtypes.ResourceNotFoundException
+		if errors.As(err, &notFound) {
+			return nil, fmt.Errorf("AWS Secrets Manager: %q: %w", id, ErrSecretNotFound)
+		}
 		return nil, fmt.Errorf("AWS Secrets Manager: failed to get %q: %w", id, err)
 	}
 	if out.SecretString != nil {
@@ -134,10 +144,14 @@ func (a *awsSSMSecretManager) GetSecret(key string) ([]byte, error) {
 		WithDecryption: aws.Bool(true),
 	})
 	if err != nil {
+		var notFound *ssmtypes.ParameterNotFound
+		if errors.As(err, &notFound) {
+			return nil, fmt.Errorf("AWS SSM: %q: %w", path, ErrSecretNotFound)
+		}
 		return nil, fmt.Errorf("AWS SSM: failed to get parameter %q: %w", path, err)
 	}
 	if out.Parameter == nil {
-		return nil, fmt.Errorf("AWS SSM: parameter %q not found", path)
+		return nil, fmt.Errorf("AWS SSM: parameter %q: %w", path, ErrSecretNotFound)
 	}
 	if out.Parameter.Value == nil {
 		return nil, fmt.Errorf("AWS SSM: parameter %q has no value", path)

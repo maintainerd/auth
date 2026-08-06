@@ -40,7 +40,13 @@ func sendEmail(ctx context.Context, db *gorm.DB, params SendEmailParams) error {
 	})
 }
 
-func GetLogoURL(ctx context.Context, db *gorm.DB) string {
+// GetLogoURL returns the tenant's email logo, falling back to the system
+// tenant's when the tenant has not set one.
+//
+// The tenant was hardcoded to 0 here, which matches no real tenant — so every
+// outgoing email rendered with an empty logo regardless of what the tenant had
+// configured.
+func GetLogoURL(ctx context.Context, db *gorm.DB, tenantID int64) string {
 	if db == nil {
 		return ""
 	}
@@ -48,7 +54,16 @@ func GetLogoURL(ctx context.Context, db *gorm.DB) string {
 	_ = db.WithContext(ctx).
 		Table("email_config").
 		Select("logo_url").
-		Where("tenant_id = ? AND status = ? AND deleted_at IS NULL", 0, "active").
+		Where("tenant_id = ? AND status = ? AND deleted_at IS NULL", tenantID, "active").
+		Scan(&logo).Error
+	if logo != "" {
+		return logo
+	}
+	_ = db.WithContext(ctx).
+		Table("email_config ec").
+		Select("ec.logo_url").
+		Joins("JOIN tenants t ON ec.tenant_id = t.tenant_id").
+		Where("t.is_system = true AND ec.status = ? AND ec.deleted_at IS NULL", "active").
 		Scan(&logo).Error
 	return logo
 }

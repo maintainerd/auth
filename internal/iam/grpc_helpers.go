@@ -146,24 +146,44 @@ func resolveIAMTenantAndUUID(ctx context.Context, tenantService TenantResolver, 
 	return scope, parsed, nil
 }
 
-func resolveIAMTenantAndActor(ctx context.Context, tenantService TenantResolver, tenantUUID string, actorValue string) (*tenantScope, uuid.UUID, error) {
+// iamActorUserUUID resolves the acting user from the VERIFIED token.
+//
+// Every mutating role RPC used to take the actor from req.GetActorUserUuid(), a
+// request-body field. That value is both the audit attribution AND the subject of
+// ValidateTenantAccess (service_role.go), so a caller could pin a change on an
+// innocent user and borrow that user's tenant membership to clear the boundary
+// check — two separate holes fed by one unauthenticated string.
+//
+// There is deliberately NO fallback to the body. The gRPC interceptor admits
+// service principals, which carry no user identity; a token that cannot name a
+// user simply may not mutate roles. Failing closed here is the only option that
+// does not reopen the hole.
+// iamActorUserUUID resolves the acting user for a mutating role RPC.
+//
+// Delegates to the one shared definition so the iam, client and tenant surfaces
+// cannot disagree about who a token is allowed to act as.
+func iamActorUserUUID(ctx context.Context) (uuid.UUID, error) {
+	return middleware.GRPCActorUUID(ctx, "role changes")
+}
+
+func resolveIAMTenantAndActor(ctx context.Context, tenantService TenantResolver, tenantUUID string) (*tenantScope, uuid.UUID, error) {
 	scope, err := resolveIAMTenant(ctx, tenantService, tenantUUID)
 	if err != nil {
 		return nil, uuid.Nil, err
 	}
-	actor, err := iamParseUUID(actorValue, "Actor user UUID")
+	actor, err := iamActorUserUUID(ctx)
 	if err != nil {
 		return nil, uuid.Nil, err
 	}
 	return scope, actor, nil
 }
 
-func resolveIAMTenantRoleActor(ctx context.Context, tenantService TenantResolver, tenantUUID string, roleValue string, actorValue string) (*tenantScope, uuid.UUID, uuid.UUID, error) {
+func resolveIAMTenantRoleActor(ctx context.Context, tenantService TenantResolver, tenantUUID string, roleValue string) (*tenantScope, uuid.UUID, uuid.UUID, error) {
 	scope, roleUUID, err := resolveIAMTenantAndUUID(ctx, tenantService, tenantUUID, roleValue, "Role UUID")
 	if err != nil {
 		return nil, uuid.Nil, uuid.Nil, err
 	}
-	actor, err := iamParseUUID(actorValue, "Actor user UUID")
+	actor, err := iamActorUserUUID(ctx)
 	if err != nil {
 		return nil, uuid.Nil, uuid.Nil, err
 	}

@@ -88,6 +88,8 @@ func (h *APIGRPCHandler) CreateAPI(ctx context.Context, req *authv1.CreateAPIReq
 	if err != nil {
 		return nil, err
 	}
+	// The tenant boundary is enforced BEFORE the ledger claim so a caller that may
+	// not act on this tenant cannot consume — or occupy — a key it may not spend.
 	dto := APICreateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), Status: req.GetStatus(), ServiceUUID: req.GetServiceUuid()}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))

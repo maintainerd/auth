@@ -39,6 +39,28 @@ func initTestJWTKeys(t *testing.T) {
 	config.JWTPublicKey = pubPEM
 
 	require.NoError(t, InitJWTKeys())
+	allowTestIssuers(t)
+}
+
+// allowTestIssuers declares the issuers this package's tests mint tokens under.
+//
+// validateIssuerClaim fails CLOSED on an empty allowlist: it then accepts only
+// the authorization server's own issuer (APP_PUBLIC_HOSTNAME), which is unset
+// in a test binary. A test that generates a token and validates it therefore
+// has to register its issuer the same way a deployment does at boot, or it ends
+// up asserting against the unconfigured-allowlist rejection instead of the
+// behaviour it means to cover.
+func allowTestIssuers(t *testing.T) {
+	t.Helper()
+	SetAcceptedIssuers([]string{
+		"https://auth.example.com",
+		"https://example.com",
+		"https://tenant-a.example.com",
+		// The fallback generateStepUpChallengeTokenWithContext stamps when
+		// APP_PUBLIC_HOSTNAME is unset.
+		"maintainerd-auth",
+	})
+	t.Cleanup(ResetAcceptedIssuers)
 }
 
 // ---------------------------------------------------------------------------
@@ -542,6 +564,7 @@ func TestValidateTokenClaims_EmptyIss(t *testing.T) {
 }
 
 func TestValidateTokenClaims_EmptyJTI(t *testing.T) {
+	allowTestIssuers(t)
 	claims := jwtlib.MapClaims{
 		"sub": "user", "aud": "app", "iss": "https://example.com",
 		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
@@ -553,6 +576,7 @@ func TestValidateTokenClaims_EmptyJTI(t *testing.T) {
 }
 
 func TestValidateTokenClaims_Valid(t *testing.T) {
+	allowTestIssuers(t)
 	claims := jwtlib.MapClaims{
 		"sub": "user", "aud": "app", "iss": "https://example.com",
 		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
@@ -1036,6 +1060,7 @@ func TestValidateTokenClaims_IssNotString(t *testing.T) {
 }
 
 func TestValidateTokenClaims_JTINotString(t *testing.T) {
+	allowTestIssuers(t)
 	claims := jwtlib.MapClaims{
 		"sub": "user", "aud": "app", "iss": "https://example.com",
 		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),

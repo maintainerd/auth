@@ -103,7 +103,7 @@ func MultiIssuerAuthMiddleware(
 				return
 			}
 
-			if iss := peekIss(rawToken); iss != "" && (strings.HasPrefix(strings.TrimRight(iss, "/"), maintainerdPrefix) || iss == maintainerdIssuer) {
+			if iss := peekIss(rawToken); iss != "" && isFirstPartyIssuer(iss, maintainerdIssuer, maintainerdPrefix) {
 				claims, err := jwtlib.ValidateTokenWithContext(r.Context(), rawToken)
 				if err != nil {
 					w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
@@ -125,7 +125,7 @@ func MultiIssuerAuthMiddleware(
 			if rawClaims, err := peekIssAndClaims(rawToken); err == nil {
 				iss, _ = rawClaims["iss"].(string)
 			}
-			if iss == "" || strings.HasPrefix(strings.TrimRight(iss, "/"), maintainerdPrefix) || iss == maintainerdIssuer {
+			if isFirstPartyIssuer(iss, maintainerdIssuer, maintainerdPrefix) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -205,4 +205,45 @@ func peekIss(rawToken string) string {
 	}
 	iss, _ := claims["iss"].(string)
 	return iss
+}
+
+// isFirstPartyIssuer reports whether a token was minted by THIS deployment.
+//
+// Tokens carry the CLIENT's domain as `iss`, so a deployment has one issuer per
+// client — comparing against a single APP_PUBLIC_HOSTNAME cannot recognise them.
+// When that variable is unset the fallback is the literal "maintainerd-auth",
+// which matches no real issuer at all, so every first-party Bearer token was
+// classified as federated, looked up as an external IdP, and rejected 401.
+// Cookie-authenticated requests skip this middleware entirely, which is why the
+// SPAs kept working and only API clients using Authorization: Bearer broke.
+//
+// The issuer allowlist is the authoritative set of our own issuers (seeded from
+// the registered clients at startup and kept current as clients are created),
+// so it is consulted first; the hostname comparison stays as a fallback for a
+// deployment that has not populated the allowlist yet.
+func isFirstPartyIssuer(iss, maintainerdIssuer, maintainerdPrefix string) bool {
+	// An unparseable or issuer-less token is NOT ours. peekIss returns "" for
+	// anything it cannot parse, so treating that as first-party classified junk
+	// as trusted and passed it downstream unvalidated. It survived only because
+	// the per-route JWT middleware re-validates — a fail-closed default costs
+	// nothing and removes the dependency on that second line of defence.
+	if iss == "" {
+		return false
+	}
+	if jwtlib.IsSelfIssued(iss) {
+		return true
+	}
+	// Exact match, or a path UNDER our issuer — never a bare prefix.
+	//
+	// A bare HasPrefix made "https://<our-host>.evil.com" first-party, because it
+	// starts with our hostname. Signature verification stops that being
+	// exploitable today, but it would silently mis-route a legitimate federated
+	// IdP whose issuer happens to share our prefix, and it is the wrong rule to
+	// leave sitting in front of an authorization decision. Requiring a "/"
+	// boundary means only a genuine sub-path matches.
+	trimmed := strings.TrimRight(iss, "/")
+	if trimmed == maintainerdIssuer || trimmed == maintainerdPrefix {
+		return true
+	}
+	return strings.HasPrefix(trimmed, maintainerdPrefix+"/")
 }

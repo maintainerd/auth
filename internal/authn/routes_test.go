@@ -9,41 +9,41 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Every interactive-auth builder in this package is a *PublicRoute; the
+// internal-plane twins this table used to also cover (EmailVerificationRoute,
+// ForgotPasswordRoute, LoginRoute, ResetPasswordRoute, SMSLoginInternalRoute)
+// were mounted by no router and are gone. A row here for a non-public builder
+// means dead surface has come back.
 func TestAuthnRoutes_RegisterEndpoints(t *testing.T) {
 	tests := []struct {
 		name     string
 		register func(chi.Router)
 		request  string
 	}{
-		{"email verification internal", func(r chi.Router) {
-			EmailVerificationRoute(r, NewEmailVerificationHandler(&mockEmailVerificationService{}))
-		}, "/email-verification/send"},
 		{"email verification public", func(r chi.Router) {
 			EmailVerificationPublicRoute(r, NewEmailVerificationHandler(&mockEmailVerificationService{}))
 		}, "/email-verification/send"},
-		{"forgot password internal", func(r chi.Router) { ForgotPasswordRoute(r, NewForgotPasswordHandler(&mockForgotPasswordService{})) }, "/forgot-password"},
 		{"forgot password public", func(r chi.Router) {
 			ForgotPasswordPublicRoute(r, NewForgotPasswordHandler(&mockForgotPasswordService{}))
 		}, "/forgot-password"},
-		{"login internal", func(r chi.Router) { LoginRoute(r, NewLoginHandler(&mockLoginService{})) }, "/login"},
 		{"login public", func(r chi.Router) { LoginPublicRoute(r, NewLoginHandler(&mockLoginService{})) }, "/login"},
 		{"login public refresh", func(r chi.Router) { LoginPublicRoute(r, NewLoginHandler(&mockLoginService{})) }, "/refresh-token"},
+		{"login public mfa verify", func(r chi.Router) { LoginPublicRoute(r, NewLoginHandler(&mockLoginService{})) }, "/login/mfa/verify"},
+		{"login public mfa send sms", func(r chi.Router) { LoginPublicRoute(r, NewLoginHandler(&mockLoginService{})) }, "/login/mfa/send-sms"},
+		{"login public mfa send email otp", func(r chi.Router) {
+			LoginPublicRoute(r, NewLoginHandler(&mockLoginService{}))
+		}, "/login/mfa/send-email-otp"},
+		{"login public mfa webauthn begin", func(r chi.Router) {
+			LoginPublicRoute(r, NewLoginHandler(&mockLoginService{}))
+		}, "/login/mfa/webauthn/begin"},
 		{"magic link public", func(r chi.Router) { MagicLinkPublicRoute(r, NewMagicLinkHandler(&mockMagicLinkService{})) }, "/magic-link/send"},
-		{"register internal", func(r chi.Router) {
-			RegisterRoute(r, NewRegisterHandler(&mockRegisterService{}))
-		}, "/register"},
-		{"register internal invite", func(r chi.Router) {
-			RegisterRoute(r, NewRegisterHandler(&mockRegisterService{}))
-		}, "/register/invite"},
 		{"register public", func(r chi.Router) {
 			RegisterPublicRoute(r, NewRegisterHandler(&mockRegisterService{}))
 		}, "/register"},
 		{"register public invite", func(r chi.Router) {
 			RegisterPublicRoute(r, NewRegisterHandler(&mockRegisterService{}))
 		}, "/register/invite"},
-		{"reset password internal", func(r chi.Router) { ResetPasswordRoute(r, NewResetPasswordHandler(&mockResetPasswordService{})) }, "/reset-password"},
 		{"reset password public", func(r chi.Router) { ResetPasswordPublicRoute(r, NewResetPasswordHandler(&mockResetPasswordService{})) }, "/reset-password"},
-		{"sms login internal", func(r chi.Router) { SMSLoginInternalRoute(r, NewSMSLoginHandler(&mockSMSLoginService{})) }, "/sms-login/send"},
 		{"sms login public", func(r chi.Router) { SMSLoginPublicRoute(r, NewSMSLoginHandler(&mockSMSLoginService{})) }, "/sms-login/send"},
 	}
 

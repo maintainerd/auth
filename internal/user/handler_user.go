@@ -173,6 +173,48 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, response, "Users fetched successfully")
 }
 
+// ListMembershipCandidates lists the SYSTEM-tenant users that may be added as
+// members of a tenant.
+//
+// GET /users/membership-candidates
+//
+// tenant.CreateByUserUUID accepts only system-tenant users, and nothing exposed
+// that set — so the console's Add Member picker listed the caller's own tenant
+// users, every one of which was rejected with a 403. This is the missing half.
+//
+// The system tenant is resolved server-side, never taken from the request, so
+// this cannot be repurposed into a cross-tenant user enumeration endpoint.
+func (h *UserHandler) ListMembershipCandidates(w http.ResponseWriter, r *http.Request) {
+	if middleware.AuthFromRequest(r).Tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	page := pagination.ParseQuery(r)
+	candidates, total, err := h.userService.ListMembershipCandidates(
+		r.Context(),
+		ptr.PtrOrNil(r.URL.Query().Get("search")),
+		page.Page,
+		page.Limit,
+	)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to list membership candidates", err)
+		return
+	}
+
+	totalPages := 0
+	if page.Limit > 0 {
+		totalPages = int((total + int64(page.Limit) - 1) / int64(page.Limit))
+	}
+	resp.Success(w, PaginatedResponseDTO[MembershipCandidateDTO]{
+		Rows:       candidates,
+		Total:      total,
+		Page:       page.Page,
+		Limit:      page.Limit,
+		TotalPages: totalPages,
+	}, "Membership candidates fetched successfully")
+}
+
 // GetUser retrieves a specific user by UUID.
 //
 // GET /users/{user_uuid}
@@ -454,45 +496,59 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Phone verified successfully")
 }
 
-// CompleteAccount marks a user's account as completed.
+// SetUserPassword sets a user's password administratively.
 //
-// POST /users/{user_uuid}/complete-account
+// PUT /users/{user_uuid}/password
 //
-// Manually marks an account as completed, typically after all required
-// profile information and verifications are done.
-func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context (middleware already validated access)
+// The operator remedy for a user who can reach neither their password nor their
+// inbox. force-password-change, the only lever that existed before, does nothing
+// until the user manages to sign in on their own. The service holds this to the
+// tenant's password policy and reuse history and evicts the target's live
+// credentials, so it cannot be used to quietly take an account over and leave
+// the previous holder's session working.
+func (h *UserHandler) SetUserPassword(w http.ResponseWriter, r *http.Request) {
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
+	actor := middleware.AuthFromRequest(r).User
+	if actor == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
 
-	// Parse and validate user UUID from URL parameter
-	userUUIDStr := chi.URLParam(r, "user_uuid")
-	userUUID, err := uuid.Parse(userUUIDStr)
+	userUUID, err := uuid.Parse(chi.URLParam(r, "user_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
 		return
 	}
 
-	// Mark account as completed (service validates tenant ownership)
-	user, err := h.userService.CompleteAccount(r.Context(), userUUID, tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to complete account", err)
+	var req UserSetPasswordRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
 		return
 	}
 
-	dtoRes := toUserResponseDTO(*user)
-
-	var actorUserIDCA *int64
-	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
-		actorUserIDCA = &authUser.UserID
+	if err := h.userService.SetPassword(r.Context(), userUUID, tenant.TenantID, req.Password, req.Temporary, actor.UserUUID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to set password", err)
+		return
 	}
-	changesJSONCA, _ := json.Marshal(map[string]any{"update": map[string]any{"account_completed": true}})
-	h.logAudit(r, tenant.TenantID, actorUserIDCA, "user.complete_account", "user", userUUID.String(), &userUUID, string(changesJSONCA), "success")
 
-	resp.Success(w, dtoRes, "Account marked as completed successfully")
+	// The password itself is never echoed into the audit trail — only that it was
+	// set, and whether it was issued as a temporary credential.
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"password_set": true, "temporary": req.Temporary}})
+	h.logAudit(r, tenant.TenantID, &actor.UserID, "user.set_password", "user", userUUID.String(), &userUUID, string(changesJSON), "success")
+
+	resp.Success(w, UserSetPasswordResponseDTO{
+		Temporary:           req.Temporary,
+		ForcePasswordChange: req.Temporary,
+		SessionsRevoked:     true,
+	}, "Password set successfully")
 }
 
 // DeleteUser deletes a user.
@@ -574,8 +630,16 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The actor comes from the authenticated session, never the request body:
+	// the service uses it to refuse granting a role the caller does not hold.
+	actor := middleware.AuthFromRequest(r).User
+	if actor == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	// Assign roles to user (service validates tenant ownership)
-	user, err := h.userService.AssignUserRoles(r.Context(), userUUID, req.RoleUUIDs, tenant.TenantID)
+	user, err := h.userService.AssignUserRoles(r.Context(), userUUID, req.RoleUUIDs, tenant.TenantID, actor.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to assign roles to user", err)
 		return
@@ -681,6 +745,19 @@ func (h *UserHandler) ForcePasswordChange(w http.ResponseWriter, r *http.Request
 // Helper functions for converting service data to response DTOs
 
 // toUserResponseDTO converts a service result to a user response DTO.
+func toUserIdentityResponseDTO(i UserIdentityServiceDataResult) UserIdentityResponseDTO {
+	return UserIdentityResponseDTO{
+		UserIdentityUUID:     i.UserIdentityUUID,
+		Provider:             i.Provider,
+		Sub:                  i.Sub,
+		Metadata:             i.Metadata,
+		IdentityProviderUUID: i.IdentityProviderUUID,
+		IdentityProviderName: i.IdentityProviderName,
+		CreatedAt:            i.CreatedAt,
+		UpdatedAt:            i.UpdatedAt,
+	}
+}
+
 func toUserResponseDTO(u UserServiceDataResult) UserResponseDTO {
 	result := UserResponseDTO{
 		UserUUID:        u.UserUUID,
@@ -886,28 +963,7 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	// Map to DTOs
 	rows := make([]UserIdentityResponseDTO, len(identities))
 	for i, identity := range identities {
-		rows[i] = UserIdentityResponseDTO{
-			UserIdentityUUID: identity.UserIdentityUUID,
-			Provider:         identity.Provider,
-			Sub:              identity.Sub,
-			Metadata:         identity.Metadata,
-			CreatedAt:        identity.CreatedAt,
-			UpdatedAt:        identity.UpdatedAt,
-		}
-		if identity.Client != nil {
-			rows[i].Client = &ClientResponseDTO{
-				ClientUUID:  identity.Client.ClientUUID,
-				Name:        identity.Client.Name,
-				DisplayName: identity.Client.DisplayName,
-				ClientType:  identity.Client.ClientType,
-				Domain:      identity.Client.Domain,
-				Status:      identity.Client.Status,
-				IsDefault:   identity.Client.IsDefault,
-				IsSystem:    identity.Client.IsSystem,
-				CreatedAt:   identity.Client.CreatedAt,
-				UpdatedAt:   identity.Client.UpdatedAt,
-			}
-		}
+		rows[i] = toUserIdentityResponseDTO(identity)
 	}
 
 	totalPages := int((total + int64(reqParams.Limit) - 1) / int64(reqParams.Limit))
@@ -1066,6 +1122,64 @@ func (h *UserHandler) UnlockUser(w http.ResponseWriter, r *http.Request) {
 	h.logAudit(r, tenant.TenantID, actorUserID, "user.unlock", "user", userUUID.String(), &userUUIDRef, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Account unlocked successfully")
+}
+
+// LinkUserIdentity links an existing external (federated) identity to a user.
+//
+// POST /users/{user_uuid}/identities
+//
+// The missing half of the admin identity surface, which could list and unlink
+// but never link. Without it a user who signed up a second time through a new
+// IdP was stuck with two accounts and no operator remedy, because the only
+// linking path is self-service and requires access to the original account.
+func (h *UserHandler) LinkUserIdentity(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.AuthFromRequest(r).User
+	if actor == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	userUUID, err := uuid.Parse(chi.URLParam(r, "user_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	var req UserLinkIdentityRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	providerUUID, err := uuid.Parse(req.IdentityProviderUUID)
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
+		return
+	}
+
+	identity, err := h.userService.AdminLinkIdentity(r.Context(), userUUID, tenant.TenantID, providerUUID, req.Sub, actor.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to link identity", err)
+		return
+	}
+
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{
+		"identity_provider_id": req.IdentityProviderUUID,
+		"sub":                  req.Sub,
+	}})
+	h.logAudit(r, tenant.TenantID, &actor.UserID, "user.link_identity", "user_identity",
+		identity.UserIdentityUUID.String(), &identity.UserIdentityUUID, string(changesJSON), "success")
+
+	resp.Success(w, toUserIdentityResponseDTO(*identity), "Identity linked successfully")
 }
 
 // UnlinkUserIdentity unlinks an external (federated) identity from a user.

@@ -307,6 +307,10 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 		api.Description = description
 		api.Status = status
 		api.ServiceID = service.ServiceID // Update the service assignment
+		// api.Service is the association preloaded when the API was fetched. Moving
+		// only the FK left it pointing at the OLD service, and the handler serialises
+		// it — so reassigning an API answered 200 with the previous service.
+		api.Service = service
 
 		// Update
 		_, err = txAPIRepo.CreateOrUpdate(api)

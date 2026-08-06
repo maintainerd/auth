@@ -69,6 +69,45 @@ func TestTenantSettingGRPCHandler(t *testing.T) {
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
+	// Regression: the Update* RPCs wrote GetConfig().AsMap() straight to the
+	// JSONB column, skipping the Validate*Config the REST handlers run — so the
+	// control plane could store values the console could never produce and the
+	// readers then had to survive.
+	t.Run("update RPCs run the same validation as REST", func(t *testing.T) {
+		var reached bool
+		h := NewTenantSettingGRPCHandler(tenantSvc(), &mockTenantMemberService{}, &mockTenantSettingService{
+			updateRateLimitConfigFn: func(int64, map[string]any) (*TenantSettingServiceDataResult, error) {
+				reached = true
+				return &TenantSettingServiceDataResult{}, nil
+			},
+			updateAuditConfigFn: func(int64, map[string]any) (*TenantSettingServiceDataResult, error) {
+				reached = true
+				return &TenantSettingServiceDataResult{}, nil
+			},
+			updateMaintenanceConfigFn: func(int64, map[string]any) (*TenantSettingServiceDataResult, error) {
+				reached = true
+				return &TenantSettingServiceDataResult{}, nil
+			},
+		})
+
+		// Out of range: requests_per_window caps at 100000.
+		badRate, _ := structpb.NewStruct(map[string]any{"requests_per_window": float64(999999)})
+		_, err := h.UpdateRateLimitConfig(sysCtx, &authv1.UpdateRateLimitConfigRequest{TenantUuid: tenantUUID.String(), Config: badRate})
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+
+		// Unknown field.
+		badAudit, _ := structpb.NewStruct(map[string]any{"retention_dayz": float64(30)})
+		_, err = h.UpdateAuditConfig(sysCtx, &authv1.UpdateAuditConfigRequest{TenantUuid: tenantUUID.String(), Config: badAudit})
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+
+		// Wrong type for a known field.
+		badMaint, _ := structpb.NewStruct(map[string]any{"enabled": "yes"})
+		_, err = h.UpdateMaintenanceConfig(sysCtx, &authv1.UpdateMaintenanceConfigRequest{TenantUuid: tenantUUID.String(), Config: badMaint})
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+
+		assert.False(t, reached, "an invalid config must never reach the service")
+	})
+
 	t.Run("unauthenticated is rejected", func(t *testing.T) {
 		h := NewTenantSettingGRPCHandler(tenantSvc(), &mockTenantMemberService{}, &mockTenantSettingService{})
 		_, err := h.GetAuditConfig(context.Background(), &authv1.GetAuditConfigRequest{TenantUuid: tenantUUID.String()})

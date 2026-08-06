@@ -1,0 +1,43 @@
+version: 2
+
+# Dependabot is free on public repositories and needs no account or token.
+#
+# It exists here to keep the govulncheck gate from becoming a wall. That gate
+# fails the build on any reachable CVE, which is only sustainable if upgrades
+# arrive as routine small PRs rather than as an emergency the day a CVE lands.
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Patch and minor bumps are where security fixes ship, and batching them
+    # keeps the PR count low enough to actually review. Majors stay separate
+    # because they need a human to read the changelog.
+    groups:
+      go-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "deps"
+      include: scope
+
+  # The Dockerfile pins the floating golang:1.26-alpine tag, so stdlib patches
+  # arrive on rebuild. This catches the base-image MAJOR bump (1.26 → 1.27),
+  # which that tag will never deliver on its own.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+
+  # Pinned action SHAs/versions go stale silently and are a real supply-chain
+  # surface — a compromised action runs with repository credentials.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"

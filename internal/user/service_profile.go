@@ -99,6 +99,74 @@ func NewProfileService(
 	}
 }
 
+// applyProfileFields copies the optional fields onto profile, skipping the ones
+// the caller omitted.
+//
+// The assignments used to be unconditional. Every optional field arrives as a
+// pointer that JSON decodes to nil when the key is absent, and the row is then
+// persisted with a full-struct Save — so a client that PUT only {first_name,
+// last_name} silently erased the user's gender, middle name, birthdate and the
+// whole metadata blob (which carries the OIDC `address` claim). A partial update
+// must not be a destructive one. nil therefore means "not sent, leave alone";
+// clearing a field is not expressible through these DTOs, which mark every
+// optional field `omitempty` and so cannot distinguish an explicit null anyway.
+//
+// firstName is a plain string and Required at the DTO layer, so it is always
+// present and always assigned.
+func applyProfileFields(
+	profile *Profile,
+	firstName string,
+	middleName, lastName, displayName *string,
+	birthdate *time.Time,
+	gender *string,
+	timezone, language *string,
+	profileURL *string,
+) {
+	profile.FirstName = firstName
+	if middleName != nil {
+		profile.MiddleName = middleName
+	}
+	if lastName != nil {
+		profile.LastName = lastName
+	}
+	if displayName != nil {
+		profile.DisplayName = displayName
+	}
+	if birthdate != nil {
+		profile.Birthdate = birthdate
+	}
+	if gender != nil {
+		profile.Gender = gender
+	}
+	if timezone != nil {
+		profile.Timezone = timezone
+	}
+	if language != nil {
+		profile.Language = language
+	}
+	if profileURL != nil {
+		profile.ProfileURL = profileURL
+	}
+}
+
+// applyProfileMetadata encodes metadata onto profile. An omitted metadata map
+// leaves any stored blob intact; only a brand-new row is seeded with "{}" so the
+// JSONB column is never NULL.
+func applyProfileMetadata(profile *Profile, metadata map[string]any) error {
+	if metadata != nil {
+		metadataBytes, err := json.Marshal(metadata)
+		if err != nil {
+			return err
+		}
+		profile.Metadata = metadataBytes
+		return nil
+	}
+	if len(profile.Metadata) == 0 {
+		profile.Metadata = datatypes.JSON([]byte("{}"))
+	}
+	return nil
+}
+
 func (s *profileService) CreateOrUpdateProfile(
 	ctx context.Context,
 	userUUID uuid.UUID,
@@ -145,33 +213,10 @@ func (s *profileService) CreateOrUpdateProfile(
 			profile = *existingProfile
 		}
 
-		// Step 4: Set all fields
-		// Basic Identity Information
-		profile.FirstName = firstName
-		profile.MiddleName = middleName
-		profile.LastName = lastName
-		profile.DisplayName = displayName
-
-		// Personal Information
-		profile.Birthdate = birthdate
-		profile.Gender = gender
-
-		// Preference
-		profile.Timezone = timezone
-		profile.Language = language
-
-		// Media & Assets (auth-centric)
-		profile.ProfileURL = profileURL
-
-		// Extended data - convert map to JSONB
-		if metadata != nil {
-			metadataBytes, err := json.Marshal(metadata)
-			if err != nil {
-				return err
-			}
-			profile.Metadata = metadataBytes
-		} else {
-			profile.Metadata = datatypes.JSON([]byte("{}"))
+		// Step 4: Apply the fields the caller actually sent.
+		applyProfileFields(&profile, firstName, middleName, lastName, displayName, birthdate, gender, timezone, language, profileURL)
+		if err := applyProfileMetadata(&profile, metadata); err != nil {
+			return err
 		}
 
 		// Step 4: Create or update using transaction-aware repository
@@ -259,36 +304,14 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 			profile = *existingProfile
 		}
 
-		// Set all fields
-		// Basic Identity Information
-		profile.FirstName = firstName
-		profile.MiddleName = middleName
-		profile.LastName = lastName
-		profile.DisplayName = displayName
-
-		// Personal Information
-		profile.Birthdate = birthdate
-		profile.Gender = gender
-
+		// Apply the fields the caller actually sent.
+		applyProfileFields(&profile, firstName, middleName, lastName, displayName, birthdate, gender, timezone, language, profileURL)
 		// Contact Information (transient — not persisted on profile)
-		profile.Email = email
-
-		// Preference
-		profile.Timezone = timezone
-		profile.Language = language
-
-		// Media & Assets (auth-centric)
-		profile.ProfileURL = profileURL
-
-		// Extended data - convert map to JSONB
-		if metadata != nil {
-			metadataBytes, err := json.Marshal(metadata)
-			if err != nil {
-				return err
-			}
-			profile.Metadata = metadataBytes
-		} else {
-			profile.Metadata = datatypes.JSON([]byte("{}"))
+		if email != nil {
+			profile.Email = email
+		}
+		if err := applyProfileMetadata(&profile, metadata); err != nil {
+			return err
 		}
 
 		// Create or update profile

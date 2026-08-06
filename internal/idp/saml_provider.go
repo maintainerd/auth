@@ -32,7 +32,19 @@ type samlRelayState struct {
 	RequestID string `json:"rid"`
 	Nonce     string `json:"n"`
 	IssuedAt  int64  `json:"iat"`
+	// Purpose pins the RelayState to one protocol exchange (SSO or SLO). Both
+	// exchanges are signed with the same HMAC key and carry the same fields, so
+	// without it a live SSO RelayState could be replayed at the SLO endpoint (and
+	// vice versa) to drive a flow it was never issued for.
+	Purpose string `json:"p"`
 }
+
+// RelayState purposes. verifyRelayStateForPurpose rejects any mismatch, so a
+// token minted for one exchange is inert in the other.
+const (
+	samlRelayPurposeSSO = "sso"
+	samlRelayPurposeSLO = "slo"
+)
 
 // signRelayState encodes rs as JSON, computes HMAC-SHA256 over it with the
 // global HMACSecretKey, and returns "{base64url(json)}.{base64url(sig)}".
@@ -76,6 +88,21 @@ func verifyRelayState(token string) (*samlRelayState, error) {
 		return nil, fmt.Errorf("relay state expired")
 	}
 	return &rs, nil
+}
+
+// verifyRelayStateForPurpose verifies the RelayState and additionally requires
+// it to have been issued for the given exchange. A blank purpose is rejected
+// rather than treated as a wildcard: every RelayState this server mints stamps
+// one, so a missing purpose means the token was not minted here or was crafted.
+func verifyRelayStateForPurpose(token, purpose string) (*samlRelayState, error) {
+	rs, err := verifyRelayState(token)
+	if err != nil {
+		return nil, err
+	}
+	if rs.Purpose != purpose {
+		return nil, fmt.Errorf("relay state was not issued for %s", purpose)
+	}
+	return rs, nil
 }
 
 // parseSAMLConfig unmarshals the JSONB config column into SAMLProviderConfig.
@@ -149,12 +176,22 @@ func buildIDPEntityDescriptor(cfg *SAMLProviderConfig) (*crewsaml.EntityDescript
 			},
 		}},
 	}
+	// The IdP's Single Logout endpoint has to be part of the descriptor or
+	// GetSLOBindingLocation resolves to "" and every LogoutRequest we build is
+	// addressed nowhere. Only advertised when the admin configured slo_url —
+	// an empty location would make us claim an SLO capability the IdP lacks.
+	if cfg.SLOURL != "" {
+		ed.IDPSSODescriptors[0].SingleLogoutServices = []crewsaml.Endpoint{
+			{Binding: crewsaml.HTTPRedirectBinding, Location: cfg.SLOURL},
+			{Binding: crewsaml.HTTPPostBinding, Location: cfg.SLOURL},
+		}
+	}
 	return ed, nil
 }
 
 // buildSAMLServiceProvider constructs a crewjam/saml ServiceProvider from the
 // IdP config and our SP endpoint URLs.
-func buildSAMLServiceProvider(cfg *SAMLProviderConfig, spEntityID, acsURL, metadataURL string) (*crewsaml.ServiceProvider, error) {
+func buildSAMLServiceProvider(cfg *SAMLProviderConfig, spEntityID, acsURL, metadataURL, sloURL string) (*crewsaml.ServiceProvider, error) {
 	idpMeta, err := buildIDPEntityDescriptor(cfg)
 	if err != nil {
 		return nil, err
@@ -168,6 +205,23 @@ func buildSAMLServiceProvider(cfg *SAMLProviderConfig, spEntityID, acsURL, metad
 	if err != nil {
 		return nil, fmt.Errorf("invalid metadata URL: %w", err)
 	}
+	// Our SLO endpoint is only published (and only accepted as a LogoutResponse
+	// Destination) when the IdP actually has an SLO endpoint to talk to. An SP
+	// whose metadata advertises a SingleLogoutService it cannot complete invites
+	// IdPs to start logouts that can never finish.
+	var parsedSLO url.URL
+	var logoutBindings []string
+	if cfg.SLOURL != "" && sloURL != "" {
+		p, sloErr := url.Parse(sloURL)
+		if sloErr != nil {
+			return nil, fmt.Errorf("invalid SLO URL: %w", sloErr)
+		}
+		parsedSLO = *p
+		// LogoutBindings is what makes Metadata() emit the SingleLogoutService
+		// entries; without it the SP metadata an IdP imports says nothing about
+		// where to send a logout, and SLO never starts.
+		logoutBindings = []string{crewsaml.HTTPRedirectBinding, crewsaml.HTTPPostBinding}
+	}
 
 	nameIDFmt := crewsaml.PersistentNameIDFormat
 	if cfg.NameIDFormat != "" {
@@ -178,6 +232,8 @@ func buildSAMLServiceProvider(cfg *SAMLProviderConfig, spEntityID, acsURL, metad
 		EntityID:              spEntityID,
 		MetadataURL:           *parsedMeta,
 		AcsURL:                *parsedACS,
+		SloURL:                parsedSLO,
+		LogoutBindings:        logoutBindings,
 		IDPMetadata:           idpMeta,
 		AuthnNameIDFormat:     nameIDFmt,
 		AllowIDPInitiated:     false,
@@ -186,13 +242,14 @@ func buildSAMLServiceProvider(cfg *SAMLProviderConfig, spEntityID, acsURL, metad
 	return sp, nil
 }
 
-// samlSPURLs returns the SP entity ID, ACS URL, and metadata URL for the
-// given provider identifier using the configured public hostname.
-func samlSPURLs(providerIdentifier string) (entityID, acsURL, metadataURL string) {
+// samlSPURLs returns the SP entity ID, ACS URL, metadata URL and Single Logout
+// URL for the given provider identifier using the configured public hostname.
+func samlSPURLs(providerIdentifier string) (entityID, acsURL, metadataURL, sloURL string) {
 	base := strings.TrimRight(config.AppPublicHostname, "/")
 	entityID = base + "/federation/saml/metadata/" + providerIdentifier
 	acsURL = base + "/federation/saml/acs/" + providerIdentifier
 	metadataURL = base + "/federation/saml/metadata/" + providerIdentifier
+	sloURL = base + "/federation/saml/slo/" + providerIdentifier
 	return
 }
 
@@ -200,6 +257,18 @@ func samlSPURLs(providerIdentifier string) (entityID, acsURL, metadataURL string
 // requestID is the AuthnRequest ID so the ACS handler can bind the IdP Response
 // to the request we issued.
 func newSAMLRelayState(providerIdentifier, clientID, redirectURI string, tenantID int64, requestID string) (string, error) {
+	return newSAMLRelayStateForPurpose(samlRelayPurposeSSO, providerIdentifier, clientID, redirectURI, tenantID, requestID)
+}
+
+// newSAMLLogoutRelayState creates the RelayState for an SP-initiated Single
+// Logout. redirectURI is the already-validated post-logout landing page and
+// requestID is the LogoutRequest ID, so the SLO endpoint can tie the IdP's
+// LogoutResponse back to the logout this server started.
+func newSAMLLogoutRelayState(providerIdentifier, clientID, redirectURI string, tenantID int64, requestID string) (string, error) {
+	return newSAMLRelayStateForPurpose(samlRelayPurposeSLO, providerIdentifier, clientID, redirectURI, tenantID, requestID)
+}
+
+func newSAMLRelayStateForPurpose(purpose, providerIdentifier, clientID, redirectURI string, tenantID int64, requestID string) (string, error) {
 	rs := &samlRelayState{
 		ProviderIdentifier: providerIdentifier,
 		ClientID:           clientID,
@@ -208,6 +277,7 @@ func newSAMLRelayState(providerIdentifier, clientID, redirectURI string, tenantI
 		RequestID:          requestID,
 		Nonce:              uuid.New().String(),
 		IssuedAt:           time.Now().Unix(),
+		Purpose:            purpose,
 	}
 	return signRelayState(rs)
 }

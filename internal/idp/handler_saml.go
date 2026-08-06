@@ -97,6 +97,65 @@ func (h *FederationHandler) ExchangeSAMLCode(w http.ResponseWriter, r *http.Requ
 	resp.Success(w, result, "")
 }
 
+// InitiateSAMLLogout begins SP-initiated SAML Single Logout by redirecting the
+// browser to the IdP's SLO endpoint. Local sessions are already revoked by the
+// time this redirect is issued.
+//
+// GET|POST /federation/saml/logout?provider_identifier=…&id_token_hint=…&client_id=…&post_logout_redirect_uri=…
+func (h *FederationHandler) InitiateSAMLLogout(w http.ResponseWriter, r *http.Request) {
+	// The parameters arrive either as a query string (the browser navigates
+	// here) or as a form POST, mirroring OIDC RP-Initiated Logout. ParseForm
+	// populates r.Form from both, so one read covers both shapes.
+	if err := r.ParseForm(); err != nil {
+		resp.Error(w, http.StatusBadRequest, "failed to parse request")
+		return
+	}
+
+	in := SAMLLogoutInitiateInput{
+		ProviderIdentifier:    r.Form.Get("provider_identifier"),
+		ClientID:              r.Form.Get("client_id"),
+		IDTokenHint:           r.Form.Get("id_token_hint"),
+		PostLogoutRedirectURI: r.Form.Get("post_logout_redirect_uri"),
+	}
+	if in.ProviderIdentifier == "" || in.IDTokenHint == "" {
+		resp.Error(w, http.StatusBadRequest, "provider_identifier and id_token_hint are required")
+		return
+	}
+
+	result, err := h.federationSvc.InitiateSAMLLogout(r.Context(), in)
+	if err != nil {
+		resp.HandleServiceError(w, r, "SAML logout failed", err)
+		return
+	}
+
+	http.Redirect(w, r, result.RedirectURL, http.StatusFound)
+}
+
+// SAMLSingleLogout is the Single Logout endpoint published in our SP metadata.
+// It consumes both the IdP's LogoutResponse (finishing a logout we started) and
+// an IdP-initiated LogoutRequest (which it answers with a LogoutResponse).
+//
+// GET|POST /federation/saml/slo/{provider_identifier}
+func (h *FederationHandler) SAMLSingleLogout(w http.ResponseWriter, r *http.Request) {
+	identifier := chi.URLParam(r, "provider_identifier")
+	if identifier == "" {
+		resp.Error(w, http.StatusBadRequest, "provider_identifier is required")
+		return
+	}
+
+	result, err := h.federationSvc.HandleSAMLSingleLogout(r.Context(), r, identifier)
+	if err != nil {
+		resp.HandleServiceError(w, r, "SAML single logout failed", err)
+		return
+	}
+
+	if result.RedirectURL != "" {
+		http.Redirect(w, r, result.RedirectURL, http.StatusFound)
+		return
+	}
+	resp.Success(w, nil, "logged out")
+}
+
 // SAMLMetadata serves the SP metadata XML for the given provider.
 //
 // GET /federation/saml/metadata/{provider_identifier}

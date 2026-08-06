@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"gorm.io/gorm"
 )
@@ -16,6 +17,9 @@ type OAuthCIBARequestRepository interface {
 	WithTx(tx *gorm.DB) OAuthCIBARequestRepository
 	FindByAuthReqIDHash(hash string) (*OAuthCIBARequest, error)
 	UpdateStatus(id int64, status string) error
+	// ConsumeApproved atomically spends an approved request so its auth_req_id
+	// cannot mint a second token.
+	ConsumeApproved(id int64) error
 	UpdateApproval(id int64, userID int64) error
 	UpdateApprovalContext(id int64, userID int64, acr string, amr []string) error
 	UpdateLastPollAt(id int64) error
@@ -63,6 +67,28 @@ func (r *oauthCIBARequestRepository) UpdateStatus(id int64, status string) error
 	return r.DB().Model(&OAuthCIBARequest{}).
 		Where("oauth_ciba_request_id = ?", id).
 		Update("status", status).Error
+}
+
+// ConsumeApproved atomically transitions an approved CIBA request out of the
+// redeemable state. Returns apperror.Conflict when a concurrent poll already
+// spent it.
+//
+// The terminal status is 'expired' rather than 'consumed' because
+// chk_oauth_ciba_requests_status (migration 066) only admits
+// pending/approved/denied/expired; 'expired' is the one value in that set that
+// means "no longer redeemable", and ExchangeToken already maps it to the RFC's
+// expired_token response.
+func (r *oauthCIBARequestRepository) ConsumeApproved(id int64) error {
+	result := r.DB().Model(&OAuthCIBARequest{}).
+		Where("oauth_ciba_request_id = ? AND status = ?", id, CIBAStatusApproved).
+		Update("status", CIBAStatusExpired)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return apperror.NewConflict("CIBA request already redeemed")
+	}
+	return nil
 }
 
 // UpdateApproval sets status=approved and records the approving user.

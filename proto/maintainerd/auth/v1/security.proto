@@ -8,31 +8,13 @@ import "maintainerd/auth/v1/tenant.proto";
 
 option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
-service SecuritySettingService {
-  rpc GetMFAConfig(GetMFAConfigRequest) returns (GetMFAConfigResponse);
-  rpc UpdateMFAConfig(UpdateMFAConfigRequest) returns (UpdateMFAConfigResponse);
-  rpc GetPasswordConfig(GetPasswordConfigRequest) returns (GetPasswordConfigResponse);
-  rpc UpdatePasswordConfig(UpdatePasswordConfigRequest) returns (UpdatePasswordConfigResponse);
-  rpc GetSessionConfig(GetSessionConfigRequest) returns (GetSessionConfigResponse);
-  rpc UpdateSessionConfig(UpdateSessionConfigRequest) returns (UpdateSessionConfigResponse);
-  rpc GetThreatConfig(GetThreatConfigRequest) returns (GetThreatConfigResponse);
-  rpc UpdateThreatConfig(UpdateThreatConfigRequest) returns (UpdateThreatConfigResponse);
-  rpc GetLockoutConfig(GetLockoutConfigRequest) returns (GetLockoutConfigResponse);
-  rpc UpdateLockoutConfig(UpdateLockoutConfigRequest) returns (UpdateLockoutConfigResponse);
-  rpc GetRegistrationConfig(GetRegistrationConfigRequest) returns (GetRegistrationConfigResponse);
-  rpc UpdateRegistrationConfig(UpdateRegistrationConfigRequest) returns (UpdateRegistrationConfigResponse);
-  rpc GetTokenConfig(GetTokenConfigRequest) returns (GetTokenConfigResponse);
-  rpc UpdateTokenConfig(UpdateTokenConfigRequest) returns (UpdateTokenConfigResponse);
-}
-
-service IPRestrictionRuleService {
-  rpc ListIPRestrictionRules(ListIPRestrictionRulesRequest) returns (ListIPRestrictionRulesResponse);
-  rpc GetIPRestrictionRule(GetIPRestrictionRuleRequest) returns (GetIPRestrictionRuleResponse);
-  rpc CreateIPRestrictionRule(CreateIPRestrictionRuleRequest) returns (CreateIPRestrictionRuleResponse);
-  rpc UpdateIPRestrictionRule(UpdateIPRestrictionRuleRequest) returns (UpdateIPRestrictionRuleResponse);
-  rpc SetIPRestrictionRuleStatus(SetIPRestrictionRuleStatusRequest) returns (SetIPRestrictionRuleStatusResponse);
-  rpc DeleteIPRestrictionRule(DeleteIPRestrictionRuleRequest) returns (DeleteIPRestrictionRuleResponse);
-}
+// SecuritySettingService and IPRestrictionRuleService used to be declared here
+// with no handler registered anywhere in the tree, so every RPC they advertised
+// answered UNIMPLEMENTED. A published contract that names RPCs the server never
+// serves cannot be told apart from one that is simply down, so both service
+// blocks were removed: security policy administration is REST control-plane only
+// (see internal/secpolicy/routes.go). The messages below are kept as the agreed
+// wire shape for the day a handler is written.
 
 message GetMFAConfigRequest { int64 tenant_id = 1; }
 message GetMFAConfigResponse { google.protobuf.Struct config = 1; }

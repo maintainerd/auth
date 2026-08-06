@@ -1,8 +1,11 @@
 package app
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/maintainerd/maintainerd-auth/internal/user"
 	"gorm.io/gorm"
 )
@@ -17,6 +20,17 @@ func newUserTenantRepo(db *gorm.DB) user.TenantRepository {
 
 func (r *userTenantRepo) WithTx(tx *gorm.DB) user.TenantRepository {
 	return &userTenantRepo{r.BaseRepository.WithTx(tx)}
+}
+
+// FindSystem resolves the single system tenant. Membership candidates are drawn
+// from it, so it is looked up here rather than accepted as a caller-supplied id.
+func (r *userTenantRepo) FindSystem() (*user.Tenant, error) {
+	var t user.Tenant
+	err := r.DB().Where("is_system = ?", true).First(&t).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &t, nil
 }
 
 type userRoleRepo struct {
@@ -88,17 +102,38 @@ func (r *userClientRepo) FindDefaultByTenantID(tenantID int64) (*user.Client, er
 }
 
 func (r *userClientRepo) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*user.Client, error) {
-	query := r.DB().Model(&user.Client{}).Where("clients.identifier = ?", clientID)
+	query := r.DB().Model(&user.Client{}).
+		Where("clients.identifier = ?", clientID).
+		// Same gates as client.clientRepository.FindByClientIDAndIdentityProvider.
+		// This adapter backs the federated login path, so leaving them off meant a
+		// disabled connection or a deactivated provider still minted tokens — the
+		// later reachability checks only bite on subsequent API calls, by which
+		// point a full-TTL access token has already been issued.
+		Where("clients.status = ? AND clients.deleted_at IS NULL", shared.StatusActive)
 	if identityProviderIdentifier != "" {
 		query = query.
 			Joins("JOIN client_identity_providers ON client_identity_providers.client_id = clients.client_id").
 			Joins("JOIN identity_providers ON identity_providers.identity_provider_id = client_identity_providers.identity_provider_id").
-			Where("identity_providers.identifier = ?", identityProviderIdentifier)
+			Where("identity_providers.identifier = ?", identityProviderIdentifier).
+			Where("identity_providers.status = ? AND identity_providers.deleted_at IS NULL", shared.StatusActive).
+			Where("client_identity_providers.enabled = TRUE AND client_identity_providers.deleted_at IS NULL")
 	}
 	var c user.Client
 	err := query.First(&c).Error
 	if err != nil {
 		return nil, firstOrNil(err)
+	}
+	return &c, nil
+}
+
+func (r *userClientRepo) FindByIdentifier(identifier string) (*user.Client, error) {
+	var c user.Client
+	err := r.DB().Where("identifier = ?", identifier).First(&c).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	return &c, nil
 }

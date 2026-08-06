@@ -122,6 +122,7 @@ var migrations = []migrationEntry{
 	{"077_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
 	{"078_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
 	{"079_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
+	// Block 16: Control plane — ecosystem provisioning state (core-facing gRPC)
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

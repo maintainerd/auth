@@ -256,6 +256,57 @@ func TestTenantSettingService_UpdateMaintenanceConfig(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// updateConfig — merges over the stored config instead of replacing it
+// ---------------------------------------------------------------------------
+
+// Regression: updateConfig overwrote the whole JSONB column, so saving a console
+// form that renders only some of a section's fields silently deleted the rest —
+// audit event_types, rate-limit exempt_ips and endpoint_overrides.
+func TestTenantSettingService_updateConfig_mergesOverStoredKeys(t *testing.T) {
+	t.Run("keys the payload omits survive", func(t *testing.T) {
+		ts := newTenantSetting(1)
+		ts.AuditConfig = datatypes.JSON([]byte(`{"enabled":true,"retention_days":90,"event_types":["login","logout"]}`))
+		svc := newTenantSettingSvc(&mockTenantSettingRepo{
+			findByTenantIDFn: func(_ int64) (*TenantSetting, error) { return ts, nil },
+			createOrUpdateFn: func(e *TenantSetting) (*TenantSetting, error) { return e, nil },
+		})
+
+		res, err := svc.UpdateAuditConfig(context.Background(), 1, map[string]any{"enabled": false})
+		require.NoError(t, err)
+		assert.Equal(t, false, res.AuditConfig["enabled"], "the posted key wins")
+		assert.Equal(t, float64(90), res.AuditConfig["retention_days"], "an omitted key is preserved")
+		assert.Equal(t, []any{"login", "logout"}, res.AuditConfig["event_types"], "an omitted list is preserved")
+	})
+
+	t.Run("rate-limit lists and overrides survive a partial save", func(t *testing.T) {
+		ts := newTenantSetting(1)
+		ts.RateLimitConfig = datatypes.JSON([]byte(`{"enabled":true,"exempt_ips":["10.0.0.1"],"endpoint_overrides":{"/token":5}}`))
+		svc := newTenantSettingSvc(&mockTenantSettingRepo{
+			findByTenantIDFn: func(_ int64) (*TenantSetting, error) { return ts, nil },
+			createOrUpdateFn: func(e *TenantSetting) (*TenantSetting, error) { return e, nil },
+		})
+
+		res, err := svc.UpdateRateLimitConfig(context.Background(), 1, map[string]any{"requests_per_window": float64(200)})
+		require.NoError(t, err)
+		assert.Equal(t, float64(200), res.RateLimitConfig["requests_per_window"])
+		assert.Equal(t, []any{"10.0.0.1"}, res.RateLimitConfig["exempt_ips"])
+		assert.Equal(t, map[string]any{"/token": float64(5)}, res.RateLimitConfig["endpoint_overrides"])
+	})
+
+	t.Run("an empty payload leaves the stored config untouched", func(t *testing.T) {
+		ts := newTenantSetting(1)
+		svc := newTenantSettingSvc(&mockTenantSettingRepo{
+			findByTenantIDFn: func(_ int64) (*TenantSetting, error) { return ts, nil },
+			createOrUpdateFn: func(e *TenantSetting) (*TenantSetting, error) { return e, nil },
+		})
+
+		res, err := svc.UpdateMaintenanceConfig(context.Background(), 1, map[string]any{})
+		require.NoError(t, err)
+		assert.Equal(t, false, res.MaintenanceConfig["active"])
+	})
+}
+
+// ---------------------------------------------------------------------------
 // updateConfig — invalid configType (covers the default switch branch)
 // ---------------------------------------------------------------------------
 

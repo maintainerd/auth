@@ -248,10 +248,8 @@ type mockPolicyRepo struct {
 	findByUUIDAndTenantIDFn   func(uuid.UUID, int64) (*Policy, error)
 	findByNameFn              func(string, int64) (*Policy, error)
 	findByNameAndVersionFn    func(string, string, int64) (*Policy, error)
-	findSystemPoliciesFn      func(int64) ([]Policy, error)
 	findPaginatedFn           func(PolicyRepositoryGetFilter) (*PaginationResult[Policy], error)
 	setStatusByUUIDFn         func(uuid.UUID, int64, string) error
-	setSystemStatusByUUIDFn   func(uuid.UUID, int64, bool) error
 	deleteByUUIDAndTenantIDFn func(uuid.UUID, int64) error
 	deleteByUUIDAndTenantFn   func(uuid.UUID, int64) error
 	createFn                  func(*Policy) (*Policy, error)
@@ -299,12 +297,6 @@ func (m *mockPolicyRepo) FindByNameAndVersion(name string, version string, tenan
 	}
 	return nil, nil
 }
-func (m *mockPolicyRepo) FindSystemPolicies(tenantID int64) ([]Policy, error) {
-	if m.findSystemPoliciesFn != nil {
-		return m.findSystemPoliciesFn(tenantID)
-	}
-	return nil, nil
-}
 func (m *mockPolicyRepo) FindPaginated(f PolicyRepositoryGetFilter) (*PaginationResult[Policy], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(f)
@@ -314,12 +306,6 @@ func (m *mockPolicyRepo) FindPaginated(f PolicyRepositoryGetFilter) (*Pagination
 func (m *mockPolicyRepo) SetStatusByUUID(id uuid.UUID, tenantID int64, status string) error {
 	if m.setStatusByUUIDFn != nil {
 		return m.setStatusByUUIDFn(id, tenantID, status)
-	}
-	return nil
-}
-func (m *mockPolicyRepo) SetSystemStatusByUUID(id uuid.UUID, tenantID int64, isSystem bool) error {
-	if m.setSystemStatusByUUIDFn != nil {
-		return m.setSystemStatusByUUIDFn(id, tenantID, isSystem)
 	}
 	return nil
 }
@@ -342,9 +328,6 @@ type mockRoleRepo struct {
 	findPaginatedFn              func(RoleRepositoryGetFilter) (*PaginationResult[Role], error)
 	getPermissionsByRoleUUIDFn   func(RoleRepositoryGetPermissionsFilter) (*PaginationResult[Permission], error)
 	getPermsByRoleUUIDFn         func(RoleRepositoryGetPermissionsFilter) (*PaginationResult[Permission], error)
-	setStatusByUUIDFn            func(uuid.UUID, string) error
-	setDefaultStatusByUUIDFn     func(uuid.UUID, bool) error
-	setSystemStatusByUUIDFn      func(uuid.UUID, bool) error
 	findRegisteredRoleForSetupFn func(int64) (*Role, error)
 	findSuperAdminRoleForSetupFn func(int64) (*Role, error)
 	createOrUpdateFn             func(*Role) (*Role, error)
@@ -402,24 +385,6 @@ func (m *mockRoleRepo) GetPermissionsByRoleUUID(f RoleRepositoryGetPermissionsFi
 		return m.getPermsByRoleUUIDFn(f)
 	}
 	return &PaginationResult[Permission]{}, nil
-}
-func (m *mockRoleRepo) SetStatusByUUID(id uuid.UUID, status string) error {
-	if m.setStatusByUUIDFn != nil {
-		return m.setStatusByUUIDFn(id, status)
-	}
-	return nil
-}
-func (m *mockRoleRepo) SetDefaultStatusByUUID(id uuid.UUID, isDefault bool) error {
-	if m.setDefaultStatusByUUIDFn != nil {
-		return m.setDefaultStatusByUUIDFn(id, isDefault)
-	}
-	return nil
-}
-func (m *mockRoleRepo) SetSystemStatusByUUID(id uuid.UUID, isSystem bool) error {
-	if m.setSystemStatusByUUIDFn != nil {
-		return m.setSystemStatusByUUIDFn(id, isSystem)
-	}
-	return nil
 }
 func (m *mockRoleRepo) FindRegisteredRoleForSetup(tenantID int64) (*Role, error) {
 	if m.findRegisteredRoleForSetupFn != nil {
@@ -575,7 +540,6 @@ type mockServicePolicyRepo struct {
 	deleteByServiceAndPolicyFn func(int64, int64) error
 	deleteByServiceAndPolicy   func(int64, int64) error
 	findPoliciesByServiceIDFn  func(int64) ([]Policy, error)
-	findServicesByPolicyIDFn   func(int64) ([]Service, error)
 	createFn                   func(*ServicePolicy) (*ServicePolicy, error)
 	createOrUpdateFn           func(*ServicePolicy) (*ServicePolicy, error)
 }
@@ -623,19 +587,24 @@ func (m *mockServicePolicyRepo) FindPoliciesByServiceID(serviceID int64) ([]Poli
 	}
 	return nil, nil
 }
-func (m *mockServicePolicyRepo) FindServicesByPolicyID(policyID int64) ([]Service, error) {
-	if m.findServicesByPolicyIDFn != nil {
-		return m.findServicesByPolicyIDFn(policyID)
-	}
-	return nil, nil
-}
 
 type mockUserRepo struct {
 	mockBaseRepo[User]
-	findByUUIDFn func(any, ...string) (*User, error)
+	findByUUIDFn               func(any, ...string) (*User, error)
+	effectivePermissionNamesFn func(int64, int64) ([]string, error)
 }
 
 func (m *mockUserRepo) WithTx(_ *gorm.DB) UserRepository { return m }
+
+// Defaults to an empty set, i.e. the actor holds nothing, so the escalation
+// guard fails CLOSED unless a test states what the actor holds. A test that
+// grants an elevated permission has to say so — which is the point.
+func (m *mockUserRepo) EffectivePermissionNames(userID, tenantID int64) ([]string, error) {
+	if m.effectivePermissionNamesFn != nil {
+		return m.effectivePermissionNamesFn(userID, tenantID)
+	}
+	return nil, nil
+}
 func (m *mockUserRepo) FindByUUID(id any, p ...string) (*User, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
@@ -733,13 +702,12 @@ func (m *mockAPIService) DeleteByUUID(_ context.Context, id uuid.UUID, tenantID 
 }
 
 type mockPermissionService struct {
-	getFn                   func(PermissionServiceGetFilter) (*PermissionServiceGetResult, error)
-	getByUUIDFn             func(uuid.UUID, int64) (*PermissionServiceDataResult, error)
-	createFn                func(int64, string, string, string, bool, string) (*PermissionServiceDataResult, error)
-	updateFn                func(uuid.UUID, int64, string, string, string) (*PermissionServiceDataResult, error)
-	setStatusFn             func(uuid.UUID, int64, string) (*PermissionServiceDataResult, error)
-	setActiveStatusByUUIDFn func(uuid.UUID, int64) (*PermissionServiceDataResult, error)
-	deleteByUUIDFn          func(uuid.UUID, int64) (*PermissionServiceDataResult, error)
+	getFn          func(PermissionServiceGetFilter) (*PermissionServiceGetResult, error)
+	getByUUIDFn    func(uuid.UUID, int64) (*PermissionServiceDataResult, error)
+	createFn       func(int64, string, string, string, bool, string) (*PermissionServiceDataResult, error)
+	updateFn       func(uuid.UUID, int64, string, string, string) (*PermissionServiceDataResult, error)
+	setStatusFn    func(uuid.UUID, int64, string) (*PermissionServiceDataResult, error)
+	deleteByUUIDFn func(uuid.UUID, int64) (*PermissionServiceDataResult, error)
 }
 
 func (m *mockPermissionService) Get(_ context.Context, f PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
@@ -763,12 +731,6 @@ func (m *mockPermissionService) Create(_ context.Context, tenantID int64, name s
 func (m *mockPermissionService) Update(_ context.Context, id uuid.UUID, tenantID int64, name string, description string, status string) (*PermissionServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tenantID, name, description, status)
-	}
-	return &PermissionServiceDataResult{}, nil
-}
-func (m *mockPermissionService) SetActiveStatusByUUID(_ context.Context, id uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
-	if m.setActiveStatusByUUIDFn != nil {
-		return m.setActiveStatusByUUIDFn(id, tenantID)
 	}
 	return &PermissionServiceDataResult{}, nil
 }

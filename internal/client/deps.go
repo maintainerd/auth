@@ -36,6 +36,11 @@ type Permission struct {
 	IsSystem       bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	// DeletedAt is REQUIRED on this projection, not decorative: GORM applies
+	// the soft-delete scope only when the scanned struct declares it. Without
+	// it, preloading this table returned rows that had been deleted — so
+	// revoking a role or permission granted it forever.
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (Permission) TableName() string { return "permissions" }
@@ -102,9 +107,7 @@ type UserIdentity struct {
 	UserIdentityID int64   `gorm:"primaryKey"`
 	TenantID       int64   `gorm:"column:tenant_id"`
 	UserID         int64   `gorm:"column:user_id"`
-	ClientID       *int64  `gorm:"column:client_id"`
 	Tenant         *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
-	Client         *Client `gorm:"foreignKey:ClientID;references:ClientID;constraint:OnDelete:SET NULL"`
 }
 
 func (UserIdentity) TableName() string { return "user_identities" }
@@ -132,6 +135,11 @@ type Role struct {
 	Status      string
 	IsDefault   bool
 	IsSystem    bool
+	// DeletedAt is REQUIRED on this projection, not decorative: GORM applies
+	// the soft-delete scope only when the scanned struct declares it. Without
+	// it, preloading this table returned rows that had been deleted — so
+	// revoking a role or permission granted it forever.
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (Role) TableName() string { return "roles" }

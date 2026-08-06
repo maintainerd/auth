@@ -360,7 +360,7 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
 	})
@@ -377,7 +377,7 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -398,7 +398,7 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
 		assert.Contains(t, oerr.Description, "expired")
@@ -412,6 +412,7 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
 					return &OAuthDeviceCode{
 						OAuthDeviceCodeID: 1,
+						TenantID:          1,
 						Status:            DeviceCodeStatusPending,
 						ExpiresAt:         time.Now().Add(5 * time.Minute),
 					}, nil
@@ -423,7 +424,7 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42)
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -455,12 +456,95 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42)
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42, 1)
 		require.Nil(t, oerr)
 		assert.Equal(t, int64(1), updatedID)
 		assert.Equal(t, DeviceCodeStatusApproved, updatedStatus)
 		require.NotNil(t, updatedUserID)
 		assert.Equal(t, int64(42), *updatedUserID)
+	})
+
+	// Approval used to be looked up by user_code alone: no tenant check and no
+	// status guard, so any authenticated user in any tenant could approve (or
+	// re-approve a denied) device request and become the subject of the token
+	// issued to that client.
+	t.Run("a user in another tenant cannot approve", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		approved := false
+		svc := &oauthDeviceService{
+			db: db,
+			deviceCodeRepo: &mockOAuthDeviceCodeRepo{
+				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						TenantID:          1,
+						Status:            DeviceCodeStatusPending,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+				updateApprovalFn: func(int64, int64, string, []string) error {
+					approved = true
+					return nil
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42, 2)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.False(t, approved)
+	})
+
+	t.Run("a denied device request cannot be re-approved", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthDeviceService{
+			db: db,
+			deviceCodeRepo: &mockOAuthDeviceCodeRepo{
+				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						TenantID:          1,
+						Status:            DeviceCodeStatusDenied,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.Contains(t, oerr.Description, "no longer pending")
+	})
+
+	t.Run("a user in another tenant cannot deny", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		denied := false
+		svc := &oauthDeviceService{
+			db: db,
+			deviceCodeRepo: &mockOAuthDeviceCodeRepo{
+				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						TenantID:          1,
+						Status:            DeviceCodeStatusPending,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+				updateStatusFn: func(int64, string, *int64) error {
+					denied = true
+					return nil
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42, 2)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.False(t, denied)
 	})
 }
 
@@ -891,7 +975,7 @@ func TestOAuthDeviceService_DenyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
+		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
 	})
@@ -908,7 +992,7 @@ func TestOAuthDeviceService_DenyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
+		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -921,6 +1005,7 @@ func TestOAuthDeviceService_DenyUserCode(t *testing.T) {
 				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
 					return &OAuthDeviceCode{
 						OAuthDeviceCodeID: 1,
+						TenantID:          1,
 						Status:            DeviceCodeStatusPending,
 						ExpiresAt:         time.Now().Add(5 * time.Minute),
 					}, nil
@@ -932,7 +1017,7 @@ func TestOAuthDeviceService_DenyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42)
+		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -962,7 +1047,7 @@ func TestOAuthDeviceService_DenyUserCode(t *testing.T) {
 			authEventService: &mockAuthEventService{},
 		}
 
-		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42)
+		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42, 1)
 		require.Nil(t, oerr)
 		assert.Equal(t, int64(1), updatedID)
 		assert.Equal(t, DeviceCodeStatusDenied, updatedStatus)

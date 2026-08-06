@@ -65,8 +65,15 @@ func TestStepUpMethodAllowed(t *testing.T) {
 		want   bool
 	}{
 		{name: "empty method rejected", raw: []any{"totp"}, method: "", want: false},
-		{name: "non-list claim allows backward-compatible token", raw: "totp", method: "totp", want: true},
-		{name: "missing claim allows backward-compatible token", raw: nil, method: "totp", want: true},
+		// INVERTED (both cases below): these used to expect true, on a
+		// "backward-compatible token" reading. A challenge token whose
+		// allowed_methods claim is absent or the wrong type authorises nothing —
+		// treating it as authorising EVERYTHING let through a method the tenant
+		// policy had disallowed. authn.loginMFAMethodAllowed already fails closed
+		// on the identical parse, and the two must not disagree about what a
+		// challenge authorises.
+		{name: "non-list claim rejected", raw: "totp", method: "totp", want: false},
+		{name: "missing claim rejected", raw: nil, method: "totp", want: false},
 		{name: "listed method allowed", raw: []any{"totp", "backup_code"}, method: "backup_code", want: true},
 		{name: "unlisted method rejected", raw: []any{"totp"}, method: "backup_code", want: false},
 		{name: "non-string list values ignored", raw: []any{123, "totp"}, method: "backup_code", want: false},
@@ -101,7 +108,18 @@ func TestMFAMethodAllowedPolicy(t *testing.T) {
 	}
 }
 
+// bcryptHash produces a stored-backup-code hash in the one format the verifiers
+// (and the count endpoint) accept.
+func bcryptHash(t *testing.T, code string) string {
+	t.Helper()
+	h, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.MinCost)
+	require.NoError(t, err)
+	return string(h)
+}
+
 func TestMFAService_GetBackupCodesCount(t *testing.T) {
+	bcryptHash := func(code string) string { return bcryptHash(t, code) }
+
 	tests := []struct {
 		name    string
 		codes   []UserMFABackupCode
@@ -109,7 +127,25 @@ func TestMFAService_GetBackupCodesCount(t *testing.T) {
 		want    int
 		wantErr string
 	}{
-		{name: "counts unused codes", codes: []UserMFABackupCode{{BackupCodeID: 1}, {BackupCodeID: 2}}, want: 2},
+		{
+			// Fixtures now carry real bcrypt hashes: the count reports codes the
+			// verifier can actually redeem, and a hash-less row is not one.
+			name:  "counts unused codes",
+			codes: []UserMFABackupCode{{BackupCodeID: 1, CodeHash: bcryptHash("aaa")}, {BackupCodeID: 2, CodeHash: bcryptHash("bbb")}},
+			want:  2,
+		},
+		{
+			// Regression: backup codes were briefly written under two schemes on
+			// one table. A SHA-256 row can never satisfy the bcrypt verifier, so
+			// reporting it as "remaining" told the user they had a recovery path
+			// that could not work.
+			name: "unredeemable non-bcrypt rows are not counted",
+			codes: []UserMFABackupCode{
+				{BackupCodeID: 1, CodeHash: bcryptHash("aaa")},
+				{BackupCodeID: 2, CodeHash: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"},
+			},
+			want: 1,
+		},
 		{name: "repo error", err: errors.New("db down"), wantErr: "backup code lookup failed"},
 	}
 
@@ -148,7 +184,7 @@ func TestMFAService_GetMFAStatus(t *testing.T) {
 		{
 			name:  "success maps factors and timestamps",
 			user:  &User{UserID: 42, IsTOTPEnabled: true, IsWebAuthnEnabled: true, FirstMFAEnrolledAt: &enabledAt},
-			codes: []UserMFABackupCode{{BackupCodeID: 1}, {BackupCodeID: 2}},
+			codes: []UserMFABackupCode{{BackupCodeID: 1, CodeHash: bcryptHash(t, "aaa")}, {BackupCodeID: 2, CodeHash: bcryptHash(t, "bbb")}},
 			creds: []UserMFAWebAuthnCredential{{
 				CredentialUUID: credUUID,
 				Name:           "Laptop",
@@ -276,28 +312,116 @@ func TestMFAService_IsMFARequired(t *testing.T) {
 
 func TestMFAService_UserHasMFA(t *testing.T) {
 	tests := []struct {
-		name string
-		user *User
-		err  error
-		want bool
+		name     string
+		user     *User
+		userErr  error
+		phone    *UserMFAPhone
+		phoneErr error
+		email    *UserMFAEmail
+		emailErr error
+		want     bool
+		wantErr  bool
 	}{
 		{name: "totp enabled", user: &User{IsTOTPEnabled: true}, want: true},
 		{name: "webauthn enabled", user: &User{IsWebAuthnEnabled: true}, want: true},
+		// INVERTED. These two used to report "no MFA" — the check only read the
+		// users.is_totp_enabled / is_webauthn_enabled columns. The enrollment gate
+		// reads a "no" as permission to bootstrap a first factor without a
+		// step-up, so an SMS-only or email-OTP-only account was a free
+		// second-factor enrollment for a hijacked acr=1 session.
+		{name: "verified sms phone counts as MFA", user: &User{}, phone: &UserMFAPhone{IsVerified: true}, want: true},
+		{name: "verified email OTP counts as MFA", user: &User{}, email: &UserMFAEmail{IsVerified: true}, want: true},
+		{name: "unverified sms phone is not MFA", user: &User{}, phone: &UserMFAPhone{}, want: false},
+		{name: "unverified email OTP is not MFA", user: &User{}, email: &UserMFAEmail{}, want: false},
 		{name: "no factors", user: &User{}, want: false},
-		{name: "missing user", user: nil, want: false},
-		{name: "repo error", err: errors.New("db down"), want: false},
+		// INVERTED. These three used to return (false, nil) — indistinguishable
+		// from a genuinely unprotected account, so a database blip read as "this
+		// user has no MFA" and opened the enrollment gate. A security decision on
+		// unreadable state must fail CLOSED, which here means surfacing the error.
+		{name: "missing user errors rather than reporting no MFA", user: nil, wantErr: true},
+		{name: "user lookup error fails closed", userErr: errors.New("db down"), wantErr: true},
+		{name: "phone lookup error fails closed", user: &User{}, phoneErr: errors.New("db down"), wantErr: true},
+		{name: "email lookup error fails closed", user: &User{}, emailErr: errors.New("db down"), wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &mfaService{userRepo: &mockUserRepo{findByID: tt.user, findByIDErr: tt.err}}
+			svc := &mfaService{
+				userRepo:     &mockUserRepo{findByID: tt.user, findByIDErr: tt.userErr},
+				mfaPhoneRepo: &mockMFAPhoneRepo{findByUserID: tt.phone, findByUserIDErr: tt.phoneErr},
+				emailOTPRepo: &mockMFAEmailRepo{findByUserID: tt.email, findByUserIDErr: tt.emailErr},
+			}
 
 			got, err := svc.UserHasMFA(t.Context(), 42)
 
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.False(t, got)
+				return
+			}
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestMFAService_SensitiveActionStepUpRequired(t *testing.T) {
+	settingWith := func(cfg string) *mockSecuritySettingRepo {
+		return &mockSecuritySettingRepo{findByTenantID: &secpolicy.SecuritySetting{
+			MFAConfig: datatypes.JSON([]byte(cfg)),
+		}}
+	}
+	newSvc := func(repo *mockSecuritySettingRepo, user *User, userErr error) *mfaService {
+		return &mfaService{
+			secSettingRepo:      repo,
+			userRepo:            &mockUserRepo{findByID: user, findByIDErr: userErr},
+			mfaBackupCodeRepo:   &mockMFABackupCodeRepo{},
+			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
+			mfaPhoneRepo:        &mockMFAPhoneRepo{},
+			emailOTPRepo:        &mockMFAEmailRepo{},
+		}
+	}
+
+	t.Run("policy off is not required", func(t *testing.T) {
+		svc := newSvc(settingWith(`{"require_mfa_for_sensitive_actions":false}`), &User{UserID: mfaTestUserID, IsTOTPEnabled: true}, nil)
+
+		required, err := svc.SensitiveActionStepUpRequired(t.Context(), mfaTestUserID)
+
+		require.NoError(t, err)
+		assert.False(t, required)
+	})
+
+	t.Run("policy on with an enrolled factor is required", func(t *testing.T) {
+		svc := newSvc(settingWith(`{"require_mfa_for_sensitive_actions":true}`), &User{UserID: mfaTestUserID, IsTOTPEnabled: true}, nil)
+
+		required, err := svc.SensitiveActionStepUpRequired(t.Context(), mfaTestUserID)
+
+		require.NoError(t, err)
+		assert.True(t, required)
+	})
+
+	t.Run("policy on with no enrolled factor is not required", func(t *testing.T) {
+		svc := newSvc(settingWith(`{"require_mfa_for_sensitive_actions":true}`), &User{UserID: mfaTestUserID}, nil)
+
+		required, err := svc.SensitiveActionStepUpRequired(t.Context(), mfaTestUserID)
+
+		require.NoError(t, err)
+		assert.False(t, required)
+	})
+
+	// INVERTED. An enrollment-state lookup failure used to be swallowed into
+	// (false, nil), which RequirePolicyStepUp cannot tell apart from "the policy
+	// does not apply" — so its fail-closed 503 branch could never fire and a
+	// transient DB fault silently dropped the step-up gate on email / username /
+	// password change.
+	t.Run("an enrollment-state lookup error fails closed", func(t *testing.T) {
+		svc := newSvc(settingWith(`{"require_mfa_for_sensitive_actions":true}`), nil, errors.New("db down"))
+
+		required, err := svc.SensitiveActionStepUpRequired(t.Context(), mfaTestUserID)
+
+		require.Error(t, err)
+		assert.False(t, required)
+	})
 }
 
 func TestNewMFAService(t *testing.T) {
@@ -551,7 +675,7 @@ func TestMFAService_EnrolledMFAMethods(t *testing.T) {
 		svc := &mfaService{
 			userRepo:     &mockUserRepo{findByID: &User{UserID: mfaTestUserID, IsTOTPEnabled: true, IsWebAuthnEnabled: true}},
 			mfaPhoneRepo: &mockMFAPhoneRepo{findByUserID: &UserMFAPhone{Phone: "+15550001111", IsVerified: true}}, emailOTPRepo: &mockMFAEmailRepo{},
-			mfaBackupCodeRepo: &mockMFABackupCodeRepo{findUnused: []UserMFABackupCode{{BackupCodeID: 1}}},
+			mfaBackupCodeRepo: &mockMFABackupCodeRepo{findUnused: []UserMFABackupCode{{BackupCodeID: 1, CodeHash: bcryptHash(t, "aaa")}}},
 		}
 		got, err := svc.EnrolledMFAMethods(t.Context(), mfaTestUserID)
 		require.NoError(t, err)
@@ -1183,7 +1307,12 @@ func TestMFAService_StepUp(t *testing.T) {
 		assert.Contains(t, err.Error(), "method not allowed")
 	})
 
-	t.Run("verify unsupported method when token allows legacy methods", func(t *testing.T) {
+	// INVERTED. This used to assert that a token with NO allowed_methods claim
+	// fell through to the method switch ("unsupported MFA method" for "xyz"),
+	// which is the visible symptom of stepUpMethodAllowed returning true for a
+	// missing claim — a "legacy" token authorised every method, including ones
+	// tenant policy disallows. A claimless token now authorises nothing.
+	t.Run("verify rejects any method when the token carries no allowed_methods", func(t *testing.T) {
 		originalValidate := validateStepUpChallengeToken
 		t.Cleanup(func() { validateStepUpChallengeToken = originalValidate })
 		validateStepUpChallengeToken = func(string) (jwtlib.MapClaims, error) {
@@ -1192,9 +1321,13 @@ func TestMFAService_StepUp(t *testing.T) {
 		svc := &mfaService{userRepo: &mockUserRepo{findByUUID: &User{UserID: mfaTestUserID}}}
 
 		_, err := svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "xyz", Code: "123456"}, mfaTestUserID)
-
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unsupported MFA method")
+		assert.Contains(t, err.Error(), "method not allowed")
+
+		// Not just the unknown method — a perfectly valid one is refused too.
+		_, err = svc.VerifyStepUp(t.Context(), StepUpVerifyRequestDTO{ChallengeToken: "challenge", Method: "totp", Code: "123456"}, mfaTestUserID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "method not allowed")
 	})
 
 	// Regression: the access-token generator rejects empty client_id/provider_id,
@@ -1389,9 +1522,6 @@ func (m *mockMFABackupCodeRepo) WithTx(*gorm.DB) UserMFABackupCodeRepository { r
 func (m *mockMFABackupCodeRepo) CreateBulk([]*UserMFABackupCode) error       { return m.createBulkErr }
 func (m *mockMFABackupCodeRepo) FindUnusedByUserID(int64) ([]UserMFABackupCode, error) {
 	return m.findUnused, m.findUnusedErr
-}
-func (m *mockMFABackupCodeRepo) FindByUserIDAndCodeHash(int64, string) (*UserMFABackupCode, error) {
-	return nil, nil
 }
 func (m *mockMFABackupCodeRepo) MarkUsed(int64) error          { return m.markUsedErr }
 func (m *mockMFABackupCodeRepo) DeleteAllByUserID(int64) error { return m.deleteAllErr }

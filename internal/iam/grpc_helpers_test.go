@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/tenant"
@@ -52,6 +53,72 @@ func grpcCallerCtx(tenantID int64) context.Context {
 		SubjectType: "service",
 		TenantID:    tenantID,
 	})
+}
+
+// grpcUserCallerCtx is grpcCallerCtx plus a resolved user principal, which the
+// mutating role RPCs now require: the actor is read from the verified token, never
+// from the request body.
+func grpcUserCallerCtx(tenantID int64, actorUUID uuid.UUID) context.Context {
+	return middleware.WithAuthContextValue(grpcCallerCtx(tenantID), &authctx.AuthContext{
+		User: &authctx.AuthUser{UserID: 1, UserUUID: actorUUID},
+	})
+}
+
+// The actor used to be req.GetActorUserUuid(): a request-body field that drove both
+// audit attribution AND the ValidateTenantAccess subject, so a caller could pin a
+// change on an innocent user and borrow that user's tenant membership.
+func TestIAMActorUserUUID(t *testing.T) {
+	actorUUID := uuid.New()
+
+	t.Run("prefers the resolved user principal", func(t *testing.T) {
+		got, err := iamActorUserUUID(grpcUserCallerCtx(77, actorUUID))
+		require.NoError(t, err)
+		assert.Equal(t, actorUUID, got)
+	})
+
+	// INVERTED. This used to pass with raw JWT claims and no AuthContext, because
+	// the helper kept a private fallback to the claims. That fallback made this
+	// surface accept a token the tenant surface refused, so it was removed and
+	// all three surfaces now share one definition sourced from the
+	// interceptor-populated AuthContext.
+	t.Run("claims alone are not enough — the actor comes from the auth context", func(t *testing.T) {
+		ctx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{
+			Sub: actorUUID.String(), UserUUID: actorUUID, SubjectType: "user", TenantID: 77,
+		})
+		_, err := iamActorUserUUID(ctx)
+		require.Error(t, err, "a context the interceptor never populated must not authenticate an actor")
+	})
+
+	t.Run("accepts a user resolved by the interceptor", func(t *testing.T) {
+		ctx := middleware.WithAuthContextValue(context.Background(), &authctx.AuthContext{
+			User: &authctx.AuthUser{UserUUID: actorUUID},
+		})
+		got, err := iamActorUserUUID(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, actorUUID, got)
+	})
+
+	// Fail closed. The interceptor admits service principals, which carry no user —
+	// falling back to the body is what created the hole.
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+	}{
+		{name: "service principal", ctx: grpcCallerCtx(77)},
+		{name: "no claims at all", ctx: context.Background()},
+		{
+			name: "service token whose sub happens to parse as a UUID",
+			ctx: middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{
+				Sub: actorUUID.String(), UserUUID: actorUUID, Service: "svc-test", SubjectType: "service", TenantID: 77,
+			}),
+		},
+	} {
+		t.Run("rejects "+tc.name, func(t *testing.T) {
+			got, err := iamActorUserUUID(tc.ctx)
+			assert.Equal(t, uuid.Nil, got)
+			assert.Equal(t, codes.PermissionDenied, status.Code(err))
+		})
+	}
 }
 
 func TestIAMGRPCHelpers(t *testing.T) {

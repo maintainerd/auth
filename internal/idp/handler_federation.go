@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -234,4 +235,93 @@ func (h *FederationHandler) TestConnection(w http.ResponseWriter, r *http.Reques
 	}
 
 	resp.Success(w, result, "Test connection completed")
+}
+
+// ── Account identity linking ────────────────────────────────────────────────
+//
+// Attaching a provider identity to an existing account is an OAuth2 redirect,
+// not a form. The previous surface asked the user to paste a raw OIDC id_token,
+// which no ordinary person can obtain.
+//
+// Both endpoints require an authenticated session and operate ONLY on that
+// user's account. Neither issues a session: linking is not a sign-in.
+
+type startIdentityLinkRequestDTO struct {
+	ProviderIdentifier string `json:"provider_identifier"`
+	RedirectURI        string `json:"redirect_uri"`
+}
+
+type completeIdentityLinkRequestDTO struct {
+	State       string `json:"state"`
+	Code        string `json:"code"`
+	RedirectURI string `json:"redirect_uri"`
+}
+
+// StartIdentityLink begins the provider redirect.
+//
+// POST /account/identities/link/start
+func (h *FederationHandler) StartIdentityLink(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.AuthFromRequest(r)
+	if auth.User == nil || auth.Tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var req startIdentityLinkRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if strings.TrimSpace(req.ProviderIdentifier) == "" || strings.TrimSpace(req.RedirectURI) == "" {
+		resp.Error(w, http.StatusBadRequest, "provider_identifier and redirect_uri are required")
+		return
+	}
+
+	// The service validates redirect_uri against this client's registered URIs.
+	clientID := int64(0)
+	if auth.Client != nil {
+		clientID = auth.Client.ClientID
+	}
+
+	result, err := h.federationSvc.StartIdentityLink(
+		r.Context(), auth.User.UserID, auth.Tenant.TenantID, clientID,
+		req.ProviderIdentifier, req.RedirectURI,
+	)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to start identity link", err)
+		return
+	}
+
+	resp.Success(w, result, "")
+}
+
+// CompleteIdentityLink finishes the flow after the provider redirects back.
+//
+// POST /account/identities/link/callback
+func (h *FederationHandler) CompleteIdentityLink(w http.ResponseWriter, r *http.Request) {
+	auth := middleware.AuthFromRequest(r)
+	if auth.User == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var req completeIdentityLinkRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+
+	identity, err := h.federationSvc.CompleteIdentityLink(
+		r.Context(), auth.User.UserID, req.State, req.Code, req.RedirectURI,
+	)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to link identity", err)
+		return
+	}
+
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"provider": identity.Provider}})
+	actorUserID := auth.User.UserID
+	h.logAudit(r, 0, &actorUserID, "federated_identity.link", "federated_identity", identity.Provider, nil, string(changesJSON), "success")
+
+	resp.Success(w, identity, "Identity linked successfully")
 }

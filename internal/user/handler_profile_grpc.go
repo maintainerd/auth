@@ -62,6 +62,11 @@ func (h *UserProfileGRPCHandler) GetUserProfile(ctx context.Context, req *authv1
 	return &authv1.GetUserProfileResponse{Profile: toUserProfileProto(result)}, nil
 }
 
+// CreateUserProfile is replay-guarded, and here the guard is load-bearing rather
+// than cosmetic: the profile UUID is minted fresh per call (uuid.New below) and
+// the only uniqueness on profiles is "one DEFAULT per user", so nothing at the
+// database level stops a retry from creating a second, non-default profile for
+// the same person. The ledger is what makes this RPC safe to retry at all.
 func (h *UserProfileGRPCHandler) CreateUserProfile(ctx context.Context, req *authv1.CreateUserProfileRequest) (*authv1.CreateUserProfileResponse, error) {
 	if _, err := h.resolveTenant(ctx, req.GetTenantUuid()); err != nil {
 		return nil, err

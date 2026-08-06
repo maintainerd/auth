@@ -38,7 +38,37 @@ func TestValidateClientAllowedScopes(t *testing.T) {
 	require.NotNil(t, oerr)
 	assert.Equal(t, "invalid_scope", oerr.Code)
 
+	// An empty allowlist grants the baseline OIDC scopes and nothing more.
 	assert.Nil(t, validateClientAllowedScopes(&Client{}, "openid profile"))
+
+	// INVERTED behaviour: an empty allowlist used to short-circuit to "allowed",
+	// so it meant EVERY scope. The column defaults to '{}', so a seeded,
+	// consent-free public client would hand back a token asserting whatever the
+	// caller typed — and nothing anywhere checked that a requested scope even
+	// existed.
+	t.Run("empty allowlist does not grant API scopes", func(t *testing.T) {
+		oerr := validateClientAllowedScopes(&Client{}, "openid admin:write tenants:delete")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
+	t.Run("an unknown scope is rejected even with an allowlist", func(t *testing.T) {
+		oerr := validateClientAllowedScopes(&Client{AllowedScopes: []string{"reports:read"}}, "reports:write")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
+	t.Run("an explicit allowlist is authoritative over the baseline", func(t *testing.T) {
+		// An operator who narrowed a client to "reports:read" excluded the rest.
+		oerr := validateClientAllowedScopes(&Client{AllowedScopes: []string{"reports:read"}}, "openid")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
+	t.Run("no requested scope is not a violation", func(t *testing.T) {
+		assert.Nil(t, validateClientAllowedScopes(&Client{}, ""))
+		assert.Nil(t, validateClientAllowedScopes(&Client{}, "   "))
+	})
 }
 
 func TestValidateRequestedScopesSubset(t *testing.T) {

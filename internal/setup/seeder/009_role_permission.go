@@ -15,47 +15,37 @@ import (
 // super-admin role to avoid duplicate grants — an admin already has them via
 // registered. The registered role holds ONLY account-scoped permissions; it must
 // never carry administrative permissions.
+//
+// This must stay in step with the non-elevated half of defaultPermissions: a
+// self permission seeded but missing here is granted to super-admin instead of
+// to every user, which locks ordinary users out of their own account.
+// TestRegisteredRoleCoversEverySelfPermission holds that.
 var registeredAccountPermissions = []string{
 	// Account permissions
-	"account:request-verify-email:self",
-	"account:verify-email:self",
-	"account:request-verify-phone:self",
-	"account:verify-phone:self",
 	"account:change-password:self",
 	"account:mfa:read:self",
 	"account:mfa:enroll:self",
 	"account:mfa:disable:self",
 	"account:mfa:verify:self",
 	"account:mfa:reset:self",
-	// Authentication
-	"account:auth:logout:self",
-	"account:auth:refresh-token:self",
+	// Sessions
 	"account:session:read:self",
 	"account:session:terminate:self",
 	// Linked identities (SSO / federation)
 	"account:identity:read:self",
 	"account:identity:link:self",
 	"account:identity:unlink:self",
-	// Token permissions
-	"account:token:create:self",
-	"account:token:read:self",
-	"account:token:revoke:self",
 	// User data permissions
 	"account:user:read:self",
 	"account:user:update:self",
 	"account:user:delete:self",
-	"account:user:disable:self",
 	// Profile permissions
 	"account:profile:read:self",
 	"account:profile:update:self",
 	"account:profile:delete:self",
-	// Activity logs
-	"account:audit:read:self",
 	// Personal settings
 	"settings:read:self",
 	"settings:update:self",
-	// Notifications
-	"notification:read-log:self",
 }
 
 func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role) error {

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
@@ -38,6 +39,22 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 		if safeMethods[r.Method] {
 			// Ensure a CSRF token cookie exists for future non-safe requests.
 			ensureCSRFCookie(w, r)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// A request authenticated by an Authorization header is not vulnerable to
+		// CSRF and must not be gated on a CSRF cookie.
+		//
+		// CSRF exists because a browser attaches cookies to cross-site requests
+		// automatically; a Bearer/DPoP token is never ambient — an attacker's page
+		// cannot make the victim's browser add it. Requiring the double-submit
+		// cookie here made every state-changing call impossible for any non-browser
+		// client (CLI, service, or a third-party OAuth2 app holding an access
+		// token), which is the entire point of issuing them access tokens.
+		//
+		// Cookie-authenticated requests still go through the full check below.
+		if isBearerAuthenticated(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -94,4 +111,20 @@ func ensureCSRFCookie(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: false, // Must be readable by JS so it can set the request header.
 		SameSite: http.SameSiteStrictMode,
 	})
+}
+
+// isBearerAuthenticated reports whether the request carries its credential in
+// the Authorization header rather than a cookie.
+//
+// Only the header form is exempt from CSRF: a token supplied explicitly by the
+// caller cannot be replayed by a cross-site page, whereas a cookie is attached
+// by the browser automatically. The scheme must be one this server actually
+// authenticates, so an unrelated Authorization value cannot be used to skip the
+// check while the request is really authenticated by a cookie.
+func isBearerAuthenticated(r *http.Request) bool {
+	parts := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
+	if len(parts) != 2 || strings.TrimSpace(parts[1]) == "" {
+		return false
+	}
+	return strings.EqualFold(parts[0], "bearer") || strings.EqualFold(parts[0], "dpop")
 }

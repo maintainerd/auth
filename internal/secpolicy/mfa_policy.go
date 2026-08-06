@@ -1,5 +1,7 @@
 package secpolicy
 
+import "log/slog"
+
 // MFAPolicy is the effective MFA configuration for a tenant, resolved from
 // security_settings.mfa_config with seeded defaults applied. It serves gaps
 // #3 (TOTP params), #4 (recovery codes), #5 (allow_sms enrollment gate),
@@ -25,14 +27,31 @@ type MFAPolicy struct {
 // back to the seeded defaults when settings are missing or unreadable.
 // Returns nil when repo is nil (no security-settings available — all
 // methods are allowed; callers must treat nil as permissive).
+//
+// The default mode is "optional", so any fallback here is a DOWNGRADE: a tenant
+// configured mode "enforced" degrades to optional and users with no enrolled
+// factor walk straight in. That is the correct availability trade (a settings
+// outage must not lock every user out of their account) but it was previously
+// silent — the lookup error was discarded by `err == nil && ss != nil` and
+// nothing was logged, so the only symptom of a database blip was MFA quietly
+// not being required. Every degradation now says so, matching LoadPasswordPolicy
+// and LoadLockoutPolicy.
 func LoadMFAPolicy(repo SecuritySettingRepository, tenantID int64) *MFAPolicy {
 	if repo == nil {
+		// Not an anomaly: several call sites are constructed without a settings
+		// repository and are documented to treat nil as permissive.
 		return nil
 	}
 	cfg, _ := DefaultSecuritySettingConfig("mfa")
-	if ss, err := repo.FindByTenantID(tenantID); err == nil && ss != nil {
+	ss, err := repo.FindByTenantID(tenantID)
+	switch {
+	case err != nil:
+		mfaPolicyDegraded(tenantID, "security settings lookup failed", err)
+	case ss == nil:
+		// A tenant with no row yet is expected during provisioning.
+	default:
 		raw := mapFromJSON(ss.MFAConfig)
-		if merged, err := NormalizeSecuritySettingConfig("mfa", raw, nil); err == nil {
+		if merged, nerr := NormalizeSecuritySettingConfig("mfa", raw, nil); nerr == nil {
 			cfg = merged
 		} else {
 			// Enforcement must honor already-stored tenant policy even when an
@@ -42,6 +61,7 @@ func LoadMFAPolicy(repo SecuritySettingRepository, tenantID int64) *MFAPolicy {
 					cfg[k] = v
 				}
 			}
+			mfaPolicyDegraded(tenantID, "stored MFA config does not satisfy current validation; enforcing stored values over defaults where present", nerr)
 		}
 	}
 	return &MFAPolicy{
@@ -60,6 +80,16 @@ func LoadMFAPolicy(repo SecuritySettingRepository, tenantID int64) *MFAPolicy {
 		AdminGracePeriodDays:          intValue(cfg["admin_grace_period_days"]),
 		StepUpTTLMinutes:              stepUpTTLWithDefault(intValue(cfg["step_up_ttl_minutes"])),
 	}
+}
+
+// mfaPolicyDegraded records that the tenant's configured MFA policy could not be
+// read or trusted, so enforcement may be weaker than the admin UI shows.
+func mfaPolicyDegraded(tenantID int64, reason string, err error) {
+	slog.Warn("MFA policy degraded; the tenant's configured MFA mode may NOT be enforced (defaults are mode=optional)",
+		"tenant_id", tenantID,
+		"reason", reason,
+		"error", err,
+	)
 }
 
 func stepUpTTLWithDefault(v int) int {

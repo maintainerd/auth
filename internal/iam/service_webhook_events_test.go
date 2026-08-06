@@ -7,8 +7,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
+	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type recordingAuthEventService struct {
@@ -31,6 +33,17 @@ func (r *recordingAuthEventService) DeleteOlderThan(context.Context, time.Time) 
 	return 0, nil
 }
 func (r *recordingAuthEventService) Shutdown() {}
+
+// recordingEventService captures the integration events written to the outbox.
+type recordingEventService struct {
+	emitted []*event.IntegrationEvent
+}
+
+func (r *recordingEventService) Emit(_ context.Context, _ *gorm.DB, e *event.IntegrationEvent) (*event.IntegrationEvent, error) {
+	r.emitted = append(r.emitted, e)
+	return e, nil
+}
+func (r *recordingEventService) Shutdown() {}
 
 func TestServiceService_AssignAndRemovePolicy_EmitWebhookEvents(t *testing.T) {
 	svcUUID := uuid.New()
@@ -97,4 +110,60 @@ func TestPolicyService_Update_EmitsPolicyUpdatedEvent(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, events.events, 1)
 	require.Equal(t, authevent.AuthEventTypeIAMPolicyUpdated, events.events[0].EventType)
+}
+
+// SetStatusByUUID was the only policy mutation emitting neither an integration
+// event nor an auth event, though Create/Update/Delete all do — and deactivation is
+// the revocation path, so the change downstream bundle consumers most need to hear
+// about was the one nobody was told about.
+func TestPolicyService_SetStatusByUUID_EmitsEvents(t *testing.T) {
+	policyUUID := uuid.New()
+	active := &Policy{PolicyID: 1, PolicyUUID: policyUUID, TenantID: tenantID, Name: "read-only", Version: "v1", Status: "active"}
+
+	t.Run("deactivation emits both events", func(t *testing.T) {
+		events := &recordingAuthEventService{}
+		integration := &recordingEventService{}
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		calls := 0
+
+		svc := NewPolicyService(db, &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Policy, error) {
+				calls++
+				if calls == 1 {
+					return active, nil
+				}
+				inactive := *active
+				inactive.Status = "inactive"
+				return &inactive, nil
+			},
+		}, &mockServiceRepo{}, &mockAPIRepo{}, integration, events)
+
+		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, "inactive")
+
+		require.NoError(t, err)
+		require.Len(t, events.events, 1)
+		require.Equal(t, authevent.AuthEventTypeIAMPolicyUpdated, events.events[0].EventType)
+		require.Len(t, integration.emitted, 1)
+		require.Equal(t, event.EventTypeIAMPolicyUpdated, integration.emitted[0].EventType)
+	})
+
+	// A no-op write is not a state change, so it raises no integration event —
+	// matching Update, which emits only when a field actually changed.
+	t.Run("re-setting the same status emits no integration event", func(t *testing.T) {
+		integration := &recordingEventService{}
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		svc := NewPolicyService(db, &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Policy, error) { return active, nil },
+		}, &mockServiceRepo{}, &mockAPIRepo{}, integration)
+
+		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, "active")
+
+		require.NoError(t, err)
+		require.Empty(t, integration.emitted)
+	})
 }

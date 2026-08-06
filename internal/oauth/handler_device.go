@@ -47,11 +47,15 @@ func (h *OAuthDeviceHandler) Authorize(w http.ResponseWriter, r *http.Request) {
 
 // VerifyUserCode handles POST /oauth/device (authenticated user submits user_code).
 func (h *OAuthDeviceHandler) VerifyUserCode(w http.ResponseWriter, r *http.Request) {
-	user := middleware.AuthFromRequest(r).User
-	if user == nil {
+	auth := middleware.AuthFromRequest(r)
+	// The tenant is part of the authorization decision (see authorizeDeviceActor),
+	// so a caller whose tenant could not be resolved is refused rather than
+	// defaulted.
+	if auth.User == nil || auth.Tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
+	user := auth.User
 
 	if err := r.ParseForm(); err != nil {
 		resp.Error(w, http.StatusBadRequest, "invalid form data")
@@ -67,7 +71,7 @@ func (h *OAuthDeviceHandler) VerifyUserCode(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if oerr := h.deviceService.VerifyUserCode(r.Context(), req, user.UserID); oerr != nil {
+	if oerr := h.deviceService.VerifyUserCode(r.Context(), req, user.UserID, auth.Tenant.TenantID); oerr != nil {
 		oerr.WriteJSON(w)
 		return
 	}
@@ -101,11 +105,12 @@ func (h *OAuthDeviceHandler) ExchangeDeviceToken(w http.ResponseWriter, r *http.
 
 // DenyUserCode handles POST /oauth/device/deny (authenticated user denies the request).
 func (h *OAuthDeviceHandler) DenyUserCode(w http.ResponseWriter, r *http.Request) {
-	user := middleware.AuthFromRequest(r).User
-	if user == nil {
+	auth := middleware.AuthFromRequest(r)
+	if auth.User == nil || auth.Tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
+	user := auth.User
 
 	if err := r.ParseForm(); err != nil {
 		resp.Error(w, http.StatusBadRequest, "invalid form data")
@@ -121,7 +126,7 @@ func (h *OAuthDeviceHandler) DenyUserCode(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if oerr := h.deviceService.DenyUserCode(r.Context(), req, user.UserID); oerr != nil {
+	if oerr := h.deviceService.DenyUserCode(r.Context(), req, user.UserID, auth.Tenant.TenantID); oerr != nil {
 		oerr.WriteJSON(w)
 		return
 	}

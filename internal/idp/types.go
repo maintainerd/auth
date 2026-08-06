@@ -142,6 +142,32 @@ type SAMLCallbackResult struct {
 	IsNew bool
 }
 
+// SAMLLogoutInitiateInput is the service-layer input for SP-initiated SAML
+// Single Logout. IDTokenHint is the only credential the endpoint has (the SLO
+// surface is public), so it identifies the subject whose sessions end.
+type SAMLLogoutInitiateInput struct {
+	ProviderIdentifier    string
+	ClientID              string // our OAuth client_id, needed to validate PostLogoutRedirectURI
+	IDTokenHint           string
+	PostLogoutRedirectURI string
+}
+
+// SAMLLogoutInitiateResult carries the IdP SLO URL the browser should follow.
+type SAMLLogoutInitiateResult struct {
+	RedirectURL string
+}
+
+// SAMLSingleLogoutResult is returned by the SLO endpoint for both directions of
+// the exchange.
+type SAMLSingleLogoutResult struct {
+	// RedirectURL is where the browser goes next: back to the IdP carrying our
+	// LogoutResponse (IdP-initiated), or the post-logout landing page validated
+	// at initiate time (SP-initiated). Empty means "nothing left to visit".
+	RedirectURL string
+	// LoggedOut reports whether local sessions were terminated for this subject.
+	LoggedOut bool
+}
+
 // BrokerProviderInfo holds the upstream OAuth2 authorize parameters resolved for
 // a brokered identity provider: its authorization endpoint, the upstream
 // client_id, and the requested scopes. Secrets are never included.

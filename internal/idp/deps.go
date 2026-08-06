@@ -41,15 +41,13 @@ type UserIdentity struct {
 	UserIdentityUUID   uuid.UUID
 	TenantID           int64
 	UserID             int64
-	ClientID           *int64
-	IdentityProviderID *int64
+	IdentityProviderID int64
 	Provider           string
 	Sub                string
 	Metadata           datatypes.JSON
 	JITProvisionedAt   *time.Time
 	ProvisioningSource *string
 	Tenant             *Tenant           `gorm:"foreignKey:TenantID;references:TenantID"`
-	Client             *Client           `gorm:"foreignKey:ClientID;references:ClientID;constraint:OnDelete:SET NULL"`
 	IdentityProvider   *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
@@ -109,6 +107,11 @@ type Role struct {
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// DeletedAt is REQUIRED on this projection, not decorative: GORM applies
+	// the soft-delete scope only when the scanned struct declares it. Without
+	// it, preloading this table returned rows that had been deleted — so
+	// revoking a role or permission granted it forever.
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (Role) TableName() string { return "roles" }
@@ -181,6 +184,10 @@ type UserIdentityRepository interface {
 	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserID(userID int64) ([]UserIdentity, error)
 	FindByTenantProviderAndSub(tenantID int64, provider, sub string) (*UserIdentity, error)
+	// FindByTenantAndSub resolves the owner of a subject within a tenant. This is
+	// the uniqueness key (migration 030), so it answers "is this sub taken, and
+	// by whom" across every provider — which a provider-scoped lookup cannot.
+	FindByTenantAndSub(tenantID int64, sub string) (*UserIdentity, error)
 	FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error)
 	// FindByUserIDAndIdentityProviderID resolves the user's identity that belongs
 	// to a specific configured IdP. Unlike FindByUserIDAndProvider it is

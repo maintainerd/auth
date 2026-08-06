@@ -161,21 +161,22 @@ func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tID int64) error 
 // ---------------------------------------------------------------------------
 
 type mockUserRepo struct {
-	findByUsernameFn         func(username string) (*User, error)
-	findByEmailFn            func(email string) (*User, error)
-	findByEmailAndTenantIDFn func(email string, tenantID int64) (*User, error)
-	findByUUIDFn             func(id any, preloads ...string) (*User, error)
-	findByIDFn               func(id any, preloads ...string) (*User, error)
-	findSuperAdminFn         func() (*User, error)
-	findPaginatedFn          func(UserRepositoryGetFilter) (*PaginationResult[User], error)
-	createFn                 func(*User) (*User, error)
-	updateByUUIDFn           func(id, data any) (*User, error)
-	updateByIDFn             func(id, data any) (*User, error)
-	findRolesFn              func(userID int64) ([]Role, error)
-	findByPhoneFn            func(phone string) (*User, error)
-	setStatusFn              func(id uuid.UUID, s string) error
-	deleteByUUIDFn           func(id any) error
-	findBySubAndClientIDFn   func(sub, clientID string) (*User, error)
+	effectivePermissionNamesFn func(int64, int64) ([]string, error)
+	findByUsernameFn           func(username string) (*User, error)
+	findByEmailFn              func(email string) (*User, error)
+	findByEmailAndTenantIDFn   func(email string, tenantID int64) (*User, error)
+	findByUUIDFn               func(id any, preloads ...string) (*User, error)
+	findByIDFn                 func(id any, preloads ...string) (*User, error)
+	findSuperAdminFn           func() (*User, error)
+	findPaginatedFn            func(UserRepositoryGetFilter) (*PaginationResult[User], error)
+	createFn                   func(*User) (*User, error)
+	updateByUUIDFn             func(id, data any) (*User, error)
+	updateByIDFn               func(id, data any) (*User, error)
+	findRolesFn                func(userID int64) ([]Role, error)
+	findByPhoneFn              func(phone string) (*User, error)
+	setStatusFn                func(id uuid.UUID, s string) error
+	deleteByUUIDFn             func(id any) error
+	findBySubAndClientIDFn     func(sub, clientID string) (*User, error)
 }
 
 func (m *mockUserRepo) WithTx(_ *gorm.DB) UserRepository { return m }
@@ -311,7 +312,7 @@ type mockUserIdentityRepo struct {
 }
 
 func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) UserIdentityRepository { return m }
-func (m *mockUserIdentityRepo) FindByUserIDAndClientID(uID, cID int64) (*UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByUserIDAndClientReachable(uID, cID int64) (*UserIdentity, error) {
 	return m.findByUserIDAndClientIDFn(uID, cID)
 }
 func (m *mockUserIdentityRepo) Create(e *UserIdentity) (*UserIdentity, error) {
@@ -539,9 +540,20 @@ func (m *mockUserTokenRepo) RevokeAllSessionsByUserID(userID int64) error {
 // Test helpers
 // ---------------------------------------------------------------------------
 
+// testTokenIssuer is the authorization server issuer every token minted in this
+// package's tests carries. It matches the buildActiveClient fixture domain so a
+// token stays valid whichever of the two TokenIssuer branches produced it.
+const testTokenIssuer = "https://auth.example.com"
+
 // initTestJWTKeysService generates a fresh RSA-2048 key pair and wires it into
 // the package-level config variables that GenerateAccessToken / GenerateIDToken
 // / GenerateRefreshToken read from.
+//
+// It also pins APP_PUBLIC_HOSTNAME and the issuer allowlist. Without them
+// ValidateToken fails closed on the `iss` claim: an unset APP_PUBLIC_HOSTNAME
+// leaves the process with no issuer it can vouch for, and other tests in this
+// package mutate the hostname without restoring it, so whether a token
+// validated depended on test execution order.
 func initTestJWTKeysService(t *testing.T) {
 	t.Helper()
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -551,6 +563,14 @@ func initTestJWTKeysService(t *testing.T) {
 	config.JWTPrivateKey = privPEM
 	config.JWTPublicKey = pubPEM
 	require.NoError(t, jwt.InitJWTKeys())
+
+	prevHostname := config.AppPublicHostname
+	config.AppPublicHostname = testTokenIssuer
+	jwt.SetAcceptedIssuers([]string{testTokenIssuer})
+	t.Cleanup(func() {
+		config.AppPublicHostname = prevHostname
+		jwt.ResetAcceptedIssuers()
+	})
 }
 
 // strPtr returns a pointer to the given string literal — handy for Client fields.
@@ -1174,198 +1194,6 @@ func TestLoginPublic_TenantMFAPolicyRequiresChallengeBeforeTokens(t *testing.T) 
 // TestLogin
 // ---------------------------------------------------------------------------
 
-func TestLogin(t *testing.T) {
-	const correctPassword = "S3cur3P@ss!"
-
-	type repoSetup struct {
-		clientRepo   *mockClientRepo
-		userRepo     *mockUserRepo
-		userIdentity *mockUserIdentityRepo
-	}
-
-	cases := []struct {
-		name             string
-		username         string
-		password         string
-		clientID         *string
-		providerID       *string
-		setup            func(t *testing.T, r repoSetup)
-		expectCommit     bool
-		wantErr          bool
-		wantErrContain   string
-		securitySettings secpolicy.SecuritySettingRepository
-	}{
-		{
-			name:         "success with default client",
-			username:     "int-success-default",
-			password:     correctPassword,
-			clientID:     nil,
-			providerID:   nil,
-			expectCommit: true,
-			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
-				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
-					return buildActiveUser(t, correctPassword), nil
-				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
-					return &UserIdentity{Sub: "sub-456"}, nil
-				}
-			},
-		},
-		{
-			name:         "success with explicit client",
-			username:     "int-success-explicit",
-			password:     correctPassword,
-			clientID:     strPtr("client-2"),
-			providerID:   strPtr("provider-2"),
-			expectCommit: true,
-			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
-					return buildActiveClient(), nil
-				}
-				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
-					return buildActiveUser(t, correctPassword), nil
-				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
-					return &UserIdentity{Sub: "sub-789"}, nil
-				}
-			},
-		},
-		{
-			name:           "default client lookup fails",
-			username:       "int-no-client",
-			password:       correctPassword,
-			clientID:       nil,
-			providerID:     nil,
-			expectCommit:   false,
-			wantErr:        true,
-			wantErrContain: "authentication failed",
-			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*Client, error) { return nil, errors.New("db error") }
-			},
-		},
-		{
-			name:           "default client inactive",
-			username:       "int-inactive-client",
-			password:       correctPassword,
-			clientID:       nil,
-			providerID:     nil,
-			expectCommit:   false,
-			wantErr:        true,
-			wantErrContain: "authentication failed",
-			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*Client, error) {
-					c := buildActiveClient()
-					c.Status = shared.StatusInactive
-					return c, nil
-				}
-			},
-		},
-		{
-			name:           "wrong password",
-			username:       "int-wrong-pass",
-			password:       "W0ngP@ss!",
-			clientID:       nil,
-			providerID:     nil,
-			expectCommit:   true,
-			wantErr:        true,
-			wantErrContain: "invalid credentials",
-			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
-				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
-					return buildActiveUser(t, correctPassword), nil
-				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
-					return nil, errors.New("not found")
-				}
-			},
-		},
-		{
-			name:           "user account inactive",
-			username:       "int-inactive-user",
-			password:       correctPassword,
-			clientID:       nil,
-			providerID:     nil,
-			expectCommit:   true,
-			wantErr:        true,
-			wantErrContain: "account is not active",
-			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
-				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
-					u := buildActiveUser(t, correctPassword)
-					u.Status = shared.StatusInactive
-					return u, nil
-				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
-					return &UserIdentity{Sub: "sub-456"}, nil
-				}
-			},
-		},
-		{
-			name:             "requires verified email from registration config",
-			username:         "int-unverified-email",
-			password:         correctPassword,
-			clientID:         nil,
-			providerID:       nil,
-			expectCommit:     true,
-			wantErr:          true,
-			wantErrContain:   "email is not verified",
-			securitySettings: registrationPolicyRepo(`{"require_email_verification":true}`),
-			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
-				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
-					u := buildActiveUser(t, correctPassword)
-					u.IsEmailVerified = false
-					return u, nil
-				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
-					return &UserIdentity{Sub: "sub-456"}, nil
-				}
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			initTestJWTKeysService(t)
-			gormDB, mock := newMockGormDB(t)
-			mock.ExpectBegin()
-			if tc.expectCommit {
-				mock.ExpectCommit()
-			} else {
-				mock.ExpectRollback()
-			}
-
-			repos := repoSetup{
-				clientRepo:   &mockClientRepo{},
-				userRepo:     &mockUserRepo{},
-				userIdentity: &mockUserIdentityRepo{},
-			}
-			tc.setup(t, repos)
-
-			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, &mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, tc.securitySettings)
-			resp, err := svc.Login(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
-
-			if tc.wantErr {
-				require.Error(t, err)
-				assert.Nil(t, resp)
-				if tc.wantErrContain != "" {
-					assert.Contains(t, err.Error(), tc.wantErrContain)
-				}
-			} else {
-				require.NoError(t, err)
-				assert.NotNil(t, resp)
-				assert.NotEmpty(t, resp.AccessToken)
-				assert.NotEmpty(t, resp.IDToken)
-				assert.NotEmpty(t, resp.RefreshToken)
-				assert.Equal(t, "Bearer", resp.TokenType)
-			}
-			assert.NoError(t, mock.ExpectationsWereMet())
-		})
-	}
-}
-
 // ---------------------------------------------------------------------------
 // lockedRateLimiterLogin starts a miniredis instance, pre-sets the lock key
 // for the given identifier, wires it into util.CheckRateLimit, and returns a
@@ -1469,65 +1297,6 @@ func TestLoginPublic_UserNotFound(t *testing.T) {
 // TestLogin – additional cases
 // ---------------------------------------------------------------------------
 
-func TestLogin_RateLimited(t *testing.T) {
-	username := "int-rate-limited"
-	cleanup := lockedRateLimiterLogin(t, username)
-	defer cleanup()
-
-	gormDB, mock := newMockGormDB(t)
-	_ = mock
-
-	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
-	_, err := svc.Login(context.Background(), username, "pass", nil, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "locked")
-}
-
-func TestLogin_ExplicitClientLookupError(t *testing.T) {
-	initTestJWTKeysService(t)
-	gormDB, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectRollback()
-
-	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
-			return nil, errors.New("client db err")
-		},
-	}
-
-	cID := "client-x"
-	pID := "provider-x"
-	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
-	_, err := svc.Login(context.Background(), "int-explicit-err", "pass", &cID, &pID)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "authentication failed")
-}
-
-func TestLogin_UserNotFound(t *testing.T) {
-	initTestJWTKeysService(t)
-	gormDB, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectCommit()
-
-	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*Client, error) { return buildActiveClient(), nil },
-	}
-	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*User, error) { return nil, nil },
-	}
-
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
-	_, err := svc.Login(context.Background(), "int-user-missing", "pass", nil, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid credentials")
-}
-
 // ---------------------------------------------------------------------------
 // TestGenerateTokenResponse – error paths
 // ---------------------------------------------------------------------------
@@ -1566,37 +1335,6 @@ func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{}, nil, nil)
 	_, err := svc.LoginPublic(context.Background(), "pub-token-err", correctPassword, strPtr("c1"), nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "private key not initialized")
-}
-
-func TestLogin_GenerateAccessTokenError(t *testing.T) {
-	// Reset JWT keys so privateKey is nil
-	jwt.ResetJWTKeys()
-	defer initTestJWTKeysService(t) // restore for subsequent tests
-
-	gormDB, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectCommit()
-
-	const correctPassword = "S3cur3P@ss!"
-
-	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*Client, error) { return buildActiveClient(), nil },
-	}
-	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*User, error) {
-			return buildActiveUser(t, correctPassword), nil
-		},
-	}
-	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
-			return &UserIdentity{Sub: "sub-token-err"}, nil
-		},
-	}
-
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, &mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
-	_, err := svc.Login(context.Background(), "int-token-err", correctPassword, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
 }
@@ -1924,6 +1662,46 @@ func TestLoginMFAChallengeResponse(t *testing.T) {
 		assert.Contains(t, err.Error(), "MFA is required but no supported factors are enrolled")
 		assert.Nil(t, resp)
 	})
+
+	// Fail-closed guard for the enrolled-factor lookup. There was no test here
+	// before because the code swallowed the error and returned (nil, nil) — the
+	// "proceed at acr=1" contract — so a single transient repository failure let
+	// a user of a mode=enforced tenant in on a password alone, and silently
+	// downgraded every MFA-enrolled user on an optional-mode tenant.
+	for _, tc := range []struct {
+		name        string
+		mfaConfig   string
+		forceStepUp bool
+	}{
+		{"enforced mode", `{"mode":"enforced","allowed_methods":["totp"]}`, false},
+		{"optional mode", `{"mode":"optional","allowed_methods":["totp"]}`, false},
+		{"risk-based step-up", `{"mode":"optional","allowed_methods":["totp"]}`, true},
+	} {
+		cfg := tc.mfaConfig
+		forceStepUp := tc.forceStepUp
+		t.Run("enrolled-factor lookup error fails closed: "+tc.name, func(t *testing.T) {
+			settingRepo := &mockSecuritySettingRepo{
+				findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+					return &secpolicy.SecuritySetting{
+						MFAConfig: datatypes.JSON([]byte(cfg)),
+					}, nil
+				},
+			}
+			svc := &loginService{
+				securitySettingRepo: settingRepo,
+				mfaAuthenticator: &mockMFAAuthenticator{enrolledFn: func(int64) ([]string, error) {
+					return nil, errors.New("mfa store unavailable")
+				}},
+			}
+			user := &User{UserID: 1, UserUUID: uuid.New(), CreatedAt: time.Now()}
+
+			resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1, forceStepUp)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "failed to load enrolled MFA factors")
+			assert.Nil(t, resp)
+		})
+	}
 
 	t.Run("GenerateStepUpChallengeToken error returns error", func(t *testing.T) {
 		jwt.ResetJWTKeys()
@@ -2256,76 +2034,6 @@ func TestLogout(t *testing.T) {
 // (service_login.go:461-462)
 // ---------------------------------------------------------------------------
 
-func TestLogin_MFAChallenge(t *testing.T) {
-	const correctPassword = "S3cur3P@ss!"
-
-	initTestJWTKeysService(t)
-	gormDB, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectCommit()
-
-	idp := buildActiveIdentityProvider()
-	idp.TenantID = 42
-	client := buildActiveClient()
-	client.TenantID = 42
-	client.IdentityProvider = idp
-	user := buildActiveUser(t, correctPassword)
-	user.IsTOTPEnabled = true
-	now := time.Now()
-	user.FirstMFAEnrolledAt = &now
-
-	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*User, error) {
-			return user, nil
-		},
-	}
-	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*Client, error) {
-			return client, nil
-		},
-	}
-	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
-			return &UserIdentity{Sub: "sub-mfa"}, nil
-		},
-	}
-	securitySettingRepo := &mockSecuritySettingRepo{
-		findDefaultByTenantIDFn: func(tenantID int64) (*secpolicy.SecuritySetting, error) {
-			require.Equal(t, int64(42), tenantID)
-			return &secpolicy.SecuritySetting{
-				MFAConfig: datatypes.JSON([]byte(`{"required":true,"allowed_methods":["totp","backup_code","webauthn"]}`)),
-			}, nil
-		},
-	}
-
-	svc := NewLoginService(
-		gormDB,
-		clientRepo,
-		userRepo,
-		&mockUserTokenRepo{},
-		userIdentityRepo,
-		&mockIdentityProviderRepo{},
-		&mockAuthEventService{},
-		nil,
-		securitySettingRepo,
-	)
-
-	svc.SetMFAFactorAuthenticator(&mockMFAAuthenticator{
-		enrolledFn: func(int64) ([]string, error) { return []string{"totp", "backup_code"}, nil },
-	})
-
-	resp, err := svc.Login(context.Background(), "int-mfa-required", correctPassword, nil, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.True(t, resp.MFARequired)
-	assert.Empty(t, resp.AccessToken)
-	assert.Empty(t, resp.IDToken)
-	assert.Empty(t, resp.RefreshToken)
-	require.NotNil(t, resp.MFAChallengeToken)
-	assert.ElementsMatch(t, []string{"totp", "backup_code"}, resp.MFAAllowedMethods)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
 // ---------------------------------------------------------------------------
 // TestLogout_InvalidClaims — covers the !ok path in Logout
 // (service_login.go:504-507) where ParseUnverified returns claims that
@@ -2341,42 +2049,6 @@ func TestLogout_InvalidClaims(t *testing.T) {
 // ---------------------------------------------------------------------------
 // TestLogin_ForcePasswordChange
 // ---------------------------------------------------------------------------
-
-func TestLogin_ForcePasswordChange(t *testing.T) {
-	const correctPassword = "S3cur3P@ss!"
-
-	initTestJWTKeysService(t)
-	gormDB, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectCommit()
-
-	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*Client, error) { return buildActiveClient(), nil },
-	}
-	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*User, error) {
-			u := buildActiveUser(t, correctPassword)
-			u.ForcePasswordChange = true
-			return u, nil
-		},
-	}
-	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
-			return &UserIdentity{Sub: "sub-fpc"}, nil
-		},
-	}
-
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
-		userIdentityRepo, &mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
-	resp, err := svc.Login(context.Background(), "int-force-change", correctPassword, nil, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.True(t, resp.RequirePasswordChange)
-	assert.Empty(t, resp.AccessToken)
-	assert.Empty(t, resp.IDToken)
-	assert.Empty(t, resp.RefreshToken)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
 
 // ---------------------------------------------------------------------------
 // connectedSystemIdentityProviderID — selects the built-in system IdP by its
@@ -2419,4 +2091,13 @@ func TestConnectedSystemIdentityProviderID(t *testing.T) {
 		client := &Client{IdentityProviderID: 9, IdentityProvider: externalMaintainerd}
 		assert.Nil(t, connectedSystemIdentityProviderID(client))
 	})
+}
+
+// Defaults to an empty set, so the privilege-escalation guard fails CLOSED
+// unless a test states what the actor holds.
+func (m *mockUserRepo) EffectivePermissionNames(userID, tenantID int64) ([]string, error) {
+	if m.effectivePermissionNamesFn != nil {
+		return m.effectivePermissionNamesFn(userID, tenantID)
+	}
+	return nil, nil
 }

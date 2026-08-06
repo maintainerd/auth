@@ -50,3 +50,49 @@ func FirstElevatedPermission(names []string) string {
 	}
 	return ""
 }
+
+// FirstUnheldElevatedPermission returns the first management-plane permission in
+// granting that does not appear in held, or "" when the actor holds all of them.
+//
+// This is the containment rule behind every "you cannot grant what you do not
+// hold" guard in the codebase — role→permission, client→permission and
+// user→role each apply it. It lived as three separate copies of the same loop,
+// which is a bad shape for a privilege check: three places to keep the
+// elevated-only filter, the set construction and the comparison in agreement,
+// and a single divergence in any of them is a privilege-escalation hole that
+// still passes its own domain's tests.
+//
+// Only elevated permissions are compared, because public:… and account:…:self
+// confer nothing beyond the holder's own account and gating them would block
+// ordinary self-service. A super-admin is seeded with every administrative
+// permission, so the rule does not restrict them and needs no special case.
+//
+// The callers keep their own message and their own way of reading held, because
+// those legitimately differ; what must not differ is this comparison.
+//
+// Note the direction of failure: the caller must fail CLOSED when it cannot read
+// held. Passing an empty held slice means "the actor holds nothing", which
+// refuses every elevated grant — the safe answer — so an error path that
+// mistakenly reaches here still denies rather than allows.
+func FirstUnheldElevatedPermission(granting []string, held []string) string {
+	var elevated []string
+	for _, name := range granting {
+		if IsElevatedPermission(name) {
+			elevated = append(elevated, name)
+		}
+	}
+	if len(elevated) == 0 {
+		return ""
+	}
+
+	heldSet := make(map[string]struct{}, len(held))
+	for _, name := range held {
+		heldSet[name] = struct{}{}
+	}
+	for _, name := range elevated {
+		if _, ok := heldSet[name]; !ok {
+			return name
+		}
+	}
+	return ""
+}

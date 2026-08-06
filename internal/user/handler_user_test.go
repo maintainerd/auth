@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/datatypes"
@@ -409,36 +410,23 @@ func TestUserHandler_VerifyPhone(t *testing.T) {
 	})
 }
 
-func TestUserHandler_CompleteAccount(t *testing.T) {
-	t.Run("no tenant returns 401", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		NewUserHandler(&mockUserService{}).CompleteAccount(w, httptest.NewRequest(http.MethodPost, "/", nil))
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
-	t.Run("invalid UUID returns 400", func(t *testing.T) {
-		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", "bad"))
-		w := httptest.NewRecorder()
-		NewUserHandler(&mockUserService{}).CompleteAccount(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{completeAccountFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
-			return nil, errors.New("complete error")
-		}}
-		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", testResourceUUID.String()))
-		w := httptest.NewRecorder()
-		NewUserHandler(svc).CompleteAccount(w, r)
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-	})
-	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{completeAccountFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
-			return &UserServiceDataResult{}, nil
-		}}
-		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", testResourceUUID.String()))
-		w := httptest.NewRecorder()
-		NewUserHandler(svc).CompleteAccount(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
+// TestUserRoute_NoCompleteAccountEndpoint is the INVERSION of the former
+// TestUserHandler_CompleteAccount, which asserted that the REST handler behind
+// PATCH /users/{uuid}/complete-account existed and returned 200.
+//
+// Nothing ever called it: neither SPA references complete-account, and
+// PATCH /users/{uuid}/verify-email already marks the account completed as part
+// of verifying. An authenticated write endpoint that no client uses is surface
+// with no upside, so the route and its handler are gone. The capability itself
+// is not lost — the gRPC control plane still exposes CompleteAccount, which is
+// why userService.CompleteAccount remains.
+func TestUserRoute_NoCompleteAccountEndpoint(t *testing.T) {
+	r := chi.NewRouter()
+	UserRoute(r, NewUserHandler(&mockUserService{}), nil, nil, nil, nil, nil)
+
+	// Walked rather than requested: the subrouter's auth middleware answers 401
+	// before routing, so a request cannot distinguish "gone" from "gated".
+	assert.NotContains(t, routePatterns(t, r), "PATCH /users/{user_uuid}/complete-account")
 }
 
 // ---------------------------------------------------------------------------
@@ -477,16 +465,24 @@ func TestUserHandler_AssignRoles(t *testing.T) {
 		svc := &mockUserService{assignUserRolesFn: func(uuid.UUID, []uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return nil, errors.New("assign error")
 		}}
-		r := withTenant(withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "user_uuid", testResourceUUID.String()))
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		NewUserHandler(svc).AssignRoles(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+	// The actor is who the grant is attributed to and whose permissions bound
+	// what may be granted, so an unidentifiable caller must be refused outright.
+	t.Run("no authenticated actor returns 401", func(t *testing.T) {
+		r := withTenant(withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "user_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewUserHandler(&mockUserService{}).AssignRoles(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 	t.Run("success returns 200", func(t *testing.T) {
 		svc := &mockUserService{assignUserRolesFn: func(uuid.UUID, []uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return &UserServiceDataResult{}, nil
 		}}
-		r := withTenant(withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "user_uuid", testResourceUUID.String()))
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
 		NewUserHandler(svc).AssignRoles(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -678,16 +674,18 @@ func TestUserHandler_GetUserRoles(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// GetUserIdentities – covers sortIdentities, Client != nil branch, pagination
+// GetUserIdentities – covers sortIdentities, IdentityProvider != nil branch, pagination
 // ---------------------------------------------------------------------------
 
-func twoIdentities(withClient bool) []UserIdentityServiceDataResult {
-	var client *ClientServiceDataResult
-	if withClient {
-		client = &ClientServiceDataResult{Name: "web-app"}
+func twoIdentities(withProvider bool) []UserIdentityServiceDataResult {
+	first := UserIdentityServiceDataResult{Provider: "google", Sub: "sub-1"}
+	if withProvider {
+		idpUUID := uuid.New()
+		first.IdentityProviderUUID = &idpUUID
+		first.IdentityProviderName = "Google Workspace"
 	}
 	return []UserIdentityServiceDataResult{
-		{Provider: "google", Sub: "sub-1", Client: client},
+		first,
 		{Provider: "github", Sub: "sub-2"},
 	}
 }

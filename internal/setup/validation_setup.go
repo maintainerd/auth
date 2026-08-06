@@ -59,12 +59,23 @@ func (dto TenantMetadataDTO) Validate() error {
 	)
 }
 
+// tenantSlugPattern mirrors internal/tenant's tenantNamePattern: the tenant name
+// is a DNS label, not a title — it becomes the tenant subdomain and is what
+// ResolveTenantHost matches an incoming Host against.
+//
+// Setup used to accept `^[a-zA-Z0-9\s\-_\.]+$` up to 100 characters, which let
+// the one unauthenticated bootstrap call mint the system tenant as "My Company".
+// The tenant package then rejects that same name on every update, so the console
+// could never save a tenant edit again — a fresh install locked out of its own
+// tenant record.
+var tenantSlugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
+
 func (dto CreateTenantRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Name,
 			validation.Required.Error("Tenant name is required"),
-			validation.Length(2, 100).Error("Tenant name must be between 2 and 100 characters"),
-			validation.Match(regexp.MustCompile(`^[a-zA-Z0-9\s\-_\.]+$`)).Error("Tenant name contains invalid characters"),
+			validation.Length(3, 63).Error("Tenant name must be between 3 and 63 characters"),
+			validation.Match(tenantSlugPattern).Error("Tenant name must be a DNS-safe slug: lowercase letters, numbers, and hyphens, starting and ending with an alphanumeric"),
 		),
 		validation.Field(&dto.DisplayName,
 			validation.Required.Error("Display name is required"),
@@ -72,7 +83,10 @@ func (dto CreateTenantRequestDTO) Validate() error {
 		),
 		validation.Field(&dto.Description,
 			validation.When(dto.Description != nil,
-				validation.Length(0, 500).Error("Description must not exceed 500 characters"),
+				// 200, not 500: the tenant update DTO caps descriptions at 200, and the
+				// console pre-fills its edit form from the stored value — a longer one
+				// seeded here comes back as a validation error the operator did not type.
+				validation.Length(0, 200).Error("Description must not exceed 200 characters"),
 			),
 		),
 		validation.Field(&dto.Metadata,

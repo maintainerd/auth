@@ -212,16 +212,24 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 		return nil, apperror.NewOAuthInvalidGrant("the mapped client does not belong to this federation's tenant")
 	}
 
-	grantedScopes, scopeOK := intersectScopes(in.Scope, []string(fed.AllowedScopes))
+	// The federation row is not the only allow-list that applies. Consulting it
+	// alone let a WIF token carry scopes the SAME client is refused at
+	// /oauth/token, so the keyless path was the looser door into the client's own
+	// grant. The effective allow-list is the intersection of both.
+	effectiveAllowed := intersectAllowedScopes([]string(fed.AllowedScopes), client.AllowedScopes)
+	grantedScopes, scopeOK := intersectScopes(in.Scope, effectiveAllowed)
 	if !scopeOK {
 		span.SetStatus(codes.Error, "requested scope not allowed")
-		return nil, apperror.NewOAuthInvalidScope("requested scope exceeds the scopes allowed by this federation")
+		return nil, apperror.NewOAuthInvalidScope(
+			"requested scope exceeds the scopes allowed by this federation and its mapped client")
 	}
 
 	subject := clientSubject(client)
-	audience := in.Audience
-	if audience == "" {
-		audience = fed.Audience
+
+	audience, audErr := resolveWorkloadAudience(in.Audience, fed.Audience)
+	if audErr != nil {
+		span.SetStatus(codes.Error, "requested audience not allowed")
+		return nil, audErr
 	}
 	scopeStr := strings.Join(grantedScopes, " ")
 
@@ -230,7 +238,11 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 		ttlSeconds = *client.AccessTokenTTL
 	}
 
-	extraClaims := buildExtraClaims(claims, decodeAttributeMapping(fed.AttributeMapping), fed.SubjectClaim)
+	extraClaims, cerr := workloadTokenClaims(ctx, claims, fed)
+	if cerr != nil {
+		span.SetStatus(codes.Error, "tenant could not be resolved for the token claim")
+		return nil, cerr
+	}
 
 	opts := &jwt.AccessTokenOptions{
 		AccessTokenTTL: time.Duration(ttlSeconds) * time.Second,
@@ -448,13 +460,32 @@ func stringifyClaim(v interface{}) string {
 	}
 }
 
-// minSubjectPatternLiterals is the smallest number of non-wildcard characters an
-// anchored subject_pattern must contain — enough for an org/namespace segment.
-const minSubjectPatternLiterals = 6
+// minAnchoredSubjectSegments is how many whole, wildcard-free segments must
+// precede the first wildcard: one for the issuer's generic namespace keyword
+// ("repo", "system", "project_path", "spiffe") and at least one more that names
+// the organisation, group or namespace the trust is anchored to.
+const minAnchoredSubjectSegments = 2
+
+// subjectSegmentSeparators are the delimiters workload issuers structure their
+// subjects with: GitHub "repo:org/name:ref:...", Kubernetes
+// "system:serviceaccount:ns:sa", GitLab "project_path:group/project:...",
+// SPIFFE "spiffe://domain/ns/workload".
+const subjectSegmentSeparators = ":/"
 
 // SubjectPatternTooBroad reports whether a pattern is too permissive to be a trust
-// boundary: a bare wildcard, a leading wildcard, or too little literal text to
-// identify an organisation or namespace.
+// boundary: a bare wildcard, a leading wildcard, or a wildcard that is not anchored
+// behind an identifying segment.
+//
+// Counting literal CHARACTERS across the whole pattern did not work, because the
+// leading segment is issuer-generic and identifies nobody. On GitHub Actions the
+// literal "repo:" is already 5 of the 6 characters the old rule wanted, so
+// "repo:a*" passed and matched every repository of every organisation starting
+// with "a" — an attacker creates a matching repo and exchanges its token for the
+// victim tenant's. The rule is therefore structural: the wildcard must sit behind
+// at least one whole literal segment BEYOND the generic first one, so the org /
+// group / namespace is pinned. "repo:my-org/*" is fine (org anchored, any repo);
+// "repo:a*" is not, and neither is a flat pattern like "my-workload-*" that has no
+// segment to anchor on.
 //
 // Enforced BOTH at write time (validation) and here at match time. Write-time
 // validation alone would leave any row that predates the rule — or one inserted by
@@ -471,13 +502,19 @@ func SubjectPatternTooBroad(pattern string) bool {
 	if strings.HasPrefix(pattern, "*") || strings.HasPrefix(pattern, "?") {
 		return true
 	}
-	literals := 0
-	for _, r := range pattern {
-		if r != '*' && r != '?' {
-			literals++
+	// Empty segments are dropped so "spiffe://domain/ns/*" reads as four segments
+	// rather than gaining two free "anchors" from the "//".
+	segments := strings.FieldsFunc(pattern, func(r rune) bool {
+		return strings.ContainsRune(subjectSegmentSeparators, r)
+	})
+	anchors := 0
+	for _, seg := range segments {
+		if strings.ContainsAny(seg, "*?") {
+			break // the first wildcard ends the anchored prefix
 		}
+		anchors++
 	}
-	return literals < minSubjectPatternLiterals
+	return anchors < minAnchoredSubjectSegments
 }
 
 // matchSubjectPattern matches a glob pattern (with '*' and '?' wildcards)
@@ -510,6 +547,27 @@ func matchSubjectPattern(pattern, subject string) bool {
 	return re.MatchString(subject)
 }
 
+// intersectAllowedScopes narrows the federation's allow-list to what the mapped
+// client is itself allowed, preserving the federation's ordering so the granted
+// scope string is deterministic.
+//
+// An empty result means "no scopes", not "all scopes" — the whole point is that
+// neither list may widen the other, so a client with an empty allow-list grants
+// nothing here regardless of what its federation lists.
+func intersectAllowedScopes(federationScopes, clientScopes []string) []string {
+	clientSet := make(map[string]struct{}, len(clientScopes))
+	for _, s := range clientScopes {
+		clientSet[s] = struct{}{}
+	}
+	allowed := make([]string, 0, len(federationScopes))
+	for _, s := range federationScopes {
+		if _, ok := clientSet[s]; ok {
+			allowed = append(allowed, s)
+		}
+	}
+	return allowed
+}
+
 // intersectScopes returns the scopes to grant. When requested is empty, all
 // allowed scopes are granted. Otherwise every requested scope must be allowed;
 // a requested scope outside the allow-list returns ok=false.
@@ -539,6 +597,39 @@ func clientSubject(client *Client) string {
 		return *client.Identifier
 	}
 	return fmt.Sprintf("client:%d", client.ClientID)
+}
+
+// workloadTokenClaims assembles the ExtraClaims for an issued workload token: the
+// federation's attribute mapping, plus the tenant this server stamps itself.
+//
+// Nothing used to stamp the tenant. The 7th positional argument of
+// jwt.GenerateAccessTokenWithOptionsContext is providerID, not tenant, so passing
+// "tenant:N" there only labelled the realm — the token carried NO tenant_id claim
+// at all and every consumer (middleware.buildJWTClaims, the gRPC interceptor)
+// resolved TenantID = 0. attribute_mapping cannot supply it either: buildExtraClaims
+// drops tenant_id as a reserved destination, which is precisely why the SYSTEM sets
+// it here, AFTER the operator's mapping, so a mapping cannot forge it.
+//
+// The claim VALUE is the tenant's opaque UUID, never the internal PK
+// (least disclosure, RFC 9068) — that is the form both consumers parse.
+func workloadTokenClaims(
+	ctx context.Context,
+	claims map[string]interface{},
+	fed *WorkloadIdentityFederation,
+) (map[string]any, *apperror.OAuthError) {
+	extra := buildExtraClaims(claims, decodeAttributeMapping(fed.AttributeMapping), fed.SubjectClaim)
+
+	tenantUUID := shared.TenantUUIDStringByID(ctx, fed.TenantID)
+	if tenantUUID == "" {
+		// Fail closed. This endpoint takes no client credentials, so a token whose
+		// tenant reads as 0 downstream is worse than a denial.
+		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+	if extra == nil {
+		extra = map[string]any{}
+	}
+	extra["tenant_id"] = tenantUUID
+	return extra, nil
 }
 
 // buildExtraClaims maps external token claims to internal claim names per the
@@ -579,4 +670,26 @@ func buildExtraClaims(claims map[string]interface{}, mapping map[string]string, 
 		extra["act"] = map[string]any{"sub": ext}
 	}
 	return extra
+}
+
+// resolveWorkloadAudience decides the `aud` of a workload-identity token.
+//
+// The audience names the resource server the token is addressed to, so honouring
+// a caller-supplied one turns this keyless endpoint into a way to mint a token
+// aimed at ANY service that trusts this issuer. Only the audience registered on
+// the federation may be requested.
+//
+// A mismatch is refused rather than quietly downgraded to the registered value:
+// silently redirecting a token to a different audience than the caller asked for
+// is its own hazard, and RFC 8693 §2.2.2 gives invalid_target for precisely this.
+func resolveWorkloadAudience(requested, registered string) (string, *apperror.OAuthError) {
+	requested = strings.TrimSpace(requested)
+	if requested == "" {
+		return registered, nil
+	}
+	if requested != registered {
+		return "", apperror.NewOAuthInvalidTarget(
+			"the requested audience is not registered for this federation")
+	}
+	return requested, nil
 }

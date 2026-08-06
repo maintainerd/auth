@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/signedurl"
@@ -23,13 +24,33 @@ var (
 	GRPCTLSCertFile    string
 	GRPCTLSKeyFile     string
 	GRPCClientCAFile   string
-	GRPCRequireMTLS    bool
+	// GRPCRequireMTLS is forced TRUE whenever ControlPlaneEnabled is set — see the
+	// control-plane block in Init. GRPC_REQUIRE_MTLS is only consulted for the
+	// non-control-plane listener.
+	GRPCRequireMTLS bool
 
-	// SetupBootstrapToken (SETUP_BOOTSTRAP_TOKEN) is a pre-shared secret that gates
-	// the gRPC SetupService (system-tenant/admin/control-service provisioning by
-	// core). Empty disables gRPC setup entirely — standalone instances bootstrap via
-	// the REST setup wizard instead.
+	// SetupBootstrapToken (SETUP_BOOTSTRAP_TOKEN) is the per-instance bootstrap
+	// credential that gates the gRPC SetupService (system-tenant/admin/
+	// control-service provisioning by core). Empty disables gRPC setup entirely —
+	// standalone instances bootstrap via the REST setup wizard instead.
+	//
+	// Its spent/unspent state is NOT tracked separately. Whether this instance has
+	// been bootstrapped is already recorded, durably and across replicas, by the
+	// existence of an active system tenant — which ensureSetupOpen reads directly
+	// and the single-system-tenant constraint settles under a race. A second copy
+	// of that fact could only drift from it. The window is additionally bounded by
+	// SetupWindowTTL. Never log this value.
 	SetupBootstrapToken string
+
+	// SetupWindowTTL (SETUP_WINDOW_TTL) bounds how long the orchestrator setup
+	// surface stays reachable after this process starts.
+	//
+	// Orchestrated setup spans many calls, so the window cannot close on the first
+	// write the way the REST wizard's does — which leaves it open across the whole
+	// provisioning sequence. If the orchestrator dies halfway, that is a door onto
+	// tenant, client and policy creation that never shuts. The TTL makes an
+	// abandoned provision fail closed on its own; re-provisioning is a restart.
+	SetupWindowTTL time.Duration
 
 	// Application Encryption Key (AES-256)
 	AppEncryptionKey []byte
@@ -143,7 +164,43 @@ func Init() error {
 	GRPCTLSKeyFile = GetEnvOrDefault("GRPC_TLS_KEY_FILE", "")
 	GRPCClientCAFile = GetEnvOrDefault("GRPC_CLIENT_CA_FILE", "")
 	GRPCRequireMTLS = strings.EqualFold(GetEnvOrDefault("GRPC_REQUIRE_MTLS", "false"), "true")
-	SetupBootstrapToken = GetEnvOrDefault("SETUP_BOOTSTRAP_TOKEN", "")
+
+	// Control plane. Off by default: the default deployment is STANDALONE, and a
+	// standalone IAM must not expose the machine surface an orchestrator drives.
+	ControlPlaneEnabled = strings.EqualFold(GetEnvOrDefault("CONTROL_PLANE_ENABLED", "false"), "true")
+	if SetupWindowTTL, err = time.ParseDuration(GetEnvOrDefault("SETUP_WINDOW_TTL", "30m")); err != nil {
+		return fmt.Errorf("SETUP_WINDOW_TTL is not a valid duration: %w", err)
+	}
+	if SetupWindowTTL <= 0 {
+		// A non-positive TTL reads as "no limit", which is the state this setting
+		// exists to prevent. Disabling it has to be a deliberate, documented value,
+		// not a typo that silently removes the bound.
+		return fmt.Errorf("SETUP_WINDOW_TTL must be positive (got %s)", SetupWindowTTL)
+	}
+	if ControlPlaneEnabled {
+		// Not an operator choice. The channel that can create tenants, services and
+		// clients must PROVE its peer is core rather than accept a bearer token's
+		// claim to be, so enabling the control plane enables mTLS with it — leaving
+		// GRPC_REQUIRE_MTLS able to turn it back off would restore exactly the
+		// posture this removes.
+		GRPCRequireMTLS = true
+	}
+	if InstanceRole, err = resolveInstanceRole(GetEnvOrDefault("INSTANCE_ROLE", InstanceRoleRegular)); err != nil {
+		return err
+	}
+	if err := validateControlPlaneTLS(); err != nil {
+		return fmt.Errorf("control plane TLS configuration is invalid: %w", err)
+	}
+
+	// Credentials go through the configured secret provider, not os.Getenv, so
+	// an operator running SECRET_PROVIDER=vault/aws_secrets actually keeps them
+	// in that store. With the default SECRET_PROVIDER=env this is byte-identical
+	// to reading the environment variable, so the mixed model still works:
+	// non-sensitive config stays in plain env vars, credentials follow the
+	// provider.
+	if SetupBootstrapToken, err = LoadSecretStringOptional("SETUP_BOOTSTRAP_TOKEN"); err != nil {
+		return fmt.Errorf("failed to load setup bootstrap token: %w", err)
+	}
 
 	// Frontend Config
 	if AppFrontendIdentityHostname, err = GetEnv("APP_FRONTEND_IDENTITY_HOSTNAME"); err != nil {
@@ -178,7 +235,11 @@ func Init() error {
 
 	// Retired keys, kept only so data written before a rotation still decrypts.
 	AppEncryptionPreviousKeys = nil
-	if previous := GetEnvOrDefault("APP_ENCRYPTION_KEYS_PREVIOUS", ""); previous != "" {
+	previous, prevErr := LoadSecretStringOptional("APP_ENCRYPTION_KEYS_PREVIOUS")
+	if prevErr != nil {
+		return fmt.Errorf("failed to load previous encryption keys: %w", prevErr)
+	}
+	if previous != "" {
 		for _, entry := range strings.Split(previous, ",") {
 			key := []byte(strings.TrimSpace(entry))
 			if len(key) == 0 {
@@ -213,8 +274,8 @@ func Init() error {
 	if DBUser, err = GetEnv("DB_USER"); err != nil {
 		return err
 	}
-	if DBPassword, err = GetEnv("DB_PASSWORD"); err != nil {
-		return err
+	if DBPassword, err = LoadSecretString("DB_PASSWORD"); err != nil {
+		return fmt.Errorf("failed to load database password: %w", err)
 	}
 	if DBName, err = GetEnv("DB_NAME"); err != nil {
 		return err
@@ -246,6 +307,10 @@ type Config struct {
 	GRPCTLSKeyFile      string
 	GRPCClientCAFile    string
 	GRPCRequireMTLS     bool
+	ControlPlaneEnabled bool
+	InstanceRole        string
+	// SetupBootstrapToken is the raw credential; it is carried here only because
+	// GetConfig is a snapshot of the package vars. Do not log a Config value.
 	SetupBootstrapToken string
 	AppEncryptionKey    []byte
 
@@ -290,6 +355,8 @@ func GetConfig() Config {
 		GRPCTLSKeyFile:              GRPCTLSKeyFile,
 		GRPCClientCAFile:            GRPCClientCAFile,
 		GRPCRequireMTLS:             GRPCRequireMTLS,
+		ControlPlaneEnabled:         ControlPlaneEnabled,
+		InstanceRole:                InstanceRole,
 		SetupBootstrapToken:         SetupBootstrapToken,
 		AppEncryptionKey:            AppEncryptionKey,
 		LogLevel:                    LogLevel,

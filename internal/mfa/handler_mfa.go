@@ -28,40 +28,106 @@ func NewMFAHandler(mfaSvc MFAService, webAuthnSvc WebAuthnService) *MFAHandler {
 	return &MFAHandler{mfaSvc: mfaSvc, webAuthnSvc: webAuthnSvc}
 }
 
-// RequireStepUpOrEnrolledMFA gates a user's *own* MFA self-service actions
-// (download/delete a passkey, regenerate backup codes, disable TOTP/SMS).
+// RequireFreshStepUp gates a user's *own* destructive MFA self-service actions
+// (download/delete a passkey, regenerate backup codes, disable TOTP/SMS/email
+// OTP, self-reset every factor). It demands that THIS CALLER has completed a
+// step-up: acr=2 within the tenant's step-up freshness window.
 //
-// It allows the request when EITHER:
-//   - the session is already stepped-up (acr=2), or
-//   - the authenticated user already has at least one MFA factor enrolled.
+// It replaces a guard that also passed the request when the ACCOUNT merely had
+// some factor enrolled. That conflated "this account owns a second factor" with
+// "the caller in front of us just proved possession of one", so a single stolen
+// acr=1 session cookie was enough to POST /mfa/reset (wiping TOTP, passkeys,
+// SMS, email OTP and backup codes) or to mint ten fresh backup codes from
+// /mfa/backup-codes/regenerate — MFA permanently defeated from a single-factor
+// foothold. Enrollment routes take RequireStepUpForNewFactor instead — the same
+// demand, but skipped while the account holds no factor, so a user with nothing
+// enrolled can still bootstrap their first one. A user whose sole factor has
+// since been disallowed by tenant policy (and so cannot step up) is recovered by
+// an admin via /mfa/admin/users/{user_uuid}/reset.
 //
-// Enrolling and holding an MFA factor is itself proof of a second factor, so we
-// don't demand a separate step-up challenge just to manage one's own factors.
-// Sensitive cross-user actions (e.g. admin MFA reset) intentionally keep the
-// strict middleware.RequireStepUp guard instead of this one. It must run after
-// JWTAuthMiddleware and UserContextMiddleware so both the claims and the user
-// context are present.
-func (h *MFAHandler) RequireStepUpOrEnrolledMFA(next http.Handler) http.Handler {
+// It must run after JWTAuthMiddleware and UserContextMiddleware so both the
+// claims and the user context are present.
+func (h *MFAHandler) RequireFreshStepUp(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if claims := middleware.JWTClaimsFromRequest(r); claims != nil && claims.ACR == jwt.ACRLevel2 {
-			next.ServeHTTP(w, r)
-			return
-		}
-
 		user := middleware.AuthFromRequest(r).User
 		if user == nil {
 			resp.Error(w, http.StatusUnauthorized, "No valid authentication found")
 			return
 		}
 
-		status, err := h.mfaSvc.GetMFAStatus(r.Context(), user.UserID)
-		if err == nil && status != nil && (status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled || status.IsEmailOTPEnabled) {
+		if !h.callerSteppedUp(w, r, user.UserID) {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// RequireStepUpForNewFactor gates ENROLLING an MFA factor (TOTP, passkey, SMS,
+// email OTP) on the caller having already stepped up — but only once the
+// account holds at least one factor.
+//
+// Adding a factor is a credential-granting write, not a read: enrollment used to
+// need nothing but "account:mfa:enroll:self", which every registered user holds.
+// A hijacked acr=1 session could therefore enrol the ATTACKER's own authenticator
+// on the victim's account, POST /mfa/step-up/verify with it to reach acr=2, and
+// from there walk straight through every step-up gate on the account —
+// /mfa/reset, backup-code regeneration, email/password change. The destructive
+// siblings were already guarded; leaving the additive side open handed an
+// attacker the key to the same doors.
+//
+// The gate is conditional on purpose. An account with NO factor cannot step up,
+// so its FIRST enrollment must be reachable from an acr=1 session or nobody
+// could ever turn MFA on. A user who has lost their only factor is recovered by
+// an admin via /mfa/admin/users/{user_uuid}/reset, exactly as for the
+// destructive routes.
+//
+// A failure to determine the account's MFA state fails CLOSED with 503: an
+// unreadable enrollment state is not proof the account is unprotected.
+//
+// It must run after JWTAuthMiddleware and UserContextMiddleware so both the
+// claims and the user context are present.
+func (h *MFAHandler) RequireStepUpForNewFactor(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := middleware.AuthFromRequest(r).User
+		if user == nil {
+			resp.Error(w, http.StatusUnauthorized, "No valid authentication found")
+			return
+		}
+
+		enrolled, err := h.mfaSvc.UserHasMFA(r.Context(), user.UserID)
+		if err != nil {
+			resp.Error(w, http.StatusServiceUnavailable, "Could not verify the account's MFA state; please retry")
+			return
+		}
+		if !enrolled {
+			// Bootstrap the first factor: there is nothing to step up with yet.
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
+		if !h.callerSteppedUp(w, r, user.UserID) {
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
+}
+
+// callerSteppedUp reports whether THIS caller's token proves a step-up that is
+// still inside the tenant's freshness window, writing the 403 itself when it
+// does not. Shared by every step-up gate in this package so they cannot drift
+// apart on what "fresh" means.
+func (h *MFAHandler) callerSteppedUp(w http.ResponseWriter, r *http.Request, userID int64) bool {
+	claims := middleware.JWTClaimsFromRequest(r)
+	if claims == nil || claims.ACR != jwt.ACRLevel2 {
+		resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
+		return false
+	}
+	ttl := h.mfaSvc.StepUpTTLSeconds(r.Context(), userID)
+	if claims.Iat > 0 && time.Now().Unix()-claims.Iat > ttl {
+		resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication has expired; please re-authenticate")
+		return false
+	}
+	return true
 }
 
 // RequirePolicyStepUp gates a sensitive self-service action (e.g. email change)
@@ -81,22 +147,25 @@ func (h *MFAHandler) RequirePolicyStepUp(next http.Handler) http.Handler {
 		}
 
 		required, err := h.mfaSvc.SensitiveActionStepUpRequired(r.Context(), user.UserID)
-		if err != nil || !required {
-			// Not applicable (policy off, no MFA enrolled, or lookup failed): do
-			// not block. Fail-open keeps password-only flows and existing tests
-			// unaffected.
+		if err != nil {
+			// Fail CLOSED. This used to share the `!required` branch, so a
+			// transient failure reading require_mfa_for_sensitive_actions
+			// silently dropped the step-up gate entirely — a policy that is
+			// unreadable is not a policy that is off. 503 rather than
+			// step_up_required because the blocker is server-side: telling a
+			// password-only user to step up would send them to a challenge they
+			// cannot complete.
+			resp.Error(w, http.StatusServiceUnavailable, "Could not verify the step-up policy; please retry")
+			return
+		}
+		if !required {
+			// Not applicable (policy off, or no MFA enrolled): do not block, so
+			// password-only flows stay usable.
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		claims := middleware.JWTClaimsFromRequest(r)
-		if claims == nil || claims.ACR != jwt.ACRLevel2 {
-			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication required")
-			return
-		}
-		ttl := h.mfaSvc.StepUpTTLSeconds(r.Context(), user.UserID)
-		if claims.Iat > 0 && time.Now().Unix()-claims.Iat > ttl {
-			resp.ErrorWithCode(w, http.StatusForbidden, "step_up_required", "Step-up authentication has expired; please re-authenticate")
+		if !h.callerSteppedUp(w, r, user.UserID) {
 			return
 		}
 		next.ServeHTTP(w, r)

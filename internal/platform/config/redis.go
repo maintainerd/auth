@@ -18,7 +18,12 @@ import (
 // with exponential backoff until ctx is cancelled or all attempts are exhausted.
 func NewRedisClient(ctx context.Context) (*redis.Client, error) {
 	addr := GetEnvOrDefault("REDIS_ADDR", "redis-db:6379")
-	password := GetEnvOrDefault("REDIS_PASSWORD", "")
+	// A credential, so it follows SECRET_PROVIDER rather than always coming from
+	// the environment. Optional: an empty password is a valid local setup.
+	password, err := LoadSecretStringOptional("REDIS_PASSWORD")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load Redis password: %w", err)
+	}
 
 	opts := &redis.Options{
 		Addr:     addr,

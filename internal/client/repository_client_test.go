@@ -127,10 +127,24 @@ func TestClientRepository_FindByNameAndTenantID(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "tenant_uuid", "name", "status", "created_at", "updated_at"}).
 				AddRow(1, uuid.New(), "test-tenant", "active", now, now))
 
+		// Enabled connections are preloaded: callers create user identities
+		// against the client's provider, and there is no identity_provider_id
+		// column on clients to fall back to.
+		mock.ExpectQuery(`SELECT \* FROM "client_identity_providers" WHERE "client_identity_providers"\."client_id" = \$1 AND enabled = \$2`).
+			WithArgs(int64(1), true).
+			WillReturnRows(sqlmock.NewRows([]string{"client_identity_provider_id", "client_identity_provider_uuid", "tenant_id", "client_id", "identity_provider_id", "is_default", "enabled", "display_order", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), 1, 1, 4, true, true, 0, now, now))
+
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE "identity_providers"\."identity_provider_id" = \$1`).
+			WithArgs(int64(4)).
+			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "identity_provider_uuid", "tenant_id", "name", "status", "created_at", "updated_at"}).
+				AddRow(4, uuid.New(), 1, "built-in", "active", now, now))
+
 		result, err := NewClientRepository(gdb).FindByNameAndTenantID("test-client", 1)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "test-client", result.Name)
+		assert.Equal(t, int64(4), result.DefaultConnectedIdentityProviderID())
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 

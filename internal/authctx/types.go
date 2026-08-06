@@ -32,8 +32,14 @@ type AuthProfile struct {
 }
 
 type AuthUser struct {
-	UserID          int64        `json:"user_id"`
-	UserUUID        uuid.UUID    `json:"user_uuid"`
+	UserID   int64     `json:"user_id"`
+	UserUUID uuid.UUID `json:"user_uuid"`
+	// Status is carried so every authenticated request can refuse a user who is
+	// no longer active. Deactivating, suspending or soft-deleting an account has
+	// to take effect on the next request — without this it only took effect when
+	// the access token happened to expire, leaving a disabled account fully
+	// usable for the remainder of its token lifetime.
+	Status          string       `json:"status,omitempty"`
 	Roles           []AuthRole   `json:"roles,omitempty"`
 	Email           string       `json:"email,omitempty"`
 	IsEmailVerified bool         `json:"is_email_verified,omitempty"`

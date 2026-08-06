@@ -935,7 +935,168 @@ func withMFAUser(req *http.Request) *http.Request {
 	return middleware.WithAuthContext(req, &authctx.AuthContext{User: user, Tenant: tenant})
 }
 
-func TestMFAHandler_RequireStepUpOrEnrolledMFA(t *testing.T) {
+func TestMFAHandler_RequirePolicyStepUp(t *testing.T) {
+	newNext := func(called *bool) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			*called = true
+			w.WriteHeader(http.StatusOK)
+		})
+	}
+
+	t.Run("policy off passes through", func(t *testing.T) {
+		h := NewMFAHandler(&mockMFAService{
+			sensitiveActionStepUpRequiredFn: func(context.Context, int64) (bool, error) { return false, nil },
+		}, &mockWebAuthnService{})
+
+		called := false
+		rec := httptest.NewRecorder()
+		h.RequirePolicyStepUp(newNext(&called)).ServeHTTP(rec, withMFAUser(httptest.NewRequest(http.MethodPost, "/account/email/change", nil)))
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.True(t, called)
+	})
+
+	// INVERTED. A lookup error used to share the `!required` branch and fall
+	// through to next, silently dropping the step-up gate: a policy that cannot
+	// be read is not a policy that is off. 503, not step_up_required, because the
+	// blocker is server-side — telling a password-only user to step up sends them
+	// to a challenge they cannot complete.
+	t.Run("a policy lookup error fails closed", func(t *testing.T) {
+		h := NewMFAHandler(&mockMFAService{
+			sensitiveActionStepUpRequiredFn: func(context.Context, int64) (bool, error) {
+				return false, errors.New("db down")
+			},
+		}, &mockWebAuthnService{})
+
+		called := false
+		rec := httptest.NewRecorder()
+		h.RequirePolicyStepUp(newNext(&called)).ServeHTTP(rec, withMFAUser(httptest.NewRequest(http.MethodPost, "/account/email/change", nil)))
+
+		assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
+		assert.False(t, called, "the gate must not be dropped just because it could not be read")
+	})
+
+	t.Run("policy on demands a fresh step-up", func(t *testing.T) {
+		h := NewMFAHandler(&mockMFAService{
+			sensitiveActionStepUpRequiredFn: func(context.Context, int64) (bool, error) { return true, nil },
+		}, &mockWebAuthnService{})
+
+		called := false
+		rec := httptest.NewRecorder()
+		h.RequirePolicyStepUp(newNext(&called)).ServeHTTP(rec, withMFAUser(httptest.NewRequest(http.MethodPost, "/account/email/change", nil)))
+
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+		assert.False(t, called)
+	})
+}
+
+func TestMFAHandler_RequireStepUpForNewFactor(t *testing.T) {
+	enrollRequest := func() *http.Request {
+		return withMFAUser(httptest.NewRequest(http.MethodPost, "/mfa/totp/enroll", nil))
+	}
+
+	tests := []struct {
+		name       string
+		request    func() *http.Request
+		hasMFAFn   func(context.Context, int64) (bool, error)
+		wantStatus int
+		wantNext   bool
+	}{
+		{
+			// The bootstrap case: an account with no factor has nothing to step up
+			// with, so its first enrollment must stay reachable at acr=1.
+			name:       "first factor enrolls without a step-up",
+			request:    enrollRequest,
+			hasMFAFn:   func(context.Context, int64) (bool, error) { return false, nil },
+			wantStatus: http.StatusOK,
+			wantNext:   true,
+		},
+		{
+			// INVERTED. Enrollment used to need only "account:mfa:enroll:self", so
+			// this case reached the handler: a hijacked acr=1 session could add the
+			// attacker's own TOTP/passkey, then step up with it and clear every
+			// step-up gate on the account.
+			name:       "adding a second factor from an acr=1 session is forbidden",
+			request:    enrollRequest,
+			hasMFAFn:   func(context.Context, int64) (bool, error) { return true, nil },
+			wantStatus: http.StatusForbidden,
+			wantNext:   false,
+		},
+		{
+			name: "adding a second factor after a fresh step-up passes",
+			request: func() *http.Request {
+				return middleware.WithJWTClaims(enrollRequest(), &middleware.JWTClaims{
+					ACR: jwt.ACRLevel2,
+					Iat: time.Now().Unix(),
+				})
+			},
+			hasMFAFn:   func(context.Context, int64) (bool, error) { return true, nil },
+			wantStatus: http.StatusOK,
+			wantNext:   true,
+		},
+		{
+			name: "a stale step-up cannot add a factor",
+			request: func() *http.Request {
+				// mockMFAService.StepUpTTLSeconds returns 300.
+				return middleware.WithJWTClaims(enrollRequest(), &middleware.JWTClaims{
+					ACR: jwt.ACRLevel2,
+					Iat: time.Now().Add(-10 * time.Minute).Unix(),
+				})
+			},
+			hasMFAFn:   func(context.Context, int64) (bool, error) { return true, nil },
+			wantStatus: http.StatusForbidden,
+			wantNext:   false,
+		},
+		{
+			name: "an acr=1 claim cannot add a factor",
+			request: func() *http.Request {
+				return middleware.WithJWTClaims(enrollRequest(), &middleware.JWTClaims{
+					ACR: jwt.ACRLevel1,
+					Iat: time.Now().Unix(),
+				})
+			},
+			hasMFAFn:   func(context.Context, int64) (bool, error) { return true, nil },
+			wantStatus: http.StatusForbidden,
+			wantNext:   false,
+		},
+		{
+			// An unreadable enrollment state is not proof the account is
+			// unprotected, so it must not open the bootstrap path.
+			name:       "an enrollment-state lookup error fails closed",
+			request:    enrollRequest,
+			hasMFAFn:   func(context.Context, int64) (bool, error) { return false, errors.New("db down") },
+			wantStatus: http.StatusServiceUnavailable,
+			wantNext:   false,
+		},
+		{
+			name:       "missing user is unauthorized",
+			request:    func() *http.Request { return httptest.NewRequest(http.MethodPost, "/mfa/totp/enroll", nil) },
+			hasMFAFn:   func(context.Context, int64) (bool, error) { return false, nil },
+			wantStatus: http.StatusUnauthorized,
+			wantNext:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewMFAHandler(&mockMFAService{userHasMFAFn: tt.hasMFAFn}, &mockWebAuthnService{})
+
+			nextCalled := false
+			next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				nextCalled = true
+				w.WriteHeader(http.StatusOK)
+			})
+
+			rec := httptest.NewRecorder()
+			h.RequireStepUpForNewFactor(next).ServeHTTP(rec, tt.request())
+
+			assert.Equal(t, tt.wantStatus, rec.Code)
+			assert.Equal(t, tt.wantNext, nextCalled)
+		})
+	}
+}
+
+func TestMFAHandler_RequireFreshStepUp(t *testing.T) {
 	tests := []struct {
 		name       string
 		request    func() *http.Request
@@ -947,7 +1108,7 @@ func TestMFAHandler_RequireStepUpOrEnrolledMFA(t *testing.T) {
 			name: "stepped-up session passes without enrolled MFA",
 			request: func() *http.Request {
 				req := withMFAUser(httptest.NewRequest(http.MethodGet, "/mfa/webauthn/x/download", nil))
-				return middleware.WithJWTClaims(req, &middleware.JWTClaims{ACR: jwt.ACRLevel2})
+				return middleware.WithJWTClaims(req, &middleware.JWTClaims{ACR: jwt.ACRLevel2, Iat: time.Now().Unix()})
 			},
 			statusFn: func(context.Context, int64) (*MFAStatusResponseDTO, error) {
 				return &MFAStatusResponseDTO{}, nil // no factors — must still pass via acr=2
@@ -956,15 +1117,48 @@ func TestMFAHandler_RequireStepUpOrEnrolledMFA(t *testing.T) {
 			wantNext:   true,
 		},
 		{
-			name: "enrolled MFA factor passes without step-up",
+			// INVERTED. This case used to expect 200: an enrolled factor on the
+			// ACCOUNT was accepted as a substitute for the CALLER proving
+			// possession of one, so a stolen acr=1 session could POST /mfa/reset
+			// and wipe every factor. Holding a passkey is not the same as having
+			// just used it.
+			name: "enrolled MFA factor alone no longer passes without step-up",
 			request: func() *http.Request {
 				return withMFAUser(httptest.NewRequest(http.MethodGet, "/mfa/webauthn/x/download", nil))
 			},
 			statusFn: func(context.Context, int64) (*MFAStatusResponseDTO, error) {
 				return &MFAStatusResponseDTO{IsWebAuthnEnabled: true}, nil
 			},
-			wantStatus: http.StatusOK,
-			wantNext:   true,
+			wantStatus: http.StatusForbidden,
+			wantNext:   false,
+		},
+		{
+			name: "acr=1 session is forbidden",
+			request: func() *http.Request {
+				req := withMFAUser(httptest.NewRequest(http.MethodGet, "/mfa/webauthn/x/download", nil))
+				return middleware.WithJWTClaims(req, &middleware.JWTClaims{ACR: jwt.ACRLevel1, Iat: time.Now().Unix()})
+			},
+			statusFn: func(context.Context, int64) (*MFAStatusResponseDTO, error) {
+				return &MFAStatusResponseDTO{IsTOTPEnabled: true}, nil
+			},
+			wantStatus: http.StatusForbidden,
+			wantNext:   false,
+		},
+		{
+			name: "stale step-up is forbidden",
+			request: func() *http.Request {
+				req := withMFAUser(httptest.NewRequest(http.MethodGet, "/mfa/webauthn/x/download", nil))
+				// mockMFAService.StepUpTTLSeconds returns 300.
+				return middleware.WithJWTClaims(req, &middleware.JWTClaims{
+					ACR: jwt.ACRLevel2,
+					Iat: time.Now().Add(-10 * time.Minute).Unix(),
+				})
+			},
+			statusFn: func(context.Context, int64) (*MFAStatusResponseDTO, error) {
+				return &MFAStatusResponseDTO{IsTOTPEnabled: true}, nil
+			},
+			wantStatus: http.StatusForbidden,
+			wantNext:   false,
 		},
 		{
 			name: "no enrolled MFA and no step-up is forbidden",
@@ -999,7 +1193,7 @@ func TestMFAHandler_RequireStepUpOrEnrolledMFA(t *testing.T) {
 			})
 
 			rec := httptest.NewRecorder()
-			h.RequireStepUpOrEnrolledMFA(next).ServeHTTP(rec, tt.request())
+			h.RequireFreshStepUp(next).ServeHTTP(rec, tt.request())
 
 			assert.Equal(t, tt.wantStatus, rec.Code)
 			assert.Equal(t, tt.wantNext, nextCalled)

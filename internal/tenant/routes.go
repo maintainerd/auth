@@ -52,7 +52,14 @@ func TenantRoute(
 		r.With(middleware.PermissionMiddleware([]string{"tenant:create"})).
 			Post("/", tenantHandler.Create)
 
-		r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+		// Step-up here too, not only on /status: TenantUpdateRequestDTO carries a
+		// required `status` that Update passes straight through, so without this
+		// an acr=1 session could suspend a tenant via the combined route and skip
+		// the gate the dedicated /status route enforces. Gating the whole route
+		// (rather than rejecting `status` here) keeps a single write path, and
+		// the other field it rewrites — `name`, the DNS subdomain slug — is
+		// equally privileged.
+		r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
 			Put("/{tenant_uuid}", tenantHandler.Update)
 
 		r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
@@ -61,22 +68,33 @@ func TenantRoute(
 		r.With(middleware.PermissionMiddleware([]string{"tenant:delete"}), middleware.RequireStepUp).
 			Delete("/{tenant_uuid}", tenantHandler.Delete)
 
-		// Tenant member management
+		// Tenant member management.
+		//
+		// Every MUTATION here is step-up gated, matching the plain tenant
+		// update/delete above and the invite endpoints. Membership writes are at
+		// least as privileged as a tenant rename: adding a member with role=owner
+		// and promoting a member to owner both implicitly grant the super-admin
+		// role (service_member.go GrantRoleByName), an owner transfer implicitly
+		// revokes it from the previous owner, and a removal strips a person's
+		// access to the tenant. Without the gate a stolen or replayed acr=1 session
+		// holding tenant:update could hand itself tenant-wide super-admin, so the
+		// weakest path into the strongest privilege was the one that asked for the
+		// least proof of presence. Reads stay ungated.
 		r.Route("/{tenant_uuid}/members", func(r chi.Router) {
 			// Get all members in tenant
 			r.With(middleware.PermissionMiddleware([]string{"tenant:read"})).
 				Get("/", tenantHandler.GetMembers)
 
 			// Add member to tenant
-			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+			r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
 				Post("/", tenantHandler.AddMember)
 
-			// Update member role
-			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+			// Update member role (includes ownership transfer)
+			r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
 				Patch("/{tenant_member_uuid}/role", tenantHandler.UpdateMemberRole)
 
 			// Remove member from tenant
-			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+			r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
 				Delete("/{tenant_member_uuid}", tenantHandler.RemoveMember)
 		})
 	})

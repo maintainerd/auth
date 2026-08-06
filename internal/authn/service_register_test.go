@@ -1,8 +1,13 @@
 package authn
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -71,9 +77,10 @@ func defaultRegPublicMocks() *regMocks {
 					Domain:            &domain,
 					Identifier:        &identifier,
 					IdentityProvider: &IdentityProvider{
-						Identifier: "test-provider",
-						TenantID:   1,
-						Tenant:     &Tenant{TenantID: 1},
+						IdentityProviderID: 2,
+						Identifier:         "test-provider",
+						TenantID:           1,
+						Tenant:             &Tenant{TenantID: 1},
 					},
 				}, nil
 			},
@@ -87,63 +94,6 @@ func defaultRegPublicMocks() *regMocks {
 			findByUsernameFn: func(_ string) (*User, error) { return nil, nil },
 			findByEmailFn:    func(_ string) (*User, error) { return nil, nil },
 			findByPhoneFn:    func(_ string) (*User, error) { return nil, nil },
-			createFn:         func(u *User) (*User, error) { u.UserID = 1; return u, nil },
-		},
-		userIdentity: &mockUserIdentityRepo{
-			createFn: func(ui *UserIdentity) (*UserIdentity, error) { return ui, nil },
-		},
-		role: &mockRoleRepo{
-			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
-				return &PaginationResult[Role]{Data: []Role{{RoleID: 1}}}, nil
-			},
-		},
-		userRole:  &mockUserRoleRepo{},
-		userToken: &mockUserTokenRepo{},
-		invite:    &mockInviteRepo{},
-	}
-}
-
-// defaultRegInternalMocks returns mocks for a successful Register (internal) flow.
-// Uses FindByClientIDAndIdentityProvider path when clientID and providerID are provided.
-func defaultRegInternalMocks() *regMocks {
-	domain := "example.com"
-	identifier := "test-client"
-	return &regMocks{
-		client: &mockClientRepo{
-			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
-				return &Client{
-					AllowRegistration: true,
-					ClientID:          1,
-					TenantID:          1,
-					Status:            shared.StatusActive,
-					Domain:            &domain,
-					Identifier:        &identifier,
-					IdentityProvider: &IdentityProvider{
-						Identifier: "test-provider",
-						TenantID:   1,
-						Tenant:     &Tenant{TenantID: 1},
-					},
-				}, nil
-			},
-			findSystemFn: func() (*Client, error) {
-				return &Client{
-					AllowRegistration: true,
-					ClientID:          1,
-					TenantID:          1,
-					Status:            shared.StatusActive,
-					Domain:            &domain,
-					Identifier:        &identifier,
-					IdentityProvider: &IdentityProvider{
-						Identifier: "test-provider",
-						TenantID:   1,
-						Tenant:     &Tenant{TenantID: 1},
-					},
-				}, nil
-			},
-		},
-		idp: &mockIdentityProviderRepo{},
-		user: &mockUserRepo{
-			findByUsernameFn: func(_ string) (*User, error) { return nil, nil },
 			createFn:         func(u *User) (*User, error) { u.UserID = 1; return u, nil },
 		},
 		userIdentity: &mockUserIdentityRepo{
@@ -326,21 +276,6 @@ func TestRegisterPublic_RateLimited(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Register – rate limit
 // ---------------------------------------------------------------------------
-
-func TestRegister_RateLimited(t *testing.T) {
-	cleanup := lockedRateLimiterReg(t, "ratelimited-user2")
-	defer cleanup()
-
-	gormDB, mock := newMockGormDB(t)
-	_ = mock
-	m := defaultRegInternalMocks()
-	svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-		m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-	resp, err := svc.Register(context.Background(), "ratelimited-user2", "F", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
-	require.Error(t, err)
-	assert.Nil(t, resp)
-	assert.Contains(t, err.Error(), "locked")
-}
 
 // ---------------------------------------------------------------------------
 // RegisterPublic
@@ -640,9 +575,10 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 				Domain:            &domain,
 				Identifier:        &identifier,
 				IdentityProvider: &IdentityProvider{
-					Identifier: pid,
-					TenantID:   tenantID,
-					Tenant:     &Tenant{TenantID: tenantID},
+					IdentityProviderID: 7,
+					Identifier:         pid,
+					TenantID:           tenantID,
+					Tenant:             &Tenant{TenantID: tenantID},
 				},
 			}, nil
 		}
@@ -653,7 +589,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		}
 		m.userIdentity.createFn = func(ui *UserIdentity) (*UserIdentity, error) {
 			assert.Equal(t, tenantID, ui.TenantID)
-			assert.Equal(t, int64(99), ui.ClientID)
+			// Identities are keyed on the identity provider, not the client.
+			assert.Equal(t, int64(7), ui.IdentityProviderID)
 			return ui, nil
 		}
 		m.role.findByNameAndTenantIDFn = func(name string, gotTenantID int64) (*Role, error) {
@@ -680,387 +617,6 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Register (internal)
 // ---------------------------------------------------------------------------
-
-func TestRegisterService_Register(t *testing.T) {
-	cid := "client-id"
-	pid := "provider-id"
-
-	t.Run("FindByClientIDAndIdentityProvider error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.client.findByIdentifierFn = func(_ string) (*Client, error) {
-			return nil, errors.New("db error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("sends verification email when tenant policy requires it", func(t *testing.T) {
-		initTestJWTKeysService(t)
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		m.user.createFn = func(u *User) (*User, error) { u.UserID = 1; u.UserUUID = uuid.New(); return u, nil }
-		secRepo := registrationPolicyRepo(`{"self_registration_enabled":true,"require_email_verification":true}`)
-
-		called := false
-		var gotEmail string
-		emailSvc := &mockEmailVerificationService{
-			sendVerificationEmailFn: func(_ context.Context, email string, _, _ *string) (*SendEmailVerificationResponseDTO, error) {
-				called = true
-				gotEmail = email
-				return &SendEmailVerificationResponseDTO{Success: true}, nil
-			},
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, WithEmailVerificationService(emailSvc))
-
-		email := "verify@example.com"
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, nil, &cid, &pid, "")
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.True(t, called, "expected verification email to be sent")
-		assert.Equal(t, email, gotEmail)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("does not send verification email when policy does not require it", func(t *testing.T) {
-		initTestJWTKeysService(t)
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		m.user.createFn = func(u *User) (*User, error) { u.UserID = 1; u.UserUUID = uuid.New(); return u, nil }
-		secRepo := registrationPolicyRepo(`{"self_registration_enabled":true,"require_email_verification":false}`)
-
-		called := false
-		emailSvc := &mockEmailVerificationService{
-			sendVerificationEmailFn: func(_ context.Context, _ string, _, _ *string) (*SendEmailVerificationResponseDTO, error) {
-				called = true
-				return &SendEmailVerificationResponseDTO{Success: true}, nil
-			},
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil, WithEmailVerificationService(emailSvc))
-
-		email := "noverify@example.com"
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, nil, &cid, &pid, "")
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.False(t, called, "expected no verification email when policy does not require it")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("self-registration disabled is forbidden", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		secRepo := registrationPolicyRepo(`{"self_registration_enabled":false}`)
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "self-registration is disabled for this tenant")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("FindDefault error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.client.findSystemFn = func() (*Client, error) {
-			return nil, errors.New("db error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("client nil or inactive", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.client.findSystemFn = func() (*Client, error) { return nil, nil }
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "auth client not found or inactive")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("FindByUsername returns non-record-not-found error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.user.findByUsernameFn = func(_ string) (*User, error) {
-			return nil, errors.New("db error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("FindByUsername returns record-not-found - treated as not found", func(t *testing.T) {
-		initTestJWTKeysService(t)
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		m.user.findByUsernameFn = func(_ string) (*User, error) {
-			return nil, errors.New("record not found")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		// With the userIdentitySub bug fixed, token response now succeeds.
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("user already exists", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.user.findByUsernameFn = func(_ string) (*User, error) {
-			return &User{UserID: 99}, nil
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "user already exists")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("email already exists returns conflict before create", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.user.findByEmailAndTenantIDFn = func(string, int64) (*User, error) {
-			return &User{UserID: 99}, nil
-		}
-		email := "existing@example.com"
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "email already registered")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("phone already exists returns conflict before create", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.user.findByPhoneFn = func(string) (*User, error) {
-			return &User{UserID: 99}, nil
-		}
-		phone := "+1234567890"
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, &phone, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "phone already registered")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("user create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.user.createFn = func(_ *User) (*User, error) {
-			return nil, errors.New("create error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("user identity create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.userIdentity.createFn = func(_ *UserIdentity) (*UserIdentity, error) {
-			return nil, errors.New("identity error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-	t.Run("findDefaultRole error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.role.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
-			return nil, errors.New("role error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("user role create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
-			return nil, errors.New("role assign error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("generateTokenResponse error", func(t *testing.T) {
-		jwt.ResetJWTKeys()
-		defer initTestJWTKeysService(t)
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, &pid, "")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("tx commits with clientID providerID email phone", func(t *testing.T) {
-		initTestJWTKeysService(t)
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		email := "a@b.com"
-		phone := "+1234567890"
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", &email, &phone, &cid, &pid, "")
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("tx commits with default client no email no phone", func(t *testing.T) {
-		initTestJWTKeysService(t)
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("no client uses system client tenant registered role", func(t *testing.T) {
-		initTestJWTKeysService(t)
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		m := defaultRegInternalMocks()
-		const systemTenantID int64 = 7
-		const registeredRoleID int64 = 70
-		domain := "system.example.com"
-		identifier := "system-client"
-		m.client.findSystemFn = func() (*Client, error) {
-			return &Client{
-				AllowRegistration: true,
-				ClientID:          11,
-				TenantID:          systemTenantID,
-				Status:            shared.StatusActive,
-				Domain:            &domain,
-				Identifier:        &identifier,
-				IdentityProvider: &IdentityProvider{
-					Identifier: "system-provider",
-					TenantID:   systemTenantID,
-					Tenant:     &Tenant{TenantID: systemTenantID, IsSystem: true},
-				},
-			}, nil
-		}
-		m.user.createFn = func(u *User) (*User, error) {
-			u.UserID = 701
-			u.UserUUID = uuid.New()
-			return u, nil
-		}
-		m.userIdentity.createFn = func(ui *UserIdentity) (*UserIdentity, error) {
-			assert.Equal(t, systemTenantID, ui.TenantID)
-			assert.Equal(t, int64(11), ui.ClientID)
-			return ui, nil
-		}
-		m.role.findByNameAndTenantIDFn = func(name string, tenantID int64) (*Role, error) {
-			assert.Equal(t, shared.RoleRegistered, name)
-			assert.Equal(t, systemTenantID, tenantID)
-			return &Role{RoleID: registeredRoleID, TenantID: tenantID, Name: name}, nil
-		}
-		m.userRole.createFn = func(ur *UserRole) (*UserRole, error) {
-			assert.Equal(t, int64(701), ur.UserID)
-			assert.Equal(t, registeredRoleID, ur.RoleID)
-			return ur, nil
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
-
-		resp, err := svc.Register(context.Background(), "system-user", "System User", "vault-crimson-ledger-92", nil, nil, nil, nil, "")
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-}
 
 // ---------------------------------------------------------------------------
 // RegisterInvitePublic
@@ -1479,7 +1035,8 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		Domain:            &domain,
 		Identifier:        &identifier,
 		IdentityProvider: &IdentityProvider{
-			Identifier: "test-provider",
+			IdentityProviderID: 2,
+			Identifier:         "test-provider",
 		},
 	}
 
@@ -1852,4 +1409,269 @@ func TestParseRequiredRegistrationFields(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "required_fields must be a JSON string array")
 	})
+}
+
+// enforceRegistrationAbuseControls — the signup CAPTCHA gate.
+//
+// CAPTCHA is deferred and has no client-side half (no first-party signup form
+// sends a captcha_token), yet tenants carry a persisted captcha_on_signup=true
+// that lowering the seeded default does not clear — migrations are create-only,
+// so nothing backfills those rows. These pin both halves of the contract: a
+// deployment with no CAPTCHA provider must keep registering users, and a
+// deployment that HAS one must reject anything short of an explicit provider
+// pass. Previously nothing was asserted here at all and the "keeps registering
+// users" half held only by accident, through security.VerifyCaptcha's silent
+// no-op when CAPTCHA_SECRET is unset.
+func TestEnforceRegistrationAbuseControls_Captcha(t *testing.T) {
+	// Rate limiting is a separate control; zero keeps these on the captcha branch.
+	captchaPolicy := func() *secpolicy.RegistrationPolicy {
+		return &secpolicy.RegistrationPolicy{CaptchaOnSignup: true, RegistrationRateLimitPerIPPerHour: 0}
+	}
+
+	t.Run("policy on but no provider configured lets registration through", func(t *testing.T) {
+		restore := captchaProviderConfigured
+		captchaProviderConfigured = func() bool { return false }
+		t.Cleanup(func() { captchaProviderConfigured = restore })
+
+		require.NoError(t, enforceRegistrationAbuseControls(context.Background(), 1, captchaPolicy()))
+	})
+
+	// The "no provider" decision must be taken HERE, not inside the shared
+	// verifier. security.VerifyCaptcha still returns nil for an unset
+	// CAPTCHA_SECRET, and that fail-open is scheduled for removal; if this path
+	// leaned on it, the removal would turn every signup on a CAPTCHA-flagged
+	// tenant into a rejection. Asserting the verifier is never invoked makes the
+	// independence structural rather than incidental.
+	t.Run("no provider configured never reaches the shared verifier", func(t *testing.T) {
+		restoreConfigured := captchaProviderConfigured
+		captchaProviderConfigured = func() bool { return false }
+		t.Cleanup(func() { captchaProviderConfigured = restoreConfigured })
+
+		verifierCalled := false
+		restoreVerify := secVerifyCaptcha
+		secVerifyCaptcha = func(context.Context, string, string) error {
+			verifierCalled = true
+			return nil
+		}
+		t.Cleanup(func() { secVerifyCaptcha = restoreVerify })
+
+		require.NoError(t, enforceRegistrationAbuseControls(context.Background(), 1, captchaPolicy()))
+		assert.False(t, verifierCalled, "captchaProviderConfigured must be the only place the 'no provider' decision is taken")
+	})
+
+	// A verifier that denies must deny even if it denies by returning a bare
+	// error: the branch translates every verifier failure into a rejection, so a
+	// stricter security.VerifyCaptcha (one that errors instead of no-opping)
+	// cannot accidentally become a pass here.
+	t.Run("provider configured propagates a verifier denial as a rejection", func(t *testing.T) {
+		restoreConfigured := captchaProviderConfigured
+		captchaProviderConfigured = func() bool { return true }
+		t.Cleanup(func() { captchaProviderConfigured = restoreConfigured })
+
+		restoreVerify := secVerifyCaptcha
+		secVerifyCaptcha = func(context.Context, string, string) error {
+			return errors.New("captcha provider is not configured")
+		}
+		t.Cleanup(func() { secVerifyCaptcha = restoreVerify })
+
+		err := enforceRegistrationAbuseControls(context.Background(), 1, captchaPolicy())
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "captcha verification failed")
+	})
+
+	// The token the signup handler put on the context is what gets verified —
+	// without this the gate could "pass" by always verifying an empty token.
+	t.Run("provider configured forwards the request token and client IP", func(t *testing.T) {
+		restoreConfigured := captchaProviderConfigured
+		captchaProviderConfigured = func() bool { return true }
+		t.Cleanup(func() { captchaProviderConfigured = restoreConfigured })
+
+		var gotToken string
+		restoreVerify := secVerifyCaptcha
+		secVerifyCaptcha = func(_ context.Context, token, _ string) error {
+			gotToken = token
+			return nil
+		}
+		t.Cleanup(func() { secVerifyCaptcha = restoreVerify })
+
+		ctx := contextWithRegistrationCaptchaToken(context.Background(), "token-from-widget")
+		require.NoError(t, enforceRegistrationAbuseControls(ctx, 1, captchaPolicy()))
+		assert.Equal(t, "token-from-widget", gotToken)
+	})
+
+	t.Run("provider configured rejects a request carrying no captcha token", func(t *testing.T) {
+		// A missing token must be decided locally, before the provider is dialled:
+		// an absent token is unverifiable by definition, and asking the provider
+		// about it would make the rejection depend on the provider being
+		// reachable. Pointing CAPTCHA_VERIFY_URL at a server that fails the test
+		// on contact pins that, and also keeps the test hermetic — with the URL
+		// unset a regression here would reach the real provider from CI.
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			t.Error("the captcha provider must not be contacted for a request that carries no token")
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer srv.Close()
+		t.Setenv("CAPTCHA_SECRET", "test-secret")
+		t.Setenv("CAPTCHA_VERIFY_URL", srv.URL)
+
+		err := enforceRegistrationAbuseControls(context.Background(), 1, captchaPolicy())
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "captcha verification failed")
+	})
+
+	t.Run("provider configured accepts a token the provider passes", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"success":true}`))
+		}))
+		defer srv.Close()
+		t.Setenv("CAPTCHA_SECRET", "test-secret")
+		t.Setenv("CAPTCHA_VERIFY_URL", srv.URL)
+
+		ctx := contextWithRegistrationCaptchaToken(context.Background(), "token-from-widget")
+
+		require.NoError(t, enforceRegistrationAbuseControls(ctx, 1, captchaPolicy()))
+	})
+
+	// An unreachable or erroring provider is not a pass: with CAPTCHA switched on
+	// for real, "we could not check" must deny.
+	t.Run("provider error rejects", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer srv.Close()
+		t.Setenv("CAPTCHA_SECRET", "test-secret")
+		t.Setenv("CAPTCHA_VERIFY_URL", srv.URL)
+
+		ctx := contextWithRegistrationCaptchaToken(context.Background(), "token-from-widget")
+		err := enforceRegistrationAbuseControls(ctx, 1, captchaPolicy())
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "captcha verification failed")
+	})
+
+	t.Run("provider rejection rejects", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"success":false,"error-codes":["invalid-input-response"]}`))
+		}))
+		defer srv.Close()
+		t.Setenv("CAPTCHA_SECRET", "test-secret")
+		t.Setenv("CAPTCHA_VERIFY_URL", srv.URL)
+
+		ctx := contextWithRegistrationCaptchaToken(context.Background(), "stale-token")
+		err := enforceRegistrationAbuseControls(ctx, 1, captchaPolicy())
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "captcha verification failed")
+	})
+
+	t.Run("captcha_on_signup off skips the check even with a provider configured", func(t *testing.T) {
+		t.Setenv("CAPTCHA_SECRET", "test-secret")
+		policy := captchaPolicy()
+		policy.CaptchaOnSignup = false
+
+		require.NoError(t, enforceRegistrationAbuseControls(context.Background(), 1, policy))
+	})
+}
+
+// The same gate seen from the tenant's persisted security setting rather than a
+// hand-built policy struct, because that is where the operational hazard lives:
+// captcha_on_signup is seeded true, migrations are create-only so nothing
+// backfills existing rows, and no first-party signup form emits a captcha_token.
+// The moment a deployment sets CAPTCHA_SECRET, every tenant still carrying the
+// persisted true loses 100% of self-service registration. That outcome is
+// CORRECT — a policy that says "prove you are human" must not be satisfiable by
+// sending nothing — so this pins it as intended behaviour rather than treating
+// it as a bug to be softened. The escape hatch is the flag itself, which the
+// second case pins: turning captcha_on_signup off restores registration. The
+// unit-level cases above drive enforceRegistrationAbuseControls directly and so
+// cannot catch a regression that stops the persisted tenant value from reaching
+// the gate at all.
+func TestRegisterPublic_CaptchaOnSignupFromTenantSetting(t *testing.T) {
+	cid := "c"
+
+	t.Run("persisted captcha_on_signup true with a provider configured rejects a tokenless signup", func(t *testing.T) {
+		// Contacting the provider would be wrong (there is no token to verify) and
+		// would make the test reach the network, so a hit here is a failure.
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			t.Error("the captcha provider must not be contacted for a signup that carries no token")
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer srv.Close()
+		t.Setenv("CAPTCHA_SECRET", "test-secret")
+		t.Setenv("CAPTCHA_VERIFY_URL", srv.URL)
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		m := defaultRegPublicMocks()
+		// A user must never be created by a request the gate rejects.
+		m.user.createFn = func(*User) (*User, error) {
+			t.Error("registration must not create a user after the captcha gate rejects")
+			return nil, errors.New("unreachable")
+		}
+		secRepo := registrationPolicyRepo(`{"captcha_on_signup":true}`)
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil)
+
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
+
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "captcha verification failed")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	// Clearing the tenant flag is the only supported way out of the state above,
+	// so it has to actually work end to end — reaching the duplicate-username
+	// check proves the request travelled past the captcha gate rather than being
+	// rejected by it, even though a provider is configured and no token was sent.
+	t.Run("persisted captcha_on_signup false lets a tokenless signup past the gate", func(t *testing.T) {
+		t.Setenv("CAPTCHA_SECRET", "test-secret")
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		m := defaultRegPublicMocks()
+		m.user.findByUsernameFn = func(string) (*User, error) { return &User{UserID: 99}, nil }
+		secRepo := registrationPolicyRepo(`{"captcha_on_signup":false}`)
+		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
+			m.userIdentity, m.role, m.invite, m.idp, secRepo, nil, nil)
+
+		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "vault-crimson-ledger-92", nil, nil, &cid, nil, "")
+
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "username already taken")
+		assert.NotContains(t, err.Error(), "captcha")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// Not enforcing a tenant's CAPTCHA policy is only defensible while the operator
+// can see it happening, so the warning is the load-bearing half of that
+// trade-off. It used to be a single process-wide sync.Once: the first affected
+// tenant consumed it and every other tenant's unenforced policy was then silent
+// for the life of the process. Deduplication is now per tenant.
+func TestWarnCaptchaUnenforceable_OncePerTenant(t *testing.T) {
+	var logged bytes.Buffer
+	restore := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	t.Cleanup(func() { slog.SetDefault(restore) })
+
+	// Tenant IDs unique to this test: the dedupe map is process-wide, so reusing
+	// an ID another test already warned for would silently pass.
+	const tenantA, tenantB int64 = 90001, 90002
+	t.Cleanup(func() {
+		warnedCaptchaUnenforceableTenants.Delete(tenantA)
+		warnedCaptchaUnenforceableTenants.Delete(tenantB)
+	})
+
+	warnCaptchaUnenforceable(tenantA)
+	warnCaptchaUnenforceable(tenantA)
+	warnCaptchaUnenforceable(tenantB)
+
+	assert.Equal(t, 1, strings.Count(logged.String(), "tenant_id=90001"))
+	assert.Equal(t, 1, strings.Count(logged.String(), "tenant_id=90002"))
 }

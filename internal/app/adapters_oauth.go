@@ -146,8 +146,25 @@ func (r *oauthUserRepo) FindBySubAndClientID(sub, clientID string) (*oauth.User,
 	var u user.User
 	err := userWithRolesQuery(r.DB()).
 		Joins("JOIN user_identities ON user_identities.user_id = users.user_id").
-		Joins("JOIN clients ON clients.client_id = user_identities.client_id").
-		Where("user_identities.sub = ? AND clients.identifier = ?", sub, clientID).
+		Joins(`JOIN clients ON clients.identifier = ?
+			AND clients.tenant_id = user_identities.tenant_id
+			AND clients.status = ?
+			AND clients.deleted_at IS NULL`, clientID, shared.StatusActive).
+		// Identities belong to a provider, not a client — the client reaches one
+		// only through an enabled connection to a live, active provider. Deleting
+		// or deactivating the provider must cut access off here too, otherwise
+		// revoking a compromised IdP would stop new logins while leaving existing
+		// tokens working.
+		Joins(`JOIN client_identity_providers cip
+			ON cip.client_id = clients.client_id
+			AND cip.identity_provider_id = user_identities.identity_provider_id
+			AND cip.enabled = TRUE
+			AND cip.deleted_at IS NULL`).
+		Joins(`JOIN identity_providers idp
+			ON idp.identity_provider_id = user_identities.identity_provider_id
+			AND idp.deleted_at IS NULL
+			AND idp.status = ?`, shared.StatusActive).
+		Where("user_identities.sub = ?", sub).
 		First(&u).Error
 	if err != nil {
 		return nil, firstOrNil(err)
@@ -229,9 +246,26 @@ func (r *oauthUserIdentityRepo) WithTx(tx *gorm.DB) oauth.UserIdentityRepository
 	return &oauthUserIdentityRepo{r.BaseRepository.WithTx(tx)}
 }
 
-func (r *oauthUserIdentityRepo) FindByUserIDAndClientID(userID, clientID int64) (*oauth.UserIdentity, error) {
+func (r *oauthUserIdentityRepo) FindByUserIDAndClientReachable(userID, clientID int64) (*oauth.UserIdentity, error) {
 	var identity oauth.UserIdentity
-	err := r.DB().Where("user_id = ? AND client_id = ?", userID, clientID).First(&identity).Error
+	// Mirrors user.userIdentityRepository.FindByUserIDAndClientReachable — the
+	// two MUST agree, or a client refused at login could still mint tokens here.
+	// Reachability is an enabled connection to a live, active provider; ordering
+	// is deterministic so `sub` does not move between grants.
+	err := r.DB().
+		Joins(`JOIN client_identity_providers cip
+			ON cip.identity_provider_id = user_identities.identity_provider_id
+			AND cip.tenant_id = user_identities.tenant_id
+			AND cip.enabled = TRUE
+			AND cip.deleted_at IS NULL`).
+		Joins(`JOIN identity_providers idp
+			ON idp.identity_provider_id = user_identities.identity_provider_id
+			AND idp.deleted_at IS NULL
+			AND idp.status = ?`, shared.StatusActive).
+		Where("user_identities.user_id = ?", userID).
+		Where("cip.client_id = ?", clientID).
+		Order("idp.is_system DESC, user_identities.user_identity_id ASC").
+		First(&identity).Error
 	if err != nil {
 		return nil, firstOrNil(err)
 	}

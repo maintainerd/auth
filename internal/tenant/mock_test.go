@@ -85,6 +85,10 @@ type mockTenantMemberService struct {
 	deleteByUUIDFn       func(int64, uuid.UUID) error
 	isUserInTenantFn     func(int64, uuid.UUID) (bool, error)
 	canManageTenantFn    func(int64, uuid.UUID) (bool, error)
+
+	// lastActorUserID records the acting user the caller passed in, so tests can
+	// assert the actor came from the verified token and not the request body.
+	lastActorUserID int64
 }
 
 func (m *mockTenantMemberService) Create(_ context.Context, tenantID, userID int64, role string, _ int64) (*TenantMemberServiceDataResult, error) {
@@ -93,7 +97,8 @@ func (m *mockTenantMemberService) Create(_ context.Context, tenantID, userID int
 	}
 	return nil, nil
 }
-func (m *mockTenantMemberService) CreateByUserUUID(_ context.Context, tenantID int64, userUUID uuid.UUID, role string, _ int64) (*TenantMemberServiceDataResult, error) {
+func (m *mockTenantMemberService) CreateByUserUUID(_ context.Context, tenantID int64, userUUID uuid.UUID, role string, actorUserID int64) (*TenantMemberServiceDataResult, error) {
+	m.lastActorUserID = actorUserID
 	if m.createByUserUUIDFn != nil {
 		return m.createByUserUUIDFn(tenantID, userUUID, role)
 	}
@@ -123,13 +128,15 @@ func (m *mockTenantMemberService) ListByUser(_ context.Context, userID int64) ([
 	}
 	return nil, nil
 }
-func (m *mockTenantMemberService) UpdateRole(_ context.Context, tenantID int64, id uuid.UUID, role string, _ int64) (*TenantMemberServiceDataResult, error) {
+func (m *mockTenantMemberService) UpdateRole(_ context.Context, tenantID int64, id uuid.UUID, role string, actorUserID int64) (*TenantMemberServiceDataResult, error) {
+	m.lastActorUserID = actorUserID
 	if m.updateRoleFn != nil {
 		return m.updateRoleFn(tenantID, id, role)
 	}
 	return nil, nil
 }
-func (m *mockTenantMemberService) DeleteByUUID(_ context.Context, tenantID int64, id uuid.UUID, _ int64) error {
+func (m *mockTenantMemberService) DeleteByUUID(_ context.Context, tenantID int64, id uuid.UUID, actorUserID int64) error {
+	m.lastActorUserID = actorUserID
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(tenantID, id)
 	}

@@ -96,6 +96,45 @@ func grpcAuthorizeTenantManagement(ctx context.Context, ts TenantService, ms Ten
 	return nil
 }
 
+// grpcCallerTenantScope resolves the caller's tenant binding from the
+// issuer-stamped, unforgeable `tenant_id` claim and reports whether that tenant
+// is the system tenant (the only one allowed to read across tenants). Read RPCs
+// use it for the scoping the HTTP handlers already do; without it every
+// tenant-bound token could enumerate every tenant over gRPC.
+func grpcCallerTenantScope(ctx context.Context, ts TenantService) (callerTenantID int64, isSystem bool, err error) {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil || claims.TenantID == 0 {
+		return 0, false, apperror.ToGRPCError(apperror.NewUnauthorized("authenticated actor is required"))
+	}
+	systemTenant, err := ts.GetSystem(ctx)
+	if err != nil {
+		return 0, false, apperror.ToGRPCError(err)
+	}
+	return claims.TenantID, systemTenant != nil && claims.TenantID == systemTenant.TenantID, nil
+}
+
+// grpcActorUserID returns the acting user taken from the VERIFIED token, never
+// from the request body. A body-supplied actor_user_uuid let a caller name any
+// user and have the membership/escalation guards (service_member.go
+// authorizeManager) evaluated against THAT user's standing — a tenant-B token
+// naming a tenant-A owner was granted tenant-A management.
+//
+// This gRPC surface authenticates SERVICE principals, which carry no user
+// identity, so these operations fail closed rather than running as an
+// unattributable actor. Re-enabling them for services means deciding what bounds
+// a service principal's grants, not dropping this check.
+// grpcActorUserID resolves the acting user for a mutating tenant RPC.
+//
+// Delegates to the one shared definition so this surface cannot drift from the
+// client and iam surfaces again.
+func grpcActorUserID(ctx context.Context, operation string) (int64, error) {
+	actor, err := middleware.GRPCActor(ctx, operation)
+	if err != nil {
+		return 0, err
+	}
+	return actor.UserID, nil
+}
+
 func (h *TenantGRPCHandler) GetDefaultTenant(ctx context.Context, _ *authv1.GetDefaultTenantRequest) (*authv1.GetDefaultTenantResponse, error) {
 	tenant, err := h.tenantService.GetSystem(ctx)
 	if err != nil {
@@ -117,7 +156,12 @@ func (h *TenantGRPCHandler) ListTenants(ctx context.Context, req *authv1.ListTen
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
 
-	result, err := h.tenantService.Get(ctx, TenantServiceGetFilter{
+	callerTenantID, isSystem, err := grpcCallerTenantScope(ctx, h.tenantService)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := TenantServiceGetFilter{
 		Name:        dto.Name,
 		DisplayName: dto.DisplayName,
 		Description: dto.Description,
@@ -127,7 +171,15 @@ func (h *TenantGRPCHandler) ListTenants(ctx context.Context, req *authv1.ListTen
 		Limit:       dto.Limit,
 		SortBy:      dto.SortBy,
 		SortOrder:   dto.SortOrder,
-	})
+	}
+	// Scope parity with the HTTP handler (handler_tenant.go Get): only
+	// system-tenant principals may enumerate every tenant. Unscoped, any
+	// tenant-bound token read every tenant record over gRPC.
+	if !isSystem {
+		filter.TenantIDs = []int64{callerTenantID}
+	}
+
+	result, err := h.tenantService.Get(ctx, filter)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -144,9 +196,21 @@ func (h *TenantGRPCHandler) GetTenant(ctx context.Context, req *authv1.GetTenant
 	if err != nil {
 		return nil, err
 	}
+	callerTenantID, isSystem, err := grpcCallerTenantScope(ctx, h.tenantService)
+	if err != nil {
+		return nil, err
+	}
 	tenant, err := h.tenantService.GetByUUID(ctx, tenantUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
+	}
+	if tenant == nil {
+		return nil, apperror.ToGRPCError(apperror.NewNotFound("tenant"))
+	}
+	// Scope parity with the HTTP handler (handler_tenant.go GetByUUID): a
+	// tenant-bound principal may read only its own tenant record.
+	if !isSystem && tenant.TenantID != callerTenantID {
+		return nil, apperror.ToGRPCError(apperror.NewForbidden("you can only view your own tenant"))
 	}
 	return &authv1.GetTenantResponse{Tenant: tenantProto(tenant)}, nil
 }
@@ -159,6 +223,8 @@ func (h *TenantGRPCHandler) CreateTenant(ctx context.Context, req *authv1.Tenant
 	if err := h.requireSystemTenantActor(ctx); err != nil {
 		return nil, err
 	}
+	// Authorization runs BEFORE the ledger claim so a caller that may not create
+	// tenants cannot consume — or occupy — a key it has no right to spend.
 	dto := TenantCreateRequestDTO{
 		Name:        req.GetName(),
 		DisplayName: req.GetDisplayName(),
@@ -226,7 +292,13 @@ func (h *TenantGRPCHandler) DeleteTenant(ctx context.Context, req *authv1.Delete
 	if err != nil {
 		return nil, err
 	}
-	actorUserID, err := h.resolveActorUserID(ctx, req.GetActorUserUuid())
+	// Boundary parity with the HTTP handler (handler_tenant.go Delete): only
+	// system-tenant principals may delete a tenant. Without this check any
+	// tenant's token could delete any other tenant over gRPC.
+	if err := h.requireSystemTenantActor(ctx); err != nil {
+		return nil, err
+	}
+	actorUserID, err := grpcActorUserID(ctx, "tenant deletion")
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +310,7 @@ func (h *TenantGRPCHandler) DeleteTenant(ctx context.Context, req *authv1.Delete
 }
 
 func (h *TenantGRPCHandler) ListTenantMembers(ctx context.Context, req *authv1.ListTenantMembersRequest) (*authv1.ListTenantMembersResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +340,7 @@ func (h *TenantGRPCHandler) ListTenantMembers(ctx context.Context, req *authv1.L
 }
 
 func (h *TenantGRPCHandler) AddTenantMember(ctx context.Context, req *authv1.AddTenantMemberRequest) (*authv1.AddTenantMemberResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +352,7 @@ func (h *TenantGRPCHandler) AddTenantMember(ctx context.Context, req *authv1.Add
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	actorUserID, err := h.resolveActorUserID(ctx, req.GetActorUserUuid())
+	actorUserID, err := grpcActorUserID(ctx, "tenant member management")
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +364,7 @@ func (h *TenantGRPCHandler) AddTenantMember(ctx context.Context, req *authv1.Add
 }
 
 func (h *TenantGRPCHandler) UpdateTenantMemberRole(ctx context.Context, req *authv1.UpdateTenantMemberRoleRequest) (*authv1.UpdateTenantMemberRoleResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +376,7 @@ func (h *TenantGRPCHandler) UpdateTenantMemberRole(ctx context.Context, req *aut
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
-	actorUserID, err := h.resolveActorUserID(ctx, req.GetActorUserUuid())
+	actorUserID, err := grpcActorUserID(ctx, "tenant member management")
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +388,7 @@ func (h *TenantGRPCHandler) UpdateTenantMemberRole(ctx context.Context, req *aut
 }
 
 func (h *TenantGRPCHandler) RemoveTenantMember(ctx context.Context, req *authv1.RemoveTenantMemberRequest) (*authv1.RemoveTenantMemberResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +396,7 @@ func (h *TenantGRPCHandler) RemoveTenantMember(ctx context.Context, req *authv1.
 	if err != nil {
 		return nil, err
 	}
-	actorUserID, err := h.resolveActorUserID(ctx, req.GetActorUserUuid())
+	actorUserID, err := grpcActorUserID(ctx, "tenant member management")
 	if err != nil {
 		return nil, err
 	}
@@ -334,29 +406,26 @@ func (h *TenantGRPCHandler) RemoveTenantMember(ctx context.Context, req *authv1.
 	return &authv1.RemoveTenantMemberResponse{Removed: true}, nil
 }
 
-func (h *TenantGRPCHandler) resolveActorUserID(ctx context.Context, raw string) (int64, error) {
-	actorUUID, err := parseGRPCUUID(raw, "Actor user UUID")
-	if err != nil {
-		return 0, err
-	}
-	if h.tenantMemberService == nil {
-		return 0, apperror.ToGRPCError(apperror.NewInternal("tenant member service is unavailable", nil))
-	}
-	actorUserID, err := h.tenantMemberService.ResolveUserID(ctx, actorUUID)
-	if err != nil {
-		return 0, apperror.ToGRPCError(err)
-	}
-	return actorUserID, nil
-}
-
-func (h *TenantGRPCHandler) resolveTenant(ctx context.Context, tenantUUID string) (*TenantServiceDataResult, error) {
+// resolveManagedTenant parses the target tenant UUID, enforces the
+// tenant-management boundary, and returns the tenant. Every member RPC goes
+// through it: the previous bare lookup did no boundary check at all, so a
+// principal bound to tenant A could list, add, re-role, and remove tenant B's
+// members — the same gate authorizeTenantManagement already applied to
+// UpdateTenant/SetTenantStatus.
+func (h *TenantGRPCHandler) resolveManagedTenant(ctx context.Context, tenantUUID string) (*TenantServiceDataResult, error) {
 	parsed, err := parseGRPCUUID(tenantUUID, "Tenant UUID")
 	if err != nil {
+		return nil, err
+	}
+	if err := h.authorizeTenantManagement(ctx, parsed); err != nil {
 		return nil, err
 	}
 	tenant, err := h.tenantService.GetByUUID(ctx, parsed)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
+	}
+	if tenant == nil {
+		return nil, apperror.ToGRPCError(apperror.NewNotFound("tenant"))
 	}
 	return tenant, nil
 }

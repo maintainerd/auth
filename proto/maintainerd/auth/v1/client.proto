@@ -167,6 +167,14 @@ message CreateClientRequest {
   string actor_user_uuid = 9;
   string branding_id = 10;
   optional bool allow_registration = 11;
+
+  // NOTE: machine-client credentials (token_endpoint_auth_method, jwks,
+  // jwks_uri) are NOT separate fields here. They travel inside `config`, which
+  // applyConfigToClientColumns already maps onto the columns — including the
+  // RFC 7591 §2 rule that jwks and jwks_uri are mutually exclusive. Adding
+  // dedicated fields would create a second way to set the same thing, and two
+  // sources of truth for a verification key is precisely how the wrong key ends
+  // up deciding who may authenticate.
 }
 
 message CreateClientResponse {

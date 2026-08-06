@@ -10,10 +10,34 @@ import (
 	"github.com/lib/pq"
 	model "github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
+
+// systemClientScopes is the allow-list both seeded first-party surfaces ship
+// with. It has to be spelled out: an empty allowed_scopes no longer means "every
+// scope", it means the baseline OIDC set, and a client that ships '{}' is one
+// behaviour change away from silently losing whatever it was relying on
+// (validateClientAllowedScopes in internal/oauth/foundation.go).
+//
+// It is deliberately NOT a copy of that baseline. `phone` and `address` are left
+// out because the server does not advertise them in scopes_supported
+// (internal/oauth/handler_discovery.go) and neither surface reads those claims;
+// an allow-list is a ceiling, so listing them would only widen the tokens the
+// console and hosted login can mint.
+//
+// It deliberately contains no permission names either. Everything in
+// 004_permission.go ("tenant:read", "client:create", …) is enforced by
+// PermissionMiddleware against the roles the USER holds, never against the token
+// scope — so granting them here would authorize nothing and merely inflate the
+// scope claim.
+//
+// offline_access is required rather than optional: both clients declare the
+// refresh_token grant, and a refresh token is only minted when the scope is
+// present (generateTokens in internal/oauth/service_token.go).
+var systemClientScopes = pq.StringArray{"openid", "profile", "email", "offline_access"}
 
 func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 	// Derive the per-tenant frontend hosts from the tenant name/is_system so a
@@ -57,7 +81,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
 			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
 			RequireConsent:          boolPtr(false), // first-party surface: no consent screen
-			AllowedScopes:           pq.StringArray{},
+			AllowedScopes:           systemClientScopes,
 			CreatedAt:               time.Now(),
 			UpdatedAt:               time.Now(),
 		},
@@ -82,7 +106,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
 			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
 			RequireConsent:          boolPtr(false), // first-party surface: no consent screen
-			AllowedScopes:           pq.StringArray{},
+			AllowedScopes:           systemClientScopes,
 			CreatedAt:               time.Now(),
 			UpdatedAt:               time.Now(),
 		},
@@ -118,6 +142,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			if err := seedClientIdentityProvider(db, existing.ClientID, tenantID, identityProviderID, client.IsDefault); err != nil {
 				return err
 			}
+			registerSeededIssuer(client.Domain)
 			slog.Info("Auth client updated", "name", client.Name)
 			continue
 		}
@@ -130,6 +155,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			if err := seedClientIdentityProvider(db, client.ClientID, tenantID, identityProviderID, client.IsDefault); err != nil {
 				return err
 			}
+			registerSeededIssuer(client.Domain)
 			slog.Info("Auth client created", "name", client.Name)
 			continue
 		}
@@ -199,3 +225,17 @@ func loadTenantHostInfo(db *gorm.DB, tenantID int64) (string, bool, error) {
 // boolPtr is needed because the client bool columns are pointers: nil means
 // "use the DB default", while an explicit value must persist verbatim.
 func boolPtr(v bool) *bool { return &v }
+
+// registerSeededIssuer adds a bootstrap client's domain to the JWT issuer
+// allowlist.
+//
+// Tokens carry the client's domain as `iss`, and the allowlist is otherwise
+// seeded from the database at startup — which on a fresh install runs BEFORE
+// setup has created any tenant or client. Without this the installer's own
+// clients would mint tokens whose issuer the validator cannot match, until
+// someone restarted the process.
+func registerSeededIssuer(domain *string) {
+	if domain != nil {
+		jwt.AddAcceptedIssuer(*domain)
+	}
+}

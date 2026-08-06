@@ -3481,10 +3481,7 @@ const file_maintainerd_auth_v1_user_proto_rawDesc = "" +
 	"\rListUserRoles\x12).maintainerd.auth.v1.ListUserRolesRequest\x1a*.maintainerd.auth.v1.ListUserRolesResponse\x12u\n" +
 	"\x12ListUserIdentities\x12..maintainerd.auth.v1.ListUserIdentitiesRequest\x1a/.maintainerd.auth.v1.ListUserIdentitiesResponse\x12l\n" +
 	"\x0fAssignUserRoles\x12+.maintainerd.auth.v1.AssignUserRolesRequest\x1a,.maintainerd.auth.v1.AssignUserRolesResponse\x12i\n" +
-	"\x0eRemoveUserRole\x12*.maintainerd.auth.v1.RemoveUserRoleRequest\x1a+.maintainerd.auth.v1.RemoveUserRoleResponse2n\n" +
-	"\rInviteService\x12]\n" +
-	"\n" +
-	"SendInvite\x12&.maintainerd.auth.v1.SendInviteRequest\x1a'.maintainerd.auth.v1.SendInviteResponse2\xcc\x05\n" +
+	"\x0eRemoveUserRole\x12*.maintainerd.auth.v1.RemoveUserRoleRequest\x1a+.maintainerd.auth.v1.RemoveUserRoleResponse2\xcc\x05\n" +
 	"\x12UserProfileService\x12o\n" +
 	"\x10ListUserProfiles\x12,.maintainerd.auth.v1.ListUserProfilesRequest\x1a-.maintainerd.auth.v1.ListUserProfilesResponse\x12i\n" +
 	"\x0eGetUserProfile\x12*.maintainerd.auth.v1.GetUserProfileRequest\x1a+.maintainerd.auth.v1.GetUserProfileResponse\x12r\n" +
@@ -3614,36 +3611,34 @@ var file_maintainerd_auth_v1_user_proto_depIdxs = []int32{
 	26, // 52: maintainerd.auth.v1.UserService.ListUserIdentities:input_type -> maintainerd.auth.v1.ListUserIdentitiesRequest
 	28, // 53: maintainerd.auth.v1.UserService.AssignUserRoles:input_type -> maintainerd.auth.v1.AssignUserRolesRequest
 	30, // 54: maintainerd.auth.v1.UserService.RemoveUserRole:input_type -> maintainerd.auth.v1.RemoveUserRoleRequest
-	32, // 55: maintainerd.auth.v1.InviteService.SendInvite:input_type -> maintainerd.auth.v1.SendInviteRequest
-	34, // 56: maintainerd.auth.v1.UserProfileService.ListUserProfiles:input_type -> maintainerd.auth.v1.ListUserProfilesRequest
-	36, // 57: maintainerd.auth.v1.UserProfileService.GetUserProfile:input_type -> maintainerd.auth.v1.GetUserProfileRequest
-	38, // 58: maintainerd.auth.v1.UserProfileService.CreateUserProfile:input_type -> maintainerd.auth.v1.CreateUserProfileRequest
-	40, // 59: maintainerd.auth.v1.UserProfileService.UpdateUserProfile:input_type -> maintainerd.auth.v1.UpdateUserProfileRequest
-	42, // 60: maintainerd.auth.v1.UserProfileService.SetDefaultUserProfile:input_type -> maintainerd.auth.v1.SetDefaultUserProfileRequest
-	44, // 61: maintainerd.auth.v1.UserProfileService.DeleteUserProfile:input_type -> maintainerd.auth.v1.DeleteUserProfileRequest
-	5,  // 62: maintainerd.auth.v1.UserService.ListUsers:output_type -> maintainerd.auth.v1.ListUsersResponse
-	7,  // 63: maintainerd.auth.v1.UserService.GetUser:output_type -> maintainerd.auth.v1.GetUserResponse
-	9,  // 64: maintainerd.auth.v1.UserService.CreateUser:output_type -> maintainerd.auth.v1.CreateUserResponse
-	11, // 65: maintainerd.auth.v1.UserService.UpdateUser:output_type -> maintainerd.auth.v1.UpdateUserResponse
-	13, // 66: maintainerd.auth.v1.UserService.SetUserStatus:output_type -> maintainerd.auth.v1.SetUserStatusResponse
-	15, // 67: maintainerd.auth.v1.UserService.VerifyUserEmail:output_type -> maintainerd.auth.v1.VerifyUserEmailResponse
-	17, // 68: maintainerd.auth.v1.UserService.VerifyUserPhone:output_type -> maintainerd.auth.v1.VerifyUserPhoneResponse
-	19, // 69: maintainerd.auth.v1.UserService.CompleteUserAccount:output_type -> maintainerd.auth.v1.CompleteUserAccountResponse
-	21, // 70: maintainerd.auth.v1.UserService.DeleteUser:output_type -> maintainerd.auth.v1.DeleteUserResponse
-	23, // 71: maintainerd.auth.v1.UserService.ForceUserPasswordChange:output_type -> maintainerd.auth.v1.ForceUserPasswordChangeResponse
-	25, // 72: maintainerd.auth.v1.UserService.ListUserRoles:output_type -> maintainerd.auth.v1.ListUserRolesResponse
-	27, // 73: maintainerd.auth.v1.UserService.ListUserIdentities:output_type -> maintainerd.auth.v1.ListUserIdentitiesResponse
-	29, // 74: maintainerd.auth.v1.UserService.AssignUserRoles:output_type -> maintainerd.auth.v1.AssignUserRolesResponse
-	31, // 75: maintainerd.auth.v1.UserService.RemoveUserRole:output_type -> maintainerd.auth.v1.RemoveUserRoleResponse
-	33, // 76: maintainerd.auth.v1.InviteService.SendInvite:output_type -> maintainerd.auth.v1.SendInviteResponse
-	35, // 77: maintainerd.auth.v1.UserProfileService.ListUserProfiles:output_type -> maintainerd.auth.v1.ListUserProfilesResponse
-	37, // 78: maintainerd.auth.v1.UserProfileService.GetUserProfile:output_type -> maintainerd.auth.v1.GetUserProfileResponse
-	39, // 79: maintainerd.auth.v1.UserProfileService.CreateUserProfile:output_type -> maintainerd.auth.v1.CreateUserProfileResponse
-	41, // 80: maintainerd.auth.v1.UserProfileService.UpdateUserProfile:output_type -> maintainerd.auth.v1.UpdateUserProfileResponse
-	43, // 81: maintainerd.auth.v1.UserProfileService.SetDefaultUserProfile:output_type -> maintainerd.auth.v1.SetDefaultUserProfileResponse
-	45, // 82: maintainerd.auth.v1.UserProfileService.DeleteUserProfile:output_type -> maintainerd.auth.v1.DeleteUserProfileResponse
-	62, // [62:83] is the sub-list for method output_type
-	41, // [41:62] is the sub-list for method input_type
+	34, // 55: maintainerd.auth.v1.UserProfileService.ListUserProfiles:input_type -> maintainerd.auth.v1.ListUserProfilesRequest
+	36, // 56: maintainerd.auth.v1.UserProfileService.GetUserProfile:input_type -> maintainerd.auth.v1.GetUserProfileRequest
+	38, // 57: maintainerd.auth.v1.UserProfileService.CreateUserProfile:input_type -> maintainerd.auth.v1.CreateUserProfileRequest
+	40, // 58: maintainerd.auth.v1.UserProfileService.UpdateUserProfile:input_type -> maintainerd.auth.v1.UpdateUserProfileRequest
+	42, // 59: maintainerd.auth.v1.UserProfileService.SetDefaultUserProfile:input_type -> maintainerd.auth.v1.SetDefaultUserProfileRequest
+	44, // 60: maintainerd.auth.v1.UserProfileService.DeleteUserProfile:input_type -> maintainerd.auth.v1.DeleteUserProfileRequest
+	5,  // 61: maintainerd.auth.v1.UserService.ListUsers:output_type -> maintainerd.auth.v1.ListUsersResponse
+	7,  // 62: maintainerd.auth.v1.UserService.GetUser:output_type -> maintainerd.auth.v1.GetUserResponse
+	9,  // 63: maintainerd.auth.v1.UserService.CreateUser:output_type -> maintainerd.auth.v1.CreateUserResponse
+	11, // 64: maintainerd.auth.v1.UserService.UpdateUser:output_type -> maintainerd.auth.v1.UpdateUserResponse
+	13, // 65: maintainerd.auth.v1.UserService.SetUserStatus:output_type -> maintainerd.auth.v1.SetUserStatusResponse
+	15, // 66: maintainerd.auth.v1.UserService.VerifyUserEmail:output_type -> maintainerd.auth.v1.VerifyUserEmailResponse
+	17, // 67: maintainerd.auth.v1.UserService.VerifyUserPhone:output_type -> maintainerd.auth.v1.VerifyUserPhoneResponse
+	19, // 68: maintainerd.auth.v1.UserService.CompleteUserAccount:output_type -> maintainerd.auth.v1.CompleteUserAccountResponse
+	21, // 69: maintainerd.auth.v1.UserService.DeleteUser:output_type -> maintainerd.auth.v1.DeleteUserResponse
+	23, // 70: maintainerd.auth.v1.UserService.ForceUserPasswordChange:output_type -> maintainerd.auth.v1.ForceUserPasswordChangeResponse
+	25, // 71: maintainerd.auth.v1.UserService.ListUserRoles:output_type -> maintainerd.auth.v1.ListUserRolesResponse
+	27, // 72: maintainerd.auth.v1.UserService.ListUserIdentities:output_type -> maintainerd.auth.v1.ListUserIdentitiesResponse
+	29, // 73: maintainerd.auth.v1.UserService.AssignUserRoles:output_type -> maintainerd.auth.v1.AssignUserRolesResponse
+	31, // 74: maintainerd.auth.v1.UserService.RemoveUserRole:output_type -> maintainerd.auth.v1.RemoveUserRoleResponse
+	35, // 75: maintainerd.auth.v1.UserProfileService.ListUserProfiles:output_type -> maintainerd.auth.v1.ListUserProfilesResponse
+	37, // 76: maintainerd.auth.v1.UserProfileService.GetUserProfile:output_type -> maintainerd.auth.v1.GetUserProfileResponse
+	39, // 77: maintainerd.auth.v1.UserProfileService.CreateUserProfile:output_type -> maintainerd.auth.v1.CreateUserProfileResponse
+	41, // 78: maintainerd.auth.v1.UserProfileService.UpdateUserProfile:output_type -> maintainerd.auth.v1.UpdateUserProfileResponse
+	43, // 79: maintainerd.auth.v1.UserProfileService.SetDefaultUserProfile:output_type -> maintainerd.auth.v1.SetDefaultUserProfileResponse
+	45, // 80: maintainerd.auth.v1.UserProfileService.DeleteUserProfile:output_type -> maintainerd.auth.v1.DeleteUserProfileResponse
+	61, // [61:81] is the sub-list for method output_type
+	41, // [41:61] is the sub-list for method input_type
 	41, // [41:41] is the sub-list for extension type_name
 	41, // [41:41] is the sub-list for extension extendee
 	0,  // [0:41] is the sub-list for field type_name
@@ -3664,7 +3659,7 @@ func file_maintainerd_auth_v1_user_proto_init() {
 			NumEnums:      0,
 			NumMessages:   46,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   2,
 		},
 		GoTypes:           file_maintainerd_auth_v1_user_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_user_proto_depIdxs,

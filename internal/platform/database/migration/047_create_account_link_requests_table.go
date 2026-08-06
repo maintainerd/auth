@@ -9,6 +9,12 @@ CREATE TABLE IF NOT EXISTS account_link_requests (
     account_link_request_uuid   UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
     tenant_id                   BIGINT       NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     existing_user_id            BIGINT       NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    -- The identity this request will attach belongs to an identity provider,
+    -- not to a client. Carried through the request so confirmation writes the
+    -- same identity_provider_id the collision was detected under, instead of
+    -- re-resolving a provider by name (ambiguous when a tenant configures two
+    -- providers of the same type).
+    identity_provider_id        BIGINT       NOT NULL REFERENCES identity_providers(identity_provider_id) ON DELETE CASCADE,
     provider_name               VARCHAR(100) NOT NULL,
     provider_subject            VARCHAR(512) NOT NULL,
     provider_email              VARCHAR(255),

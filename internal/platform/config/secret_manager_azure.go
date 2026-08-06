@@ -2,7 +2,10 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"net/http"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -33,7 +36,7 @@ type azureSecretsClient interface {
 var newAzureClient = func(vaultURL string) (azureSecretsClient, error) {
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		return nil, fmt.Errorf("azure key vault: failed to create credential: %w", err)
+		return nil, fmt.Errorf("azure key vault: failed to obtain credentials: %w", err)
 	}
 	client, err := azsecrets.NewClient(vaultURL, cred, nil)
 	if err != nil {
@@ -66,10 +69,16 @@ func (a *azureKeyVaultManager) GetSecret(key string) ([]byte, error) {
 	// Empty version string fetches the latest version.
 	result, err := a.client.GetSecret(ctx, name, "", nil)
 	if err != nil {
+		// 404 is the vault answering "no such secret"; 401/403/5xx are real
+		// failures and must not be read as "unconfigured".
+		var respErr *azcore.ResponseError
+		if errors.As(err, &respErr) && respErr.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("azure key vault: %q: %w", name, ErrSecretNotFound)
+		}
 		return nil, fmt.Errorf("azure key vault: failed to get secret %q: %w", name, err)
 	}
 	if result.Value == nil {
-		return nil, fmt.Errorf("azure key vault: secret %q has no value", name)
+		return nil, fmt.Errorf("azure key vault: secret %q: %w", name, ErrSecretNotFound)
 	}
 	return []byte(*result.Value), nil
 }

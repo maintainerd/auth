@@ -52,6 +52,7 @@ type ClientRepository interface {
 	FindByNameAndTenantID(name string, tenantID int64) (*Client, error)
 	FindByClientID(clientID string, tenantID int64) (*Client, error)
 	FindByIdentifier(identifier string) (*Client, error)
+	ExistsByIdentifier(identifier string) (bool, error)
 	FindAllByTenantID(tenantID int64) ([]Client, error)
 	FindSystem() (*Client, error)
 	FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error)
@@ -138,6 +139,23 @@ func (r *clientRepository) FindByIdentifier(identifier string) (*Client, error) 
 	return &client, nil
 }
 
+// ExistsByIdentifier reports whether any client already holds this OAuth
+// client_id. Deliberately unscoped and status-agnostic: FindByIdentifier filters
+// to active rows, which is the wrong question when allocating a new identifier —
+// an inactive or soft-deleted client still owns the value, and reusing it would
+// re-point anything still holding the old client_id at a different client.
+func (r *clientRepository) ExistsByIdentifier(identifier string) (bool, error) {
+	var count int64
+	err := r.DB().Unscoped().
+		Model(&Client{}).
+		Where("identifier = ?", identifier).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *clientRepository) FindByClientID(clientID string, tenantID int64) (*Client, error) {
 	var client Client
 	err := r.DB().Where("client_id = ? AND tenant_id = ?", clientID, tenantID).First(&client).Error
@@ -222,6 +240,11 @@ func (r *clientRepository) FindByNameAndTenantID(name string, tenantID int64) (*
 	err := r.DB().
 		Where("name = ? AND tenant_id = ?", name, tenantID).
 		Preload("Tenant").
+		// Callers create user identities against this client, and an identity
+		// names its provider (migration 030). Without these preloads the
+		// connection is invisible and every such caller fails closed.
+		Preload("ConnectedProviders", "enabled = ?", true).
+		Preload("ConnectedProviders.IdentityProvider").
 		First(&client).Error
 
 	if err != nil {

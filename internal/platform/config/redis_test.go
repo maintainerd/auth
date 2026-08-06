@@ -11,6 +11,7 @@ import (
 )
 
 func TestNewRedisClient_Success(t *testing.T) {
+	useEnvSecretManager(t)
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -28,6 +29,7 @@ func TestNewRedisClient_Success(t *testing.T) {
 }
 
 func TestNewRedisClient_WithPassword(t *testing.T) {
+	useEnvSecretManager(t)
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -46,6 +48,7 @@ func TestNewRedisClient_WithPassword(t *testing.T) {
 }
 
 func TestNewRedisClient_WrongPassword(t *testing.T) {
+	useEnvSecretManager(t)
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -65,6 +68,7 @@ func TestNewRedisClient_WrongPassword(t *testing.T) {
 }
 
 func TestNewRedisClient_Unreachable(t *testing.T) {
+	useEnvSecretManager(t)
 	t.Setenv("REDIS_ADDR", "127.0.0.1:1")
 	t.Setenv("REDIS_PASSWORD", "")
 
@@ -78,6 +82,7 @@ func TestNewRedisClient_Unreachable(t *testing.T) {
 }
 
 func TestNewRedisClient_DefaultAddr(t *testing.T) {
+	useEnvSecretManager(t)
 	// When no REDIS_ADDR is set, falls back to "redis-db:6379" which is unreachable in tests.
 	t.Setenv("REDIS_ADDR", "")
 
@@ -91,6 +96,7 @@ func TestNewRedisClient_DefaultAddr(t *testing.T) {
 }
 
 func TestNewRedisClient_OTelTracingRegistered(t *testing.T) {
+	useEnvSecretManager(t)
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -112,6 +118,7 @@ func TestNewRedisClient_OTelTracingRegistered(t *testing.T) {
 }
 
 func TestNewRedisClient_TLSViaRedissPrefix(t *testing.T) {
+	useEnvSecretManager(t)
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -132,6 +139,7 @@ func TestNewRedisClient_TLSViaRedissPrefix(t *testing.T) {
 }
 
 func TestNewRedisClient_TLSViaEnvVar(t *testing.T) {
+	useEnvSecretManager(t)
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()

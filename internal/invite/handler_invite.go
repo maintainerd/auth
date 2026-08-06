@@ -223,5 +223,5 @@ func (h *InviteHandler) GetInviteContext(w http.ResponseWriter, r *http.Request)
 		resp.Error(w, http.StatusGone, "Invite has expired")
 		return
 	}
-	resp.Success(w, toInviteContextResponseDTO(*invite), "Invite retrieved")
+	resp.Success(w, toInviteContextResponseDTO(*invite, inviteToken), "Invite retrieved")
 }

@@ -23,7 +23,10 @@ type ServicePolicyRepository interface {
 	FindByServiceAndPolicy(serviceID int64, policyID int64) (*ServicePolicy, error)
 	DeleteByServiceAndPolicy(serviceID int64, policyID int64) error
 	FindPoliciesByServiceID(serviceID int64) ([]Policy, error)
-	FindServicesByPolicyID(policyID int64) ([]Service, error)
+	// FindServicesByPolicyID is gone: zero-caller, and unlike the FindPaginated
+	// path it took no tenant filter, so the first caller would have inherited a
+	// cross-tenant read. Callers wanting this use
+	// serviceRepository.FindServicesByPolicyUUID, which is tenant-scoped.
 }
 
 type servicePolicyRepository struct {
@@ -67,13 +70,13 @@ func (r *servicePolicyRepository) FindPoliciesByServiceID(serviceID int64) ([]Po
 	return policies, err
 }
 
-func (r *servicePolicyRepository) FindServicesByPolicyID(policyID int64) ([]Service, error) {
-	var services []Service
-	err := r.DB().Table("services").
-		Joins("INNER JOIN service_policies ON services.service_id = service_policies.service_id").
-		Where("service_policies.policy_id = ?", policyID).
-		Find(&services).Error
-	return services, err
+// servicePolicySortColumns is this table's own sort allowlist. The global set in
+// platform/database is a union across every table — it contains name, status,
+// email and updated_at, none of which exist on the `service_policies` join
+// table — so GET ...?sort_by=name reached Postgres as an undefined column
+// (42703) and surfaced as a 500 rather than a 400.
+var servicePolicySortColumns = map[string]struct{}{
+	"created_at": {}, "service_id": {}, "policy_id": {},
 }
 
 func (r *servicePolicyRepository) FindPaginated(filter ServicePolicyRepositoryGetFilter) (*PaginationResult[ServicePolicy], error) {
@@ -87,6 +90,6 @@ func (r *servicePolicyRepository) FindPaginated(filter ServicePolicyRepositoryGe
 		query = query.Where("policy_id = ?", *filter.PolicyID)
 	}
 
-	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrderIn(servicePolicySortColumns, filter.SortBy, filter.SortOrder, "created_at DESC"))
 	return database.PaginateQuery[ServicePolicy](query, filter.Page, filter.Limit)
 }

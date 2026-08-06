@@ -12,6 +12,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -637,6 +638,42 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 	return toRoleServiceDataResult(role), nil
 }
 
+// assertNoPrivilegeEscalation refuses to attach a permission the actor does not
+// already hold.
+//
+// Without this, "may I edit roles?" silently means "may I hold any permission?":
+// an admin with only role:permission:create could attach tenant:delete or
+// user:delete to a role they hold and become super-admin on their next request,
+// because PermissionMiddleware matches on the permission NAME reachable through
+// the caller's roles. Requiring the actor to already hold what they grant is the
+// standard containment rule — a super-admin is seeded with every administrative
+// permission, so it does not restrict them, and it needs no special case.
+//
+// Only elevated (management-plane) permissions are gated: account:…:self and
+// public:… confer nothing beyond the holder's own account.
+func (s *roleService) assertNoPrivilegeEscalation(actorUserID, tenantID int64, granting []Permission) error {
+	names := make([]string, 0, len(granting))
+	for _, p := range granting {
+		names = append(names, p.Name)
+	}
+	if shared.FirstElevatedPermission(names) == "" {
+		return nil
+	}
+
+	held, err := s.userRepo.EffectivePermissionNames(actorUserID, tenantID)
+	if err != nil {
+		// Fail CLOSED: an unreadable actor permission set must not be read as
+		// "holds everything".
+		return apperror.NewInternal("could not resolve the acting user's permissions", err)
+	}
+
+	if unheld := shared.FirstUnheldElevatedPermission(names, held); unheld != "" {
+		return apperror.NewForbidden(fmt.Sprintf(
+			"you cannot grant %q because you do not hold it", unheld))
+	}
+	return nil
+}
+
 func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "role.addPermissions")
 	defer span.End()
@@ -698,6 +735,10 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 		// Validate that all permissions were found
 		if len(permissions) != len(permissionUUIDs) {
 			return apperror.NewNotFoundWithReason("one or more permissions not found")
+		}
+
+		if err := s.assertNoPrivilegeEscalation(actorUser.UserID, role.TenantID, permissions); err != nil {
+			return err
 		}
 
 		// Create role-permission associations using the dedicated repository

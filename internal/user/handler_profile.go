@@ -666,6 +666,17 @@ func (h *ProfileHandler) AdminDeleteProfile(w http.ResponseWriter, r *http.Reque
 	resp.Success(w, toProfileResponseDTO(*deletedProfile), "Profile deleted successfully")
 }
 
+// BirthdateString renders a stored birthdate in the "YYYY-MM-DD" shape the
+// request DTO accepts, so a client can round-trip a GET straight into a PUT.
+// Exported because internal/setup serialises the same shared DTO.
+func BirthdateString(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.Format("2006-01-02")
+	return &s
+}
+
 // Convert service result to DTO
 func toProfileResponseDTO(p ProfileServiceDataResult) ProfileResponseDTO {
 	return ProfileResponseDTO{
@@ -674,7 +685,7 @@ func toProfileResponseDTO(p ProfileServiceDataResult) ProfileResponseDTO {
 		MiddleName:  p.MiddleName,
 		LastName:    p.LastName,
 		DisplayName: p.DisplayName,
-		Birthdate:   p.Birthdate,
+		Birthdate:   BirthdateString(p.Birthdate),
 		Gender:      p.Gender,
 		Email:       p.Email,
 		Timezone:    p.Timezone,
@@ -694,7 +705,7 @@ func NewProfileResponseDTO(p *Profile) *ProfileResponseDTO {
 		MiddleName:  p.MiddleName,
 		LastName:    p.LastName,
 		DisplayName: p.DisplayName,
-		Birthdate:   p.Birthdate,
+		Birthdate:   BirthdateString(p.Birthdate),
 		Gender:      p.Gender,
 		Email:       p.Email,
 		Timezone:    p.Timezone,

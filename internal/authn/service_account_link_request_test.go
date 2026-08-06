@@ -57,7 +57,7 @@ func (m *mockAccountLinkRepo) ExpireStale(now time.Time) (int64, error) {
 // mockIdentityLinker is a function-field mock of AccountIdentityLinker.
 type mockIdentityLinker struct {
 	findFn func(int64, string, string) (int64, bool, error)
-	linkFn func(int64, int64, string, string, []byte) error
+	linkFn func(int64, int64, int64, string, string, []byte) error
 }
 
 func (m *mockIdentityLinker) FindLinkedUserID(tenantID int64, provider, sub string) (int64, bool, error) {
@@ -66,9 +66,9 @@ func (m *mockIdentityLinker) FindLinkedUserID(tenantID int64, provider, sub stri
 	}
 	return 0, false, nil
 }
-func (m *mockIdentityLinker) LinkIdentity(tenantID, userID int64, provider, sub string, claims []byte) error {
+func (m *mockIdentityLinker) LinkIdentity(tenantID, userID, identityProviderID int64, provider, sub string, claims []byte) error {
 	if m.linkFn != nil {
-		return m.linkFn(tenantID, userID, provider, sub, claims)
+		return m.linkFn(tenantID, userID, identityProviderID, provider, sub, claims)
 	}
 	return nil
 }
@@ -121,7 +121,7 @@ func TestAccountLinkService_Confirm(t *testing.T) {
 		}
 		linker := &mockIdentityLinker{
 			findFn: func(int64, string, string) (int64, bool, error) { return 0, false, nil },
-			linkFn: func(int64, int64, string, string, []byte) error { linked = true; return nil },
+			linkFn: func(int64, int64, int64, string, string, []byte) error { linked = true; return nil },
 		}
 		svc := NewAccountLinkRequestService(repo, existingUserRepo(), linker)
 		res, err := svc.Confirm(context.Background(), "tok", 7, 1)
@@ -193,7 +193,7 @@ func TestAccountLinkService_Confirm(t *testing.T) {
 		}
 		linker := &mockIdentityLinker{
 			findFn: func(int64, string, string) (int64, bool, error) { return 7, true, nil },
-			linkFn: func(int64, int64, string, string, []byte) error { linkCalled = true; return nil },
+			linkFn: func(int64, int64, int64, string, string, []byte) error { linkCalled = true; return nil },
 		}
 		svc := NewAccountLinkRequestService(repo, existingUserRepo(), linker)
 		_, err := svc.Confirm(context.Background(), "tok", 7, 1)

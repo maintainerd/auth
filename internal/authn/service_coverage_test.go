@@ -393,13 +393,6 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 				return s.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, &cid, &pid, "")
 			},
 		},
-		{
-			name: "register internal hash error",
-			m:    defaultRegInternalMocks,
-			run: func(s RegisterService) (*RegisterResponseDTO, error) {
-				return s.Register(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, nil, nil, "")
-			},
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			orig := secHashPassword
@@ -418,7 +411,9 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		})
 	}
 
-	t.Run("register internal password policy error", func(t *testing.T) {
+	// Retargeted from the deleted internal Register onto RegisterPublic: the
+	// password-policy check is shared code, and this was its only coverage.
+	t.Run("register password policy error", func(t *testing.T) {
 		orig := secValidatePasswordPolicy
 		secValidatePasswordPolicy = func(context.Context, string, security.PasswordPolicy) error {
 			return errors.New("policy error")
@@ -428,10 +423,12 @@ func TestRegisterService_RemainingBranches(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
+		m := defaultRegPublicMocks()
 		svc := NewRegistrationService(db, m.client, m.user, m.userRole, m.userToken, m.userIdentity, m.role, m.invite, m.idp, nil, nil, nil)
 
-		resp, err := svc.Register(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, nil, nil, "")
+		cidPolicy := "client"
+		pidPolicy := "provider"
+		resp, err := svc.RegisterPublic(context.Background(), "u", "User", "P@ssW0rd!", nil, nil, &cidPolicy, &pidPolicy, "")
 
 		require.Error(t, err)
 		assert.Nil(t, resp)

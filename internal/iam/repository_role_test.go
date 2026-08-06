@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -86,19 +87,24 @@ func TestRoleRepository(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("status mutations", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		for i := 0; i < 3; i++ {
-			mock.ExpectBegin()
-			expectAnyUpdate(mock, "roles").WillReturnResult(sqlmock.NewResult(0, 1))
-			mock.ExpectCommit()
-		}
-		repo := NewRoleRepository(db)
+	// The "status mutations" case covered SetStatusByUUID / SetDefaultStatusByUUID /
+	// SetSystemStatusByUUID, which are gone: all three were zero-caller AND matched
+	// on role_uuid with no tenant predicate (see repository_role.go).
 
-		require.NoError(t, repo.SetStatusByUUID(testResourceUUID, "active"))
-		require.NoError(t, repo.SetDefaultStatusByUUID(testResourceUUID, true))
-		require.NoError(t, repo.SetSystemStatusByUUID(testResourceUUID, true))
-		assert.NoError(t, mock.ExpectationsWereMet())
+	// roleSortColumns replaced the global union allowlist, which accepted columns
+	// `roles` does not have (email, username, client_id) and turned
+	// GET /roles?sort_by=email into a Postgres 42703 → 500.
+	t.Run("FindPaginated sorting is limited to the roles table", func(t *testing.T) {
+		for _, sortBy := range []string{"email", "username", "client_id"} {
+			assert.Equal(t, "created_at DESC",
+				database.SanitizeOrderIn(roleSortColumns, sortBy, SortOrderDesc, "created_at DESC"),
+				"%q is not a roles column and must fall back to the default", sortBy)
+		}
+		assert.Equal(t, "name ASC",
+			database.SanitizeOrderIn(roleSortColumns, "name", "asc", "created_at DESC"))
+		// The permissions listing sorts permission rows, so it uses that table's set.
+		assert.Equal(t, "permissions.created_at DESC",
+			database.SanitizeOrderInPrefixed(permissionSortColumns, "permissions.", "is_default", SortOrderDesc, "permissions.created_at DESC"))
 	})
 
 	t.Run("GetPermissionsByRoleUUID applies status filter and preloads API", func(t *testing.T) {

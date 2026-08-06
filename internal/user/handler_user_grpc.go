@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -73,17 +74,18 @@ func (h *UserGRPCHandler) GetUser(ctx context.Context, req *authv1.GetUserReques
 	return &authv1.GetUserResponse{User: toUserProto(result)}, nil
 }
 
+// CreateUser is replay-guarded. The unique index on (tenant_id, username) means
+// a retry cannot mint a second user, but it answers that retry with a conflict —
+// indistinguishable from "another caller took this name" — so core cannot tell
+// its own duplicate from a race. The ledger returns the original response.
 func (h *UserGRPCHandler) CreateUser(ctx context.Context, req *authv1.CreateUserRequest) (*authv1.CreateUserResponse, error) {
 	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = grpcUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := userGRPCActor(ctx)
+	if err != nil {
+		return nil, err
 	}
 	metadata := structToJSON(req.GetMetadata())
 	result, err := h.userService.Create(ctx, req.GetUsername(), optionalEmail(req.GetEmail()), optionalPhone(req.GetPhone()), req.GetPassword(), req.GetStatus(), metadata, tenant.TenantUUID.String(), actorUUID)
@@ -102,12 +104,9 @@ func (h *UserGRPCHandler) UpdateUser(ctx context.Context, req *authv1.UpdateUser
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = grpcUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := userGRPCActor(ctx)
+	if err != nil {
+		return nil, err
 	}
 	metadata := structToJSON(req.GetMetadata())
 	result, err := h.userService.Update(ctx, userUUID, tenant.TenantID, req.GetUsername(), optionalEmail(req.GetEmail()), optionalPhone(req.GetPhone()), req.GetStatus(), metadata, actorUUID)
@@ -126,12 +125,9 @@ func (h *UserGRPCHandler) SetUserStatus(ctx context.Context, req *authv1.SetUser
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = grpcUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := userGRPCActor(ctx)
+	if err != nil {
+		return nil, err
 	}
 	result, err := h.userService.SetStatus(ctx, userUUID, tenant.TenantID, req.GetStatus(), actorUUID)
 	if err != nil {
@@ -197,12 +193,9 @@ func (h *UserGRPCHandler) DeleteUser(ctx context.Context, req *authv1.DeleteUser
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = grpcUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := userGRPCActor(ctx)
+	if err != nil {
+		return nil, err
 	}
 	result, err := h.userService.DeleteByUUID(ctx, userUUID, tenant.TenantID, actorUUID)
 	if err != nil {
@@ -299,7 +292,21 @@ func (h *UserGRPCHandler) AssignUserRoles(ctx context.Context, req *authv1.Assig
 		}
 		roleUUIDs[i] = parsed
 	}
-	result, err := h.userService.AssignUserRoles(ctx, userUUID, roleUUIDs, tenant.TenantID)
+	// The actor is taken from the verified token, never from the request body.
+	// A body-supplied actor_user_uuid would let a caller name someone else and
+	// have the escalation guard evaluated against THEIR permissions.
+	//
+	// This gRPC surface authenticates SERVICE principals, which carry no user
+	// identity, so role assignment is currently unavailable over gRPC and fails
+	// closed. Re-enabling it means deciding what bounds a service principal's
+	// grants — its own policy is the natural answer — rather than removing the
+	// check.
+	actor := middleware.AuthFromContext(ctx).User
+	if actor == nil {
+		return nil, apperror.ToGRPCError(apperror.NewForbidden(
+			"role assignment requires a user principal; service tokens cannot assign roles"))
+	}
+	result, err := h.userService.AssignUserRoles(ctx, userUUID, roleUUIDs, tenant.TenantID, actor.UserUUID)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -442,4 +449,19 @@ func toUserIdentityProto(result *UserIdentityServiceDataResult) *authv1.UserIden
 		CreatedAt:        timestamppb.New(result.CreatedAt),
 		UpdatedAt:        timestamppb.New(result.UpdatedAt),
 	}
+}
+
+// userGRPCActor resolves the acting user for a mutating user RPC.
+//
+// These RPCs used to read req.actor_user_uuid. That value is NOT merely audit
+// attribution — service_user.go passes it to ValidateTenantAccess — so a caller
+// could name an admin in another tenant and have the tenant check evaluated
+// against that admin's identity instead of their own, mutating, suspending or
+// deleting that tenant's users while the audit log blamed the impersonated
+// admin. The iam and client lanes were hardened against exactly this; this lane
+// was missed.
+//
+// Delegates to the one shared definition, so all four gRPC surfaces agree.
+func userGRPCActor(ctx context.Context) (uuid.UUID, error) {
+	return middleware.GRPCActorUUID(ctx, "user changes")
 }

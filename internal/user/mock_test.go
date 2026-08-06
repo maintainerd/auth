@@ -171,6 +171,7 @@ func (m *mockUserOTPRepo) MarkUsed(id int64) error {
 func (m *mockUserOTPRepo) DeleteExpired(time.Time) (int64, error) { return 0, nil }
 
 type mockUserRepo struct {
+	effectivePermissionNamesFn func(int64, int64) ([]string, error)
 	mockBaseRepo[User]
 	findByUUIDFn             func(any, ...string) (*User, error)
 	findByIDFn               func(any, ...string) (*User, error)
@@ -474,8 +475,17 @@ func (m *mockUserSettingRepo) DeleteByUserID(userID int64) error {
 }
 
 type mockTenantRepo struct {
+	findSystemFn func() (*Tenant, error)
 	mockBaseRepo[Tenant]
 	findByUUIDFn func(any, ...string) (*Tenant, error)
+}
+
+// Defaults to the system tenant used by the membership-candidate lookup.
+func (m *mockTenantRepo) FindSystem() (*Tenant, error) {
+	if m.findSystemFn != nil {
+		return m.findSystemFn()
+	}
+	return &Tenant{TenantID: 1, IsSystem: true}, nil
 }
 
 func (m *mockTenantRepo) WithTx(_ *gorm.DB) TenantRepository { return m }
@@ -583,11 +593,18 @@ func (m *mockClientRepo) FindByIDs(ids []int64) ([]Client, error) {
 
 type mockIdentityProviderRepo struct {
 	mockBaseRepo[IdentityProvider]
+	findByIDFn              func(any, ...string) (*IdentityProvider, error)
 	findByIdentifierFn      func(string) (*IdentityProvider, error)
 	findDefaultByTenantIDFn func(int64) (*IdentityProvider, error)
 }
 
 func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) IdentityProviderRepository { return m }
+func (m *mockIdentityProviderRepo) FindByID(id any, preloads ...string) (*IdentityProvider, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, preloads...)
+	}
+	return nil, nil
+}
 func (m *mockIdentityProviderRepo) FindByIdentifier(identifier string) (*IdentityProvider, error) {
 	if m.findByIdentifierFn != nil {
 		return m.findByIdentifierFn(identifier)
@@ -602,6 +619,7 @@ func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tenantID int64) (*Ident
 }
 
 type mockUserIdentityRepo struct {
+	findByTenantAndSubFn func(int64, string) (*UserIdentity, error)
 	mockBaseRepo[UserIdentity]
 	findByUserIDFn                func(int64) ([]UserIdentity, error)
 	findUserIdentitiesPaginatedFn func(GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)
@@ -633,7 +651,7 @@ func (m *mockUserIdentityRepo) FindUserIdentitiesPaginated(f GetUserIdentitiesFi
 	}
 	return &PaginationResult[UserIdentity]{}, nil
 }
-func (m *mockUserIdentityRepo) FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByUserIDAndClientReachable(userID, clientID int64) (*UserIdentity, error) {
 	if m.findByUserIDAndClientIDFn != nil {
 		return m.findByUserIDAndClientIDFn(userID, clientID)
 	}
@@ -663,6 +681,7 @@ func (m *mockUserIdentityRepo) FindByTenantProviderAndSub(tenantID int64, provid
 	}
 	return nil, nil
 }
+
 func (m *mockUserIdentityRepo) DeleteByUserID(userID int64) error {
 	if m.deleteByUserIDFn != nil {
 		return m.deleteByUserIDFn(userID)
@@ -719,27 +738,38 @@ func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
 }
 
 type mockUserService struct {
-	getFn                  func(UserServiceGetFilter) (*UserServiceGetResult, error)
-	getByUUIDFn            func(uuid.UUID, int64) (*UserServiceDataResult, error)
-	createFn               func(string, *string, *string, string, string, datatypes.JSON, string, uuid.UUID) (*UserServiceDataResult, error)
-	updateFn               func(uuid.UUID, int64, string, *string, *string, string, datatypes.JSON, uuid.UUID) (*UserServiceDataResult, error)
-	setStatusFn            func(uuid.UUID, int64, string, uuid.UUID) (*UserServiceDataResult, error)
-	verifyEmailFn          func(uuid.UUID, int64) (*UserServiceDataResult, error)
-	verifyPhoneFn          func(uuid.UUID, int64) (*UserServiceDataResult, error)
-	completeAccountFn      func(uuid.UUID, int64) (*UserServiceDataResult, error)
-	deleteByUUIDFn         func(uuid.UUID, int64, uuid.UUID) (*UserServiceDataResult, error)
-	assignUserRolesFn      func(uuid.UUID, []uuid.UUID, int64) (*UserServiceDataResult, error)
-	removeUserRoleFn       func(uuid.UUID, uuid.UUID, int64) (*UserServiceDataResult, error)
-	getUserRolesFn         func(uuid.UUID, int64, GetUserRolesFilter) ([]RoleServiceDataResult, int64, error)
-	getUserIdentitiesFn    func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
-	getUserIdentsFn        func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
-	findBySubAndClientIDFn func(string, string) (*User, error)
-	findByUserIDFn         func(int64) (*User, error)
-	forcePasswordChangeFn  func(uuid.UUID, bool) error
-	getUserMFAFn           func(uuid.UUID, int64) (*UserMFAResponseDTO, error)
-	ensureUserInTenantFn   func(uuid.UUID, int64) (int64, error)
-	grantRoleByNameFn      func(uuid.UUID, int64, string) error
-	anonymizeUserFn        func(int64) error
+	listMembershipCandidatesFn func(*string, int, int) ([]MembershipCandidateDTO, int64, error)
+	getFn                      func(UserServiceGetFilter) (*UserServiceGetResult, error)
+	getByUUIDFn                func(uuid.UUID, int64) (*UserServiceDataResult, error)
+	createFn                   func(string, *string, *string, string, string, datatypes.JSON, string, uuid.UUID) (*UserServiceDataResult, error)
+	updateFn                   func(uuid.UUID, int64, string, *string, *string, string, datatypes.JSON, uuid.UUID) (*UserServiceDataResult, error)
+	setStatusFn                func(uuid.UUID, int64, string, uuid.UUID) (*UserServiceDataResult, error)
+	verifyEmailFn              func(uuid.UUID, int64) (*UserServiceDataResult, error)
+	verifyPhoneFn              func(uuid.UUID, int64) (*UserServiceDataResult, error)
+	completeAccountFn          func(uuid.UUID, int64) (*UserServiceDataResult, error)
+	deleteByUUIDFn             func(uuid.UUID, int64, uuid.UUID) (*UserServiceDataResult, error)
+	assignUserRolesFn          func(uuid.UUID, []uuid.UUID, int64) (*UserServiceDataResult, error)
+	removeUserRoleFn           func(uuid.UUID, uuid.UUID, int64) (*UserServiceDataResult, error)
+	getUserRolesFn             func(uuid.UUID, int64, GetUserRolesFilter) ([]RoleServiceDataResult, int64, error)
+	getUserIdentitiesFn        func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
+	getUserIdentsFn            func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
+	findBySubAndClientIDFn     func(string, string) (*User, error)
+	findByUserIDFn             func(int64) (*User, error)
+	forcePasswordChangeFn      func(uuid.UUID, bool) error
+	setPasswordFn              func(uuid.UUID, int64, string, bool, uuid.UUID) error
+	adminLinkIdentityFn        func(uuid.UUID, int64, uuid.UUID, string, uuid.UUID) (*UserIdentityServiceDataResult, error)
+	getUserMFAFn               func(uuid.UUID, int64) (*UserMFAResponseDTO, error)
+	ensureUserInTenantFn       func(uuid.UUID, int64) (int64, error)
+	grantRoleByNameFn          func(uuid.UUID, int64, string) error
+	anonymizeUserFn            func(int64) error
+}
+
+// ListMembershipCandidates is exercised via the HTTP handler test, not here.
+func (m *mockUserService) ListMembershipCandidates(_ context.Context, search *string, page, limit int) ([]MembershipCandidateDTO, int64, error) {
+	if m.listMembershipCandidatesFn != nil {
+		return m.listMembershipCandidatesFn(search, page, limit)
+	}
+	return nil, 0, nil
 }
 
 func (m *mockUserService) Get(_ context.Context, f UserServiceGetFilter) (*UserServiceGetResult, error) {
@@ -802,7 +832,7 @@ func (m *mockUserService) AnonymizeUser(_ context.Context, userID int64) error {
 	}
 	return nil
 }
-func (m *mockUserService) AssignUserRoles(_ context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+func (m *mockUserService) AssignUserRoles(_ context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64, _ uuid.UUID) (*UserServiceDataResult, error) {
 	if m.assignUserRolesFn != nil {
 		return m.assignUserRolesFn(userUUID, roleUUIDs, tenantID)
 	}
@@ -844,6 +874,10 @@ func (m *mockUserService) FindBySubAndClientID(_ context.Context, sub string, cl
 	}
 	return nil, nil
 }
+func (m *mockUserService) FindClientByIdentifier(_ context.Context, identifier string) (*Client, error) {
+	return nil, nil
+}
+
 func (m *mockUserService) FindByUserID(_ context.Context, userID int64) (*User, error) {
 	if m.findByUserIDFn != nil {
 		return m.findByUserIDFn(userID)
@@ -855,6 +889,18 @@ func (m *mockUserService) ForcePasswordChange(_ context.Context, userUUID uuid.U
 		return m.forcePasswordChangeFn(userUUID, force)
 	}
 	return nil
+}
+func (m *mockUserService) SetPassword(_ context.Context, userUUID uuid.UUID, tenantID int64, newPassword string, temporary bool, actorUserUUID uuid.UUID) error {
+	if m.setPasswordFn != nil {
+		return m.setPasswordFn(userUUID, tenantID, newPassword, temporary, actorUserUUID)
+	}
+	return nil
+}
+func (m *mockUserService) AdminLinkIdentity(_ context.Context, userUUID uuid.UUID, tenantID int64, providerUUID uuid.UUID, sub string, actorUserUUID uuid.UUID) (*UserIdentityServiceDataResult, error) {
+	if m.adminLinkIdentityFn != nil {
+		return m.adminLinkIdentityFn(userUUID, tenantID, providerUUID, sub, actorUserUUID)
+	}
+	return &UserIdentityServiceDataResult{UserIdentityUUID: uuid.New(), Provider: "google", Sub: sub}, nil
 }
 func (m *mockUserService) GetUserMFA(_ context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error) {
 	if m.getUserMFAFn != nil {
@@ -1083,11 +1129,10 @@ func (m *mockUserTokenRepo) RevokeAllSessionsByUserID(userID int64) error {
 
 type mockUserMFABackupCodeRepo struct {
 	mockBaseRepo[UserMFABackupCode]
-	createBulkFn              func([]*UserMFABackupCode) error
-	findUnusedByUserIDFn      func(int64) ([]UserMFABackupCode, error)
-	findByUserIDAndCodeHashFn func(int64, string) (*UserMFABackupCode, error)
-	markUsedFn                func(int64) error
-	deleteAllByUserIDFn       func(int64) error
+	createBulkFn         func([]*UserMFABackupCode) error
+	findUnusedByUserIDFn func(int64) ([]UserMFABackupCode, error)
+	markUsedFn           func(int64) error
+	deleteAllByUserIDFn  func(int64) error
 }
 
 func (m *mockUserMFABackupCodeRepo) WithTx(_ *gorm.DB) UserMFABackupCodeRepository { return m }
@@ -1103,12 +1148,6 @@ func (m *mockUserMFABackupCodeRepo) FindUnusedByUserID(userID int64) ([]UserMFAB
 	}
 	return nil, nil
 }
-func (m *mockUserMFABackupCodeRepo) FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserMFABackupCode, error) {
-	if m.findByUserIDAndCodeHashFn != nil {
-		return m.findByUserIDAndCodeHashFn(userID, codeHash)
-	}
-	return nil, nil
-}
 func (m *mockUserMFABackupCodeRepo) MarkUsed(id int64) error {
 	if m.markUsedFn != nil {
 		return m.markUsedFn(id)
@@ -1120,4 +1159,13 @@ func (m *mockUserMFABackupCodeRepo) DeleteAllByUserID(userID int64) error {
 		return m.deleteAllByUserIDFn(userID)
 	}
 	return nil
+}
+
+// Defaults to an empty set, so the privilege-escalation guard fails CLOSED
+// unless a test states what the actor holds.
+func (m *mockUserRepo) EffectivePermissionNames(userID, tenantID int64) ([]string, error) {
+	if m.effectivePermissionNamesFn != nil {
+		return m.effectivePermissionNamesFn(userID, tenantID)
+	}
+	return nil, nil
 }

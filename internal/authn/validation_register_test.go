@@ -53,6 +53,25 @@ func TestRegisterRequestDto_Validate(t *testing.T) {
 			dto:     RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Email: strPtr("not-an-email")},
 			wantErr: true,
 		},
+		{
+			// findLoginUser resolves the username column FIRST, so an
+			// email-shaped username hijacks the real owner's email login —
+			// and nothing collides, because the two columns carry separate
+			// uniqueness indexes.
+			name:    "email-shaped username rejected",
+			dto:     RegisterRequestDTO{Username: "alice@corp.com", Fullname: "Mallory", Password: "SecurePass1!"},
+			wantErr: true,
+		},
+		{
+			name:    "username containing a bare @ rejected",
+			dto:     RegisterRequestDTO{Username: "al@ice", Fullname: "Mallory", Password: "SecurePass1!"},
+			wantErr: true,
+		},
+		{
+			name:    "dot underscore and hyphen remain allowed",
+			dto:     RegisterRequestDTO{Username: "john.doe_1-x", Fullname: "John Doe", Password: "SecurePass1!"},
+			wantErr: false,
+		},
 	}
 
 	for _, tc := range tests {

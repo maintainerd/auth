@@ -14,6 +14,8 @@ import (
 )
 
 type mockFederationService struct {
+	startIdentityLinkFn          func(providerIdentifier, redirectURI string) (*StartIdentityLinkResult, error)
+	completeIdentityLinkFn       func(userID int64, state, code, redirectURI string) (*IdentityDTO, error)
 	exchangeExternalTokenFn      func(req FederationTokenRequestDTO) (*LoginResponseDTO, error)
 	exchangeOAuth2CodeFn         func(req FederationOAuth2CallbackDTO) (*LoginResponseDTO, error)
 	homeRealmDiscoveryFn         func(tenantID int64, email string) (*HRDResponseDTO, error)
@@ -24,6 +26,8 @@ type mockFederationService struct {
 	linkIdentityFn               func(userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error)
 	unlinkIdentityFn             func(userID int64, identityUUID string) error
 	adminUnlinkIdentityFn        func(tenantID int64, actorUserID int64, userUUID uuid.UUID, identityUUID string) error
+	initiateSAMLLogoutFn         func(in SAMLLogoutInitiateInput) (*SAMLLogoutInitiateResult, error)
+	handleSAMLSingleLogoutFn     func(providerIdentifier string) (*SAMLSingleLogoutResult, error)
 }
 
 func (m *mockFederationService) ExchangeExternalToken(_ context.Context, req FederationTokenRequestDTO) (*LoginResponseDTO, error) {
@@ -50,6 +54,20 @@ func (m *mockFederationService) HomeRealmDiscoveryByClient(_ context.Context, cl
 	}
 	return &HRDResponseDTO{ProviderIdentifier: "idp-1"}, nil
 }
+func (m *mockFederationService) SetIdentityLinkStore(IdentityLinkRequestStore) {}
+func (m *mockFederationService) StartIdentityLink(_ context.Context, _, _, _ int64, providerIdentifier, redirectURI string) (*StartIdentityLinkResult, error) {
+	if m.startIdentityLinkFn != nil {
+		return m.startIdentityLinkFn(providerIdentifier, redirectURI)
+	}
+	return &StartIdentityLinkResult{AuthorizationURL: "https://provider.test/authorize", State: "st"}, nil
+}
+func (m *mockFederationService) CompleteIdentityLink(_ context.Context, userID int64, state, code, redirectURI string) (*IdentityDTO, error) {
+	if m.completeIdentityLinkFn != nil {
+		return m.completeIdentityLinkFn(userID, state, code, redirectURI)
+	}
+	return &IdentityDTO{Provider: "google"}, nil
+}
+
 func (m *mockFederationService) ResolveBrokerProvider(_ context.Context, idpIdentifier string) (*BrokerProviderInfo, error) {
 	if m.resolveBrokerProviderFn != nil {
 		return m.resolveBrokerProviderFn(idpIdentifier)
@@ -98,6 +116,18 @@ func (m *mockFederationService) ExchangeSAMLCode(_ context.Context, _ string) (*
 }
 func (m *mockFederationService) SAMLMetadata(_ context.Context, _ string) ([]byte, error) {
 	return []byte(`<?xml version="1.0"?><EntityDescriptor/>`), nil
+}
+func (m *mockFederationService) InitiateSAMLLogout(_ context.Context, in SAMLLogoutInitiateInput) (*SAMLLogoutInitiateResult, error) {
+	if m.initiateSAMLLogoutFn != nil {
+		return m.initiateSAMLLogoutFn(in)
+	}
+	return &SAMLLogoutInitiateResult{RedirectURL: "https://idp.example.com/saml/slo?SAMLRequest=abc"}, nil
+}
+func (m *mockFederationService) HandleSAMLSingleLogout(_ context.Context, _ *http.Request, providerIdentifier string) (*SAMLSingleLogoutResult, error) {
+	if m.handleSAMLSingleLogoutFn != nil {
+		return m.handleSAMLSingleLogoutFn(providerIdentifier)
+	}
+	return &SAMLSingleLogoutResult{LoggedOut: true}, nil
 }
 
 func (m *mockFederationService) TestConnection(_ context.Context, _ TestConnectionRequestDTO) (*TestConnectionResultDTO, error) {

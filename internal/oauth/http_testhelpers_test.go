@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -91,3 +92,16 @@ func withChiParam(r *http.Request, key, val string) *http.Request {
 	rctx.URLParams.Add(key, val)
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
+
+// testInt64Ptr builds an *int64 for table fixtures. platform/ptr.Ptr is
+// string-only.
+func testInt64Ptr(v int64) *int64 { return &v }
+
+// newTestAssertionJTI returns a fresh client-assertion jti. Every assertion needs
+// a unique one: RFC 7523 §3 point 7 makes a jti single-use, and the replay guard
+// enforces it, so reusing a literal across cases would make the second case fail
+// for the wrong reason.
+func newTestAssertionJTI() string { return uuid.NewString() }
+
+// nowForTest is a single clock reference for key-lifecycle fixtures.
+func nowForTest() time.Time { return time.Now() }

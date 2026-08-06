@@ -74,3 +74,13 @@ func HashOAuthBindingToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
+
+// GeneratePKCEChallenge derives the S256 code_challenge for a verifier
+// (RFC 7636 §4.2): BASE64URL(SHA256(ASCII(verifier))), unpadded.
+//
+// The counterpart to ValidatePKCEChallenge, for the flows where WE are the
+// client — the provider leg of brokered sign-in and account linking.
+func GeneratePKCEChallenge(codeVerifier string) string {
+	sum := sha256.Sum256([]byte(codeVerifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
+}

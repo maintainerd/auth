@@ -46,6 +46,19 @@ func (h *TenantSettingGRPCHandler) resolveAndAuthorize(ctx context.Context, tena
 	return t.TenantID, nil
 }
 
+// validatedConfig runs the same per-section validator the REST handlers run
+// (handler_setting.go) over an incoming protobuf config. The gRPC RPCs used to
+// write GetConfig().AsMap() straight to the JSONB column, so the control plane
+// could store out-of-range windows, wrong-typed fields, and unknown keys that
+// the console could never produce — and that the readers then had to survive.
+func validatedConfig(in *structpb.Struct, validate func(TenantSettingUpdateConfigRequestDTO) error) (map[string]any, error) {
+	cfg := TenantSettingUpdateConfigRequestDTO(in.AsMap())
+	if err := validate(cfg); err != nil {
+		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
+	}
+	return cfg, nil
+}
+
 func configStruct(cfg map[string]any) (*structpb.Struct, error) {
 	if cfg == nil {
 		cfg = map[string]any{}
@@ -78,7 +91,11 @@ func (h *TenantSettingGRPCHandler) UpdateRateLimitConfig(ctx context.Context, re
 	if err != nil {
 		return nil, err
 	}
-	if _, err := h.settingService.UpdateRateLimitConfig(ctx, tenantID, req.GetConfig().AsMap()); err != nil {
+	cfgIn, err := validatedConfig(req.GetConfig(), TenantSettingUpdateConfigRequestDTO.ValidateRateLimitConfig)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := h.settingService.UpdateRateLimitConfig(ctx, tenantID, cfgIn); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	cfg, err := h.settingService.GetRateLimitConfig(ctx, tenantID)
@@ -113,7 +130,11 @@ func (h *TenantSettingGRPCHandler) UpdateAuditConfig(ctx context.Context, req *a
 	if err != nil {
 		return nil, err
 	}
-	if _, err := h.settingService.UpdateAuditConfig(ctx, tenantID, req.GetConfig().AsMap()); err != nil {
+	cfgIn, err := validatedConfig(req.GetConfig(), TenantSettingUpdateConfigRequestDTO.ValidateAuditConfig)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := h.settingService.UpdateAuditConfig(ctx, tenantID, cfgIn); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	cfg, err := h.settingService.GetAuditConfig(ctx, tenantID)
@@ -148,7 +169,11 @@ func (h *TenantSettingGRPCHandler) UpdateMaintenanceConfig(ctx context.Context, 
 	if err != nil {
 		return nil, err
 	}
-	if _, err := h.settingService.UpdateMaintenanceConfig(ctx, tenantID, req.GetConfig().AsMap()); err != nil {
+	cfgIn, err := validatedConfig(req.GetConfig(), TenantSettingUpdateConfigRequestDTO.ValidateMaintenanceConfig)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := h.settingService.UpdateMaintenanceConfig(ctx, tenantID, cfgIn); err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	cfg, err := h.settingService.GetMaintenanceConfig(ctx, tenantID)

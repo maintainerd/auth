@@ -109,7 +109,7 @@ func TestGCPSecretManager_GetSecret(t *testing.T) {
 
 		_, err := sm.GetSecret("K")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "nil payload")
+		assert.ErrorIs(t, err, ErrSecretNotFound, "an absent secret must be reported with the sentinel so callers can distinguish it from an outage")
 	})
 
 	t.Run("nil payload data", func(t *testing.T) {
@@ -126,7 +126,7 @@ func TestGCPSecretManager_GetSecret(t *testing.T) {
 
 		_, err := sm.GetSecret("K")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "nil payload")
+		assert.ErrorIs(t, err, ErrSecretNotFound, "an absent secret must be reported with the sentinel so callers can distinguish it from an outage")
 	})
 }
 

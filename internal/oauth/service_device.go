@@ -38,10 +38,15 @@ type OAuthDeviceService interface {
 
 	// VerifyUserCode is called when the authenticated user submits the user_code
 	// at the verification URI. Marks the device code as approved.
-	VerifyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError
+	//
+	// tenantID is the CALLER's tenant and is required: a user_code is only eight
+	// human-typed characters out of a 29-symbol alphabet, so the tenant scope is
+	// what stops a guessed code being approved from another tenant entirely.
+	VerifyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64, tenantID int64) *apperror.OAuthError
 
-	// DenyUserCode is called when the user explicitly rejects the request.
-	DenyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError
+	// DenyUserCode is called when the user explicitly rejects the request. Scoped
+	// to the caller's tenant exactly as VerifyUserCode is.
+	DenyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64, tenantID int64) *apperror.OAuthError
 
 	// ExchangeToken polls for an access token using a device_code. Returns
 	// authorization_pending, slow_down, or a full token set.
@@ -160,8 +165,29 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req OAuthDeviceAutho
 	}, nil
 }
 
+// authorizeDeviceActor checks that the caller may act on this device request.
+//
+// The lookup was by user_code alone with no tenant check and no status guard, so
+// any authenticated user in ANY tenant could approve (or re-approve a denied)
+// device request and become the subject of the token issued to that client.
+//
+// The status guard is belt-and-braces: FindByUserCode already filters
+// status='pending', but nothing in the type system says so, and a future
+// caller that relaxes that filter must not silently reopen this.
+func authorizeDeviceActor(record *OAuthDeviceCode, tenantID int64) *apperror.OAuthError {
+	if record.TenantID != tenantID {
+		// Same error as "not found" on purpose: distinguishing them turns the
+		// endpoint into an oracle for live user_codes in other tenants.
+		return apperror.NewOAuthInvalidGrant("invalid or expired user_code")
+	}
+	if record.Status != DeviceCodeStatusPending {
+		return apperror.NewOAuthInvalidGrant("user_code is no longer pending")
+	}
+	return nil
+}
+
 // VerifyUserCode implements OAuthDeviceService.
-func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError {
+func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64, tenantID int64) *apperror.OAuthError {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_device.verify_user_code")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -177,6 +203,10 @@ func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDevice
 	if record.IsExpired() {
 		_ = s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, DeviceCodeStatusExpired, nil)
 		return apperror.NewOAuthInvalidGrant("user_code has expired")
+	}
+	if oerr := authorizeDeviceActor(record, tenantID); oerr != nil {
+		span.SetStatus(codes.Error, "device actor not authorized")
+		return oerr
 	}
 
 	acr, amr := authContextFromContext(ctx)
@@ -202,7 +232,7 @@ func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDevice
 }
 
 // DenyUserCode implements OAuthDeviceService.
-func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError {
+func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64, tenantID int64) *apperror.OAuthError {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_device.deny_user_code")
 	defer span.End()
 
@@ -213,6 +243,12 @@ func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req OAuthDeviceVe
 	}
 	if record == nil {
 		return apperror.NewOAuthInvalidGrant("invalid or expired user_code")
+	}
+	// Denial is bound like approval: an unbound deny lets anyone who guesses a
+	// user_code cancel another tenant's device login.
+	if oerr := authorizeDeviceActor(record, tenantID); oerr != nil {
+		span.SetStatus(codes.Error, "device actor not authorized")
+		return oerr
 	}
 
 	if err := s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, DeviceCodeStatusDenied, nil); err != nil {
@@ -404,6 +440,11 @@ func deviceAccessTokenOpts(repo secpolicy.SecuritySettingRepository, record *OAu
 	acr, amr := persistedAuthContext(record.AuthACR, record.AuthAMR)
 	opts.ACR = acr
 	opts.AMR = amr
+	// RFC 8628: the user approves on a second device, so this token is delivered
+	// to a consumption device that was never in a browser session and legitimately
+	// carries no `sid`. Labelling the subject type is what stops session
+	// validation treating that absence as an unbound token and rejecting it.
+	opts.SubjectType = subjectTypeDevice
 	return opts
 }
 
@@ -430,23 +471,27 @@ func (s *oauthDeviceService) sendDeviceApprovalEmail(ctx context.Context, user *
 		clientName = client.DisplayName
 	}
 
+	var tenantID int64
+	if client != nil {
+		tenantID = client.TenantID
+	}
+
 	data := struct {
 		ClientName string
 		LogoURL    string
 	}{
 		ClientName: clientName,
-		LogoURL:    email.GetLogoURL(ctx, s.db),
-	}
-
-	var tenantID int64
-	if client != nil {
-		tenantID = client.TenantID
+		LogoURL:    email.GetLogoURL(ctx, s.db, tenantID),
 	}
 	rendered, err := email.RenderTemplate(s.db, "user:device:approved", tenantID, data)
 	if err != nil {
 		return fmt.Errorf("failed to render device approval email template: %w", err)
 	}
 	return email.SendEmail(ctx, s.db, email.SendEmailParams{
+		// Without this the provider lookup runs with tenant 0, misses, and silently
+		// falls back to the SYSTEM tenant's SMTP config — so a tenant's mail would go
+		// out through another tenant's server and From address.
+		TenantID:  tenantID,
 		To:        user.Email,
 		Subject:   rendered.Subject,
 		BodyHTML:  rendered.BodyHTML,

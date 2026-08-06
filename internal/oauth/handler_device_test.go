@@ -13,9 +13,9 @@ import (
 
 type mockOAuthDeviceService struct {
 	authorizeFn      func(context.Context, OAuthDeviceAuthorizationRequestDTO, OAuthClientCredentials) (*OAuthDeviceAuthorizationResponseDTO, *apperror.OAuthError)
-	verifyUserCodeFn func(context.Context, OAuthDeviceVerifyRequestDTO, int64) *apperror.OAuthError
+	verifyUserCodeFn func(context.Context, OAuthDeviceVerifyRequestDTO, int64, int64) *apperror.OAuthError
 	exchangeTokenFn  func(context.Context, OAuthDeviceTokenRequestDTO, OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError)
-	denyUserCodeFn   func(context.Context, OAuthDeviceVerifyRequestDTO, int64) *apperror.OAuthError
+	denyUserCodeFn   func(context.Context, OAuthDeviceVerifyRequestDTO, int64, int64) *apperror.OAuthError
 }
 
 func (m *mockOAuthDeviceService) Authorize(ctx context.Context, req OAuthDeviceAuthorizationRequestDTO, creds OAuthClientCredentials) (*OAuthDeviceAuthorizationResponseDTO, *apperror.OAuthError) {
@@ -24,9 +24,9 @@ func (m *mockOAuthDeviceService) Authorize(ctx context.Context, req OAuthDeviceA
 	}
 	return nil, nil
 }
-func (m *mockOAuthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError {
+func (m *mockOAuthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64, tenantID int64) *apperror.OAuthError {
 	if m.verifyUserCodeFn != nil {
-		return m.verifyUserCodeFn(ctx, req, userID)
+		return m.verifyUserCodeFn(ctx, req, userID, tenantID)
 	}
 	return nil
 }
@@ -36,9 +36,9 @@ func (m *mockOAuthDeviceService) ExchangeToken(ctx context.Context, req OAuthDev
 	}
 	return nil, nil
 }
-func (m *mockOAuthDeviceService) DenyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError {
+func (m *mockOAuthDeviceService) DenyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64, tenantID int64) *apperror.OAuthError {
 	if m.denyUserCodeFn != nil {
-		return m.denyUserCodeFn(ctx, req, userID)
+		return m.denyUserCodeFn(ctx, req, userID, tenantID)
 	}
 	return nil
 }
@@ -116,7 +116,7 @@ func TestOAuthDeviceHandler_VerifyUserCode(t *testing.T) {
 
 	t.Run("service error returns oauth error", func(t *testing.T) {
 		svc := &mockOAuthDeviceService{
-			verifyUserCodeFn: func(context.Context, OAuthDeviceVerifyRequestDTO, int64) *apperror.OAuthError {
+			verifyUserCodeFn: func(context.Context, OAuthDeviceVerifyRequestDTO, int64, int64) *apperror.OAuthError {
 				return apperror.NewOAuthInvalidGrant("expired")
 			},
 		}
@@ -195,7 +195,7 @@ func TestOAuthDeviceHandler_DenyUserCode(t *testing.T) {
 
 	t.Run("service error returns oauth error", func(t *testing.T) {
 		svc := &mockOAuthDeviceService{
-			denyUserCodeFn: func(context.Context, OAuthDeviceVerifyRequestDTO, int64) *apperror.OAuthError {
+			denyUserCodeFn: func(context.Context, OAuthDeviceVerifyRequestDTO, int64, int64) *apperror.OAuthError {
 				return apperror.NewOAuthInvalidGrant("expired")
 			},
 		}

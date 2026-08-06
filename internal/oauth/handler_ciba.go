@@ -74,11 +74,14 @@ func (h *OAuthCIBAHandler) ExchangeToken(w http.ResponseWriter, r *http.Request)
 
 // ApproveRequest handles POST /oauth/ciba/approve (authenticated user approves).
 func (h *OAuthCIBAHandler) ApproveRequest(w http.ResponseWriter, r *http.Request) {
-	user := middleware.AuthFromRequest(r).User
-	if user == nil {
+	auth := middleware.AuthFromRequest(r)
+	// The tenant is as load-bearing as the user: the service binds the request to
+	// (user, tenant), so a caller with no resolved tenant cannot be authorized.
+	if auth.User == nil || auth.Tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
+	user := auth.User
 
 	if err := r.ParseForm(); err != nil {
 		resp.Error(w, http.StatusBadRequest, "invalid form data")
@@ -91,7 +94,7 @@ func (h *OAuthCIBAHandler) ApproveRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if oerr := h.cibaService.ApproveRequest(r.Context(), authReqID, user.UserID); oerr != nil {
+	if oerr := h.cibaService.ApproveRequest(r.Context(), authReqID, user.UserID, auth.Tenant.TenantID); oerr != nil {
 		oerr.WriteJSON(w)
 		return
 	}
@@ -101,11 +104,12 @@ func (h *OAuthCIBAHandler) ApproveRequest(w http.ResponseWriter, r *http.Request
 
 // DenyRequest handles POST /oauth/ciba/deny (authenticated user denies).
 func (h *OAuthCIBAHandler) DenyRequest(w http.ResponseWriter, r *http.Request) {
-	user := middleware.AuthFromRequest(r).User
-	if user == nil {
+	auth := middleware.AuthFromRequest(r)
+	if auth.User == nil || auth.Tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
+	user := auth.User
 
 	if err := r.ParseForm(); err != nil {
 		resp.Error(w, http.StatusBadRequest, "invalid form data")
@@ -118,7 +122,7 @@ func (h *OAuthCIBAHandler) DenyRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if oerr := h.cibaService.DenyRequest(r.Context(), authReqID, user.UserID); oerr != nil {
+	if oerr := h.cibaService.DenyRequest(r.Context(), authReqID, user.UserID, auth.Tenant.TenantID); oerr != nil {
 		oerr.WriteJSON(w)
 		return
 	}

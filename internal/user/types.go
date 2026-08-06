@@ -59,11 +59,6 @@ type AccountExportDTO struct {
 	Settings  interface{} `json:"settings,omitempty"`
 }
 
-// GenerateBackupCodesResponseDTO holds the plaintext backup codes shown once.
-type GenerateBackupCodesResponseDTO struct {
-	Codes []string `json:"codes"`
-}
-
 // SendPhoneVerificationDTO is the request to send an SMS OTP to verify a phone number.
 type SendPhoneVerificationDTO struct {
 	Phone string `json:"phone"`
@@ -76,8 +71,10 @@ type VerifyPhoneDTO struct {
 }
 
 // VerifyBackupCodeDTO is the request to recover an account via a backup code.
+// Password is the first factor; the backup code is the second. See Validate.
 type VerifyBackupCodeDTO struct {
 	Email      string `json:"email"`
+	Password   string `json:"password"`
 	Code       string `json:"code"`
 	ClientID   string `json:"client_id"`
 	ProviderID string `json:"provider_id"`
@@ -119,8 +116,15 @@ type ProfileResponseDTO struct {
 	DisplayName *string `json:"display_name,omitempty"`
 
 	// Personal Information
-	Birthdate *time.Time `json:"birthdate,omitempty"`
-	Gender    *string    `json:"gender,omitempty"`
+	//
+	// Birthdate is a *string in the same "YYYY-MM-DD" shape the request DTO
+	// declares. It used to be a *time.Time, which serialized as RFC3339
+	// ("1990-01-25T00:00:00Z"), so echoing a GET response straight back on a PUT
+	// failed validateDateFormat — the read and write halves of the same field
+	// disagreed on its format. A birthdate is a calendar date, not an instant:
+	// the time-of-day and UTC offset RFC3339 forces on it were never meaningful.
+	Birthdate *string `json:"birthdate,omitempty"`
+	Gender    *string `json:"gender,omitempty"`
 
 	// Contact Information (transient)
 	Email *string `json:"email,omitempty"`
@@ -173,13 +177,17 @@ type UserResponseDTO struct {
 }
 
 type UserIdentityResponseDTO struct {
-	UserIdentityUUID uuid.UUID          `json:"user_identity_id"`
-	Provider         string             `json:"provider"`
-	Sub              string             `json:"sub"`
-	Metadata         datatypes.JSON     `json:"metadata"`
-	Client           *ClientResponseDTO `json:"client,omitempty"`
-	CreatedAt        time.Time          `json:"created_at"`
-	UpdatedAt        time.Time          `json:"updated_at"`
+	UserIdentityUUID uuid.UUID      `json:"user_identity_id"`
+	Provider         string         `json:"provider"`
+	Sub              string         `json:"sub"`
+	Metadata         datatypes.JSON `json:"metadata"`
+	// The provider that issued this identity, replacing the former `client`
+	// field. An identity is not scoped to one application — every client
+	// connected to this provider can authenticate with it.
+	IdentityProviderUUID *uuid.UUID `json:"identity_provider_id,omitempty"`
+	IdentityProviderName string     `json:"identity_provider_name,omitempty"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
 type UserMFAResponseDTO struct {
@@ -222,6 +230,35 @@ type UserUpdateRequestDTO struct {
 
 type UserSetStatusRequestDTO struct {
 	Status string `json:"status"`
+}
+
+// UserSetPasswordRequestDTO is the admin request to set a user's password.
+//
+// Like ChangePasswordDTO it declares no length or composition rules: those
+// belong to the tenant's password policy, and duplicating them here is how the
+// two drift apart. Temporary marks the credential one-time — the user must
+// choose their own on next login and the temp-password expiry clock starts.
+type UserSetPasswordRequestDTO struct {
+	Password  string `json:"password"`
+	Temporary bool   `json:"temporary"`
+}
+
+// UserSetPasswordResponseDTO reports what the set actually did, so the console
+// can tell the operator rather than leaving them to assume.
+type UserSetPasswordResponseDTO struct {
+	Temporary           bool `json:"temporary"`
+	ForcePasswordChange bool `json:"force_password_change"`
+	// SessionsRevoked is always true: an administrative password set is the
+	// remedy for a suspected compromise, so it never spares a live credential.
+	SessionsRevoked bool `json:"sessions_revoked"`
+}
+
+// UserLinkIdentityRequestDTO is the admin request to attach an existing external
+// identity to a user. Sub is the subject identifier the upstream provider issues
+// for that person.
+type UserLinkIdentityRequestDTO struct {
+	IdentityProviderUUID string `json:"identity_provider_id"`
+	Sub                  string `json:"sub"`
 }
 
 type UserAssignRolesRequestDTO struct {

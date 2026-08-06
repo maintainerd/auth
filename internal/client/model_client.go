@@ -177,3 +177,64 @@ func (ac *Client) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 	return
 }
+
+// DefaultConnectedIdentityProvider returns the identity provider this client
+// authenticates against: the one flagged default among its ENABLED
+// client_identity_providers connections, else the first enabled connection.
+//
+// Identities belong to a provider rather than to a client (migration 030), so
+// every path that creates or resolves an identity for a client has to come
+// through here. Returns nil when the caller did not preload ConnectedProviders
+// — an unpopulated relation is indistinguishable from "no connections", so
+// callers must treat nil as "cannot proceed", never as a default.
+func (c *Client) DefaultConnectedIdentityProvider() *IdentityProvider {
+	if c == nil {
+		return nil
+	}
+	if c.IdentityProvider != nil {
+		return c.IdentityProvider
+	}
+	if c.ConnectedProviders == nil {
+		return nil
+	}
+	var first, def *IdentityProvider
+	for i := range *c.ConnectedProviders {
+		conn := &(*c.ConnectedProviders)[i]
+		if (conn.Enabled != nil && !*conn.Enabled) || conn.IdentityProvider == nil {
+			continue
+		}
+		// The built-in provider wins outright. Callers use this to file a
+		// password identity, and those must land under the same provider the
+		// login path resolves (connectedSystemIdentityProviderID) — otherwise
+		// the account's `sub` moves the first time both identities exist, and
+		// the "cannot unlink your built-in identity" guard stops matching.
+		if conn.IdentityProvider.IsSystem {
+			return conn.IdentityProvider
+		}
+		if first == nil {
+			first = conn.IdentityProvider
+		}
+		if conn.IsDefault && def == nil {
+			def = conn.IdentityProvider
+		}
+	}
+	if def != nil {
+		return def
+	}
+	return first
+}
+
+// DefaultConnectedIdentityProviderID is DefaultConnectedIdentityProvider's id,
+// or 0 when the client has no usable connection.
+func (c *Client) DefaultConnectedIdentityProviderID() int64 {
+	if c == nil {
+		return 0
+	}
+	if c.IdentityProviderID > 0 {
+		return c.IdentityProviderID
+	}
+	if idp := c.DefaultConnectedIdentityProvider(); idp != nil {
+		return idp.IdentityProviderID
+	}
+	return 0
+}

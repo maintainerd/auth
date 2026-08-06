@@ -108,65 +108,6 @@ func TestResetPasswordHandler_ResetPasswordPublic_Success(t *testing.T) {
 // ResetPassword (internal) — also requires a signed URL
 // ---------------------------------------------------------------------------
 
-func TestResetPasswordHandler_ResetPassword_MissingSignature(t *testing.T) {
-	h := NewResetPasswordHandler(&mockResetPasswordService{})
-	r := httptest.NewRequest(http.MethodPost, "/reset-password", nil)
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestResetPasswordHandler_ResetPassword_InvalidBody(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{"token": "tok123", "tenant_id": "system"})
-	h := NewResetPasswordHandler(&mockResetPasswordService{})
-	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q,
-		bytes.NewBufferString(`bad`))
-	r.Header.Set("Content-Type", "application/json")
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestResetPasswordHandler_ResetPassword_ServiceError(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{"token": "tok123", "tenant_id": "system"})
-	svc := &mockResetPasswordService{
-		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
-			return nil, errValidation
-		},
-	}
-	h := NewResetPasswordHandler(svc)
-	body, _ := json.Marshal(map[string]string{
-		"new_password": "NewPass@1234", "confirm_password": "NewPass@1234",
-	})
-	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q, bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestResetPasswordHandler_ResetPassword_Success(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{"token": "tok123", "tenant_id": "system"})
-	svc := &mockResetPasswordService{
-		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
-			return &ResetPasswordResponseDTO{}, nil
-		},
-	}
-	h := NewResetPasswordHandler(svc)
-	body, _ := json.Marshal(map[string]string{
-		"new_password": "NewPass@1234", "confirm_password": "NewPass@1234",
-	})
-	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q, bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
 // ── ResetPasswordPublic: missing branches ────────────────────────────────────
 
 // ValidationError: valid signed URL + body that passes decode but fails Validate()
@@ -205,68 +146,6 @@ func TestResetPasswordHandler_ResetPasswordPublic_RateLimit(t *testing.T) {
 }
 
 // ── ResetPassword (internal): missing branches ───────────────────────────────
-
-// MissingToken: signed URL valid but no token param → covers lines 230-244 → 400.
-func TestResetPasswordHandler_ResetPassword_MissingToken(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{}) // no token
-	h := NewResetPasswordHandler(&mockResetPasswordService{})
-	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q, nil)
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// WithClientAndProvider: signed URL includes client_id + provider_id → covers
-// lines 222-224 and 225-227 (pointer-assign branches) → 200.
-func TestResetPasswordHandler_ResetPassword_RejectsClientContext(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{
-		"token": "tok-with-cp", "client_id": "c1", "provider_id": "p1",
-	})
-	svc := &mockResetPasswordService{
-		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
-			return &ResetPasswordResponseDTO{}, nil
-		},
-	}
-	body, _ := json.Marshal(map[string]string{"new_password": "NewPass@1234"})
-	h := NewResetPasswordHandler(svc)
-	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q, bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// ValidationError: valid signed URL + empty body → covers lines 265-280 → 400.
-func TestResetPasswordHandler_ResetPassword_ValidationError(t *testing.T) {
-	q := validSignedQuery(t, map[string]string{"token": "tok123", "tenant_id": "system"})
-	body, _ := json.Marshal(map[string]string{}) // missing new_password
-	h := NewResetPasswordHandler(&mockResetPasswordService{})
-	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q, bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// RateLimit: pre-locks the token key in miniredis → covers lines 285-300 → 429.
-func TestResetPasswordHandler_ResetPassword_RateLimit(t *testing.T) {
-	token := "tok-rate-internal"
-	cleanup := lockedRateLimiter(t, token)
-	defer cleanup()
-
-	q := validSignedQuery(t, map[string]string{"token": token, "tenant_id": "system"})
-	body, _ := json.Marshal(map[string]string{"new_password": "NewPass@1234"})
-	h := NewResetPasswordHandler(&mockResetPasswordService{})
-	r := httptest.NewRequest(http.MethodPost, "/reset-password?"+q, bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ResetPassword(w, r)
-	assert.Equal(t, http.StatusTooManyRequests, w.Code)
-}
 
 // A reset token is a bearer credential. It was logged verbatim in four places,
 // including on failure paths that leave the token STILL VALID — handing anyone with

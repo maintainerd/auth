@@ -37,9 +37,11 @@ func SeedTenant(db *gorm.DB, tenantID int64, appVersion string) error {
 		return fmt.Errorf("seed permissions: %w", err)
 	}
 
-	if err := SeedControlPolicy(db, tenantID); err != nil {
-		return fmt.Errorf("seed control policy: %w", err)
-	}
+	// The orchestrator control policy is NOT seeded. It used to ship with every
+	// tenant as a standing wildcard grant that existed before any service held it
+	// and covered permission families with nothing behind them. It is now built
+	// during setup, in the same request that registers the service receiving it
+	// (setupService.ensureControlPolicy), so the grant is reviewable and scoped.
 
 	identityProvider, err := SeedIdentityProviders(db, tenantID)
 	if err != nil {

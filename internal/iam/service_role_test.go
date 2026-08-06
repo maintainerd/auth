@@ -1874,3 +1874,103 @@ func TestToRoleServiceDataResult(t *testing.T) {
 		assert.Len(t, *result.Permissions, 2)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// RoleService.AddRolePermissions – privilege-escalation containment
+// ---------------------------------------------------------------------------
+
+// "May I edit roles?" must not silently mean "may I hold any permission?".
+// PermissionMiddleware matches on the permission NAME reachable through the
+// caller's roles, so attaching tenant:delete to a role the caller holds is a
+// direct path to super-admin. The actor may only grant what they already hold.
+func TestRoleService_AddRolePermissions_PrivilegeEscalation(t *testing.T) {
+	const tenantID int64 = 1
+	actorUUID := uuid.New()
+	permissionUUID := uuid.New()
+
+	// A management-plane permission the delegated admin does NOT hold.
+	elevated := Permission{
+		PermissionID:   2,
+		PermissionUUID: permissionUUID,
+		TenantID:       tenantID,
+		Name:           "tenant:delete",
+	}
+
+	build := func(db *gorm.DB, held []string) RoleService {
+		role := newRole(1, "support", tenantID)
+		return NewRoleService(db,
+			&mockRoleRepo{findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil }},
+			&mockPermissionRepo{
+				findByUUIDsFn: func([]string, ...string) ([]Permission, error) {
+					return []Permission{elevated}, nil
+				},
+			},
+			&mockRolePermissionRepo{},
+			&mockUserRepo{
+				findByUUIDFn: func(any, ...string) (*User, error) { return roleActorUser(tenantID), nil },
+				effectivePermissionNamesFn: func(int64, int64) ([]string, error) {
+					return held, nil
+				},
+			},
+			&mockTenantRepo{}, cache.NopInvalidator{}, nil, nil)
+	}
+
+	t.Run("refuses a permission the actor does not hold", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		svc := build(db, []string{"role:permission:create"})
+		result, err := svc.AddRolePermissions(context.Background(), uuid.New(), tenantID,
+			[]uuid.UUID{permissionUUID}, actorUUID)
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "tenant:delete")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("fails closed when the actor's permissions cannot be read", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		role := newRole(1, "support", tenantID)
+		svc := NewRoleService(db,
+			&mockRoleRepo{findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil }},
+			&mockPermissionRepo{
+				findByUUIDsFn: func([]string, ...string) ([]Permission, error) {
+					return []Permission{elevated}, nil
+				},
+			},
+			&mockRolePermissionRepo{},
+			&mockUserRepo{
+				findByUUIDFn: func(any, ...string) (*User, error) { return roleActorUser(tenantID), nil },
+				effectivePermissionNamesFn: func(int64, int64) ([]string, error) {
+					return nil, errors.New("db down")
+				},
+			},
+			&mockTenantRepo{}, cache.NopInvalidator{}, nil, nil)
+
+		_, err := svc.AddRolePermissions(context.Background(), uuid.New(), tenantID,
+			[]uuid.UUID{permissionUUID}, actorUUID)
+
+		require.Error(t, err)
+		// Must NOT be read as "the actor holds everything".
+		assert.NotContains(t, err.Error(), "invalidate")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("allows a permission the actor holds", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		svc := build(db, []string{"role:permission:create", "tenant:delete"})
+		_, err := svc.AddRolePermissions(context.Background(), uuid.New(), tenantID,
+			[]uuid.UUID{permissionUUID}, actorUUID)
+
+		require.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}

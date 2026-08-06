@@ -22,8 +22,16 @@ type OAuthBrokerSession struct {
 	IdentityProviderID         int64     `gorm:"column:identity_provider_id;not null"`
 	IdentityProviderIdentifier string    `gorm:"column:identity_provider_identifier;not null"`
 
+	// Purpose discriminates brokered sign-in from account linking. The two
+	// share this table but must never be interchangeable — see the migration.
+	Purpose string `gorm:"column:purpose;not null;default:login"`
+	// UserID is set only for BrokerPurposeLink, binding the request to the
+	// account that started it. This is the account-linking CSRF defence: the
+	// callback can only attach an identity to the user recorded here.
+	UserID *int64 `gorm:"column:user_id"`
+
 	// Original OAuth #1 (app → maintainerd) request, resumed after OAuth #2.
-	AppRedirectURI         string         `gorm:"column:app_redirect_uri;not null"`
+	AppRedirectURI         string         `gorm:"column:app_redirect_uri"`
 	AppState               *string        `gorm:"column:app_state"`
 	AppScope               pq.StringArray `gorm:"column:app_scope;type:text[]"`
 	AppNonce               *string        `gorm:"column:app_nonce"`
@@ -45,6 +53,9 @@ func (OAuthBrokerSession) TableName() string {
 }
 
 func (o *OAuthBrokerSession) BeforeCreate(_ *gorm.DB) error {
+	if o.Purpose == "" {
+		o.Purpose = BrokerPurposeLogin
+	}
 	if o.OAuthBrokerSessionUUID == uuid.Nil {
 		o.OAuthBrokerSessionUUID = uuid.New()
 	}
@@ -52,6 +63,12 @@ func (o *OAuthBrokerSession) BeforeCreate(_ *gorm.DB) error {
 }
 
 // IsExpired reports whether the broker session has passed its expiry.
+// Broker session purposes.
+const (
+	BrokerPurposeLogin = "login"
+	BrokerPurposeLink  = "link"
+)
+
 func (o *OAuthBrokerSession) IsExpired() bool {
 	return time.Now().After(o.ExpiresAt)
 }

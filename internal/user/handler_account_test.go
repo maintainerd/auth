@@ -5,14 +5,17 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockAccountService struct {
@@ -20,13 +23,16 @@ type mockAccountService struct {
 	verifyEmailChangeFn   func(userID int64, otp string) error
 	changeUsernameFn      func(userID int64, newUsername, currentPassword string) error
 	changePasswordFn      func(userID int64, currentPassword, newPassword string, callerSessionUUID *uuid.UUID) (*ChangePasswordResponseDTO, error)
+	revokeOtherSessionsFn func(userID int64, keepSessionUUID uuid.UUID) error
 	deleteAccountFn       func(userID int64, currentPassword string) error
 	exportAccountDataFn   func(userID int64) (*AccountExportDTO, error)
-	generateBackupCodesFn func(userID int64) (*GenerateBackupCodesResponseDTO, error)
 	verifyBackupCodeFn    func(req VerifyBackupCodeDTO) (*LoginResponseDTO, error)
 	sendPhoneVerifyFn     func(userID int64, phone string) error
 	verifyPhoneFn         func(userID int64, phone, code string) error
 }
+
+// The handler never calls it; wiring happens in internal/app.
+func (m *mockAccountService) SetSessionCreator(SessionCreator) {}
 
 func (m *mockAccountService) InitiateEmailChange(_ context.Context, userID int64, newEmail, currentPassword string) error {
 	if m.initiateEmailChangeFn != nil {
@@ -52,6 +58,12 @@ func (m *mockAccountService) ChangePassword(_ context.Context, userID int64, cur
 	}
 	return &ChangePasswordResponseDTO{OtherSessionsRevoked: true}, nil
 }
+func (m *mockAccountService) RevokeOtherSessions(_ context.Context, userID int64, keepSessionUUID uuid.UUID) error {
+	if m.revokeOtherSessionsFn != nil {
+		return m.revokeOtherSessionsFn(userID, keepSessionUUID)
+	}
+	return nil
+}
 func (m *mockAccountService) DeleteAccount(_ context.Context, userID int64, currentPassword string) error {
 	if m.deleteAccountFn != nil {
 		return m.deleteAccountFn(userID, currentPassword)
@@ -63,12 +75,6 @@ func (m *mockAccountService) ExportAccountData(_ context.Context, userID int64) 
 		return m.exportAccountDataFn(userID)
 	}
 	return &AccountExportDTO{}, nil
-}
-func (m *mockAccountService) GenerateBackupCodes(_ context.Context, userID int64) (*GenerateBackupCodesResponseDTO, error) {
-	if m.generateBackupCodesFn != nil {
-		return m.generateBackupCodesFn(userID)
-	}
-	return &GenerateBackupCodesResponseDTO{Codes: []string{"code1"}}, nil
 }
 func (m *mockAccountService) VerifyBackupCode(_ context.Context, req VerifyBackupCodeDTO) (*LoginResponseDTO, error) {
 	if m.verifyBackupCodeFn != nil {
@@ -332,32 +338,23 @@ func TestAccountHandler_ExportAccountData(t *testing.T) {
 	})
 }
 
-func TestAccountHandler_GenerateBackupCodes(t *testing.T) {
-	t.Run("no user returns 401", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/account/backup-codes", nil)
-		w := httptest.NewRecorder()
-		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).GenerateBackupCodes(w, r)
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
+// TestAccountRoute_NoBackupCodeGeneration is the INVERSION of the former
+// TestAccountHandler_GenerateBackupCodes, which asserted that
+// POST /account/backup-codes generated codes and returned 200.
+//
+// That was wrong: it was a second, uncalled generator that minted a hardcoded 10
+// codes without consulting the tenant's MFA policy, so it silently bypassed a
+// tenant's decision to forbid backup_code or to configure a different
+// recovery_codes_count. Generation now lives only on
+// POST /mfa/backup-codes/regenerate, which both SPAs call and which enforces
+// that policy. The route must therefore be gone, not merely unused.
+func TestAccountRoute_NoBackupCodeGeneration(t *testing.T) {
+	r := chi.NewRouter()
+	AccountRoute(r, NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil), nil, nil, nil, nil)
 
-	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockAccountService{
-			generateBackupCodesFn: func(int64) (*GenerateBackupCodesResponseDTO, error) {
-				return nil, errors.New("db error")
-			},
-		}
-		r := withAuthUser(httptest.NewRequest(http.MethodPost, "/account/backup-codes", nil))
-		w := httptest.NewRecorder()
-		NewAccountHandler(svc, &mockSessionService{}, nil).GenerateBackupCodes(w, r)
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-	})
-
-	t.Run("success returns 200", func(t *testing.T) {
-		r := withAuthUser(httptest.NewRequest(http.MethodPost, "/account/backup-codes", nil))
-		w := httptest.NewRecorder()
-		NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil).GenerateBackupCodes(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
+	// Walked rather than requested: the subrouter's auth middleware answers 401
+	// before routing, so a request cannot distinguish "gone" from "gated".
+	assert.NotContains(t, routePatterns(t, r), "POST /account/backup-codes")
 }
 
 func TestAccountHandler_VerifyBackupCode(t *testing.T) {
@@ -381,8 +378,10 @@ func TestAccountHandler_VerifyBackupCode(t *testing.T) {
 				return nil, errors.New("invalid code")
 			},
 		}
+		// password is required now: a backup code is a recovery SECOND factor,
+		// not a standalone primary credential.
 		r := jsonReq(t, http.MethodPost, "/recovery/backup-code", map[string]string{
-			"email": "user@example.com", "code": "abc12345", "client_id": "app", "provider_id": "idp",
+			"email": "user@example.com", "password": "pw", "code": "abc12345", "client_id": "app", "provider_id": "idp",
 		})
 		w := httptest.NewRecorder()
 		NewAccountHandler(svc, &mockSessionService{}, nil).VerifyBackupCode(w, r)
@@ -395,8 +394,10 @@ func TestAccountHandler_VerifyBackupCode(t *testing.T) {
 				return &LoginResponseDTO{AccessToken: "at"}, nil
 			},
 		}
+		// password is required now: a backup code is a recovery SECOND factor,
+		// not a standalone primary credential.
 		r := jsonReq(t, http.MethodPost, "/recovery/backup-code", map[string]string{
-			"email": "user@example.com", "code": "abc12345", "client_id": "app", "provider_id": "idp",
+			"email": "user@example.com", "password": "pw", "code": "abc12345", "client_id": "app", "provider_id": "idp",
 		})
 		w := httptest.NewRecorder()
 		NewAccountHandler(svc, &mockSessionService{}, nil).VerifyBackupCode(w, r)
@@ -614,4 +615,17 @@ func TestAccountHandler_VerifyPhone(t *testing.T) {
 		assert.Equal(t, validPhone, gotPhone)
 		assert.Equal(t, "123456", gotCode)
 	})
+}
+
+// routePatterns walks a chi router and returns every registered
+// "METHOD /pattern", so a test can assert an endpoint is absent from the routing
+// table rather than merely rejected by middleware.
+func routePatterns(t *testing.T, r chi.Routes) []string {
+	t.Helper()
+	var out []string
+	require.NoError(t, chi.Walk(r, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		out = append(out, method+" "+strings.TrimSuffix(route, "/"))
+		return nil
+	}))
+	return out
 }

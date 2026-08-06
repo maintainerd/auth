@@ -7,6 +7,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
 
 // UserContextProvider is the minimal interface required by UserContextMiddleware
@@ -27,6 +28,22 @@ type authKey struct{}
 // AuthFromRequest returns the AuthContext stored in the request context by
 // UserContextMiddleware. It never returns nil — fields inside the struct may
 // be nil when the middleware has not populated them.
+// AuthFromContext returns the authenticated principal from a bare context.
+// Transports that do not carry an *http.Request — gRPC, and services handed
+// only ctx — need the same authority as AuthFromRequest.
+func AuthFromContext(ctx context.Context) *authctx.AuthContext {
+	if auth, ok := ctx.Value(authKey{}).(*authctx.AuthContext); ok {
+		return auth
+	}
+	return &authctx.AuthContext{}
+}
+
+// WithAuthContextValue stores an AuthContext on a bare context. Used by gRPC
+// interceptors and tests, which have no *http.Request to hang it off.
+func WithAuthContextValue(ctx context.Context, auth *authctx.AuthContext) context.Context {
+	return context.WithValue(ctx, authKey{}, auth)
+}
+
 func AuthFromRequest(r *http.Request) *authctx.AuthContext {
 	if auth, ok := r.Context().Value(authKey{}).(*authctx.AuthContext); ok {
 		return auth
@@ -72,6 +89,9 @@ func UserContextMiddleware(
 					Provider: uc.Provider,
 					Client:   uc.Client,
 				}
+				if !userStatusGrantsAccess(w, auth.User) {
+					return
+				}
 				req := r.WithContext(context.WithValue(ctx, authKey{}, auth))
 				if !ValidateSessionFromRequest(w, req) {
 					return
@@ -93,6 +113,10 @@ func UserContextMiddleware(
 				return
 			}
 
+			if !userStatusGrantsAccess(w, uc.User) {
+				return
+			}
+
 			// Write through to cache
 			appCache.SetUserContext(ctx, sub, clientID, uc)
 
@@ -109,4 +133,24 @@ func UserContextMiddleware(
 			next.ServeHTTP(w, req)
 		})
 	}
+}
+
+// userStatusGrantsAccess refuses a request whose subject is no longer an active
+// account.
+//
+// Deactivating, suspending or soft-deleting a user has to take effect on the
+// next request. Without this it only took effect when the access token happened
+// to expire, so a disabled account stayed fully usable for the remainder of its
+// token lifetime — and the same applied to a cached user context, which is why
+// both the cache-hit and database branches are gated.
+//
+// An empty status is treated as active: several projections legitimately do not
+// select the column, and failing closed there would lock every user out rather
+// than deny one.
+func userStatusGrantsAccess(w http.ResponseWriter, u *authctx.AuthUser) bool {
+	if u == nil || u.Status == "" || u.Status == shared.StatusActive {
+		return true
+	}
+	resp.Error(w, http.StatusUnauthorized, "This account is no longer active")
+	return false
 }

@@ -7,14 +7,13 @@ import "maintainerd/auth/v1/tenant.proto";
 
 option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
-service WebhookEndpointService {
-  rpc ListWebhookEndpoints(ListWebhookEndpointsRequest) returns (ListWebhookEndpointsResponse);
-  rpc GetWebhookEndpoint(GetWebhookEndpointRequest) returns (GetWebhookEndpointResponse);
-  rpc CreateWebhookEndpoint(CreateWebhookEndpointRequest) returns (CreateWebhookEndpointResponse);
-  rpc UpdateWebhookEndpoint(UpdateWebhookEndpointRequest) returns (UpdateWebhookEndpointResponse);
-  rpc SetWebhookEndpointStatus(SetWebhookEndpointStatusRequest) returns (SetWebhookEndpointStatusResponse);
-  rpc DeleteWebhookEndpoint(DeleteWebhookEndpointRequest) returns (DeleteWebhookEndpointResponse);
-}
+// WebhookEndpointService used to be declared here with no handler registered
+// anywhere in the tree, so every RPC it advertised answered UNIMPLEMENTED. A
+// published contract that names RPCs the server never serves cannot be told
+// apart from one that is simply down, so the service block was removed: webhook
+// endpoint administration is REST control-plane only (see
+// internal/webhook/routes.go). The messages below are kept as the agreed wire
+// shape for the day a handler is written.
 
 message WebhookEndpoint {
   string webhook_endpoint_uuid = 1;

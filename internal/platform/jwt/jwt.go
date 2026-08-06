@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -345,6 +346,17 @@ type AccessTokenOptions struct {
 	// Supported by the current key store: RS256 and PS256.
 	SigningAlgorithm string
 
+	// TenantUUID is the tenant this token is issued for. Its VALUE is the
+	// tenant's opaque external UUID, never the internal PK (least-disclosure,
+	// RFC 9068 §6), and it is stamped into the reserved `tenant_id` claim.
+	//
+	// It is a first-class field rather than an ExtraClaims entry because
+	// `tenant_id` is what middleware and the gRPC interceptor scope authorization
+	// on: a caller that could set it through the generic extra-claims map could
+	// mint a token for any tenant. Setting it here applies it AFTER ExtraClaims,
+	// so a caller-supplied `tenant_id` can never win.
+	TenantUUID string
+
 	// ExtraClaims are merged into the access token after standard claims.
 	ExtraClaims map[string]any
 }
@@ -510,11 +522,16 @@ func GenerateAccessTokenWithOptionsContext(
 		claims["sub_type"] = opts.SubjectType
 	}
 	if opts != nil {
-		// ExtraClaims is also how this server stamps its own claims (tenant_id), so
-		// it is NOT filtered here. Client-configured mappers are sanitized at the
-		// boundary where they are read — see jwt.SanitizeClientClaimMappers.
+		// ExtraClaims is also how this server stamps its own claims, so it is NOT
+		// filtered here. Client-configured mappers are sanitized at the boundary
+		// where they are read — see jwt.SanitizeClientClaimMappers.
 		for k, v := range opts.ExtraClaims {
 			claims[k] = v
+		}
+		// Applied last so the issuer's tenant binding always beats anything that
+		// reached ExtraClaims under the same name.
+		if tenant := strings.TrimSpace(opts.TenantUUID); tenant != "" {
+			claims["tenant_id"] = tenant
 		}
 	}
 
@@ -577,6 +594,46 @@ type IDTokenParams struct {
 	// SigningAlgorithm selects the JWT signing algorithm for this token.
 	// Supported by the current key store: RS256 and PS256.
 	SigningAlgorithm string
+
+	// AuthTime is when the end user actually authenticated — the moment the
+	// session was established, not the moment this token was minted.
+	//
+	// OIDC Core §2 defines auth_time as "time when the End-User authentication
+	// occurred", and it is the ONLY input a relying party has for enforcing
+	// max_age. Stamping issuance time instead makes every token look freshly
+	// authenticated, so an RP asking for max_age=300 can never detect an
+	// hours-old session and re-prompt. Zero falls back to now, which is correct
+	// only on paths that mint a token as part of the authentication itself.
+	AuthTime time.Time
+
+	// AccessToken is the access token issued alongside this ID token. When set,
+	// the at_hash claim is derived from it (OIDC Core §3.1.3.6) so the RP can
+	// verify the two were issued together and reject an access token swapped in
+	// from a different response.
+	AccessToken string
+
+	// SessionID is the browser session this token was minted from; when set it
+	// becomes the `sid` claim.
+	//
+	// sid is what makes logout targetable. GenerateLogoutToken already stamps sid
+	// on every back-channel logout token, and a client may register
+	// backchannel_logout_session_required — but the ID token carried no sid, so a
+	// relying party had nothing to correlate that logout token against and could
+	// only end all of the subject's sessions or none. OIDC Back-Channel Logout 1.0
+	// §2.1 makes sid REQUIRED in the ID Token for exactly that reason, and the
+	// discovery document already advertises it in claims_supported.
+	SessionID string
+}
+
+// computeAtHash derives the at_hash claim from an access token: the base64url
+// encoding of the left-most half of the hash of the token's ASCII octets, using
+// the hash algorithm of the ID token's signature (OIDC Core §3.1.3.6).
+//
+// Both signing algorithms this key store supports — RS256 and PS256 — are
+// SHA-256, so the left-most 128 bits are always what is encoded.
+func computeAtHash(accessToken string) string {
+	sum := sha256.Sum256([]byte(accessToken))
+	return base64.RawURLEncoding.EncodeToString(sum[:len(sum)/2])
 }
 
 // buildAllowedClaimsSet returns the set of profile claim names that should be
@@ -646,6 +703,13 @@ func generateIDTokenWithContext(ctx context.Context, userUUID, issuer, clientID,
 	jti := generateSecureJTI()
 
 	now := time.Now()
+	// auth_time is the authentication event, not this issuance. See
+	// IDTokenParams.AuthTime — falling back to now is only correct when the token
+	// IS the product of a fresh authentication.
+	authTime := now
+	if params != nil && !params.AuthTime.IsZero() {
+		authTime = params.AuthTime
+	}
 	claims := jwtlib.MapClaims{
 		// Standard OIDC claims (OpenID Connect Core 1.0)
 		"sub":        userUUID,
@@ -655,12 +719,22 @@ func generateIDTokenWithContext(ctx context.Context, userUUID, issuer, clientID,
 		"exp":        jwtlib.NewNumericDate(now.Add(IDTokenTTL)),
 		"nbf":        jwtlib.NewNumericDate(now),
 		"jti":        jti,
-		"auth_time":  jwtlib.NewNumericDate(now),
+		"auth_time":  jwtlib.NewNumericDate(authTime),
 		"token_type": "id_token",
 
 		// Auth client identification claims
 		"client_id":   clientID,
 		"provider_id": providerID,
+	}
+	// at_hash binds this ID token to the access token delivered with it
+	// (OIDC Core §3.1.3.6).
+	if params != nil && params.AccessToken != "" {
+		claims["at_hash"] = computeAtHash(params.AccessToken)
+	}
+	// sid ties this token to the session, so a back-channel logout token — which
+	// already carries sid — can be matched to the RP's local session.
+	if params != nil && strings.TrimSpace(params.SessionID) != "" {
+		claims["sid"] = params.SessionID
 	}
 
 	// Add nonce if provided (OIDC security requirement)
@@ -1095,9 +1169,17 @@ func validateTokenClaims(claims jwtlib.MapClaims) error {
 		return errors.New("audience (aud) claim is invalid or empty")
 	}
 
-	// Validate issuer is not empty
-	if iss, ok := claims["iss"].(string); !ok || strings.TrimSpace(iss) == "" {
+	// Validate the issuer is not empty AND is one this deployment recognizes.
+	// Non-emptiness alone is not a check (RFC 7519 §4.1.1): all tenants share one
+	// signing key here, so an unmatched iss lets a token minted for tenant A be
+	// presented as tenant B's. An unconfigured allowlist does not disable the
+	// check: validateIssuerClaim then accepts only this server's own issuer.
+	iss, ok := claims["iss"].(string)
+	if !ok || strings.TrimSpace(iss) == "" {
 		return errors.New("issuer (iss) claim is invalid or empty")
+	}
+	if err := validateIssuerClaim(strings.TrimSpace(iss)); err != nil {
+		return err
 	}
 
 	// Validate JTI is not empty (prevents token reuse)

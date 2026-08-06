@@ -50,9 +50,12 @@ type RoleRepository interface {
 	FindAllByTenantID(tenantID int64) ([]Role, error)
 	FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[Role], error)
 	GetPermissionsByRoleUUID(filter RoleRepositoryGetPermissionsFilter) (*PaginationResult[Permission], error)
-	SetStatusByUUID(roleUUID uuid.UUID, status string) error
-	SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error
-	SetSystemStatusByUUID(roleUUID uuid.UUID, isSystem bool) error
+	// SetStatusByUUID / SetDefaultStatusByUUID / SetSystemStatusByUUID are gone.
+	// All three matched on role_uuid alone with no tenant predicate — cross-tenant
+	// writers sitting in the interface waiting for a first caller — and none had
+	// one. serviceRepository.SetStatusByUUID was scoped for the same reason; these
+	// were removed instead because nothing goes through them (role status changes
+	// run through roleService.SetStatusByUUID → CreateOrUpdate).
 	FindRegisteredRoleForSetup(tenantID int64) (*Role, error)
 	FindSuperAdminRoleForSetup(tenantID int64) (*Role, error)
 }
@@ -113,6 +116,16 @@ func (r *roleRepository) FindAllByTenantID(tenantID int64) ([]Role, error) {
 	return roles, err
 }
 
+// roleSortColumns is this table's own sort allowlist. The global set in
+// platform/database is a union across every table — it contains email, username
+// and client_id, none of which exist on `roles` — so GET /roles?sort_by=email
+// reached Postgres as an undefined column (42703) and surfaced as a 500 rather
+// than a 400.
+var roleSortColumns = map[string]struct{}{
+	"created_at": {}, "updated_at": {}, "name": {}, "description": {},
+	"status": {}, "is_default": {}, "is_system": {}, "tenant_id": {},
+}
+
 func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 	query := r.DB().Model(&Role{})
 
@@ -140,27 +153,9 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrderIn(roleSortColumns, filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	return database.PaginateQuery[Role](query, filter.Page, filter.Limit)
-}
-
-func (r *roleRepository) SetStatusByUUID(roleUUID uuid.UUID, status string) error {
-	return r.DB().Model(&Role{}).
-		Where("role_uuid = ?", roleUUID).
-		Update("status", status).Error
-}
-
-func (r *roleRepository) SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error {
-	return r.DB().Model(&Role{}).
-		Where("role_uuid = ?", roleUUID).
-		Update("is_default", isDefault).Error
-}
-
-func (r *roleRepository) SetSystemStatusByUUID(roleUUID uuid.UUID, isSystem bool) error {
-	return r.DB().Model(&Role{}).
-		Where("role_uuid = ?", roleUUID).
-		Update("is_system", isSystem).Error
 }
 
 func (r *roleRepository) FindRegisteredRoleForSetup(tenantID int64) (*Role, error) {
@@ -201,8 +196,9 @@ func (r *roleRepository) GetPermissionsByRoleUUID(filter RoleRepositoryGetPermis
 		query = query.Where("permissions.status = ?", *filter.Status)
 	}
 
-	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(database.SanitizeOrderPrefixed("permissions.", filter.SortBy, filter.SortOrder, "permissions.created_at DESC")).Preload("API")
+	// Sorting — protected against SQL injection via allowlist. The rows are
+	// permissions, so the allowlist is the permissions one, not roleSortColumns.
+	query = query.Order(database.SanitizeOrderInPrefixed(permissionSortColumns, "permissions.", filter.SortBy, filter.SortOrder, "permissions.created_at DESC")).Preload("API")
 
 	return database.PaginateQuery[Permission](query, filter.Page, filter.Limit)
 }

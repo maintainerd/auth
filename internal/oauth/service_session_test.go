@@ -11,6 +11,7 @@ import (
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -32,6 +33,12 @@ func newOAuthSessionSvc(
 }
 
 func expectSessionClientURILookup(mock sqlmock.Sqlmock, uri, clientID string) {
+	// EndSession now revokes the user_sessions row before it builds the redirect —
+	// revoking refresh tokens alone left the browser signed in.
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "user_sessions"`)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
 	rows := sqlmock.NewRows([]string{
 		"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
 		"client_type", "domain", "identifier", "secret", "status",
@@ -48,7 +55,7 @@ func expectSessionClientURILookup(mock sqlmock.Sqlmock, uri, clientID string) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 		sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
-			AddRow(1, uuid.New(), 1, 10, uri, "redirect", time.Now(), time.Now()),
+			AddRow(1, uuid.New(), 1, 10, uri, shared.ClientURITypeLogout, time.Now(), time.Now()),
 	)
 }
 
@@ -187,13 +194,13 @@ func TestOAuthSessionService_BackchannelLogout(t *testing.T) {
 		oerr := svc.BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: "valid-no-sub"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
-		assert.Contains(t, oerr.Description, "sub claim")
+		assert.Contains(t, oerr.Description, "sub")
 	})
 
 	t.Run("valid logout_token revokes sessions", func(t *testing.T) {
 		initTestJWTKeysService(t)
 
-		token, err := jwt.GenerateAccessToken("user-sub-789", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateLogoutToken("https://auth.example.com", "my-client", "user-sub-789", "")
 		require.NoError(t, err)
 
 		svc := newOAuthSessionSvc(nil,
@@ -212,7 +219,7 @@ func TestOAuthSessionService_BackchannelLogout(t *testing.T) {
 	t.Run("valid logout_token user not found no revoke", func(t *testing.T) {
 		initTestJWTKeysService(t)
 
-		token, err := jwt.GenerateAccessToken("user-sub-none", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateLogoutToken("https://auth.example.com", "my-client", "user-sub-none", "")
 		require.NoError(t, err)
 
 		svc := newOAuthSessionSvc(nil,
@@ -231,7 +238,7 @@ func TestOAuthSessionService_BackchannelLogout(t *testing.T) {
 	t.Run("valid logout_token user lookup error", func(t *testing.T) {
 		initTestJWTKeysService(t)
 
-		token, err := jwt.GenerateAccessToken("user-sub-err", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateLogoutToken("https://auth.example.com", "my-client", "user-sub-err", "")
 		require.NoError(t, err)
 
 		svc := newOAuthSessionSvc(nil,
@@ -246,6 +253,70 @@ func TestOAuthSessionService_BackchannelLogout(t *testing.T) {
 		oerr := svc.BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: token})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
+	})
+}
+
+// These cases could not exist before: the endpoint is unauthenticated and
+// accepted ANY signed token carrying a sub, so an ID token — which every relying
+// party is handed by design — revoked all of a user's refresh tokens.
+func TestOAuthSessionService_BackchannelLogout_TokenShape(t *testing.T) {
+	ctx := context.Background()
+
+	newSvc := func() OAuthSessionService {
+		return newOAuthSessionSvc(nil,
+			&mockUserRepo{
+				findBySubAndClientIDFn: func(string, string) (*User, error) {
+					return &User{UserID: 99, UserUUID: uuid.New()}, nil
+				},
+			},
+			&mockOAuthRefreshTokenRepo{},
+			&mockAuthEventService{})
+	}
+
+	t.Run("an access token is refused: no events claim", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+
+		oerr := newSvc().BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: token})
+		require.NotNil(t, oerr)
+		assert.Contains(t, oerr.Description, "events claim")
+	})
+
+	t.Run("a nonce is forbidden", func(t *testing.T) {
+		orig := oauthSessionValidateTokenWithContext
+		defer func() { oauthSessionValidateTokenWithContext = orig }()
+		oauthSessionValidateTokenWithContext = func(context.Context, string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{
+				"sub":    "user-sub",
+				"jti":    "jti-nonce-case",
+				"nonce":  "n-0S6_WzA2Mj",
+				"events": map[string]any{jwt.BackchannelLogoutEventURI: map[string]any{}},
+			}, nil
+		}
+
+		oerr := newSvc().BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: "x"})
+		require.NotNil(t, oerr)
+		assert.Contains(t, oerr.Description, "nonce")
+	})
+
+	t.Run("a jti may only be used once", func(t *testing.T) {
+		orig := oauthSessionValidateTokenWithContext
+		defer func() { oauthSessionValidateTokenWithContext = orig }()
+		oauthSessionValidateTokenWithContext = func(context.Context, string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{
+				"sub":    "user-sub",
+				"jti":    "jti-replay-case",
+				"events": map[string]any{jwt.BackchannelLogoutEventURI: map[string]any{}},
+			}, nil
+		}
+
+		svc := newSvc()
+		require.Nil(t, svc.BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: "x"}))
+
+		oerr := svc.BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: "x"})
+		require.NotNil(t, oerr)
+		assert.Contains(t, oerr.Description, "already been used")
 	})
 }
 
@@ -308,11 +379,39 @@ func TestOAuthSessionService_validateClientPostLogoutRedirect(t *testing.T) {
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
-				AddRow(1, uuid.New(), 1, 10, "https://example.com/logout", "redirect", time.Now(), time.Now()),
+				AddRow(1, uuid.New(), 1, 10, "https://example.com/logout", shared.ClientURITypeLogout, time.Now(), time.Now()),
 		)
 
 		svc := &oauthSessionService{db: db}
 		assert.True(t, svc.validateClientPostLogoutRedirect("my-client", "https://example.com/logout"))
+	})
+
+	// INVERTED. The match used to ignore ClientURI.Type entirely, so a
+	// cors_origin_uri registered only so a browser could call the API was a valid
+	// place to land a user after logout.
+	t.Run("a non-logout URI type does not match", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			`{}`, `{}`, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
+			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), 1, 10, "https://example.com/logout", shared.ClientURITypeCORSOrigin, time.Now(), time.Now()),
+		)
+
+		svc := &oauthSessionService{db: db}
+		assert.False(t, svc.validateClientPostLogoutRedirect("my-client", "https://example.com/logout"))
 	})
 
 	t.Run("nil ClientURIs returns false", func(t *testing.T) {

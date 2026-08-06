@@ -58,9 +58,12 @@ func OptionalUserContextMiddleware(userProvider UserContextProvider, appCache *c
 				return
 			}
 
-			rawClaims, err := jwt.ValidateTokenWithContext(r.Context(), token)
+			// An ID token must not stand in for a session here either: this
+			// middleware populates the same AuthContext the hard path does, and
+			// GET /oauth/authorize skips the login screen on the strength of it.
+			rawClaims, err := jwt.ValidateAccessTokenWithContext(r.Context(), token)
 			if err != nil {
-				// Expired or invalid session — treat as unauthenticated.
+				// Expired, invalid, or not an access token — treat as unauthenticated.
 				next.ServeHTTP(w, r)
 				return
 			}
