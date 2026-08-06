@@ -25,9 +25,14 @@ service UserService {
   rpc RemoveUserRole(RemoveUserRoleRequest) returns (RemoveUserRoleResponse);
 }
 
-service InviteService {
-  rpc SendInvite(SendInviteRequest) returns (SendInviteResponse);
-}
+// InviteService used to be declared here with no handler registered anywhere in
+// the tree, so SendInvite answered UNIMPLEMENTED. A published contract that names
+// RPCs the server never serves cannot be told apart from one that is simply down,
+// so the service block was removed: invites are REST control-plane only (see
+// internal/invite/routes.go). SendInviteRequest below also drifted from the
+// domain — invite.InviteService.SendInvite takes a registration_flow_uuid and a
+// callback_url and has no role_uuids parameter — so re-declaring the RPC would
+// have to correct the message first.
 
 service UserProfileService {
   rpc ListUserProfiles(ListUserProfilesRequest) returns (ListUserProfilesResponse);

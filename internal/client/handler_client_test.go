@@ -137,15 +137,9 @@ func TestClientHandler_GetByUUID_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestClientHandler_GetSecretByUUID(t *testing.T) {
-	// Handler always returns 410 Gone — secrets cannot be retrieved after creation.
-	t.Run("always returns 410", func(t *testing.T) {
-		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
-		w := httptest.NewRecorder()
-		NewClientHandler(&mockClientService{}).GetSecretByUUID(w, r)
-		assert.Equal(t, http.StatusGone, w.Code)
-	})
-}
+// TestClientHandler_GetSecretByUUID lived here and asserted an unconditional 410
+// Gone. See TestClientRoute_HasNoSecretReadRoute in routes_test.go for why that
+// behaviour was wrong and what replaced it.
 
 func TestClientHandler_GetConfigByUUID(t *testing.T) {
 	t.Run("no tenant returns 401", func(t *testing.T) {
@@ -212,7 +206,7 @@ func TestClientHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/clients", validClientBody()))
@@ -221,7 +215,7 @@ func TestClientHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
 			return &ClientCreateServiceResult{Client: &ClientServiceDataResult{Name: n}}, nil
 		}}
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/clients", validClientBody()))
@@ -257,7 +251,7 @@ func TestClientHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/clients/"+testResourceUUID.String(), validClientBody()), "client_uuid", testResourceUUID.String()))
@@ -266,7 +260,7 @@ func TestClientHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
 			return &ClientServiceDataResult{Name: n}, nil
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/clients/"+testResourceUUID.String(), validClientBody()), "client_uuid", testResourceUUID.String()))

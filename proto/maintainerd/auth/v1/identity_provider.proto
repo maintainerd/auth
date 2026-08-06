@@ -8,26 +8,13 @@ import "maintainerd/auth/v1/tenant.proto";
 
 option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
-service IdentityProviderService {
-  rpc ListIdentityProviders(ListIdentityProvidersRequest) returns (ListIdentityProvidersResponse);
-  rpc GetIdentityProvider(GetIdentityProviderRequest) returns (GetIdentityProviderResponse);
-  rpc CreateIdentityProvider(CreateIdentityProviderRequest) returns (CreateIdentityProviderResponse);
-  rpc UpdateIdentityProvider(UpdateIdentityProviderRequest) returns (UpdateIdentityProviderResponse);
-  rpc SetIdentityProviderStatus(SetIdentityProviderStatusRequest) returns (SetIdentityProviderStatusResponse);
-  rpc DeleteIdentityProvider(DeleteIdentityProviderRequest) returns (DeleteIdentityProviderResponse);
-}
-
-service RegistrationFlowService {
-  rpc ListRegistrationFlows(ListRegistrationFlowsRequest) returns (ListRegistrationFlowsResponse);
-  rpc GetRegistrationFlow(GetRegistrationFlowRequest) returns (GetRegistrationFlowResponse);
-  rpc CreateRegistrationFlow(CreateRegistrationFlowRequest) returns (CreateRegistrationFlowResponse);
-  rpc UpdateRegistrationFlow(UpdateRegistrationFlowRequest) returns (UpdateRegistrationFlowResponse);
-  rpc SetRegistrationFlowStatus(SetRegistrationFlowStatusRequest) returns (SetRegistrationFlowStatusResponse);
-  rpc DeleteRegistrationFlow(DeleteRegistrationFlowRequest) returns (DeleteRegistrationFlowResponse);
-  rpc AssignRegistrationFlowRoles(AssignRegistrationFlowRolesRequest) returns (AssignRegistrationFlowRolesResponse);
-  rpc ListRegistrationFlowRoles(ListRegistrationFlowRolesRequest) returns (ListRegistrationFlowRolesResponse);
-  rpc RemoveRegistrationFlowRole(RemoveRegistrationFlowRoleRequest) returns (RemoveRegistrationFlowRoleResponse);
-}
+// IdentityProviderService and RegistrationFlowService used to be declared here
+// with no handler registered anywhere in the tree, so every RPC they advertised
+// answered UNIMPLEMENTED. A published contract that names RPCs the server never
+// serves cannot be told apart from one that is simply down, so both service
+// blocks were removed: identity-provider and registration-flow administration is
+// REST control-plane only (see internal/idp/routes.go). The messages below are
+// kept as the agreed wire shape for the day a handler is written.
 
 message IdentityProvider {
   string identity_provider_uuid = 1;

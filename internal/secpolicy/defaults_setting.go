@@ -71,14 +71,18 @@ var defaultSecuritySettingConfigs = map[string]map[string]any{
 		"notify_user_on_lockout":       true,
 	},
 	"registration": {
-		"self_registration_enabled":               true,
-		"require_email_verification":              true,
-		"require_phone_verification":              false,
-		"allowed_email_domains":                   []string{},
-		"blocked_email_domains":                   []string{},
-		"auto_confirm_enabled":                    false,
-		"verification_token_ttl_hours":            24,
-		"captcha_on_signup":                       true,
+		"self_registration_enabled":    true,
+		"require_email_verification":   true,
+		"require_phone_verification":   false,
+		"allowed_email_domains":        []string{},
+		"blocked_email_domains":        []string{},
+		"auto_confirm_enabled":         false,
+		"verification_token_ttl_hours": 24,
+		// Captcha is deferred to a later release and no first-party form emits a
+		// captcha_token, so seeding this true made every tenant reject 100% of
+		// self-service registration the moment CAPTCHA_SECRET was configured — with
+		// no way to turn it off. It must default off until the feature ships.
+		"captcha_on_signup":                       false,
 		"registration_rate_limit_per_ip_per_hour": 10,
 	},
 	"threat": {

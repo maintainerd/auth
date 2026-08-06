@@ -1,7 +1,9 @@
 package oauth
 
 import (
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -47,6 +49,14 @@ func OAuthPublicRoute(
 	tokenRateLimit func(http.Handler) http.Handler,
 	rateLimitMiddleware ...middleware.Middleware,
 ) {
+	// PAR is only useful if the authorization endpoint can redeem the request_uri
+	// it mints. Both handlers are constructed by the composition root and handed
+	// here, so this is the one place that can connect them without the oauth
+	// package reaching outside itself.
+	if authorizeHandler != nil && parHandler != nil {
+		authorizeHandler.AttachPARService(parHandler.parService)
+	}
+
 	r.Route("/oauth", func(r chi.Router) {
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
@@ -143,22 +153,20 @@ func OAuthPublicRoute(
 		// CIBA initiation (CIBA Core §7.1)
 		r.Post("/ciba", cibaHandler.Initiate)
 
-		// Dynamic Client Registration (RFC 7591)
-		// Dynamic Client Registration (RFC 7591) is DISABLED.
+		// Dynamic Client Registration (RFC 7591) is NOT mounted on the public
+		// plane. It now exists, but on the control plane only — see
+		// OAuthInternalRouteWithRegistration.
 		//
-		// As written it was unauthenticated, resolved every registration into the
-		// SYSTEM tenant, accepted arbitrary grant_types, and accepted
-		// token_endpoint_auth_method="none" — i.e. it would let anyone on the
-		// internet create a confidential client that needs no credential to mint
-		// tokens. It also never worked: it wrote a client_type value that violates
-		// chk_clients_client_type, so every call 500'd. Nothing regresses by
-		// unmounting it.
-		//
-		// To re-enable, it needs: an initial access token (RFC 7591 §3), the
-		// caller's real tenant instead of the system tenant, the grant/auth-method
-		// matrix in ValidateClientOAuthMatrix, redirect-URI validation via
-		// security.ValidateRedirectURI, and RFC 7592 management endpoints. Until
-		// then the DCR claim must also stay out of the discovery document.
+		// Every defect that made it unsafe here is fixed (it takes the caller's
+		// tenant, restricts grant_types, applies ValidateClientOAuthMatrix,
+		// validates redirect schemes, and writes a client_type that satisfies
+		// chk_clients_client_type). What is deliberately NOT restored is public
+		// reachability: RFC 7591 §3 permits requiring an initial access token, and
+		// on the public plane that token would be any access token from any
+		// third-party client, so client creation would ride on whatever authority
+		// that token happens to carry. Control-plane-only keeps the blast radius at
+		// operators. registration_endpoint stays out of the public discovery
+		// documents for the same reason — it is not reachable on the public host.
 		_ = registerHandler
 
 		// Broker callback: the upstream provider returns here after the user
@@ -179,16 +187,46 @@ func OAuthDiscoveryRoute(r chi.Router, discoveryHandler *OAuthDiscoveryHandler) 
 	r.Get("/.well-known/jwks.json", discoveryHandler.JWKS)
 }
 
-// OAuthInternalRoute mounts OAuth 2.0 endpoints that are only accessible via
-// the management port (8080, VPN-only). Currently:
-//   - POST /oauth/introspect — Token introspection (RFC 7662)
-func OAuthInternalRoute(
+// OAuthInternalRouteWithRegistration mounts every OAuth 2.0 endpoint that is
+// reachable only via the management port (8080, VPN-only):
+//   - POST /oauth/introspect                       — Token introspection (RFC 7662)
+//   - GET  /oauth/signing-keys                     — list key metadata
+//   - POST /oauth/signing-keys/rotate              — mint + persist a new key
+//   - POST /oauth/signing-keys/{kid}/retire        — stop publishing a key
+//   - POST /oauth/signing-keys/{kid}/compromise    — disown a leaked key now
+//   - POST /oauth/register                         — RFC 7591 §3 (requires client:create)
+//   - GET  /oauth/register/{client_id}             — RFC 7592 §2.1 (requires client:read)
+//
+// It is the ONLY exported way to mount the internal OAuth plane. Two thinner
+// wrappers used to exist beside it — OAuthInternalRoute (nil key + nil register
+// handler) and OAuthInternalRouteWithKeys (nil register handler) — and the
+// composition root called the thinnest one, so the signing-key lifecycle and the
+// whole RFC 7591/7592 surface shipped reachable on no port at all while their
+// handlers, services, permissions and unit tests all existed and passed. The
+// wrappers are deleted rather than deprecated: with them gone, a composition
+// root that drops the handlers again does not compile, which is a guarantee no
+// test can be reverted around.
+//
+// A nil handler PANICS for the same reason. The mount used to skip a nil handler
+// silently, so a half-wired control plane looked identical to a correctly wired
+// one until an operator went looking for the key-rotation endpoint during an
+// incident. Refusing to boot is the only outcome that cannot be missed.
+func OAuthInternalRouteWithRegistration(
 	r chi.Router,
 	tokenHandler *OAuthTokenHandler,
+	keyHandler *OAuthSigningKeyHandler,
+	registerHandler *OAuthRegisterHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 	rateLimitMiddleware ...middleware.Middleware,
 ) {
+	if missing := missingInternalOAuthHandlers(tokenHandler, keyHandler, registerHandler); len(missing) > 0 {
+		slog.Error("internal OAuth plane is missing handlers; refusing to mount a half-wired control plane",
+			"missing", strings.Join(missing, ", "))
+		panic("oauth: internal OAuth plane mounted without " + strings.Join(missing, ", ") +
+			"; the composition root must build and pass every internal OAuth handler")
+	}
+
 	r.Route("/oauth", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
@@ -196,5 +234,55 @@ func OAuthInternalRoute(
 
 		// Token introspection (RFC 7662) — management-only
 		r.Post("/introspect", tokenHandler.Introspect)
+
+		// Every permission name below is written as a STRING LITERAL, never as a
+		// Go constant. The seeder's guarded-vs-seeded invariant test scans source
+		// for the permission-middleware call form and can only resolve literals, so
+		// a constant-named guard is invisible to it: security:rotate-keys was
+		// guarded here, dropped from the seeder, and no test noticed — a guard
+		// naming a permission that is never seeded 403s every role including
+		// super-admin.
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.PermissionMiddleware([]string{"security:rotate-keys"}))
+
+			r.Get("/signing-keys", keyHandler.ListKeys)
+			r.Post("/signing-keys/rotate", keyHandler.Rotate)
+			r.Post("/signing-keys/{kid}/retire", keyHandler.Retire)
+			r.Post("/signing-keys/{kid}/compromise", keyHandler.MarkCompromised)
+		})
+
+		// client:create / client:read stand in for RFC 7591 §3's initial access
+		// token: registration is an authenticated, tenant-scoped operation
+		// performed with an access token that carries them.
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.PermissionMiddleware([]string{"client:create"}))
+			r.Post("/register", registerHandler.Register)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.PermissionMiddleware([]string{"client:read"}))
+			r.Get("/register/{client_id}", registerHandler.Read)
+		})
 	})
+}
+
+// missingInternalOAuthHandlers names the internal-plane handlers the caller left
+// nil. It returns names rather than a bool so the panic tells an operator which
+// surface would have gone missing — "registration is unreachable" is actionable,
+// "bad wiring" is not.
+func missingInternalOAuthHandlers(
+	tokenHandler *OAuthTokenHandler,
+	keyHandler *OAuthSigningKeyHandler,
+	registerHandler *OAuthRegisterHandler,
+) []string {
+	var missing []string
+	if tokenHandler == nil {
+		missing = append(missing, "a token handler (POST /oauth/introspect)")
+	}
+	if keyHandler == nil {
+		missing = append(missing, "a signing-key handler (GET/POST /oauth/signing-keys...)")
+	}
+	if registerHandler == nil {
+		missing = append(missing, "a client-registration handler (RFC 7591/7592 /oauth/register)")
+	}
+	return missing
 }

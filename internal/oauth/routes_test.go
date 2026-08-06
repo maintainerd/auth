@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/dpop"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOAuthRoutesMountEndpoints(t *testing.T) {
@@ -68,13 +70,15 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 		})
 	}
 
-	// Dynamic Client Registration must stay unmounted: unauthenticated client
-	// creation that accepted token_endpoint_auth_method="none" would let anyone
-	// create a client needing no credential to mint tokens.
-	t.Run("POST /oauth/register is not mounted", func(t *testing.T) {
+	// Dynamic Client Registration must stay off the PUBLIC plane. RFC 7591 §3's
+	// initial access token would here be any access token from any third-party
+	// client, so client creation would ride on whatever authority that token
+	// happens to carry. It lives on the control plane instead — see
+	// TestOAuthInternalRouteWithRegistration_MountsKeyAndRegistrationSurfaces.
+	t.Run("POST /oauth/register is not mounted on the public plane", func(t *testing.T) {
 		match := chi.NewRouteContext()
 		assert.False(t, public.Match(match, http.MethodPost, "/oauth/register"),
-			"re-mounting DCR requires an initial access token and the client matrix first")
+			"DCR is control-plane only; a public mount makes client creation reachable with any third-party token")
 	})
 
 	discovery := chi.NewRouter()
@@ -94,9 +98,145 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 	}
 
 	internal := chi.NewRouter()
-	OAuthInternalRoute(internal, NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil), nil, nil)
+	OAuthInternalRouteWithRegistration(
+		internal,
+		NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil),
+		NewOAuthSigningKeyHandler(NewKeyRotationService(&fakeSigningKeyRepo{})),
+		NewOAuthRegisterHandler(&mockOAuthRegisterService{}),
+		nil,
+		nil,
+	)
 	match := chi.NewRouteContext()
 	assert.True(t, internal.Match(match, http.MethodPost, "/oauth/introspect"))
+}
+
+// The signing-key lifecycle and RFC 7591/7592 registration shipped as handler +
+// service + permission + unit tests while no router mounted either of them, so
+// "the code exists" read as "the endpoint is reachable". These assert the mount.
+func TestOAuthInternalRouteWithRegistration_MountsKeyAndRegistrationSurfaces(t *testing.T) {
+	mounted := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/oauth/introspect"},
+		{http.MethodGet, "/oauth/signing-keys"},
+		{http.MethodPost, "/oauth/signing-keys/rotate"},
+		{http.MethodPost, "/oauth/signing-keys/kid-1/retire"},
+		{http.MethodPost, "/oauth/signing-keys/kid-1/compromise"},
+		{http.MethodPost, "/oauth/register"},
+		{http.MethodGet, "/oauth/register/client-abc"},
+	}
+
+	internal := chi.NewRouter()
+	OAuthInternalRouteWithRegistration(
+		internal,
+		NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil),
+		NewOAuthSigningKeyHandler(NewKeyRotationService(&fakeSigningKeyRepo{})),
+		NewOAuthRegisterHandler(&mockOAuthRegisterService{}),
+		nil,
+		nil,
+	)
+
+	for _, tt := range mounted {
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			match := chi.NewRouteContext()
+			assert.True(t, internal.Match(match, tt.method, tt.path))
+
+			// Reachable is not the same as open: every one of them sits behind JWT
+			// auth, so an unauthenticated caller is refused before a handler runs.
+			r := httptest.NewRequest(tt.method, tt.path, nil)
+			w := httptest.NewRecorder()
+			internal.ServeHTTP(w, r)
+			assert.Equal(t, http.StatusUnauthorized, w.Code)
+		})
+	}
+}
+
+// INVERTED. This test used to be TestOAuthInternalRoute_MountsNeitherKeyNor
+// RegistrationSurface and asserted the OPPOSITE: that OAuthInternalRoute — the
+// wrapper that passed nil for both the signing-key and the registration handler
+// — mounted neither surface, "pinning the gap so it is visible in the suite".
+//
+// Pinning a gap is not a guard. It made the broken wiring the tested behaviour:
+// the composition root could keep calling (or revert to) the nil-handler wrapper
+// and the suite stayed green, which is precisely how the key lifecycle and RFC
+// 7591/7592 shipped reachable on no port at all. The wrappers are deleted, so
+// that revert is now a compile error, and a nil handler is a boot panic instead
+// of a silently absent control-plane surface.
+func TestOAuthInternalRouteWithRegistration_NilHandlerRefusesToMount(t *testing.T) {
+	tokenHandler := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
+	keyHandler := NewOAuthSigningKeyHandler(NewKeyRotationService(&fakeSigningKeyRepo{}))
+	registerHandler := NewOAuthRegisterHandler(&mockOAuthRegisterService{})
+
+	for _, tt := range []struct {
+		name     string
+		token    *OAuthTokenHandler
+		key      *OAuthSigningKeyHandler
+		register *OAuthRegisterHandler
+		wantIn   string
+	}{
+		{"nil signing-key handler", tokenHandler, nil, registerHandler, "signing-key handler"},
+		{"nil registration handler", tokenHandler, keyHandler, nil, "client-registration handler"},
+		{"nil token handler", nil, keyHandler, registerHandler, "token handler"},
+		{"all nil", nil, nil, nil, "signing-key handler"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.PanicsWithValue(t,
+				"oauth: internal OAuth plane mounted without "+
+					strings.Join(missingInternalOAuthHandlers(tt.token, tt.key, tt.register), ", ")+
+					"; the composition root must build and pass every internal OAuth handler",
+				func() {
+					OAuthInternalRouteWithRegistration(chi.NewRouter(), tt.token, tt.key, tt.register, nil, nil)
+				},
+				"a half-wired control plane must refuse to boot, not mount a subset of itself silently")
+			assert.Contains(t, strings.Join(missingInternalOAuthHandlers(tt.token, tt.key, tt.register), ", "), tt.wantIn)
+		})
+	}
+}
+
+// The public discovery documents must not advertise an endpoint that only
+// exists on the VPN-only control plane: a conformant RP that reads
+// registration_endpoint out of the public metadata would POST to a URL that
+// 404s, and publishing it at all frames client creation as a public,
+// token-gated operation instead of an operator one.
+func TestPublicDiscoveryOmitsControlPlaneOnlyEndpoints(t *testing.T) {
+	h := NewOAuthDiscoveryHandler(nil)
+
+	for _, tt := range []struct {
+		name    string
+		serve   func(http.ResponseWriter, *http.Request)
+		path    string
+		omitted []string
+	}{
+		{
+			"openid-configuration",
+			h.Discovery,
+			"/.well-known/openid-configuration",
+			[]string{"registration_endpoint", "introspection_endpoint"},
+		},
+		{
+			"oauth-authorization-server",
+			h.AuthorizationServerMetadata,
+			"/.well-known/oauth-authorization-server",
+			[]string{"registration_endpoint", "introspection_endpoint"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			tt.serve(w, httptest.NewRequest(http.MethodGet, tt.path, nil))
+			require.Equal(t, http.StatusOK, w.Code)
+
+			var doc map[string]any
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &doc))
+			for _, key := range tt.omitted {
+				assert.NotContains(t, doc, key,
+					"%s is mounted on the control plane only; advertising it on the public host points RPs at a 404", key)
+			}
+			// Sanity: the document is a real one, so NotContains above is not
+			// passing on an empty body.
+			assert.NotEmpty(t, doc["token_endpoint"])
+		})
+	}
 }
 
 func TestOAuthRoutesMountEndpointsWithRateLimit(t *testing.T) {

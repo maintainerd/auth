@@ -25,6 +25,26 @@ type ForgotPasswordService interface {
 	SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*ForgotPasswordResponseDTO, error)
 }
 
+// The generic "if an account with that email exists…" body is only as good as
+// the time it takes to produce. An unknown address used to return as soon as the
+// user lookup missed, while a known one first revoked N old tokens, inserted a
+// new one, rendered a template and then blocked on a SYNCHRONOUS SMTP round
+// trip. Hundreds of milliseconds to several seconds of difference turns the
+// endpoint into a reliable account-enumeration oracle regardless of what the
+// body says.
+//
+// Two changes close it, and both are needed: the SMTP work moves off the request
+// path (it is the dominant, seconds-scale term and cannot be matched by a
+// not-found path that has nothing to send), and every response is then padded to
+// a common floor so the remaining DB-shaped difference is not observable either.
+var (
+	// forgotPasswordDispatch runs the reset-email send. Overridden in tests to
+	// run inline so assertions on the send are deterministic.
+	forgotPasswordDispatch = func(fn func()) { go fn() }
+	// forgotPasswordMinDuration is the floor every response is padded to.
+	forgotPasswordMinDuration = 250 * time.Millisecond
+)
+
 type forgotPasswordService struct {
 	db                *gorm.DB
 	userRepo          UserRepository
@@ -52,6 +72,10 @@ func NewForgotPasswordService(
 func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, email string, clientID, tenantID *string, isInternal bool) (*ForgotPasswordResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "forgotPassword.sendResetEmail")
 	defer span.End()
+
+	// Pad every exit — including the error returns below — to a common floor so
+	// the response time carries no signal about whether the address exists.
+	defer padToMinDuration(time.Now())
 
 	var user *User
 	var Client *Client
@@ -148,22 +172,38 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 	}
 
 	// Only send email if user was found (user will be nil if not found due to security)
+	//
+	// Dispatched off the request path: the caller learns nothing from a delivery
+	// failure anyway (it is logged, never surfaced), so blocking on SMTP buys no
+	// information and leaks the one timing difference that matters. The context is
+	// detached from the request so the send survives the response being written.
 	if user != nil {
-		// Generate reset URL and send email
-		if err := s.sendPasswordResetEmail(ctx, user.Email, resetToken, Client, isInternal, linkTenantID); err != nil {
-			// authevent.Log error but don't reveal it to user for security
-			security.LogSecurityEvent(security.SecurityEvent{
-				EventType: "password_reset_email_failure",
-				UserID:    user.UserUUID.String(),
-				Details:   fmt.Sprintf("Failed to send password reset email: %v", err),
-				Severity:  "HIGH",
-				Timestamp: time.Now(),
-			})
-		}
+		sendCtx := context.WithoutCancel(ctx)
+		toEmail, userUUID := user.Email, user.UserUUID.String()
+		forgotPasswordDispatch(func() {
+			if err := s.sendPasswordResetEmail(sendCtx, toEmail, resetToken, Client, isInternal, linkTenantID); err != nil {
+				// authevent.Log error but don't reveal it to user for security
+				security.LogSecurityEvent(security.SecurityEvent{
+					EventType: "password_reset_email_failure",
+					UserID:    userUUID,
+					Details:   fmt.Sprintf("Failed to send password reset email: %v", err),
+					Severity:  "HIGH",
+					Timestamp: time.Now(),
+				})
+			}
+		})
 	}
 
 	span.SetStatus(codes.Ok, "")
 	return response, nil
+}
+
+// padToMinDuration blocks until forgotPasswordMinDuration has elapsed since
+// start. A no-op once the work already took longer.
+func padToMinDuration(start time.Time) {
+	if remaining := forgotPasswordMinDuration - time.Since(start); remaining > 0 {
+		time.Sleep(remaining)
+	}
 }
 
 // generateSecureToken generates a cryptographically secure random token.
@@ -231,7 +271,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 		LogoURL  string
 	}{
 		ResetURL: resetURL,
-		LogoURL:  email.GetLogoURL(ctx, s.db),
+		LogoURL:  email.GetLogoURL(ctx, s.db, clientTenantID(Client)),
 	}
 
 	// Parse HTML template
@@ -260,6 +300,10 @@ func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, 
 
 	// Send email
 	return email.SendEmail(ctx, s.db, email.SendEmailParams{
+		// Without this the provider lookup runs with tenant 0, misses, and falls
+		// back to the SYSTEM tenant's SMTP config — so a tenant's password-reset
+		// mail would go out through another tenant's server and From address.
+		TenantID:  clientTenantID(Client),
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

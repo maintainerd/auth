@@ -34,10 +34,15 @@ type OAuthCIBAService interface {
 	Initiate(ctx context.Context, req OAuthCIBARequestDTO, creds OAuthClientCredentials) (*OAuthCIBAResponseDTO, *apperror.OAuthError)
 
 	// ApproveRequest marks a CIBA request as approved by the user.
-	ApproveRequest(ctx context.Context, authReqID string, userID int64) *apperror.OAuthError
+	//
+	// userID/tenantID identify the CALLER. The request may only be approved by the
+	// user the login_hint resolved to, in that user's own tenant — see
+	// authorizeCIBAActor.
+	ApproveRequest(ctx context.Context, authReqID string, userID int64, tenantID int64) *apperror.OAuthError
 
-	// DenyRequest marks a CIBA request as denied by the user.
-	DenyRequest(ctx context.Context, authReqID string, userID int64) *apperror.OAuthError
+	// DenyRequest marks a CIBA request as denied by the user. Bound to the caller
+	// exactly as ApproveRequest is.
+	DenyRequest(ctx context.Context, authReqID string, userID int64, tenantID int64) *apperror.OAuthError
 
 	// ExchangeToken polls for a token using an auth_req_id.
 	ExchangeToken(ctx context.Context, req OAuthCIBATokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError)
@@ -161,8 +166,32 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req OAuthCIBARequestDTO
 	}, nil
 }
 
+// authorizeCIBAActor checks that the caller is the user this CIBA request was
+// created for, in that user's own tenant, and that the request is still pending.
+//
+// Approval used to look the request up by auth_req_id alone and then OVERWRITE
+// user_id with whoever called the endpoint, with no tenant check and no status
+// guard. Any authenticated principal that got hold of an auth_req_id — it is
+// handed to the client in the clear at initiation — became the subject of the
+// token, and a denied request could be re-approved.
+//
+// A nil record.UserID fails closed: a request with no resolved user cannot be
+// approved by anyone.
+func authorizeCIBAActor(record *OAuthCIBARequest, userID, tenantID int64) *apperror.OAuthError {
+	if record.TenantID != tenantID || record.UserID == nil || *record.UserID != userID {
+		// Deliberately the same error the "no such request" branch returns: telling
+		// the caller that a request exists but belongs to someone else turns this
+		// endpoint into an auth_req_id oracle.
+		return apperror.NewOAuthInvalidGrant("auth_req_id not found")
+	}
+	if record.Status != CIBAStatusPending {
+		return apperror.NewOAuthInvalidGrant("auth_req_id is no longer pending")
+	}
+	return nil
+}
+
 // ApproveRequest implements OAuthCIBAService.
-func (s *oauthCIBAService) ApproveRequest(ctx context.Context, authReqID string, userID int64) *apperror.OAuthError {
+func (s *oauthCIBAService) ApproveRequest(ctx context.Context, authReqID string, userID int64, tenantID int64) *apperror.OAuthError {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_ciba.approve_request")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -179,6 +208,10 @@ func (s *oauthCIBAService) ApproveRequest(ctx context.Context, authReqID string,
 	if record.IsExpired() {
 		_ = s.cibaRepo.UpdateStatus(record.OAuthCIBARRequestID, CIBAStatusExpired)
 		return apperror.NewOAuthInvalidGrant("auth_req_id has expired")
+	}
+	if oerr := authorizeCIBAActor(record, userID, tenantID); oerr != nil {
+		span.SetStatus(codes.Error, "ciba actor not authorized")
+		return oerr
 	}
 
 	acr, amr := authContextFromContext(ctx)
@@ -204,7 +237,7 @@ func (s *oauthCIBAService) ApproveRequest(ctx context.Context, authReqID string,
 }
 
 // DenyRequest implements OAuthCIBAService.
-func (s *oauthCIBAService) DenyRequest(ctx context.Context, authReqID string, userID int64) *apperror.OAuthError {
+func (s *oauthCIBAService) DenyRequest(ctx context.Context, authReqID string, userID int64, tenantID int64) *apperror.OAuthError {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_ciba.deny_request")
 	defer span.End()
 
@@ -216,6 +249,12 @@ func (s *oauthCIBAService) DenyRequest(ctx context.Context, authReqID string, us
 	}
 	if record == nil {
 		return apperror.NewOAuthInvalidGrant("auth_req_id not found")
+	}
+	// Denial is bound to the same actor as approval: an unbound deny lets anyone
+	// holding an auth_req_id cancel another user's pending login.
+	if oerr := authorizeCIBAActor(record, userID, tenantID); oerr != nil {
+		span.SetStatus(codes.Error, "ciba actor not authorized")
+		return oerr
 	}
 
 	if err := s.cibaRepo.UpdateStatus(record.OAuthCIBARRequestID, CIBAStatusDenied); err != nil {
@@ -294,7 +333,15 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 	case CIBAStatusDenied:
 		return nil, apperror.NewOAuthAccessDenied("the user denied the CIBA request")
 	case CIBAStatusApproved:
-		// Fall through to token issuance.
+		// An auth_req_id is single-use (CIBA Core §10.2). Without this the same
+		// auth_req_id minted a fresh access token on every poll, for as long as the
+		// record survived — the device flow already closes this with
+		// ConsumeApproved. The transition is atomic, so a concurrent poll that lost
+		// the race gets an error instead of a second token.
+		if err := s.cibaRepo.ConsumeApproved(record.OAuthCIBARRequestID); err != nil {
+			span.RecordError(err)
+			return nil, apperror.NewOAuthInvalidGrant("auth_req_id has already been redeemed")
+		}
 	default:
 		return nil, apperror.NewOAuthInvalidGrant("unexpected CIBA status")
 	}
@@ -354,6 +401,9 @@ func cibaAccessTokenOpts(repo secpolicy.SecuritySettingRepository, record *OAuth
 	acr, amr := persistedAuthContext(record.AuthACR, record.AuthAMR)
 	opts.ACR = acr
 	opts.AMR = amr
+	// The user consents out of band, so this token has no browser session behind
+	// it and legitimately carries no `sid`. See deviceAccessTokenOpts.
+	opts.SubjectType = subjectTypeCIBA
 	return opts
 }
 
@@ -366,6 +416,11 @@ func (s *oauthCIBAService) sendCIBANotificationEmail(ctx context.Context, user *
 		clientName = client.DisplayName
 	}
 
+	var tenantID int64
+	if client != nil {
+		tenantID = client.TenantID
+	}
+
 	data := struct {
 		ClientName     string
 		BindingMessage string
@@ -373,18 +428,17 @@ func (s *oauthCIBAService) sendCIBANotificationEmail(ctx context.Context, user *
 	}{
 		ClientName:     clientName,
 		BindingMessage: bindingMessage,
-		LogoURL:        email.GetLogoURL(ctx, s.db),
-	}
-
-	var tenantID int64
-	if client != nil {
-		tenantID = client.TenantID
+		LogoURL:        email.GetLogoURL(ctx, s.db, tenantID),
 	}
 	rendered, err := email.RenderTemplate(s.db, "user:ciba:notification", tenantID, data)
 	if err != nil {
 		return fmt.Errorf("failed to render ciba notification email template: %w", err)
 	}
 	return email.SendEmail(ctx, s.db, email.SendEmailParams{
+		// Without this the provider lookup runs with tenant 0, misses, and silently
+		// falls back to the SYSTEM tenant's SMTP config — so a tenant's mail would go
+		// out through another tenant's server and From address.
+		TenantID:  tenantID,
 		To:        user.Email,
 		Subject:   rendered.Subject,
 		BodyHTML:  rendered.BodyHTML,

@@ -16,11 +16,25 @@ import (
 // endpoints.
 type OAuthAuthorizeHandler struct {
 	authorizeService OAuthAuthorizeService
+	// parService resolves an RFC 9126 request_uri. Optional: when it is nil the
+	// authorization endpoint refuses request_uri outright rather than ignoring it.
+	parService OAuthPARService
 }
 
 // NewOAuthAuthorizeHandler creates a new OAuthAuthorizeHandler.
 func NewOAuthAuthorizeHandler(authorizeService OAuthAuthorizeService) *OAuthAuthorizeHandler {
 	return &OAuthAuthorizeHandler{authorizeService: authorizeService}
+}
+
+// AttachPARService wires the PAR service into the authorization endpoint.
+//
+// POST /oauth/par minted a request_uri and RFC 8414 metadata advertised the
+// endpoint, but /oauth/authorize never read the parameter and
+// OAuthPARService.ConsumeRequestURI had no caller anywhere — PAR was a dead end
+// that returned a handle no endpoint would accept. Route wiring calls this
+// because both handlers are already constructed there (see OAuthPublicRoute).
+func (h *OAuthAuthorizeHandler) AttachPARService(parService OAuthPARService) {
+	h.parService = parService
 }
 
 // Authorize handles GET /oauth/authorize (RFC 6749 §4.1.1). It is session-aware:
@@ -43,6 +57,27 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 		Prompt:              q.Get("prompt"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
+		RequestURI:          q.Get("request_uri"),
+		Request:             q.Get("request"),
+		ACRValues:           q.Get("acr_values"),
+		MaxAge:              q.Get("max_age"),
+		LoginHint:           q.Get("login_hint"),
+		ResponseMode:        q.Get("response_mode"),
+		UILocales:           q.Get("ui_locales"),
+	}
+
+	// RFC 9126 §4: a pushed request replaces the query parameters wholesale. The
+	// pushed copy is the one the client authenticated for, so anything the caller
+	// also put in the query string is discarded rather than merged — merging would
+	// let an attacker who intercepts the request_uri append parameters the client
+	// never pushed.
+	if req.RequestURI != "" {
+		pushed, oerr := h.resolvePushedRequest(r, req)
+		if oerr != nil {
+			oerr.WriteJSON(w)
+			return
+		}
+		req = *pushed
 	}
 
 	if err := req.Validate(); err != nil {
@@ -117,6 +152,30 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 	resp.Success(w, OAuthAuthorizeResponseDTO{
 		RedirectURI: result.RedirectURI,
 	}, "Authorization successful")
+}
+
+// resolvePushedRequest consumes an RFC 9126 request_uri and returns the
+// authorization request that was pushed under it.
+func (h *OAuthAuthorizeHandler) resolvePushedRequest(r *http.Request, req OAuthAuthorizeRequestDTO) (*OAuthAuthorizeRequestDTO, *apperror.OAuthError) {
+	if h.parService == nil {
+		// Fails closed: honouring the query parameters while dropping the pushed
+		// request would authorize a request the client never pushed.
+		return nil, apperror.NewOAuthInvalidRequest("request_uri is not supported by this deployment")
+	}
+
+	pushed, oerr := h.parService.ConsumeRequestURI(r.Context(), req.RequestURI)
+	if oerr != nil {
+		return nil, oerr
+	}
+
+	// The client_id on the wire must match the client the request was pushed for.
+	// A request_uri is a bearer handle; without this check anyone who obtains one
+	// can present it under their own client_id.
+	if req.ClientID != "" && req.ClientID != pushed.ClientID {
+		return nil, apperror.NewOAuthInvalidRequest("client_id does not match the pushed authorization request")
+	}
+
+	return pushed, nil
 }
 
 // GetConsentChallenge handles GET /oauth/consent/{challenge_id}. Returns the

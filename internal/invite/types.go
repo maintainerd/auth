@@ -47,9 +47,13 @@ type InviteContextResponseDTO struct {
 	Status      string     `json:"status"`
 }
 
-func toInviteContextResponseDTO(i Invite) InviteContextResponseDTO {
+// toInviteContextResponseDTO echoes back the RAW token the caller supplied on the
+// query string rather than anything read from the record: invites.invite_token
+// now holds a digest, and returning that would hand the identity app a value that
+// can never be redeemed.
+func toInviteContextResponseDTO(i Invite, rawToken string) InviteContextResponseDTO {
 	return InviteContextResponseDTO{
-		InviteToken: i.InviteToken,
+		InviteToken: rawToken,
 		Email:       i.InvitedEmail,
 		CallbackURL: i.CallbackURL,
 		ExpiresAt:   i.ExpiresAt,

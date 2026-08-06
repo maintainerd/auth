@@ -58,10 +58,18 @@ func SecuritySettingRoute(
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
-		// General config endpoints
+		// General config endpoints.
+		//
+		// The MFA write is the most destructive setting on this router, so it
+		// carries step-up like every sibling below: it can switch off enforced MFA
+		// and clear require_mfa_for_sensitive_actions, which degrades
+		// MFAHandler.RequirePolicyStepUp to a pass-through on the email-change,
+		// username-change and password-change routes. Ungated, a stolen acr=1
+		// admin session disarms tenant-wide MFA in a single request — removing the
+		// very gate it would otherwise have to satisfy.
 		r.With(middleware.PermissionMiddleware([]string{"security-setting:read"})).
 			Get("/mfa", securitySettingHandler.GetMFAConfig)
-		r.With(middleware.PermissionMiddleware([]string{"security-setting:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"security-setting:update"}), middleware.RequireStepUp).
 			Put("/mfa", securitySettingHandler.UpdateMFAConfig)
 
 		// Password config endpoints

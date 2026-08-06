@@ -60,7 +60,7 @@ func TestMFAService_TrustedDeviceValid(t *testing.T) {
 		mock.ExpectCommit()
 
 		svc := &mfaService{db: db}
-		ok, err := svc.TrustedDeviceValid(t.Context(), mfaTestUserID, "raw-secret")
+		ok, err := svc.TrustedDeviceValid(t.Context(), mfaTestUserID, mfaTestTenantID, "raw-secret")
 
 		require.NoError(t, err)
 		assert.True(t, ok)
@@ -73,7 +73,7 @@ func TestMFAService_TrustedDeviceValid(t *testing.T) {
 			WillReturnError(gorm.ErrRecordNotFound)
 
 		svc := &mfaService{db: db}
-		ok, err := svc.TrustedDeviceValid(t.Context(), mfaTestUserID, "nope")
+		ok, err := svc.TrustedDeviceValid(t.Context(), mfaTestUserID, mfaTestTenantID, "nope")
 
 		require.NoError(t, err)
 		assert.False(t, ok)
@@ -84,7 +84,23 @@ func TestMFAService_TrustedDeviceValid(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		svc := &mfaService{db: db}
 
-		ok, err := svc.TrustedDeviceValid(t.Context(), mfaTestUserID, "   ")
+		ok, err := svc.TrustedDeviceValid(t.Context(), mfaTestUserID, mfaTestTenantID, "   ")
+
+		require.NoError(t, err)
+		assert.False(t, ok)
+		assertExpectationsMet(t, mock)
+	})
+
+	t.Run("lookup is scoped to the tenant", func(t *testing.T) {
+		// Trust is granted per tenant. Without the tenant predicate a token
+		// issued in a lax tenant skipped MFA in a strict `mode: enforced` one on
+		// the same account.
+		db, mock := newMockGormDB(t)
+		mock.ExpectQuery(`SELECT .* FROM "user_trusted_devices" WHERE .*tenant_id = .*`).
+			WillReturnError(gorm.ErrRecordNotFound)
+
+		svc := &mfaService{db: db}
+		ok, err := svc.TrustedDeviceValid(t.Context(), mfaTestUserID, mfaTestTenantID, "raw-secret")
 
 		require.NoError(t, err)
 		assert.False(t, ok)

@@ -176,20 +176,6 @@ func TestLoginHandler_LoginPublic_PasswordChangeRequired(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Password change required")
 }
 
-func TestLoginHandler_MFALoginVerifyInternal_RejectsClientID(t *testing.T) {
-	h := NewLoginHandler(&mockLoginService{})
-	r := newLoginRequest(t, http.MethodPost, "/login/mfa/verify?client_id=c1", MFALoginVerifyRequestDTO{
-		ChallengeToken: "challenge",
-		Method:         "totp",
-		Code:           "123456",
-	})
-	w := httptest.NewRecorder()
-
-	h.MFALoginVerifyInternal(w, r)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
 func TestLoginHandler_MFALoginVerifyPublic_RejectsTenantID(t *testing.T) {
 	called := false
 	svc := &mockLoginService{
@@ -271,84 +257,3 @@ func TestExtractAccessToken_WithCookie(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Login (internal)
 // ---------------------------------------------------------------------------
-
-func TestLoginHandler_Login_RejectsClientContext(t *testing.T) {
-	// Passes client_id and provider_id query params → covers the two optional
-	// pointer branches (lines 203-205 and 206-208).
-	svc := &mockLoginService{
-		loginFn: func(u, p string, c, pr *string) (*LoginResponseDTO, error) {
-			return &LoginResponseDTO{AccessToken: "tok"}, nil
-		},
-	}
-	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?client_id=c1",
-		map[string]string{"username": "user1", "password": "pass1"}))
-	w := httptest.NewRecorder()
-	h.Login(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestLoginHandler_Login_BodyValidationError(t *testing.T) {
-	// Valid JSON that fails LoginRequestDTO.Validate() → covers lines 218-233.
-	h := NewLoginHandler(&mockLoginService{})
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?tenant_id=system",
-		map[string]string{"username": "", "password": "pass1"}))
-	w := httptest.NewRecorder()
-	h.Login(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestLoginHandler_Login_InvalidBody(t *testing.T) {
-	h := NewLoginHandler(&mockLoginService{})
-	r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/login?tenant_id=system",
-		bytes.NewBufferString(`{bad json}`)))
-	r.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	h.Login(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestLoginHandler_Login_ServiceError(t *testing.T) {
-	svc := &mockLoginService{
-		loginFn: func(u, p string, c, pr *string) (*LoginResponseDTO, error) {
-			return nil, errUnauthorized
-		},
-	}
-	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?tenant_id=system",
-		map[string]string{"username": "user1", "password": "pass1"}))
-	w := httptest.NewRecorder()
-	h.Login(w, r)
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestLoginHandler_Login_Success(t *testing.T) {
-	svc := &mockLoginService{
-		loginFn: func(u, p string, c, pr *string) (*LoginResponseDTO, error) {
-			return &LoginResponseDTO{AccessToken: "tok"}, nil
-		},
-	}
-	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?tenant_id=system",
-		map[string]string{"username": "user1", "password": "pass1"}))
-	w := httptest.NewRecorder()
-	h.Login(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestLoginHandler_Login_MFARequired(t *testing.T) {
-	svc := &mockLoginService{
-		loginFn: func(u, p string, c, pr *string) (*LoginResponseDTO, error) {
-			return &LoginResponseDTO{MFARequired: true}, nil
-		},
-	}
-	h := NewLoginHandler(svc)
-	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login?tenant_id=system",
-		map[string]string{"username": "user1", "password": "pass1"}))
-	w := httptest.NewRecorder()
-
-	h.Login(w, r)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "MFA verification required")
-}

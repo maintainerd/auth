@@ -195,7 +195,19 @@ func recordRateLimitHits(ctx context.Context, rdb *redis.Client, keys []string, 
 	}
 	rawCounts, err := rateLimitHitScript.Run(ctx, rdb, keys, ttlMillis).Result()
 	if err != nil {
-		// Redis failure → allow request through (fail open)
+		// Redis failure → allow the request through (fail OPEN), deliberately, and
+		// deliberately the opposite of the credential path.
+		//
+		// This limiter meters ordinary authenticated API traffic, where the cost of
+		// a Redis outage failing closed is a total outage of the product for every
+		// tenant — a self-inflicted denial of service far worse than the burst of
+		// unmetered requests that failing open permits.
+		//
+		// The credential surface does NOT share this posture: login, MFA and the
+		// other brute-forceable paths go through security.CheckRateLimit*, whose
+		// limiterOutage fails CLOSED, because there the unmetered burst IS the
+		// attack. If you are reconciling these two, reconcile them by keeping them
+		// different — the asymmetry is the point, not an oversight.
 		return nil, false
 	}
 	values, ok := rawCounts.([]interface{})

@@ -117,6 +117,8 @@ func (h *PolicyGRPCHandler) CreatePolicy(ctx context.Context, req *authv1.Create
 	if err != nil {
 		return nil, err
 	}
+	// The tenant boundary is enforced BEFORE the ledger claim so a caller that may
+	// not act on this tenant cannot consume — or occupy — a key it may not spend.
 	document, err := policyDocumentJSON(req.GetDocument())
 	if err != nil {
 		return nil, err

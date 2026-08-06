@@ -74,8 +74,8 @@ func (a *authnUserIdentityRepoAdapter) Paginate(c map[string]any, page, limit in
 	return &authn.PaginationResult[authn.UserIdentity]{Data: mapAuthnUserIdentities(r.Data), Total: r.Total, Page: r.Page, Limit: r.Limit, TotalPages: r.TotalPages}, nil
 }
 
-func (a *authnUserIdentityRepoAdapter) FindByUserIDAndClientID(userID, clientID int64) (*authn.UserIdentity, error) {
-	r, err := a.repo.FindByUserIDAndClientID(userID, clientID)
+func (a *authnUserIdentityRepoAdapter) FindByUserIDAndClientReachable(userID, clientID int64) (*authn.UserIdentity, error) {
+	r, err := a.repo.FindByUserIDAndClientReachable(userID, clientID)
 	return toAuthnUserIdentity(r), err
 }
 

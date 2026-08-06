@@ -150,18 +150,48 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("control policy must exist", func(t *testing.T) {
+	// INVERTED. This used to require a seeded policy and fail without one. Seeding
+	// it meant every instance shipped a standing wildcard grant that existed before
+	// any service held it, so the policy is now BUILT here — in the same request
+	// that registers the principal receiving it, and scoped to the default control
+	// set rather than to everything.
+	t.Run("builds the control policy when none exists", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
-		mock.ExpectRollback()
-		svc := newService(db, &mockServiceRepo{}, &mockPolicyRepo{
+		mock.ExpectCommit()
+		policyRepo := &mockPolicyRepo{
 			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return nil, nil },
-		}, &mockServicePolicyRepo{}, nil)
+		}
+		svc := newService(db, &mockServiceRepo{}, policyRepo, &mockServicePolicyRepo{}, nil)
 
 		_, err := svc.RegisterControlService(context.Background(), validReq)
 
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "control policy is not seeded")
+		require.NoError(t, err)
+		require.NotNil(t, policyRepo.created, "the policy must be created, not required")
+		assert.Equal(t, DefaultControlPolicyName, policyRepo.created.Name)
+		document := string(policyRepo.created.Document)
+		assert.Contains(t, document, "tenant:*")
+		// The grant an orchestrator has no business holding.
+		assert.NotContains(t, document, `"user:*"`)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	// An existing policy is returned unchanged. Setup is reachable with only the
+	// bootstrap credential, so letting a re-run rewrite the policy would make
+	// "register again" a way to widen an already-registered principal.
+	t.Run("an existing control policy is not rewritten", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		policyRepo := &mockPolicyRepo{}
+		svc := newService(db, &mockServiceRepo{}, policyRepo, &mockServicePolicyRepo{}, nil)
+
+		req := validReq
+		req.AllowedActions = []string{"user:*"}
+		_, err := svc.RegisterControlService(context.Background(), req)
+
+		require.NoError(t, err)
+		assert.Nil(t, policyRepo.created, "a re-run must not be able to widen the existing policy")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -469,7 +499,11 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 }
 
 func TestSetupService_CompleteSetup(t *testing.T) {
-	t.Run("requires tenant admin and profile before locking", func(t *testing.T) {
+	// The admin's profile is NOT part of the lock. It is collected on first
+	// sign-in through the identity app, and gating on it meant setup could never
+	// finish: the tenant stayed `pending`, and the tenant-status middleware then
+	// refused the very login that would have created the profile.
+	t.Run("requires tenant and admin before locking", func(t *testing.T) {
 		svc := NewSetupService(nil,
 			&mockUserRepo{},
 			&mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, nil }},
@@ -479,7 +513,7 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 
 		_, err := svc.CompleteSetup(context.Background())
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "tenant, admin, and profile setup")
+		assert.Contains(t, err.Error(), "tenant and admin setup")
 	})
 
 	t.Run("marks system tenant completed when bootstrap is ready", func(t *testing.T) {
@@ -809,7 +843,21 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 
 	defaultTenant := &Tenant{TenantID: 1, TenantUUID: uuid.New()}
 	clientID := "default-client"
-	defaultClient := &Client{ClientID: 1, Identifier: &clientID}
+	// The bootstrap client must have an ENABLED connection to the built-in
+	// provider: the admin's identity is created against that provider, never
+	// against the client (migration 030).
+	enabled := true
+	defaultClient := &Client{
+		ClientID:   1,
+		Identifier: &clientID,
+		ConnectedProviders: &[]ClientIdentityProvider{{
+			ClientID:           1,
+			IdentityProviderID: 3,
+			Enabled:            &enabled,
+			IsDefault:          true,
+			IdentityProvider:   &IdentityProvider{IdentityProviderID: 3},
+		}},
+	}
 
 	t.Run("FindAll error", func(t *testing.T) {
 		svc := buildSetupService(t,

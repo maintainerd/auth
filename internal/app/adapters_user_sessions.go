@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
@@ -28,6 +30,22 @@ func (a sessionRevokerAdapter) RevokeAllByUserID(userID int64, reason string) er
 
 func (a sessionRevokerAdapter) RevokeAllExceptUUID(userID int64, keepSessionUUID uuid.UUID, reason string) error {
 	return a.sessions.RevokeAllExceptUUID(userID, keepSessionUUID, reason)
+}
+
+// sessionCreatorAdapter satisfies user.SessionCreator over authn's session
+// service. The user package cannot import authn (authn already depends on it),
+// so the adapter lives here; it returns the bare UUID because that is all the
+// consumer needs to stamp a `sid`.
+type sessionCreatorAdapter struct {
+	sessions authn.SessionService
+}
+
+func (a sessionCreatorAdapter) CreateSession(ctx context.Context, userID, tenantID int64, ipAddress, userAgent string) (uuid.UUID, error) {
+	sess, err := a.sessions.CreateSession(ctx, userID, tenantID, ipAddress, userAgent)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return sess.UserSessionUUID, nil
 }
 
 // userSessionBackedTokenRepo makes the user service's session-admin operations

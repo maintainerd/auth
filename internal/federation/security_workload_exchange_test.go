@@ -1,11 +1,15 @@
 package federation
 
 import (
+	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 )
 
 // The exchange endpoint takes NO client credentials, and ExtraClaims is merged LAST
@@ -133,6 +137,67 @@ func TestSubjectPatternTooBroad(t *testing.T) {
 	}
 }
 
+// The rule used to be a raw count of non-wildcard characters across the WHOLE
+// pattern, which the issuer's generic prefix satisfied on its own: "repo:" is
+// already 5 of the 6 characters it wanted, so "repo:a*" passed and matched every
+// repository of every organisation whose name starts with "a". An attacker creates
+// a matching repo, its GitHub-issued token matches the victim's federation, and the
+// exchange hands back the victim tenant's access token.
+func TestSubjectPatternTooBroad_RejectsUnanchoredOrgSegment(t *testing.T) {
+	unanchored := []string{
+		"repo:a*",              // the original report: every org starting with "a"
+		"repo:*",               // every org
+		"repo:my-org*",         // "my-org-evil" matches too
+		"system:*",             // every Kubernetes namespace
+		"system:service*",      // still inside the generic prefix
+		"project_path:group?*", // GitLab, same shape
+		"my-workload-*",        // flat subject: no segment to anchor on
+	}
+	for _, pattern := range unanchored {
+		assert.True(t, SubjectPatternTooBroad(pattern),
+			"%q leaves the organisation segment unanchored and must be refused", pattern)
+	}
+
+	// Anchoring on a WHOLE org/namespace segment is the legitimate use, and must
+	// keep working however short the real org name is — "a" is a valid GitHub org,
+	// and "repo:a/*" pins exactly that one.
+	anchored := []string{
+		"repo:a/*",
+		"repo:my-org/*",
+		"repo:my-org/my-repo*",
+		"system:serviceaccount:prod:*",
+		"spiffe://my-domain/ns/*",
+	}
+	for _, pattern := range anchored {
+		assert.False(t, SubjectPatternTooBroad(pattern),
+			"%q pins a whole organisation or namespace segment and must be allowed", pattern)
+	}
+}
+
+// The gate runs at match time too, so an over-broad row that reached the table by
+// any route is skipped rather than honoured.
+func TestMatchFederation_SkipsUnanchoredOrgPattern(t *testing.T) {
+	svc := &workloadIdentityFederationService{}
+	claims := map[string]interface{}{
+		"aud": "https://auth.example.com",
+		// An attacker-controlled repo under an org starting with "a".
+		"sub": "repo:attacker-org/pwn:ref:refs/heads/main",
+	}
+	feds := []WorkloadIdentityFederation{
+		{
+			WorkloadIdentityFederationID: 1,
+			TenantID:                     7,
+			Audience:                     "https://auth.example.com",
+			SubjectClaim:                 "sub",
+			SubjectPattern:               "repo:a*",
+		},
+	}
+
+	fed, oerr := svc.matchFederation(feds, claims)
+	assert.Nil(t, oerr)
+	assert.Nil(t, fed, "an unanchored org segment must not match another org's repo")
+}
+
 // The matcher must skip an over-broad stored pattern rather than honour it.
 func TestMatchFederation_SkipsOverBroadStoredPatterns(t *testing.T) {
 	svc := &workloadIdentityFederationService{}
@@ -198,4 +263,152 @@ func TestMatchFederation_AllowsMultipleMatchesWithinOneTenant(t *testing.T) {
 	assert.Nil(t, oerr)
 	require.NotNil(t, fed)
 	assert.Equal(t, int64(11), fed.ClientID, "the first row by id must win, deterministically")
+}
+
+// ---------------------------------------------------------------------------
+// Tenant claim
+// ---------------------------------------------------------------------------
+
+// stubTenantRefResolver installs a tenant id<->uuid mapping for the duration of a
+// test and restores the previous (nil) one.
+type stubTenantRefResolver struct {
+	byID map[int64]uuid.UUID
+}
+
+func (s stubTenantRefResolver) TenantUUIDByID(_ context.Context, id int64) (uuid.UUID, bool) {
+	u, ok := s.byID[id]
+	return u, ok
+}
+
+func (s stubTenantRefResolver) TenantIDByUUID(_ context.Context, u uuid.UUID) (int64, bool) {
+	for id, candidate := range s.byID {
+		if candidate == u {
+			return id, true
+		}
+	}
+	return 0, false
+}
+
+func withTenantRefResolver(t *testing.T, byID map[int64]uuid.UUID) {
+	t.Helper()
+	shared.SetTenantRefResolver(stubTenantRefResolver{byID: byID})
+	t.Cleanup(func() { shared.SetTenantRefResolver(nil) })
+}
+
+// The issued token carried NO tenant_id claim: "tenant:N" was being passed as the
+// 7th positional argument to the generator, which is providerID. Every consumer
+// reads the tenant from the tenant_id claim, so a WIF token resolved to
+// TenantID = 0 — no tenant scoping at all on a keyless credential path.
+func TestWorkloadTokenClaims_StampsTheFederationsTenant(t *testing.T) {
+	tenantUUID := uuid.MustParse("aaaaaaaa-0000-0000-0000-000000000012")
+	withTenantRefResolver(t, map[int64]uuid.UUID{12: tenantUUID})
+
+	fed := &WorkloadIdentityFederation{TenantID: 12, SubjectClaim: "sub"}
+	extra, oerr := workloadTokenClaims(
+		context.Background(),
+		map[string]interface{}{"sub": "repo:my-org/my-repo:ref:refs/heads/main"},
+		fed,
+	)
+	require.Nil(t, oerr)
+
+	// The claim VALUE is the tenant's opaque UUID, not the internal PK — that is
+	// what buildJWTClaims and the gRPC interceptor parse.
+	assert.Equal(t, tenantUUID.String(), extra["tenant_id"])
+	assert.NotEqual(t, "tenant:12", extra["tenant_id"])
+}
+
+// An operator's attribute_mapping must not be able to reach the claim the system
+// stamps — the exchange endpoint takes no client credentials, so a forged tenant
+// is an unauthenticated cross-tenant escalation.
+func TestWorkloadTokenClaims_TenantIsNotForgeableByMapping(t *testing.T) {
+	realTenant := uuid.MustParse("aaaaaaaa-0000-0000-0000-000000000012")
+	withTenantRefResolver(t, map[int64]uuid.UUID{12: realTenant})
+
+	fed := &WorkloadIdentityFederation{
+		TenantID:         12,
+		SubjectClaim:     "sub",
+		AttributeMapping: datatypes.JSON([]byte(`{"evil":"tenant_id"}`)),
+	}
+	extra, oerr := workloadTokenClaims(
+		context.Background(),
+		map[string]interface{}{
+			"sub":  "repo:my-org/my-repo:ref:refs/heads/main",
+			"evil": "bbbbbbbb-0000-0000-0000-000000000099",
+		},
+		fed,
+	)
+	require.Nil(t, oerr)
+	assert.Equal(t, realTenant.String(), extra["tenant_id"])
+}
+
+// Fail closed: this endpoint takes no client credentials, so a token whose tenant
+// reads as 0 downstream is worse than a denial.
+func TestWorkloadTokenClaims_RefusesWhenTenantCannotBeResolved(t *testing.T) {
+	withTenantRefResolver(t, map[int64]uuid.UUID{})
+
+	_, oerr := workloadTokenClaims(
+		context.Background(),
+		map[string]interface{}{"sub": "repo:my-org/my-repo:ref:refs/heads/main"},
+		&WorkloadIdentityFederation{TenantID: 12, SubjectClaim: "sub"},
+	)
+	require.NotNil(t, oerr)
+}
+
+// ---------------------------------------------------------------------------
+// Scope allow-lists
+// ---------------------------------------------------------------------------
+
+// The exchange consulted the federation row only, so a WIF token could carry
+// scopes the SAME client is refused at /oauth/token — the keyless path was the
+// looser door into the client's own grant.
+func TestIntersectAllowedScopes(t *testing.T) {
+	t.Run("a federation cannot widen its client's grant", func(t *testing.T) {
+		got := intersectAllowedScopes(
+			[]string{"deploy:write", "admin:all"},
+			[]string{"deploy:write"},
+		)
+		assert.Equal(t, []string{"deploy:write"}, got)
+	})
+
+	t.Run("a client cannot widen its federation's grant either", func(t *testing.T) {
+		got := intersectAllowedScopes(
+			[]string{"deploy:write"},
+			[]string{"deploy:write", "admin:all"},
+		)
+		assert.Equal(t, []string{"deploy:write"}, got)
+	})
+
+	// An empty list means "no scopes", never "all scopes" — the whole point is
+	// that neither side may widen the other.
+	t.Run("an empty client allow-list grants nothing", func(t *testing.T) {
+		assert.Empty(t, intersectAllowedScopes([]string{"deploy:write"}, nil))
+		assert.Empty(t, intersectAllowedScopes([]string{"deploy:write"}, []string{}))
+	})
+
+	t.Run("federation ordering is preserved so the scope string is deterministic", func(t *testing.T) {
+		got := intersectAllowedScopes(
+			[]string{"c", "a", "b"},
+			[]string{"b", "a", "c"},
+		)
+		assert.Equal(t, []string{"c", "a", "b"}, got)
+	})
+}
+
+// The requested-scope check runs against the intersected list, so a scope the
+// federation allows but the client does not is refused outright rather than
+// silently granted.
+func TestIntersectScopes_AgainstIntersectedAllowList(t *testing.T) {
+	allowed := intersectAllowedScopes([]string{"deploy:write", "admin:all"}, []string{"deploy:write"})
+
+	granted, ok := intersectScopes("deploy:write", allowed)
+	require.True(t, ok)
+	assert.Equal(t, []string{"deploy:write"}, granted)
+
+	_, ok = intersectScopes("admin:all", allowed)
+	assert.False(t, ok, "a scope the mapped client is not allowed must be refused")
+
+	// An omitted scope parameter grants the intersection, not the federation list.
+	granted, ok = intersectScopes("", allowed)
+	require.True(t, ok)
+	assert.Equal(t, []string{"deploy:write"}, granted)
 }

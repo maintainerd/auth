@@ -98,7 +98,12 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.WebhookReplayHandler, application.WebhookSubscriptionHandler, deliveryHistoryHandler, application.WebhookEndpointRepo, userProvider, application.Cache, tenantRateLimit)
 		authevent.AuthEventRoute(api, h.authEvent, userProvider, application.Cache, tenantRateLimit)
 		event.ConfigRoute(api, h.eventConfig, h.eventManagement, userProvider, application.Cache, tenantRateLimit)
-		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache, tenantRateLimit)
+		// The full variant, not OAuthInternalRoute: that one passes nil for both
+		// the signing-key and the registration handler, and since Dynamic Client
+		// Registration is deliberately withheld from the public plane, mounting the
+		// short variant here left RFC 7591/7592 and the whole key lifecycle
+		// reachable on no port at all.
+		oauth.OAuthInternalRouteWithRegistration(api, h.oauthToken, h.oauthSigningKey, h.oauthRegister, userProvider, application.Cache, tenantRateLimit)
 		iam.AuthorizationRoute(api, h.authorization)
 		auditlog.ManagementAuditLogRoute(api, h.auditLog, userProvider, application.Cache, tenantRateLimit)
 		federation.WorkloadIdentityFederationRoute(api, h.wif, userProvider, application.Cache, tenantRateLimit)
@@ -238,6 +243,10 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 			authn.RegisterPublicRoute(rl, h.register)
 			authn.LoginPublicRoute(rl, h.login)
 			authn.ForgotPasswordPublicRoute(rl, h.forgotPassword)
+			// Account recovery via backup code (unauthenticated). It verifies a
+			// password and mints a full token set, so it belongs behind the same
+			// per-IP ceiling and tenant gates as every other credential endpoint.
+			user.RecoveryRoute(rl, h.account)
 			authn.ResetPasswordPublicRoute(rl, h.resetPassword)
 		})
 
@@ -256,6 +265,13 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 		// Cookie-auth state-changing routes — apply CSRF protection
 		api.Group(func(cookieAuth chi.Router) {
 			cookieAuth.Use(securityMiddleware.CSRFMiddleware)
+			// These routes authorize on the SUBJECT alone, so any valid access
+			// token for the user passes. Without this guard a token minted for a
+			// third-party OAuth client the user consented to for `openid profile`
+			// could change their email, rotate their password, revoke their
+			// sessions, or strip their MFA. Cookie-borne sessions are first-party
+			// by construction and pass through.
+			cookieAuth.Use(securityMiddleware.RequireFirstPartyClient(application.ClientService))
 			user.ProfileRoute(cookieAuth, h.profile, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			user.UserSettingRoute(cookieAuth, h.userSetting, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			user.AccountRoute(cookieAuth, h.account, h.userConsent, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRuntimeMiddleware...)
@@ -263,6 +279,11 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 			user.DataErasureSelfRoute(cookieAuth, h.dataErasure, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			mfa.MFAPublicRoute(cookieAuth, h.mfa, userProvider, application.Cache, tenantRuntimeMiddleware...)
 			idp.FederationIdentityRoute(cookieAuth, h.federation, userProvider, application.Cache, tenantRuntimeMiddleware...)
+			// Account-link confirmation attaches a provider identity to the
+			// caller's existing account, so it belongs behind the same first-party
+			// guard as the rest of the self-service surface. Mounted outside it, a
+			// third-party token could drive an identity link on the user's account.
+			authn.AccountLinkConfirmRoute(cookieAuth, h.accountLink, userProvider, application.Cache, tenantRuntimeMiddleware...)
 		})
 
 		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthConnections, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, userProvider, application.Cache, authRateLimit, tenantRuntimeMiddleware...)
@@ -277,10 +298,6 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 			sms.Use(authEndpointTenantStatus)
 			authn.SMSLoginPublicRoute(sms, h.smsLogin)
 		})
-		// Account-link confirmation (authenticated: user re-auths as the existing account)
-		authn.AccountLinkConfirmRoute(api, h.accountLink, userProvider, application.Cache, tenantRuntimeMiddleware...)
-		// Account recovery via backup code (unauthenticated)
-		user.RecoveryRoute(api, h.account)
 		// Public branding (colors + logo, non-sensitive, no auth)
 		branding.BrandingPublicRoute(api, h.branding)
 	})

@@ -2455,29 +2455,7 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"tenantUuid\x127\n" +
 	"\x18ip_restriction_rule_uuid\x18\x02 \x01(\tR\x15ipRestrictionRuleUuid\"]\n" +
 	"\x1fDeleteIPRestrictionRuleResponse\x12:\n" +
-	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule2\x80\r\n" +
-	"\x16SecuritySettingService\x12c\n" +
-	"\fGetMFAConfig\x12(.maintainerd.auth.v1.GetMFAConfigRequest\x1a).maintainerd.auth.v1.GetMFAConfigResponse\x12l\n" +
-	"\x0fUpdateMFAConfig\x12+.maintainerd.auth.v1.UpdateMFAConfigRequest\x1a,.maintainerd.auth.v1.UpdateMFAConfigResponse\x12r\n" +
-	"\x11GetPasswordConfig\x12-.maintainerd.auth.v1.GetPasswordConfigRequest\x1a..maintainerd.auth.v1.GetPasswordConfigResponse\x12{\n" +
-	"\x14UpdatePasswordConfig\x120.maintainerd.auth.v1.UpdatePasswordConfigRequest\x1a1.maintainerd.auth.v1.UpdatePasswordConfigResponse\x12o\n" +
-	"\x10GetSessionConfig\x12,.maintainerd.auth.v1.GetSessionConfigRequest\x1a-.maintainerd.auth.v1.GetSessionConfigResponse\x12x\n" +
-	"\x13UpdateSessionConfig\x12/.maintainerd.auth.v1.UpdateSessionConfigRequest\x1a0.maintainerd.auth.v1.UpdateSessionConfigResponse\x12l\n" +
-	"\x0fGetThreatConfig\x12+.maintainerd.auth.v1.GetThreatConfigRequest\x1a,.maintainerd.auth.v1.GetThreatConfigResponse\x12u\n" +
-	"\x12UpdateThreatConfig\x12..maintainerd.auth.v1.UpdateThreatConfigRequest\x1a/.maintainerd.auth.v1.UpdateThreatConfigResponse\x12o\n" +
-	"\x10GetLockoutConfig\x12,.maintainerd.auth.v1.GetLockoutConfigRequest\x1a-.maintainerd.auth.v1.GetLockoutConfigResponse\x12x\n" +
-	"\x13UpdateLockoutConfig\x12/.maintainerd.auth.v1.UpdateLockoutConfigRequest\x1a0.maintainerd.auth.v1.UpdateLockoutConfigResponse\x12~\n" +
-	"\x15GetRegistrationConfig\x121.maintainerd.auth.v1.GetRegistrationConfigRequest\x1a2.maintainerd.auth.v1.GetRegistrationConfigResponse\x12\x87\x01\n" +
-	"\x18UpdateRegistrationConfig\x124.maintainerd.auth.v1.UpdateRegistrationConfigRequest\x1a5.maintainerd.auth.v1.UpdateRegistrationConfigResponse\x12i\n" +
-	"\x0eGetTokenConfig\x12*.maintainerd.auth.v1.GetTokenConfigRequest\x1a+.maintainerd.auth.v1.GetTokenConfigResponse\x12r\n" +
-	"\x11UpdateTokenConfig\x12-.maintainerd.auth.v1.UpdateTokenConfigRequest\x1a..maintainerd.auth.v1.UpdateTokenConfigResponse2\xc0\x06\n" +
-	"\x18IPRestrictionRuleService\x12\x81\x01\n" +
-	"\x16ListIPRestrictionRules\x122.maintainerd.auth.v1.ListIPRestrictionRulesRequest\x1a3.maintainerd.auth.v1.ListIPRestrictionRulesResponse\x12{\n" +
-	"\x14GetIPRestrictionRule\x120.maintainerd.auth.v1.GetIPRestrictionRuleRequest\x1a1.maintainerd.auth.v1.GetIPRestrictionRuleResponse\x12\x84\x01\n" +
-	"\x17CreateIPRestrictionRule\x123.maintainerd.auth.v1.CreateIPRestrictionRuleRequest\x1a4.maintainerd.auth.v1.CreateIPRestrictionRuleResponse\x12\x84\x01\n" +
-	"\x17UpdateIPRestrictionRule\x123.maintainerd.auth.v1.UpdateIPRestrictionRuleRequest\x1a4.maintainerd.auth.v1.UpdateIPRestrictionRuleResponse\x12\x8d\x01\n" +
-	"\x1aSetIPRestrictionRuleStatus\x126.maintainerd.auth.v1.SetIPRestrictionRuleStatusRequest\x1a7.maintainerd.auth.v1.SetIPRestrictionRuleStatusResponse\x12\x84\x01\n" +
-	"\x17DeleteIPRestrictionRule\x123.maintainerd.auth.v1.DeleteIPRestrictionRuleRequest\x1a4.maintainerd.auth.v1.DeleteIPRestrictionRuleResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04ruleBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_security_proto_rawDescOnce sync.Once
@@ -2571,48 +2549,8 @@ var file_maintainerd_auth_v1_security_proto_depIdxs = []int32{
 	28, // 28: maintainerd.auth.v1.UpdateIPRestrictionRuleResponse.rule:type_name -> maintainerd.auth.v1.IPRestrictionRule
 	28, // 29: maintainerd.auth.v1.SetIPRestrictionRuleStatusResponse.rule:type_name -> maintainerd.auth.v1.IPRestrictionRule
 	28, // 30: maintainerd.auth.v1.DeleteIPRestrictionRuleResponse.rule:type_name -> maintainerd.auth.v1.IPRestrictionRule
-	0,  // 31: maintainerd.auth.v1.SecuritySettingService.GetMFAConfig:input_type -> maintainerd.auth.v1.GetMFAConfigRequest
-	2,  // 32: maintainerd.auth.v1.SecuritySettingService.UpdateMFAConfig:input_type -> maintainerd.auth.v1.UpdateMFAConfigRequest
-	4,  // 33: maintainerd.auth.v1.SecuritySettingService.GetPasswordConfig:input_type -> maintainerd.auth.v1.GetPasswordConfigRequest
-	6,  // 34: maintainerd.auth.v1.SecuritySettingService.UpdatePasswordConfig:input_type -> maintainerd.auth.v1.UpdatePasswordConfigRequest
-	8,  // 35: maintainerd.auth.v1.SecuritySettingService.GetSessionConfig:input_type -> maintainerd.auth.v1.GetSessionConfigRequest
-	10, // 36: maintainerd.auth.v1.SecuritySettingService.UpdateSessionConfig:input_type -> maintainerd.auth.v1.UpdateSessionConfigRequest
-	12, // 37: maintainerd.auth.v1.SecuritySettingService.GetThreatConfig:input_type -> maintainerd.auth.v1.GetThreatConfigRequest
-	14, // 38: maintainerd.auth.v1.SecuritySettingService.UpdateThreatConfig:input_type -> maintainerd.auth.v1.UpdateThreatConfigRequest
-	16, // 39: maintainerd.auth.v1.SecuritySettingService.GetLockoutConfig:input_type -> maintainerd.auth.v1.GetLockoutConfigRequest
-	18, // 40: maintainerd.auth.v1.SecuritySettingService.UpdateLockoutConfig:input_type -> maintainerd.auth.v1.UpdateLockoutConfigRequest
-	20, // 41: maintainerd.auth.v1.SecuritySettingService.GetRegistrationConfig:input_type -> maintainerd.auth.v1.GetRegistrationConfigRequest
-	22, // 42: maintainerd.auth.v1.SecuritySettingService.UpdateRegistrationConfig:input_type -> maintainerd.auth.v1.UpdateRegistrationConfigRequest
-	24, // 43: maintainerd.auth.v1.SecuritySettingService.GetTokenConfig:input_type -> maintainerd.auth.v1.GetTokenConfigRequest
-	26, // 44: maintainerd.auth.v1.SecuritySettingService.UpdateTokenConfig:input_type -> maintainerd.auth.v1.UpdateTokenConfigRequest
-	29, // 45: maintainerd.auth.v1.IPRestrictionRuleService.ListIPRestrictionRules:input_type -> maintainerd.auth.v1.ListIPRestrictionRulesRequest
-	31, // 46: maintainerd.auth.v1.IPRestrictionRuleService.GetIPRestrictionRule:input_type -> maintainerd.auth.v1.GetIPRestrictionRuleRequest
-	33, // 47: maintainerd.auth.v1.IPRestrictionRuleService.CreateIPRestrictionRule:input_type -> maintainerd.auth.v1.CreateIPRestrictionRuleRequest
-	35, // 48: maintainerd.auth.v1.IPRestrictionRuleService.UpdateIPRestrictionRule:input_type -> maintainerd.auth.v1.UpdateIPRestrictionRuleRequest
-	37, // 49: maintainerd.auth.v1.IPRestrictionRuleService.SetIPRestrictionRuleStatus:input_type -> maintainerd.auth.v1.SetIPRestrictionRuleStatusRequest
-	39, // 50: maintainerd.auth.v1.IPRestrictionRuleService.DeleteIPRestrictionRule:input_type -> maintainerd.auth.v1.DeleteIPRestrictionRuleRequest
-	1,  // 51: maintainerd.auth.v1.SecuritySettingService.GetMFAConfig:output_type -> maintainerd.auth.v1.GetMFAConfigResponse
-	3,  // 52: maintainerd.auth.v1.SecuritySettingService.UpdateMFAConfig:output_type -> maintainerd.auth.v1.UpdateMFAConfigResponse
-	5,  // 53: maintainerd.auth.v1.SecuritySettingService.GetPasswordConfig:output_type -> maintainerd.auth.v1.GetPasswordConfigResponse
-	7,  // 54: maintainerd.auth.v1.SecuritySettingService.UpdatePasswordConfig:output_type -> maintainerd.auth.v1.UpdatePasswordConfigResponse
-	9,  // 55: maintainerd.auth.v1.SecuritySettingService.GetSessionConfig:output_type -> maintainerd.auth.v1.GetSessionConfigResponse
-	11, // 56: maintainerd.auth.v1.SecuritySettingService.UpdateSessionConfig:output_type -> maintainerd.auth.v1.UpdateSessionConfigResponse
-	13, // 57: maintainerd.auth.v1.SecuritySettingService.GetThreatConfig:output_type -> maintainerd.auth.v1.GetThreatConfigResponse
-	15, // 58: maintainerd.auth.v1.SecuritySettingService.UpdateThreatConfig:output_type -> maintainerd.auth.v1.UpdateThreatConfigResponse
-	17, // 59: maintainerd.auth.v1.SecuritySettingService.GetLockoutConfig:output_type -> maintainerd.auth.v1.GetLockoutConfigResponse
-	19, // 60: maintainerd.auth.v1.SecuritySettingService.UpdateLockoutConfig:output_type -> maintainerd.auth.v1.UpdateLockoutConfigResponse
-	21, // 61: maintainerd.auth.v1.SecuritySettingService.GetRegistrationConfig:output_type -> maintainerd.auth.v1.GetRegistrationConfigResponse
-	23, // 62: maintainerd.auth.v1.SecuritySettingService.UpdateRegistrationConfig:output_type -> maintainerd.auth.v1.UpdateRegistrationConfigResponse
-	25, // 63: maintainerd.auth.v1.SecuritySettingService.GetTokenConfig:output_type -> maintainerd.auth.v1.GetTokenConfigResponse
-	27, // 64: maintainerd.auth.v1.SecuritySettingService.UpdateTokenConfig:output_type -> maintainerd.auth.v1.UpdateTokenConfigResponse
-	30, // 65: maintainerd.auth.v1.IPRestrictionRuleService.ListIPRestrictionRules:output_type -> maintainerd.auth.v1.ListIPRestrictionRulesResponse
-	32, // 66: maintainerd.auth.v1.IPRestrictionRuleService.GetIPRestrictionRule:output_type -> maintainerd.auth.v1.GetIPRestrictionRuleResponse
-	34, // 67: maintainerd.auth.v1.IPRestrictionRuleService.CreateIPRestrictionRule:output_type -> maintainerd.auth.v1.CreateIPRestrictionRuleResponse
-	36, // 68: maintainerd.auth.v1.IPRestrictionRuleService.UpdateIPRestrictionRule:output_type -> maintainerd.auth.v1.UpdateIPRestrictionRuleResponse
-	38, // 69: maintainerd.auth.v1.IPRestrictionRuleService.SetIPRestrictionRuleStatus:output_type -> maintainerd.auth.v1.SetIPRestrictionRuleStatusResponse
-	40, // 70: maintainerd.auth.v1.IPRestrictionRuleService.DeleteIPRestrictionRule:output_type -> maintainerd.auth.v1.DeleteIPRestrictionRuleResponse
-	51, // [51:71] is the sub-list for method output_type
-	31, // [31:51] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for method output_type
+	31, // [31:31] is the sub-list for method input_type
 	31, // [31:31] is the sub-list for extension type_name
 	31, // [31:31] is the sub-list for extension extendee
 	0,  // [0:31] is the sub-list for field type_name
@@ -2632,7 +2570,7 @@ func file_maintainerd_auth_v1_security_proto_init() {
 			NumEnums:      0,
 			NumMessages:   41,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   0,
 		},
 		GoTypes:           file_maintainerd_auth_v1_security_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_security_proto_depIdxs,

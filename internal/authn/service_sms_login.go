@@ -106,7 +106,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, phone string, clientID, t
 			Timestamp: time.Now(),
 			Details:   err.Error(),
 		})
-		return err
+		return apperror.NewTooManyRequests(err.Error())
 	}
 
 	client, err := resolveClientForContext(ctx, s.clientRepo, clientID, tenantID)
@@ -198,7 +198,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, phone, otp string, clie
 			Timestamp: time.Now(),
 			Details:   err.Error(),
 		})
-		return nil, err
+		return nil, apperror.NewTooManyRequests(err.Error())
 	}
 
 	var user *User
@@ -267,7 +267,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, phone, otp string, clie
 		}
 
 		// Resolve user identity sub for token issuance.
-		userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, client.ClientID)
+		userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientReachable(user.UserID, client.ClientID)
 		if txErr != nil || userIdentity == nil {
 			return apperror.NewUnauthorized("authentication failed")
 		}

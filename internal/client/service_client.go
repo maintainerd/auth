@@ -11,7 +11,10 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
@@ -23,10 +26,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type ClientSecretServiceDataResult struct {
-	ClientID     string
-	ClientSecret *string // populated only on creation or rotation, never retrieved from DB
-}
+// ClientSecretServiceDataResult existed only as the return type of the removed
+// GetSecretByUUID, which could never populate it. Creation and rotation return
+// their one-time plaintext through ClientCreateServiceResult and RotateSecret's
+// string return instead.
 
 // ClientCreateServiceResult wraps the new client data together with the one-time
 // plaintext secret. The secret is returned exactly once and cannot be retrieved later.
@@ -128,13 +131,19 @@ type ClientService interface {
 	// clientIdentifier is a first-party management client (the seeded
 	// auth-console system client) permitted to call the internal management API.
 	IsManagementClient(ctx context.Context, clientIdentifier string) bool
+	// IsFirstPartyClient reports whether the client is one this deployment owns,
+	// as opposed to a third-party application a tenant registered.
+	IsFirstPartyClient(ctx context.Context, clientIdentifier string) bool
+	// BoundCertThumbprint returns the certificate this client's tokens are bound
+	// to (RFC 8705), or "" when the client is not certificate-bound.
+	BoundCertThumbprint(ctx context.Context, clientIdentifier string) string
 	GetByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
-	// GetSecretByUUID always returns an error — secrets cannot be retrieved after creation.
-	// Use RotateSecret to obtain a new secret.
-	GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
+	// There is deliberately no secret read: secrets are bcrypt hashed at rest and
+	// cannot be recovered. RotateSecret is the only way to obtain one after
+	// creation.
 	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error)
-	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error)
+	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error)
 	// RotateSecret generates a new secret, hashes and persists it, and keeps the old
 	// hash valid for the specified grace period (gracePeriodHours=0 revokes immediately).
 	// Returns the new plaintext secret once — it cannot be retrieved again.
@@ -259,11 +268,103 @@ func (s *clientService) IsManagementClient(_ context.Context, clientIdentifier s
 	return c.IsSystem && c.Name == shared.SystemClientNameAuthConsole
 }
 
+// IsFirstPartyClient reports whether clientIdentifier resolves to a client this
+// deployment owns — a seeded system client (the admin console or the hosted
+// login app).
+//
+// The end-user self-service API (/account, /profiles, /mfa, trusted devices,
+// data erasure, identity linking) is reachable with any valid access token for
+// the subject. Without this, an access token minted for a THIRD-PARTY OAuth
+// client — one the user consented to for, say, `openid profile` — could read
+// and mutate that user's entire account: change their email, rotate their
+// password, enumerate and revoke their sessions, or strip their MFA. Consenting
+// to sign in with an app must never hand it the keys to the account itself.
+//
+// First-party is decided by DOMAIN, not by a flag on the row: a client is
+// first-party when its registered domain shares a registrable domain (eTLD+1)
+// with this deployment's own public hostname.
+//
+// That is not a naming convention, it is the actual security boundary being
+// defended. This guard exists because a browser will attach the auth session
+// cookie to a same-site app; an app on a different registrable domain cannot
+// receive that cookie and has to come through OAuth consent like any other
+// third party. So "can this client be trusted with the account-management
+// surface" and "will the browser hand this client our cookie" are the same
+// question, and answering it from the domain keeps them from ever diverging.
+//
+// It deliberately does NOT read c.IsSystem. A boolean on the row is a second,
+// hand-maintained answer to a question the domain already answers, and the two
+// drift: mark a client on someone else's domain as system and it silently gains
+// the account surface. The seeded console and hosted-login apps are first-party
+// here because they are DEPLOYED on this domain, which is the reason they are
+// trusted — not because a column says so.
+//
+// This is a WEB boundary. Native mobile apps hold no cookies and authenticate
+// with their own tokens, so they are third-party by this rule and reach the
+// account surface through the same consented OAuth path as anyone else.
+//
+// Never derived from anything the caller supplies: the domain is read from the
+// stored client record, and the deployment's own hostname from verified config.
+func (s *clientService) IsFirstPartyClient(_ context.Context, clientIdentifier string) bool {
+	id := strings.TrimSpace(clientIdentifier)
+	if id == "" {
+		return false
+	}
+	c, err := s.clientRepo.FindByIdentifier(id)
+	if err != nil || c == nil {
+		// Fail closed: an unresolvable client is not first-party.
+		return false
+	}
+	if c.Domain == nil {
+		// A client with no registered domain cannot be shown to be same-site.
+		return false
+	}
+	return shared.SameRegistrableDomain(*c.Domain, config.AppPublicHostname)
+}
+
 var (
 	generateClientIdentifier = crypto.GenerateIdentifier
 	hashClientSecret         = security.HashClientSecret
 	encryptClientSecret      = crypto.EncryptAtRest
 )
+
+const (
+	// clientIdentifierLength is the length of a generated OAuth client_id. 12
+	// symbols from crypto.GenerateIdentifier's 62-symbol alphabet is ~71 bits.
+	clientIdentifierLength = 12
+	// clientIdentifierAttempts bounds the collision retry below.
+	clientIdentifierAttempts = 5
+)
+
+// generateUniqueClientIdentifier mints an OAuth client_id that no client — active,
+// inactive or soft-deleted — already holds.
+//
+// Generation was unchecked, and `identifier` is what every token and authorize
+// request resolves a client by, with a global UNIQUE index behind it
+// (uq_clients_identifier). An unchecked collision therefore surfaced as a raw
+// constraint violation (a 500 on client creation) instead of a retry. Soft-deleted
+// rows are included because the index counts only live rows but a resurrected row
+// would collide, and because reusing a retired client_id would silently re-point
+// anything still holding it.
+func generateUniqueClientIdentifier(repo ClientRepository) (string, error) {
+	for attempt := 0; attempt < clientIdentifierAttempts; attempt++ {
+		candidate, err := generateClientIdentifier(clientIdentifierLength)
+		if err != nil {
+			return "", err
+		}
+		taken, err := repo.ExistsByIdentifier(candidate)
+		if err != nil {
+			return "", err
+		}
+		if !taken {
+			return candidate, nil
+		}
+	}
+	// Exhausting the retries points at a broken generator, not bad luck — at ~71
+	// bits the odds of five collisions are not worth writing down. Fail rather
+	// than hand out an identifier that was never checked.
+	return "", apperror.NewInternal("could not allocate a unique client identifier", nil)
+}
 
 type clientService struct {
 	db                         *gorm.DB
@@ -279,8 +380,26 @@ type clientService struct {
 	roleRepo                   RoleRepository
 	userRepo                   UserRepository
 	tenantRepo                 TenantRepository
-	authEventService           authevent.AuthEventService
-	eventService               event.EventService
+	// grantAuthorityRepo backs assertClientGrantWithinActorAuthority. A client's
+	// roles and API permissions become an M2M access token's permissions, so
+	// every grant path has to be able to ask what the actor already holds.
+	grantAuthorityRepo GrantAuthorityRepository
+	authEventService   authevent.AuthEventService
+	eventService       event.EventService
+	// cacheInvalidator clears the middleware's user-context cache. Reachability
+	// is resolved through client_identity_providers, so a connection change is
+	// an authorization change — without this, a disabled connection keeps
+	// authenticating from cache for the full TTL.
+	cacheInvalidator cache.Invalidator
+}
+
+// invalidateUserContexts drops cached user contexts after an authorization
+// change. Entries are keyed by (sub, client), and one connection can cover many
+// subjects, so this clears all of them rather than guessing the affected set.
+func (s *clientService) invalidateUserContexts(ctx context.Context) {
+	if s.cacheInvalidator != nil {
+		s.cacheInvalidator.InvalidateAllUsers(ctx)
+	}
 }
 
 func NewClientService(
@@ -298,6 +417,9 @@ func NewClientService(
 	tenantRepo TenantRepository,
 	authEventService authevent.AuthEventService,
 	eventService event.EventService,
+	// Variadic so the many existing call sites need no change; pass one to make
+	// connection changes take effect immediately rather than after the cache TTL.
+	cacheInvalidator ...cache.Invalidator,
 ) ClientService {
 	return &clientService{
 		db:            db,
@@ -308,17 +430,21 @@ func NewClientService(
 		// the same db rather than injected (which would ripple through every
 		// NewClientService call site for no added value).
 		clientIdentityProviderRepo: NewClientIdentityProviderRepository(db),
-		idpRepo:                    idpRepo,
-		permissionRepo:             permissionRepo,
-		clientPermissionRepo:       clientPermissionRepo,
-		clientAPIRepo:              clientAPIRepo,
-		clientRoleRepo:             clientRoleRepo,
-		roleRepo:                   roleRepo,
-		apiRepo:                    apiRepo,
-		userRepo:                   userRepo,
-		tenantRepo:                 tenantRepo,
-		authEventService:           coalesceAuthEventService(authEventService),
-		eventService:               eventService,
+		// Same reasoning for the grant-authority queries: they exist only to serve
+		// the escalation guard in this file.
+		grantAuthorityRepo:   NewGrantAuthorityRepository(db),
+		idpRepo:              idpRepo,
+		permissionRepo:       permissionRepo,
+		clientPermissionRepo: clientPermissionRepo,
+		clientAPIRepo:        clientAPIRepo,
+		clientRoleRepo:       clientRoleRepo,
+		roleRepo:             roleRepo,
+		apiRepo:              apiRepo,
+		userRepo:             userRepo,
+		tenantRepo:           tenantRepo,
+		cacheInvalidator:     firstCacheInvalidator(cacheInvalidator),
+		authEventService:     coalesceAuthEventService(authEventService),
+		eventService:         eventService,
 	}
 }
 
@@ -407,14 +533,6 @@ func (s *clientService) GetByUUID(ctx context.Context, ClientUUID uuid.UUID, ten
 	return ToClientServiceDataResult(Client), nil
 }
 
-func (s *clientService) GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "client.getSecret")
-	defer span.End()
-	// Secrets are hashed at rest and cannot be retrieved. Callers must rotate.
-	span.SetStatus(codes.Error, "secret retrieval not supported")
-	return nil, apperror.NewValidation("client secret cannot be retrieved after creation; use POST /{client_uuid}/rotate-secret to issue a new one")
-}
-
 func (s *clientService) GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.getConfig")
 	defer span.End()
@@ -453,7 +571,7 @@ func (s *clientService) resolveBrandingID(tx *gorm.DB, tenantID int64, brandingU
 	return &b.BrandingID, nil
 }
 
-func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
+func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.create")
 	defer span.End()
 	span.SetAttributes(
@@ -501,7 +619,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			return apperror.NewConflict(name + " auth client already exists")
 		}
 
-		clientID, err := generateClientIdentifier(12)
+		clientID, err := generateUniqueClientIdentifier(txClientRepo)
 		if err != nil {
 			return err
 		}
@@ -509,7 +627,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		// cannot keep one — it ships in code the user can read — so issuing it
 		// would be a false sense of security, and it would leave the client on the
 		// column default of client_secret_basic instead of "none".
-		var secretHashPtr, secretEncryptedPtr *string
+		var secretHashPtr *string
 		if !IsPublicClientType(clientType) {
 			rawSecret, err := generateClientIdentifier(64)
 			if err != nil {
@@ -519,28 +637,33 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			if err != nil {
 				return err
 			}
-			secretEncrypted, err := encryptClientSecret(rawSecret)
-			if err != nil {
-				return err
-			}
-			secretHashPtr, secretEncryptedPtr = &secretHash, &secretEncrypted
+			secretHashPtr = &secretHash
 			plaintextSecret = rawSecret
 		}
 
-		newClient := &Client{
-			ServiceID:       boundServiceID,
-			Name:            name,
-			DisplayName:     displayName,
-			ClientType:      clientType,
-			Domain:          &domain,
-			Identifier:      &clientID,
-			SecretHash:      secretHashPtr,
-			SecretEncrypted: secretEncryptedPtr,
-			Config:          config,
+		// A brand-new client starts minting tokens with this domain as `iss`
+		// immediately, so the allowlist has to know about it before that happens.
+		registerIssuer(&domain)
 
-			TenantID:          tenantID,
-			Status:            status,
-			IsDefault:         isDefault,
+		newClient := &Client{
+			ServiceID:   boundServiceID,
+			Name:        name,
+			DisplayName: displayName,
+			ClientType:  clientType,
+			Domain:      &domain,
+			Identifier:  &clientID,
+			SecretHash:  secretHashPtr,
+			Config:      config,
+
+			TenantID: tenantID,
+			Status:   status,
+			// is_default is platform-owned, not tenant-admin input: it is set once by
+			// the seeder on the bootstrap client, the table enforces one per tenant
+			// (uq_clients_tenant_default), and Update/SetStatus/Delete all refuse a
+			// default client. Letting a caller set it at create therefore minted a
+			// client that could never be edited, deactivated or deleted again — the
+			// same reason is_system is hard-coded below.
+			IsDefault:         false,
 			IsSystem:          false,
 			AllowRegistration: &allowRegistration,
 			// Passwordless email sign-in is opt-in: a new client starts with it
@@ -574,6 +697,22 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		if IsPublicClientType(newClient.ClientType) && newClient.TokenEndpointAuthMethod == "" {
 			newClient.TokenEndpointAuthMethod = TokenAuthMethodNone
 		}
+
+		// secret_encrypted is reversible (AES under one app-wide key), so it is
+		// recoverable plaintext at rest. Only client_secret_jwt needs it — that
+		// method HMACs the assertion with the secret, so the server must hold the
+		// plaintext (see clientSecretJWTSecrets). client_secret_basic/_post verify
+		// against the bcrypt hash and never read it, so storing it for them was a
+		// credential store with no consumer. It is written after
+		// applyConfigToClientColumns because that is what resolves the auth method.
+		if plaintextSecret != "" && newClient.TokenEndpointAuthMethod == TokenAuthMethodClientSecretJWT {
+			secretEncrypted, err := encryptClientSecret(plaintextSecret)
+			if err != nil {
+				return err
+			}
+			newClient.SecretEncrypted = &secretEncrypted
+		}
+
 		if err := ValidateClientOAuthMatrix(
 			newClient.ClientType,
 			newClient.TokenEndpointAuthMethod,
@@ -714,6 +853,17 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 		attribute.Int("grace_period_hours", gracePeriodHours),
 	)
 
+	// The cap lived only in the HTTP DTO, and the gRPC handler validates nothing —
+	// so a rotation with grace_period_hours = 876000 kept the compromised previous
+	// secret accepted by the token endpoint for a century while the tenant saw a
+	// successful rotation and a client.secret_rotated event and believed the
+	// credential was revoked. Enforcing it here covers every transport.
+	if gracePeriodHours < 0 || gracePeriodHours > maxSecretGracePeriodHours {
+		span.SetStatus(codes.Error, "grace period out of range")
+		return "", apperror.NewValidation(fmt.Sprintf(
+			"grace_period_hours must be between 0 and %d (7 days)", maxSecretGracePeriodHours))
+	}
+
 	var plaintextSecret string
 	var capturedActorID int64
 	var rotatedClientName string
@@ -762,9 +912,18 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 		if err != nil {
 			return err
 		}
-		newEncrypted, err := encryptClientSecret(rawSecret)
-		if err != nil {
-			return err
+		// Only client_secret_jwt needs a reversible copy — it HMACs the assertion
+		// with the secret, so the server must hold the plaintext. Every other method
+		// verifies against the bcrypt hash, so keeping an AES-recoverable copy for
+		// them was a second, weaker credential store with no consumer. Rotating a
+		// client that has moved OFF client_secret_jwt clears the stale copy.
+		var newEncrypted *string
+		if client.TokenEndpointAuthMethod == TokenAuthMethodClientSecretJWT {
+			enc, err := encryptClientSecret(rawSecret)
+			if err != nil {
+				return err
+			}
+			newEncrypted = &enc
 		}
 		plaintextSecret = rawSecret
 
@@ -780,7 +939,7 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 			client.PreviousSecretExpiresAt = nil
 		}
 		client.SecretHash = &newHash
-		client.SecretEncrypted = &newEncrypted
+		client.SecretEncrypted = newEncrypted
 
 		_, err = txClientRepo.CreateOrUpdate(client)
 		if err != nil {
@@ -820,12 +979,47 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 	return plaintextSecret, nil
 }
 
+// assertClientSecretJWTHasKeyMaterial refuses an update that moves a client onto
+// client_secret_jwt when the server holds no reversible copy of its secret.
+//
+// client_secret_jwt verifies the assertion by HMAC-ing it with the secret, so the
+// server needs the plaintext (oauth/authentication.go clientSecretJWTSecrets reads
+// secret_encrypted). That column is written only by Create and RotateSecret — the
+// two moments the server actually holds the plaintext — and only for clients already
+// on this method. A client created as client_secret_basic therefore has it NULL, and
+// before this check the switch succeeded and left a client whose every token request
+// failed "client has no registered secret", with nothing in its config to explain it.
+//
+// Refusing is chosen over minting a secret here: an auto-mint would silently replace
+// a credential the operator's deployed client is still using, and they would learn
+// about it from the outage rather than from the API. The switch is therefore a
+// create-time decision — the error says so rather than pointing at rotate-secret,
+// which cannot help: rotate keys the encrypted copy off the CURRENTLY stored method,
+// so rotating a client_secret_basic client still writes nothing.
+//
+// Switching AWAY from client_secret_jwt deliberately leaves secret_encrypted in
+// place (only a rotation clears it), which is what makes the reverse switch back
+// onto the method safe — hence the check is on the stored copy, not on the previous
+// method alone.
+func assertClientSecretJWTHasKeyMaterial(c *Client, previousAuthMethod string) error {
+	if c.TokenEndpointAuthMethod != TokenAuthMethodClientSecretJWT {
+		return nil
+	}
+	if previousAuthMethod == TokenAuthMethodClientSecretJWT || c.SecretEncrypted != nil {
+		return nil
+	}
+	return apperror.NewValidation(
+		"token_endpoint_auth_method cannot be changed to client_secret_jwt: this client's secret was issued " +
+			"under a method that keeps only a one-way hash, so the server cannot sign or verify its assertions. " +
+			"Create a client with token_endpoint_auth_method=client_secret_jwt instead")
+}
+
 // magicLinkDisabledByDefault backs the AllowMagicLink pointer on newly created
 // clients. A pointer is required so an explicit false is distinguishable from
 // "unset" (see the field comment on the model).
 var magicLinkDisabledByDefault = false
 
-func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
+func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.update")
 	defer span.End()
 	span.SetAttributes(
@@ -893,13 +1087,18 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		Client.DisplayName = displayName
 		Client.ClientType = clientType
 		Client.Domain = &domain
+		registerIssuer(Client.Domain)
 		// A nil config means "unchanged". config JSONB is NOT NULL, so assigning nil
 		// unconditionally would violate the column on any caller that omits it.
 		if config != nil {
 			Client.Config = config
 		}
 		Client.Status = status
-		Client.IsDefault = isDefault
+		// is_default is deliberately NOT assigned here. It is platform-owned (set by
+		// the seeder, one per tenant via uq_clients_tenant_default) and every mutating
+		// path above refuses a client that carries it, so promoting one through this
+		// endpoint would turn an ordinary client into one nobody can edit,
+		// deactivate or delete again.
 		// nil means "unchanged"; an explicit empty string unbinds. The client type
 		// used for the check is the one the update is applying, so a client cannot be
 		// converted away from m2m while keeping a service binding.
@@ -941,7 +1140,12 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 
 		// Mirror OAuth settings from config into the first-class columns the
 		// authorization and token-issuance paths read at runtime.
+		previousAuthMethod := Client.TokenEndpointAuthMethod
 		applyConfigToClientColumns(Client, config)
+
+		if err := assertClientSecretJWTHasKeyMaterial(Client, previousAuthMethod); err != nil {
+			return err
+		}
 
 		if err := ValidateClientOAuthMatrix(
 			Client.ClientType,
@@ -979,6 +1183,7 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.invalidateUserContexts(ctx)
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
@@ -1064,6 +1269,7 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.invalidateUserContexts(ctx)
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
@@ -1167,6 +1373,7 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.invalidateUserContexts(ctx)
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
@@ -1696,6 +1903,7 @@ func (s *clientService) UpdateConnection(ctx context.Context, ClientUUID uuid.UU
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.invalidateUserContexts(ctx)
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
@@ -1782,6 +1990,7 @@ func (s *clientService) RemoveConnection(ctx context.Context, ClientUUID uuid.UU
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.invalidateUserContexts(ctx)
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
@@ -2142,7 +2351,8 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
 
-		if _, err := s.requireActorTenantAccess(tx, actorUserUUID, tenantID); err != nil {
+		actorID, err := s.requireActorTenantAccess(tx, actorUserUUID, tenantID)
+		if err != nil {
 			return err
 		}
 
@@ -2163,7 +2373,11 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 			return apperror.NewNotFoundWithReason("auth client API relationship not found")
 		}
 
-		// Process each permission UUID
+		// Resolve and validate the whole batch BEFORE creating any of it: the
+		// escalation guard has to see every name that is about to be granted, and
+		// a partially applied batch would leave the client holding some of them.
+		resolved := make([]*Permission, 0, len(permissionUUIDs))
+		granting := make([]string, 0, len(permissionUUIDs))
 		for _, permissionUUID := range permissionUUIDs {
 			// Get permission
 			permission, err := permissionRepo.FindByUUID(permissionUUID)
@@ -2191,6 +2405,15 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 				return apperror.NewConflict("permission already assigned to auth client API: " + permissionUUID.String())
 			}
 
+			resolved = append(resolved, permission)
+			granting = append(granting, permission.Name)
+		}
+
+		if err := s.assertClientGrantWithinActorAuthority(tx, actorID, tenantID, granting); err != nil {
+			return err
+		}
+
+		for i, permission := range resolved {
 			// Create new auth client permission relationship
 			ClientPermission := &ClientPermission{
 				ClientPermissionUUID: uuid.New(),
@@ -2198,11 +2421,10 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 				PermissionID:         permission.PermissionID,
 			}
 
-			_, err = txClientPermissionRepo.Create(ClientPermission)
-			if err != nil {
+			if _, err := txClientPermissionRepo.Create(ClientPermission); err != nil {
 				// Check if it's a unique constraint violation
 				if strings.Contains(err.Error(), "uq_client_permissions_client_permission") {
-					return apperror.NewConflict("permission already assigned to auth client API: " + permissionUUID.String())
+					return apperror.NewConflict("permission already assigned to auth client API: " + permissionUUIDs[i].String())
 				}
 				return err
 			}
@@ -2368,6 +2590,50 @@ func ValidateTenantAccess(actor *User, target *Tenant) error {
 	return apperror.NewForbidden("tenant access denied")
 }
 
+// assertClientGrantWithinActorAuthority refuses to grant a client a permission
+// the acting user does not already hold themselves.
+//
+// A client's permissions ARE an access token's permissions: the token service
+// resolves client_roles → role_permissions plus the direct client_permissions
+// rows into the `permissions` claim of every client_credentials token
+// (oauth.service_token clientCredentials path). Without this guard "may I
+// configure a client?" silently meant "may I mint a token holding anything?" —
+// an admin with only client:role:create or client:api:permission:create could
+// attach tenant:delete to a client they control, run one client_credentials
+// exchange, and call the management API with a permission they were never
+// granted. Route guards match on the permission NAME and never ask who attached
+// it.
+//
+// This is the same containment rule iam.assertNoPrivilegeEscalation applies to
+// role→permission grants and the user domain applies to user→role grants: a
+// super-admin is seeded with every administrative permission, so it does not
+// restrict them and needs no special case.
+//
+// Only elevated (management-plane) permissions are gated: account:…:self and
+// public:… confer nothing beyond the holder's own account.
+func (s *clientService) assertClientGrantWithinActorAuthority(tx *gorm.DB, actorUserID, tenantID int64, granting []string) error {
+	if shared.FirstElevatedPermission(granting) == "" {
+		return nil
+	}
+
+	if s.grantAuthorityRepo == nil {
+		// Fail CLOSED: with no way to read the actor's permissions there is no way
+		// to tell an escalation from a legitimate grant.
+		return apperror.NewInternal("could not resolve the acting user's permissions", nil)
+	}
+	held, err := s.grantAuthorityRepo.WithTx(tx).ActorPermissionNames(actorUserID, tenantID)
+	if err != nil {
+		// Fail CLOSED: an unreadable actor permission set must not be read as
+		// "holds everything".
+		return apperror.NewInternal("could not resolve the acting user's permissions", err)
+	}
+	if unheld := shared.FirstUnheldElevatedPermission(granting, held); unheld != "" {
+		return apperror.NewForbidden(fmt.Sprintf(
+			"you cannot grant %q to a client because you do not hold it", unheld))
+	}
+	return nil
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Client role assignment
 // ──────────────────────────────────────────────────────────────────────────────
@@ -2391,6 +2657,20 @@ func (s *clientService) AssignClientRole(ctx context.Context, ClientUUID uuid.UU
 	role, err := s.roleRepo.FindByUUID(roleUUID)
 	if err != nil || role == nil || role.TenantID != tenantID {
 		return nil, apperror.NewNotFoundWithReason("role not found or access denied")
+	}
+
+	// Granting a role grants everything in it, so the role's contents — not the
+	// role itself — are what the actor must already hold.
+	if s.grantAuthorityRepo == nil {
+		return nil, apperror.NewInternal("could not resolve the permissions this role grants", nil)
+	}
+	conferred, err := s.grantAuthorityRepo.RolePermissionNames(role.RoleID)
+	if err != nil {
+		// Fail CLOSED: an unreadable role must not be treated as an empty one.
+		return nil, apperror.NewInternal("could not resolve the permissions this role grants", err)
+	}
+	if err := s.assertClientGrantWithinActorAuthority(nil, actorID, tenantID, conferred); err != nil {
+		return nil, err
 	}
 
 	return s.clientRoleRepo.AssignRole(client.ClientID, role.RoleID, &actorID)
@@ -2426,4 +2706,44 @@ func (s *clientService) ListClientRoles(ctx context.Context, ClientUUID uuid.UUI
 	}
 
 	return s.clientRoleRepo.ListRoles(client.ClientID)
+}
+
+// firstCacheInvalidator unwraps the optional variadic invalidator.
+func firstCacheInvalidator(in []cache.Invalidator) cache.Invalidator {
+	if len(in) > 0 {
+		return in[0]
+	}
+	return nil
+}
+
+// registerIssuer adds a client's domain to the JWT issuer allowlist.
+//
+// The `iss` claim on every issued token is the client's domain, and the JWT
+// validator checks it against an allowlist seeded from the registered clients
+// at startup. Without this, a client created — or re-domained — after boot
+// would immediately mint tokens the validator rejects, until someone restarted
+// the process.
+func registerIssuer(domain *string) {
+	if domain != nil {
+		jwt.AddAcceptedIssuer(*domain)
+	}
+}
+
+// BoundCertThumbprint returns the base64url SHA-256 thumbprint of the
+// certificate this client's tokens are bound to, or "" when it has none.
+//
+// An empty result means "not certificate-bound" and callers treat the token as
+// an ordinary bearer token. It deliberately does NOT distinguish "no binding"
+// from "client not found": an unresolvable client is not bound to anything, and
+// the caller's own authentication already established that the token is valid.
+func (s *clientService) BoundCertThumbprint(_ context.Context, clientIdentifier string) string {
+	id := strings.TrimSpace(clientIdentifier)
+	if id == "" {
+		return ""
+	}
+	c, err := s.clientRepo.FindByIdentifier(id)
+	if err != nil || c == nil || c.MTLSBoundCertThumbprint == nil {
+		return ""
+	}
+	return strings.TrimSpace(*c.MTLSBoundCertThumbprint)
 }

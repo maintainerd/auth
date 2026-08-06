@@ -224,7 +224,6 @@ var (
 
 type mockLoginService struct {
 	loginPublicFn      func(usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error)
-	loginFn            func(usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error)
 	completeMFALoginFn func(challengeToken, method, code string, assertion []byte, clientID, tenantID *string) (*LoginResponseDTO, error)
 	sendMFALoginSMSFn  func(challengeToken string) error
 	beginMFAWebAuthnFn func(challengeToken string) (json.RawMessage, error)
@@ -287,13 +286,6 @@ func (m *mockLoginService) LoginPublic(ctx context.Context, usernameOrEmail, pas
 	return nil, nil
 }
 
-func (m *mockLoginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, tenantID *string) (*LoginResponseDTO, error) {
-	if m.loginFn != nil {
-		return m.loginFn(usernameOrEmail, password, clientID, tenantID)
-	}
-	return nil, nil
-}
-
 func (m *mockLoginService) RefreshToken(ctx context.Context, refreshToken string, sessionID string) (*LoginResponseDTO, error) {
 	if m.refreshTokenFn != nil {
 		return m.refreshTokenFn(refreshToken, sessionID)
@@ -323,9 +315,7 @@ func (m *mockLoginService) ForgetTrustedDevice(ctx context.Context, token string
 
 type mockRegisterService struct {
 	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error)
-	registerFn             func(username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error)
 	registerInvitePublicFn func(username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error)
-	registerInviteFn       func(username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error)
 }
 
 func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error) {
@@ -335,23 +325,9 @@ func (m *mockRegisterService) RegisterPublic(ctx context.Context, username, full
 	return nil, nil
 }
 
-func (m *mockRegisterService) Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowIdentifier string) (*RegisterResponseDTO, error) {
-	if m.registerFn != nil {
-		return m.registerFn(username, fullname, password, email, phone, clientID, tenantID, registrationFlowIdentifier)
-	}
-	return nil, nil
-}
-
 func (m *mockRegisterService) RegisterInvitePublic(ctx context.Context, username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error) {
 	if m.registerInvitePublicFn != nil {
 		return m.registerInvitePublicFn(username, password, clientID, tenantID, inviteToken)
-	}
-	return nil, nil
-}
-
-func (m *mockRegisterService) RegisterInvite(ctx context.Context, username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error) {
-	if m.registerInviteFn != nil {
-		return m.registerInviteFn(username, password, clientID, tenantID, inviteToken)
 	}
 	return nil, nil
 }

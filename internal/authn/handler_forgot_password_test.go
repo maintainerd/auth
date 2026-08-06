@@ -89,51 +89,6 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_Success(t *testing.T) {
 // ForgotPassword (internal)
 // ---------------------------------------------------------------------------
 
-func TestForgotPasswordHandler_ForgotPassword_InvalidBody(t *testing.T) {
-	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := httptest.NewRequest(http.MethodPost, "/forgot-password?tenant_id=system",
-		bytes.NewBufferString(`bad`))
-	r.Header.Set("Content-Type", "application/json")
-	r = withSecurityCtx(r)
-	w := httptest.NewRecorder()
-	h.ForgotPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestForgotPasswordHandler_ForgotPassword_ValidationError(t *testing.T) {
-	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := fpRequest(t, "/forgot-password?tenant_id=system", map[string]string{"email": "bad"})
-	w := httptest.NewRecorder()
-	h.ForgotPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestForgotPasswordHandler_ForgotPassword_ServiceError(t *testing.T) {
-	svc := &mockForgotPasswordService{
-		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
-			return nil, assert.AnError
-		},
-	}
-	h := NewForgotPasswordHandler(svc)
-	r := fpRequest(t, "/forgot-password?tenant_id=system", map[string]string{"email": "user@example.com"})
-	w := httptest.NewRecorder()
-	h.ForgotPassword(w, r)
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestForgotPasswordHandler_ForgotPassword_Success(t *testing.T) {
-	svc := &mockForgotPasswordService{
-		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
-			return &ForgotPasswordResponseDTO{}, nil
-		},
-	}
-	h := NewForgotPasswordHandler(svc)
-	r := fpRequest(t, "/forgot-password?tenant_id=system", map[string]string{"email": "user@example.com"})
-	w := httptest.NewRecorder()
-	h.ForgotPassword(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
 // lockedRateLimiter starts a miniredis instance, pre-sets the lock key for the
 // given identifier, wires it into util.CheckRateLimit, and returns a cleanup
 // function that resets the rate limiter to nil after the test.
@@ -166,30 +121,4 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_RateLimited(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.ForgotPasswordPublic(w, r)
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
-}
-
-func TestForgotPasswordHandler_ForgotPassword_RateLimited(t *testing.T) {
-	email := "ratelimited-internal@example.com"
-	cleanup := lockedRateLimiter(t, email)
-	defer cleanup()
-
-	h := NewForgotPasswordHandler(&mockForgotPasswordService{})
-	r := fpRequest(t, "/forgot-password?tenant_id=system", map[string]string{"email": email})
-	w := httptest.NewRecorder()
-	h.ForgotPassword(w, r)
-	assert.Equal(t, http.StatusTooManyRequests, w.Code)
-}
-
-func TestForgotPasswordHandler_ForgotPassword_RejectsClientContext(t *testing.T) {
-	// Covers the client_id != "" and provider_id != "" optional query-param branches (lines 145-150).
-	svc := &mockForgotPasswordService{
-		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
-			return &ForgotPasswordResponseDTO{}, nil
-		},
-	}
-	h := NewForgotPasswordHandler(svc)
-	r := fpRequest(t, "/forgot-password?client_id=c1", map[string]string{"email": "user@example.com"})
-	w := httptest.NewRecorder()
-	h.ForgotPassword(w, r)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

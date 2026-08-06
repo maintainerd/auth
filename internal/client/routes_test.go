@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClientRoute_ProtectedRoutesRequireAuth(t *testing.T) {
@@ -19,7 +20,6 @@ func TestClientRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 	}{
 		{"GET", "/clients/"},
 		{"GET", "/clients/uuid-1"},
-		{"GET", "/clients/uuid-1/secret"},
 		{"POST", "/clients/uuid-1/rotate-secret"},
 		{"GET", "/clients/uuid-1/config"},
 		{"POST", "/clients/"},
@@ -46,4 +46,29 @@ func TestClientRoute_ProtectedRoutesRequireAuth(t *testing.T) {
 			assert.Equal(t, http.StatusUnauthorized, w.Code)
 		})
 	}
+}
+
+// GET /clients/{uuid}/secret used to be routed behind the client:secret:read
+// permission plus a step-up, and its handler answered 410 Gone unconditionally.
+// TestClientHandler_GetSecretByUUID asserted exactly that 410, which encoded the
+// broken shape as intended behaviour: a permission the seeder grants, a step-up
+// the operator must satisfy, and nothing reachable behind either. Secrets are
+// bcrypt hashed at rest, so no read is possible at all — the route is gone and
+// must stay gone.
+func TestClientRoute_HasNoSecretReadRoute(t *testing.T) {
+	router := chi.NewRouter()
+	ClientRoute(router, NewClientHandler(&mockClientService{}), nil, nil)
+
+	// Walk the registered routes rather than issuing a request: the group's
+	// JWTAuthMiddleware answers 401 before chi's NotFound handler runs, so an
+	// unregistered path is indistinguishable from a registered one by status code
+	// alone.
+	registered := map[string]bool{}
+	require.NoError(t, chi.Walk(router, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		registered[method+" "+route] = true
+		return nil
+	}))
+
+	assert.False(t, registered["GET /clients/{client_uuid}/secret"], "the secret-read route must not come back")
+	assert.True(t, registered["POST /clients/{client_uuid}/rotate-secret"], "rotation is the only secret surface")
 }

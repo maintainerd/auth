@@ -8,11 +8,12 @@ import "maintainerd/auth/v1/tenant.proto";
 
 option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
-service AuthEventService {
-  rpc ListAuthEvents(ListAuthEventsRequest) returns (ListAuthEventsResponse);
-  rpc GetAuthEvent(GetAuthEventRequest) returns (GetAuthEventResponse);
-  rpc CountAuthEventsByType(CountAuthEventsByTypeRequest) returns (CountAuthEventsByTypeResponse);
-}
+// AuthEventService used to be declared here with no handler registered anywhere
+// in the tree, so every RPC it advertised answered UNIMPLEMENTED. A published
+// contract that names RPCs the server never serves cannot be told apart from one
+// that is simply down, so the service block was removed: auth-event browsing is
+// REST control-plane only (see internal/authevent/routes.go). The messages below
+// are kept as the agreed wire shape for the day a handler is written.
 
 message AuthEvent {
   string auth_event_uuid = 1;

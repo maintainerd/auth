@@ -9,17 +9,29 @@ import (
 	"gorm.io/datatypes"
 )
 
-// validTokenEndpointAuthMethods is the set of RFC-defined client authentication
-// methods the token endpoint understands. Anything outside this set is ignored
-// so a malformed config cannot silently weaken client authentication.
+// validTokenEndpointAuthMethods is the set of client authentication methods the
+// token endpoint actually IMPLEMENTS. Anything outside it is ignored, so a
+// malformed config cannot silently weaken client authentication.
+//
+// The two mutual-TLS methods (tls_client_auth, self_signed_tls_client_auth) are
+// deliberately absent even though the column's CHECK constraint still permits
+// them. The token endpoint has no certificate-binding implementation and answers
+// them with "not supported", so accepting them here let an operator configure a
+// client into a state where it authenticates successfully in the console and
+// then cannot obtain a token at all — a misconfiguration only discoverable at
+// the moment the client first tries to work.
+//
+// This is not a gap in sender-constraining. A certificate-bound token is
+// enforced at the point of USE on the control plane (RFC 8705 §3, see
+// enforceGRPCCertBinding), which is where the property matters; the client still
+// authenticates with private_key_jwt, which is stronger than a shared secret and
+// needs no proxy to forward a certificate.
 var validTokenEndpointAuthMethods = map[string]bool{
-	TokenAuthMethodSecretBasic:             true,
-	TokenAuthMethodSecretPost:              true,
-	TokenAuthMethodNone:                    true,
-	TokenAuthMethodPrivateKeyJWT:           true,
-	TokenAuthMethodClientSecretJWT:         true,
-	TokenAuthMethodTLSClientAuth:           true,
-	TokenAuthMethodSelfSignedTLSClientAuth: true,
+	TokenAuthMethodSecretBasic:     true,
+	TokenAuthMethodSecretPost:      true,
+	TokenAuthMethodNone:            true,
+	TokenAuthMethodPrivateKeyJWT:   true,
+	TokenAuthMethodClientSecretJWT: true,
 }
 
 // validRequiredACRs is the set of ACR (authentication context class) values a

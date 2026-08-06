@@ -64,6 +64,8 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, providerID 
 
 func (m *mockOAuthTokenService) SetClientPermissionResolver(ClientPermissionResolver) {}
 
+func (m *mockOAuthTokenService) SetSessionAuthContextResolver(SessionAuthContextResolver) {}
+
 // ---------------------------------------------------------------------------
 // Mock: ClientURIRepository
 // ---------------------------------------------------------------------------
@@ -413,7 +415,7 @@ type mockUserIdentityRepo struct {
 }
 
 func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) UserIdentityRepository { return m }
-func (m *mockUserIdentityRepo) FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByUserIDAndClientReachable(userID, clientID int64) (*UserIdentity, error) {
 	if m.findByUserIDAndClientIDFn != nil {
 		return m.findByUserIDAndClientIDFn(userID, clientID)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
@@ -53,7 +52,13 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 
 	password := cfg.PasswordEncrypted
 	if password != "" {
-		decrypted, decErr := crypto.DecryptString(password, config.AppEncryptionKey)
+		// DecryptAtRest, not DecryptString. notifier.EmailConfigService stores this with
+		// EncryptAtRest, which wraps the ciphertext in a "k1:<key-id>:" envelope
+		// so a rotated key can still decrypt its own rows. DecryptString expects
+		// bare base64, so it choked on the envelope's ':' — every send failed with
+		// "invalid base64: illegal base64 data at input byte 2", and no mail or
+		// SMS could ever go out.
+		decrypted, decErr := crypto.DecryptAtRest(password)
 		if decErr != nil {
 			return nil, fmt.Errorf("email: decrypt password: %w", decErr)
 		}

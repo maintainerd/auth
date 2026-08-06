@@ -41,10 +41,14 @@ type CompleteSetupResponseDTO struct {
 }
 
 type RegisterControlServiceRequestDTO struct {
-	Name        string  `json:"name"`
-	DisplayName string  `json:"display_name"`
-	Description *string `json:"description,omitempty"`
-	Version     string  `json:"version,omitempty"`
+	// AllowedActions is the control policy, supplied by the caller. Empty means
+	// the documented default set (see seeder.DefaultControlActions), which excludes
+	// user:* and account:*:self.
+	AllowedActions []string
+	Name           string  `json:"name"`
+	DisplayName    string  `json:"display_name"`
+	Description    *string `json:"description,omitempty"`
+	Version        string  `json:"version,omitempty"`
 }
 
 type RegisterControlServiceResponseDTO struct {

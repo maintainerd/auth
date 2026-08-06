@@ -22,11 +22,27 @@ func FederationPublicRoute(r chi.Router, h *FederationHandler) {
 		// POST /federation/saml/acs/{id}      — ACS: receive IdP SAMLResponse
 		// POST /federation/saml/exchange      — exchange short-lived code for tokens
 		// GET  /federation/saml/metadata/{id} — SP metadata XML
+		//
+		// SAML 2.0 Single Logout (SLO)
+		// GET|POST /federation/saml/logout    — SP-initiated: end local sessions,
+		//                                       then redirect to the IdP SLO endpoint
+		// GET|POST /federation/saml/slo/{id}  — the SLO endpoint in our SP metadata:
+		//                                       consumes the IdP LogoutResponse and
+		//                                       honours IdP-initiated LogoutRequests
+		//
+		// Both SLO endpoints are unauthenticated by protocol design — the browser
+		// and the IdP are the callers. Their trust decisions come from the
+		// message itself: the id_token_hint on initiate, the IdP's XML signature
+		// on everything inbound.
 		r.Route("/saml", func(r chi.Router) {
 			r.Get("/initiate", h.InitiateSAML)
 			r.Post("/acs/{provider_identifier}", h.SAMLCallback)
 			r.Post("/exchange", h.ExchangeSAMLCode)
 			r.Get("/metadata/{provider_identifier}", h.SAMLMetadata)
+			r.Get("/logout", h.InitiateSAMLLogout)
+			r.Post("/logout", h.InitiateSAMLLogout)
+			r.Get("/slo/{provider_identifier}", h.SAMLSingleLogout)
+			r.Post("/slo/{provider_identifier}", h.SAMLSingleLogout)
 		})
 	})
 }
@@ -50,6 +66,13 @@ func FederationIdentityRoute(
 			Get("/", h.GetIdentities)
 		r.With(middleware.PermissionMiddleware([]string{"account:identity:link:self"})).
 			Post("/link", h.LinkIdentity)
+		// OAuth2 linking: start the provider redirect, then complete it on the
+		// way back. Both are authenticated and act only on the caller's own
+		// account — see handler_federation.go.
+		r.With(middleware.PermissionMiddleware([]string{"account:identity:link:self"})).
+			Post("/link/start", h.StartIdentityLink)
+		r.With(middleware.PermissionMiddleware([]string{"account:identity:link:self"})).
+			Post("/link/callback", h.CompleteIdentityLink)
 		r.With(middleware.PermissionMiddleware([]string{"account:identity:unlink:self"})).
 			Delete("/{identity_uuid}", h.UnlinkIdentity)
 	})
@@ -74,16 +97,23 @@ func IdentityProviderRoute(
 		r.With(middleware.PermissionMiddleware([]string{"idp:read"})).
 			Get("/{identity_provider_uuid}", idpHandler.GetByUUID)
 
-		r.With(middleware.PermissionMiddleware([]string{"idp:create"})).
+		// Every identity-provider mutation is step-up gated, exactly like the
+		// comparable client and role mutations. An IdP row IS an authentication
+		// trust anchor: its issuer, JWKS/certificate, allowed audiences and
+		// allow_jit_provisioning flag decide whose assertions mint users and
+		// sessions here. Re-pointing the issuer of a JIT-enabled provider (or
+		// flipping a dormant one to active) is enough to sign in as anyone, so a
+		// stolen non-elevated session must not be able to do it.
+		r.With(middleware.PermissionMiddleware([]string{"idp:create"}), middleware.RequireStepUp).
 			Post("/", idpHandler.Create)
 
-		r.With(middleware.PermissionMiddleware([]string{"idp:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"idp:update"}), middleware.RequireStepUp).
 			Put("/{identity_provider_uuid}", idpHandler.Update)
 
-		r.With(middleware.PermissionMiddleware([]string{"idp:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"idp:update"}), middleware.RequireStepUp).
 			Put("/{identity_provider_uuid}/status", idpHandler.SetStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"idp:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"idp:delete"}), middleware.RequireStepUp).
 			Delete("/{identity_provider_uuid}", idpHandler.Delete)
 
 		// Test connection — validate an unsaved IdP config before persisting.

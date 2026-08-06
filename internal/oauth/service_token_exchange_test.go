@@ -46,19 +46,15 @@ func expectTokenExchangeClientLookup(mock sqlmock.Sqlmock) {
 		false, time.Now(), time.Now(),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-		"identity_provider_id", "identity_provider_uuid", "tenant_id",
-		"name", "display_name", "provider", "provider_type",
-		"identifier", "config", "status", "is_default", "is_system",
-		"created_at", "updated_at",
-	}).AddRow(
-		100, uuid.New(), 1,
-		"default", "Default Provider", "local", "local",
-		"default-provider", `{}`, "active", true, false,
-		time.Now(), time.Now(),
-	))
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+	// findActiveClientByIdentifier preloads Tenant, and the exchange now binds the
+	// subject token to that tenant (provider_id == tokenRealm(client)), so the
+	// preload has to return a real tenant row.
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockTenantRows())
 }
+
+// testExchangeRealm is tokenRealm() for the client expectTokenExchangeClientLookup
+// mocks: the tenant slug, which every access token carries as provider_id.
+const testExchangeRealm = "Test Tenant"
 
 // ── TestOAuthTokenExchangeService_Exchange ──────────────────────────────────
 
@@ -94,6 +90,8 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 			false, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		// Preload("Tenant"): the exchange binds the subject token to this tenant.
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockTenantRows())
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
 
@@ -113,7 +111,8 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
 
 		_, oerr := svc.Exchange(ctx, OAuthTokenExchangeRequestDTO{
-			SubjectToken: "garbage-token",
+			SubjectToken:     "garbage-token",
+			SubjectTokenType: tokenTypeAccessToken,
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
@@ -146,7 +145,7 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectTokenExchangeClientLookup(mock)
 
-		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 		require.NoError(t, err)
 
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -169,7 +168,7 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectTokenExchangeClientLookup(mock)
 
-		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 		require.NoError(t, err)
 
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -192,7 +191,7 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectTokenExchangeClientLookup(mock)
 
-		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 		require.NoError(t, err)
 
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -224,7 +223,7 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectTokenExchangeClientLookup(mock)
 
-		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 		require.NoError(t, err)
 
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -258,9 +257,11 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 			false, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		// Preload("Tenant"): the exchange binds the subject token to this tenant.
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockTenantRows())
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
 
-		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 		require.NoError(t, err)
 
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -282,7 +283,7 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectTokenExchangeClientLookup(mock)
 
-		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 		require.NoError(t, err)
 
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -355,20 +356,11 @@ func TestOAuthTokenExchangeService_Exchange_ScopeValidation(t *testing.T) {
 			false, pq.StringArray{"openid"}, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-			"identity_provider_id", "identity_provider_uuid", "tenant_id",
-			"name", "display_name", "provider", "provider_type",
-			"identifier", "config", "status", "is_default", "is_system",
-			"created_at", "updated_at",
-		}).AddRow(
-			100, uuid.New(), 1,
-			"default", "Default Provider", "local", "local",
-			"default-provider", `{}`, "active", true, false,
-			time.Now(), time.Now(),
-		))
+		// Preload("Tenant"): the exchange binds the subject token to this tenant.
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockTenantRows())
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
 
-		token, err := jwt.GenerateAccessToken("user-sub", "openid admin", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateAccessToken("user-sub", "openid admin", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 		require.NoError(t, err)
 
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -401,20 +393,11 @@ func TestOAuthTokenExchangeService_Exchange_ScopeValidation(t *testing.T) {
 			false, pq.StringArray{"openid"}, time.Now(), time.Now(),
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-			"identity_provider_id", "identity_provider_uuid", "tenant_id",
-			"name", "display_name", "provider", "provider_type",
-			"identifier", "config", "status", "is_default", "is_system",
-			"created_at", "updated_at",
-		}).AddRow(
-			100, uuid.New(), 1,
-			"default", "Default Provider", "local", "local",
-			"default-provider", `{}`, "active", true, false,
-			time.Now(), time.Now(),
-		))
+		// Preload("Tenant"): the exchange binds the subject token to this tenant.
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockTenantRows())
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
 
-		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 		require.NoError(t, err)
 
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -454,21 +437,12 @@ func TestOAuthTokenExchangeService_Exchange_ACR(t *testing.T) {
 		false, pq.StringArray{"openid", "profile"}, time.Now(), time.Now(),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-		"identity_provider_id", "identity_provider_uuid", "tenant_id",
-		"name", "display_name", "provider", "provider_type",
-		"identifier", "config", "status", "is_default", "is_system",
-		"created_at", "updated_at",
-	}).AddRow(
-		100, uuid.New(), 1,
-		"default", "Default Provider", "local", "local",
-		"default-provider", `{}`, "active", true, false,
-		time.Now(), time.Now(),
-	))
+	// Preload("Tenant"): the exchange binds the subject token to this tenant.
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockTenantRows())
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
 
 	opts := &jwt.AccessTokenOptions{ACR: jwt.ACRLevel1}
-	token, err := jwt.GenerateAccessTokenWithOptionsContext(ctx, "user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider", opts)
+	token, err := jwt.GenerateAccessTokenWithOptionsContext(ctx, "user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", testExchangeRealm, opts)
 	require.NoError(t, err)
 
 	svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
@@ -504,20 +478,11 @@ func TestOAuthTokenExchangeService_Exchange_UnsupportedTokenType(t *testing.T) {
 		false, pq.StringArray{"openid", "profile"}, time.Now(), time.Now(),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-		"identity_provider_id", "identity_provider_uuid", "tenant_id",
-		"name", "display_name", "provider", "provider_type",
-		"identifier", "config", "status", "is_default", "is_system",
-		"created_at", "updated_at",
-	}).AddRow(
-		100, uuid.New(), 1,
-		"default", "Default Provider", "local", "local",
-		"default-provider", `{}`, "active", true, false,
-		time.Now(), time.Now(),
-	))
+	// Preload("Tenant"): the exchange binds the subject token to this tenant.
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockTenantRows())
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
 
-	token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+	token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", testExchangeRealm)
 	require.NoError(t, err)
 
 	svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})

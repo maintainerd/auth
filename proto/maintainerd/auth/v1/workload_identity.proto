@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+// WorkloadIdentityFederationService lets an orchestrator register the trust
+// rules that allow a provisioned workload to authenticate with an identity its
+// PLATFORM issued, instead of a credential the orchestrator had to mint and
+// inject.
+//
+// It exists on gRPC because the REST management surface authenticates users
+// only — its permission middleware requires a resolved user principal — so a
+// machine caller cannot reach it at all. Without this service an orchestrator
+// can create workloads but can never give them keyless identity.
+//
+// A federation is a standing statement that "any token from this issuer whose
+// subject matches this pattern may act as this client", so every RPC here is
+// permission-gated and tenant-scoped, and the subject pattern is refused when
+// it is broad enough to match subjects the operator did not intend.
+service WorkloadIdentityFederationService {
+  rpc ListWorkloadIdentityFederations(ListWorkloadIdentityFederationsRequest) returns (ListWorkloadIdentityFederationsResponse);
+  rpc GetWorkloadIdentityFederation(GetWorkloadIdentityFederationRequest) returns (GetWorkloadIdentityFederationResponse);
+  rpc CreateWorkloadIdentityFederation(CreateWorkloadIdentityFederationRequest) returns (CreateWorkloadIdentityFederationResponse);
+  rpc UpdateWorkloadIdentityFederation(UpdateWorkloadIdentityFederationRequest) returns (UpdateWorkloadIdentityFederationResponse);
+  rpc DeleteWorkloadIdentityFederation(DeleteWorkloadIdentityFederationRequest) returns (DeleteWorkloadIdentityFederationResponse);
+}
+
+message WorkloadIdentityFederation {
+  string workload_identity_federation_uuid = 1;
+  string client_uuid = 2;
+  string name = 3;
+  string description = 4;
+  // issuer_url is the OIDC issuer whose tokens are trusted. https only.
+  string issuer_url = 5;
+  string audience = 6;
+  // subject_claim names the claim carrying the workload's identity, "sub" by
+  // default.
+  string subject_claim = 7;
+  // subject_pattern bounds WHICH subjects from that issuer are accepted. It is
+  // the security control: an unanchored pattern would admit every workload the
+  // issuer serves, not just the operator's.
+  string subject_pattern = 8;
+  repeated string allowed_scopes = 9;
+  map<string, string> attribute_mapping = 10;
+  bool is_active = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+message ListWorkloadIdentityFederationsRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string name = 3;
+  optional bool is_active = 4;
+  Pagination pagination = 5;
+}
+
+message ListWorkloadIdentityFederationsResponse {
+  repeated WorkloadIdentityFederation federations = 1;
+  PageMetadata page = 2;
+}
+
+message GetWorkloadIdentityFederationRequest {
+  string tenant_uuid = 1;
+  string workload_identity_federation_uuid = 2;
+}
+
+message GetWorkloadIdentityFederationResponse {
+  WorkloadIdentityFederation federation = 1;
+}
+
+message CreateWorkloadIdentityFederationRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string name = 3;
+  string description = 4;
+  string issuer_url = 5;
+  string audience = 6;
+  string subject_claim = 7;
+  string subject_pattern = 8;
+  repeated string allowed_scopes = 9;
+  map<string, string> attribute_mapping = 10;
+  optional bool is_active = 11;
+}
+
+message CreateWorkloadIdentityFederationResponse {
+  WorkloadIdentityFederation federation = 1;
+}
+
+message UpdateWorkloadIdentityFederationRequest {
+  string tenant_uuid = 1;
+  string workload_identity_federation_uuid = 2;
+  string name = 3;
+  string description = 4;
+  string issuer_url = 5;
+  string audience = 6;
+  string subject_claim = 7;
+  string subject_pattern = 8;
+  repeated string allowed_scopes = 9;
+  map<string, string> attribute_mapping = 10;
+  optional bool is_active = 11;
+}
+
+message UpdateWorkloadIdentityFederationResponse {
+  WorkloadIdentityFederation federation = 1;
+}
+
+message DeleteWorkloadIdentityFederationRequest {
+  string tenant_uuid = 1;
+  string workload_identity_federation_uuid = 2;
+}
+
+message DeleteWorkloadIdentityFederationResponse {
+  WorkloadIdentityFederation federation = 1;
+}

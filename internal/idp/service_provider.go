@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -129,6 +130,16 @@ type identityProviderService struct {
 	allowedAudienceRepo IdentityProviderAllowedAudienceRepository
 	tenantRepo          TenantRepository
 	userRepo            UserRepository
+	// cacheInvalidator clears cached user contexts. Deactivating or deleting a
+	// provider revokes every identity it issued, so it must take effect on the
+	// next request rather than after the cache TTL.
+	cacheInvalidator cache.Invalidator
+}
+
+func (s *identityProviderService) invalidateUserContexts(ctx context.Context) {
+	if s.cacheInvalidator != nil {
+		s.cacheInvalidator.InvalidateAllUsers(ctx)
+	}
 }
 
 func NewIdentityProviderService(
@@ -138,7 +149,13 @@ func NewIdentityProviderService(
 	allowedAudienceRepo IdentityProviderAllowedAudienceRepository,
 	tenantRepo TenantRepository,
 	userRepo UserRepository,
+	// Variadic so existing call sites need no change.
+	cacheInvalidator ...cache.Invalidator,
 ) IdentityProviderService {
+	var invalidator cache.Invalidator
+	if len(cacheInvalidator) > 0 {
+		invalidator = cacheInvalidator[0]
+	}
 	return &identityProviderService{
 		db:                  db,
 		idpRepo:             idpRepo,
@@ -146,6 +163,7 @@ func NewIdentityProviderService(
 		allowedAudienceRepo: allowedAudienceRepo,
 		tenantRepo:          tenantRepo,
 		userRepo:            userRepo,
+		cacheInvalidator:    invalidator,
 	}
 }
 
@@ -496,6 +514,9 @@ func (s *identityProviderService) Update(ctx context.Context, in IdentityProvide
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Update writes idp.Status, so an admin can deactivate a provider here and
+	// not only through SetStatusByUUID.
+	s.invalidateUserContexts(ctx)
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
@@ -577,6 +598,7 @@ func (s *identityProviderService) SetStatusByUUID(ctx context.Context, idpUUID u
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.invalidateUserContexts(ctx)
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
@@ -638,6 +660,18 @@ func (s *identityProviderService) DeleteByUUID(ctx context.Context, idpUUID uuid
 				return err
 			}
 		}
+		// client_identity_providers rows survive the soft delete for the same
+		// reason. Every reachability query gates on the provider being live, so
+		// they are no longer an access path — but leaving them would show a
+		// deleted provider as still connected in the admin UI, and they would
+		// come back to life if the row were ever restored.
+		if err := tx.Exec(`
+			UPDATE client_identity_providers
+			SET deleted_at = now(), enabled = FALSE
+			WHERE identity_provider_id = ? AND deleted_at IS NULL`,
+			idp.IdentityProviderID).Error; err != nil {
+			return err
+		}
 		return s.idpRepo.WithTx(tx).DeleteByUUID(idpUUID)
 	})
 	if err != nil {
@@ -647,6 +681,7 @@ func (s *identityProviderService) DeleteByUUID(ctx context.Context, idpUUID uuid
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.invalidateUserContexts(ctx)
 	return toIdpServiceDataResult(idp), nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -55,6 +56,17 @@ func fullUserSvcWithMock(
 func defaultMocks() (*mockUserRepo, *mockUserIdentityRepo, *mockUserRoleRepo, *mockRoleRepo, *mockTenantRepo, *mockIdentityProviderRepo, *mockClientRepo) {
 	return &mockUserRepo{}, &mockUserIdentityRepo{}, &mockUserRoleRepo{}, &mockRoleRepo{},
 		&mockTenantRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}
+}
+
+// expectCredentialRevocation pins the three UPDATEs revokeLiveCredentials issues
+// — the canonical session store, the OAuth refresh tokens, and the legacy
+// user_tokens session rows. Ordered expectations inside Begin/Commit are how the
+// tests prove the eviction commits or rolls back WITH the status change, rather
+// than on its own connection.
+func expectCredentialRevocation(mock sqlmock.Sqlmock) {
+	mock.ExpectExec(`UPDATE "user_sessions"`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE "oauth_refresh_tokens"`).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE "user_tokens"`).WillReturnResult(sqlmock.NewResult(0, 1))
 }
 
 // User with tenant access (tenantID=1) and default-tenant identity for ValidateTenantAccess
@@ -751,12 +763,81 @@ func TestUserService_Update(t *testing.T) {
 		}
 		newEmail := "new@t.com"
 		phone := "555"
+		var written map[string]any
+		ur.updateByUUIDFn = func(_ any, data any) (*User, error) {
+			written, _ = data.(map[string]any)
+			return &User{UserUUID: uid, Username: "u"}, nil
+		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
+		// Rewriting the sign-in address is a credential change, so the eviction runs.
+		expectCredentialRevocation(mock)
 		mock.ExpectCommit()
 		res, err := svc.Update(context.Background(), uid, tenantID, "u", &newEmail, &phone, "active", datatypes.JSON([]byte("{}")), updaterUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
+
+		// An admin rewriting the email inherited the OLD address's verification.
+		// That turned user:update into an account-takeover primitive: point the
+		// account at an attacker inbox and the still-set flag let the recovery
+		// flows treat it as proven. The write must clear both halves.
+		require.NotNil(t, written, "the update must be a map, not a struct: GORM drops false/nil from Updates(struct)")
+		assert.Equal(t, false, written["is_email_verified"])
+		assert.Nil(t, written["email_verified_at"])
+		assert.Equal(t, false, written["is_phone_verified"])
+		assert.Nil(t, written["phone_verified_at"])
+	})
+
+	t.Run("an unchanged email leaves the verified flag alone", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		callCount := 0
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			callCount++
+			if callCount == 1 {
+				return &User{UserID: 1, Username: "u", Email: "same@t.com", IsEmailVerified: true, UserIdentities: []UserIdentity{{TenantID: 1, Tenant: &Tenant{TenantID: 1}}}}, nil
+			}
+			if callCount == 2 {
+				return userWithAccess(2, 1), nil
+			}
+			return &User{UserUUID: uid, Username: "u"}, nil
+		}
+		sameEmail := "same@t.com"
+		var written map[string]any
+		ur.updateByUUIDFn = func(_ any, data any) (*User, error) {
+			written, _ = data.(map[string]any)
+			return &User{UserUUID: uid, Username: "u"}, nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		_, err := svc.Update(context.Background(), uid, tenantID, "u", &sameEmail, nil, "active", nil, updaterUUID)
+		require.NoError(t, err)
+		_, cleared := written["is_email_verified"]
+		assert.False(t, cleared, "a no-op email write must not un-verify an address the user really does control")
+	})
+
+	t.Run("deactivating through the general update evicts too", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		callCount := 0
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			callCount++
+			if callCount == 1 {
+				return &User{UserID: 1, Username: "u", Status: shared.StatusActive, UserIdentities: []UserIdentity{{TenantID: 1, Tenant: &Tenant{TenantID: 1}}}}, nil
+			}
+			if callCount == 2 {
+				return userWithAccess(2, 1), nil
+			}
+			return &User{UserUUID: uid, Username: "u"}, nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectBegin()
+		expectCredentialRevocation(mock)
+		mock.ExpectCommit()
+		_, err := svc.Update(context.Background(), uid, tenantID, "u", nil, nil, shared.StatusSuspended, nil, updaterUUID)
+		require.NoError(t, err)
+		// Routing round PATCH /status must not be a way to keep a disabled user
+		// signed in.
+		require.NoError(t, mock.ExpectationsWereMet())
 	})
 }
 
@@ -855,6 +936,7 @@ func TestUserService_SetStatus(t *testing.T) {
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
+		expectCredentialRevocation(mock)
 		mock.ExpectRollback()
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
@@ -876,10 +958,59 @@ func TestUserService_SetStatus(t *testing.T) {
 		}
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
+		// Deactivation used to write the column, emit an event, drop the cache —
+		// and leave every session and refresh token live, so the user stayed
+		// signed in and could refresh indefinitely. It must evict.
+		expectCredentialRevocation(mock)
 		mock.ExpectCommit()
 		res, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("reactivating does not evict", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		callCount := 0
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			callCount++
+			if callCount == 1 {
+				return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1, Tenant: &Tenant{TenantID: 1}}}}, nil
+			}
+			if callCount == 2 {
+				return userWithAccess(2, 1), nil
+			}
+			return &User{UserUUID: uid, Status: shared.StatusActive}, nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		_, err := svc.SetStatus(context.Background(), uid, tenantID, shared.StatusActive, updaterUUID)
+		require.NoError(t, err)
+		// Re-enabling an account is not a reason to sign anyone out.
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("a failed revoke aborts the status change", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		callCount := 0
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			callCount++
+			if callCount == 1 {
+				return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1, Tenant: &Tenant{TenantID: 1}}}}, nil
+			}
+			return userWithAccess(2, 1), nil
+		}
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "user_sessions"`).WillReturnError(errors.New("revoke boom"))
+		mock.ExpectRollback()
+		_, err := svc.SetStatus(context.Background(), uid, tenantID, shared.StatusSuspended, updaterUUID)
+		// Fail CLOSED: reporting a user as suspended while they still hold live
+		// credentials is the exact failure this prevents, so the whole change rolls
+		// back and the operator is told.
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to revoke sessions")
 	})
 }
 
@@ -1243,7 +1374,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -1256,7 +1387,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1270,7 +1401,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role err")
 	})
@@ -1284,7 +1415,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
@@ -1299,7 +1430,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ur find err")
 	})
@@ -1318,7 +1449,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -1338,7 +1469,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1361,7 +1492,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		svcImpl.userTokenRepo = mockTokenRepo
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1376,7 +1507,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ur create err")
 	})
@@ -1398,7 +1529,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, int64(1), uuid.New())
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1677,55 +1808,66 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 		assert.Contains(t, err.Error(), "ident err")
 	})
 
-	t.Run("success with client loaded", func(t *testing.T) {
+	// An identity is reported with the PROVIDER that issued it — never with a
+	// client. Applications are not owners of an identity (migration 030).
+	t.Run("success with identity provider loaded", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		idpUUID := uuid.New()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
-				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: int64Ptr(5), Provider: "default"}},
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), IdentityProviderID: 5, Provider: "default"}},
 				Total: 1,
 			}, nil
 		}
-		cr.findByIDFn = func(_ any, _ ...string) (*Client, error) {
-			return &Client{ClientID: 5, TenantID: tenantID, ClientUUID: uuid.New(), Name: "main"}, nil
+		idp.findByIDFn = func(_ any, _ ...string) (*IdentityProvider, error) {
+			return &IdentityProvider{IdentityProviderID: 5, TenantID: tenantID, IdentityProviderUUID: idpUUID, Name: "Built-in"}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
-		assert.NotNil(t, res[0].Client)
+		require.NotNil(t, res[0].IdentityProviderUUID)
+		assert.Equal(t, idpUUID, *res[0].IdentityProviderUUID)
+		assert.Equal(t, "Built-in", res[0].IdentityProviderName)
 	})
 
-	t.Run("success with client ID zero", func(t *testing.T) {
+	// Cross-tenant leak guard: a provider row belonging to another tenant is
+	// dropped rather than surfaced, even though the identity references it.
+	t.Run("provider from another tenant is not surfaced", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
-				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: nil}},
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), IdentityProviderID: 5}},
 				Total: 1,
 			}, nil
+		}
+		idp.findByIDFn = func(_ any, _ ...string) (*IdentityProvider, error) {
+			return &IdentityProvider{IdentityProviderID: 5, TenantID: tenantID + 1, Name: "Other tenant"}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
-		assert.Nil(t, res[0].Client)
+		assert.Nil(t, res[0].IdentityProviderUUID)
+		assert.Empty(t, res[0].IdentityProviderName)
 	})
 
-	t.Run("FindByID error → client nil", func(t *testing.T) {
+	t.Run("FindByID error → provider nil", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
 		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 			return &PaginationResult[UserIdentity]{
-				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: int64Ptr(5)}},
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), IdentityProviderID: 5}},
 				Total: 1,
 			}, nil
 		}
-		cr.findByIDFn = func(_ any, _ ...string) (*Client, error) { return nil, errors.New("find err") }
+		idp.findByIDFn = func(_ any, _ ...string) (*IdentityProvider, error) { return nil, errors.New("find err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
-		assert.Nil(t, res[0].Client)
+		assert.Nil(t, res[0].IdentityProviderUUID)
 	})
 }
 
@@ -1759,22 +1901,24 @@ func TestToUserServiceDataResult(t *testing.T) {
 		assert.Equal(t, tUUID, res.Tenant.TenantUUID)
 	})
 
-	t.Run("with identities and client", func(t *testing.T) {
-		cUUID := uuid.New()
+	t.Run("with identities and identity provider", func(t *testing.T) {
+		idpUUID := uuid.New()
 		res := toUserServiceDataResult(&User{
 			UserUUID: uuid.New(),
 			UserIdentities: []UserIdentity{{
 				UserIdentityUUID: uuid.New(),
 				Provider:         "google",
-				Client:           &Client{ClientUUID: cUUID},
+				IdentityProvider: &IdentityProvider{IdentityProviderUUID: idpUUID, Name: "Google Workspace"},
 			}},
 		})
 		require.NotNil(t, res.UserIdentities)
 		assert.Len(t, *res.UserIdentities, 1)
-		assert.NotNil(t, (*res.UserIdentities)[0].Client)
+		require.NotNil(t, (*res.UserIdentities)[0].IdentityProviderUUID)
+		assert.Equal(t, idpUUID, *(*res.UserIdentities)[0].IdentityProviderUUID)
+		assert.Equal(t, "Google Workspace", (*res.UserIdentities)[0].IdentityProviderName)
 	})
 
-	t.Run("with identities no client", func(t *testing.T) {
+	t.Run("with identities and no preloaded provider", func(t *testing.T) {
 		res := toUserServiceDataResult(&User{
 			UserUUID: uuid.New(),
 			UserIdentities: []UserIdentity{{
@@ -1783,7 +1927,7 @@ func TestToUserServiceDataResult(t *testing.T) {
 			}},
 		})
 		require.NotNil(t, res.UserIdentities)
-		assert.Nil(t, (*res.UserIdentities)[0].Client)
+		assert.Nil(t, (*res.UserIdentities)[0].IdentityProviderUUID)
 	})
 
 	t.Run("with roles", func(t *testing.T) {
@@ -1868,12 +2012,42 @@ func TestUserService_FindBySubAndClientID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
 		ur.findBySubAndClientIDFn = func(string, string) (*User, error) {
-			return &User{UserUUID: uuid.New()}, nil
+			return &User{UserUUID: uuid.New(), Status: shared.StatusActive}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
 		user, err := svc.FindBySubAndClientID(context.Background(), "sub1", "client1")
 		require.NoError(t, err)
 		assert.NotNil(t, user)
+	})
+
+	// This used to assert that ANY resolved row was returned regardless of
+	// users.status — the fixture above did not even set a status. That was the
+	// bug: nothing on the request path read the column back, so deactivating or
+	// suspending an account left its access token working until expiry and its
+	// refresh token minting replacements forever. The middleware turns nil into
+	// 401, so a disabled user now stops being served on the next request.
+	for _, status := range []string{shared.StatusInactive, shared.StatusSuspended, shared.StatusPending, ""} {
+		t.Run("non-active status resolves to nil: "+status, func(t *testing.T) {
+			ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+			ur.findBySubAndClientIDFn = func(string, string) (*User, error) {
+				return &User{UserUUID: uuid.New(), Status: status}, nil
+			}
+			_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
+			user, err := svc.FindBySubAndClientID(context.Background(), "sub1", "client1")
+			require.NoError(t, err)
+			assert.Nil(t, user)
+		})
+	}
+
+	t.Run("FindByUserID applies the same status gate", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr := defaultMocks()
+		ur.findByIDFn = func(any, ...string) (*User, error) {
+			return &User{UserUUID: uuid.New(), Status: shared.StatusSuspended}, nil
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr)
+		user, err := svc.FindByUserID(context.Background(), 7)
+		require.NoError(t, err)
+		assert.Nil(t, user, "the federated/multi-issuer path must not admit a suspended user either")
 	})
 
 	t.Run("repo error", func(t *testing.T) {

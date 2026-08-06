@@ -8,7 +8,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
-	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -54,7 +53,9 @@ type PermissionService interface {
 	GetByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
 	Create(ctx context.Context, tenantID int64, name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error)
 	Update(ctx context.Context, permissionUUID uuid.UUID, tenantID int64, name string, description string, status string) (*PermissionServiceDataResult, error)
-	SetActiveStatusByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
+	// SetActiveStatusByUUID is gone: zero-caller, and it TOGGLED rather than setting
+	// a status, so a retried call silently reversed itself. Both the REST and gRPC
+	// status routes go through SetStatus, which takes the target status explicitly.
 	SetStatus(ctx context.Context, permissionUUID uuid.UUID, tenantID int64, status string) (*PermissionServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
 }
@@ -357,59 +358,6 @@ func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
 
-func (s *permissionService) SetActiveStatusByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "permission.setActiveStatus")
-	defer span.End()
-	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
-	var updatedPermission *Permission
-
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txPermissionRepo := s.permissionRepo.WithTx(tx)
-
-		// Get permission and validate tenant ownership
-		permission, err := txPermissionRepo.FindByUUIDAndTenantID(permissionUUID, tenantID)
-		if err != nil {
-			return err
-		}
-		if permission == nil {
-			return apperror.NewNotFoundWithReason("permission not found or access denied")
-		}
-
-		if permission.IsSystem {
-			return apperror.NewValidation("system permission cannot be updated")
-		}
-
-		if permission.Status == shared.StatusActive {
-			permission.Status = shared.StatusInactive
-		} else {
-			permission.Status = shared.StatusActive
-		}
-
-		_, err = txPermissionRepo.CreateOrUpdate(permission)
-		if err != nil {
-			return err
-		}
-
-		updatedPermission = permission
-
-		return nil
-	})
-
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "set active status failed")
-		return nil, err
-	}
-
-	if err := s.authzInvalidator.InvalidatePermissionChange(ctx, updatedPermission.PermissionID); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "invalidate permission sessions failed")
-		return nil, apperror.NewInternal("failed to invalidate affected permission sessions", err)
-	}
-	span.SetStatus(codes.Ok, "")
-	return toPermissionServiceDataResult(updatedPermission), nil
-}
-
 func (s *permissionService) SetStatus(ctx context.Context, permissionUUID uuid.UUID, tenantID int64, status string) (*PermissionServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "permission.setStatus")
 	defer span.End()
@@ -427,8 +375,8 @@ func (s *permissionService) SetStatus(ctx context.Context, permissionUUID uuid.U
 		if permission == nil {
 			return apperror.NewNotFoundWithReason("permission not found or access denied")
 		}
-		// Update, SetActiveStatusByUUID and DeleteByUUID all guard this; SetStatus was
-		// the one mutation that did not, so a system permission could be deactivated.
+		// Update and DeleteByUUID both guard this; SetStatus was the one mutation that
+		// did not, so a system permission could be deactivated.
 		if permission.IsSystem {
 			return apperror.NewValidation("system permissions cannot be modified")
 		}

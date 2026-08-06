@@ -157,16 +157,19 @@ type ClientURI struct {
 func (ClientURI) TableName() string { return "client_uris" }
 
 type UserIdentity struct {
-	UserIdentityID   int64          `gorm:"column:user_identity_id;primaryKey"`
-	UserIdentityUUID uuid.UUID      `gorm:"column:user_identity_uuid"`
-	TenantID         int64          `gorm:"column:tenant_id"`
-	UserID           int64          `gorm:"column:user_id"`
-	ClientID         int64          `gorm:"column:client_id"`
-	Provider         string         `gorm:"column:provider"`
-	Sub              string         `gorm:"column:sub"`
-	Metadata         datatypes.JSON `gorm:"column:metadata"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	UserIdentityID   int64     `gorm:"column:user_identity_id;primaryKey"`
+	UserIdentityUUID uuid.UUID `gorm:"column:user_identity_uuid"`
+	TenantID         int64     `gorm:"column:tenant_id"`
+	UserID           int64     `gorm:"column:user_id"`
+	// Identities belong to an identity provider, not a client — see
+	// migration 030. Which clients may use one is resolved through
+	// client_identity_providers.
+	IdentityProviderID int64          `gorm:"column:identity_provider_id"`
+	Provider           string         `gorm:"column:provider"`
+	Sub                string         `gorm:"column:sub"`
+	Metadata           datatypes.JSON `gorm:"column:metadata"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 func (UserIdentity) TableName() string { return "user_identities" }
@@ -251,7 +254,7 @@ type UserRepository interface {
 type UserIdentityRepository interface {
 	BaseRepositoryMethods[UserIdentity]
 	WithTx(tx *gorm.DB) UserIdentityRepository
-	FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error)
+	FindByUserIDAndClientReachable(userID, clientID int64) (*UserIdentity, error)
 }
 
 // ClientPermissionResolver resolves the set of permissions for a system client

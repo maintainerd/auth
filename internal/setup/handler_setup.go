@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
@@ -15,6 +16,25 @@ func NewSetupHandler(setupService SetupService) *SetupHandler {
 	return &SetupHandler{
 		setupService: setupService,
 	}
+}
+
+// refuseWhenOrchestrated closes the unauthenticated REST wizard on an instance
+// an orchestrator provisioned, and reports whether it answered the request.
+//
+// The single-use credential only protects the gRPC surface. On an instance with
+// the control plane on AND a credential issued, these REST endpoints are the same
+// "whoever gets here first creates the system tenant and the first admin" race
+// the credential exists to close — reachable by anything on the network, with no
+// credential to present. Both conditions are required: with the control plane off
+// there is no gRPC listener, so closing REST too would leave an instance holding
+// a credential with no way to bootstrap at all.
+func (h *SetupHandler) refuseWhenOrchestrated(w http.ResponseWriter, r *http.Request) bool {
+	if !bootstrapControlPlaneEnabled() || !bootstrapCredentialConfigured() {
+		return false
+	}
+	resp.HandleServiceError(w, r, "Setup is orchestrator-managed", apperror.NewForbidden(
+		"this instance is provisioned by an orchestrator: bootstrap it through the gRPC SetupService with its bootstrap credential, not the REST setup wizard"))
+	return true
 }
 
 // GetSetupStatus checks the current setup status
@@ -29,6 +49,10 @@ func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
+	if h.refuseWhenOrchestrated(w, r) {
+		return
+	}
+
 	response, err := h.setupService.CompleteSetup(r.Context())
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to complete setup", err)
@@ -39,6 +63,10 @@ func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SetupHandler) RegisterControlService(w http.ResponseWriter, r *http.Request) {
+	if h.refuseWhenOrchestrated(w, r) {
+		return
+	}
+
 	var req RegisterControlServiceRequestDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -62,6 +90,10 @@ func (h *SetupHandler) RegisterControlService(w http.ResponseWriter, r *http.Req
 
 // CreateTenant creates the initial tenant and runs all seeders
 func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
+	if h.refuseWhenOrchestrated(w, r) {
+		return
+	}
+
 	var req CreateTenantRequestDTO
 
 	// Validate body payload
@@ -87,6 +119,10 @@ func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 
 // CreateAdmin creates the initial admin user
 func (h *SetupHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
+	if h.refuseWhenOrchestrated(w, r) {
+		return
+	}
+
 	var req CreateAdminRequestDTO
 
 	// Validate body payload
@@ -111,6 +147,10 @@ func (h *SetupHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SetupHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
+	if h.refuseWhenOrchestrated(w, r) {
+		return
+	}
+
 	var req CreateProfileRequestDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

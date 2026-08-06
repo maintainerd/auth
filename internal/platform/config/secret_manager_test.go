@@ -23,26 +23,21 @@ func TestEnvSecretManager_GetSecret(t *testing.T) {
 		assert.Equal(t, []byte("my-secret"), data)
 	})
 
-	t.Run("decodes base64 prefix", func(t *testing.T) {
-		raw := "hello world"
-		encoded := base64.StdEncoding.EncodeToString([]byte(raw))
+	// base64 decoding is no longer the env provider's job — it is applied
+	// centrally in loadSecret so every provider behaves identically. The env
+	// provider now returns the raw value. See TestNormalizeSecret.
+	t.Run("returns the base64 prefix untouched; decoding happens centrally", func(t *testing.T) {
+		encoded := base64.StdEncoding.EncodeToString([]byte("hello world"))
 		t.Setenv("TEST_SM_B64", "base64:"+encoded)
 		data, err := sm.GetSecret("TEST_SM_B64")
 		require.NoError(t, err)
-		assert.Equal(t, []byte(raw), data)
-	})
-
-	t.Run("error on invalid base64", func(t *testing.T) {
-		t.Setenv("TEST_SM_B64_BAD", "base64:!!!invalid!!!")
-		_, err := sm.GetSecret("TEST_SM_B64_BAD")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to decode base64")
+		assert.Equal(t, "base64:"+encoded, string(data))
 	})
 
 	t.Run("error when not set", func(t *testing.T) {
 		_, err := sm.GetSecret("TEST_SM_NOT_SET")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not set")
+		assert.ErrorIs(t, err, ErrSecretNotFound, "an absent secret must be reported with the sentinel so callers can distinguish it from an outage")
 	})
 }
 
@@ -80,7 +75,7 @@ func TestFileSecretManager_GetSecret(t *testing.T) {
 	t.Run("error when file missing", func(t *testing.T) {
 		_, err := sm.GetSecret("NONEXISTENT_KEY")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to read secret file")
+		assert.ErrorIs(t, err, ErrSecretNotFound, "a missing file is an absent secret; a permission error is not")
 	})
 }
 
@@ -307,15 +302,19 @@ func TestNewSecretManager(t *testing.T) {
 		assert.Equal(t, "/run/secrets", fsm.basePath)
 	})
 
-	t.Run("unknown provider falls back to env", func(t *testing.T) {
+	// Falling back to env on an unrecognised value meant a typo in
+	// SECRET_PROVIDER started the app reading environment variables while the
+	// operator believed it was reading Vault or AWS — and if stale values were
+	// present in the environment it would boot with them rather than fail.
+	t.Run("unknown provider is rejected rather than silently using env", func(t *testing.T) {
 		origProvider := SecretProvider
 		t.Cleanup(func() { SecretProvider = origProvider })
 		SecretProvider = "unknown_provider"
 
 		sm, err := newSecretManager()
-		require.NoError(t, err)
-		_, ok := sm.(*envSecretManager)
-		assert.True(t, ok)
+		require.Error(t, err)
+		assert.Nil(t, sm)
+		assert.Contains(t, err.Error(), "unknown SECRET_PROVIDER")
 	})
 
 	t.Run("gcp without project ID returns error", func(t *testing.T) {

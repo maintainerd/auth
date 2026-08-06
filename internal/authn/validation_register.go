@@ -26,6 +26,7 @@ func (r *RegisterRequestDTO) Validate() error {
 		validation.Field(&r.Username,
 			validation.Required.Error("Username is required"),
 			validation.Length(1, 255).Error("Username must not exceed 255 characters"),
+			validation.By(validateUsernameCharset),
 		),
 		validation.Field(&r.Fullname,
 			validation.Length(0, 255).Error("Fullname must not exceed 255 characters"),
@@ -81,6 +82,36 @@ func (r *RegisterRequestDTO) ValidateForRegistration() error {
 	return nil
 }
 
+// validateUsernameCharset rejects a username that could be mistaken for an email
+// address at login time.
+//
+// findLoginUser resolves the USERNAME column first and only falls back to email,
+// and the two columns have separate uniqueness indexes. Without this rule Mallory
+// could register (or rename to) the username "alice@corp.com": nothing collides,
+// but Alice's own email login then resolves to Mallory's row and Alice is locked
+// out of her account permanently. The allowlist — letters, digits, dot,
+// underscore, hyphen — excludes '@' by construction rather than banning one
+// character an encoding trick could smuggle past.
+//
+// The user package keeps its own copy for ChangeUsernameDTO; internal/authn and
+// internal/user are siblings, so neither imports the other. Both must agree —
+// a rule enforced only at registration is trivially bypassed by a rename.
+func validateUsernameCharset(value any) error {
+	s, _ := value.(string)
+	if s == "" {
+		return nil // Required handles emptiness; no double error.
+	}
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		case r == '.' || r == '_' || r == '-':
+		default:
+			return errors.New("username may only contain letters, digits, and . _ -")
+		}
+	}
+	return nil
+}
+
 func (q *RegisterQueryDTO) Validate() error {
 	// Sanitize inputs first
 	q.ClientID = security.SanitizeInput(q.ClientID)
@@ -126,36 +157,6 @@ func (q *RegisterInviteQueryDTO) Validate() error {
 		validation.Field(&q.Sig,
 			validation.Required.Error("Signature is required"),
 			validation.Length(1, 500).Error("Signature must not exceed 500 characters"),
-		),
-	)
-}
-
-// ValidateInternal validates the query DTO for internal use (client_id/tenant_id optional).
-func (q *RegisterInviteQueryDTO) ValidateInternal() error {
-	q.InviteToken = security.SanitizeInput(q.InviteToken)
-	q.Expires = security.SanitizeInput(q.Expires)
-	q.Sig = security.SanitizeInput(q.Sig)
-	q.ClientID = security.SanitizeInput(q.ClientID)
-	q.TenantID = security.SanitizeInput(q.TenantID)
-
-	return validation.ValidateStruct(q,
-		validation.Field(&q.InviteToken,
-			validation.Required.Error("Invite token is required"),
-			validation.Length(1, 500).Error("Invite token must not exceed 500 characters"),
-		),
-		validation.Field(&q.Expires,
-			validation.Required.Error("Expires parameter is required"),
-			validation.Length(1, 50).Error("Expires parameter must not exceed 50 characters"),
-		),
-		validation.Field(&q.Sig,
-			validation.Required.Error("Signature is required"),
-			validation.Length(1, 500).Error("Signature must not exceed 500 characters"),
-		),
-		validation.Field(&q.ClientID,
-			validation.Length(0, 255).Error("Client ID must not exceed 255 characters"),
-		),
-		validation.Field(&q.TenantID,
-			validation.Length(0, 255).Error("Tenant ID must not exceed 255 characters"),
 		),
 	)
 }

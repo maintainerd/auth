@@ -52,6 +52,8 @@ func (h *OAuthTokenHandler) Token(w http.ResponseWriter, r *http.Request) {
 		CodeVerifier:        r.PostFormValue("code_verifier"),
 		RefreshToken:        r.PostFormValue("refresh_token"),
 		Scope:               r.PostFormValue("scope"),
+		Audience:            r.PostFormValue("audience"),
+		Resource:            r.PostFormValue("resource"),
 		ClientID:            r.PostFormValue("client_id"),
 		ClientSecret:        r.PostFormValue("client_secret"),
 		ClientAssertionType: r.PostFormValue("client_assertion_type"),

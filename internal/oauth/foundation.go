@@ -62,6 +62,16 @@ const (
 	ResponseTypeCode = "code"
 )
 
+// Subject-type labels (the `sub_type` claim) for grants that produce a user
+// token with no browser session behind it. Session validation uses them to tell
+// "legitimately sessionless" apart from "unbound, and therefore unrevokable" —
+// see middleware.sessionlessSubjectTypes.
+const (
+	subjectTypeDevice   = "device"   // RFC 8628 device authorization grant
+	subjectTypeCIBA     = "ciba"     // OIDC CIBA
+	subjectTypeExchange = "exchange" // RFC 8693 token exchange
+)
+
 // ---------------------------------------------------------------------------
 // Client credentials
 // ---------------------------------------------------------------------------
@@ -100,15 +110,62 @@ func clientSecretMatches(client *Client, plaintext string) bool {
 	return security.CompareClientSecret(plaintext, *client.PreviousSecretHash)
 }
 
+// baselineScopes are the scopes this server implements itself and grants to any
+// client without the operator having to enumerate them: the OIDC Core §5.4
+// standard scopes plus RFC 6749 §1.5 offline_access. They confer only the
+// caller's own profile data and a refresh token — never authority over anything
+// else — which is what makes them safe as the floor.
+//
+// Everything outside this set is an API scope defined by the deployment, and an
+// API scope must be granted explicitly.
+var baselineScopes = map[string]struct{}{
+	"openid":         {},
+	"profile":        {},
+	"email":          {},
+	"phone":          {},
+	"address":        {},
+	"offline_access": {},
+}
+
+// validateClientAllowedScopes enforces RFC 6749 §3.3: the authorization server
+// decides which scopes a client may receive, and a scope outside that set is
+// invalid_scope.
+//
+// An EMPTY allowlist used to short-circuit to "allowed", i.e. it meant "every
+// scope". The column defaults to '{}', so every client shipped that way —
+// including consent-free seeded system clients — would mint a token asserting
+// whatever the caller typed. Requesting "openid admin:write tenants:delete"
+// against a seeded public SPA client returned a signed token carrying those
+// scopes with no consent screen and no client secret. Nothing else in the
+// codebase asserted that a requested scope even existed.
+//
+// An empty allowlist now means "the baseline OIDC scopes only", never "all", and
+// a scope that is neither baseline nor explicitly allowlisted is rejected
+// whether or not the client has an allowlist — that is the "is this a known
+// scope" check that was missing everywhere.
 func validateClientAllowedScopes(client *Client, scope string) *apperror.OAuthError {
-	if client == nil || len(client.AllowedScopes) == 0 || strings.TrimSpace(scope) == "" {
+	requested := parseScopeFields(scope)
+	if len(requested) == 0 {
 		return nil
 	}
+	if client == nil {
+		return apperror.NewOAuthInvalidScope("requested scope is not allowed for this client")
+	}
 
+	// An explicit allowlist is authoritative — an operator who narrowed a client
+	// to "openid email" meant to exclude the rest, baseline or not. Only an
+	// EMPTY allowlist falls back to the baseline, and that fallback is the whole
+	// point: it is a floor, never a blanket grant.
 	allowed := scopeSet(client.AllowedScopes)
-	for _, requested := range parseScopeFields(scope) {
-		if _, ok := allowed[requested]; !ok {
-			return apperror.NewOAuthInvalidScope("requested scope is not allowed for this client")
+	if len(allowed) == 0 {
+		allowed = baselineScopes
+	}
+	for _, r := range requested {
+		if _, ok := allowed[r]; !ok {
+			// Naming the offending scope is explicitly sanctioned by RFC 6749 §5.2
+			// (error_description) and leaks nothing: the caller already knows what
+			// it asked for.
+			return apperror.NewOAuthInvalidScope("requested scope is not allowed for this client: " + r)
 		}
 	}
 	return nil

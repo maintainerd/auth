@@ -69,6 +69,11 @@ type Role struct {
 	Tenant          *Tenant          `gorm:"foreignKey:TenantID;references:TenantID"`
 	RolePermissions []RolePermission `gorm:"foreignKey:RoleID;references:RoleID"`
 	Permissions     []Permission     `gorm:"many2many:role_permissions;joinForeignKey:RoleID;joinReferences:PermissionID"`
+	// DeletedAt is REQUIRED on this projection, not decorative: GORM applies
+	// the soft-delete scope only when the scanned struct declares it. Without
+	// it, preloading this table returned rows that had been deleted — so
+	// revoking a role or permission granted it forever.
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 type Permission struct {
@@ -81,6 +86,11 @@ type Permission struct {
 	IsSystem       bool      `gorm:"column:is_system"`
 	CreatedAt      time.Time `gorm:"column:created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at"`
+	// DeletedAt is REQUIRED on this projection, not decorative: GORM applies
+	// the soft-delete scope only when the scanned struct declares it. Without
+	// it, preloading this table returned rows that had been deleted — so
+	// revoking a role or permission granted it forever.
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (Permission) TableName() string { return "permissions" }
@@ -189,6 +199,10 @@ type TenantRepository interface {
 	BaseRepositoryMethods[Tenant]
 	WithTx(tx *gorm.DB) TenantRepository
 	FindByUUID(uuid any, preloads ...string) (*Tenant, error)
+	// FindSystem resolves the system tenant. Membership candidates are drawn
+	// from it, and it is resolved server-side so a caller cannot aim the lookup
+	// at an arbitrary tenant.
+	FindSystem() (*Tenant, error)
 }
 
 type RoleRepository interface {
@@ -208,11 +222,16 @@ type ClientRepository interface {
 	FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*Client, error)
 	FindDefaultByTenantID(tenantID int64) (*Client, error)
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*Client, error)
+	// FindByIdentifier resolves a client by its OAuth client_id. The auth
+	// middleware needs it because the client is now a property of the REQUEST,
+	// not of the identity.
+	FindByIdentifier(identifier string) (*Client, error)
 }
 
 type IdentityProviderRepository interface {
 	BaseRepositoryMethods[IdentityProvider]
 	WithTx(tx *gorm.DB) IdentityProviderRepository
+	FindByID(id any, preloads ...string) (*IdentityProvider, error)
 	FindByIdentifier(identifier string) (*IdentityProvider, error)
 	FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error)
 }
@@ -221,8 +240,11 @@ type UserMFABackupCodeRepository interface {
 	BaseRepositoryMethods[UserMFABackupCode]
 	WithTx(tx *gorm.DB) UserMFABackupCodeRepository
 	CreateBulk(codes []*UserMFABackupCode) error
+	// No FindByUserIDAndCodeHash here: backup codes are stored as bcrypt hashes,
+	// which are salted, so a lookup keyed on a deterministic hash of the
+	// submitted code can never match a row. Verification must load the unused
+	// codes and bcrypt-compare each one (see accountService.VerifyBackupCode).
 	FindUnusedByUserID(userID int64) ([]UserMFABackupCode, error)
-	FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserMFABackupCode, error)
 	MarkUsed(id int64) error
 	DeleteAllByUserID(userID int64) error
 }

@@ -124,22 +124,54 @@ func TestUserIdentityRepository_FindUserIdentitiesPaginated(t *testing.T) {
 	})
 }
 
-func TestUserIdentityRepository_FindByUserIDAndClientID(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
+func TestUserIdentityRepository_FindByUserIDAndClientReachable(t *testing.T) {
+	// Reachability is an ENABLED client_identity_providers connection — there is
+	// no client_id on user_identities to compare against (migration 030). The
+	// assertions below pin that join so a regression back to a direct client
+	// match, which would keep authenticating a user through a disabled provider
+	// connection, fails the build.
+	t.Run("joins through enabled client_identity_providers", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserIdentityRepository(db)
 
-		rows := sqlmock.NewRows([]string{"user_identity_id", "user_identity_uuid", "user_id", "client_id"}).
-			AddRow(1, testResourceUUID, 42, 5)
-		mock.ExpectQuery(`SELECT \* FROM "user_identities" WHERE user_id = \$1 AND client_id = \$2 ORDER BY "user_identities"\."user_identity_id" LIMIT \$3`).
-			WithArgs(int64(42), int64(5), 1).
+		rows := sqlmock.NewRows([]string{"user_identity_id", "user_identity_uuid", "user_id", "identity_provider_id"}).
+			AddRow(1, testResourceUUID, 42, 8)
+		mock.ExpectQuery(`JOIN client_identity_providers cip ON cip\.identity_provider_id = user_identities\.identity_provider_id`).
+			WithArgs("active", int64(42), int64(5), 1).
 			WillReturnRows(rows)
 
-		result, err := repo.FindByUserIDAndClientID(42, 5)
+		result, err := repo.FindByUserIDAndClientReachable(42, 5)
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		require.NotNil(t, result.ClientID)
-		assert.Equal(t, int64(5), *result.ClientID)
+		assert.Equal(t, int64(8), result.IdentityProviderID)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("requires the provider itself to be live and active", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		repo := NewUserIdentityRepository(db)
+
+		mock.ExpectQuery(`idp\.deleted_at IS NULL[\s\S]*idp\.status = \$1`).
+			WithArgs("active", int64(42), int64(5), 1).
+			WillReturnRows(sqlmock.NewRows([]string{"user_identity_id"}))
+
+		result, err := repo.FindByUserIDAndClientReachable(42, 5)
+		require.NoError(t, err)
+		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("requires the connection to be enabled and not soft-deleted", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		repo := NewUserIdentityRepository(db)
+
+		mock.ExpectQuery(`cip\.enabled = TRUE AND cip\.deleted_at IS NULL`).
+			WithArgs("active", int64(42), int64(5), 1).
+			WillReturnRows(sqlmock.NewRows([]string{"user_identity_id"}))
+
+		result, err := repo.FindByUserIDAndClientReachable(42, 5)
+		require.NoError(t, err)
+		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -147,10 +179,10 @@ func TestUserIdentityRepository_FindByUserIDAndClientID(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserIdentityRepository(db)
 
-		mock.ExpectQuery(`SELECT \* FROM "user_identities" WHERE`).
-			WillReturnRows(sqlmock.NewRows([]string{"user_identity_id", "user_identity_uuid", "user_id", "client_id"}))
+		mock.ExpectQuery(`SELECT .* FROM "user_identities"`).
+			WillReturnRows(sqlmock.NewRows([]string{"user_identity_id", "user_identity_uuid", "user_id"}))
 
-		result, err := repo.FindByUserIDAndClientID(99, 5)
+		result, err := repo.FindByUserIDAndClientReachable(99, 5)
 		require.NoError(t, err)
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -160,10 +192,10 @@ func TestUserIdentityRepository_FindByUserIDAndClientID(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		repo := NewUserIdentityRepository(db)
 
-		mock.ExpectQuery(`SELECT \* FROM "user_identities" WHERE`).
+		mock.ExpectQuery(`SELECT .* FROM "user_identities"`).
 			WillReturnError(errors.New("db error"))
 
-		_, err := repo.FindByUserIDAndClientID(42, 5)
+		_, err := repo.FindByUserIDAndClientReachable(42, 5)
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})

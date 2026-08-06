@@ -566,6 +566,36 @@ func TestAPIService_Update(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	// Reassigning an API moved only the FK; api.Service still held the association
+	// preloaded before the change, and the handler serialises it — so a successful
+	// reassignment answered 200 describing the OLD service.
+	t.Run("reassignment returns the new service, not the preloaded one", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		oldService := &Service{ServiceID: 5, ServiceUUID: uuid.New(), TenantID: tenantID, Name: "old-service"}
+		newService := &Service{ServiceID: 9, ServiceUUID: uuid.New(), TenantID: tenantID, Name: "new-service"}
+		api := newAPI(1, "old", tenantID)
+		api.ServiceID = oldService.ServiceID
+		api.Service = oldService
+		apiRepo := &mockAPIRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return api, nil },
+		}
+		svcRepo := &mockServiceRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return newService, nil },
+		}
+		svc := NewAPIService(db, apiRepo, svcRepo)
+
+		result, err := svc.Update(context.Background(), apiUUID, tenantID, "old", "New Display", "desc", "active", newService.ServiceUUID.String())
+
+		require.NoError(t, err)
+		assert.Equal(t, newService.ServiceID, api.ServiceID)
+		require.NotNil(t, result.Service)
+		assert.Equal(t, newService.ServiceUUID, result.Service.ServiceUUID)
+		assert.Equal(t, "new-service", result.Service.Name)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("service repo authevent.FindByUUID error → service not found", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()

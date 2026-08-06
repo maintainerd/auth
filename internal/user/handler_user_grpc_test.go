@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -46,6 +48,11 @@ type testUserService struct {
 	grantRoleByNameFn     func(ctx context.Context, userUUID uuid.UUID, tenantID int64, roleName string) error
 }
 
+// ListMembershipCandidates is exercised via the HTTP handler test, not here.
+func (m *testUserService) ListMembershipCandidates(context.Context, *string, int, int) ([]MembershipCandidateDTO, int64, error) {
+	return nil, 0, nil
+}
+
 func (m *testUserService) Get(ctx context.Context, filter UserServiceGetFilter) (*UserServiceGetResult, error) {
 	return m.getFn(ctx, filter)
 }
@@ -76,7 +83,7 @@ func (m *testUserService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, 
 func (m *testUserService) AnonymizeUser(_ context.Context, _ int64) error {
 	return nil
 }
-func (m *testUserService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+func (m *testUserService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	return m.assignUserRolesFn(ctx, userUUID, roleUUIDs, tenantID)
 }
 func (m *testUserService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
@@ -100,11 +107,20 @@ func (m *testUserService) RevokeAllUserSessions(_ context.Context, _ uuid.UUID, 
 func (m *testUserService) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error) {
 	return nil, nil
 }
+func (m *testUserService) FindClientByIdentifier(ctx context.Context, identifier string) (*Client, error) {
+	return nil, nil
+}
 func (m *testUserService) FindByUserID(ctx context.Context, userID int64) (*User, error) {
 	return nil, nil
 }
 func (m *testUserService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, tenantID int64, force bool) error {
 	return m.forcePasswordChangeFn(ctx, userUUID, force)
+}
+func (m *testUserService) SetPassword(_ context.Context, _ uuid.UUID, _ int64, _ string, _ bool, _ uuid.UUID) error {
+	return nil
+}
+func (m *testUserService) AdminLinkIdentity(_ context.Context, _ uuid.UUID, _ int64, _ uuid.UUID, sub string, _ uuid.UUID) (*UserIdentityServiceDataResult, error) {
+	return &UserIdentityServiceDataResult{Sub: sub}, nil
 }
 func (m *testUserService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error) {
 	if m.getUserMFAFn != nil {
@@ -125,7 +141,11 @@ func (m *testUserService) GrantRoleByName(ctx context.Context, userUUID uuid.UUI
 }
 
 func TestUserGRPCHandler_RPCS(t *testing.T) {
-	ctx := context.Background()
+	// Role assignment reads the acting principal from the token-derived auth
+	// context, so the test context has to carry one.
+	ctx := middleware.WithAuthContextValue(context.Background(), &authctx.AuthContext{
+		User: &authctx.AuthUser{UserID: 1, UserUUID: uuid.New()},
+	})
 	tenantUUID := uuid.New()
 	userUUID := uuid.New()
 	roleUUID := uuid.New()
@@ -646,7 +666,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}
 	})
 
-	t.Run("create invalid actor UUID", func(t *testing.T) {
+	t.Run("create ignores a body-supplied actor_user_uuid", func(t *testing.T) {
 		svc := &testUserService{
 			createFn: func(ctx context.Context, username string, email, phone *string, password, rStatus string, metadata datatypes.JSON, tUUID string, cu uuid.UUID) (*UserServiceDataResult, error) {
 				return &userResult, nil
@@ -654,8 +674,10 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewUserGRPCHandler(resolver, svc)
 		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantUuid: tenantUUID.String(), Username: "test", Password: "pass", ActorUserUuid: "bad"})
-		if code := status.Code(err); code != codes.InvalidArgument {
-			t.Errorf("expected InvalidArgument, got %v", code)
+		// INVERTED: the body field is no longer read, so garbage in it changes
+		// nothing — the actor comes from the verified token.
+		if err != nil {
+			t.Errorf("a malformed body actor must not affect the call: %v", err)
 		}
 	})
 
@@ -670,7 +692,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}
 	})
 
-	t.Run("update invalid actor UUID", func(t *testing.T) {
+	t.Run("update ignores a body-supplied actor_user_uuid", func(t *testing.T) {
 		svc := &testUserService{
 			updateFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, email, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 				return &userResult, nil
@@ -678,8 +700,10 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewUserGRPCHandler(resolver, svc)
 		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), ActorUserUuid: "bad"})
-		if code := status.Code(err); code != codes.InvalidArgument {
-			t.Errorf("expected InvalidArgument, got %v", code)
+		// INVERTED: the body field is no longer read, so garbage in it changes
+		// nothing — the actor comes from the verified token.
+		if err != nil {
+			t.Errorf("a malformed body actor must not affect the call: %v", err)
 		}
 	})
 
@@ -694,7 +718,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}
 	})
 
-	t.Run("setStatus invalid actor UUID", func(t *testing.T) {
+	t.Run("setStatus ignores a body-supplied actor_user_uuid", func(t *testing.T) {
 		svc := &testUserService{
 			setStatusFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, rStatus string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 				return &userResult, nil
@@ -702,8 +726,10 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewUserGRPCHandler(resolver, svc)
 		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Status: "inactive", ActorUserUuid: "bad"})
-		if code := status.Code(err); code != codes.InvalidArgument {
-			t.Errorf("expected InvalidArgument, got %v", code)
+		// INVERTED: the body field is no longer read, so garbage in it changes
+		// nothing — the actor comes from the verified token.
+		if err != nil {
+			t.Errorf("a malformed body actor must not affect the call: %v", err)
 		}
 	})
 
@@ -751,7 +777,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}
 	})
 
-	t.Run("delete invalid actor UUID", func(t *testing.T) {
+	t.Run("delete ignores a body-supplied actor_user_uuid", func(t *testing.T) {
 		svc := &testUserService{
 			deleteByUUIDFn: func(ctx context.Context, userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 				return &userResult, nil
@@ -759,8 +785,10 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewUserGRPCHandler(resolver, svc)
 		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), ActorUserUuid: "bad"})
-		if code := status.Code(err); code != codes.InvalidArgument {
-			t.Errorf("expected InvalidArgument, got %v", code)
+		// INVERTED: the body field is no longer read, so garbage in it changes
+		// nothing — the actor comes from the verified token.
+		if err != nil {
+			t.Errorf("a malformed body actor must not affect the call: %v", err)
 		}
 	})
 

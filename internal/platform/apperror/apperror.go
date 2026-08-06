@@ -4,12 +4,13 @@
 // below. The REST handler layer uses [resp.HandleServiceError] to translate
 // these into the correct HTTP status codes automatically:
 //
-//	NotFoundError     → 404
-//	ConflictError     → 409
-//	ForbiddenError    → 403
-//	UnauthorizedError → 401
-//	ValidationError   → 400
-//	InternalError     → 500 (logged server-side; generic message sent to client)
+//	NotFoundError         → 404
+//	ConflictError         → 409
+//	ForbiddenError        → 403
+//	UnauthorizedError     → 401
+//	ValidationError       → 400
+//	TooManyRequestsError  → 429 (+ Retry-After when the error carries one)
+//	InternalError         → 500 (logged server-side; generic message sent to client)
 //
 // Usage in a service:
 //
@@ -25,7 +26,10 @@
 //	}
 package apperror
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // ---------------------------------------------------------------------------
 // NotFoundError
@@ -110,6 +114,36 @@ func (e *ValidationError) Error() string {
 }
 
 // ---------------------------------------------------------------------------
+// TooManyRequestsError
+// ---------------------------------------------------------------------------
+
+// TooManyRequestsError indicates the caller exceeded a rate limit, throttle or
+// quota and should back off.
+//
+// It is deliberately distinct from [ForbiddenError]: 403 tells a client the
+// request will never succeed, so well-behaved HTTP clients and SDK retry
+// policies stop. A throttled request WILL succeed later, and only 429
+// (RFC 6585 §4) communicates that — returning 403 from a rate limiter both
+// mislabels the failure and defeats client-side retry.
+//
+// When Reason is empty the default message "too many requests" is used.
+type TooManyRequestsError struct {
+	Reason string
+	// RetryAfter, when > 0, is how long the caller should wait before retrying.
+	// The REST layer emits it as the Retry-After header (RFC 9110 §10.2.3) and
+	// the gRPC layer as an errdetails.RetryInfo. Zero means "unspecified" —
+	// omit the hint rather than guess one.
+	RetryAfter time.Duration
+}
+
+func (e *TooManyRequestsError) Error() string {
+	if e.Reason != "" {
+		return e.Reason
+	}
+	return "too many requests"
+}
+
+// ---------------------------------------------------------------------------
 // InternalError
 // ---------------------------------------------------------------------------
 
@@ -182,10 +216,61 @@ func NewValidation(reason string) *ValidationError {
 	return &ValidationError{Reason: reason}
 }
 
+// NewTooManyRequests creates a [TooManyRequestsError] with the given reason and
+// no retry hint. Pass an empty string to use the default "too many requests".
+//
+//	apperror.NewTooManyRequests("too many verification attempts")
+func NewTooManyRequests(reason string) *TooManyRequestsError {
+	return &TooManyRequestsError{Reason: reason}
+}
+
+// NewTooManyRequestsAfter creates a [TooManyRequestsError] that also tells the
+// caller when to retry. Use it wherever the limiter already knows the window,
+// so the client backs off for exactly that long instead of guessing.
+//
+//	apperror.NewTooManyRequestsAfter("too many login attempts", 15*time.Minute)
+func NewTooManyRequestsAfter(reason string, retryAfter time.Duration) *TooManyRequestsError {
+	return &TooManyRequestsError{Reason: reason, RetryAfter: retryAfter}
+}
+
 // NewInternal creates an [InternalError] that wraps an underlying error with context.
 // The underlying error is preserved for [errors.Unwrap] and server-side logging.
 //
 //	apperror.NewInternal("hash password", err)
 func NewInternal(reason string, err error) *InternalError {
 	return &InternalError{Reason: reason, Err: err}
+}
+
+// ---------------------------------------------------------------------------
+// ServiceUnavailableError
+// ---------------------------------------------------------------------------
+
+// ServiceUnavailableError indicates the request could not be served because a
+// dependency this operation requires is unavailable — not because anything is
+// wrong with the request.
+//
+// It is deliberately distinct from [InternalError]: 500 says the server hit a
+// fault and the client can do nothing useful, while 503 says the condition is
+// transient and retrying later is the correct behaviour. It is equally distinct
+// from [TooManyRequestsError]: 429 blames the caller's rate, and telling a user
+// they made too many attempts when the real problem is that the rate-limit store
+// is down is a lie that sends them to support instead of back in a minute.
+//
+// The motivating case is a credential path failing closed: when the lockout
+// store cannot be read, login refuses rather than let attempts through
+// unmetered, and that refusal is a 503.
+type ServiceUnavailableError struct {
+	Reason string
+}
+
+func (e *ServiceUnavailableError) Error() string {
+	if e.Reason == "" {
+		return "service temporarily unavailable"
+	}
+	return e.Reason
+}
+
+// NewServiceUnavailable builds a 503 for a transient dependency failure.
+func NewServiceUnavailable(reason string) *ServiceUnavailableError {
+	return &ServiceUnavailableError{Reason: reason}
 }

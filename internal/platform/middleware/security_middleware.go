@@ -321,7 +321,17 @@ func UserAgentFromContext(ctx context.Context) string {
 	return ""
 }
 
-// isProduction checks if running in production environment
+// isProduction reports whether the service is running in production.
+//
+// This read APP_ENV's near-namesake "ENV", which nothing sets — every other
+// check in the codebase (config.AppEnv, the DB SSL guard, the secret-store TLS
+// guard) uses APP_ENV. So a correctly-configured production deployment left
+// this false and never sent Strict-Transport-Security, quietly dropping the
+// downgrade protection the caller documents as SOC2 CC6.1. "ENV" is still
+// honoured so anyone who had discovered and set it does not regress.
 func isProduction() bool {
-	return config.GetEnvOrDefault("ENV", "development") == "production"
+	if strings.EqualFold(config.GetEnvOrDefault("APP_ENV", "development"), "production") {
+		return true
+	}
+	return strings.EqualFold(config.GetEnvOrDefault("ENV", ""), "production")
 }

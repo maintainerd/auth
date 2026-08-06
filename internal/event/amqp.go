@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"time"
 
@@ -14,6 +15,28 @@ import (
 // AMQPConfig holds the RabbitMQ connection parameters.
 type AMQPConfig struct {
 	URL string
+}
+
+// redactAMQPURL strips the userinfo from an AMQP URL so it can be logged.
+//
+// RABBITMQ_URL carries the broker password inline
+// ("amqp://user:password@host:5672/"), and the startup line logged it whole — so
+// every boot wrote a live credential into the application log, where it is then
+// shipped to whatever aggregates logs and outlives any rotation of the secret
+// itself. Only the host and vhost are useful for diagnosing a connection anyway.
+// A URL that will not parse is reported as a constant rather than echoed, since
+// an unparseable string may still contain the password.
+func redactAMQPURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "amqp://[unparseable]"
+	}
+	if u.User != nil {
+		// A bare word, not "[redacted]": url.String() percent-encodes the userinfo,
+		// so brackets would come back as %5Bredacted%5D.
+		u.User = url.User("redacted")
+	}
+	return u.String()
 }
 
 // NewAMQPConfigFromEnv reads AMQP configuration from environment variables.
@@ -89,7 +112,7 @@ func ConnectAMQP(ctx context.Context, cfg *AMQPConfig) (func(ctx context.Context
 		}
 	}()
 
-	slog.Info("amqp: connected to RabbitMQ", "url", cfg.URL)
+	slog.Info("amqp: connected to RabbitMQ", "broker", redactAMQPURL(cfg.URL))
 
 	publish := func(ctx context.Context, exchange, routingKey string, body []byte, messageID, eventType string) error {
 		dConf, err := ch.PublishWithDeferredConfirmWithContext(ctx,

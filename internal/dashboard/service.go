@@ -45,10 +45,14 @@ func (s *service) GetSummary(ctx context.Context, tenantID int64) (*SummaryRespo
 }
 
 func (s *service) countUsers(tenantID int64, out *UserCount) error {
+	// DISTINCT: a user holding identities under several providers (the built-in
+	// one plus a federated one, say) matches the join once per identity and
+	// would otherwise be counted repeatedly.
 	base := s.db.Table("users").
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
 		Where("user_identities.tenant_id = ?", tenantID).
-		Where("users.deleted_at IS NULL")
+		Where("users.deleted_at IS NULL").
+		Distinct("users.user_id")
 
 	if err := base.Session(&gorm.Session{}).Count(&out.Total).Error; err != nil {
 		return err

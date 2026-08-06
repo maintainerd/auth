@@ -56,6 +56,50 @@ func TestPermissionCreateRequestDto_Validate(t *testing.T) {
 		d.APIUUID = "not-a-uuid"
 		require.Error(t, d.Validate())
 	})
+
+	// Name used to be any 3-50 character string. PermissionMiddleware matches route
+	// guards on the exact name, so an admin holding permission:create could mint a
+	// permission literally called "tenant:delete" in their own tenant and satisfy
+	// every route that requires it.
+	t.Run("reserved seeded namespaces are refused", func(t *testing.T) {
+		for _, name := range []string{
+			"tenant:delete", "tenant:create", "user:delete", "role:update",
+			"permission:create", "client:secret:read", "public:login",
+			"account:user:read:self", "system:read",
+		} {
+			d := valid
+			d.Name = name
+			assert.ErrorContains(t, d.Validate(), "reserved", "%q must be refused", name)
+		}
+	})
+
+	t.Run("names outside the seeded namespaces stay allowed", func(t *testing.T) {
+		for _, name := range []string{
+			"users:read:own", "reports:read", "billing:invoice:export",
+			"widget-store:order:refund:own", "auth_events:read",
+		} {
+			d := valid
+			d.Name = name
+			assert.NoError(t, d.Validate(), "%q is a legitimate tenant permission", name)
+		}
+	})
+
+	t.Run("malformed names are refused", func(t *testing.T) {
+		for _, name := range []string{
+			"nocolon",             // a bare word is not an action on a resource
+			"Reports:Read",        // guards compare exactly, so case must not vary
+			"reports:read admin",  // whitespace
+			"reports::read",       // empty segment
+			":read",               // empty namespace
+			"reports:",            // empty action
+			"a:b:c:d:e",           // deeper than any seeded name
+			"reports:read;DROP--", // punctuation with no business in a guard
+		} {
+			d := valid
+			d.Name = name
+			assert.Error(t, d.Validate(), "%q must be refused", name)
+		}
+	})
 }
 
 func TestPermissionUpdateRequestDto_Validate(t *testing.T) {
@@ -67,6 +111,13 @@ func TestPermissionUpdateRequestDto_Validate(t *testing.T) {
 	assert.NoError(t, d.Validate())
 
 	d.Name = ""
+	require.Error(t, d.Validate())
+
+	// Update carries the same name rules as create. Without them the guard is
+	// bypassed in two calls: create "reports:read", then rename it "tenant:delete".
+	d.Name = "tenant:delete"
+	assert.ErrorContains(t, d.Validate(), "reserved")
+	d.Name = "nocolon"
 	require.Error(t, d.Validate())
 }
 

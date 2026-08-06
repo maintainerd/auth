@@ -212,6 +212,20 @@ func TestSubjectPatternBreadth(t *testing.T) {
 		assert.Contains(t, err.Error(), "too broad")
 	})
 
+	// "repo:" is the issuer's generic prefix and identifies nobody, so a wildcard
+	// part-way through the org segment is not a boundary: "repo:a*" matches every
+	// repository of every organisation whose name starts with "a", and an attacker
+	// only has to create one.
+	t.Run("rejects a wildcard inside the organisation segment", func(t *testing.T) {
+		for _, pattern := range []string{"repo:a*", "repo:*", "repo:my-org*", "system:service*"} {
+			dto := baseCreateDTO()
+			dto.SubjectPattern = pattern
+			err := dto.Validate()
+			require.Error(t, err, pattern)
+			assert.Contains(t, err.Error(), "too broad", pattern)
+		}
+	})
+
 	t.Run("accepts an anchored pattern", func(t *testing.T) {
 		for _, pattern := range []string{
 			"repo:my-org/my-repo:*",

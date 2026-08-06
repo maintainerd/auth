@@ -243,7 +243,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 		}
 
 		// Resolve user identity sub for token issuance.
-		userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, Client.ClientID)
+		userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientReachable(user.UserID, Client.ClientID)
 		if txErr != nil || userIdentity == nil {
 			return apperror.NewUnauthorized("authentication failed")
 		}
@@ -319,7 +319,10 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token string,
 		}
 		return s.loginCoordinator.IssueMagicLinkSession(ctx, userIdentitySub, user, Client)
 	}
-	return s.generateTokenResponse(ctx, userIdentitySub, user, Client)
+	// No coordinator means no session store, and a login token with no `sid`
+	// cannot be revoked and is rejected by the session middleware. Fail closed
+	// rather than hand back a credential that dies on the next request.
+	return nil, apperror.NewInternal("magic link login is not fully configured", nil)
 }
 
 func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token string, Client *Client, isInternal bool, linkTenantID *string) error {
@@ -378,7 +381,7 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 		LogoURL      string
 	}{
 		MagicLinkURL: magicLinkURL,
-		LogoURL:      email.GetLogoURL(ctx, s.db),
+		LogoURL:      email.GetLogoURL(ctx, s.db, clientTenantID(Client)),
 	}
 
 	tmpl, err := template.New("magic_link_html").Parse(templateEntity.BodyHTML)
@@ -404,6 +407,9 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 	}
 
 	return email.SendEmail(ctx, s.db, email.SendEmailParams{
+		// See sendPasswordResetEmail: tenant 0 silently borrows the system
+		// tenant's mail configuration.
+		TenantID:  clientTenantID(Client),
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

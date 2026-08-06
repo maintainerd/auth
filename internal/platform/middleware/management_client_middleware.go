@@ -37,9 +37,10 @@ func RequireManagementClient(resolver ManagementClientResolver) func(http.Handle
 				return
 			}
 
-			rawClaims, err := jwt.ValidateTokenWithContext(r.Context(), token)
+			rawClaims, err := jwt.ValidateAccessTokenWithContext(r.Context(), token)
 			if err != nil {
-				// Let the per-route JWT middleware produce the canonical 401.
+				// Not a usable access token — let the per-route JWT middleware
+				// produce the canonical 401 rather than deciding here.
 				next.ServeHTTP(w, r)
 				return
 			}

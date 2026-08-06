@@ -7,28 +7,13 @@ import "maintainerd/auth/v1/tenant.proto";
 
 option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
-service BrandingService {
-  rpc GetBranding(GetBrandingRequest) returns (GetBrandingResponse);
-  rpc UpdateBranding(UpdateBrandingRequest) returns (UpdateBrandingResponse);
-}
-
-service EmailTemplateService {
-  rpc ListEmailTemplates(ListEmailTemplatesRequest) returns (ListEmailTemplatesResponse);
-  rpc GetEmailTemplate(GetEmailTemplateRequest) returns (GetEmailTemplateResponse);
-  rpc CreateEmailTemplate(CreateEmailTemplateRequest) returns (CreateEmailTemplateResponse);
-  rpc UpdateEmailTemplate(UpdateEmailTemplateRequest) returns (UpdateEmailTemplateResponse);
-  rpc SetEmailTemplateStatus(SetEmailTemplateStatusRequest) returns (SetEmailTemplateStatusResponse);
-  rpc DeleteEmailTemplate(DeleteEmailTemplateRequest) returns (DeleteEmailTemplateResponse);
-}
-
-service SMSTemplateService {
-  rpc ListSMSTemplates(ListSMSTemplatesRequest) returns (ListSMSTemplatesResponse);
-  rpc GetSMSTemplate(GetSMSTemplateRequest) returns (GetSMSTemplateResponse);
-  rpc CreateSMSTemplate(CreateSMSTemplateRequest) returns (CreateSMSTemplateResponse);
-  rpc UpdateSMSTemplate(UpdateSMSTemplateRequest) returns (UpdateSMSTemplateResponse);
-  rpc SetSMSTemplateStatus(SetSMSTemplateStatusRequest) returns (SetSMSTemplateStatusResponse);
-  rpc DeleteSMSTemplate(DeleteSMSTemplateRequest) returns (DeleteSMSTemplateResponse);
-}
+// BrandingService, EmailTemplateService and SMSTemplateService used to be
+// declared here with no handler registered anywhere in the tree, so every RPC
+// they advertised answered UNIMPLEMENTED. A published contract that names RPCs
+// the server never serves cannot be told apart from one that is simply down, so
+// the service blocks were removed: branding and template administration is REST
+// control-plane only (see internal/branding/routes.go). The messages below are
+// kept as the agreed wire shape for the day a handler is written.
 
 message Branding {
   string branding_uuid = 1;

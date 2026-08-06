@@ -18,6 +18,7 @@ import (
 func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
 	origRetention := startRetentionRunner
 	origKeyRotation := startKeyRotationRunner
+	origSigningKeyRotation := startSigningKeyRotationRunner
 	origSecretRefresh := startSecretRefreshRunner
 	origGRPC := startGRPCServer
 	origKeyRotationPeriod := config.JWTKeyRotationPeriodSeconds
@@ -25,6 +26,7 @@ func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
 	t.Cleanup(func() {
 		startRetentionRunner = origRetention
 		startKeyRotationRunner = origKeyRotation
+		startSigningKeyRotationRunner = origSigningKeyRotation
 		startSecretRefreshRunner = origSecretRefresh
 		startGRPCServer = origGRPC
 		config.JWTKeyRotationPeriodSeconds = origKeyRotationPeriod
@@ -46,6 +48,9 @@ func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
 		calls <- workerCall{name: "retention"}
 	}
 	startKeyRotationRunner = func(_ context.Context, period time.Duration) {
+		calls <- workerCall{name: "key_rotation", period: period}
+	}
+	startSigningKeyRotationRunner = func(_ context.Context, _ *gorm.DB, period time.Duration) {
 		calls <- workerCall{name: "key_rotation", period: period}
 	}
 	startSecretRefreshRunner = func(_ context.Context, period time.Duration) {
@@ -83,6 +88,7 @@ func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
 func TestStartBackgroundWorkers_UsesDefaultSecurityRunnerPeriods(t *testing.T) {
 	origRetention := startRetentionRunner
 	origKeyRotation := startKeyRotationRunner
+	origSigningKeyRotation := startSigningKeyRotationRunner
 	origSecretRefresh := startSecretRefreshRunner
 	origGRPC := startGRPCServer
 	origKeyRotationPeriod := config.JWTKeyRotationPeriodSeconds
@@ -90,6 +96,7 @@ func TestStartBackgroundWorkers_UsesDefaultSecurityRunnerPeriods(t *testing.T) {
 	t.Cleanup(func() {
 		startRetentionRunner = origRetention
 		startKeyRotationRunner = origKeyRotation
+		startSigningKeyRotationRunner = origSigningKeyRotation
 		startSecretRefreshRunner = origSecretRefresh
 		startGRPCServer = origGRPC
 		config.JWTKeyRotationPeriodSeconds = origKeyRotationPeriod
@@ -106,6 +113,9 @@ func TestStartBackgroundWorkers_UsesDefaultSecurityRunnerPeriods(t *testing.T) {
 
 	startRetentionRunner = func(context.Context, authevent.RetentionDeleter, *gorm.DB, time.Duration, time.Duration) {}
 	startKeyRotationRunner = func(_ context.Context, period time.Duration) {
+		keyRotationPeriods <- period
+	}
+	startSigningKeyRotationRunner = func(_ context.Context, _ *gorm.DB, period time.Duration) {
 		keyRotationPeriods <- period
 	}
 	startSecretRefreshRunner = func(_ context.Context, period time.Duration) {

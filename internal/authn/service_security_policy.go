@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jsonutil"
@@ -68,12 +69,22 @@ func clientTenantID(client *Client) int64 {
 	return 0
 }
 
-func clientIdentityProviderIDPtr(client *Client) *int64 {
-	if client == nil || client.IdentityProviderID == 0 {
-		return nil
+// clientIdentityProviderID returns the identity provider a client authenticates
+// against. Identities are keyed on the PROVIDER, so this must resolve — an
+// identity with no provider cannot be matched to any client and would lock the
+// user out (migration 030 makes the column NOT NULL for that reason).
+func clientIdentityProviderID(client *Client) (int64, error) {
+	if client == nil {
+		return 0, apperror.NewValidation("client is not connected to an identity provider")
 	}
-	id := client.IdentityProviderID
-	return &id
+	if client.IdentityProviderID > 0 {
+		return client.IdentityProviderID, nil
+	}
+	// Some queries preload the relation without selecting the FK column.
+	if client.IdentityProvider != nil && client.IdentityProvider.IdentityProviderID > 0 {
+		return client.IdentityProvider.IdentityProviderID, nil
+	}
+	return 0, apperror.NewValidation("client is not connected to an identity provider")
 }
 
 func clientSecurityOverrides(client *Client) secpolicy.SecuritySettingClientOverrides {

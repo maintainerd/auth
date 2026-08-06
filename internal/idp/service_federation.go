@@ -51,12 +51,13 @@ func oidcSkewedNow() func() time.Time {
 // belongs to an existing user and the account-link service is wired. The
 // ResolveBrokerUser caller catches it and creates a confirmation request.
 type errEmailCollision struct {
-	tenantID       int64
-	existingUserID int64
-	providerName   string
-	providerSub    string
-	providerEmail  string
-	providerClaims []byte
+	tenantID           int64
+	existingUserID     int64
+	identityProviderID int64
+	providerName       string
+	providerSub        string
+	providerEmail      string
+	providerClaims     []byte
 }
 
 func (e *errEmailCollision) Error() string {
@@ -79,13 +80,14 @@ func (s *federationService) handleEmailCollision(ctx context.Context, err error)
 	}
 	if s.accountLinkSvc != nil {
 		if _, initErr := s.accountLinkSvc.Initiate(ctx, authn.InitiateAccountLinkInput{
-			TenantID:        collision.tenantID,
-			ExistingUserID:  collision.existingUserID,
-			ProviderName:    collision.providerName,
-			ProviderSubject: collision.providerSub,
-			ProviderEmail:   collision.providerEmail,
-			ProviderClaims:  collision.providerClaims,
-			IPAddress:       middleware.ClientIPFromContext(ctx),
+			TenantID:           collision.tenantID,
+			ExistingUserID:     collision.existingUserID,
+			IdentityProviderID: collision.identityProviderID,
+			ProviderName:       collision.providerName,
+			ProviderSubject:    collision.providerSub,
+			ProviderEmail:      collision.providerEmail,
+			ProviderClaims:     collision.providerClaims,
+			IPAddress:          middleware.ClientIPFromContext(ctx),
 		}); initErr != nil {
 			return initErr
 		}
@@ -176,6 +178,15 @@ type FederationService interface {
 	// explicit authorization_endpoint or OIDC discovery. No secrets are returned.
 	ResolveBrokerProvider(ctx context.Context, idpIdentifier string) (*BrokerProviderInfo, error)
 
+	// SetIdentityLinkStore wires the in-flight account-link request store.
+	SetIdentityLinkStore(store IdentityLinkRequestStore)
+
+	// StartIdentityLink begins attaching a provider identity to an already
+	// signed-in account; CompleteIdentityLink finishes it. Neither issues a
+	// session — see service_identity_link.go.
+	StartIdentityLink(ctx context.Context, userID, tenantID, clientID int64, providerIdentifier, redirectURI string) (*StartIdentityLinkResult, error)
+	CompleteIdentityLink(ctx context.Context, userID int64, state, code, redirectURI string) (*IdentityDTO, error)
+
 	// ResolveBrokerUser exchanges an upstream provider authorization code (with
 	// PKCE verifier), validates the returned id_token (nonce-checked when
 	// present), provisions the user if needed, and returns the authenticated
@@ -207,6 +218,18 @@ type FederationService interface {
 	// IdPs import this XML to configure the trust relationship.
 	SAMLMetadata(ctx context.Context, identifier string) ([]byte, error)
 
+	// InitiateSAMLLogout starts SP-initiated SAML Single Logout: it revokes the
+	// subject's local sessions and returns the IdP SLO URL (SAMLRequest + signed
+	// RelayState) the browser should follow.
+	InitiateSAMLLogout(ctx context.Context, in SAMLLogoutInitiateInput) (*SAMLLogoutInitiateResult, error)
+
+	// HandleSAMLSingleLogout serves the SLO endpoint published in our SP
+	// metadata. It consumes the IdP's LogoutResponse (completing an SP-initiated
+	// logout) and honours an IdP-initiated LogoutRequest, answering it with a
+	// LogoutResponse. Both directions require a valid signature from the
+	// provider's configured certificate.
+	HandleSAMLSingleLogout(ctx context.Context, r *http.Request, providerIdentifier string) (*SAMLSingleLogoutResult, error)
+
 	// SetAccountLinkService injects the account-link service so the broker
 	// provisioning path can create a confirmation request instead of silently
 	// merging identities on an email collision.
@@ -228,8 +251,18 @@ type federationService struct {
 	eventService        event.EventService
 	securitySettingRepo secpolicy.SecuritySettingRepository
 	samlStore           cache.WebAuthnSessionStore
+	// linkStore holds in-flight account-link requests. Nil disables linking.
+	linkStore IdentityLinkRequestStore
 
 	providerCache sync.Map
+}
+
+// SetIdentityLinkStore wires the store that holds in-flight account-link
+// requests. A setter rather than another constructor parameter: the signature
+// is already long, and internal/app must build the adapter after both the idp
+// and oauth repositories exist.
+func (s *federationService) SetIdentityLinkStore(store IdentityLinkRequestStore) {
+	s.linkStore = store
 }
 
 func NewFederationService(
@@ -346,19 +379,13 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		if lookupErr != nil {
 			return nil, apperror.NewInternal("client lookup failed", lookupErr)
 		}
-		if found == nil {
-			// Fallback: any client associated with the tenant's default IDP.
-			defaultIDP, defaultErr := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
-			if defaultErr != nil {
-				return nil, apperror.NewInternal("default identity provider lookup failed", defaultErr)
-			}
-			if defaultIDP != nil {
-				found, lookupErr = s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, defaultIDP.Identifier)
-				if lookupErr != nil {
-					return nil, apperror.NewInternal("client lookup failed", lookupErr)
-				}
-			}
-		}
+		// There is deliberately no fallback here. This used to retry the lookup
+		// against the tenant's DEFAULT identity provider and accept whatever it
+		// found, which meant a client not connected to the requesting provider
+		// still authenticated as long as it was connected to the default one —
+		// and, once the lookup started rejecting disabled connections, it became
+		// the way to route around a connection an admin had just disabled.
+		// A client is reachable from a provider only via an enabled connection.
 		if found == nil {
 			return nil, apperror.NewNotFound("client not found for this provider")
 		}
@@ -662,8 +689,7 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 	identity := &UserIdentity{
 		UserID:             userID,
 		TenantID:           idp.TenantID,
-		ClientID:           nil, // no specific client context for linked identities
-		IdentityProviderID: &idpID,
+		IdentityProviderID: idpID,
 		Provider:           idp.Provider,
 		Sub:                externalSub,
 		Metadata:           datatypes.JSON(metaJSON),
@@ -961,6 +987,55 @@ func (s *federationService) ResolveBrokerProvider(ctx context.Context, idpIdenti
 	}, nil
 }
 
+// exchangeUpstreamCode performs the provider leg of an OAuth2/OIDC round trip:
+// redeem the authorization code with PKCE, then validate the returned id_token
+// against the provider's issuer and our registered client_id, and confirm the
+// nonce matches the one this flow generated.
+//
+// Shared by brokered sign-in and account linking. Both need exactly these
+// checks, and a second copy would be free to drift — a missing nonce comparison
+// in either path reopens id_token replay.
+func (s *federationService) exchangeUpstreamCode(
+	ctx context.Context,
+	idp *IdentityProvider,
+	cfg OIDCProviderConfig,
+	clientSecret, code, pkceVerifier, nonce, redirectURI string,
+) (string, map[string]any, error) {
+	oauth2Cfg := &oauth2.Config{
+		ClientID:     idp.ProviderClientIDOrEmpty(),
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURI,
+		Endpoint: oauth2.Endpoint{
+			TokenURL:  resolveTokenEndpoint(ctx, idp.IssuerOrEmpty(), cfg),
+			AuthStyle: oauth2.AuthStyleAutoDetect,
+		},
+	}
+
+	tok, err := idpOAuth2ExchangeWithPKCE(ctx, oauth2Cfg, code, pkceVerifier)
+	if err != nil {
+		return "", nil, apperror.NewUnauthorized("failed to exchange authorization code")
+	}
+
+	rawIDTok, ok := tok.Extra("id_token").(string)
+	if !ok || strings.TrimSpace(rawIDTok) == "" {
+		return "", nil, apperror.NewUnauthorized("provider did not return an id_token")
+	}
+	claims, err := s.validateOIDCToken(ctx, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty(), rawIDTok)
+	if err != nil {
+		return "", nil, apperror.NewUnauthorized("failed to validate provider token")
+	}
+	// Every flow that reaches here generated and stored a nonce, so an empty one
+	// means a corrupted or forged session — fail closed rather than skipping the
+	// id_token replay check.
+	if nonce == "" {
+		return "", nil, apperror.NewUnauthorized("missing nonce for provider token validation")
+	}
+	if tokNonce, _ := claims["nonce"].(string); tokNonce != nonce {
+		return "", nil, apperror.NewUnauthorized("provider token nonce mismatch")
+	}
+	return rawIDTok, claims, nil
+}
+
 // ResolveBrokerUser implements FederationService.
 func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error) {
 	idp, err := s.idpRepo.FindByID(idpID)
@@ -985,39 +1060,11 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 		return nil, apperror.NewValidation("identity provider missing OAuth2 client credentials")
 	}
 
-	oauth2Cfg := &oauth2.Config{
-		ClientID:     idp.ProviderClientIDOrEmpty(),
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURI,
-		Endpoint: oauth2.Endpoint{
-			TokenURL:  resolveTokenEndpoint(ctx, idp.IssuerOrEmpty(), cfg),
-			AuthStyle: oauth2.AuthStyleAutoDetect,
-		},
-	}
-
-	tok, err := idpOAuth2ExchangeWithPKCE(ctx, oauth2Cfg, code, pkceVerifier)
+	rawIDTok, claims, err := s.exchangeUpstreamCode(ctx, idp, cfg, clientSecret, code, pkceVerifier, nonce, redirectURI)
 	if err != nil {
-		return nil, apperror.NewUnauthorized("failed to exchange authorization code")
+		return nil, err
 	}
-
-	rawIDTok, ok := tok.Extra("id_token").(string)
-	if !ok || strings.TrimSpace(rawIDTok) == "" {
-		return nil, apperror.NewUnauthorized("provider did not return an id_token")
-	}
-	claims, err := s.validateOIDCToken(ctx, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty(), rawIDTok)
-	if err != nil {
-		return nil, apperror.NewUnauthorized("failed to validate provider token")
-	}
-	// The broker always generates and stores a nonce (see service_broker.go), so
-	// an empty nonce here means a corrupted or forged session — fail closed rather
-	// than skipping the id_token replay check.
-	if nonce == "" {
-		return nil, apperror.NewUnauthorized("missing nonce for provider token validation")
-	}
-	tokNonce, _ := claims["nonce"].(string)
-	if tokNonce != nonce {
-		return nil, apperror.NewUnauthorized("provider token nonce mismatch")
-	}
+	_ = rawIDTok
 
 	externalSub, ok := claims["sub"].(string)
 	if !ok || externalSub == "" {
@@ -1070,13 +1117,14 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 			return nil, apperror.NewConflict("this email is already associated with an existing account and account linking is not available")
 		}
 		req, initErr := s.accountLinkSvc.Initiate(ctx, authn.InitiateAccountLinkInput{
-			TenantID:        collision.tenantID,
-			ExistingUserID:  collision.existingUserID,
-			ProviderName:    collision.providerName,
-			ProviderSubject: collision.providerSub,
-			ProviderEmail:   collision.providerEmail,
-			ProviderClaims:  collision.providerClaims,
-			IPAddress:       middleware.ClientIPFromContext(ctx),
+			TenantID:           collision.tenantID,
+			ExistingUserID:     collision.existingUserID,
+			IdentityProviderID: collision.identityProviderID,
+			ProviderName:       collision.providerName,
+			ProviderSubject:    collision.providerSub,
+			ProviderEmail:      collision.providerEmail,
+			ProviderClaims:     collision.providerClaims,
+			IPAddress:          middleware.ClientIPFromContext(ctx),
 		})
 		if initErr != nil {
 			return nil, initErr
@@ -1191,12 +1239,13 @@ func (s *federationService) provisionUser(
 			// service happens to be wired only changes how the caller reacts; it can
 			// never downgrade this into an unconfirmed silent link.
 			return nil, false, &errEmailCollision{
-				tenantID:       idp.TenantID,
-				existingUserID: existing.UserID,
-				providerName:   idp.Provider,
-				providerSub:    externalSub,
-				providerEmail:  email,
-				providerClaims: func() []byte { b, _ := json.Marshal(meta); return b }(),
+				tenantID:           idp.TenantID,
+				existingUserID:     existing.UserID,
+				identityProviderID: idp.IdentityProviderID,
+				providerName:       idp.Provider,
+				providerSub:        externalSub,
+				providerEmail:      email,
+				providerClaims:     func() []byte { b, _ := json.Marshal(meta); return b }(),
 			}
 		}
 	}
@@ -1269,8 +1318,7 @@ func (s *federationService) provisionUser(
 			UserIdentityUUID:   uuid.New(),
 			TenantID:           idp.TenantID,
 			UserID:             user.UserID,
-			ClientID:           clientID,
-			IdentityProviderID: &systemIDPID,
+			IdentityProviderID: systemIDPID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -1289,8 +1337,7 @@ func (s *federationService) provisionUser(
 		UserIdentityUUID:   uuid.New(),
 		TenantID:           idp.TenantID,
 		UserID:             user.UserID,
-		ClientID:           clientID,
-		IdentityProviderID: &idpID,
+		IdentityProviderID: idpID,
 		Provider:           idp.Provider,
 		Sub:                externalSub,
 		Metadata:           datatypes.JSON(metaJSON),
@@ -1301,8 +1348,26 @@ func (s *federationService) provisionUser(
 	if err != nil {
 		return nil, false, apperror.NewInternal("failed to create external identity", err)
 	}
-	if !created && existing != nil && existing.UserID != user.UserID {
-		return nil, false, errIdentityCreatedConcurrently
+	if !created {
+		// The insert was refused, so something already owns this subject. Never
+		// fall through here: the user row was created moments ago and has no
+		// external identity, so continuing would mint tokens for a half-built
+		// account and do it again on every retry.
+		switch {
+		case existing == nil:
+			return nil, false, apperror.NewInternal("external identity could not be resolved after a conflict", nil)
+		case existing.IdentityProviderID != idpID:
+			// A DIFFERENT provider in this tenant already issued this subject.
+			// `sub` is unique per issuer (OIDC Core §2) and the tenant is the
+			// issuer, so this is unresolvable without operator input — refuse
+			// rather than guess which human the subject refers to.
+			return nil, false, apperror.NewConflict(
+				"this provider returned a subject that is already in use by another identity provider in this tenant")
+		case existing.UserID != user.UserID:
+			// Same provider, same subject, different user: a concurrent request
+			// won the race. The caller re-resolves against the winning row.
+			return nil, false, errIdentityCreatedConcurrently
+		}
 	}
 
 	return user, isNew, nil
@@ -1360,14 +1425,16 @@ func (s *federationService) systemIdentityProviderID(tenantID int64) (int64, err
 // system identity, which may never be unlinked. It decides via the identity's
 // IdentityProviderID → the tenant's system IdP id, NOT the provider string, so
 // an external federated "maintainerd" identity is correctly treated as
-// unlinkable. An identity with no IdentityProviderID predates configured-IdP
-// linkage and is treated as built-in when its provider is maintainerd, so a
-// legacy built-in row can never be removed (fail safe).
+// unlinkable. IdentityProviderID is NOT NULL (migration 030), so the provider
+// is always known and the comparison is exact — no provider-name guessing.
 func (s *federationService) isSystemBuiltinIdentity(identity *UserIdentity) (bool, error) {
 	if identity == nil {
 		return false, nil
 	}
-	if identity.IdentityProviderID == nil {
+	if s.idpRepo == nil {
+		// Fail closed: with no way to resolve the tenant's system provider, treat
+		// a built-in-looking identity as built-in rather than allowing the user to
+		// unlink their only means of signing in.
 		return identity.Provider == shared.ProviderMaintainerd, nil
 	}
 	systemIDP, err := s.idpRepo.FindSystemByTenantID(identity.TenantID)
@@ -1377,7 +1444,7 @@ func (s *federationService) isSystemBuiltinIdentity(identity *UserIdentity) (boo
 	if systemIDP == nil {
 		return identity.Provider == shared.ProviderMaintainerd, nil
 	}
-	return *identity.IdentityProviderID == systemIDP.IdentityProviderID, nil
+	return identity.IdentityProviderID == systemIDP.IdentityProviderID, nil
 }
 
 func (s *federationService) createBrokerSession(ctx context.Context, user *User, clientID int64, attrs authn.SessionAttributes) (string, error) {
@@ -1471,7 +1538,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		ctx,
 		sub,
 		shared.DefaultTokenScope,
-		*client.Domain,
+		jwtlib.TokenIssuerPtr(client.Domain),
 		*client.Identifier,
 		*client.Identifier,
 		federationTokenRealm(client),
@@ -1487,7 +1554,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		Phone:         user.Phone,
 		PhoneVerified: user.IsPhoneVerified,
 	}
-	idToken, err := idpGenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, federationTokenRealm(client), profile, "", &jwtlib.IDTokenParams{
+	idToken, err := idpGenerateIDTokenWithContext(ctx, sub, jwtlib.TokenIssuerPtr(client.Domain), *client.Identifier, federationTokenRealm(client), profile, "", &jwtlib.IDTokenParams{
 		RequestedScopes: strings.Fields(shared.DefaultTokenScope),
 		AMR:             []string{jwtlib.AMRMFA},
 		ACR:             jwtlib.ACRLevel1,
@@ -1496,7 +1563,11 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		return nil, apperror.NewInternal("id token generation failed", err)
 	}
 
-	refreshToken, err := idpGenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, federationTokenRealm(client))
+	// Matches the access and ID tokens minted just above: `iss` identifies this
+	// authorization server, never the client's domain. Left raw, the refresh token
+	// was the only member of the set whose issuer depended on the legacy
+	// client-domain entries in the issuer allowlist still being present.
+	refreshToken, err := idpGenerateRefreshTokenWithContext(ctx, sub, jwtlib.TokenIssuerPtr(client.Domain), *client.Identifier, federationTokenRealm(client))
 	if err != nil {
 		return nil, apperror.NewInternal("refresh token generation failed", err)
 	}

@@ -747,13 +747,26 @@ func (x *CreateProfileResponse) GetDisplayName() string {
 }
 
 type RegisterControlServiceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Name        string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Version     string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	// allowed_actions is the control policy, supplied explicitly instead of read
+	// from a seeded row.
+	//
+	// It was a preseeded wildcard covering permission families that did not exist,
+	// which is a standing pre-authorisation: the day anyone added a guard in one of
+	// those families, every holder of the policy passed it without review. Supplied
+	// here, it is validated against the permissions that actually exist and is
+	// visible in the provisioning request that grants it.
+	//
+	// Empty means "the documented default control set", which excludes user:* and
+	// account:*:self — an orchestrator provisions tenants and their configuration
+	// and has no reason to hold every user in every tenant.
+	AllowedActions []string `protobuf:"bytes,5,rep,name=allowed_actions,json=allowedActions,proto3" json:"allowed_actions,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RegisterControlServiceRequest) Reset() {
@@ -812,6 +825,13 @@ func (x *RegisterControlServiceRequest) GetVersion() string {
 		return x.Version
 	}
 	return ""
+}
+
+func (x *RegisterControlServiceRequest) GetAllowedActions() []string {
+	if x != nil {
+		return x.AllowedActions
+	}
+	return nil
 }
 
 type RegisterControlServiceResponse struct {
@@ -986,6 +1006,717 @@ func (x *CompleteSetupResponse) GetIsSetupComplete() bool {
 	return false
 }
 
+// EnsureControlClient registers the machine client core authenticates as for
+// every call it makes after setup closes.
+//
+// Authentication is private_key_jwt (RFC 7523): core generates the keypair and
+// sends only its PUBLIC JWKS, so this service never holds a credential that
+// could impersonate core, and a dump of its database yields nothing usable.
+// It is also what makes this RPC safely retryable — there is no
+// returned-exactly-once secret to lose when a response goes missing.
+type EnsureControlClientRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Name        string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// service_name binds this client to the service principal registered by
+	// RegisterControlService, and is REQUIRED.
+	//
+	// The binding is what makes the client's tokens carry the `svc` claim, and the
+	// authorization interceptor resolves policies by that claim. Without it the
+	// orchestrator authenticates successfully and is then denied every
+	// permission-gated method, because its token names no principal the control
+	// policy is attached to.
+	ServiceName string `protobuf:"bytes,6,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
+	// jwks is core's PUBLIC JWK Set, serialized. Required: this service issues no
+	// secret, so a client with no verification key could never authenticate.
+	Jwks string `protobuf:"bytes,3,opt,name=jwks,proto3" json:"jwks,omitempty"`
+	// jwks_uri may be sent instead of jwks when core serves its keys over HTTPS,
+	// which lets core rotate keys without re-entering setup.
+	JwksUri string `protobuf:"bytes,4,opt,name=jwks_uri,json=jwksUri,proto3" json:"jwks_uri,omitempty"`
+	// audience is the API identifier tokens for this client are minted for. Empty
+	// means this instance's own management audience.
+	Audience      string `protobuf:"bytes,5,opt,name=audience,proto3" json:"audience,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureControlClientRequest) Reset() {
+	*x = EnsureControlClientRequest{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureControlClientRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureControlClientRequest) ProtoMessage() {}
+
+func (x *EnsureControlClientRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureControlClientRequest.ProtoReflect.Descriptor instead.
+func (*EnsureControlClientRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *EnsureControlClientRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EnsureControlClientRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *EnsureControlClientRequest) GetServiceName() string {
+	if x != nil {
+		return x.ServiceName
+	}
+	return ""
+}
+
+func (x *EnsureControlClientRequest) GetJwks() string {
+	if x != nil {
+		return x.Jwks
+	}
+	return ""
+}
+
+func (x *EnsureControlClientRequest) GetJwksUri() string {
+	if x != nil {
+		return x.JwksUri
+	}
+	return ""
+}
+
+func (x *EnsureControlClientRequest) GetAudience() string {
+	if x != nil {
+		return x.Audience
+	}
+	return ""
+}
+
+type EnsureControlClientResponse struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	ClientUuid              string                 `protobuf:"bytes,1,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	ClientId                string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	TokenEndpointAuthMethod string                 `protobuf:"bytes,3,opt,name=token_endpoint_auth_method,json=tokenEndpointAuthMethod,proto3" json:"token_endpoint_auth_method,omitempty"`
+	ServiceUuid             string                 `protobuf:"bytes,4,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	AlreadyExisted          bool                   `protobuf:"varint,5,opt,name=already_existed,json=alreadyExisted,proto3" json:"already_existed,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *EnsureControlClientResponse) Reset() {
+	*x = EnsureControlClientResponse{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureControlClientResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureControlClientResponse) ProtoMessage() {}
+
+func (x *EnsureControlClientResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureControlClientResponse.ProtoReflect.Descriptor instead.
+func (*EnsureControlClientResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *EnsureControlClientResponse) GetClientUuid() string {
+	if x != nil {
+		return x.ClientUuid
+	}
+	return ""
+}
+
+func (x *EnsureControlClientResponse) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *EnsureControlClientResponse) GetTokenEndpointAuthMethod() string {
+	if x != nil {
+		return x.TokenEndpointAuthMethod
+	}
+	return ""
+}
+
+func (x *EnsureControlClientResponse) GetServiceUuid() string {
+	if x != nil {
+		return x.ServiceUuid
+	}
+	return ""
+}
+
+func (x *EnsureControlClientResponse) GetAlreadyExisted() bool {
+	if x != nil {
+		return x.AlreadyExisted
+	}
+	return false
+}
+
+// EnsureResourceAPI registers an API this instance protects on the orchestrator's
+// behalf, together with the permissions that API defines.
+//
+// Core is not only a client of this service, it is also a resource server: its
+// own users are authorized by permissions that live here. Registering the API at
+// setup is what lets core issue tokens whose audience is its own API and have
+// them carry meaningful scopes.
+type EnsureResourceAPIRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	ServiceName        string                 `protobuf:"bytes,1,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
+	ServiceDisplayName string                 `protobuf:"bytes,2,opt,name=service_display_name,json=serviceDisplayName,proto3" json:"service_display_name,omitempty"`
+	Name               string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName        string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// identifier is the API's audience value (aud) in issued tokens.
+	Identifier    string                         `protobuf:"bytes,5,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	Permissions   []*EnsureResourceAPIPermission `protobuf:"bytes,6,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureResourceAPIRequest) Reset() {
+	*x = EnsureResourceAPIRequest{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureResourceAPIRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureResourceAPIRequest) ProtoMessage() {}
+
+func (x *EnsureResourceAPIRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureResourceAPIRequest.ProtoReflect.Descriptor instead.
+func (*EnsureResourceAPIRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *EnsureResourceAPIRequest) GetServiceName() string {
+	if x != nil {
+		return x.ServiceName
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIRequest) GetServiceDisplayName() string {
+	if x != nil {
+		return x.ServiceDisplayName
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIRequest) GetIdentifier() string {
+	if x != nil {
+		return x.Identifier
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIRequest) GetPermissions() []*EnsureResourceAPIPermission {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
+type EnsureResourceAPIPermission struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureResourceAPIPermission) Reset() {
+	*x = EnsureResourceAPIPermission{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureResourceAPIPermission) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureResourceAPIPermission) ProtoMessage() {}
+
+func (x *EnsureResourceAPIPermission) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureResourceAPIPermission.ProtoReflect.Descriptor instead.
+func (*EnsureResourceAPIPermission) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *EnsureResourceAPIPermission) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIPermission) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type EnsureResourceAPIResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ServiceUuid     string                 `protobuf:"bytes,1,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	ApiUuid         string                 `protobuf:"bytes,2,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	Identifier      string                 `protobuf:"bytes,3,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	PermissionNames []string               `protobuf:"bytes,4,rep,name=permission_names,json=permissionNames,proto3" json:"permission_names,omitempty"`
+	AlreadyExisted  bool                   `protobuf:"varint,5,opt,name=already_existed,json=alreadyExisted,proto3" json:"already_existed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *EnsureResourceAPIResponse) Reset() {
+	*x = EnsureResourceAPIResponse{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureResourceAPIResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureResourceAPIResponse) ProtoMessage() {}
+
+func (x *EnsureResourceAPIResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureResourceAPIResponse.ProtoReflect.Descriptor instead.
+func (*EnsureResourceAPIResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *EnsureResourceAPIResponse) GetServiceUuid() string {
+	if x != nil {
+		return x.ServiceUuid
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIResponse) GetApiUuid() string {
+	if x != nil {
+		return x.ApiUuid
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIResponse) GetIdentifier() string {
+	if x != nil {
+		return x.Identifier
+	}
+	return ""
+}
+
+func (x *EnsureResourceAPIResponse) GetPermissionNames() []string {
+	if x != nil {
+		return x.PermissionNames
+	}
+	return nil
+}
+
+func (x *EnsureResourceAPIResponse) GetAlreadyExisted() bool {
+	if x != nil {
+		return x.AlreadyExisted
+	}
+	return false
+}
+
+// EnsureRole creates a role carrying the given permissions and optionally grants
+// it to a user — how core gives its first administrator full access to itself.
+//
+// assign_to_user_uuid is a UUID rather than a username so it can only name a
+// principal the caller already created in this same setup window.
+type EnsureRoleRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description      string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	PermissionNames  []string               `protobuf:"bytes,3,rep,name=permission_names,json=permissionNames,proto3" json:"permission_names,omitempty"`
+	AssignToUserUuid string                 `protobuf:"bytes,4,opt,name=assign_to_user_uuid,json=assignToUserUuid,proto3" json:"assign_to_user_uuid,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *EnsureRoleRequest) Reset() {
+	*x = EnsureRoleRequest{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureRoleRequest) ProtoMessage() {}
+
+func (x *EnsureRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureRoleRequest.ProtoReflect.Descriptor instead.
+func (*EnsureRoleRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *EnsureRoleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EnsureRoleRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *EnsureRoleRequest) GetPermissionNames() []string {
+	if x != nil {
+		return x.PermissionNames
+	}
+	return nil
+}
+
+func (x *EnsureRoleRequest) GetAssignToUserUuid() string {
+	if x != nil {
+		return x.AssignToUserUuid
+	}
+	return ""
+}
+
+type EnsureRoleResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	RoleUuid        string                 `protobuf:"bytes,1,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	PermissionNames []string               `protobuf:"bytes,3,rep,name=permission_names,json=permissionNames,proto3" json:"permission_names,omitempty"`
+	Assigned        bool                   `protobuf:"varint,4,opt,name=assigned,proto3" json:"assigned,omitempty"`
+	AlreadyExisted  bool                   `protobuf:"varint,5,opt,name=already_existed,json=alreadyExisted,proto3" json:"already_existed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *EnsureRoleResponse) Reset() {
+	*x = EnsureRoleResponse{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureRoleResponse) ProtoMessage() {}
+
+func (x *EnsureRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureRoleResponse.ProtoReflect.Descriptor instead.
+func (*EnsureRoleResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *EnsureRoleResponse) GetRoleUuid() string {
+	if x != nil {
+		return x.RoleUuid
+	}
+	return ""
+}
+
+func (x *EnsureRoleResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EnsureRoleResponse) GetPermissionNames() []string {
+	if x != nil {
+		return x.PermissionNames
+	}
+	return nil
+}
+
+func (x *EnsureRoleResponse) GetAssigned() bool {
+	if x != nil {
+		return x.Assigned
+	}
+	return false
+}
+
+func (x *EnsureRoleResponse) GetAlreadyExisted() bool {
+	if x != nil {
+		return x.AlreadyExisted
+	}
+	return false
+}
+
+// EnsureConsoleClient registers the browser application core's operators sign in
+// to, which authenticates against this service over OIDC.
+//
+// It is a PUBLIC client: a single-page app cannot keep a secret, so it uses
+// authorization_code with PKCE (S256) and no credential at all. Issuing a secret
+// here would be worse than useless — it would ship in the bundle.
+type EnsureConsoleClientRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Name        string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// domain is the site the app is served from; it also decides first-party
+	// status, which is registrable-domain based.
+	Domain                 string   `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
+	RedirectUris           []string `protobuf:"bytes,4,rep,name=redirect_uris,json=redirectUris,proto3" json:"redirect_uris,omitempty"`
+	PostLogoutRedirectUris []string `protobuf:"bytes,5,rep,name=post_logout_redirect_uris,json=postLogoutRedirectUris,proto3" json:"post_logout_redirect_uris,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *EnsureConsoleClientRequest) Reset() {
+	*x = EnsureConsoleClientRequest{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureConsoleClientRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureConsoleClientRequest) ProtoMessage() {}
+
+func (x *EnsureConsoleClientRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureConsoleClientRequest.ProtoReflect.Descriptor instead.
+func (*EnsureConsoleClientRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *EnsureConsoleClientRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EnsureConsoleClientRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *EnsureConsoleClientRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *EnsureConsoleClientRequest) GetRedirectUris() []string {
+	if x != nil {
+		return x.RedirectUris
+	}
+	return nil
+}
+
+func (x *EnsureConsoleClientRequest) GetPostLogoutRedirectUris() []string {
+	if x != nil {
+		return x.PostLogoutRedirectUris
+	}
+	return nil
+}
+
+type EnsureConsoleClientResponse struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	ClientUuid             string                 `protobuf:"bytes,1,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	ClientId               string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	RedirectUris           []string               `protobuf:"bytes,3,rep,name=redirect_uris,json=redirectUris,proto3" json:"redirect_uris,omitempty"`
+	PostLogoutRedirectUris []string               `protobuf:"bytes,4,rep,name=post_logout_redirect_uris,json=postLogoutRedirectUris,proto3" json:"post_logout_redirect_uris,omitempty"`
+	AlreadyExisted         bool                   `protobuf:"varint,5,opt,name=already_existed,json=alreadyExisted,proto3" json:"already_existed,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *EnsureConsoleClientResponse) Reset() {
+	*x = EnsureConsoleClientResponse{}
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureConsoleClientResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureConsoleClientResponse) ProtoMessage() {}
+
+func (x *EnsureConsoleClientResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_setup_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureConsoleClientResponse.ProtoReflect.Descriptor instead.
+func (*EnsureConsoleClientResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *EnsureConsoleClientResponse) GetClientUuid() string {
+	if x != nil {
+		return x.ClientUuid
+	}
+	return ""
+}
+
+func (x *EnsureConsoleClientResponse) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *EnsureConsoleClientResponse) GetRedirectUris() []string {
+	if x != nil {
+		return x.RedirectUris
+	}
+	return nil
+}
+
+func (x *EnsureConsoleClientResponse) GetPostLogoutRedirectUris() []string {
+	if x != nil {
+		return x.PostLogoutRedirectUris
+	}
+	return nil
+}
+
+func (x *EnsureConsoleClientResponse) GetAlreadyExisted() bool {
+	if x != nil {
+		return x.AlreadyExisted
+	}
+	return false
+}
+
 var File_maintainerd_auth_v1_setup_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
@@ -1058,12 +1789,13 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\fprofile_uuid\x18\x01 \x01(\tR\vprofileUuid\x12\x1d\n" +
 	"\n" +
 	"first_name\x18\x02 \x01(\tR\tfirstName\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\x92\x01\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\xbb\x01\n" +
 	"\x1dRegisterControlServiceRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\tR\aversion\"\x95\x02\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12'\n" +
+	"\x0fallowed_actions\x18\x05 \x03(\tR\x0eallowedActions\"\x95\x02\n" +
 	"\x1eRegisterControlServiceResponse\x12!\n" +
 	"\fservice_uuid\x18\x01 \x01(\tR\vserviceUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
@@ -1076,13 +1808,76 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\x13policy_was_attached\x18\a \x01(\bR\x11policyWasAttached\"\x16\n" +
 	"\x14CompleteSetupRequest\"C\n" +
 	"\x15CompleteSetupResponse\x12*\n" +
-	"\x11is_setup_complete\x18\x01 \x01(\bR\x0fisSetupComplete2\x94\x05\n" +
+	"\x11is_setup_complete\x18\x01 \x01(\bR\x0fisSetupComplete\"\xc1\x01\n" +
+	"\x1aEnsureControlClientRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12!\n" +
+	"\fservice_name\x18\x06 \x01(\tR\vserviceName\x12\x12\n" +
+	"\x04jwks\x18\x03 \x01(\tR\x04jwks\x12\x19\n" +
+	"\bjwks_uri\x18\x04 \x01(\tR\ajwksUri\x12\x1a\n" +
+	"\baudience\x18\x05 \x01(\tR\baudience\"\xe4\x01\n" +
+	"\x1bEnsureControlClientResponse\x12\x1f\n" +
+	"\vclient_uuid\x18\x01 \x01(\tR\n" +
+	"clientUuid\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12;\n" +
+	"\x1atoken_endpoint_auth_method\x18\x03 \x01(\tR\x17tokenEndpointAuthMethod\x12!\n" +
+	"\fservice_uuid\x18\x04 \x01(\tR\vserviceUuid\x12'\n" +
+	"\x0falready_existed\x18\x05 \x01(\bR\x0ealreadyExisted\"\x9a\x02\n" +
+	"\x18EnsureResourceAPIRequest\x12!\n" +
+	"\fservice_name\x18\x01 \x01(\tR\vserviceName\x120\n" +
+	"\x14service_display_name\x18\x02 \x01(\tR\x12serviceDisplayName\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12\x1e\n" +
+	"\n" +
+	"identifier\x18\x05 \x01(\tR\n" +
+	"identifier\x12R\n" +
+	"\vpermissions\x18\x06 \x03(\v20.maintainerd.auth.v1.EnsureResourceAPIPermissionR\vpermissions\"S\n" +
+	"\x1bEnsureResourceAPIPermission\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xcd\x01\n" +
+	"\x19EnsureResourceAPIResponse\x12!\n" +
+	"\fservice_uuid\x18\x01 \x01(\tR\vserviceUuid\x12\x19\n" +
+	"\bapi_uuid\x18\x02 \x01(\tR\aapiUuid\x12\x1e\n" +
+	"\n" +
+	"identifier\x18\x03 \x01(\tR\n" +
+	"identifier\x12)\n" +
+	"\x10permission_names\x18\x04 \x03(\tR\x0fpermissionNames\x12'\n" +
+	"\x0falready_existed\x18\x05 \x01(\bR\x0ealreadyExisted\"\xa3\x01\n" +
+	"\x11EnsureRoleRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12)\n" +
+	"\x10permission_names\x18\x03 \x03(\tR\x0fpermissionNames\x12-\n" +
+	"\x13assign_to_user_uuid\x18\x04 \x01(\tR\x10assignToUserUuid\"\xb5\x01\n" +
+	"\x12EnsureRoleResponse\x12\x1b\n" +
+	"\trole_uuid\x18\x01 \x01(\tR\broleUuid\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
+	"\x10permission_names\x18\x03 \x03(\tR\x0fpermissionNames\x12\x1a\n" +
+	"\bassigned\x18\x04 \x01(\bR\bassigned\x12'\n" +
+	"\x0falready_existed\x18\x05 \x01(\bR\x0ealreadyExisted\"\xcb\x01\n" +
+	"\x1aEnsureConsoleClientRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x16\n" +
+	"\x06domain\x18\x03 \x01(\tR\x06domain\x12#\n" +
+	"\rredirect_uris\x18\x04 \x03(\tR\fredirectUris\x129\n" +
+	"\x19post_logout_redirect_uris\x18\x05 \x03(\tR\x16postLogoutRedirectUris\"\xe4\x01\n" +
+	"\x1bEnsureConsoleClientResponse\x12\x1f\n" +
+	"\vclient_uuid\x18\x01 \x01(\tR\n" +
+	"clientUuid\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12#\n" +
+	"\rredirect_uris\x18\x03 \x03(\tR\fredirectUris\x129\n" +
+	"\x19post_logout_redirect_uris\x18\x04 \x03(\tR\x16postLogoutRedirectUris\x12'\n" +
+	"\x0falready_existed\x18\x05 \x01(\bR\x0ealreadyExisted2\xdb\b\n" +
 	"\fSetupService\x12i\n" +
 	"\x0eGetSetupStatus\x12*.maintainerd.auth.v1.GetSetupStatusRequest\x1a+.maintainerd.auth.v1.GetSetupStatusResponse\x12c\n" +
 	"\fCreateTenant\x12(.maintainerd.auth.v1.CreateTenantRequest\x1a).maintainerd.auth.v1.CreateTenantResponse\x12`\n" +
 	"\vCreateAdmin\x12'.maintainerd.auth.v1.CreateAdminRequest\x1a(.maintainerd.auth.v1.CreateAdminResponse\x12f\n" +
 	"\rCreateProfile\x12).maintainerd.auth.v1.CreateProfileRequest\x1a*.maintainerd.auth.v1.CreateProfileResponse\x12\x81\x01\n" +
-	"\x16RegisterControlService\x122.maintainerd.auth.v1.RegisterControlServiceRequest\x1a3.maintainerd.auth.v1.RegisterControlServiceResponse\x12f\n" +
+	"\x16RegisterControlService\x122.maintainerd.auth.v1.RegisterControlServiceRequest\x1a3.maintainerd.auth.v1.RegisterControlServiceResponse\x12x\n" +
+	"\x13EnsureControlClient\x12/.maintainerd.auth.v1.EnsureControlClientRequest\x1a0.maintainerd.auth.v1.EnsureControlClientResponse\x12r\n" +
+	"\x11EnsureResourceAPI\x12-.maintainerd.auth.v1.EnsureResourceAPIRequest\x1a..maintainerd.auth.v1.EnsureResourceAPIResponse\x12]\n" +
+	"\n" +
+	"EnsureRole\x12&.maintainerd.auth.v1.EnsureRoleRequest\x1a'.maintainerd.auth.v1.EnsureRoleResponse\x12x\n" +
+	"\x13EnsureConsoleClient\x12/.maintainerd.auth.v1.EnsureConsoleClientRequest\x1a0.maintainerd.auth.v1.EnsureConsoleClientResponse\x12f\n" +
 	"\rCompleteSetup\x12).maintainerd.auth.v1.CompleteSetupRequest\x1a*.maintainerd.auth.v1.CompleteSetupResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
@@ -1097,7 +1892,7 @@ func file_maintainerd_auth_v1_setup_proto_rawDescGZIP() []byte {
 	return file_maintainerd_auth_v1_setup_proto_rawDescData
 }
 
-var file_maintainerd_auth_v1_setup_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_maintainerd_auth_v1_setup_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_maintainerd_auth_v1_setup_proto_goTypes = []any{
 	(*GetSetupStatusRequest)(nil),          // 0: maintainerd.auth.v1.GetSetupStatusRequest
 	(*GetSetupStatusResponse)(nil),         // 1: maintainerd.auth.v1.GetSetupStatusResponse
@@ -1112,28 +1907,46 @@ var file_maintainerd_auth_v1_setup_proto_goTypes = []any{
 	(*RegisterControlServiceResponse)(nil), // 10: maintainerd.auth.v1.RegisterControlServiceResponse
 	(*CompleteSetupRequest)(nil),           // 11: maintainerd.auth.v1.CompleteSetupRequest
 	(*CompleteSetupResponse)(nil),          // 12: maintainerd.auth.v1.CompleteSetupResponse
-	(*structpb.Struct)(nil),                // 13: google.protobuf.Struct
+	(*EnsureControlClientRequest)(nil),     // 13: maintainerd.auth.v1.EnsureControlClientRequest
+	(*EnsureControlClientResponse)(nil),    // 14: maintainerd.auth.v1.EnsureControlClientResponse
+	(*EnsureResourceAPIRequest)(nil),       // 15: maintainerd.auth.v1.EnsureResourceAPIRequest
+	(*EnsureResourceAPIPermission)(nil),    // 16: maintainerd.auth.v1.EnsureResourceAPIPermission
+	(*EnsureResourceAPIResponse)(nil),      // 17: maintainerd.auth.v1.EnsureResourceAPIResponse
+	(*EnsureRoleRequest)(nil),              // 18: maintainerd.auth.v1.EnsureRoleRequest
+	(*EnsureRoleResponse)(nil),             // 19: maintainerd.auth.v1.EnsureRoleResponse
+	(*EnsureConsoleClientRequest)(nil),     // 20: maintainerd.auth.v1.EnsureConsoleClientRequest
+	(*EnsureConsoleClientResponse)(nil),    // 21: maintainerd.auth.v1.EnsureConsoleClientResponse
+	(*structpb.Struct)(nil),                // 22: google.protobuf.Struct
 }
 var file_maintainerd_auth_v1_setup_proto_depIdxs = []int32{
 	2,  // 0: maintainerd.auth.v1.CreateTenantRequest.metadata:type_name -> maintainerd.auth.v1.TenantMetadata
-	13, // 1: maintainerd.auth.v1.CreateProfileRequest.metadata:type_name -> google.protobuf.Struct
-	0,  // 2: maintainerd.auth.v1.SetupService.GetSetupStatus:input_type -> maintainerd.auth.v1.GetSetupStatusRequest
-	3,  // 3: maintainerd.auth.v1.SetupService.CreateTenant:input_type -> maintainerd.auth.v1.CreateTenantRequest
-	5,  // 4: maintainerd.auth.v1.SetupService.CreateAdmin:input_type -> maintainerd.auth.v1.CreateAdminRequest
-	7,  // 5: maintainerd.auth.v1.SetupService.CreateProfile:input_type -> maintainerd.auth.v1.CreateProfileRequest
-	9,  // 6: maintainerd.auth.v1.SetupService.RegisterControlService:input_type -> maintainerd.auth.v1.RegisterControlServiceRequest
-	11, // 7: maintainerd.auth.v1.SetupService.CompleteSetup:input_type -> maintainerd.auth.v1.CompleteSetupRequest
-	1,  // 8: maintainerd.auth.v1.SetupService.GetSetupStatus:output_type -> maintainerd.auth.v1.GetSetupStatusResponse
-	4,  // 9: maintainerd.auth.v1.SetupService.CreateTenant:output_type -> maintainerd.auth.v1.CreateTenantResponse
-	6,  // 10: maintainerd.auth.v1.SetupService.CreateAdmin:output_type -> maintainerd.auth.v1.CreateAdminResponse
-	8,  // 11: maintainerd.auth.v1.SetupService.CreateProfile:output_type -> maintainerd.auth.v1.CreateProfileResponse
-	10, // 12: maintainerd.auth.v1.SetupService.RegisterControlService:output_type -> maintainerd.auth.v1.RegisterControlServiceResponse
-	12, // 13: maintainerd.auth.v1.SetupService.CompleteSetup:output_type -> maintainerd.auth.v1.CompleteSetupResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	22, // 1: maintainerd.auth.v1.CreateProfileRequest.metadata:type_name -> google.protobuf.Struct
+	16, // 2: maintainerd.auth.v1.EnsureResourceAPIRequest.permissions:type_name -> maintainerd.auth.v1.EnsureResourceAPIPermission
+	0,  // 3: maintainerd.auth.v1.SetupService.GetSetupStatus:input_type -> maintainerd.auth.v1.GetSetupStatusRequest
+	3,  // 4: maintainerd.auth.v1.SetupService.CreateTenant:input_type -> maintainerd.auth.v1.CreateTenantRequest
+	5,  // 5: maintainerd.auth.v1.SetupService.CreateAdmin:input_type -> maintainerd.auth.v1.CreateAdminRequest
+	7,  // 6: maintainerd.auth.v1.SetupService.CreateProfile:input_type -> maintainerd.auth.v1.CreateProfileRequest
+	9,  // 7: maintainerd.auth.v1.SetupService.RegisterControlService:input_type -> maintainerd.auth.v1.RegisterControlServiceRequest
+	13, // 8: maintainerd.auth.v1.SetupService.EnsureControlClient:input_type -> maintainerd.auth.v1.EnsureControlClientRequest
+	15, // 9: maintainerd.auth.v1.SetupService.EnsureResourceAPI:input_type -> maintainerd.auth.v1.EnsureResourceAPIRequest
+	18, // 10: maintainerd.auth.v1.SetupService.EnsureRole:input_type -> maintainerd.auth.v1.EnsureRoleRequest
+	20, // 11: maintainerd.auth.v1.SetupService.EnsureConsoleClient:input_type -> maintainerd.auth.v1.EnsureConsoleClientRequest
+	11, // 12: maintainerd.auth.v1.SetupService.CompleteSetup:input_type -> maintainerd.auth.v1.CompleteSetupRequest
+	1,  // 13: maintainerd.auth.v1.SetupService.GetSetupStatus:output_type -> maintainerd.auth.v1.GetSetupStatusResponse
+	4,  // 14: maintainerd.auth.v1.SetupService.CreateTenant:output_type -> maintainerd.auth.v1.CreateTenantResponse
+	6,  // 15: maintainerd.auth.v1.SetupService.CreateAdmin:output_type -> maintainerd.auth.v1.CreateAdminResponse
+	8,  // 16: maintainerd.auth.v1.SetupService.CreateProfile:output_type -> maintainerd.auth.v1.CreateProfileResponse
+	10, // 17: maintainerd.auth.v1.SetupService.RegisterControlService:output_type -> maintainerd.auth.v1.RegisterControlServiceResponse
+	14, // 18: maintainerd.auth.v1.SetupService.EnsureControlClient:output_type -> maintainerd.auth.v1.EnsureControlClientResponse
+	17, // 19: maintainerd.auth.v1.SetupService.EnsureResourceAPI:output_type -> maintainerd.auth.v1.EnsureResourceAPIResponse
+	19, // 20: maintainerd.auth.v1.SetupService.EnsureRole:output_type -> maintainerd.auth.v1.EnsureRoleResponse
+	21, // 21: maintainerd.auth.v1.SetupService.EnsureConsoleClient:output_type -> maintainerd.auth.v1.EnsureConsoleClientResponse
+	12, // 22: maintainerd.auth.v1.SetupService.CompleteSetup:output_type -> maintainerd.auth.v1.CompleteSetupResponse
+	13, // [13:23] is the sub-list for method output_type
+	3,  // [3:13] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_maintainerd_auth_v1_setup_proto_init() }
@@ -1147,7 +1960,7 @@ func file_maintainerd_auth_v1_setup_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_maintainerd_auth_v1_setup_proto_rawDesc), len(file_maintainerd_auth_v1_setup_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

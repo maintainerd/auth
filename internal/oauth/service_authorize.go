@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -298,6 +299,16 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 		}
 	}
 
+	// OIDC Core §3.1.2.1: acr_values and max_age are how a relying party asks for
+	// step-up authentication and for re-authentication at the PROTOCOL level. They
+	// were parsed nowhere, so an RP that asked for either had a code issued off
+	// whatever session already existed and no way to tell that its request had
+	// been dropped.
+	if oerr := s.enforceRequestedAuthContext(ctx, req); oerr != nil {
+		span.SetStatus(codes.Error, "requested authentication context not satisfied")
+		return nil, oerr
+	}
+
 	// Validate that the client supports the authorization_code grant.
 	if !clientHasGrant(client, GrantTypeAuthorizationCode) {
 		span.SetStatus(codes.Error, "grant type not allowed")
@@ -381,6 +392,83 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 	return &OAuthAuthorizeResult{
 		RedirectURI: redirectURI,
 	}, nil
+}
+
+// enforceRequestedAuthContext applies the RP's acr_values and max_age to the
+// session the caller already has.
+//
+// Both fail CLOSED: if the session's authentication facts cannot be read, the
+// request is refused rather than approved on the assumption that the session is
+// good enough. Refusal is the recoverable outcome — the RP re-runs /authorize
+// after the user authenticates — whereas silently issuing a code claims an
+// authentication strength the user never demonstrated.
+func (s *oauthAuthorizeService) enforceRequestedAuthContext(ctx context.Context, req OAuthAuthorizeRequestDTO) *apperror.OAuthError {
+	if req.ACRValues == "" && !req.MaxAgeSet {
+		return nil
+	}
+
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil {
+		return apperror.NewOAuthLoginRequired("authentication required")
+	}
+
+	if req.ACRValues != "" {
+		satisfied := false
+		for _, requested := range strings.Fields(req.ACRValues) {
+			if requested == claims.ACR {
+				satisfied = true
+				break
+			}
+		}
+		if !satisfied {
+			// step_up_required mirrors what the tenant-policy branch above returns,
+			// so the hosted identity app has one code to react to.
+			return &apperror.OAuthError{
+				Code:        "step_up_required",
+				Description: "the requested acr_values are not satisfied by the current session",
+				StatusCode:  http.StatusForbidden,
+			}
+		}
+	}
+
+	if req.MaxAgeSet {
+		authTime, ok := s.sessionAuthTime(ctx, claims.SessionID)
+		if !ok {
+			return apperror.NewOAuthLoginRequired("re-authentication required")
+		}
+		if time.Since(authTime) > time.Duration(req.MaxAgeSeconds)*time.Second {
+			return apperror.NewOAuthLoginRequired("re-authentication required")
+		}
+	}
+
+	return nil
+}
+
+// sessionAuthTime reads when the session behind this request last actively
+// authenticated. ok=false means "unknown", which callers must treat as a
+// failure, not as "recent".
+func (s *oauthAuthorizeService) sessionAuthTime(ctx context.Context, sessionID string) (time.Time, bool) {
+	if s.db == nil || sessionID == "" {
+		return time.Time{}, false
+	}
+	sessionUUID, err := uuid.Parse(sessionID)
+	if err != nil {
+		return time.Time{}, false
+	}
+	var row struct {
+		AuthTime time.Time `gorm:"column:auth_time"`
+	}
+	if err := s.db.WithContext(ctx).
+		Table("user_sessions").
+		Select("auth_time").
+		Where("user_session_uuid = ? AND revoked_at IS NULL", sessionUUID).
+		Take(&row).Error; err != nil {
+		return time.Time{}, false
+	}
+	if row.AuthTime.IsZero() {
+		return time.Time{}, false
+	}
+	return row.AuthTime, true
 }
 
 // PrepareAuthorize implements OAuthAuthorizeService.
@@ -842,19 +930,48 @@ func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, clie
 }
 
 // buildAuthCodeRedirect appends code and optional state to a redirect URI.
+//
+// The parameters are percent-encoded rather than concatenated raw. `state` is
+// client-controlled and arrives here already URL-DECODED, so a value containing
+// `&` or `#` used to re-partition the callback query: state "x&code=other"
+// was pasted in verbatim, injecting an extra query parameter into the redirect,
+// and a `#` truncated everything after it into a fragment. RFC 6749 §4.1.2
+// requires these to be added as properly encoded query parameters.
 func buildAuthCodeRedirect(redirectURI, code, state string) string {
-	sep := "?"
-	for _, c := range redirectURI {
-		if c == '?' {
+	params := url.Values{}
+	params.Set("code", code)
+	if state != "" {
+		params.Set("state", state)
+	}
+	return appendQueryParams(redirectURI, params)
+}
+
+// appendQueryParams merges encoded parameters onto a redirect URI, preserving
+// any query string the registered URI already carries.
+func appendQueryParams(redirectURI string, params url.Values) string {
+	if len(params) == 0 {
+		return redirectURI
+	}
+	parsed, err := url.Parse(redirectURI)
+	if err != nil {
+		// The redirect URI was matched against the client's registered set before
+		// reaching here, so a parse failure is not expected. Fall back to simple
+		// appending — with the values still encoded, which is the part that
+		// matters.
+		sep := "?"
+		if strings.Contains(redirectURI, "?") {
 			sep = "&"
-			break
+		}
+		return redirectURI + sep + params.Encode()
+	}
+	query := parsed.Query()
+	for key, values := range params {
+		for _, value := range values {
+			query.Set(key, value)
 		}
 	}
-	result := redirectURI + sep + "code=" + code
-	if state != "" {
-		result += "&state=" + state
-	}
-	return result
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
 }
 
 // splitScopes splits a space-delimited scope string into a slice.

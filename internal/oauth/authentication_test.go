@@ -12,6 +12,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/lib/pq"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 	"github.com/stretchr/testify/assert"
@@ -100,8 +101,9 @@ func TestAuthenticatePrivateKeyJWT(t *testing.T) {
 
 	t.Run("invalid JWT signature", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		wrongKey := genRSAKey(t)
 		assertion := signJWTWithRSA(t, claims, wrongKey, kid)
@@ -119,8 +121,9 @@ func TestAuthenticatePrivateKeyJWT(t *testing.T) {
 
 	t.Run("unexpected signing method", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 		token.Header["kid"] = kid
@@ -139,8 +142,9 @@ func TestAuthenticatePrivateKeyJWT(t *testing.T) {
 
 	t.Run("kid not found", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		assertion := signJWTWithRSA(t, claims, privKey, "missing-key")
 
@@ -156,8 +160,9 @@ func TestAuthenticatePrivateKeyJWT(t *testing.T) {
 
 	t.Run("valid assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		assertion := signJWTWithRSA(t, claims, privKey, kid)
 
@@ -234,8 +239,9 @@ func TestAuthenticateClientSecretJWT(t *testing.T) {
 
 	t.Run("assertion issuer mismatch", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": "wrong-client", "sub": "wrong-client", "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": "wrong-client", "sub": "wrong-client", "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 		assertion, err := token.SignedString([]byte(secret))
@@ -253,8 +259,9 @@ func TestAuthenticateClientSecretJWT(t *testing.T) {
 
 	t.Run("unexpected signing method", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		privKey := genRSAKey(t)
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
@@ -273,8 +280,9 @@ func TestAuthenticateClientSecretJWT(t *testing.T) {
 
 	t.Run("valid assertion uses encrypted secret not bcrypt hash", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 		assertion, err := token.SignedString([]byte(secret))
@@ -291,8 +299,9 @@ func TestAuthenticateClientSecretJWT(t *testing.T) {
 
 	t.Run("assertion signed with secret hash is rejected", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 		assertion, err := token.SignedString([]byte(secretHash))
@@ -316,8 +325,9 @@ func TestAuthenticateClientSecretJWT(t *testing.T) {
 		c.PreviousSecretExpiresAt = &expires
 
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 		assertion, err := token.SignedString([]byte("previous-client-secret"))
@@ -340,8 +350,9 @@ func TestValidateAssertionClaims(t *testing.T) {
 
 	t.Run("valid claims", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
-			"exp": float64(time.Now().Add(time.Hour).Unix()),
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": float64(time.Now().Add(2 * time.Minute).Unix()),
 		}
 		err := validateAssertionClaims(claims, client)
 		require.NoError(t, err)
@@ -355,8 +366,9 @@ func TestValidateAssertionClaims(t *testing.T) {
 
 	t.Run("issuer mismatch", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": "other", "sub": clientID, "aud": domain,
-			"exp": float64(time.Now().Add(time.Hour).Unix()),
+			"iss": "other", "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": float64(time.Now().Add(2 * time.Minute).Unix()),
 		}
 		err := validateAssertionClaims(claims, client)
 		require.Error(t, err)
@@ -365,8 +377,9 @@ func TestValidateAssertionClaims(t *testing.T) {
 
 	t.Run("subject mismatch", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": "other", "aud": domain,
-			"exp": float64(time.Now().Add(time.Hour).Unix()),
+			"iss": clientID, "sub": "other", "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": float64(time.Now().Add(2 * time.Minute).Unix()),
 		}
 		err := validateAssertionClaims(claims, client)
 		require.Error(t, err)
@@ -376,7 +389,8 @@ func TestValidateAssertionClaims(t *testing.T) {
 	t.Run("audience invalid", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
 			"iss": clientID, "sub": clientID, "aud": "wrong-domain.example.com",
-			"exp": float64(time.Now().Add(time.Hour).Unix()),
+			"jti": newTestAssertionJTI(),
+			"exp": float64(time.Now().Add(2 * time.Minute).Unix()),
 		}
 		err := validateAssertionClaims(claims, client)
 		require.Error(t, err)
@@ -385,7 +399,8 @@ func TestValidateAssertionClaims(t *testing.T) {
 
 	t.Run("assertion expired", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
 			"exp": float64(time.Now().Add(-time.Hour).Unix()),
 		}
 		err := validateAssertionClaims(claims, client)
@@ -558,8 +573,9 @@ func TestAuthenticateClientSecretJWT_DecryptError(t *testing.T) {
 	}
 
 	claims := jwtlib.MapClaims{
-		"iss": clientID, "sub": clientID, "aud": domain,
-		"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+		"jti": newTestAssertionJTI(),
+		"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 	}
 	token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 	assertion, err := token.SignedString([]byte("doesnt-matter"))
@@ -582,7 +598,8 @@ func TestValidateAssertionClaims_DomainNil(t *testing.T) {
 
 	claims := jwtlib.MapClaims{
 		"iss": clientID, "sub": clientID, "aud": "any-audience.example.com",
-		"exp": float64(time.Now().Add(time.Hour).Unix()),
+		"jti": newTestAssertionJTI(),
+		"exp": float64(time.Now().Add(2 * time.Minute).Unix()),
 	}
 	err := validateAssertionClaims(claims, client)
 	require.Error(t, err)
@@ -604,7 +621,8 @@ func TestAuthenticatePrivateKeyJWT_BadClaims(t *testing.T) {
 
 	t.Run("expired assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
 			"exp": time.Now().Add(-time.Hour).Unix(), "iat": time.Now().Add(-2 * time.Hour).Unix(),
 		}
 		assertion := signJWTWithRSA(t, claims, privKey, kid)
@@ -620,8 +638,9 @@ func TestAuthenticatePrivateKeyJWT_BadClaims(t *testing.T) {
 
 	t.Run("issuer mismatch in assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": "wrong-client", "sub": clientID, "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": "wrong-client", "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		assertion := signJWTWithRSA(t, claims, privKey, kid)
 		creds := OAuthClientCredentials{
@@ -637,7 +656,7 @@ func TestAuthenticatePrivateKeyJWT_BadClaims(t *testing.T) {
 	t.Run("missing claims in assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
 			"iss": clientID,
-			"exp": time.Now().Add(time.Hour).Unix(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(),
 		}
 		assertion := signJWTWithRSA(t, claims, privKey, kid)
 		creds := OAuthClientCredentials{
@@ -653,7 +672,8 @@ func TestAuthenticatePrivateKeyJWT_BadClaims(t *testing.T) {
 	t.Run("audience invalid", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
 			"iss": clientID, "sub": clientID, "aud": "wrong-domain.example.com",
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		assertion := signJWTWithRSA(t, claims, privKey, kid)
 		creds := OAuthClientCredentials{
@@ -706,7 +726,8 @@ func TestAuthenticateClientSecretJWT_BadClaims(t *testing.T) {
 
 	t.Run("expired assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": clientID, "aud": domain,
+			"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
 			"exp": time.Now().Add(-time.Hour).Unix(), "iat": time.Now().Add(-2 * time.Hour).Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
@@ -724,8 +745,9 @@ func TestAuthenticateClientSecretJWT_BadClaims(t *testing.T) {
 
 	t.Run("subject mismatch in assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
-			"iss": clientID, "sub": "wrong-sub", "aud": domain,
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"iss": clientID, "sub": "wrong-sub", "aud": config.AppPublicHostname,
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 		assertion, err := token.SignedString([]byte(secret))
@@ -743,7 +765,7 @@ func TestAuthenticateClientSecretJWT_BadClaims(t *testing.T) {
 	t.Run("missing claims in assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
 			"iss": clientID,
-			"exp": time.Now().Add(time.Hour).Unix(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 		assertion, err := token.SignedString([]byte(secret))
@@ -761,7 +783,8 @@ func TestAuthenticateClientSecretJWT_BadClaims(t *testing.T) {
 	t.Run("audience invalid in assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
 			"iss": clientID, "sub": clientID, "aud": "wrong-domain.example.com",
-			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"jti": newTestAssertionJTI(),
+			"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 		}
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 		assertion, err := token.SignedString([]byte(secret))
@@ -833,8 +856,9 @@ func TestAuthenticateOAuthClient_ClientSecretJWT(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
 
 	claims := jwtlib.MapClaims{
-		"iss": clientID, "sub": clientID, "aud": domain,
-		"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		"iss": clientID, "sub": clientID, "aud": config.AppPublicHostname,
+		"jti": newTestAssertionJTI(),
+		"exp": time.Now().Add(2 * time.Minute).Unix(), "iat": time.Now().Unix(),
 	}
 	token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
 	assertion, err := token.SignedString([]byte(secret))

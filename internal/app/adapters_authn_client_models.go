@@ -34,31 +34,8 @@ func toAuthnIDPFromClient(p *client.IdentityProvider) *authn.IdentityProvider {
 }
 
 func defaultConnectedIDPFromClient(c *client.Client) *client.IdentityProvider {
-	if c == nil {
-		return nil
-	}
-	if c.IdentityProvider != nil {
-		return c.IdentityProvider
-	}
-	if c.ConnectedProviders == nil {
-		return nil
-	}
-	var first *client.IdentityProvider
-	for i := range *c.ConnectedProviders {
-		conn := &(*c.ConnectedProviders)[i]
-		if conn.Enabled != nil && !*conn.Enabled || conn.IdentityProvider == nil {
-			continue
-		}
-		if first == nil {
-			first = conn.IdentityProvider
-		}
-		if conn.IsDefault {
-			return conn.IdentityProvider
-		}
-	}
-	return first
+	return c.DefaultConnectedIdentityProvider()
 }
-
 func toAuthnClientIdentityProviders(c *client.Client) *[]authn.ClientIdentityProvider {
 	if c == nil || c.ConnectedProviders == nil {
 		return nil

@@ -82,6 +82,51 @@ func TestPolicyService_GetServicesByPolicyUUID(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	// FindByUUIDAndTenantID reports not-found as (nil, nil). The caller checked only
+	// err, so another tenant's policy UUID fell through to the service listing and
+	// returned that tenant's service names, UUIDs and descriptions.
+	t.Run("foreign policy UUID → not found, no service lookup", func(t *testing.T) {
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
+		}
+		serviceRepo := &mockServiceRepo{
+			findServicesByPolicyUUIDFn: func(_ uuid.UUID, _ ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+				t.Fatal("services must not be listed for a policy the tenant does not own")
+				return nil, nil
+			},
+		}
+		svc := newPolicyService(policyRepo, serviceRepo, &mockAPIRepo{})
+
+		result, err := svc.GetServicesByPolicyUUID(context.Background(), policyUUID, tenantID, PolicyServiceServicesFilter{Page: 1, Limit: 10})
+
+		assert.Nil(t, result)
+		require.ErrorContains(t, err, "not found")
+	})
+
+	// Owning the POLICY does not prove every service linked to it belongs to the
+	// caller, so the tenant is carried into the repository query too.
+	t.Run("carries the tenant into the repository filter", func(t *testing.T) {
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return newPolicy(tenantID, "read-only", "v1"), nil
+			},
+		}
+		var gotFilter ServiceRepositoryGetFilter
+		serviceRepo := &mockServiceRepo{
+			findServicesByPolicyUUIDFn: func(_ uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+				gotFilter = filter
+				return &PaginationResult[Service]{Page: 1, Limit: 10}, nil
+			},
+		}
+		svc := newPolicyService(policyRepo, serviceRepo, &mockAPIRepo{})
+
+		_, err := svc.GetServicesByPolicyUUID(context.Background(), policyUUID, tenantID, PolicyServiceServicesFilter{Page: 1, Limit: 10})
+
+		require.NoError(t, err)
+		require.NotNil(t, gotFilter.TenantID)
+		assert.Equal(t, tenantID, *gotFilter.TenantID)
+	})
+
 	t.Run("FindServicesByPolicyUUID error → propagated", func(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -60,6 +61,32 @@ func TestValidationError(t *testing.T) {
 
 	var target *ValidationError
 	assert.True(t, errors.As(err, &target))
+}
+
+func TestTooManyRequestsError(t *testing.T) {
+	t.Run("default message", func(t *testing.T) {
+		err := NewTooManyRequests("")
+		assert.Equal(t, "too many requests", err.Error())
+		assert.Zero(t, err.RetryAfter)
+	})
+
+	t.Run("custom reason", func(t *testing.T) {
+		err := NewTooManyRequests("too many verification attempts")
+		assert.Equal(t, "too many verification attempts", err.Error())
+	})
+
+	t.Run("carries a retry hint", func(t *testing.T) {
+		err := NewTooManyRequestsAfter("too many login attempts", 15*time.Minute)
+		assert.Equal(t, "too many login attempts", err.Error())
+		assert.Equal(t, 15*time.Minute, err.RetryAfter)
+	})
+
+	var target *TooManyRequestsError
+	assert.True(t, errors.As(NewTooManyRequests("slow down"), &target))
+
+	// A throttle must never be mistaken for a permanent denial.
+	var forbidden *ForbiddenError
+	assert.False(t, errors.As(NewTooManyRequests("slow down"), &forbidden))
 }
 
 func TestInternalError(t *testing.T) {

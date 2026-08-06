@@ -13,13 +13,13 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 )
 
-// RefreshToken exchanges a valid refresh token (issued by the internal login
-// flow) for a fresh token set — a new access token, id token, and a rotated
-// refresh token.
+// RefreshToken exchanges a valid refresh token (issued by the login flow) for a
+// fresh token set — a new access token, id token, and a rotated refresh token.
 //
 // It is session-aware: when the caller supplies the session id (via the
 // X-Session-ID header or the sid claim of the access_token cookie) the existing
@@ -84,6 +84,12 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	}
 	if user == nil {
 		return nil, apperror.NewUnauthorized("user not found for refresh token")
+	}
+	// A refresh is the one moment a disabled account would otherwise be handed a
+	// brand-new access token, extending its reach well past the deactivation.
+	if user.Status != "" && user.Status != shared.StatusActive {
+		span.SetStatus(codes.Error, "user is not active")
+		return nil, apperror.NewUnauthorized("this account is no longer active")
 	}
 
 	// Resolve the client so the new token set carries the correct issuer/audience.

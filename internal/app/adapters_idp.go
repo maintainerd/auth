@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -74,10 +75,13 @@ func (r *idpUserIdentityRepo) CreateByTenantProviderSubIfAbsent(identity *idp.Us
 	if identity.UserIdentityUUID == uuid.Nil {
 		identity.UserIdentityUUID = uuid.New()
 	}
+	// The conflict target MUST name the actual unique index — Postgres resolves
+	// the arbiter at plan time, so a stale target fails every insert, not just
+	// the conflicting ones. Migration 030 keys uniqueness on (tenant_id, sub):
+	// the tenant is the OIDC issuer and `sub` is unique per issuer.
 	result := r.DB().Clauses(clause.OnConflict{
 		Columns: []clause.Column{
 			{Name: "tenant_id"},
-			{Name: "provider"},
 			{Name: "sub"},
 		},
 		DoNothing: true,
@@ -88,8 +92,23 @@ func (r *idpUserIdentityRepo) CreateByTenantProviderSubIfAbsent(identity *idp.Us
 	if result.RowsAffected > 0 {
 		return identity, true, nil
 	}
-	existing, err := r.FindByTenantProviderAndSub(identity.TenantID, identity.Provider, identity.Sub)
+	// Re-read on the SAME key the conflict fired on. Looking it up by
+	// (tenant, provider, sub) would miss a row holding this sub under a
+	// different provider — the caller would then see no owner, conclude nothing
+	// was wrong, and continue with a user that has no external identity.
+	existing, err := r.FindByTenantAndSub(identity.TenantID, identity.Sub)
 	return existing, false, err
+}
+
+// FindByTenantAndSub resolves whoever owns a subject within a tenant,
+// regardless of which provider issued it. This is the uniqueness key.
+func (r *idpUserIdentityRepo) FindByTenantAndSub(tenantID int64, sub string) (*idp.UserIdentity, error) {
+	var identity idp.UserIdentity
+	err := r.DB().Where("tenant_id = ? AND sub = ?", tenantID, sub).First(&identity).Error
+	if err != nil {
+		return nil, firstOrNil(err)
+	}
+	return &identity, nil
 }
 
 func (r *idpUserIdentityRepo) FindByUserIDAndProvider(userID int64, provider string) (*idp.UserIdentity, error) {
@@ -136,12 +155,21 @@ func (r *idpClientRepo) FindRedirectURIs(clientID int64) ([]idp.ClientURI, error
 }
 
 func (r *idpClientRepo) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*idp.Client, error) {
-	query := r.DB().Model(&idp.Client{}).Where("clients.identifier = ?", clientID)
+	query := r.DB().Model(&idp.Client{}).
+		Where("clients.identifier = ?", clientID).
+		// Same gates as client.clientRepository.FindByClientIDAndIdentityProvider.
+		// This adapter backs the federated login path, so leaving them off meant a
+		// disabled connection or a deactivated provider still minted tokens — the
+		// later reachability checks only bite on subsequent API calls, by which
+		// point a full-TTL access token has already been issued.
+		Where("clients.status = ? AND clients.deleted_at IS NULL", shared.StatusActive)
 	if identityProviderIdentifier != "" {
 		query = query.
 			Joins("JOIN client_identity_providers ON client_identity_providers.client_id = clients.client_id").
 			Joins("JOIN identity_providers ON identity_providers.identity_provider_id = client_identity_providers.identity_provider_id").
-			Where("identity_providers.identifier = ?", identityProviderIdentifier)
+			Where("identity_providers.identifier = ?", identityProviderIdentifier).
+			Where("identity_providers.status = ? AND identity_providers.deleted_at IS NULL", shared.StatusActive).
+			Where("client_identity_providers.enabled = TRUE AND client_identity_providers.deleted_at IS NULL")
 	}
 	var c idp.Client
 	err := query.First(&c).Error

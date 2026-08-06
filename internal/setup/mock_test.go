@@ -57,6 +57,10 @@ type mockSetupService struct {
 	createProfileFn          func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
 	registerControlServiceFn func(req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error)
 	completeSetupFn          func() (*CompleteSetupResponseDTO, error)
+	ensureControlClientFn    func(EnsureControlClientRequestDTO) (*EnsureControlClientResponseDTO, error)
+	ensureResourceAPIFn      func(EnsureResourceAPIRequestDTO) (*EnsureResourceAPIResponseDTO, error)
+	ensureRoleFn             func(EnsureRoleRequestDTO) (*EnsureRoleResponseDTO, error)
+	ensureConsoleClientFn    func(EnsureConsoleClientRequestDTO) (*EnsureConsoleClientResponseDTO, error)
 }
 
 func (m *mockSetupService) GetSetupStatus(_ context.Context) (*SetupStatusResponseDTO, error) {
@@ -132,6 +136,17 @@ func (m *mockServiceRepo) CreateOrUpdate(service *Service) (*Service, error) {
 type mockPolicyRepo struct {
 	mockBaseRepo[Policy]
 	findByNameAndVersionFn func(string, string, int64) (*Policy, error)
+	// created captures the policy setup builds when none exists, which is what
+	// replaced the seeded row.
+	created *Policy
+}
+
+func (m *mockPolicyRepo) Create(policy *Policy) (*Policy, error) {
+	m.created = policy
+	if policy.PolicyID == 0 {
+		policy.PolicyID = 88
+	}
+	return policy, nil
 }
 
 func (m *mockPolicyRepo) WithTx(_ *gorm.DB) PolicyRepository                      { return m }
@@ -143,7 +158,6 @@ func (m *mockPolicyRepo) FindByNameAndVersion(name string, version string, tenan
 	}
 	return &Policy{PolicyID: 88, PolicyUUID: uuid.New(), TenantID: tenantID, Name: name, Version: version}, nil
 }
-func (m *mockPolicyRepo) FindSystemPolicies(int64) ([]Policy, error) { return nil, nil }
 func (m *mockPolicyRepo) FindPaginated(PolicyRepositoryGetFilter) (*PaginationResult[Policy], error) {
 	return &PaginationResult[Policy]{}, nil
 }
@@ -169,7 +183,6 @@ func (m *mockServicePolicyRepo) FindByServiceAndPolicy(serviceID int64, policyID
 }
 func (m *mockServicePolicyRepo) DeleteByServiceAndPolicy(int64, int64) error     { return nil }
 func (m *mockServicePolicyRepo) FindPoliciesByServiceID(int64) ([]Policy, error) { return nil, nil }
-func (m *mockServicePolicyRepo) FindServicesByPolicyID(int64) ([]Service, error) { return nil, nil }
 func (m *mockServicePolicyRepo) Create(policy *ServicePolicy) (*ServicePolicy, error) {
 	if m.createFn != nil {
 		return m.createFn(policy)
@@ -258,6 +271,7 @@ func (m *mockTenantRepo) DeleteCascade(_ context.Context, _ *gorm.DB, _ int64, _
 }
 
 type mockUserRepo struct {
+	effectivePermissionNamesFn func(int64, int64) ([]string, error)
 	mockBaseRepo[User]
 	findByUUIDFn             func(any, ...string) (*User, error)
 	findByUsernameFn         func(string) (*User, error)
@@ -456,6 +470,7 @@ func (m *mockProfileRepo) UnsetDefaultProfiles(userID int64) error {
 }
 
 type mockClientRepo struct {
+	existsByIdentifierFn func(string) (bool, error)
 	mockBaseRepo[Client]
 	findByUUIDFn                        func(any, ...string) (*Client, error)
 	findByUUIDAndTenantIDFn             func(uuid.UUID, int64) (*Client, error)
@@ -472,6 +487,15 @@ type mockClientRepo struct {
 }
 
 func (m *mockClientRepo) WithTx(_ *gorm.DB) ClientRepository { return m }
+
+// ExistsByIdentifier backs the client-identifier collision retry; setup never
+// exercises it, so the default reports "free".
+func (m *mockClientRepo) ExistsByIdentifier(identifier string) (bool, error) {
+	if m.existsByIdentifierFn != nil {
+		return m.existsByIdentifierFn(identifier)
+	}
+	return false, nil
+}
 func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
@@ -669,6 +693,7 @@ func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
 }
 
 type mockUserIdentityRepo struct {
+	findByTenantAndSubFn func(int64, string) (*UserIdentity, error)
 	mockBaseRepo[UserIdentity]
 	findByUserIDFn                      func(int64) ([]UserIdentity, error)
 	findByUserIDAndClientIDFn           func(int64, int64) (*UserIdentity, error)
@@ -696,7 +721,7 @@ func (m *mockUserIdentityRepo) FindByUserID(userID int64) ([]UserIdentity, error
 func (m *mockUserIdentityRepo) FindUserIdentitiesPaginated(_ user.GetUserIdentitiesFilter) (*PaginationResult[user.UserIdentity], error) {
 	return &PaginationResult[user.UserIdentity]{}, nil
 }
-func (m *mockUserIdentityRepo) FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByUserIDAndClientReachable(userID, clientID int64) (*UserIdentity, error) {
 	if m.findByUserIDAndClientIDFn != nil {
 		return m.findByUserIDAndClientIDFn(userID, clientID)
 	}
@@ -787,3 +812,104 @@ func (m *mockTenantMemberRepo) FindOwnerByTenantID(tenantID int64) (*TenantMembe
 	}
 	return nil, nil
 }
+
+// Defaults to an empty set, so the privilege-escalation guard fails CLOSED
+// unless a test states what the actor holds.
+func (m *mockUserRepo) EffectivePermissionNames(userID, tenantID int64) ([]string, error) {
+	if m.effectivePermissionNamesFn != nil {
+		return m.effectivePermissionNamesFn(userID, tenantID)
+	}
+	return nil, nil
+}
+
+// The orchestrator-provisioning RPCs. Default to a zero response so a test that
+// does not exercise them still satisfies the SetupService interface.
+
+func (m *mockSetupService) EnsureControlClient(_ context.Context, req EnsureControlClientRequestDTO) (*EnsureControlClientResponseDTO, error) {
+	if m.ensureControlClientFn != nil {
+		return m.ensureControlClientFn(req)
+	}
+	return &EnsureControlClientResponseDTO{}, nil
+}
+
+func (m *mockSetupService) EnsureResourceAPI(_ context.Context, req EnsureResourceAPIRequestDTO) (*EnsureResourceAPIResponseDTO, error) {
+	if m.ensureResourceAPIFn != nil {
+		return m.ensureResourceAPIFn(req)
+	}
+	return &EnsureResourceAPIResponseDTO{}, nil
+}
+
+func (m *mockSetupService) EnsureRole(_ context.Context, req EnsureRoleRequestDTO) (*EnsureRoleResponseDTO, error) {
+	if m.ensureRoleFn != nil {
+		return m.ensureRoleFn(req)
+	}
+	return &EnsureRoleResponseDTO{}, nil
+}
+
+func (m *mockSetupService) EnsureConsoleClient(_ context.Context, req EnsureConsoleClientRequestDTO) (*EnsureConsoleClientResponseDTO, error) {
+	if m.ensureConsoleClientFn != nil {
+		return m.ensureConsoleClientFn(req)
+	}
+	return &EnsureConsoleClientResponseDTO{}, nil
+}
+
+// Repos the orchestrator-provisioning RPCs need. They return empty results, so a
+// test using them exercises validation and control flow rather than persistence.
+
+type mockAPIRepo struct{ mockBaseRepo[API] }
+
+func (m *mockAPIRepo) WithTx(*gorm.DB) APIRepository                        { return m }
+func (m *mockAPIRepo) FindByUUIDAndTenantID(uuid.UUID, int64) (*API, error) { return nil, nil }
+func (m *mockAPIRepo) FindByName(string, int64) (*API, error)               { return nil, nil }
+func (m *mockAPIRepo) FindByIdentifier(string, int64) (*API, error)         { return nil, nil }
+func (m *mockAPIRepo) SetStatusByUUID(uuid.UUID, int64, string) error       { return nil }
+func (m *mockAPIRepo) CountByServiceID(int64, int64) (int64, error)         { return 0, nil }
+func (m *mockAPIRepo) DeleteByUUIDAndTenantID(uuid.UUID, int64) error       { return nil }
+func (m *mockAPIRepo) FindPaginated(APIRepositoryGetFilter) (*PaginationResult[API], error) {
+	return &PaginationResult[API]{}, nil
+}
+
+type mockPermissionRepo struct{ mockBaseRepo[Permission] }
+
+func (m *mockPermissionRepo) WithTx(*gorm.DB) PermissionRepository { return m }
+func (m *mockPermissionRepo) FindByUUIDAndTenantID(uuid.UUID, int64) (*Permission, error) {
+	return nil, nil
+}
+func (m *mockPermissionRepo) FindByUUIDsAndTenantID([]string, int64) ([]Permission, error) {
+	return nil, nil
+}
+func (m *mockPermissionRepo) FindByName(string, int64) (*Permission, error)  { return nil, nil }
+func (m *mockPermissionRepo) DeleteByUUIDAndTenantID(uuid.UUID, int64) error { return nil }
+func (m *mockPermissionRepo) FindPaginated(PermissionRepositoryGetFilter) (*PaginationResult[Permission], error) {
+	return &PaginationResult[Permission]{}, nil
+}
+
+type mockRolePermissionRepo struct{ mockBaseRepo[RolePermission] }
+
+func (m *mockRolePermissionRepo) WithTx(*gorm.DB) RolePermissionRepository { return m }
+func (m *mockRolePermissionRepo) Assign(rp *RolePermission) (*RolePermission, error) {
+	return rp, nil
+}
+func (m *mockRolePermissionRepo) FindByRoleAndPermission(int64, int64) (*RolePermission, error) {
+	return nil, nil
+}
+func (m *mockRolePermissionRepo) FindAllByRoleID(int64) ([]RolePermission, error) { return nil, nil }
+func (m *mockRolePermissionRepo) FindAllByPermissionID(int64) ([]RolePermission, error) {
+	return nil, nil
+}
+func (m *mockRolePermissionRepo) RemoveByRoleAndPermission(int64, int64) error { return nil }
+func (m *mockRolePermissionRepo) SetDefaultStatusByUUID(uuid.UUID, bool) error { return nil }
+
+type mockClientURIRepo struct{ mockBaseRepo[ClientURI] }
+
+func (m *mockClientURIRepo) WithTx(*gorm.DB) ClientURIRepository { return m }
+func (m *mockClientURIRepo) FindByUUIDAndTenantID(string, int64) (*ClientURI, error) {
+	return nil, nil
+}
+func (m *mockClientURIRepo) FindByURIAndType(string, string, int64, int64) (*ClientURI, error) {
+	return nil, nil
+}
+func (m *mockClientURIRepo) FindByClientIDAndType(int64, string, int64) ([]ClientURI, error) {
+	return nil, nil
+}
+func (m *mockClientURIRepo) DeleteByUUIDAndTenantID(string, int64) error { return nil }

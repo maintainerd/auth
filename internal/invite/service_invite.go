@@ -3,6 +3,7 @@ package invite
 import (
 	"bytes"
 	"context"
+	"errors"
 	"html/template"
 	"os"
 	"strconv"
@@ -22,6 +23,18 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
+
+// isResendable reports whether an invite in this state may be re-issued. It
+// mirrors the predicate ResetForResend applies in SQL so the caller gets a
+// specific error instead of a bare "0 rows affected".
+func isResendable(status string) bool {
+	for _, s := range resendableStatuses {
+		if status == s {
+			return true
+		}
+	}
+	return false
+}
 
 const defaultInviteTTL = 72 * time.Hour
 
@@ -80,6 +93,9 @@ func (s *inviteService) SendInvite(
 
 	var invite *Invite
 	var clientIdentifier string
+	// The raw token never reaches the database — it is held here only to build the
+	// signed link that goes into the invite email.
+	var inviteToken string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		clientRepo := s.clientRepo.WithTx(tx)
@@ -103,18 +119,20 @@ func (s *inviteService) SendInvite(
 		}
 		clientIdentifier = *Client.Identifier
 
-		inviteToken, err := crypto.GenerateIdentifier(32)
+		inviteToken, err = crypto.GenerateIdentifier(32)
 		if err != nil {
 			return err
 		}
 		expiresAt := ptr.TimePtr(time.Now().Add(inviteTTL()))
 
+		// Only the digest is persisted; inviteToken (the raw value) stays in memory
+		// just long enough to build the emailed link below.
 		invite = &Invite{
 			TenantID:        tenantID,
 			ClientID:        Client.ClientID,
 			InvitedEmail:    email,
 			InvitedByUserID: &userID,
-			InviteToken:     inviteToken,
+			InviteTokenHash: hashInviteToken(inviteToken),
 			Status:          shared.StatusPending,
 			ExpiresAt:       expiresAt,
 		}
@@ -208,7 +226,7 @@ func (s *inviteService) SendInvite(
 	// surface, which requires client_id), plus email, the invite token, the
 	// callback URL (when set), and the signed-URL fields (expires + signature).
 	params := map[string]string{
-		"invite_token": invite.InviteToken,
+		"invite_token": inviteToken,
 		"email":        invite.InvitedEmail,
 		"client_id":    clientIdentifier,
 	}
@@ -257,13 +275,30 @@ func (s *inviteService) ResendInvite(
 		return nil, apperror.NewNotFoundWithReason("invite not found")
 	}
 
+	// Only an unsettled invite may be resent. Resending an accepted invite wiped
+	// its used_at (destroying the acceptance record) and handed the invitee a
+	// live token again; resending a revoked one silently undid the revocation.
+	// A pending invite past its expiry is still resendable — that is the reason
+	// resend exists.
+	if !isResendable(existing.Status) {
+		span.SetStatus(codes.Error, "invite is not resendable")
+		return nil, apperror.NewConflict("invite is " + existing.Status + " and cannot be resent")
+	}
+
 	inviteToken, err := crypto.GenerateIdentifier(32)
 	if err != nil {
 		return nil, err
 	}
 	expiresAt := ptr.TimePtr(time.Now().Add(inviteTTL()))
 
+	// The repository re-checks the status in its WHERE clause, so a concurrent
+	// acceptance between the read above and this write loses rather than being
+	// overwritten.
 	if err := s.inviteRepo.ResetForResend(inviteUUID, inviteToken, *expiresAt); err != nil {
+		if errors.Is(err, ErrInviteNotResendable) {
+			span.SetStatus(codes.Error, "invite is not resendable")
+			return nil, apperror.NewConflict("invite was settled before it could be resent")
+		}
 		return nil, err
 	}
 
@@ -317,7 +352,7 @@ func (s *inviteService) ResendInvite(
 	}
 
 	span.SetStatus(codes.Ok, "")
-	existing.InviteToken = inviteToken
+	existing.InviteTokenHash = hashInviteToken(inviteToken)
 	existing.ExpiresAt = expiresAt
 	existing.Status = shared.StatusPending
 	return existing, nil
@@ -404,7 +439,21 @@ func (s *inviteService) RevokeInvite(ctx context.Context, inviteUUID uuid.UUID, 
 	if existing == nil {
 		return apperror.NewNotFoundWithReason("invite not found")
 	}
+	// Only a pending invite can be revoked. Revoking an accepted one flipped the
+	// status while leaving used_at set, so the audit trail claimed the invite was
+	// simultaneously consumed and withdrawn — and revoking again after a revoke
+	// is a no-op the caller should hear about.
+	if existing.Status != shared.StatusPending {
+		span.SetStatus(codes.Error, "invite is not pending")
+		return apperror.NewConflict("invite is " + existing.Status + " and cannot be revoked")
+	}
 	if err := s.inviteRepo.RevokeByUUID(inviteUUID); err != nil {
+		// Lost a race with an acceptance or another revoke between the read and
+		// the write; the repository's status predicate refused the update.
+		if errors.Is(err, ErrInviteNotPending) {
+			span.SetStatus(codes.Error, "invite is not pending")
+			return apperror.NewConflict("invite was settled before it could be revoked")
+		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "revoke invite failed")
 		return apperror.NewInternal("failed to revoke invite", err)

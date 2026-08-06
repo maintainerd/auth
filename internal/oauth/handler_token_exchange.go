@@ -29,10 +29,23 @@ func (h *OAuthTokenExchangeHandler) Exchange(w http.ResponseWriter, r *http.Requ
 	subjectTokenType := r.PostFormValue("subject_token_type")
 	subjectToken := r.PostFormValue("subject_token")
 	if workloadIdentityExchanger != nil && subjectTokenType == subjectTokenTypeJWT && subjectToken != "" {
+		// This path is keyless — no client credentials are presented — so the
+		// audience the caller names is the only thing standing between it and a
+		// token addressed at some other resource server. Collapse `audience` and
+		// `resource` into the one target they must agree on here, before anything
+		// is minted: the exchanger only ever read `audience`, so a caller that
+		// named `resource` alone had its target silently dropped, and a caller
+		// that named two different targets had one of them silently dropped.
+		wifTarget, oerr := normalizeRequestedTarget(r.PostFormValue("audience"), r.PostFormValue("resource"))
+		if oerr != nil {
+			oerr.WriteJSON(w)
+			return
+		}
+
 		wifResult, oerr := workloadIdentityExchanger.ExchangeWorkloadToken(r.Context(), WorkloadTokenExchangeInput{
 			SubjectToken: subjectToken,
 			Scope:        r.PostFormValue("scope"),
-			Audience:     r.PostFormValue("audience"),
+			Audience:     wifTarget,
 			Resource:     r.PostFormValue("resource"),
 			IPAddress:    middleware.ClientIPFromContext(r.Context()),
 		})

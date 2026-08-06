@@ -72,7 +72,8 @@ func TestOAuthError_RedirectURI(t *testing.T) {
 			redirectURI: "https://example.com/callback",
 			state:       "abc123",
 			err:         NewOAuthAccessDenied("user denied"),
-			expected:    "https://example.com/callback?error=access_denied&error_description=user denied&state=abc123",
+			// The space is now percent-encoded; it never should have been raw.
+			expected: "https://example.com/callback?error=access_denied&error_description=user+denied&state=abc123",
 		},
 		{
 			name:        "redirect without state",
@@ -86,7 +87,18 @@ func TestOAuthError_RedirectURI(t *testing.T) {
 			redirectURI: "https://example.com/callback?foo=bar",
 			state:       "xyz",
 			err:         NewOAuthServerError("oops"),
-			expected:    "https://example.com/callback?foo=bar&error=server_error&error_description=oops&state=xyz",
+			// url.Values.Encode sorts keys; the pre-existing param is preserved.
+			expected: "https://example.com/callback?error=server_error&error_description=oops&foo=bar&state=xyz",
+		},
+		{
+			// `state` arrives URL-decoded, so raw concatenation let a caller close
+			// the value and append their own parameters — here a second `code`.
+			// Escaped, the whole thing stays one opaque state value.
+			name:        "state containing & and # cannot inject parameters",
+			redirectURI: "https://example.com/callback",
+			state:       "abc&code=stolen#frag",
+			err:         NewOAuthServerError("oops"),
+			expected:    "https://example.com/callback?error=server_error&error_description=oops&state=abc%26code%3Dstolen%23frag",
 		},
 		{
 			name:        "error without description",

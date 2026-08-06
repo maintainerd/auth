@@ -28,6 +28,35 @@ func NewAccountHandler(accountService AccountService, sessionService SessionServ
 // SetAuditLogger injects the audit logger (called by the wiring layer).
 func (h *AccountHandler) SetAuditLogger(l auditlog.ManagementAuditLogger) { h.auditLogger = l }
 
+// accountPasswordThrottleKey is the shared counter for every /account endpoint
+// that verifies current_password: change password, change email, change
+// username, delete account.
+//
+// /account is mounted under the global per-IP limiter only, not the strict auth
+// rate-limit group, so without this each of those endpoints is an unmetered
+// password-verification oracle for anyone holding a stolen access token. Only
+// ChangePassword had a throttle; the other three called security.ComparePassword
+// with nothing counting the misses, which made the one throttle pointless — an
+// attacker simply guessed against DELETE /account instead. One key for all four
+// so the budget cannot be multiplied by rotating endpoints.
+//
+// The key is deliberately NOT the login lockout key. Feeding this into login
+// lockout would let a stolen token lock the victim out of signing in at all,
+// turning a confidentiality problem into a denial of service.
+func accountPasswordThrottleKey(userUUID uuid.UUID) string {
+	return "account-pwd-verify:" + userUUID.String()
+}
+
+// checkAccountPasswordThrottle reports whether the caller may attempt another
+// password verification, writing the 429 itself when they may not.
+func checkAccountPasswordThrottle(w http.ResponseWriter, userUUID uuid.UUID) bool {
+	if err := security.CheckRateLimit(accountPasswordThrottleKey(userUUID)); err != nil {
+		resp.Error(w, http.StatusTooManyRequests, "Too many attempts. Please try again later.")
+		return false
+	}
+	return true
+}
+
 func (h *AccountHandler) logAudit(r *http.Request, tenantID int64, actorUserID *int64, action, resourceType, resourceID string, resourceUUID *uuid.UUID, changes, outcome string) {
 	if h.auditLogger == nil {
 		return
@@ -159,10 +188,16 @@ func (h *AccountHandler) InitiateEmailChange(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if !checkAccountPasswordThrottle(w, user.UserUUID) {
+		return
+	}
+
 	if err := h.accountService.InitiateEmailChange(r.Context(), user.UserID, req.NewEmail, req.CurrentPassword); err != nil {
+		security.RecordFailedAttempt(accountPasswordThrottleKey(user.UserUUID))
 		resp.HandleServiceError(w, r, "Failed to initiate email change", err)
 		return
 	}
+	security.ResetFailedAttempts(accountPasswordThrottleKey(user.UserUUID))
 
 	tenantIDIEC := int64(0)
 	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
@@ -233,10 +268,16 @@ func (h *AccountHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if !checkAccountPasswordThrottle(w, user.UserUUID) {
+		return
+	}
+
 	if err := h.accountService.ChangeUsername(r.Context(), user.UserID, req.NewUsername, req.CurrentPassword); err != nil {
+		security.RecordFailedAttempt(accountPasswordThrottleKey(user.UserUUID))
 		resp.HandleServiceError(w, r, "Failed to change username", err)
 		return
 	}
+	security.ResetFailedAttempts(accountPasswordThrottleKey(user.UserUUID))
 
 	tenantIDCU := int64(0)
 	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
@@ -270,15 +311,10 @@ func (h *AccountHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Throttle wrong-current-password attempts per user. Without this the
-	// endpoint is an unmetered password-verification oracle for anyone holding a
-	// stolen access token: /account is not mounted under the strict auth rate
-	// limit group, only the global per-IP one.
-	//
-	// The key is deliberately NOT the login lockout key. Feeding this into login
-	// lockout would let a stolen token lock the victim out of logging in at all,
-	// turning a confidentiality problem into a denial of service.
-	throttleKey := "pwdchange:" + user.UserUUID.String()
+	// Throttle wrong-current-password attempts per user — see
+	// accountPasswordThrottleKey for why, and why the budget is shared with the
+	// other three /account endpoints that verify a password.
+	throttleKey := accountPasswordThrottleKey(user.UserUUID)
 	if err := security.CheckRateLimit(throttleKey); err != nil {
 		resp.Error(w, http.StatusTooManyRequests, "Too many password change attempts. Please try again later.")
 		return
@@ -339,10 +375,16 @@ func (h *AccountHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !checkAccountPasswordThrottle(w, user.UserUUID) {
+		return
+	}
+
 	if err := h.accountService.DeleteAccount(r.Context(), user.UserID, req.CurrentPassword); err != nil {
+		security.RecordFailedAttempt(accountPasswordThrottleKey(user.UserUUID))
 		resp.HandleServiceError(w, r, "Failed to delete account", err)
 		return
 	}
+	security.ResetFailedAttempts(accountPasswordThrottleKey(user.UserUUID))
 
 	tenantIDDA := int64(0)
 	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
@@ -375,33 +417,9 @@ func (h *AccountHandler) ExportAccountData(w http.ResponseWriter, r *http.Reques
 	resp.Success(w, data, "Account data exported successfully")
 }
 
-// GenerateBackupCodes generates and returns 10 fresh backup codes for the authenticated user.
-//
-// POST /account/backup-codes
-func (h *AccountHandler) GenerateBackupCodes(w http.ResponseWriter, r *http.Request) {
-	user := middleware.AuthFromRequest(r).User
-	if user == nil {
-		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
-		return
-	}
-
-	result, err := h.accountService.GenerateBackupCodes(r.Context(), user.UserID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to generate backup codes", err)
-		return
-	}
-
-	tenantIDGBC := int64(0)
-	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
-		tenantIDGBC = t.TenantID
-	}
-	actorUserIDGBC := &user.UserID
-	changesJSONGBC, _ := json.Marshal(map[string]any{"update": map[string]any{"backup_codes_regenerated": true}})
-	userUUIDGBC := user.UserUUID
-	h.logAudit(r, tenantIDGBC, actorUserIDGBC, "account.generate_backup_codes", "account", userUUIDGBC.String(), &userUUIDGBC, string(changesJSONGBC), "success")
-
-	resp.Success(w, result, "Backup codes generated. Store them somewhere safe — they will not be shown again.")
-}
+// Backup-code GENERATION deliberately does not live here — see the note on
+// POST /mfa/backup-codes/regenerate in routes.go. Only VerifyBackupCode, the
+// unauthenticated recovery half, remains on this handler.
 
 // VerifyBackupCode recovers account access using a backup code (unauthenticated).
 //
@@ -581,4 +599,49 @@ func (h *AccountHandler) RevokeAllSessions(w http.ResponseWriter, r *http.Reques
 	h.logAudit(r, tenantIDRAS, actorUserIDRAS, "account.revoke_all_sessions", "account", userUUIDRAS.String(), &userUUIDRAS, string(changesJSONRAS), "success")
 
 	resp.Success(w, nil, "All sessions revoked successfully")
+}
+
+// RevokeOtherSessions revokes every session for the authenticated user except
+// the one this request arrived on.
+//
+// DELETE /account/sessions/others
+//
+// A separate endpoint rather than a flag on DELETE /account/sessions: the two
+// have genuinely different blast radii, and a flag makes the destructive
+// variant the behaviour you get whenever the flag is dropped, mistyped, or
+// stripped by a proxy. A distinct path cannot be reached by accident, and it
+// leaves the existing sign-out-everywhere contract byte-for-byte unchanged for
+// the credential-change flows that depend on it.
+func (h *AccountHandler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	// The caller's own session, read from the SIGNED `sid` claim rather than any
+	// request-supplied value — otherwise a caller could nominate someone else's
+	// session as the one to spare.
+	var callerSession uuid.UUID
+	if claims := middleware.JWTClaimsFromRequest(r); claims != nil && claims.SessionID != "" {
+		if parsed, err := uuid.Parse(claims.SessionID); err == nil {
+			callerSession = parsed
+		}
+	}
+
+	if err := h.accountService.RevokeOtherSessions(r.Context(), user.UserID, callerSession); err != nil {
+		resp.HandleServiceError(w, r, "Failed to revoke other sessions", err)
+		return
+	}
+
+	tenantIDROS := int64(0)
+	if t := middleware.AuthFromRequest(r).Tenant; t != nil {
+		tenantIDROS = t.TenantID
+	}
+	actorUserIDROS := &user.UserID
+	changesJSONROS, _ := json.Marshal(map[string]any{"update": map[string]any{"other_sessions_revoked": true}})
+	userUUIDROS := user.UserUUID
+	h.logAudit(r, tenantIDROS, actorUserIDROS, "account.revoke_other_sessions", "account", userUUIDROS.String(), &userUUIDROS, string(changesJSONROS), "success")
+
+	resp.Success(w, nil, "Other sessions revoked successfully")
 }

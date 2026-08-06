@@ -497,6 +497,17 @@ func ResolveEffectiveTokenPolicy(tenantToken map[string]any, client SecuritySett
 	if client.RequirePKCE != nil && *client.RequirePKCE {
 		p.RequirePKCE = true
 	}
+	// A public client's PKCE requirement is not negotiable, so it is applied
+	// after the per-client override rather than as another input to it. This
+	// resolver only ever ESCALATES, so a client row carrying require_pkce=false
+	// could never be raised by anything — and nothing else forced PKCE on for
+	// SPA/native clients. Combined with token_endpoint_auth_method "none" that
+	// left the token endpoint with neither client authentication nor proof of
+	// possession: anyone who observed the code (custom-scheme hijack, Referer
+	// leak, proxy log) could redeem it for the victim's tokens. RFC 9700 §2.1.1.
+	if client.PublicClient {
+		p.RequirePKCE = true
+	}
 	return p, nil
 }
 

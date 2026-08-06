@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -56,6 +57,11 @@ type OAuthTokenService interface {
 	// SetClientPermissionResolver injects the permission resolver for M2M
 	// client_credentials tokens.
 	SetClientPermissionResolver(r ClientPermissionResolver)
+
+	// SetSessionAuthContextResolver injects the reader for a session's recorded
+	// acr/amr/auth_time. Without it, tokens fall back to asserting a
+	// single-factor password login regardless of how the user authenticated.
+	SetSessionAuthContextResolver(r SessionAuthContextResolver)
 }
 
 type oauthTokenService struct {
@@ -68,7 +74,8 @@ type oauthTokenService struct {
 	authEventService    authevent.AuthEventService
 	jtiDenylist         cache.JTIDenylister
 	securitySettingRepo secpolicy.SecuritySettingRepository
-	permResolver        ClientPermissionResolver // nil → M2M permission resolution disabled
+	permResolver        ClientPermissionResolver   // nil → M2M permission resolution disabled
+	sessionAuthResolver SessionAuthContextResolver // nil → fall back to pwd / acr=1
 }
 
 // NewOAuthTokenService creates a new OAuthTokenService.
@@ -171,7 +178,14 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 			Result:      authevent.AuthEventResultFailure,
 			Description: ptr.Ptr("Authorization code reuse detected"),
 		})
-		// Revoke all refresh tokens for this user-client pair.
+		// RFC 6749 §4.1.2 says to revoke the tokens issued FROM THIS CODE. Revoking
+		// every refresh token for the user-client pair does both too much and too
+		// little: it destroys unrelated sessions on that client (a DoS lever — the
+		// attacker only has to replay a code to sign the victim out everywhere),
+		// while the access token the first redemption actually minted stays live
+		// for its full TTL, which is the one credential the attacker's replay is
+		// racing for. Deny that token's JTI as well.
+		s.revokeTokensIssuedFromCode(ctx, codeHash, authCode)
 		_, _ = s.refreshTokenRepo.RevokeByUserAndClient(authCode.UserID, authCode.ClientID)
 		span.SetStatus(codes.Error, "authorization code reuse")
 		return nil, apperror.NewOAuthInvalidGrant("the authorization code has already been used")
@@ -216,6 +230,19 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 	// A code that DOES carry a challenge still requires a matching verifier —
 	// omitting it is rejected below, so a public client cannot strip PKCE off its
 	// own authorization by simply not sending the verifier.
+	//
+	// A PUBLIC client is the exception to "no challenge, no check". It presents
+	// no credential at this endpoint at all, so without PKCE the code is the only
+	// secret in the flow and anyone who observes it — custom-scheme hijack on
+	// mobile, a Referer leak, a proxy log — redeems it for the victim's tokens.
+	// The code is only issued without a challenge when /authorize did not demand
+	// one, which is now impossible for a public client (see isPublicOAuthClient),
+	// so reaching here means the code predates that rule or was minted around it.
+	// RFC 9700 §2.1.1.
+	if authCode.CodeChallenge == "" && isPublicOAuthClient(client) {
+		span.SetStatus(codes.Error, "PKCE required for public client")
+		return nil, apperror.NewOAuthInvalidGrant("PKCE is required for this client; re-authorize with a code_challenge")
+	}
 	if authCode.CodeChallenge != "" && req.CodeVerifier == "" {
 		span.SetStatus(codes.Error, "PKCE verifier missing")
 		return nil, apperror.NewOAuthInvalidGrant("code_verifier is required (PKCE)")
@@ -250,12 +277,25 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
+	// RFC 8707 §2.2: the client may name the resource server this token is for.
+	// Validated against client_apis, so a client can only ever be issued a token
+	// for an API an operator granted it.
+	apiAudience, oerr := resolveRequestedAudience(s.db, client, req.Audience, req.Resource)
+	if oerr != nil {
+		span.SetStatus(codes.Error, "audience not allowed")
+		return nil, oerr
+	}
+
 	// Generate tokens.
-	result, oerr := s.generateTokens(ctx, sub, user, client, strings.Join([]string(authCode.Scope), " "), authCode.Nonce, req.DPoPThumbprint, true, authCode.UserSessionUUID)
+	result, oerr := s.generateTokens(ctx, sub, user, client, strings.Join([]string(authCode.Scope), " "), authCode.Nonce, req.DPoPThumbprint, true, authCode.UserSessionUUID, apiAudience)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "token generation failed")
 		return nil, oerr
 	}
+
+	// Remember which access token this code produced, so a later replay of the
+	// same code can actually revoke it (see the reuse branch above).
+	s.rememberTokenIssuedFromCode(ctx, codeHash, result.AccessToken)
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.TenantID,
@@ -420,7 +460,12 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 		}
 
 		// Generate new access + ID tokens.
-		result, oerr = s.generateTokens(ctx, sub, user, client, scope, nil, req.DPoPThumbprint, false, storedToken.UserSessionUUID)
+		apiAudience, audErr := resolveRequestedAudience(s.db, client, req.Audience, req.Resource)
+		if audErr != nil {
+			return audErr
+		}
+
+		result, oerr = s.generateTokens(ctx, sub, user, client, scope, nil, req.DPoPThumbprint, false, storedToken.UserSessionUUID, apiAudience)
 		if oerr != nil {
 			return oerr
 		}
@@ -488,7 +533,7 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 }
 
 // exchangeClientCredentials handles the client_credentials grant (RFC 6749 §4.4).
-func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
+func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, req OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.exchange_client_credentials")
 	defer span.End()
 
@@ -511,12 +556,24 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 	identifier := ""
 	providerID := tokenRealm(client)
 	subjectType := "client"
-	if client.Domain != nil {
-		issuer = *client.Domain
-	}
+	// The issuer identifies the authorization server, not the client — see
+	// jwt.TokenIssuer. Stamping the client's domain made `iss` disagree with the
+	// `issuer` in the discovery document, which a compliant RP must reject.
+	issuer = jwt.TokenIssuerPtr(client.Domain)
 	if client.Identifier != nil {
 		audience = *client.Identifier
 		identifier = *client.Identifier
+	}
+	// RFC 8707: an m2m client naming a registered API gets a token addressed to
+	// that API instead of to itself, which is the only way an api_permissions-
+	// gated resource server can ever be handed a usable token.
+	apiAudience, oerr := resolveRequestedAudience(s.db, client, req.Audience, req.Resource)
+	if oerr != nil {
+		span.SetStatus(codes.Error, "audience not allowed")
+		return nil, oerr
+	}
+	if apiAudience != "" {
+		audience = apiAudience
 	}
 	subject := identifier
 	serviceName := ""
@@ -633,8 +690,11 @@ func (s *oauthTokenService) revokeAccessToken(ctx context.Context, rawToken stri
 		return nil
 	}
 
+	// A DPoP-bound access token carries token_type "DPoP" (RFC 9449 §6.1), so an
+	// exact "access_token" comparison silently skipped revocation for exactly the
+	// tokens a client took the trouble to sender-constrain.
 	tokenType, _ := claims["token_type"].(string)
-	if tokenType != "access_token" {
+	if !jwt.IsAccessTokenType(tokenType) {
 		return nil
 	}
 
@@ -695,7 +755,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.introspect")
 	defer span.End()
 
-	_, oerr := authenticateOAuthClient(s.db, creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		return nil, oerr
 	}
@@ -703,6 +763,17 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 	// Try to validate as a JWT (access token or ID token).
 	claims, err := oauthTokenValidateTokenWithContext(ctx, req.Token)
 	if err == nil && claims != nil {
+		// The authenticated caller used to be discarded, so this endpoint reported
+		// active=true plus sub, scope and client_id for ANY token this server ever
+		// signed — every tenant's tokens are signed with the same key, so tenant A
+		// could introspect tenant B's token and read who it belongs to and what it
+		// can do. RFC 7662 §2.2: a token the caller is not authorized to introspect
+		// is reported as inactive, not as an error, so the answer is
+		// indistinguishable from an unknown token.
+		if !s.callerMayIntrospect(claims, client) {
+			span.SetStatus(codes.Ok, "token inactive")
+			return &OAuthIntrospectResponseDTO{Active: false}, nil
+		}
 		resp := &OAuthIntrospectResponseDTO{
 			Active:    true,
 			TokenType: "Bearer",
@@ -739,10 +810,12 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 		return resp, nil
 	}
 
-	// Try as a refresh token.
+	// Try as a refresh token. Same tenant scoping as above — the stored row
+	// carries the tenant it was issued for.
 	tokenHash := crypto.HashRefreshToken(req.Token)
 	storedRT, lookupErr := s.refreshTokenRepo.FindByTokenHash(tokenHash)
-	if lookupErr == nil && storedRT != nil && storedRT.IsActive() {
+	if lookupErr == nil && storedRT != nil && storedRT.IsActive() &&
+		client != nil && storedRT.TenantID == client.TenantID {
 		resp := &OAuthIntrospectResponseDTO{
 			Active:    true,
 			TokenType: "refresh_token",
@@ -770,6 +843,78 @@ func (s *oauthTokenService) SetClientPermissionResolver(r ClientPermissionResolv
 	s.permResolver = r
 }
 
+// callerMayIntrospect reports whether the authenticated client is entitled to
+// see this token's contents.
+//
+// A client may introspect its own tokens, and any token belonging to a client in
+// its own tenant. Crossing the tenant boundary is refused: a shared signing key
+// means a valid signature says nothing about which tenant a token came from, so
+// the tenant of the token's client is the only binding available.
+func (s *oauthTokenService) callerMayIntrospect(claims map[string]any, caller *Client) bool {
+	if caller == nil {
+		return false
+	}
+	tokenClientID, _ := claims["client_id"].(string)
+	tokenClientID = strings.TrimSpace(tokenClientID)
+	if tokenClientID == "" {
+		// A token this server issued always carries client_id. One that does not
+		// cannot be attributed to a tenant, so it is not introspectable.
+		return false
+	}
+	if caller.Identifier != nil && tokenClientID == *caller.Identifier {
+		return true
+	}
+	tokenClient, err := findActiveClientByIdentifier(s.db, tokenClientID)
+	if err != nil || tokenClient == nil {
+		return false
+	}
+	return tokenClient.TenantID != 0 && tokenClient.TenantID == caller.TenantID
+}
+
+func (s *oauthTokenService) SetSessionAuthContextResolver(r SessionAuthContextResolver) {
+	s.sessionAuthResolver = r
+}
+
+// tokenAuthContext is the acr/amr/auth_time a token should assert.
+type tokenAuthFacts struct {
+	ACR      string
+	AMR      []string
+	AuthTime time.Time
+}
+
+// resolveSessionAuthContext reads the real authentication facts for the session
+// this token is being minted from.
+//
+// The fallback is single-factor password, matching what the code asserted
+// unconditionally before. It is only reached when there is no session (grants
+// that have no browser session behind them), no resolver wired, or the session
+// row cannot be read — and in the last case it is logged, because silently
+// downgrading acr to 1 re-challenges a user who has already completed MFA.
+func (s *oauthTokenService) resolveSessionAuthContext(ctx context.Context, sessionUUID *uuid.UUID) tokenAuthFacts {
+	fallback := tokenAuthFacts{ACR: jwt.ACRLevel1, AMR: []string{jwt.AMRPassword}}
+	if sessionUUID == nil || s.sessionAuthResolver == nil {
+		return fallback
+	}
+	sessionCtx, err := s.sessionAuthResolver.ResolveSessionAuthContext(ctx, *sessionUUID)
+	if err != nil {
+		slog.Warn("could not read the session's authentication context; the token will assert single-factor password and step-up routes will re-challenge",
+			"error", err)
+		return fallback
+	}
+	if sessionCtx == nil {
+		return fallback
+	}
+	facts := fallback
+	if sessionCtx.ACR != "" {
+		facts.ACR = sessionCtx.ACR
+	}
+	if len(sessionCtx.AMR) > 0 {
+		facts.AMR = sessionCtx.AMR
+	}
+	facts.AuthTime = sessionCtx.AuthTime
+	return facts
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
@@ -784,25 +929,42 @@ func (s *oauthTokenService) SetClientPermissionResolver(r ClientPermissionResolv
 // every refresh whose raw value was then discarded by the caller — unreachable
 // rows that still counted against the per-client active-token limit and were
 // written outside the rotation transaction.
-func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *User, client *Client, scope string, nonce *string, dpopThumbprint string, issueRefreshToken bool, sessionUUID *uuid.UUID) (*OAuthTokenResult, *apperror.OAuthError) {
+// apiAudience, when non-empty, is the identifier of a registered API the client
+// asked this token to be addressed to (already validated against client_apis by
+// resolveRequestedAudience). It replaces the access token's `aud`; the ID token
+// keeps aud = the client, because an ID token is always for the client (OIDC
+// Core §2).
+func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *User, client *Client, scope string, nonce *string, dpopThumbprint string, issueRefreshToken bool, sessionUUID *uuid.UUID, apiAudience string) (*OAuthTokenResult, *apperror.OAuthError) {
 	issuer := ""
 	audience := ""
 	identifier := ""
 	providerID := tokenRealm(client)
-	if client.Domain != nil {
-		issuer = *client.Domain
-	}
+	// The issuer identifies the authorization server, not the client — see
+	// jwt.TokenIssuer. Stamping the client's domain made `iss` disagree with the
+	// `issuer` in the discovery document, which a compliant RP must reject.
+	issuer = jwt.TokenIssuerPtr(client.Domain)
 	if client.Identifier != nil {
 		audience = *client.Identifier
 		identifier = *client.Identifier
+	}
+	if apiAudience != "" {
+		audience = apiAudience
 	}
 
 	accessTokenOpts := s.clientAccessTokenOpts(client)
 	if dpopThumbprint != "" {
 		accessTokenOpts.DPoPThumbprint = dpopThumbprint
 	}
-	accessTokenOpts.AMR = []string{jwt.AMRPassword}
-	accessTokenOpts.ACR = jwt.ACRLevel1
+	// Carry the session's REAL authentication facts. Hardcoding pwd/acr=1 threw
+	// away what the session row two lines below already records, with two
+	// consequences: a user who had just completed TOTP or a passkey got acr=1, so
+	// every RequireStepUp route re-challenged them immediately after a full MFA
+	// login; and the token ASSERTED amr:["pwd"] for magic-link, SMS and passkey
+	// logins in which no password was ever entered — a false claim about how the
+	// subject authenticated (RFC 8176, OIDC Core §2).
+	authCtx := s.resolveSessionAuthContext(ctx, sessionUUID)
+	accessTokenOpts.AMR = authCtx.AMR
+	accessTokenOpts.ACR = authCtx.ACR
 	// Stamp the originating browser session. This is what lets logout revoke a
 	// single session: without a sid the OAuth token is unattributable and logout
 	// can only revoke everything or nothing.
@@ -823,6 +985,23 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	profile := buildUserProfile(user)
 
 	idTokenParams := s.buildIDTokenParams(scope, client, roleNames(user))
+	if idTokenParams == nil {
+		idTokenParams = &jwt.IDTokenParams{}
+	}
+	idTokenParams.AMR = authCtx.AMR
+	idTokenParams.ACR = authCtx.ACR
+	// auth_time must be the authentication event, not this issuance, or an RP
+	// enforcing max_age can never detect a stale session (OIDC Core §2). Zero
+	// leaves the jwt layer's "now" fallback in place.
+	idTokenParams.AuthTime = authCtx.AuthTime
+	// at_hash binds the ID token to the access token delivered with it
+	// (OIDC Core §3.1.3.6).
+	idTokenParams.AccessToken = accessToken
+	// Same session the access token above is stamped with, so a back-channel
+	// logout token's sid resolves to something the RP actually holds.
+	if sessionUUID != nil {
+		idTokenParams.SessionID = sessionUUID.String()
+	}
 
 	idToken, err := oauthTokenGenerateIDTokenWithContext(ctx, sub, issuer, identifier, providerID, profile, nonceStr, idTokenParams)
 	if err != nil {
@@ -881,7 +1060,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 // login — the OAuth layer only reads them. Returns an error if no identity
 // exists, since a user must have an identity to participate in an OAuth flow.
 func (s *oauthTokenService) resolveUserSub(userID, clientID int64) (string, error) {
-	identity, err := s.userIdentityRepo.FindByUserIDAndClientID(userID, clientID)
+	identity, err := s.userIdentityRepo.FindByUserIDAndClientReachable(userID, clientID)
 	if err != nil {
 		return "", err
 	}

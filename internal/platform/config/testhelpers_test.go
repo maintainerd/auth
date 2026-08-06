@@ -89,4 +89,14 @@ func saveActiveSecretManager(t *testing.T) {
 	t.Cleanup(func() { activeSecretManager = orig })
 }
 
+// useEnvSecretManager installs the env provider for a test. Credentials now
+// resolve through the configured provider rather than os.Getenv, so anything
+// exercising them needs one wired — in production config.Init does this before
+// any consumer runs.
+func useEnvSecretManager(t *testing.T) {
+	t.Helper()
+	saveActiveSecretManager(t)
+	activeSecretManager = &envSecretManager{}
+}
+
 func stringPtr(s string) *string { return &s }

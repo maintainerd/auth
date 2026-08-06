@@ -73,6 +73,26 @@ func (dto UserSetStatusRequestDTO) Validate() error {
 	)
 }
 
+func (dto UserSetPasswordRequestDTO) Validate() error {
+	return validation.ValidateStruct(&dto,
+		// Length/complexity are enforced authoritatively by the tenant's password
+		// policy in userService.SetPassword, so its configured min/max stays the
+		// single source of truth; the DTO only requires a value and bounds abuse —
+		// an unbounded body would be handed straight to argon2id.
+		validation.Field(&dto.Password, validation.Required, validation.Length(1, 4096)),
+	)
+}
+
+func (dto UserLinkIdentityRequestDTO) Validate() error {
+	return validation.ValidateStruct(&dto,
+		validation.Field(&dto.IdentityProviderUUID, validation.Required, is.UUID.Error("Identity provider ID must be a valid UUID")),
+		// The upper bound matches user_identities.sub VARCHAR(255) in migration 022;
+		// a longer value would otherwise be rejected by the database as a 500
+		// rather than reported as a 400.
+		validation.Field(&dto.Sub, validation.Required, validation.Length(1, 255)),
+	)
+}
+
 func (dto UserAssignRolesRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.RoleUUIDs, validation.Required, validation.Length(1, 10)),

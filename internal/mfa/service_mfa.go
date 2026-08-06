@@ -57,7 +57,36 @@ var (
 	validateStepUpChallengeToken = jwt.ValidateStepUpChallengeToken
 	generateStepUpAccessToken    = jwt.GenerateAccessTokenWithOptionsContext
 	checkMFARateLimit            = security.CheckRateLimit
+	recordMFARateLimitAttempt    = security.RecordFailedAttempt
 )
+
+// otpSendThrottleKey builds the counter key for an outbound OTP send.
+//
+// security.CheckRateLimit only READS a counter that security.RecordFailedAttempt
+// writes, so a send throttle is only real if the send itself is recorded. The
+// two step-up throttles here used to check bare "mfa-sms-step-up:"/
+// "mfa-email-otp-step-up:" keys that nothing ever incremented, so they returned
+// nil unconditionally — dead code guarding a metered, billable side effect.
+// Keying on the recipient as well as the user bounds messages per destination,
+// which is what stops an attacker bombing one number through many accounts.
+func otpSendThrottleKey(channel string, userID int64, recipient string) string {
+	return security.RateLimitKey(fmt.Sprintf("%s:%d:%s", channel, userID, recipient), "otp_send")
+}
+
+// checkAndRecordOTPSend enforces the send throttle and books the send against
+// it. Recording BEFORE delivery means a provider failure still costs a slot: a
+// send that reached the carrier but errored back is billable, and retry storms
+// are exactly what this bounds.
+func checkAndRecordOTPSend(channel string, userID int64, recipient string) error {
+	key := otpSendThrottleKey(channel, userID, recipient)
+	if err := checkMFARateLimit(key); err != nil {
+		// Forbidden, not Unauthorized: apperror has no 429 type, and a 401 here
+		// would make the SPA tear down a session that is perfectly valid.
+		return apperror.NewTooManyRequests("too many verification codes requested; try again later")
+	}
+	recordMFARateLimitAttempt(key)
+	return nil
+}
 
 // MFAService handles TOTP enrollment/verification, backup code management,
 // per-tenant MFA policy, admin resets, and step-up authentication.
@@ -501,13 +530,35 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 // Backup Codes
 // ──────────────────────────────────────────────────────────────────────────────
 
-// GetBackupCodesCount returns the number of unused backup codes the user has.
+// GetBackupCodesCount returns the number of unused backup codes the user can
+// actually redeem.
+//
+// It counts only bcrypt-hashed rows. Backup codes were briefly written under two
+// incompatible schemes on this one table (bcrypt here, an unsalted SHA-256 in
+// the account service), and a row the verifier can never match must not be
+// reported as "remaining" — the SPA showed "10 codes left" for a recovery path
+// that could not succeed.
 func (s *mfaService) GetBackupCodesCount(ctx context.Context, userID int64) (int, error) {
 	codes, err := s.mfaBackupCodeRepo.FindUnusedByUserID(userID)
 	if err != nil {
 		return 0, apperror.NewInternal("backup code lookup failed", err)
 	}
-	return len(codes), nil
+	count := 0
+	for _, c := range codes {
+		if isRedeemableBackupCodeHash(c.CodeHash) {
+			count++
+		}
+	}
+	return count, nil
+}
+
+// isRedeemableBackupCodeHash reports whether a stored backup-code hash is in the
+// one format the verifiers understand (bcrypt). The user package keeps its own
+// copy of this check for the same table — internal/user and internal/mfa are
+// siblings joined by adapters, so neither imports the other.
+func isRedeemableBackupCodeHash(hash string) bool {
+	_, err := bcrypt.Cost([]byte(hash))
+	return err == nil
 }
 
 // RegenerateBackupCodes issues a fresh set of backup codes, replacing all existing ones.
@@ -692,12 +743,42 @@ func normalizeMFAPolicyMethods(methods []string) []string {
 }
 
 // UserHasMFA returns true when the user has at least one active MFA factor.
+//
+// It counts every factor the step-up ceremony accepts — TOTP, WebAuthn, a
+// verified SMS phone and a verified email OTP — not just the two boolean columns
+// on users. The enrollment gate (MFAHandler.RequireStepUpForNewFactor) reads a
+// "no" here as "this account has nothing to protect yet, let it bootstrap its
+// first factor", so an SMS-only or email-OTP-only account reported as MFA-less
+// would have let a hijacked acr=1 session add the attacker's own authenticator.
+//
+// Lookup failures return an error instead of false for the same reason: a
+// caller that treats false as "unprotected" must not be handed a false that only
+// means "the database did not answer".
 func (s *mfaService) UserHasMFA(ctx context.Context, userID int64) (bool, error) {
 	user, err := s.userRepo.FindByID(userID)
-	if err != nil || user == nil {
-		return false, nil
+	if err != nil {
+		return false, apperror.NewInternal("user lookup failed", err)
 	}
-	return user.IsTOTPEnabled || user.IsWebAuthnEnabled, nil
+	if user == nil {
+		return false, apperror.NewNotFound("user not found")
+	}
+	if user.IsTOTPEnabled || user.IsWebAuthnEnabled {
+		return true, nil
+	}
+
+	phone, err := s.mfaPhoneRepo.FindByUserID(userID)
+	if err != nil {
+		return false, apperror.NewInternal("MFA phone lookup failed", err)
+	}
+	if phone != nil && phone.IsVerified {
+		return true, nil
+	}
+
+	emailRecord, err := s.emailOTPRepo.FindByUserID(userID)
+	if err != nil {
+		return false, apperror.NewInternal("MFA email lookup failed", err)
+	}
+	return emailRecord != nil && emailRecord.IsVerified, nil
 }
 
 // SensitiveActionStepUpRequired reports whether the tenant policy
@@ -711,11 +792,16 @@ func (s *mfaService) SensitiveActionStepUpRequired(ctx context.Context, userID i
 		return false, nil
 	}
 	status, err := s.GetMFAStatus(ctx, userID)
-	if err != nil || status == nil {
-		// Fail open on lookup errors: never block solely because status was
-		// unreadable. The unconditional gates on MFA self-service routes are
-		// unaffected by this helper.
-		return false, nil
+	if err != nil {
+		// Fail CLOSED. This used to return (false, nil), which the caller
+		// (MFAHandler.RequirePolicyStepUp) cannot distinguish from a genuine
+		// "policy does not apply" — so its own fail-closed 503 branch could never
+		// fire and an unreadable enrollment state dropped the gate on email /
+		// username / password change entirely.
+		return false, err
+	}
+	if status == nil {
+		return false, apperror.NewInternal("MFA status unavailable", nil)
 	}
 	return status.IsTOTPEnabled || status.IsWebAuthnEnabled || status.IsSMSEnabled || status.IsEmailOTPEnabled, nil
 }
@@ -1001,7 +1087,7 @@ func (s *mfaService) SendStepUpSMS(ctx context.Context, userID int64) error {
 		return apperror.NewValidation("no verified MFA phone on file")
 	}
 
-	if err := security.CheckRateLimit("mfa-sms-step-up:" + phoneRecord.Phone); err != nil {
+	if err := checkAndRecordOTPSend("mfa_sms_step_up", userID, phoneRecord.Phone); err != nil {
 		return err
 	}
 
@@ -1064,6 +1150,15 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 		return apperror.NewConflict("SMS MFA is already enrolled — disable it first")
 	}
 
+	// Enrollment had no throttle at all while sending to a number taken verbatim
+	// from the request body — an authenticated caller could pump the operator's
+	// SMS provider and bomb arbitrary numbers at whatever the global per-IP limit
+	// allowed. Every other SMS path here is metered; this one is the cheapest to
+	// abuse because the destination is attacker-chosen.
+	if err := checkAndRecordOTPSend("mfa_sms_enroll", userID, phone); err != nil {
+		return err
+	}
+
 	otpCode, err := crypto.GenerateOTP(smsStepUpOTPLength)
 	if err != nil {
 		return apperror.NewInternal("failed to generate SMS OTP", err)
@@ -1082,6 +1177,22 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 		return apperror.NewInternal("failed to store SMS OTP", err)
 	}
 
+	// Associate the pending phone BEFORE dispatching to it. The send used to run
+	// first, so a number the account was never linked to could be messaged and
+	// leave no row behind tying the traffic to the requester.
+	if record != nil {
+		record.Phone = phone
+		record.IsVerified = false
+		record.VerifiedAt = nil
+		if _, err := s.mfaPhoneRepo.CreateOrUpdate(record); err != nil {
+			return apperror.NewInternal("failed to save MFA phone", err)
+		}
+	} else {
+		if _, err := s.mfaPhoneRepo.CreateOrUpdate(&UserMFAPhone{UserID: userID, Phone: phone}); err != nil {
+			return apperror.NewInternal("failed to save MFA phone", err)
+		}
+	}
+
 	tenantID := mfaUserTenantID(ctx, s.db, userID)
 	provider, smsErr := sms.NewProviderFromDB(ctx, s.db, tenantID)
 	if smsErr != nil {
@@ -1098,20 +1209,6 @@ func (s *mfaService) EnrollSMS(ctx context.Context, userID int64, phone string) 
 		}
 	} else {
 		slog.Warn("no SMS provider configured; MFA enrollment OTP not delivered", "phone", phone, "otp", security.RedactedOTP(otpCode))
-	}
-
-	existing, _ := s.mfaPhoneRepo.FindByUserID(userID)
-	if existing != nil {
-		existing.Phone = phone
-		existing.IsVerified = false
-		existing.VerifiedAt = nil
-		if _, err := s.mfaPhoneRepo.CreateOrUpdate(existing); err != nil {
-			return apperror.NewInternal("failed to save MFA phone", err)
-		}
-	} else {
-		if _, err := s.mfaPhoneRepo.CreateOrUpdate(&UserMFAPhone{UserID: userID, Phone: phone}); err != nil {
-			return apperror.NewInternal("failed to save MFA phone", err)
-		}
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -1179,7 +1276,7 @@ func (s *mfaService) SendStepUpEmailOTP(ctx context.Context, userID int64) error
 		return apperror.NewValidation("no verified MFA email on file")
 	}
 
-	if err := security.CheckRateLimit("mfa-email-otp-step-up:" + emailRecord.Email); err != nil {
+	if err := checkAndRecordOTPSend("mfa_email_otp_step_up", userID, emailRecord.Email); err != nil {
 		return err
 	}
 
@@ -1208,7 +1305,7 @@ func (s *mfaService) SendStepUpEmailOTP(ctx context.Context, userID int64) error
 		LogoURL string
 	}{
 		OTP:     otpCode,
-		LogoURL: email.GetLogoURL(ctx, s.db),
+		LogoURL: email.GetLogoURL(ctx, s.db, tenantID),
 	}
 	rendered, renderErr := email.RenderTemplate(s.db, "user:mfa:stepup", tenantID, data)
 	if renderErr != nil {
@@ -1216,6 +1313,10 @@ func (s *mfaService) SendStepUpEmailOTP(ctx context.Context, userID int64) error
 		return apperror.NewInternal("failed to render email OTP template", renderErr)
 	}
 	if sendErr := email.SendEmail(ctx, s.db, email.SendEmailParams{
+		// Without this the provider lookup runs with tenant 0, misses, and silently
+		// falls back to the SYSTEM tenant's SMTP config — so a tenant's mail would go
+		// out through another tenant's server and From address.
+		TenantID:  tenantID,
 		To:        emailRecord.Email,
 		Subject:   rendered.Subject,
 		BodyHTML:  rendered.BodyHTML,
@@ -1272,7 +1373,7 @@ func (s *mfaService) EnrollEmailOTP(ctx context.Context, userID int64, emailAddr
 		LogoURL string
 	}{
 		OTP:     otpCode,
-		LogoURL: email.GetLogoURL(ctx, s.db),
+		LogoURL: email.GetLogoURL(ctx, s.db, tenantID),
 	}
 	rendered, renderErr := email.RenderTemplate(s.db, "user:mfa:enroll", tenantID, data)
 	if renderErr != nil {
@@ -1280,6 +1381,10 @@ func (s *mfaService) EnrollEmailOTP(ctx context.Context, userID int64, emailAddr
 		return apperror.NewInternal("failed to render email OTP template", renderErr)
 	}
 	if sendErr := email.SendEmail(ctx, s.db, email.SendEmailParams{
+		// Without this the provider lookup runs with tenant 0, misses, and silently
+		// falls back to the SYSTEM tenant's SMTP config — so a tenant's mail would go
+		// out through another tenant's server and From address.
+		TenantID:  tenantID,
 		To:        emailAddr,
 		Subject:   rendered.Subject,
 		BodyHTML:  rendered.BodyHTML,
@@ -1621,9 +1726,16 @@ func (s *mfaService) BeginWebAuthnLogin(ctx context.Context, userID int64) (json
 }
 
 // TrustedDeviceValid reports whether a presented trusted-device token is valid
-// for userID. The plaintext token is never stored; user_trusted_devices holds a
-// deterministic hash (device_token_hash) so lookup can be exact.
-func (s *mfaService) TrustedDeviceValid(ctx context.Context, userID int64, token string) (bool, error) {
+// for userID *in tenantID*. The plaintext token is never stored;
+// user_trusted_devices holds a deterministic hash (device_token_hash) so lookup
+// can be exact.
+//
+// The tenant predicate is load-bearing. Trust is granted per tenant (the row
+// stores the tenant it was issued under and the trust period comes from that
+// tenant's MFA policy), but the lookup used to filter on user/hash/expiry only.
+// A user who ticked "trust this browser" in a lax tenant therefore skipped MFA
+// in a strict `mode: enforced` tenant on the same account.
+func (s *mfaService) TrustedDeviceValid(ctx context.Context, userID, tenantID int64, token string) (bool, error) {
 	if s.db == nil || strings.TrimSpace(token) == "" {
 		return false, nil
 	}
@@ -1631,8 +1743,8 @@ func (s *mfaService) TrustedDeviceValid(ctx context.Context, userID int64, token
 	hash := crypto.HashAuthorizationCode(strings.TrimSpace(token))
 	var rec trustedDeviceRecord
 	err := s.db.WithContext(ctx).
-		Where("user_id = ? AND device_token_hash = ? AND deleted_at IS NULL AND trusted_until > ?",
-			userID, hash, now).
+		Where("user_id = ? AND tenant_id = ? AND device_token_hash = ? AND deleted_at IS NULL AND trusted_until > ?",
+			userID, tenantID, hash, now).
 		First(&rec).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -1759,13 +1871,21 @@ func inetOrNil(ip string) *string {
 	return &ip
 }
 
+// stepUpMethodAllowed reports whether method is listed in the challenge token's
+// allowed_methods claim (a []any of strings).
+//
+// A missing or wrongly-typed claim fails CLOSED. It used to return true, so a
+// challenge token whose allowed_methods was absent or malformed authorised
+// EVERY method — including one the tenant policy had disallowed for this user.
+// The login-side twin (authn.loginMFAMethodAllowed) already fails closed on the
+// identical parse; the two must not disagree about what a challenge authorises.
 func stepUpMethodAllowed(raw any, method string) bool {
 	if method == "" {
 		return false
 	}
 	values, ok := raw.([]any)
 	if !ok {
-		return true
+		return false
 	}
 	for _, value := range values {
 		if s, ok := value.(string); ok && s == method {

@@ -93,7 +93,8 @@ var internalClaimNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 // the requesting workflow, so audience is a routing key rather than a boundary.
 // A pattern of "*" (or one that starts with "*", leaving the org segment
 // unanchored) therefore lets ANY workload on that issuer exchange its token for
-// this tenant's access token, unauthenticated.
+// this tenant's access token, unauthenticated. A partially-wildcarded org segment
+// like "repo:a*" is the same hole with extra steps.
 var subjectPatternRule = validation.By(func(value any) error {
 	raw, _ := value.(string)
 	pattern := strings.TrimSpace(raw)
@@ -112,8 +113,9 @@ var subjectPatternRule = validation.By(func(value any) error {
 				"Anchor it on the organisation or namespace, e.g. \"repo:my-org/my-repo:*\"")
 	}
 	return validation.NewError("validation_subject_pattern",
-		"subject_pattern is too broad to identify a workload; include at least the organisation "+
-			"or namespace before the wildcard")
+		"subject_pattern is too broad to identify a workload: the wildcard must come after a whole "+
+			"organisation or namespace segment, not part-way through one. \"repo:my-org/*\" is anchored; "+
+			"\"repo:a*\" matches every organisation starting with \"a\"")
 })
 
 // attributeMappingRule validates the external-claim -> internal-claim map.

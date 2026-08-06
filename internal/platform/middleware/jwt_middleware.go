@@ -107,8 +107,10 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Validate token
-		rawClaims, err := jwt.ValidateTokenWithContext(r.Context(), token)
+		// Validate the token AND that it is an access token. Signature plus
+		// sub/aud/iss/exp does not distinguish an ID token from an access token —
+		// see jwt.ValidateAccessTokenWithContext.
+		rawClaims, err := jwt.ValidateAccessTokenWithContext(r.Context(), token)
 		if err != nil {
 			resp.Error(w, http.StatusUnauthorized, "Invalid or expired token", err.Error())
 			return

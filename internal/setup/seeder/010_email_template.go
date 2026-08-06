@@ -8,8 +8,48 @@ import (
 	"gorm.io/gorm"
 )
 
+// The email-changed notice is addressed to the address that just LOST the
+// account, so it names both addresses: an attacker who moved the sign-in
+// identity to a mailbox they control is only detectable if the real owner can
+// see where it went and act on it.
+const emailChangedNoticeEmailHTML = `<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; text-align: center;">
+{{if .LogoURL}}<img src="{{.LogoURL}}" alt="Logo" style="max-height: 50px; margin: 20px auto;" />{{end}}
+<h2>Your Account Email Address Was Changed</h2>
+<p>The email address on your account was changed from <strong>{{.PreviousEmail}}</strong> to <strong>{{.NewEmail}}</strong>.</p>
+<p>If you did not make this change, contact your administrator immediately — whoever made it can now receive your sign-in and password-reset mail.</p>
+</body>
+</html>`
+
+const emailChangedNoticeEmailPlain = `The email address on your account was changed from {{.PreviousEmail}} to {{.NewEmail}}. If you did not make this change, contact your administrator immediately — whoever made it can now receive your sign-in and password-reset mail.`
+
 func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
-	templates := []model.EmailTemplate{
+	for _, t := range defaultEmailTemplates(tenantID) {
+		var existing model.EmailTemplate
+		err := db.Where("name = ? AND tenant_id = ?", t.Name, tenantID).First(&existing).Error
+		if err == nil {
+			if existing.ParametersDoc == nil && t.ParametersDoc != nil {
+				db.Model(&existing).Update("parameters_doc", *t.ParametersDoc)
+				slog.Info("Email template parameters_doc updated", "name", t.Name)
+			} else {
+				slog.Info("Email template already exists, skipping", "name", t.Name)
+			}
+			continue
+		}
+
+		if err := db.Create(&t).Error; err != nil {
+			return err
+		}
+
+		slog.Info("Email template seeded", "name", t.Name)
+	}
+
+	return nil
+}
+
+func defaultEmailTemplates(tenantID int64) []model.EmailTemplate {
+	return []model.EmailTemplate{
 		newEmailTemplate(
 			tenantID,
 			"user:invite",
@@ -90,6 +130,18 @@ func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
 		),
 		newEmailTemplate(
 			tenantID,
+			"user:email:changed",
+			"Your account email address was changed",
+			emailChangedNoticeEmailHTML,
+			emailChangedNoticeEmailPlain,
+			`| Parameter | Description |
+|-----------|-------------|
+| `+"`{{.PreviousEmail}}`"+` | The address the account used before the change (the recipient of this notice) |
+| `+"`{{.NewEmail}}`"+` | The address the account now uses |
+| `+"`{{.LogoURL}}`"+` | Your organization's logo URL from the email delivery config |`,
+		),
+		newEmailTemplate(
+			tenantID,
 			"user:mfa:enroll",
 			"MFA Enrollment Verification",
 			emailtemplate.MFAEnrollEmailHTML,
@@ -111,28 +163,6 @@ func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
 | `+"`{{.LogoURL}}`"+` | Your organization's logo URL from the email delivery config |`,
 		),
 	}
-
-	for _, t := range templates {
-		var existing model.EmailTemplate
-		err := db.Where("name = ? AND tenant_id = ?", t.Name, tenantID).First(&existing).Error
-		if err == nil {
-			if existing.ParametersDoc == nil && t.ParametersDoc != nil {
-				db.Model(&existing).Update("parameters_doc", *t.ParametersDoc)
-				slog.Info("Email template parameters_doc updated", "name", t.Name)
-			} else {
-				slog.Info("Email template already exists, skipping", "name", t.Name)
-			}
-			continue
-		}
-
-		if err := db.Create(&t).Error; err != nil {
-			return err
-		}
-
-		slog.Info("Email template seeded", "name", t.Name)
-	}
-
-	return nil
 }
 
 func newEmailTemplate(tenantID int64, name, subject, bodyHTML, bodyPlain, parametersDoc string) model.EmailTemplate {

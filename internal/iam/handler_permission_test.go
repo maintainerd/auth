@@ -38,7 +38,7 @@ func TestPermissionHandler_Get_WithFiltersAndRows(t *testing.T) {
 		getFn: func(PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
 			return &PermissionServiceGetResult{
 				Data: []PermissionServiceDataResult{{
-					Name: "perm1",
+					Name: "reports:read",
 					API:  &APIServiceDataResult{APIUUID: apiUUID, Name: "api1"},
 				}},
 			}, nil
@@ -104,7 +104,7 @@ func TestPermissionHandler_GetByUUID_Success(t *testing.T) {
 	svc := &mockPermissionService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*PermissionServiceDataResult, error) {
 			return &PermissionServiceDataResult{
-				Name: "perm1",
+				Name: "reports:read",
 				API:  &APIServiceDataResult{APIUUID: apiUUID, Name: "api1"},
 			}, nil
 		},
@@ -135,7 +135,7 @@ func TestPermissionHandler_GetByUUID_NotFound(t *testing.T) {
 
 func TestPermissionHandler_Create_NoTenant(t *testing.T) {
 	h := NewPermissionHandler(&mockPermissionService{})
-	r := jsonReq(t, http.MethodPost, "/permissions", map[string]string{"name": "perm1"})
+	r := jsonReq(t, http.MethodPost, "/permissions", map[string]string{"name": "reports:read"})
 	w := httptest.NewRecorder()
 	h.Create(w, r)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -166,7 +166,7 @@ func TestPermissionHandler_Create_ServiceError(t *testing.T) {
 	}
 	h := NewPermissionHandler(svc)
 	r := withTenant(jsonReq(t, http.MethodPost, "/permissions", map[string]string{
-		"name": "perm1", "description": "A test description", "status": "active", "api_id": testResourceUUID.String(),
+		"name": "reports:read", "description": "A test description", "status": "active", "api_id": testResourceUUID.String(),
 	}))
 	w := httptest.NewRecorder()
 	h.Create(w, r)
@@ -181,7 +181,7 @@ func TestPermissionHandler_Create_Success(t *testing.T) {
 	}
 	h := NewPermissionHandler(svc)
 	r := withTenant(jsonReq(t, http.MethodPost, "/permissions", map[string]string{
-		"name": "perm1", "description": "A test description", "status": "active", "api_id": testResourceUUID.String(),
+		"name": "reports:read", "description": "A test description", "status": "active", "api_id": testResourceUUID.String(),
 	}))
 	w := httptest.NewRecorder()
 	h.Create(w, r)
@@ -226,7 +226,7 @@ func TestPermissionHandler_Update_ServiceError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	body := map[string]any{"name": "perm1", "description": "A valid description", "status": "active"}
+	body := map[string]any{"name": "reports:read", "description": "A valid description", "status": "active"}
 	r := withTenant(withChiParam(jsonReq(t, http.MethodPut, "/", body), "permission_uuid", testResourceUUID.String()))
 	w := httptest.NewRecorder()
 	NewPermissionHandler(svc).Update(w, r)
@@ -239,7 +239,7 @@ func TestPermissionHandler_Update_Success(t *testing.T) {
 			return &PermissionServiceDataResult{Name: n}, nil
 		},
 	}
-	body := map[string]any{"name": "perm1", "description": "A valid description", "status": "active"}
+	body := map[string]any{"name": "reports:read", "description": "A valid description", "status": "active"}
 	r := withTenant(withChiParam(jsonReq(t, http.MethodPut, "/", body), "permission_uuid", testResourceUUID.String()))
 	w := httptest.NewRecorder()
 	NewPermissionHandler(svc).Update(w, r)
@@ -293,7 +293,7 @@ func TestPermissionHandler_SetStatus_ServiceError(t *testing.T) {
 func TestPermissionHandler_SetStatus_Success(t *testing.T) {
 	svc := &mockPermissionService{
 		setStatusFn: func(id uuid.UUID, tid int64, s string) (*PermissionServiceDataResult, error) {
-			return &PermissionServiceDataResult{Name: "perm1"}, nil
+			return &PermissionServiceDataResult{Name: "reports:read"}, nil
 		},
 	}
 	r := withTenant(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "permission_uuid", testResourceUUID.String()))
@@ -335,7 +335,7 @@ func TestPermissionHandler_Delete_ServiceError(t *testing.T) {
 func TestPermissionHandler_Delete_Success(t *testing.T) {
 	svc := &mockPermissionService{
 		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*PermissionServiceDataResult, error) {
-			return &PermissionServiceDataResult{Name: "perm1"}, nil
+			return &PermissionServiceDataResult{Name: "reports:read"}, nil
 		},
 	}
 	r := withTenant(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "permission_uuid", testResourceUUID.String()))

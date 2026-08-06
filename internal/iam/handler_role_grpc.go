@@ -73,10 +73,13 @@ func (h *RoleGRPCHandler) GetRole(ctx context.Context, req *authv1.GetRoleReques
 }
 
 func (h *RoleGRPCHandler) CreateRole(ctx context.Context, req *authv1.CreateRoleRequest) (*authv1.CreateRoleResponse, error) {
-	scope, actor, err := resolveIAMTenantAndActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetActorUserUuid())
+	scope, actor, err := resolveIAMTenantAndActor(ctx, h.tenantService, req.GetTenantUuid())
 	if err != nil {
 		return nil, err
 	}
+	// The tenant boundary and the on-behalf-of actor are resolved BEFORE the ledger
+	// claim so a caller that may not act here cannot consume — or occupy — a key it
+	// may not spend.
 	dto := RoleCreateOrUpdateRequestDTO{Name: req.GetName(), Description: req.GetDescription(), Status: req.GetStatus()}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
@@ -89,7 +92,7 @@ func (h *RoleGRPCHandler) CreateRole(ctx context.Context, req *authv1.CreateRole
 }
 
 func (h *RoleGRPCHandler) UpdateRole(ctx context.Context, req *authv1.UpdateRoleRequest) (*authv1.UpdateRoleResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid(), req.GetActorUserUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +108,7 @@ func (h *RoleGRPCHandler) UpdateRole(ctx context.Context, req *authv1.UpdateRole
 }
 
 func (h *RoleGRPCHandler) SetRoleStatus(ctx context.Context, req *authv1.SetRoleStatusRequest) (*authv1.SetRoleStatusResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid(), req.GetActorUserUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +123,7 @@ func (h *RoleGRPCHandler) SetRoleStatus(ctx context.Context, req *authv1.SetRole
 }
 
 func (h *RoleGRPCHandler) DeleteRole(ctx context.Context, req *authv1.DeleteRoleRequest) (*authv1.DeleteRoleResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid(), req.GetActorUserUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +163,7 @@ func (h *RoleGRPCHandler) ListRolePermissions(ctx context.Context, req *authv1.L
 }
 
 func (h *RoleGRPCHandler) AddRolePermissions(ctx context.Context, req *authv1.AddRolePermissionsRequest) (*authv1.AddRolePermissionsResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid(), req.GetActorUserUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +183,7 @@ func (h *RoleGRPCHandler) AddRolePermissions(ctx context.Context, req *authv1.Ad
 }
 
 func (h *RoleGRPCHandler) RemoveRolePermission(ctx context.Context, req *authv1.RemoveRolePermissionRequest) (*authv1.RemoveRolePermissionResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid(), req.GetActorUserUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
 	if err != nil {
 		return nil, err
 	}

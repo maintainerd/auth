@@ -5,45 +5,23 @@ import (
 
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
-// grpcUnauthenticatedServices lists gRPC services whose RPCs are intentionally
-// NOT in grpcServicePermissions AND not bootstrap-token gated. The interceptor
-// default-denies any unclassified maintainerd.auth.v1 method, so a service belongs
-// here ONLY when no handler is registered for it (the server returns UNIMPLEMENTED
-// before any interceptor runs — zero exposure). This list must stay tiny.
-//
-// The following are admin/UX/comms operations that live on the REST control
-// plane consumed by the console. Their proto/handlers are retained in-package
-// but no gRPC handler is registered, so they return UNIMPLEMENTED before any
-// interceptor runs.
-//
-// SetupService is NOT here: it is bootstrap-token gated via grpcBootstrapMethods.
-// TenantSettingService is NOT here either: it IS registered and PDP-gated
-// (tenant-setting:read/update) so core can manage tenant operational settings.
-var grpcUnauthenticatedServices = map[string]struct{}{
-	authv1.IdentityProviderService_ServiceDesc.ServiceName:  {},
-	authv1.RegistrationFlowService_ServiceDesc.ServiceName:  {},
-	authv1.InviteService_ServiceDesc.ServiceName:            {},
-	authv1.SecuritySettingService_ServiceDesc.ServiceName:   {},
-	authv1.IPRestrictionRuleService_ServiceDesc.ServiceName: {},
-	authv1.BrandingService_ServiceDesc.ServiceName:          {},
-	authv1.EmailTemplateService_ServiceDesc.ServiceName:     {},
-	authv1.SMSTemplateService_ServiceDesc.ServiceName:       {},
-	authv1.EmailConfigService_ServiceDesc.ServiceName:       {},
-	authv1.SMSConfigService_ServiceDesc.ServiceName:         {},
-	authv1.WebhookEndpointService_ServiceDesc.ServiceName:   {},
-	authv1.AuthEventService_ServiceDesc.ServiceName:         {},
-}
-
 // TestGRPCServicePermissions_EveryAppRPCIsRegistered walks every RPC defined in
 // the maintainerd.auth.v1 proto package and asserts it is present in
-// grpcServicePermissions, unless its service is on the explicit
-// grpcUnauthenticatedServices allowlist. Without this guard, adding a new RPC to
-// a proto/handler without a matching registry entry would silently expose a
-// fully unauthenticated endpoint — the opposite of the documented default-deny.
+// grpcServicePermissions or grpcBootstrapMethods. Without this guard, adding a
+// new RPC to a proto/handler without a matching registry entry would silently
+// expose a fully unauthenticated endpoint — the opposite of the documented
+// default-deny.
+//
+// There is deliberately no "unregistered service" allowlist any more. It used to
+// exempt the twelve REST-only services whose RPCs the contract declared but no
+// handler served; those service blocks are gone from the protos, so every RPC
+// that reaches this loop is one the server actually answers and every one of
+// them must be classified.
 func TestGRPCServicePermissions_EveryAppRPCIsRegistered(t *testing.T) {
 	const authPackage = "maintainerd.auth.v1"
 	checked := 0
@@ -56,9 +34,6 @@ func TestGRPCServicePermissions_EveryAppRPCIsRegistered(t *testing.T) {
 		for i := 0; i < services.Len(); i++ {
 			svc := services.Get(i)
 			serviceName := string(svc.FullName())
-			if _, allowed := grpcUnauthenticatedServices[serviceName]; allowed {
-				continue
-			}
 			methods := svc.Methods()
 			for j := 0; j < methods.Len(); j++ {
 				method := grpcMethod(serviceName, string(methods.Get(j).Name()))
@@ -66,7 +41,7 @@ func TestGRPCServicePermissions_EveryAppRPCIsRegistered(t *testing.T) {
 				_, registered := grpcServicePermissions[method]
 				_, bootstrap := grpcBootstrapMethods[method]
 				if !registered && !bootstrap {
-					t.Errorf("RPC %s has no grpcServicePermissions entry and is not a bootstrap method; the authz interceptor default-denies it. Add a permission string (\"\" for a service-account-only read), a grpcBootstrapMethods entry, or an allowlist entry if the handler is unregistered.", method)
+					t.Errorf("RPC %s has no grpcServicePermissions entry and is not a bootstrap method; the authz interceptor default-denies it. Add a permission string (\"\" for a service-account-only read) or a grpcBootstrapMethods entry — and if the RPC is not meant to be served at all, delete it from the proto rather than shipping an UNIMPLEMENTED promise.", method)
 				}
 			}
 		}
@@ -78,20 +53,37 @@ func TestGRPCServicePermissions_EveryAppRPCIsRegistered(t *testing.T) {
 	assert.Greater(t, checked, 80, "expected to discover the full maintainerd.auth.v1 RPC surface")
 }
 
-func TestGRPCServicePermissions_RemovedAdminServicesAreUnregistered(t *testing.T) {
-	// These admin/UX/comms services were removed from the gRPC surface: they must
-	// have NO permission entry (they are allowlisted as unregistered → UNIMPLEMENTED).
-	for _, method := range []string{
-		grpcMethod(authv1.InviteService_ServiceDesc.ServiceName, "SendInvite"),
-		grpcMethod(authv1.BrandingService_ServiceDesc.ServiceName, "UpdateBranding"),
-		grpcMethod(authv1.WebhookEndpointService_ServiceDesc.ServiceName, "CreateWebhookEndpoint"),
-		grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateMFAConfig"),
-		grpcMethod(authv1.AuthEventService_ServiceDesc.ServiceName, "ListAuthEvents"),
-		grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "GetFeatureFlags"),
+// The admin/UX/comms surfaces are REST control-plane only. They must not come
+// back as bare proto declarations: this test used to assert only that they had no
+// entry in grpcServicePermissions, which was satisfied by a service that was
+// declared, unregistered and answering UNIMPLEMENTED — exactly the state being
+// fixed. Assert on the contract itself instead, so re-adding one of these
+// services forces a handler (TestGRPCContractIsFullyServed) and a permission
+// entry (TestGRPCServicePermissions_EveryAppRPCIsRegistered) in the same change.
+func TestGRPCContract_RESTOnlyServicesAreNotDeclared(t *testing.T) {
+	declared := make(map[string]struct{})
+	for _, name := range grpcContractServiceNames(t) {
+		declared[name] = struct{}{}
+	}
+	require.NotEmpty(t, declared, "the generated auth protos must be linked into this test binary")
+
+	for _, name := range []string{
+		"AuthEventService",
+		"BrandingService",
+		"EmailConfigService",
+		"EmailTemplateService",
+		"IPRestrictionRuleService",
+		"IdentityProviderService",
+		"InviteService",
+		"RegistrationFlowService",
+		"SMSConfigService",
+		"SMSTemplateService",
+		"SecuritySettingService",
+		"WebhookEndpointService",
 	} {
-		t.Run(method, func(t *testing.T) {
-			_, protected := grpcServicePermissions[method]
-			assert.False(t, protected, "removed admin RPC must not be in grpcServicePermissions")
+		t.Run(name, func(t *testing.T) {
+			_, found := declared["maintainerd.auth.v1."+name]
+			assert.False(t, found, "REST-only surface must not be declared in the gRPC contract unless a handler is registered for it")
 		})
 	}
 }

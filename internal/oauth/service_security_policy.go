@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	clientpkg "github.com/maintainerd/maintainerd-auth/internal/client"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jsonutil"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
@@ -61,7 +62,25 @@ func oauthClientOverrides(client *Client) secpolicy.SecuritySettingClientOverrid
 		SessionAbsoluteTimeout: client.SessionAbsoluteTimeout,
 		RequiredACR:            client.RequiredACR,
 		RequirePKCE:            client.RequirePKCE,
+		PublicClient:           isPublicOAuthClient(client),
 	}
+}
+
+// isPublicOAuthClient reports whether a client presents no credential at the
+// token endpoint, either because its type cannot hold one (SPA, native/mobile)
+// or because it is registered with token_endpoint_auth_method "none".
+//
+// Both conditions matter independently: the type is what the registry validates
+// against, but authenticateOAuthClient short-circuits on the auth method, and a
+// client configured "none" performs no credential check at redemption whatever
+// its declared type. Either way the authorization code is the only secret in the
+// flow, so PKCE has to be mandatory (RFC 9700 §2.1.1).
+func isPublicOAuthClient(client *Client) bool {
+	if client == nil {
+		return false
+	}
+	return clientpkg.IsPublicClientType(client.ClientType) ||
+		client.TokenEndpointAuthMethod == TokenAuthMethodNone
 }
 
 func oauthAccessTokenOptions(repo secpolicy.SecuritySettingRepository, client *Client) *jwt.AccessTokenOptions {
@@ -79,14 +98,11 @@ func oauthAccessTokenOptions(repo secpolicy.SecuritySettingRepository, client *C
 		case "tenant_id":
 			// Stamp the tenant's opaque UUID, never the internal PK (least-disclosure
 			// per RFC 9068). The resolver is a cached, ctx-agnostic lookup, so a
-			// background context is fine here.
+			// background context is fine here. It goes on the dedicated TenantUUID
+			// field rather than ExtraClaims so the issuer's binding is applied last
+			// and cannot be displaced by a claim of the same name.
 			if client != nil && client.TenantID > 0 {
-				if s := shared.TenantUUIDStringByID(context.Background(), client.TenantID); s != "" {
-					if opts.ExtraClaims == nil {
-						opts.ExtraClaims = map[string]any{}
-					}
-					opts.ExtraClaims["tenant_id"] = s
-				}
+				opts.TenantUUID = shared.TenantUUIDStringByID(context.Background(), client.TenantID)
 			}
 		}
 	}

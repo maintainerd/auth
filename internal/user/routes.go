@@ -67,8 +67,16 @@ func AccountRoute(
 		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"})).
 			Post("/phone/verify", accountHandler.VerifyPhone)
 
-		// Username change
-		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), middleware.RequireStepUp).
+		// Username change.
+		//
+		// Gated on the policy-aware step-up, NOT the strict
+		// middleware.RequireStepUp it used to carry. Strict step-up hard-requires
+		// acr=2, which a password-only user can never reach — changing your
+		// username was simply impossible for them, and the SPA could only report
+		// "No second factor is available on your account." The body's
+		// current_password requirement is what carries the proof-of-knowledge
+		// here, exactly as it does for /password below.
+		r.With(middleware.PermissionMiddleware([]string{"account:user:update:self"}), sensitiveActionStepUp).
 			Put("/username", accountHandler.ChangeUsername)
 
 		// Password change (self-service rotation).
@@ -91,15 +99,25 @@ func AccountRoute(
 		r.With(middleware.PermissionMiddleware([]string{"account:user:read:self"})).
 			Get("/export", accountHandler.ExportAccountData)
 
-		// Backup codes — generate and store securely (an MFA recovery factor).
-		r.With(middleware.PermissionMiddleware([]string{"account:mfa:enroll:self"}), middleware.RequireStepUp).
-			Post("/backup-codes", accountHandler.GenerateBackupCodes)
+		// Backup codes live ONLY on POST /mfa/backup-codes/regenerate, which is what
+		// both SPAs call. The POST /account/backup-codes that used to sit here was a
+		// second generator with no caller, and it was not merely redundant: it minted
+		// a hardcoded 10 codes without consulting the tenant's MFA policy, so a
+		// tenant that forbids backup_code or configures a different
+		// recovery_codes_count could have that decision bypassed by calling it.
 
 		// Session management
 		r.With(middleware.PermissionMiddleware([]string{"account:session:read:self"})).
 			Get("/sessions", accountHandler.ListSessions)
 		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"}), sensitiveActionStepUp).
 			Delete("/sessions", accountHandler.RevokeAllSessions)
+		// "Sign out my other devices" — spares the caller's own session. A
+		// distinct path rather than a flag on DELETE /sessions above, so the
+		// destructive variant is never what you get from a dropped parameter.
+		// chi matches the static segment ahead of {session_uuid}, and no session
+		// UUID can spell "others".
+		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"}), sensitiveActionStepUp).
+			Delete("/sessions/others", accountHandler.RevokeOtherSessions)
 		r.With(middleware.PermissionMiddleware([]string{"account:session:terminate:self"}), sensitiveActionStepUp).
 			Delete("/sessions/{session_uuid}", accountHandler.RevokeSession)
 
@@ -203,6 +221,11 @@ func UserRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 			Get("/", userHandler.GetUsers)
 
+		// Membership candidates (system-tenant users). Registered BEFORE
+		// /{user_uuid} so chi does not treat the literal path as a UUID.
+		r.With(middleware.PermissionMiddleware([]string{"tenant:member:create"})).
+			Get("/membership-candidates", userHandler.ListMembershipCandidates)
+
 		// Get user by UUID
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 			Get("/{user_uuid}", userHandler.GetUser)
@@ -211,9 +234,21 @@ func UserRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:create"})).
 			Post("/", userHandler.CreateUser)
 
-		// Update user
-		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+		// Update user.
+		//
+		// Step-up required. This endpoint rewrites the account's sign-in identity
+		// (email, username) and its status, so it is at least as destructive as
+		// PATCH /status and DELETE below, both of which already demand it. Without
+		// it, a stolen acr=1 admin session could repoint a victim account at an
+		// attacker-controlled inbox and take it over through forgot-password.
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
 			Put("/{user_uuid}", userHandler.UpdateUser)
+
+		// Set a user's password administratively (the operator remedy for a user
+		// locked out of both their password and their inbox — force-password-change
+		// alone does nothing until they sign in).
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
+			Put("/{user_uuid}/password", userHandler.SetUserPassword)
 
 		// Set user status
 		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
@@ -227,9 +262,10 @@ func UserRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
 			Patch("/{user_uuid}/verify-phone", userHandler.VerifyPhone)
 
-		// Mark account as completed
-		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
-			Patch("/{user_uuid}/complete-account", userHandler.CompleteAccount)
+		// PATCH /{user_uuid}/complete-account is deliberately absent: no SPA ever
+		// called it, and PATCH /{user_uuid}/verify-email already marks the account
+		// completed as part of verifying. The capability itself is not lost — the
+		// gRPC control plane still exposes CompleteAccount.
 
 		// Delete user
 		r.With(middleware.PermissionMiddleware([]string{"user:delete"}), middleware.RequireStepUp).
@@ -251,6 +287,14 @@ func UserRoute(
 		// Get user identities
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).
 			Get("/{user_uuid}/identities", userHandler.GetUserIdentities)
+
+		// Link an existing external (federated) identity to a user. The operator
+		// remedy for a user who created a duplicate account through a new IdP;
+		// self-service linking cannot help them once they have lost access to the
+		// original account. Step-up: attaching a sub to an account grants whoever
+		// controls that sub a way in.
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
+			Post("/{user_uuid}/identities", userHandler.LinkUserIdentity)
 
 		// Unlink an external (federated) identity from a user
 		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
@@ -359,7 +403,13 @@ func DataErasureSelfRoute(
 		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
 		// Authenticated user requests erasure of their own account (GDPR Art.17).
-		r.With(middleware.PermissionMiddleware([]string{"account:user:delete:self"})).
+		//
+		// Step-up required, matching DELETE /account and the admin erasure endpoint.
+		// This schedules an irreversible multi-table anonymisation of the caller's
+		// account; carrying a weaker gate than the strictly less destructive
+		// DELETE /account meant a hijacked acr=1 session could permanently destroy
+		// the victim's account with a single unauthenticated-strength request.
+		r.With(middleware.PermissionMiddleware([]string{"account:user:delete:self"}), middleware.RequireStepUp).
 			Post("/me/erasure-request", handler.RequestSelf)
 	})
 }

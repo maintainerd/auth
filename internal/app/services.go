@@ -284,16 +284,27 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// (home-realm discovery + create/update domain membership).
 	idpEmailDomainRepo := idp.NewIdentityProviderEmailDomainRepository(db)
 
+	federationSvc := idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpEmailDomainRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, eventSvc, r.securitySettingRepo, appCache, sessionSvc)
+	// Account linking parks its in-flight state in the OAuth broker-session
+	// table, discriminated by purpose. idp cannot import oauth, so the adapter
+	// is supplied here.
+	federationSvc.SetIdentityLinkStore(identityLinkStoreAdapter{sessions: oauth.NewOAuthBrokerSessionRepository(db)})
+
 	s := &svcs{
 		serviceService:      iam.NewServiceService(db, r.serviceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
 		apiService:          iam.NewAPIService(db, r.apiRepo, r.serviceRepo, eventSvc),
 		permissionService:   iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache, eventSvc, authzInvalidator),
 		tenantService:       tenant.NewTenantService(r.tenantRepo, tenantUOW, eventSvc, tenantSeederAdapter{}),
 		tenantMemberService: tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW, eventSvc, newTenantUserProvisioner(userSvc)),
-		idpService:          idp.NewIdentityProviderService(db, r.idpRepo, idpEmailDomainRepo, r.idpAllowedAudienceRepo, idpTenantRepo, idpUserRepo),
-		clientService:       client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, r.clientRoleRepo, clientRoleRepoAdapter, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
-		roleService:         iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
-		userService:         userSvc,
+		idpService:          idp.NewIdentityProviderService(db, r.idpRepo, idpEmailDomainRepo, r.idpAllowedAudienceRepo, idpTenantRepo, idpUserRepo, appCache),
+		clientService: client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, r.clientRoleRepo, clientRoleRepoAdapter, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc,
+			// Connection changes are authorization changes: reachability is
+			// resolved through client_identity_providers, so a disabled or
+			// removed connection must drop cached user contexts immediately
+			// rather than staying live for the cache TTL.
+			appCache),
+		roleService: iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
+		userService: userSvc,
 		registerService: authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo), newAuthnRegistrationFlowRoleRepoAdapter(db, r.registrationFlowRoleRepo, r.registrationFlowRepo),
 			authn.WithEmailVerificationService(emailVerificationSvc),
 			authn.WithConsentRecorder(user.NewUserConsentService(r.userConsentRepo)),
@@ -316,9 +327,13 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		magicLinkService:         authn.NewMagicLinkService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.emailTemplateRepo),
 		setupService: setup.NewSetupService(db, r.userRepo, r.tenantRepo, r.tenantMemberRepo, r.clientRepo, r.roleRepo, r.userRoleRepo, r.userIdentityRepo, r.profileRepo,
 			setup.ControlRegistrationDeps{
-				ServiceRepo:       r.serviceRepo,
-				PolicyRepo:        r.policyRepo,
-				ServicePolicyRepo: r.servicePolicyRepo,
+				ServiceRepo:        r.serviceRepo,
+				PolicyRepo:         r.policyRepo,
+				ServicePolicyRepo:  r.servicePolicyRepo,
+				APIRepo:            r.apiRepo,
+				PermissionRepo:     r.permissionRepo,
+				RolePermissionRepo: r.rolePermissionRepo,
+				ClientURIRepo:      r.clientURIRepo,
 			},
 		),
 		registrationContextService: authn.NewRegistrationContextService(
@@ -353,7 +368,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		smsLoginService:              authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo),
 		mfaService:                   mfaSvc,
 		webAuthnService:              webAuthnSvc,
-		federationService:            idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpEmailDomainRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, eventSvc, r.securitySettingRepo, appCache, sessionSvc),
+		federationService:            federationSvc,
 		eventService:                 eventSvc,
 		eventTypeService:             eventTypeSvc,
 		tenantEventTypeConfigService: tenantEventTypeConfigSvc,
@@ -367,12 +382,14 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		webhookReplayHandler:         webhookReplayHandler,
 		ipRestrictionRuleRepo:        r.ipRestrictionRuleRepo,
 		auditLogger:                  auditlog.NewManagementAuditLogger(r.auditLogRepo),
-		keyRotationService:           oauth.NewKeyRotationService(r.signingKeyRepo),
-		tokenRevocationService:       oauth.NewTokenRevocationService(r.tokenRevocationRepo),
-		tokenRevocationRepo:          r.tokenRevocationRepo,
-		wifService:                   federation.NewWorkloadIdentityFederationService(db, r.wifRepo, newFederationExchangeAuditor(r.tokenExchangeRepo)),
-		dataErasureService:           user.NewDataErasureService(r.dataErasureRequestRepo, userSvc),
-		accountLinkService:           authn.NewAccountLinkRequestService(r.accountLinkRequestRepo, newAuthnUserRepoAdapter(r.userRepo), newAccountLinkIdentityLinker(r.userIdentityRepo)),
+		// db is what makes Rotate work: without it the service is JWKS-serving only
+		// and the operator-triggered rotation endpoint returns "no database handle".
+		keyRotationService:     oauth.NewKeyRotationService(r.signingKeyRepo, db),
+		tokenRevocationService: oauth.NewTokenRevocationService(r.tokenRevocationRepo),
+		tokenRevocationRepo:    r.tokenRevocationRepo,
+		wifService:             federation.NewWorkloadIdentityFederationService(db, r.wifRepo, newFederationExchangeAuditor(r.tokenExchangeRepo)),
+		dataErasureService:     user.NewDataErasureService(r.dataErasureRequestRepo, userSvc),
+		accountLinkService:     authn.NewAccountLinkRequestService(r.accountLinkRequestRepo, newAuthnUserRepoAdapter(r.userRepo), newAccountLinkIdentityLinker(r.userIdentityRepo)),
 	}
 	// Wire the broker provider resolver so the oauth broker flow (idp_hint →
 	// upstream provider) can resolve provider authorize endpoints + client_ids
@@ -471,6 +488,26 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 			Description: ptr.Ptr(fmt.Sprintf("Access denied: missing one of required permissions %v", requiredPermissions)),
 		})
 	}
+	// Backup-code recovery completes a login, so its token has to be bound to a
+	// real session — otherwise it cannot be revoked and the session middleware
+	// rejects it on the next request.
+	s.accountService.SetSessionCreator(sessionCreatorAdapter{sessions: s.sessionService})
+
+	// Without this the OAuth token service falls back to a hardcoded
+	// amr=["pwd"] / acr=1, so a user who just completed TOTP or a passkey gets a
+	// token asserting a password login and is re-challenged by every step-up
+	// route immediately after authenticating.
+	s.oauthTokenService.SetSessionAuthContextResolver(oauth.NewUserSessionAuthContextResolver(db))
+
+	// OIDC Back-Channel Logout §2.6 requires a logout token's jti to be
+	// single-use. The in-process guard cannot hold that across replicas, so back
+	// it with the same shared store used for access-token revocation.
+	oauth.SetLogoutTokenReplayStore(appCache)
+
+	// The `iss` claim is the client's domain, so the allowlist the JWT validator
+	// enforces can only be built from the registered clients.
+	seedAcceptedIssuers(db)
+
 	return s, nil
 }
 

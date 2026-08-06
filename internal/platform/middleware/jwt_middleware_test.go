@@ -29,6 +29,17 @@ func initTestJWTKeys(t *testing.T) {
 	config.JWTPrivateKey = privPEM
 	config.JWTPublicKey = pubPEM
 	require.NoError(t, jwt.InitJWTKeys())
+
+	// jwt.validateIssuerClaim fails CLOSED on an empty allowlist — it then
+	// accepts only APP_PUBLIC_HOSTNAME, which is unset in a test binary — so
+	// every issuer these tests mint tokens under has to be registered the way a
+	// deployment registers its clients at boot.
+	jwt.SetAcceptedIssuers([]string{
+		"https://auth.example.com",
+		"https://api.example.com",
+		"https://issuer",
+	})
+	t.Cleanup(jwt.ResetAcceptedIssuers)
 }
 
 // okHandler is a minimal next-handler that always responds 200 OK.
@@ -224,6 +235,9 @@ func TestJWTAuthMiddleware_MissingOrInvalidSub(t *testing.T) {
 			"sub": "not-a-uuid", "exp": exp, "iat": iat,
 			"iss": "https://issuer", "aud": "https://api",
 			"jti": uuid.New().String(),
+			// token_type is now required on the authorization path; this case is
+			// about the shape of `sub`, so it has to present a real access token.
+			"token_type": jwt.TokenTypeAccess,
 		}
 		tok := makeTokenWithClaims(t, claims)
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -232,6 +246,69 @@ func TestJWTAuthMiddleware_MissingOrInvalidSub(t *testing.T) {
 		JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
 		assert.Equal(t, http.StatusOK, rr.Code)
 	})
+}
+
+// TestJWTAuthMiddleware_RejectsNonAccessTokens covers the core of the ID-token
+// confusion: every token this server signs shares one key and carries the same
+// sub/client_id, so only the token_type claim separates a credential the
+// resource server may act on from a receipt handed to a relying party.
+func TestJWTAuthMiddleware_RejectsNonAccessTokens(t *testing.T) {
+	initTestJWTKeys(t)
+
+	exp := jwtlib.NewNumericDate(time.Now().Add(time.Hour))
+	iat := jwtlib.NewNumericDate(time.Now().Add(-time.Second))
+	sub := uuid.New().String()
+
+	tokenWithType := func(tokenType string) string {
+		claims := jwtlib.MapClaims{
+			"sub": sub, "exp": exp, "iat": iat,
+			"iss": "https://issuer", "aud": "https://api",
+			"jti":       uuid.New().String(),
+			"client_id": "console",
+		}
+		if tokenType != "" {
+			claims["token_type"] = tokenType
+		}
+		return makeTokenWithClaims(t, claims)
+	}
+
+	rejected := []struct {
+		name      string
+		tokenType string
+	}{
+		{"id token", jwt.TokenTypeID},
+		{"refresh token", jwt.TokenTypeRefresh},
+		{"unlabelled token", ""},
+	}
+	for _, tc := range rejected {
+		t.Run(tc.name+" is rejected", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.Header.Set("Authorization", "Bearer "+tokenWithType(tc.tokenType))
+			rr := httptest.NewRecorder()
+			JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusUnauthorized, rr.Code)
+		})
+	}
+
+	accepted := []struct {
+		name      string
+		tokenType string
+	}{
+		{"access token", jwt.TokenTypeAccess},
+		// A DPoP-bound access token carries token_type "DPoP" (RFC 9449 §6.1); it
+		// is still an access token. Without a cnf claim there is no binding to
+		// enforce, so it reaches the handler.
+		{"DPoP access token", jwt.TokenTypeDPoP},
+	}
+	for _, tc := range accepted {
+		t.Run(tc.name+" is accepted", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.Header.Set("Authorization", "Bearer "+tokenWithType(tc.tokenType))
+			rr := httptest.NewRecorder()
+			JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+		})
+	}
 }
 
 func TestRequireStepUp(t *testing.T) {

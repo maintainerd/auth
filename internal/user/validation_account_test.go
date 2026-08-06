@@ -163,27 +163,64 @@ func TestVerifyBackupCodeDTO_Validate(t *testing.T) {
 	tests := []struct {
 		name       string
 		email      string
+		password   string
 		code       string
 		clientID   string
 		providerID string
 		wantErr    string
 	}{
-		{"valid", "user@example.com", "code123", "app", "idp", ""},
-		{"missing email", "", "c", "app", "idp", "email"},
-		{"invalid email", "bad", "c", "app", "idp", "email"},
-		{"missing code", "user@example.com", "", "app", "idp", "code"},
-		{"missing client_id", "user@example.com", "c", "", "idp", "client_id"},
-		{"missing provider_id", "user@example.com", "c", "app", "", "provider_id"},
+		{"valid", "user@example.com", "pw", "code123", "app", "idp", ""},
+		{"missing email", "", "pw", "c", "app", "idp", "email"},
+		{"invalid email", "bad", "pw", "c", "app", "idp", "email"},
+		{
+			// A backup code is a recovery SECOND factor. Without a first factor
+			// this endpoint mints a full token set from an email address and one
+			// short code, straight past the tenant's enforced-MFA policy.
+			name: "missing password", email: "user@example.com", password: "",
+			code: "c", clientID: "app", providerID: "idp", wantErr: "password",
+		},
+		{"missing code", "user@example.com", "pw", "", "app", "idp", "code"},
+		{"missing client_id", "user@example.com", "pw", "c", "", "idp", "client_id"},
+		{"missing provider_id", "user@example.com", "pw", "c", "app", "", "provider_id"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			dto := &VerifyBackupCodeDTO{Email: tc.email, Code: tc.code, ClientID: tc.clientID, ProviderID: tc.providerID}
+			dto := &VerifyBackupCodeDTO{Email: tc.email, Password: tc.password, Code: tc.code, ClientID: tc.clientID, ProviderID: tc.providerID}
 			err := dto.Validate()
 			if tc.wantErr == "" {
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, strings.ToLower(err.Error()), tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestChangeUsernameDTO_Validate_RejectsEmailShapedUsername(t *testing.T) {
+	// authn.findLoginUser resolves the username column FIRST, so renaming to
+	// another user's email address hijacks their email login — and the
+	// uniqueness pre-check queries usernames alone, so nothing collides.
+	tests := []struct {
+		name     string
+		username string
+		wantErr  bool
+	}{
+		{"email-shaped username rejected", "alice@corp.com", true},
+		{"bare @ rejected", "al@ice", true},
+		{"space rejected", "alice smith", true},
+		{"plain username allowed", "alicesmith", false},
+		{"dot underscore hyphen allowed", "alice.smith_1-x", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dto := &ChangeUsernameDTO{NewUsername: tc.username, CurrentPassword: "pw"}
+			err := dto.Validate()
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, strings.ToLower(err.Error()), "username")
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

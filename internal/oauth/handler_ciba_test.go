@@ -15,8 +15,8 @@ import (
 type mockOAuthCIBAService struct {
 	initiateFn      func(context.Context, OAuthCIBARequestDTO, OAuthClientCredentials) (*OAuthCIBAResponseDTO, *apperror.OAuthError)
 	exchangeTokenFn func(context.Context, OAuthCIBATokenRequestDTO, OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError)
-	approveFn       func(context.Context, string, int64) *apperror.OAuthError
-	denyFn          func(context.Context, string, int64) *apperror.OAuthError
+	approveFn       func(context.Context, string, int64, int64) *apperror.OAuthError
+	denyFn          func(context.Context, string, int64, int64) *apperror.OAuthError
 }
 
 func (m *mockOAuthCIBAService) Initiate(ctx context.Context, req OAuthCIBARequestDTO, creds OAuthClientCredentials) (*OAuthCIBAResponseDTO, *apperror.OAuthError) {
@@ -31,15 +31,15 @@ func (m *mockOAuthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAT
 	}
 	return nil, nil
 }
-func (m *mockOAuthCIBAService) ApproveRequest(ctx context.Context, authReqID string, userID int64) *apperror.OAuthError {
+func (m *mockOAuthCIBAService) ApproveRequest(ctx context.Context, authReqID string, userID int64, tenantID int64) *apperror.OAuthError {
 	if m.approveFn != nil {
-		return m.approveFn(ctx, authReqID, userID)
+		return m.approveFn(ctx, authReqID, userID, tenantID)
 	}
 	return nil
 }
-func (m *mockOAuthCIBAService) DenyRequest(ctx context.Context, authReqID string, userID int64) *apperror.OAuthError {
+func (m *mockOAuthCIBAService) DenyRequest(ctx context.Context, authReqID string, userID int64, tenantID int64) *apperror.OAuthError {
 	if m.denyFn != nil {
-		return m.denyFn(ctx, authReqID, userID)
+		return m.denyFn(ctx, authReqID, userID, tenantID)
 	}
 	return nil
 }
@@ -76,7 +76,7 @@ func TestOAuthCIBAHandler_ApproveRequest(t *testing.T) {
 
 	t.Run("service error returns oauth error", func(t *testing.T) {
 		svc := &mockOAuthCIBAService{
-			approveFn: func(context.Context, string, int64) *apperror.OAuthError {
+			approveFn: func(context.Context, string, int64, int64) *apperror.OAuthError {
 				return apperror.NewOAuthInvalidGrant("expired")
 			},
 		}
@@ -119,7 +119,7 @@ func TestOAuthCIBAHandler_DenyRequest(t *testing.T) {
 
 	t.Run("service error returns oauth error", func(t *testing.T) {
 		svc := &mockOAuthCIBAService{
-			denyFn: func(context.Context, string, int64) *apperror.OAuthError {
+			denyFn: func(context.Context, string, int64, int64) *apperror.OAuthError {
 				return apperror.NewOAuthInvalidGrant("expired")
 			},
 		}

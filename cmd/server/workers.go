@@ -16,13 +16,14 @@ import (
 )
 
 var (
-	startRetentionRunner       = authevent.StartRetentionRunner
-	startTenantRetentionRunner = tenant.StartRetentionRunner
-	startKeyRotationRunner     = runner.StartKeyRotationRunner
-	startSecretRefreshRunner   = runner.StartSecretRefreshRunner
-	startCleanupRunner         = oauth.StartCleanupRunner
-	startDataErasureWorker     = user.StartDataErasureWorker
-	startGRPCServer            = appserver.StartGRPCServer
+	startRetentionRunner          = authevent.StartRetentionRunner
+	startTenantRetentionRunner    = tenant.StartRetentionRunner
+	startKeyRotationRunner        = runner.StartKeyRotationRunner
+	startSigningKeyRotationRunner = oauth.StartSigningKeyRotationRunner
+	startSecretRefreshRunner      = runner.StartSecretRefreshRunner
+	startCleanupRunner            = oauth.StartCleanupRunner
+	startDataErasureWorker        = user.StartDataErasureWorker
+	startGRPCServer               = appserver.StartGRPCServer
 )
 
 // startBackgroundWorkers launches non-REST runtimes that should stop when the
@@ -48,7 +49,25 @@ func startBackgroundWorkers(ctx context.Context, application *app.App, serverApp
 	if keyRotationPeriod <= 0 {
 		keyRotationPeriod = 24 * time.Hour
 	}
-	go startKeyRotationRunner(ctx, keyRotationPeriod)
+	// Automatic rotation only happens when the signing_keys table owns the key.
+	//
+	// With JWT_PRIVATE_KEY set the key is operator-managed and process-local, and
+	// rotating it automatically is actively harmful: the new key is never
+	// persisted, is not shared with any other replica, and is lost on restart. In
+	// a multi-replica deployment — which is what packaging this as an image
+	// invites — replica A would start signing with a key that replica B's JWKS
+	// never publishes, so B rejects A's tokens. An operator rotates an env-owned
+	// key by changing the variable and redeploying; the server must not pretend
+	// to do it for them.
+	//
+	// The DB-backed runner is safe to run on every replica: the key lives in
+	// shared state, so all replicas converge on the same active key.
+	if len(config.JWTPrivateKey) > 0 {
+		slog.Info("key_rotation: JWT_PRIVATE_KEY is set, so the signing key is operator-managed; " +
+			"automatic rotation is disabled (rotate by updating the variable and redeploying)")
+	} else {
+		go startSigningKeyRotationRunner(ctx, application.DB, keyRotationPeriod)
+	}
 
 	secretRefreshPeriod := time.Duration(config.SecretRefreshPeriodSeconds) * time.Second
 	if secretRefreshPeriod <= 0 {

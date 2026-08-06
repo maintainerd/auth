@@ -2,7 +2,9 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/email"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
@@ -55,9 +58,13 @@ type UserIdentityServiceDataResult struct {
 	Provider         string
 	Sub              string
 	Metadata         datatypes.JSON
-	Client           *ClientServiceDataResult
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	// The identity provider that issued this identity. Replaces the former
+	// Client field: identities belong to a provider, and which applications may
+	// use one is a separate relationship (client_identity_providers).
+	IdentityProviderUUID *uuid.UUID
+	IdentityProviderName string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 type UserServiceGetFilter struct {
@@ -102,7 +109,7 @@ type UserService interface {
 	// integer user-id references (no PII), and their BEFORE UPDATE triggers
 	// forbid mutation.
 	AnonymizeUser(ctx context.Context, userID int64) error
-	AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	GetUserRoles(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserRolesFilter) ([]RoleServiceDataResult, int64, error)
 	GetUserIdentities(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
@@ -112,12 +119,31 @@ type UserService interface {
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
 	// Used by UserContextMiddleware to populate the request context.
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error)
+	// FindClientByIdentifier resolves the request's OAuth client. The client is
+	// a property of the REQUEST, not of the identity — identities belong to an
+	// identity provider and are usable from every client connected to it.
+	FindClientByIdentifier(ctx context.Context, identifier string) (*Client, error)
+	// ListMembershipCandidates returns SYSTEM-tenant users, which are the only
+	// users tenant.CreateByUserUUID will accept as members. It is deliberately
+	// separate from the general user list: that one is pinned to the caller's own
+	// tenant, and widening it with a tenant filter would turn it into a
+	// cross-tenant enumeration surface.
+	ListMembershipCandidates(ctx context.Context, search *string, page, limit int) ([]MembershipCandidateDTO, int64, error)
 	// FindByUserID loads a user by primary key with roles, permissions,
 	// identities, and identity tenants preloaded. Used by multi-issuer
 	// middleware to build AuthContext for federated principals.
 	FindByUserID(ctx context.Context, userID int64) (*User, error)
 	// ForcePasswordChange sets or clears the force_password_change flag for a user.
 	ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, tenantID int64, force bool) error
+	// SetPassword sets a user's password administratively, held to the same
+	// tenant policy and reuse history as self-service rotation and always
+	// evicting the target's live credentials. temporary=true forces the user to
+	// choose their own on next login.
+	SetPassword(ctx context.Context, userUUID uuid.UUID, tenantID int64, newPassword string, temporary bool, actorUserUUID uuid.UUID) error
+	// AdminLinkIdentity attaches an existing external identity (provider + sub)
+	// to a user on behalf of an administrator — the operator remedy for a
+	// duplicate account created through a new IdP.
+	AdminLinkIdentity(ctx context.Context, userUUID uuid.UUID, tenantID int64, providerUUID uuid.UUID, sub string, actorUserUUID uuid.UUID) (*UserIdentityServiceDataResult, error)
 	GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error)
 	// EnsureUserInTenant copies the user identified by userUUID into the target
 	// tenant if they do not already have a record there. Returns the userID in
@@ -458,8 +484,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		userIdentity := &UserIdentity{
 			TenantID:           targetTenant.TenantID,
 			UserID:             newUser.UserID,
-			ClientID:           &defaultClient.ClientID,
-			IdentityProviderID: &defaultIdP.IdentityProviderID,
+			IdentityProviderID: defaultIdP.IdentityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                newUser.UserUUID.String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -491,7 +516,7 @@ func (s *userService) Create(ctx context.Context, username string, email *string
 		// response carries an empty fullname until a profile is created.
 
 		// Fetch created user with relationships
-		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles", "Profile")
+		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles", "Profile")
 		if err != nil {
 			return err
 		}
@@ -537,6 +562,9 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 
 	var updatedUser *User
 	var capturedActorID int64
+	// Captured for the out-of-band notice sent AFTER the commit: the old address
+	// is the only party who can tell that a takeover just happened.
+	var previousEmail, replacementEmail string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -598,42 +626,76 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 		}
 
 		// Update user - build changed fields list
+		//
+		// The write is a map, not the User struct it used to be: GORM's
+		// Updates(struct) skips zero values, so `is_email_verified = false` and a
+		// nil `email_verified_at` — the whole point of the reset below — would have
+		// been silently dropped from the statement.
 		var changed []string
+		updates := map[string]any{"username": username, "status": status}
 		if username != user.Username {
 			changed = append(changed, "username")
 		}
 		if status != user.Status {
 			changed = append(changed, "status")
 		}
-		if email != nil && emailStr != user.Email {
-			changed = append(changed, "email")
+		emailChanged := email != nil && emailStr != user.Email
+		phoneChanged := phone != nil && phoneStr != user.Phone
+		if email != nil {
+			updates["email"] = emailStr
 		}
-		if phone != nil && phoneStr != user.Phone {
+		if emailChanged {
+			changed = append(changed, "email")
+			// An admin rewriting the sign-in address must not inherit the previous
+			// address's proof of control. Leaving is_email_verified set turned
+			// "user:update" into an account-takeover primitive: point the account at
+			// an attacker-controlled inbox and the already-verified flag let the
+			// recovery flows (forgot-password, magic link) treat it as proven.
+			// Verification is a statement about an address, never about a row.
+			updates["is_email_verified"] = false
+			updates["email_verified_at"] = nil
+			changed = append(changed, "is_email_verified")
+			previousEmail, replacementEmail = user.Email, emailStr
+		}
+		if phone != nil {
+			updates["phone"] = phoneStr
+		}
+		if phoneChanged {
 			changed = append(changed, "phone")
+			// Same rule for the phone channel, which carries SMS OTP and recovery.
+			updates["is_phone_verified"] = false
+			updates["phone_verified_at"] = nil
+			changed = append(changed, "is_phone_verified")
 		}
 		if metadata != nil {
+			updates["metadata"] = metadata
 			changed = append(changed, "metadata")
 		}
 
-		user.Username = username
-		user.Status = status
-		if email != nil {
-			user.Email = emailStr
-		}
-		if phone != nil {
-			user.Phone = phoneStr
-		}
-		if metadata != nil {
-			user.Metadata = metadata
-		}
-
-		_, err = txUserRepo.UpdateByUUID(userUUID, user)
+		_, err = txUserRepo.UpdateByUUID(userUUID, updates)
 		if err != nil {
 			return err
 		}
 
+		// Two reasons to evict, one call:
+		//
+		//   deactivated  — a status change made through the general update endpoint
+		//                  disables the account exactly as PATCH /status does.
+		//                  Routing round the dedicated endpoint cannot be a way to
+		//                  keep a disabled user signed in.
+		//   identity moved — the live sessions and refresh tokens were minted for a
+		//                  sign-in identity the account no longer has, so the
+		//                  rewrite cannot hand an account over with its existing
+		//                  tokens still working.
+		deactivated := status != user.Status && status != shared.StatusActive
+		if deactivated || emailChanged || username != user.Username {
+			if e := revokeLiveCredentials(tx, user.UserID, shared.SessionRevokeAdmin); e != nil {
+				return e
+			}
+		}
+
 		// Fetch updated user with relationships
-		updatedUser, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles", "Profile")
+		updatedUser, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles", "Profile")
 		if err != nil {
 			return err
 		}
@@ -660,6 +722,9 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 
 	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
+	// Best-effort and deliberately after the commit: the change has already
+	// landed, so a broken SMTP config must not roll it back or fail the call.
+	s.notifyEmailReplacedByAdmin(ctx, updatedUser, previousEmail, replacementEmail)
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:     tenantID,
 		ActorUserID:  &capturedActorID,
@@ -673,6 +738,82 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 		Description:  ptr.Ptr(fmt.Sprintf("User updated: %s", updatedUser.Username)),
 	})
 	return toUserServiceDataResult(updatedUser), nil
+}
+
+// revokeLiveCredentials ends every credential a user currently holds, in the
+// caller's transaction.
+//
+// Setting users.status alone never signed anyone out: the access token stayed
+// valid until expiry and the refresh token kept minting replacements, so
+// "suspend this account" was a label, not an eviction. Offboarding has to reach
+// all three stores at once —
+//
+//	user_sessions        the canonical browser/app session (authn)
+//	oauth_refresh_tokens the long-lived credential that re-mints access tokens
+//	user_tokens          legacy session rows the admin session console still lists
+//
+// The tables are written directly rather than through the authn/oauth
+// repositories for the reason AnonymizeUser gives above: importing those
+// packages here would invert the dependency, and the write must commit or roll
+// back WITH the status change. An error aborts the status change entirely — a
+// user reported as suspended while still holding live credentials is the exact
+// failure this prevents.
+func revokeLiveCredentials(tx *gorm.DB, userID int64, reason string) error {
+	now := time.Now()
+
+	if e := tx.Table("user_sessions").
+		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Updates(map[string]any{"revoked_at": now, "revoked_reason": reason}).Error; e != nil {
+		return apperror.NewInternal("failed to revoke sessions", e)
+	}
+
+	if e := tx.Table("oauth_refresh_tokens").
+		Where("user_id = ? AND is_revoked = false", userID).
+		Updates(map[string]any{"is_revoked": true, "revoked_at": now}).Error; e != nil {
+		return apperror.NewInternal("failed to revoke refresh tokens", e)
+	}
+
+	if e := tx.Model(&UserToken{}).
+		Where("user_id = ? AND token_type = ? AND is_revoked = false", userID, shared.TokenTypeSession).
+		Update("is_revoked", true).Error; e != nil {
+		return apperror.NewInternal("failed to revoke session tokens", e)
+	}
+
+	return nil
+}
+
+// notifyEmailReplacedByAdmin warns the address an admin just replaced.
+//
+// The admin path had no notice at all, which is what made it a usable takeover
+// primitive: an operator (or anyone holding a stolen admin session) could move
+// the sign-in identity to a mailbox they control and the real owner's first
+// clue would be a password reset they never asked for. The out-of-band notice
+// to the OLD address is the only channel the attacker does not already own.
+// It mirrors accountService.notifyPreviousEmailOfChange, which covers the
+// self-service half of the same change.
+//
+// The body is composed inline for the same reason as the self-service twin:
+// there is no seeded "email changed" template, and rendering an unrelated one
+// would send the wrong message.
+func (s *userService) notifyEmailReplacedByAdmin(ctx context.Context, user *User, previousEmail, newEmail string) {
+	if previousEmail == "" || previousEmail == newEmail {
+		return
+	}
+	bodyPlain := fmt.Sprintf(
+		"An administrator just changed the email address on your account from %s to %s.\n\n"+
+			"If you did not expect this, contact your administrator immediately — "+
+			"whoever made the change can now receive your sign-in and password-reset mail.",
+		previousEmail, newEmail)
+	if err := email.SendEmail(ctx, s.db, email.SendEmailParams{
+		TenantID:  user.TenantID,
+		To:        previousEmail,
+		Subject:   "Your account email address was changed",
+		BodyHTML:  fmt.Sprintf("<p>%s</p>", bodyPlain),
+		BodyPlain: bodyPlain,
+	}); err != nil {
+		slog.Error("user: failed to notify previous email of an administrative address change",
+			"error", err, "user_id", user.UserID)
+	}
 }
 
 func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
@@ -709,7 +850,13 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 		if e := txUserRepo.SetStatus(userUUID, status); e != nil {
 			return e
 		}
-		u, e := txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+		// Disabling an account has to evict it, not just relabel it.
+		if status != shared.StatusActive {
+			if e := revokeLiveCredentials(tx, user.UserID, shared.SessionRevokeAdmin); e != nil {
+				return e
+			}
+		}
+		u, e := txUserRepo.FindByUUID(userUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles")
 		if e != nil {
 			return e
 		}
@@ -774,7 +921,7 @@ func (s *userService) VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenan
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -811,7 +958,7 @@ func (s *userService) VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenan
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -844,7 +991,7 @@ func (s *userService) CompleteAccount(ctx context.Context, userUUID uuid.UUID, t
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -861,7 +1008,7 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles")
 	if err != nil || user == nil {
 		return nil, apperror.NewNotFound("user not found")
 	}
@@ -1012,7 +1159,43 @@ func (s *userService) AnonymizeUser(ctx context.Context, userID int64) error {
 	return nil
 }
 
-func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+// assertCanGrantRoles refuses to hand out a role carrying a permission the actor
+// does not already hold.
+//
+// Assigning a role IS granting its permissions, so "may I edit users?" must not
+// mean "may I make anyone a super-admin?". Holding user:update alone was enough
+// to assign the tenant's super-admin role to yourself. A super-admin is seeded
+// with every administrative permission, so the rule does not restrict them and
+// needs no special case. Only elevated permissions are gated — account:…:self
+// and public:… confer nothing beyond the holder's own account.
+func (s *userService) assertCanGrantRoles(repo UserRepository, actorUserUUID uuid.UUID, tenantID int64, roles []Role) error {
+	var granting []string
+	for _, role := range roles {
+		for _, rp := range role.RolePermissions {
+			granting = append(granting, rp.Permission.Name)
+		}
+	}
+	if shared.FirstElevatedPermission(granting) == "" {
+		return nil
+	}
+
+	actor, err := repo.FindByUUID(actorUserUUID)
+	if err != nil || actor == nil {
+		return apperror.NewForbidden("the acting user could not be resolved")
+	}
+	held, err := repo.EffectivePermissionNames(actor.UserID, tenantID)
+	if err != nil {
+		// Fail CLOSED: an unreadable actor permission set is not "holds everything".
+		return apperror.NewInternal("could not resolve the acting user's permissions", err)
+	}
+	if unheld := shared.FirstUnheldElevatedPermission(granting, held); unheld != "" {
+		return apperror.NewForbidden(fmt.Sprintf(
+			"you cannot assign a role granting %q because you do not hold it", unheld))
+	}
+	return nil
+}
+
+func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user.assignRoles")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
@@ -1040,7 +1223,7 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 		for i, id := range roleUUIDs {
 			roleUUIDStrs[i] = id.String()
 		}
-		roles, err := txRoleRepo.FindByUUIDs(roleUUIDStrs)
+		roles, err := txRoleRepo.FindByUUIDs(roleUUIDStrs, "RolePermissions.Permission")
 		if err != nil {
 			return err
 		}
@@ -1051,6 +1234,13 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 			if role.TenantID != tenantID {
 				return apperror.NewNotFoundWithReason("role not found or access denied")
 			}
+		}
+
+		if err := s.assertCanGrantRoles(txUserRepo, actorUserUUID, tenantID, roles); err != nil {
+			return err
+		}
+
+		for _, role := range roles {
 
 			// Check if user already has this role
 			existingUserRole, err := txUserRoleRepo.FindByUserIDAndRoleID(user.UserID, role.RoleID)
@@ -1074,7 +1264,7 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 		}
 
 		// Fetch user with roles for response
-		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -1176,7 +1366,7 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 		}
 
 		// Fetch user with roles for response
-		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.IdentityProvider", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -1271,9 +1461,12 @@ func toUserServiceDataResult(user *User) *UserServiceDataResult {
 				CreatedAt:        ui.CreatedAt,
 				UpdatedAt:        ui.UpdatedAt,
 			}
-			// Map Client if present
-			if ui.Client != nil {
-				userIdentities[i].Client = ToClientServiceDataResult(ui.Client)
+			// Populated when the caller preloaded UserIdentities.IdentityProvider.
+			// The identity's owner is the provider — there is no client to report.
+			if ui.IdentityProvider != nil {
+				idpUUID := ui.IdentityProvider.IdentityProviderUUID
+				userIdentities[i].IdentityProviderUUID = &idpUUID
+				userIdentities[i].IdentityProviderName = ui.IdentityProvider.Name
 			}
 		}
 		result.UserIdentities = &userIdentities
@@ -1453,44 +1646,135 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID,
 
 	identities := make([]UserIdentityServiceDataResult, len(result.Data))
 
-	clientIDs := make([]int64, 0, len(result.Data))
+	// Resolve each identity's PROVIDER for display. This used to resolve the
+	// client the identity was created under, which no longer exists — and was
+	// never the right thing to show, since an identity is usable from every
+	// client connected to its provider.
+	idpIDs := make([]int64, 0, len(result.Data))
+	seenIDP := make(map[int64]bool, len(result.Data))
 	for _, identity := range result.Data {
-		if identity.ClientID != nil && *identity.ClientID > 0 {
-			clientIDs = append(clientIDs, *identity.ClientID)
+		if identity.IdentityProviderID > 0 && !seenIDP[identity.IdentityProviderID] {
+			seenIDP[identity.IdentityProviderID] = true
+			idpIDs = append(idpIDs, identity.IdentityProviderID)
 		}
 	}
-	clientMap := make(map[int64]*ClientServiceDataResult)
-	if len(clientIDs) > 0 {
-		clients, err := s.clientRepo.FindByIDs(clientIDs)
-		if err == nil {
-			for i := range clients {
-				if clients[i].TenantID != tenantID {
-					continue
-				}
-				res := ToClientServiceDataResult(&clients[i])
-				clientMap[clients[i].ClientID] = res
-			}
+	idpMap := make(map[int64]*IdentityProvider, len(idpIDs))
+	for _, id := range idpIDs {
+		idp, err := s.identityProviderRepo.FindByID(id)
+		if err != nil || idp == nil {
+			continue
 		}
+		// Tenant check: never surface a provider from another tenant.
+		if idp.TenantID != tenantID {
+			continue
+		}
+		idpMap[id] = idp
 	}
 
 	for i, identity := range result.Data {
-		var clientResult *ClientServiceDataResult
-		if identity.ClientID != nil {
-			clientResult = clientMap[*identity.ClientID]
+		var idpUUID *uuid.UUID
+		var idpName string
+		if idp := idpMap[identity.IdentityProviderID]; idp != nil {
+			u := idp.IdentityProviderUUID
+			idpUUID = &u
+			idpName = idp.Name
 		}
 		identities[i] = UserIdentityServiceDataResult{
-			UserIdentityUUID: identity.UserIdentityUUID,
-			Provider:         identity.Provider,
-			Sub:              identity.Sub,
-			Metadata:         identity.Metadata,
-			Client:           clientResult,
-			CreatedAt:        identity.CreatedAt,
-			UpdatedAt:        identity.UpdatedAt,
+			UserIdentityUUID:     identity.UserIdentityUUID,
+			Provider:             identity.Provider,
+			Sub:                  identity.Sub,
+			Metadata:             identity.Metadata,
+			IdentityProviderUUID: idpUUID,
+			IdentityProviderName: idpName,
+			CreatedAt:            identity.CreatedAt,
+			UpdatedAt:            identity.UpdatedAt,
 		}
 	}
 
 	span.SetStatus(codes.Ok, "")
 	return identities, result.Total, nil
+}
+
+// profileFullname renders a display name for a picker: the explicit display
+// name when set, otherwise first + last. Empty when no profile was preloaded —
+// the picker falls back to username/email rather than showing a blank row.
+func profileFullname(p *Profile) string {
+	if p == nil {
+		return ""
+	}
+	if p.DisplayName != nil && strings.TrimSpace(*p.DisplayName) != "" {
+		return *p.DisplayName
+	}
+	name := p.FirstName
+	if p.LastName != nil && *p.LastName != "" {
+		if name != "" {
+			name += " "
+		}
+		name += *p.LastName
+	}
+	return name
+}
+
+// MembershipCandidateDTO is the minimum a member picker needs. It is
+// deliberately not the full user projection: these are users from ANOTHER
+// tenant (the system tenant) as far as most callers are concerned, so the
+// response carries identity enough to choose a person and nothing more.
+type MembershipCandidateDTO struct {
+	UserUUID uuid.UUID `json:"user_id"`
+	Username string    `json:"username"`
+	Email    string    `json:"email"`
+	Fullname string    `json:"fullname,omitempty"`
+}
+
+// ListMembershipCandidates lists active SYSTEM-tenant users.
+//
+// tenant.CreateByUserUUID rejects any user whose home tenant is not the system
+// tenant, and nothing exposed that set — so the console offered a picker of the
+// caller's own tenant users, every one of which 403'd. This is the missing
+// half.
+//
+// The system tenant is resolved server-side rather than taken as a parameter,
+// so this cannot be pointed at an arbitrary tenant.
+func (s *userService) ListMembershipCandidates(ctx context.Context, search *string, page, limit int) ([]MembershipCandidateDTO, int64, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.listMembershipCandidates")
+	defer span.End()
+
+	systemTenant, err := s.tenantRepo.FindSystem()
+	if err != nil {
+		return nil, 0, apperror.NewInternal("failed to resolve the system tenant", err)
+	}
+	if systemTenant == nil {
+		return nil, 0, apperror.NewNotFound("system tenant not found")
+	}
+
+	result, err := s.userRepo.FindPaginated(UserRepositoryGetFilter{
+		TenantID: &systemTenant.TenantID,
+		Search:   search,
+		Status:   []string{shared.StatusActive},
+		Page:     page,
+		Limit:    limit,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	out := make([]MembershipCandidateDTO, len(result.Data))
+	for i := range result.Data {
+		u := &result.Data[i]
+		out[i] = MembershipCandidateDTO{
+			UserUUID: u.UserUUID,
+			Username: u.Username,
+			Email:    u.Email,
+			Fullname: profileFullname(u.Profile),
+		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return out, result.Total, nil
+}
+
+func (s *userService) FindClientByIdentifier(_ context.Context, identifier string) (*Client, error) {
+	return s.clientRepo.FindByIdentifier(identifier)
 }
 
 func (s *userService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, tenantID int64, force bool) error {
@@ -1520,6 +1804,298 @@ func (s *userService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUI
 	return nil
 }
 
+// SetPassword sets a user's password on behalf of an administrator.
+//
+// force-password-change was the only lever an operator had, and it does nothing
+// until the user manages to sign in on their own — useless for the case it
+// exists for, a user locked out of both their password and their inbox. Every
+// comparable product (Auth0, Keycloak, Okta) ships an administrative set.
+//
+// It is held to the SAME rules as self-service rotation (tenant password policy,
+// identity-aware validation, reuse history, temp-password clearing) so the two
+// paths cannot drift into enforcing different things, and it always evicts the
+// target's live credentials: a password reset performed because an account is
+// suspected compromised must not leave the attacker's session and refresh token
+// spendable.
+//
+// temporary=true marks the credential as one-time — the user is forced to
+// choose their own on next login and the temp-password expiry clock starts.
+func (s *userService) SetPassword(ctx context.Context, userUUID uuid.UUID, tenantID int64, newPassword string, temporary bool, actorUserUUID uuid.UUID) error {
+	ctx, span := otel.Tracer("service").Start(ctx, "user.setPassword")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID), attribute.Bool("password.temporary", temporary))
+
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
+	if err != nil || user == nil {
+		span.SetStatus(codes.Error, "user not found")
+		return apperror.NewNotFound("user not found")
+	}
+	if !userHasTenantAccess(user, tenantID) {
+		span.SetStatus(codes.Error, "tenant access denied")
+		return apperror.NewNotFoundWithReason("user not found or access denied")
+	}
+
+	actor, err := s.userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
+	if err != nil || actor == nil {
+		return apperror.NewNotFoundWithReason("actor user not found")
+	}
+	if err := ValidateTenantAccess(actor, user.UserIdentities[0].Tenant); err != nil {
+		return err
+	}
+
+	policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, user.TenantID)
+
+	// Identity-aware: the one thing an admin set knows for certain is whose
+	// account it is, so a "password" that merely restates the username or email
+	// is rejected here as it is on self-service change.
+	if err := security.ValidatePasswordPolicyForUser(ctx, newPassword, policy, security.PasswordUserContext{
+		Username: user.Username,
+		Email:    user.Email,
+	}); err != nil {
+		return apperror.NewValidation(err.Error())
+	}
+
+	// Fail CLOSED. A nil history repo must not read as "no history to violate":
+	// that would let a wiring mistake quietly disable reuse protection for every
+	// tenant that configured it.
+	if policy.HistoryCount > 0 {
+		if s.passwordHistoryRepo == nil {
+			return apperror.NewInternal("password history is required by policy but is not configured", nil)
+		}
+		hashes, hErr := s.passwordHistoryRepo.FindRecentHashes(user.UserID, policy.HistoryCount)
+		if hErr != nil {
+			// An unreadable history is not an empty history.
+			return apperror.NewInternal("failed to read password history", hErr)
+		}
+		for _, h := range hashes {
+			if security.ComparePassword([]byte(h), []byte(newPassword)) {
+				return apperror.NewValidation("password was used recently and cannot be reused")
+			}
+		}
+	}
+
+	// Hashing stays OUTSIDE the transaction: argon2id is tuned to take real time
+	// and holding the row lock across it serializes concurrent writes on users.
+	hashed, err := userHashPasswordWithPolicy(ctx, []byte(newPassword), policy)
+	if err != nil {
+		return apperror.NewInternal("failed to hash password", err)
+	}
+
+	now := time.Now()
+	updates := map[string]any{
+		"password":              string(hashed),
+		"password_changed_at":   now,
+		"force_password_change": temporary,
+	}
+	if temporary {
+		updates["temporary_password_expires_at"] = now.Add(time.Duration(policy.TempPasswordValidityHours) * time.Hour)
+	} else {
+		// A permanent password that has replaced a temporary one must stop being
+		// subject to temp-password expiry.
+		updates["temporary_password_expires_at"] = nil
+	}
+
+	txErr := s.db.Transaction(func(tx *gorm.DB) error {
+		if _, e := s.userRepo.WithTx(tx).UpdateByID(user.UserID, updates); e != nil {
+			return apperror.NewInternal("failed to update password", e)
+		}
+		if s.passwordHistoryRepo != nil {
+			if e := secpolicy.RecordPasswordHistory(
+				s.passwordHistoryRepo.WithTx(tx), user.UserID, policy.HistoryCount, string(hashed),
+			); e != nil {
+				return apperror.NewInternal("failed to record password history", e)
+			}
+		}
+		// Unlike self-service rotation, NOTHING is spared here. The caller is not
+		// the account owner, so there is no session of theirs worth preserving,
+		// and an admin reset is the remedy for a suspected compromise.
+		return revokeLiveCredentials(tx, user.UserID, shared.SessionRevokePasswordReset)
+	})
+	if txErr != nil {
+		span.RecordError(txErr)
+		span.SetStatus(codes.Error, "set password failed")
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			TenantID:     tenantID,
+			ActorUserID:  &actor.UserID,
+			TargetUserID: &user.UserID,
+			IPAddress:    middleware.ClientIPFromContext(ctx),
+			UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+			Category:     authevent.AuthEventCategoryAuthn,
+			EventType:    authevent.AuthEventTypePasswordChangeFail,
+			Severity:     authevent.AuthEventSeverityWarn,
+			Result:       authevent.AuthEventResultFailure,
+			Description:  ptr.Ptr(fmt.Sprintf("Administrative password set failed: %s", user.Username)),
+		})
+		return txErr
+	}
+
+	s.invalidateUserCache(ctx, user.UserIdentities)
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:     tenantID,
+		ActorUserID:  &actor.UserID,
+		TargetUserID: &user.UserID,
+		IPAddress:    middleware.ClientIPFromContext(ctx),
+		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:     authevent.AuthEventCategoryAuthn,
+		EventType:    authevent.AuthEventTypePasswordChange,
+		Severity:     authevent.AuthEventSeverityInfo,
+		Result:       authevent.AuthEventResultSuccess,
+		Description:  ptr.Ptr(fmt.Sprintf("Password set by an administrator: %s", user.Username)),
+	})
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// AdminLinkIdentity attaches an existing external identity to a user on behalf
+// of an administrator.
+//
+// The admin surface could list and unlink identities but never link one, so the
+// one case an operator is actually called about — a user who signed up again
+// through a new IdP and now owns two accounts — had no remedy but asking the
+// user to perform the self-service link themselves, which they often cannot do
+// because they can no longer reach the original account.
+//
+// The safety properties are the ones the (tenant_id, sub) UNIQUE constraint
+// implies but does not explain: a sub already linked anywhere in the tenant is
+// refused rather than moved (silently re-pointing an identity would transfer a
+// live login from one account to another), and the provider must be an active,
+// non-deleted provider OF THIS TENANT, so this cannot be used to attach an
+// identity from a provider the tenant does not own.
+func (s *userService) AdminLinkIdentity(ctx context.Context, userUUID uuid.UUID, tenantID int64, providerUUID uuid.UUID, sub string, actorUserUUID uuid.UUID) (*UserIdentityServiceDataResult, error) {
+	ctx, span := otel.Tracer("service").Start(ctx, "user.adminLinkIdentity")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
+	sub = strings.TrimSpace(sub)
+	if sub == "" {
+		return nil, apperror.NewValidation("sub is required")
+	}
+
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
+	if err != nil || user == nil {
+		span.SetStatus(codes.Error, "user not found")
+		return nil, apperror.NewNotFound("user not found")
+	}
+	if !userHasTenantAccess(user, tenantID) {
+		span.SetStatus(codes.Error, "tenant access denied")
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
+	}
+
+	actor, err := s.userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
+	if err != nil || actor == nil {
+		return nil, apperror.NewNotFoundWithReason("actor user not found")
+	}
+	if err := ValidateTenantAccess(actor, user.UserIdentities[0].Tenant); err != nil {
+		return nil, err
+	}
+
+	// Resolved here rather than through identityProviderRepo, whose interface
+	// exposes no by-UUID lookup. deleted_at is filtered explicitly: the
+	// projection in types.go declares no gorm.DeletedAt, so GORM applies no
+	// soft-delete scope and a deleted provider would otherwise still resolve.
+	// A cross-tenant or deleted provider is reported as missing rather than
+	// forbidden so the endpoint cannot be used to probe other tenants' providers.
+	var provider IdentityProvider
+	pErr := s.db.WithContext(ctx).
+		Where("identity_provider_uuid = ? AND tenant_id = ? AND deleted_at IS NULL", providerUUID, tenantID).
+		First(&provider).Error
+	if errors.Is(pErr, gorm.ErrRecordNotFound) {
+		return nil, apperror.NewNotFound("identity provider not found")
+	}
+	if pErr != nil {
+		span.RecordError(pErr)
+		return nil, apperror.NewInternal("failed to resolve identity provider", pErr)
+	}
+	if provider.Status != shared.StatusActive {
+		return nil, apperror.NewValidation("identity provider is not active")
+	}
+
+	// Matched on (tenant_id, sub) — the shape of the real uniqueness constraint
+	// (migration 022) — and NOT on (tenant, provider, sub): the tenant is the OIDC
+	// issuer, so a sub identifies one person per tenant regardless of which
+	// provider slug it arrived under. Checking the narrower triple would let a
+	// link through that the database then rejects, turning an operator mistake
+	// into a 500 instead of a conflict.
+	var existing UserIdentity
+	eErr := s.db.WithContext(ctx).
+		Where("tenant_id = ? AND sub = ?", tenantID, sub).
+		First(&existing).Error
+	switch {
+	case eErr == nil && existing.UserID == user.UserID:
+		return nil, apperror.NewConflict("this identity is already linked to this user")
+	case eErr == nil:
+		// Never silently re-point: moving a sub would transfer a live login from
+		// one account to another without either being told.
+		return nil, apperror.NewConflict("this identity is already linked to another user")
+	case !errors.Is(eErr, gorm.ErrRecordNotFound):
+		span.RecordError(eErr)
+		// Fail CLOSED: an unreadable existing-link check is not "no existing link".
+		return nil, apperror.NewInternal("failed to check existing identity links", eErr)
+	}
+
+	identity := &UserIdentity{
+		TenantID:           tenantID,
+		UserID:             user.UserID,
+		IdentityProviderID: provider.IdentityProviderID,
+		Provider:           provider.Provider,
+		Sub:                sub,
+		Metadata:           datatypes.JSON([]byte("{}")),
+		ProvisioningSource: ptr.Ptr("admin_link"),
+	}
+	created, err := s.userIdentityRepo.Create(identity)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "link identity failed")
+		return nil, apperror.NewInternal("failed to link identity", err)
+	}
+
+	// A new identity changes which subs resolve to this user, and the cached
+	// user context is keyed on sub.
+	s.invalidateUserCache(ctx, append(user.UserIdentities, *created))
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:     tenantID,
+		ActorUserID:  &actor.UserID,
+		TargetUserID: &user.UserID,
+		IPAddress:    middleware.ClientIPFromContext(ctx),
+		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:     authevent.AuthEventCategoryUser,
+		EventType:    authevent.AuthEventTypeUserUpdated,
+		Severity:     authevent.AuthEventSeverityInfo,
+		Result:       authevent.AuthEventResultSuccess,
+		Description:  ptr.Ptr(fmt.Sprintf("Identity linked by an administrator: %s", provider.Name)),
+	})
+
+	span.SetStatus(codes.Ok, "")
+	idpUUID := provider.IdentityProviderUUID
+	return &UserIdentityServiceDataResult{
+		UserIdentityUUID:     created.UserIdentityUUID,
+		Provider:             created.Provider,
+		Sub:                  created.Sub,
+		Metadata:             created.Metadata,
+		IdentityProviderUUID: &idpUUID,
+		IdentityProviderName: provider.Name,
+		CreatedAt:            created.CreatedAt,
+		UpdatedAt:            created.UpdatedAt,
+	}, nil
+}
+
+// isAuthenticatable reports whether a resolved user may still act on a request.
+//
+// Deactivating, suspending, or un-completing an account only wrote users.status;
+// nothing on the request path ever read it back, so an already-issued access
+// token kept working until it expired and its refresh token kept minting new
+// ones forever. Offboarding an employee was therefore advisory. Every login path
+// already refuses a non-active user (authn service_login.go:328, service_sms_login.go:128,
+// service_magic_link.go:130), so requiring "active" here only closes the window
+// between the login that minted the token and the status change — it cannot lock
+// out anyone who could otherwise have signed in.
+//
+// nil is treated as not authenticatable so a caller that forgets the nil check
+// cannot accidentally admit a missing user.
+func isAuthenticatable(user *User) bool {
+	return user != nil && user.Status == shared.StatusActive
+}
+
 // FindBySubAndClientID resolves a *User from a JWT sub claim and client
 // identifier. This satisfies the middleware.UserContextProvider interface so
 // the middleware can be wired without a direct repository dependency.
@@ -1534,17 +2110,36 @@ func (s *userService) FindBySubAndClientID(ctx context.Context, sub string, clie
 		span.SetStatus(codes.Error, "find user by sub and client id failed")
 		return nil, err
 	}
+	// This is THE request-path status check: UserContextMiddleware turns a nil
+	// user into 401. Every mutation that changes status also invalidates the
+	// user-context cache, so a disabled user stops being served within one
+	// request rather than at token expiry.
+	if !isAuthenticatable(user) {
+		span.SetStatus(codes.Ok, "user is not active")
+		return nil, nil
+	}
 	span.SetStatus(codes.Ok, "")
 	return user, nil
 }
 
 func (s *userService) FindByUserID(ctx context.Context, userID int64) (*User, error) {
-	return s.userRepo.FindByID(userID,
+	user, err := s.userRepo.FindByID(userID,
 		"UserIdentities.Tenant",
-		"UserIdentities.Client.IdentityProvider",
+		"UserIdentities.IdentityProvider",
 		"UserRoles.Role.RolePermissions.Permission",
 		"Profile",
 	)
+	if err != nil {
+		return nil, err
+	}
+	// Same gate as FindBySubAndClientID: this feeds the multi-issuer middleware's
+	// AuthContext, which is the second way a request reaches a handler. Leaving it
+	// ungated would have let a suspended user keep working through federated
+	// tokens after the first-party path started refusing them.
+	if !isAuthenticatable(user) {
+		return nil, nil
+	}
+	return user, nil
 }
 
 func (s *userService) GetUserMFA(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserMFAResponseDTO, error) {
@@ -1812,8 +2407,7 @@ func (s *userService) EnsureUserInTenant(ctx context.Context, userUUID uuid.UUID
 		identity := &UserIdentity{
 			TenantID:           targetTenantID,
 			UserID:             created.UserID,
-			ClientID:           &defaultClient.ClientID,
-			IdentityProviderID: &idp.IdentityProviderID,
+			IdentityProviderID: idp.IdentityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -1893,7 +2487,8 @@ func (s *userService) GrantRoleByName(ctx context.Context, userUUID uuid.UUID, t
 		return apperror.NewNotFound("user not found in target tenant")
 	}
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	granted := false
+	txErr := s.db.Transaction(func(tx *gorm.DB) error {
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
@@ -1921,6 +2516,32 @@ func (s *userService) GrantRoleByName(ctx context.Context, userUUID uuid.UUID, t
 			return txErr
 		}
 
+		granted = true
 		return nil
 	})
+	if txErr != nil {
+		return txErr
+	}
+
+	// Propagate the grant the same way AssignUserRoles and RemoveUserRole do.
+	// Without this the new role sat behind the cached user context and existing
+	// access tokens, so a tenant ownership transfer — which routes through here to
+	// grant super-admin — took up to the cache TTL (~10 minutes) to actually
+	// apply. A privilege change that is not visible is a privilege change that has
+	// not happened. Only on an actual grant: the already-assigned early return
+	// must stay a no-op rather than signing the user out for nothing.
+	if granted {
+		// Re-read with identities: the cache is keyed by identity sub, so without
+		// them there is nothing to invalidate. FindByEmailAndTenantID takes no
+		// preloads.
+		if withIdentities, ferr := s.userRepo.FindByUUID(targetUser.UserUUID, "UserIdentities"); ferr == nil && withIdentities != nil {
+			s.invalidateUserCache(ctx, withIdentities.UserIdentities)
+		}
+		if s.userTokenRepo != nil {
+			_ = s.userTokenRepo.RevokeAllSessionsByUserID(targetUser.UserID)
+		}
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
 }

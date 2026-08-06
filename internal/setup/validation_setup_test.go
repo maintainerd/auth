@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
@@ -42,7 +43,7 @@ func TestTenantMetadataDto_Validate(t *testing.T) {
 
 func TestCreateTenantRequestDto_Validate(t *testing.T) {
 	valid := CreateTenantRequestDTO{
-		Name:        "My Tenant",
+		Name:        "my-tenant",
 		DisplayName: "My Display Name",
 	}
 
@@ -77,6 +78,30 @@ func TestCreateTenantRequestDto_Validate(t *testing.T) {
 	t.Run("name invalid characters", func(t *testing.T) {
 		d := valid
 		d.Name = "Name@Invalid!"
+		require.Error(t, d.Validate())
+	})
+
+	// The bootstrap name becomes a DNS label, so setup must reject everything the
+	// tenant package would reject on a later update.
+	for name, candidate := range map[string]string{
+		"uppercase":       "MyTenant",
+		"whitespace":      "My Tenant",
+		"underscore":      "my_tenant",
+		"dot":             "my.tenant",
+		"leading hyphen":  "-mytenant",
+		"trailing hyphen": "mytenant-",
+		"too long":        strings.Repeat("a", 64),
+	} {
+		t.Run("name rejects "+name, func(t *testing.T) {
+			d := valid
+			d.Name = candidate
+			require.Error(t, d.Validate())
+		})
+	}
+
+	t.Run("description longer than the tenant update cap", func(t *testing.T) {
+		d := valid
+		d.Description = strPtr(strings.Repeat("a", 201))
 		require.Error(t, d.Validate())
 	})
 

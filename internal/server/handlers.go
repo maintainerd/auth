@@ -75,6 +75,7 @@ type handlers struct {
 	oauthSession        *oauth.OAuthSessionHandler
 	oauthCIBA           *oauth.OAuthCIBAHandler
 	oauthRegister       *oauth.OAuthRegisterHandler
+	oauthSigningKey     *oauth.OAuthSigningKeyHandler
 	account             *user.AccountHandler
 	userConsent         *user.UserConsentHandler
 	userTrustedDevice   *user.UserTrustedDeviceHandler
@@ -137,6 +138,7 @@ func initHandlers(application *Application) *handlers {
 		oauthSession:        oauth.NewOAuthSessionHandler(application.OAuthSessionService),
 		oauthCIBA:           oauth.NewOAuthCIBAHandler(application.OAuthCIBAService),
 		oauthRegister:       oauth.NewOAuthRegisterHandler(application.OAuthRegisterService),
+		oauthSigningKey:     oauth.NewOAuthSigningKeyHandler(application.KeyRotationService),
 		account:             user.NewAccountHandler(application.AccountService, newUserSessionServiceAdapter(application.SessionService), application.ProfileRepo),
 		userConsent:         user.NewUserConsentHandler(application.UserConsentService, application.UserService, application.UserRepo),
 		userTrustedDevice:   user.NewUserTrustedDeviceHandler(application.UserTrustedDeviceService, application.UserService, application.UserRepo),

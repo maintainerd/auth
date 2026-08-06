@@ -29,9 +29,11 @@ func ClientRoute(
 		r.With(middleware.PermissionMiddleware([]string{"client:read"})).
 			Get("/{client_uuid}", ClientHandler.GetByUUID)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:secret:read"}), middleware.RequireStepUp).
-			Get("/{client_uuid}/secret", ClientHandler.GetSecretByUUID)
-
+		// There is deliberately no GET /{client_uuid}/secret. Secrets are bcrypt
+		// hashed at rest, so nothing can read one back; the route that used to sit
+		// here answered 410 unconditionally and existed only to make the seeded
+		// client:secret:read permission look like it granted something. Rotation
+		// below is the only way to obtain a secret after creation.
 		r.With(middleware.PermissionMiddleware([]string{"client:secret:rotate"}), middleware.RequireStepUp).
 			Post("/{client_uuid}/rotate-secret", ClientHandler.RotateSecret)
 

@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"fmt"
+	grpccodes "google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"strings"
 
 	gcpsm "cloud.google.com/go/secretmanager/apiv1"
@@ -64,10 +66,16 @@ func (g *gcpSecretManager) GetSecret(key string) ([]byte, error) {
 		Name: version,
 	})
 	if err != nil {
+		// NotFound is the store answering "no such secret"; every other gRPC
+		// code (Unavailable, PermissionDenied, DeadlineExceeded) is a real
+		// failure and must not be read as "unconfigured".
+		if status.Code(err) == grpccodes.NotFound {
+			return nil, fmt.Errorf("GCP Secret Manager: %q: %w", version, ErrSecretNotFound)
+		}
 		return nil, fmt.Errorf("GCP Secret Manager: failed to access %q: %w", version, err)
 	}
 	if result.Payload == nil || result.Payload.Data == nil {
-		return nil, fmt.Errorf("GCP Secret Manager: secret %q returned nil payload", version)
+		return nil, fmt.Errorf("GCP Secret Manager: secret %q: %w", version, ErrSecretNotFound)
 	}
 	return result.Payload.Data, nil
 }

@@ -124,7 +124,7 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		ctx,
 		sub,
 		DefaultTokenScope,
-		*client.Domain,
+		jwt.TokenIssuerPtr(client.Domain),
 		*client.Identifier,
 		*client.Identifier,
 		authnTokenRealm(client),
@@ -145,9 +145,19 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		// token was always RS256, so a tenant on PS256 got an inconsistently
 		// signed token set.
 		SigningAlgorithm: authCtx.SigningAlgorithm,
+		// Same session the access and refresh tokens are bound to, so a
+		// back-channel logout token's sid resolves to a session the RP holds.
+		SessionID: authCtx.SessionID,
 	}
 
-	idToken, err = jwtGenIDToken(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client), profile, "", params)
+	// The ID token is the one a relying party actually validates `iss` on (OIDC
+	// Core §3.1.3.7 step 2), so it must carry the AUTHORIZATION SERVER's issuer
+	// exactly as discovery advertises it — same as the access token above. This
+	// passed the raw client domain while the access token had already moved to
+	// jwt.TokenIssuer, so a single login handed out a token set whose access and
+	// ID tokens disagreed about who issued them, and every compliant RP rejected
+	// the ID token.
+	idToken, err = jwtGenIDToken(ctx, sub, jwt.TokenIssuerPtr(client.Domain), *client.Identifier, authnTokenRealm(client), profile, "", params)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -161,13 +171,19 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		SessionID:        authCtx.SessionID,
 		SigningAlgorithm: authCtx.SigningAlgorithm,
 	}
+	// Same issuer rule as the access and ID tokens: the refresh token is re-parsed
+	// by this server on every rotation, and validateIssuerClaim matches `iss`
+	// against the allowlist. Minting it under the client domain while the rest of
+	// the set carries the authorization server's issuer left one token in the set
+	// depending on the legacy client-domain entries staying in that allowlist.
+	rtIssuer := jwt.TokenIssuerPtr(client.Domain)
 	if authCtx.RefreshTokenTTLSeconds > 0 {
 		rtOpts.RefreshTokenTTL = time.Duration(authCtx.RefreshTokenTTLSeconds) * time.Second
-		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client), rtOpts)
+		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, rtIssuer, *client.Identifier, authnTokenRealm(client), rtOpts)
 	} else if authCtx.RefreshTokenFamilyID != "" {
-		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client), rtOpts)
+		refreshToken, err = jwtGenRefreshTokenWithOptions(ctx, sub, rtIssuer, *client.Identifier, authnTokenRealm(client), rtOpts)
 	} else {
-		refreshToken, err = jwtGenRefreshToken(ctx, sub, *client.Domain, *client.Identifier, authnTokenRealm(client))
+		refreshToken, err = jwtGenRefreshToken(ctx, sub, rtIssuer, *client.Identifier, authnTokenRealm(client))
 	}
 	if err != nil {
 		return "", "", "", err

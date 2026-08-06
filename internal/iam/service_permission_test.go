@@ -189,7 +189,7 @@ func TestPermissionService_Get(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// PermissionService.SetStatus / SetActiveStatusByUUID – transactional
+// PermissionService.SetStatus – transactional
 // ---------------------------------------------------------------------------
 
 func TestPermissionService_SetStatus(t *testing.T) {
@@ -264,110 +264,9 @@ func TestPermissionService_SetStatus(t *testing.T) {
 	})
 }
 
-func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
-	tenantID := int64(1)
-	permUUID := uuid.New()
-
-	t.Run("find error → propagated", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
-				return nil, errors.New("db err")
-			},
-		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "db err")
-	})
-
-	t.Run("not found → error", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
-				return nil, nil
-			},
-		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "permission not found")
-	})
-
-	t.Run("system permission → cannot toggle", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		perm := newPermission(1, "read:users", tenantID)
-		perm.IsSystem = true
-		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
-				return perm, nil
-			},
-		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
-		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
-		require.Error(t, err)
-		assert.Nil(t, result)
-	})
-
-	t.Run("createOrUpdate error → propagated", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		perm := newPermission(1, "read:users", tenantID)
-		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
-				return perm, nil
-			},
-			createOrUpdateFn: func(_ *Permission) (*Permission, error) {
-				return nil, errors.New("save err")
-			},
-		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "save err")
-	})
-
-	t.Run("active → inactive", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		perm := newPermission(1, "read:users", tenantID)
-		perm.Status = shared.StatusActive
-		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
-				return perm, nil
-			},
-		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
-		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
-		require.NoError(t, err)
-		assert.Equal(t, shared.StatusInactive, result.Status)
-	})
-
-	t.Run("inactive → active", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectCommit()
-		perm := newPermission(1, "read:users", tenantID)
-		perm.Status = shared.StatusInactive
-		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
-				return perm, nil
-			},
-		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
-		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
-		require.NoError(t, err)
-		assert.Equal(t, shared.StatusActive, result.Status)
-	})
-}
+// TestPermissionService_SetActiveStatusByUUID went with the method it covered:
+// SetActiveStatusByUUID was zero-caller and TOGGLED the status instead of setting
+// it, so a retry reversed itself. SetStatus, covered above, is the surviving path.
 
 // ---------------------------------------------------------------------------
 // PermissionService.DeleteByUUID – expanded
@@ -763,12 +662,7 @@ func TestPermissionService_InvalidatorErrors(t *testing.T) {
 				return s.Update(context.Background(), permUUID, tenantID, "read:users", "updated", shared.StatusActive)
 			},
 		},
-		{
-			name: "set active status",
-			run: func(s PermissionService) (*PermissionServiceDataResult, error) {
-				return s.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
-			},
-		},
+		// "set active status" is gone with SetActiveStatusByUUID (zero-caller).
 		{
 			name: "set status",
 			run: func(s PermissionService) (*PermissionServiceDataResult, error) {
@@ -827,8 +721,8 @@ func TestToPermissionServiceDataResult_Nil(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-// Update, SetActiveStatusByUUID and DeleteByUUID all guarded system permissions;
-// SetStatus was the one mutation that did not.
+// Update and DeleteByUUID both guarded system permissions; SetStatus was the one
+// mutation that did not.
 func TestPermissionService_SetStatus_RefusesSystemPermissions(t *testing.T) {
 	permUUID := uuid.New()
 	tid := int64(1)

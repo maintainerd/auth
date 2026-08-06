@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -19,14 +20,18 @@ import (
 // Client projects the columns of the clients table needed to mint a workload
 // token for the platform client a federation maps to.
 type Client struct {
-	ClientID       int64          `gorm:"column:client_id;primaryKey"`
-	ClientUUID     uuid.UUID      `gorm:"column:client_uuid"`
-	TenantID       int64          `gorm:"column:tenant_id"`
-	Name           string         `gorm:"column:name"`
-	Identifier     *string        `gorm:"column:identifier"`
-	Status         string         `gorm:"column:status"`
-	AccessTokenTTL *int           `gorm:"column:access_token_ttl"`
-	DeletedAt      gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	ClientID       int64     `gorm:"column:client_id;primaryKey"`
+	ClientUUID     uuid.UUID `gorm:"column:client_uuid"`
+	TenantID       int64     `gorm:"column:tenant_id"`
+	Name           string    `gorm:"column:name"`
+	Identifier     *string   `gorm:"column:identifier"`
+	Status         string    `gorm:"column:status"`
+	AccessTokenTTL *int      `gorm:"column:access_token_ttl"`
+	// AllowedScopes is the client's own scope allow-list, the one /oauth/token
+	// enforces. The exchange intersects it with the federation's so a keyless WIF
+	// token cannot carry scopes the same client would be refused directly.
+	AllowedScopes pq.StringArray `gorm:"column:allowed_scopes;type:text[]"`
+	DeletedAt     gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 // TableName returns the clients table name.

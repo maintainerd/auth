@@ -19,6 +19,15 @@ func TestFederationPublicRoute(t *testing.T) {
 		{http.MethodPost, "/federation/token"},
 		{http.MethodPost, "/federation/oauth2/callback"},
 		{http.MethodGet, "/federation/hrd"},
+		{http.MethodGet, "/federation/saml/initiate"},
+		{http.MethodPost, "/federation/saml/acs/abc"},
+		{http.MethodGet, "/federation/saml/metadata/abc"},
+		// SAML Single Logout. The slo_url config field was validated and then
+		// consumed by nothing: neither endpoint existed.
+		{http.MethodGet, "/federation/saml/logout"},
+		{http.MethodPost, "/federation/saml/logout"},
+		{http.MethodGet, "/federation/saml/slo/abc"},
+		{http.MethodPost, "/federation/saml/slo/abc"},
 	}
 	for _, tc := range paths {
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {

@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/maintainerd/maintainerd-auth/internal/iam"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/database"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -40,4 +41,23 @@ func newIAMUserRepo(db *gorm.DB) iam.UserRepository {
 
 func (r *iamUserRepo) WithTx(tx *gorm.DB) iam.UserRepository {
 	return &iamUserRepo{r.BaseRepository.WithTx(tx)}
+}
+
+// EffectivePermissionNames resolves what the user can actually do in a tenant
+// right now. Every hop is filtered the same way the request auth context is
+// filtered, so the escalation guard cannot be satisfied by a role or permission
+// that has been deleted or deactivated.
+func (r *iamUserRepo) EffectivePermissionNames(userID, tenantID int64) ([]string, error) {
+	var names []string
+	err := r.DB().
+		Table("user_roles").
+		Joins("JOIN roles ON roles.role_id = user_roles.role_id").
+		Joins("JOIN role_permissions ON role_permissions.role_id = roles.role_id").
+		Joins("JOIN permissions ON permissions.permission_id = role_permissions.permission_id").
+		Where("user_roles.user_id = ?", userID).
+		Where("roles.tenant_id = ? AND roles.deleted_at IS NULL AND roles.status = ?", tenantID, shared.StatusActive).
+		Where("permissions.deleted_at IS NULL AND permissions.status = ?", shared.StatusActive).
+		Distinct().
+		Pluck("permissions.name", &names).Error
+	return names, err
 }

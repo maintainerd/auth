@@ -113,12 +113,23 @@ func TestRefreshGRPCOverallHealth(t *testing.T) {
 
 func TestSetGRPCServiceHealth(t *testing.T) {
 	healthServer := health.NewServer()
+	services := grpcServices(&Application{})
 
-	setGRPCServiceHealth(healthServer, healthpb.HealthCheckResponse_SERVING)
+	setGRPCServiceHealth(healthServer, services, healthpb.HealthCheckResponse_SERVING)
 
 	resp, err := healthServer.Check(context.Background(), &healthpb.HealthCheckRequest{Service: "maintainerd.auth.v1.ServiceService"})
 	require.NoError(t, err)
 	assert.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status)
+
+	// Every registered service must be health-advertised. These used to be two
+	// separate hand-written lists, and TenantSettingService had already fallen
+	// out of the health one: it was registered and serving, but a caller probing
+	// it got SERVICE_UNKNOWN and could reasonably treat the server as unhealthy.
+	for _, svc := range services {
+		resp, err := healthServer.Check(context.Background(), &healthpb.HealthCheckRequest{Service: svc.name})
+		require.NoErrorf(t, err, "no health status advertised for registered service %s", svc.name)
+		assert.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status, svc.name)
+	}
 }
 
 func newGRPCHealthMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"reflect"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -24,6 +25,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -194,6 +196,16 @@ func TestAccountService_InitiateEmailChange(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`DELETE FROM "user_otps"`).WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
+		// The send is synchronous now, so the render path runs for real and its
+		// queries must be expected. Previously it happened in a detached
+		// goroutine, so this test passed while the email silently failed —
+		// asserting success about something it never exercised.
+		// Non-empty so GetLogoURL short-circuits its system-tenant fallback.
+		mock.ExpectQuery(`FROM "email_config"`).
+			WillReturnRows(sqlmock.NewRows([]string{"logo_url"}).AddRow("https://logo.test/x.png"))
+		mock.ExpectQuery(`FROM "email_templates"`).
+			WillReturnRows(sqlmock.NewRows([]string{"subject", "body_html", "body_plain"}).
+				AddRow("Confirm your email", "<p>{{.OTP}}</p>", "{{.OTP}}"))
 
 		svc := newAccountSvc(&mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
@@ -205,7 +217,43 @@ func TestAccountService_InitiateEmailChange(t *testing.T) {
 
 		err := svc.InitiateEmailChange(context.Background(), userID, "new@example.com", "correctpass")
 		require.NoError(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	// A delivery failure must reach the caller. The endpoint used to return
+	// success while the send failed in the background, so the UI said "check
+	// your inbox" for a mail that was never sent.
+	t.Run("a send failure is returned, not swallowed", func(t *testing.T) {
+		origSend := email.SendEmail
+		email.SendEmail = func(_ context.Context, _ *gorm.DB, _ email.SendEmailParams) error {
+			return errors.New("smtp: connection refused")
+		}
+		defer func() { email.SendEmail = origSend }()
+
+		orig := crypto.GenerateOTP
+		crypto.GenerateOTP = func(int) (string, error) { return "123456", nil }
+		defer func() { crypto.GenerateOTP = orig }()
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "user_otps"`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		// Non-empty so GetLogoURL short-circuits its system-tenant fallback.
+		mock.ExpectQuery(`FROM "email_config"`).
+			WillReturnRows(sqlmock.NewRows([]string{"logo_url"}).AddRow("https://logo.test/x.png"))
+		mock.ExpectQuery(`FROM "email_templates"`).
+			WillReturnRows(sqlmock.NewRows([]string{"subject", "body_html", "body_plain"}).
+				AddRow("Confirm your email", "<p>{{.OTP}}</p>", "{{.OTP}}"))
+
+		svc := newAccountSvc(&mockUserRepo{
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
+			},
+			findByEmailFn: func(_ string) (*User, error) { return nil, nil },
+		}, &mockUserOTPRepo{})
+		svc.db = db
+
+		err := svc.InitiateEmailChange(context.Background(), userID, "new@example.com", "correctpass")
+		require.Error(t, err, "the caller must learn the email did not go out")
 	})
 }
 
@@ -678,115 +726,20 @@ func TestAccountService_ExportAccountData(t *testing.T) {
 	})
 }
 
-func TestAccountService_GenerateBackupCodes(t *testing.T) {
-	userID := int64(42)
-	userUUID := uuid.New()
-
-	t.Run("user not found", func(t *testing.T) {
-		svc := newAccountSvc(&mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
-		})
-		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
-		require.Error(t, err)
-		assert.Nil(t, codes)
-		assert.Contains(t, err.Error(), "not found")
-	})
-
-	t.Run("DeleteAllByUserID error", func(t *testing.T) {
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID}, nil
-				},
-			},
-			&mockUserMFABackupCodeRepo{
-				deleteAllByUserIDFn: func(int64) error { return errors.New("db error") },
-			},
-		)
-		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
-		require.Error(t, err)
-		assert.Nil(t, codes)
-		assert.Contains(t, err.Error(), "failed to clear existing backup codes")
-	})
-
-	t.Run("CreateBulk error", func(t *testing.T) {
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID}, nil
-				},
-			},
-			&mockUserMFABackupCodeRepo{
-				createBulkFn: func(_ []*UserMFABackupCode) error { return errors.New("db error") },
-			},
-		)
-		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
-		require.Error(t, err)
-		assert.Nil(t, codes)
-		assert.Contains(t, err.Error(), "failed to store backup codes")
-	})
-
-	t.Run("GenerateRandomString error", func(t *testing.T) {
-		orig := crypto.GenerateRandomString
-		crypto.GenerateRandomString = func(int) (string, error) { return "", errors.New("rand error") }
-		defer func() { crypto.GenerateRandomString = orig }()
-
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID}, nil
-				},
-			},
-			&mockUserMFABackupCodeRepo{
-				deleteAllByUserIDFn: func(int64) error { return nil },
-			},
-		)
-		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
-		require.Error(t, err)
-		assert.Nil(t, codes)
-		assert.Contains(t, err.Error(), "failed to generate backup code")
-	})
-
-	t.Run("truncate long code", func(t *testing.T) {
-		orig := crypto.GenerateRandomString
-		crypto.GenerateRandomString = func(int) (string, error) { return "abcdefghijklmnop", nil }
-		defer func() { crypto.GenerateRandomString = orig }()
-
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID}, nil
-				},
-			},
-			&mockUserMFABackupCodeRepo{},
-		)
-		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
-		require.NoError(t, err)
-		assert.NotNil(t, codes)
-		assert.Len(t, codes.Codes, 10)
-		for _, c := range codes.Codes {
-			assert.Len(t, c, 8)
-		}
-	})
-
-	t.Run("success", func(t *testing.T) {
-		orig := crypto.GenerateRandomString
-		crypto.GenerateRandomString = func(int) (string, error) { return "abcdefgh", nil }
-		defer func() { crypto.GenerateRandomString = orig }()
-
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID}, nil
-				},
-			},
-			&mockUserMFABackupCodeRepo{},
-		)
-		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
-		require.NoError(t, err)
-		assert.NotNil(t, codes)
-		assert.Len(t, codes.Codes, 10)
-	})
+// TestAccountService_NoBackupCodeGeneration is the INVERSION of the former
+// TestAccountService_GenerateBackupCodes, which asserted that accountService
+// minted 10 bcrypt-hashed codes.
+//
+// The behaviour it locked in was wrong at the policy layer, not the crypto
+// layer: the generator hardcoded 10 codes and never consulted the tenant's MFA
+// policy, so a tenant that forbids the backup_code method or configures a
+// different recovery_codes_count had that decision bypassed by whoever called
+// POST /account/backup-codes (which no SPA did). Generation is now owned solely
+// by mfaService.RegenerateBackupCodes, which checks both. What this asserts is
+// that accountService can no longer mint codes at all — only verify them.
+func TestAccountService_NoBackupCodeGeneration(t *testing.T) {
+	_, mints := reflect.TypeOf((*AccountService)(nil)).Elem().MethodByName("GenerateBackupCodes")
+	assert.False(t, mints, "backup-code generation must live only on mfaService.RegenerateBackupCodes, which enforces tenant MFA policy")
 }
 
 func TestAccountService_VerifyBackupCode(t *testing.T) {
@@ -798,7 +751,18 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 	clientIDStr := "test-client"
 	providerID := "test-provider"
 	code := "12345678"
-	codeHash := crypto.HashAuthorizationCode(code)
+	// bcrypt, matching what both the account and mfa services now write. The
+	// old fixture used an unsalted crypto.HashAuthorizationCode digest, which is
+	// exactly the scheme the verifier could never match.
+	codeHashBytes, hashErr := bcrypt.GenerateFromPassword([]byte(code), bcrypt.MinCost)
+	require.NoError(t, hashErr)
+	codeHash := string(codeHashBytes)
+	// Backup-code recovery is now password + code, so every fixture user needs a
+	// real password hash and every request a matching password.
+	password := "correct-horse-battery"
+	passwordHashBytes, pwErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	require.NoError(t, pwErr)
+	passwordHash := string(passwordHashBytes)
 	domain := "example.com"
 	identifier := "client-id"
 
@@ -821,6 +785,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			UserID:   userID,
 			UserUUID: userUUID,
 			Email:    "test@example.com",
+			Password: &passwordHash,
 			Status:   shared.StatusActive,
 		}
 		backupCode := &UserMFABackupCode{
@@ -829,14 +794,16 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			CodeHash:     codeHash,
 		}
 		userIdentity := &UserIdentity{
-			UserIdentityUUID: uuid.New(),
-			UserID:           userID,
-			ClientID:         int64Ptr(1),
-			Sub:              "test-sub",
+			UserIdentityUUID:   uuid.New(),
+			UserID:             userID,
+			IdentityProviderID: 1,
+			Sub:                "test-sub",
 		}
 
 		svc := &accountService{
 			db: db,
+			// Recovery binds its token to a session; without a creator it fails closed.
+			sessionCreator: stubSessionCreator{},
 			userRepo: &mockUserRepo{
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
@@ -850,13 +817,14 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return userIdentity, nil },
 			},
 			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) { return backupCode, nil },
+				findUnusedByUserIDFn: func(int64) ([]UserMFABackupCode, error) { return []UserMFABackupCode{*backupCode}, nil },
 			},
 			authEventService: authevent.NoopService(),
 		}
 
 		res, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
@@ -886,6 +854,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
@@ -919,6 +888,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
@@ -961,12 +931,13 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid email or backup code")
+		assert.Contains(t, err.Error(), "invalid email, password, or backup code")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -1003,6 +974,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
@@ -1047,6 +1019,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
@@ -1072,9 +1045,10 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			},
 		}
 		user := &User{
-			UserID: userID,
-			Email:  "test@example.com",
-			Status: shared.StatusActive,
+			UserID:   userID,
+			Email:    "test@example.com",
+			Password: &passwordHash,
+			Status:   shared.StatusActive,
 		}
 		svc := &accountService{
 			db:               db,
@@ -1089,7 +1063,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
 			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) {
+				findUnusedByUserIDFn: func(int64) ([]UserMFABackupCode, error) {
 					return nil, assert.AnError
 				},
 			},
@@ -1098,6 +1072,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
@@ -1123,9 +1098,10 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			},
 		}
 		user := &User{
-			UserID: userID,
-			Email:  "test@example.com",
-			Status: shared.StatusActive,
+			UserID:   userID,
+			Email:    "test@example.com",
+			Password: &passwordHash,
+			Status:   shared.StatusActive,
 		}
 		svc := &accountService{
 			db:               db,
@@ -1140,19 +1116,20 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
 			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) { return nil, nil },
+				findUnusedByUserIDFn: func(int64) ([]UserMFABackupCode, error) { return nil, nil },
 			},
 			authEventService: authevent.NoopService(),
 		}
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid email or backup code")
+		assert.Contains(t, err.Error(), "invalid email, password, or backup code")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -1175,6 +1152,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			UserID:   userID,
 			UserUUID: userUUID,
 			Email:    "test@example.com",
+			Password: &passwordHash,
 			Status:   shared.StatusActive,
 		}
 		backupCode := &UserMFABackupCode{
@@ -1195,14 +1173,15 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
 			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) { return backupCode, nil },
-				markUsedFn:                func(_ int64) error { return assert.AnError },
+				findUnusedByUserIDFn: func(int64) ([]UserMFABackupCode, error) { return []UserMFABackupCode{*backupCode}, nil },
+				markUsedFn:           func(_ int64) error { return assert.AnError },
 			},
 			authEventService: authevent.NoopService(),
 		}
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
@@ -1231,6 +1210,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 			UserID:   userID,
 			UserUUID: userUUID,
 			Email:    "test@example.com",
+			Password: &passwordHash,
 			Status:   shared.StatusActive,
 		}
 		backupCode := &UserMFABackupCode{
@@ -1250,7 +1230,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 				findByEmailFn: func(_ string) (*User, error) { return user, nil },
 			},
 			mfaBackupCodeRepo: &mockUserMFABackupCodeRepo{
-				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserMFABackupCode, error) { return backupCode, nil },
+				findUnusedByUserIDFn: func(int64) ([]UserMFABackupCode, error) { return []UserMFABackupCode{*backupCode}, nil },
 			},
 			userIdentityRepo: &mockUserIdentityRepo{
 				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil },
@@ -1260,6 +1240,7 @@ func TestAccountService_VerifyBackupCode(t *testing.T) {
 
 		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
 			Email:      "test@example.com",
+			Password:   password,
 			Code:       code,
 			ClientID:   clientIDStr,
 			ProviderID: providerID,
@@ -1286,12 +1267,12 @@ func TestAccountService_generateTokenResponse_Errors(t *testing.T) {
 
 	t.Run("access token error", func(t *testing.T) {
 		origAccess := accountGenerateAccessTokenWithContext
-		accountGenerateAccessTokenWithContext = func(context.Context, string, string, string, string, string, string) (string, error) {
+		accountGenerateAccessTokenWithOptionsContext = func(context.Context, string, string, string, string, string, string, *jwt.AccessTokenOptions) (string, error) {
 			return "", assert.AnError
 		}
 		t.Cleanup(func() { accountGenerateAccessTokenWithContext = origAccess })
 
-		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client)
+		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client, "11111111-1111-1111-1111-111111111111")
 
 		require.ErrorIs(t, err, assert.AnError)
 	})
@@ -1299,7 +1280,7 @@ func TestAccountService_generateTokenResponse_Errors(t *testing.T) {
 	t.Run("id token error", func(t *testing.T) {
 		origAccess := accountGenerateAccessTokenWithContext
 		origID := accountGenerateIDTokenWithContext
-		accountGenerateAccessTokenWithContext = func(context.Context, string, string, string, string, string, string) (string, error) {
+		accountGenerateAccessTokenWithOptionsContext = func(context.Context, string, string, string, string, string, string, *jwt.AccessTokenOptions) (string, error) {
 			return "access", nil
 		}
 		accountGenerateIDTokenWithContext = func(context.Context, string, string, string, string, *jwt.UserProfile, string, *jwt.IDTokenParams) (string, error) {
@@ -1310,7 +1291,7 @@ func TestAccountService_generateTokenResponse_Errors(t *testing.T) {
 			accountGenerateIDTokenWithContext = origID
 		})
 
-		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client)
+		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client, "11111111-1111-1111-1111-111111111111")
 
 		require.ErrorIs(t, err, assert.AnError)
 	})
@@ -1319,7 +1300,7 @@ func TestAccountService_generateTokenResponse_Errors(t *testing.T) {
 		origAccess := accountGenerateAccessTokenWithContext
 		origID := accountGenerateIDTokenWithContext
 		origRefresh := accountGenerateRefreshTokenWithContext
-		accountGenerateAccessTokenWithContext = func(context.Context, string, string, string, string, string, string) (string, error) {
+		accountGenerateAccessTokenWithOptionsContext = func(context.Context, string, string, string, string, string, string, *jwt.AccessTokenOptions) (string, error) {
 			return "access", nil
 		}
 		accountGenerateIDTokenWithContext = func(context.Context, string, string, string, string, *jwt.UserProfile, string, *jwt.IDTokenParams) (string, error) {
@@ -1334,7 +1315,7 @@ func TestAccountService_generateTokenResponse_Errors(t *testing.T) {
 			accountGenerateRefreshTokenWithContext = origRefresh
 		})
 
-		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client)
+		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client, "11111111-1111-1111-1111-111111111111")
 
 		require.ErrorIs(t, err, assert.AnError)
 	})

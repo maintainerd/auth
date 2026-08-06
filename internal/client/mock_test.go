@@ -86,12 +86,12 @@ func jsonReq(t *testing.T, method, url string, body any) *http.Request {
 }
 
 type mockClientService struct {
+	isFirstPartyClientFn  func(string) bool
 	getFn                 func(ClientServiceGetFilter) (*ClientServiceGetResult, error)
 	getByUUIDFn           func(uuid.UUID, int64) (*ClientServiceDataResult, error)
-	getSecretByUUIDFn     func(uuid.UUID, int64) (*ClientSecretServiceDataResult, error)
 	getConfigByUUIDFn     func(uuid.UUID, int64) (datatypes.JSON, error)
-	createFn              func(int64, string, string, string, string, datatypes.JSON, string, bool, string, *uuid.UUID, bool, *string, *string, *bool, *bool, uuid.UUID, *string) (*ClientCreateServiceResult, error)
-	updateFn              func(uuid.UUID, int64, string, string, string, string, datatypes.JSON, string, bool, *uuid.UUID, *bool, *string, *string, *bool, *bool, uuid.UUID, *string) (*ClientServiceDataResult, error)
+	createFn              func(int64, string, string, string, string, datatypes.JSON, string, string, *uuid.UUID, bool, *string, *string, *bool, *bool, uuid.UUID, *string) (*ClientCreateServiceResult, error)
+	updateFn              func(uuid.UUID, int64, string, string, string, string, datatypes.JSON, string, *uuid.UUID, *bool, *string, *string, *bool, *bool, uuid.UUID, *string) (*ClientServiceDataResult, error)
 	setStatusByUUIDFn     func(uuid.UUID, int64, string, uuid.UUID) (*ClientServiceDataResult, error)
 	deleteByUUIDFn        func(uuid.UUID, int64, uuid.UUID) (*ClientServiceDataResult, error)
 	createURIFn           func(uuid.UUID, int64, string, string, uuid.UUID) (*ClientServiceDataResult, error)
@@ -118,6 +118,17 @@ func (m *mockClientService) IsManagementClient(_ context.Context, identifier str
 	return false
 }
 
+func (m *mockClientService) IsFirstPartyClient(_ context.Context, identifier string) bool {
+	if m.isFirstPartyClientFn != nil {
+		return m.isFirstPartyClientFn(identifier)
+	}
+	return false
+}
+
+// No certificate binding by default; the binding is enforced in the gRPC
+// interceptor, which these tests do not exercise.
+func (m *mockClientService) BoundCertThumbprint(context.Context, string) string { return "" }
+
 func (m *mockClientService) Get(_ context.Context, f ClientServiceGetFilter) (*ClientServiceGetResult, error) {
 	if m.getFn != nil {
 		return m.getFn(f)
@@ -130,27 +141,21 @@ func (m *mockClientService) GetByUUID(_ context.Context, id uuid.UUID, tid int64
 	}
 	return nil, nil
 }
-func (m *mockClientService) GetSecretByUUID(_ context.Context, id uuid.UUID, tid int64) (*ClientSecretServiceDataResult, error) {
-	if m.getSecretByUUIDFn != nil {
-		return m.getSecretByUUIDFn(id, tid)
-	}
-	return nil, nil
-}
 func (m *mockClientService) GetConfigByUUID(_ context.Context, id uuid.UUID, tid int64) (datatypes.JSON, error) {
 	if m.getConfigByUUIDFn != nil {
 		return m.getConfigByUUIDFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockClientService) Create(_ context.Context, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
+func (m *mockClientService) Create(_ context.Context, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
 	if m.createFn != nil {
-		return m.createFn(tid, n, dn, ct, d, cfg, s, isDef, idpUUID, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor, serviceUUID)
+		return m.createFn(tid, n, dn, ct, d, cfg, s, idpUUID, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor, serviceUUID)
 	}
 	return nil, nil
 }
-func (m *mockClientService) Update(_ context.Context, id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
+func (m *mockClientService) Update(_ context.Context, id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(id, tid, n, dn, ct, d, cfg, s, isDef, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor, serviceUUID)
+		return m.updateFn(id, tid, n, dn, ct, d, cfg, s, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor, serviceUUID)
 	}
 	return nil, nil
 }
@@ -410,6 +415,7 @@ type mockClientRepo struct {
 	setStatusByUUIDFn                   func(uuid.UUID, int64, string) error
 	findByClientIDAndIdentityProviderFn func(string, string) (*Client, error)
 	findByIdentifierFn                  func(string) (*Client, error)
+	existsByIdentifierFn                func(string) (bool, error)
 	findSystemByTenantIdentifierFn      func(string) (*Client, error)
 	findSystemByTenantIdentifierNameFn  func(string, string) (*Client, error)
 	deleteByUUIDAndTenantIDFn           func(uuid.UUID, int64) error
@@ -528,6 +534,13 @@ func (m *mockClientRepo) FindByIdentifier(identifier string) (*Client, error) {
 		return m.findByIdentifierFn(identifier)
 	}
 	return nil, nil
+}
+
+func (m *mockClientRepo) ExistsByIdentifier(identifier string) (bool, error) {
+	if m.existsByIdentifierFn != nil {
+		return m.existsByIdentifierFn(identifier)
+	}
+	return false, nil
 }
 
 func (m *mockClientRepo) FindSystemByTenantIdentifier(tenantIdentifier string) (*Client, error) {
@@ -732,6 +745,38 @@ func (m *mockRoleRepo) FindByUUID(id any, p ...string) (*Role, error) {
 		return m.findByUUIDFn(id, p...)
 	}
 	return nil, nil
+}
+
+// mockGrantAuthorityRepo stands in for the escalation guard's two queries.
+//
+// The zero value reports that the actor holds nothing and that roles confer
+// nothing, which is the fail-closed shape: a test that expects an elevated grant
+// to succeed has to say what the actor holds.
+type mockGrantAuthorityRepo struct {
+	actorPermissionNamesFn func(userID, tenantID int64) ([]string, error)
+	rolePermissionNamesFn  func(roleID int64) ([]string, error)
+}
+
+func (m *mockGrantAuthorityRepo) WithTx(*gorm.DB) GrantAuthorityRepository { return m }
+func (m *mockGrantAuthorityRepo) ActorPermissionNames(userID, tenantID int64) ([]string, error) {
+	if m.actorPermissionNamesFn != nil {
+		return m.actorPermissionNamesFn(userID, tenantID)
+	}
+	return nil, nil
+}
+func (m *mockGrantAuthorityRepo) RolePermissionNames(roleID int64) ([]string, error) {
+	if m.rolePermissionNamesFn != nil {
+		return m.rolePermissionNamesFn(roleID)
+	}
+	return nil, nil
+}
+
+// withGrantAuthority swaps in a stub for the grant-authority repo, which
+// NewClientService otherwise constructs over the real *gorm.DB (the same
+// arrangement the identity-provider connection repo uses).
+func withGrantAuthority(svc ClientService, repo GrantAuthorityRepository) ClientService {
+	svc.(*clientService).grantAuthorityRepo = repo
+	return svc
 }
 
 // buildConnSvc builds a ClientService for the identity-provider-connection tests.

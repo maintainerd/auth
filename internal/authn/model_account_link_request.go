@@ -19,6 +19,7 @@ type AccountLinkRequest struct {
 	AccountLinkRequestUUID uuid.UUID      `gorm:"column:account_link_request_uuid;type:uuid;uniqueIndex;not null"`
 	TenantID               int64          `gorm:"column:tenant_id;not null"`
 	ExistingUserID         int64          `gorm:"column:existing_user_id;not null"`
+	IdentityProviderID     int64          `gorm:"column:identity_provider_id;not null"`
 	ProviderName           string         `gorm:"column:provider_name;type:varchar(100);not null"`
 	ProviderSubject        string         `gorm:"column:provider_subject;type:varchar(512);not null"`
 	ProviderEmail          *string        `gorm:"column:provider_email;type:varchar(255)"`

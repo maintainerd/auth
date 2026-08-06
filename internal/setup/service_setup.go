@@ -4,16 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
+	"fmt"
 	"time"
+
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
+	"github.com/maintainerd/maintainerd-auth/internal/secpolicy"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/runner"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
-	"github.com/maintainerd/maintainerd-auth/internal/setup/seeder"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/user"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
@@ -29,28 +32,44 @@ type SetupService interface {
 	CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
 	CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
 	RegisterControlService(ctx context.Context, req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error)
+	EnsureControlClient(ctx context.Context, req EnsureControlClientRequestDTO) (*EnsureControlClientResponseDTO, error)
+	EnsureResourceAPI(ctx context.Context, req EnsureResourceAPIRequestDTO) (*EnsureResourceAPIResponseDTO, error)
+	EnsureRole(ctx context.Context, req EnsureRoleRequestDTO) (*EnsureRoleResponseDTO, error)
+	EnsureConsoleClient(ctx context.Context, req EnsureConsoleClientRequestDTO) (*EnsureConsoleClientResponseDTO, error)
 	CompleteSetup(ctx context.Context) (*CompleteSetupResponseDTO, error)
 }
 
 type setupService struct {
-	db                *gorm.DB
-	userRepo          UserRepository
-	tenantRepo        TenantRepository
-	tenantMemberRepo  TenantMemberRepository
-	clientRepo        ClientRepository
-	roleRepo          RoleRepository
-	userRoleRepo      UserRoleRepository
-	userIdentityRepo  UserIdentityRepository
-	profileRepo       ProfileRepository
-	serviceRepo       ServiceRepository
-	policyRepo        PolicyRepository
-	servicePolicyRepo ServicePolicyRepository
+	db                 *gorm.DB
+	userRepo           UserRepository
+	tenantRepo         TenantRepository
+	tenantMemberRepo   TenantMemberRepository
+	clientRepo         ClientRepository
+	roleRepo           RoleRepository
+	userRoleRepo       UserRoleRepository
+	userIdentityRepo   UserIdentityRepository
+	profileRepo        ProfileRepository
+	serviceRepo        ServiceRepository
+	policyRepo         PolicyRepository
+	servicePolicyRepo  ServicePolicyRepository
+	apiRepo            APIRepository
+	permissionRepo     PermissionRepository
+	rolePermissionRepo RolePermissionRepository
+	clientURIRepo      ClientURIRepository
 }
 
+// ControlRegistrationDeps carries the repositories the orchestrator-provisioning
+// RPCs need. They are grouped rather than added to the already-long constructor
+// so a caller that does not provision (the REST wizard) can omit them, and
+// requireProvisioningDeps then refuses those RPCs instead of half-running them.
 type ControlRegistrationDeps struct {
-	ServiceRepo       ServiceRepository
-	PolicyRepo        PolicyRepository
-	ServicePolicyRepo ServicePolicyRepository
+	ServiceRepo        ServiceRepository
+	PolicyRepo         PolicyRepository
+	ServicePolicyRepo  ServicePolicyRepository
+	APIRepo            APIRepository
+	PermissionRepo     PermissionRepository
+	RolePermissionRepo RolePermissionRepository
+	ClientURIRepo      ClientURIRepository
 }
 
 func NewSetupService(
@@ -67,23 +86,28 @@ func NewSetupService(
 ) SetupService {
 	controlDeps := ControlRegistrationDeps{}
 	for _, option := range setupOptions {
-		if value, ok := option.(ControlRegistrationDeps); ok {
+		switch value := option.(type) {
+		case ControlRegistrationDeps:
 			controlDeps = value
 		}
 	}
 	return &setupService{
-		db:                db,
-		userRepo:          userRepo,
-		tenantRepo:        tenantRepo,
-		tenantMemberRepo:  tenantMemberRepo,
-		clientRepo:        clientRepo,
-		roleRepo:          roleRepo,
-		userRoleRepo:      userRoleRepo,
-		userIdentityRepo:  userIdentityRepo,
-		profileRepo:       profileRepo,
-		serviceRepo:       controlDeps.ServiceRepo,
-		policyRepo:        controlDeps.PolicyRepo,
-		servicePolicyRepo: controlDeps.ServicePolicyRepo,
+		db:                 db,
+		userRepo:           userRepo,
+		tenantRepo:         tenantRepo,
+		tenantMemberRepo:   tenantMemberRepo,
+		clientRepo:         clientRepo,
+		roleRepo:           roleRepo,
+		userRoleRepo:       userRoleRepo,
+		userIdentityRepo:   userIdentityRepo,
+		profileRepo:        profileRepo,
+		serviceRepo:        controlDeps.ServiceRepo,
+		policyRepo:         controlDeps.PolicyRepo,
+		servicePolicyRepo:  controlDeps.ServicePolicyRepo,
+		apiRepo:            controlDeps.APIRepo,
+		permissionRepo:     controlDeps.PermissionRepo,
+		rolePermissionRepo: controlDeps.RolePermissionRepo,
+		clientURIRepo:      controlDeps.ClientURIRepo,
 	}
 }
 
@@ -338,24 +362,20 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 			return err
 		}
 
-		// The client's identity-provider link now lives in the
-		// client_identity_providers join table — the clients row no longer carries
-		// identity_provider_id, and FindByNameAndTenantID does not resolve the
-		// transient Client.IdentityProviderID field. Persist it only when known;
-		// NULL is valid for the built-in maintainerd identity (the FK
-		// fk_user_identities_idp is nullable). Passing &0 here would point at a
-		// non-existent provider and violate the foreign key.
-		var identityProviderID *int64
-		if defaultClient.IdentityProviderID != 0 {
-			id := defaultClient.IdentityProviderID
-			identityProviderID = &id
+		// The client's identity-provider link lives in client_identity_providers;
+		// the clients row carries no identity_provider_id. Every identity names
+		// its provider (the column is NOT NULL — an identity with no provider
+		// matches no client and would lock the user out), so the bootstrap client
+		// must already be connected to the built-in provider by this point.
+		identityProviderID := defaultClient.DefaultConnectedIdentityProviderID()
+		if identityProviderID == 0 {
+			return apperror.NewValidation("default client is not connected to an identity provider")
 		}
 
 		// Create user identity
 		userIdentity := &UserIdentity{
 			TenantID:           defaultTenant.TenantID,
 			UserID:             createdUser.UserID,
-			ClientID:           &defaultClient.ClientID,
 			IdentityProviderID: identityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
@@ -491,12 +511,17 @@ func (s *setupService) RegisterControlService(ctx context.Context, req RegisterC
 		txPolicyRepo := s.policyRepo.WithTx(tx)
 		txServicePolicyRepo := s.servicePolicyRepo.WithTx(tx)
 
-		policy, err := txPolicyRepo.FindByNameAndVersion(seeder.SystemControlPolicyName, "v1", sysTenant.TenantID)
+		// The policy is BUILT here from the request, not read from a seeded row.
+		//
+		// Seeding it meant every instance shipped with a standing grant that existed
+		// before the service holding it did, covering permission families that had
+		// nothing behind them — so the day a guard appeared in one of those families,
+		// every holder passed it without anyone reviewing the widening. Constructing
+		// it at registration puts the grant in the same request as the principal
+		// receiving it, and validates it against permissions that actually exist.
+		policy, err := s.ensureControlPolicy(txPolicyRepo, sysTenant.TenantID, req.AllowedActions)
 		if err != nil {
 			return err
-		}
-		if policy == nil {
-			return apperror.NewValidation("control policy is not seeded")
 		}
 		controlPolicy = policy
 
@@ -561,11 +586,16 @@ func (s *setupService) RegisterControlService(ctx context.Context, req RegisterC
 }
 
 // CreateProfile creates the initial profile for the bootstrapped super-admin.
-// It is the third first-run step (tenant → admin → profile → control service →
-// complete): CompleteSetup requires IsProfileSetup, and this is the only path
-// that satisfies it during bootstrap, where no service principal yet exists to
-// call the authenticated UserProfileService. It is idempotent so a retried
-// bootstrap sequence does not fail, and locked once setup completes.
+//
+// OPTIONAL during first run. The normal path is that the admin signs in through
+// the identity app and is asked for their name there, which is also where the
+// display name is derived — so setup does NOT gate on it and the console does
+// not call it. This endpoint exists for an unattended bootstrap that wants to
+// seed the profile before anyone signs in, where no service principal yet
+// exists to call the authenticated UserProfileService.
+//
+// Idempotent, so a retried bootstrap does not fail, and locked once setup
+// completes.
 func (s *setupService) CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.createProfile")
 	defer span.End()
@@ -629,12 +659,14 @@ func toSetupProfileResponseDTO(p *Profile) ProfileResponseDTO {
 		MiddleName:  p.MiddleName,
 		LastName:    p.LastName,
 		DisplayName: p.DisplayName,
-		Birthdate:   p.Birthdate,
-		Gender:      p.Gender,
-		ProfileURL:  p.ProfileURL,
-		IsDefault:   p.IsDefault,
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+		// The shared ProfileResponseDTO renders birthdate as "YYYY-MM-DD" so a GET
+		// can be round-tripped straight into a PUT; the model stores *time.Time.
+		Birthdate:  user.BirthdateString(p.Birthdate),
+		Gender:     p.Gender,
+		ProfileURL: p.ProfileURL,
+		IsDefault:  p.IsDefault,
+		CreatedAt:  p.CreatedAt,
+		UpdatedAt:  p.UpdatedAt,
 	}
 	if len(p.Metadata) > 0 {
 		_ = json.Unmarshal(p.Metadata, &dto.Metadata)
@@ -651,10 +683,20 @@ func (s *setupService) CompleteSetup(ctx context.Context) (*CompleteSetupRespons
 		return nil, err
 	}
 	if status.IsSetupComplete {
+		// Idempotent: a core-side retry after a partial failure re-reads the same
+		// state and gets the same answer. Nothing to "close" — bootstrap is over
+		// because the system tenant exists, and ensureSetupOpen reads that directly.
 		return &CompleteSetupResponseDTO{IsSetupComplete: true}, nil
 	}
-	if !status.IsTenantSetup || !status.IsAdminSetup || !status.IsProfileSetup {
-		return nil, apperror.NewValidation("tenant, admin, and profile setup must be completed before locking setup")
+	// Bootstrap is complete once the system tenant exists and it has an owner.
+	// The admin's PROFILE is deliberately not part of this: it is collected on
+	// first sign-in through the identity app (first/last name, gender), which is
+	// also where the display name is derived. Gating the lock on it meant setup
+	// could never finish — the tenant stayed `pending`, and
+	// AuthEndpointTenantStatusMiddleware then refused the very login that would
+	// have created the profile.
+	if !status.IsTenantSetup || !status.IsAdminSetup {
+		return nil, apperror.NewValidation("tenant and admin setup must be completed before locking setup")
 	}
 
 	// Mark the system tenant as active — this is what records that bootstrap
@@ -675,10 +717,28 @@ func (s *setupService) CompleteSetup(ctx context.Context) (*CompleteSetupRespons
 		return nil, err
 	}
 
+	// Single-use: the credential is spent the moment bootstrap finishes, so the
+	// value core was handed at provision time cannot be replayed against this
+	// instance afterwards. Failing here fails the whole call — reporting setup
+	// complete while the credential is still open is the state this prevents, and
+	// the retry re-enters through the already-complete branch above.
 	span.SetStatus(codes.Ok, "")
 	return &CompleteSetupResponseDTO{IsSetupComplete: true}, nil
 }
 
+// ensureSetupOpen is the single gate every setup call passes through. It closes
+// on two independent conditions, and both are one-way.
+//
+//  1. Setup finished. An ACTIVE system tenant is the durable, replica-shared fact
+//     that this instance has been bootstrapped. It survives a crash-loop, and the
+//     single-system-tenant constraint settles the race when two replicas reach a
+//     fresh instance together — which is why there is no separate "setup closed"
+//     flag anywhere. A second copy of this boolean could only drift from it.
+//
+//  2. The window expired. Orchestrated setup spans many calls, so it cannot close
+//     on first write the way the REST wizard does; without a deadline, an
+//     orchestrator that dies mid-provision leaves tenant, client and policy
+//     creation reachable to anyone holding the bootstrap credential, forever.
 func (s *setupService) ensureSetupOpen() error {
 	systemTenant, err := s.tenantRepo.FindSystem()
 	if err != nil {
@@ -686,6 +746,48 @@ func (s *setupService) ensureSetupOpen() error {
 	}
 	if systemTenant != nil && systemTenant.Status == "active" {
 		return apperror.NewConflict("setup is complete and locked")
+	}
+	if err := s.ensureSetupWindowOpen(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// setupProcessStart anchors the setup window. Process start, not first request:
+// an attacker who reaches the instance before the orchestrator does must not be
+// able to restart the clock by being the one to open it.
+var setupProcessStart = time.Now()
+
+// setupWindowTTL is read through a variable so tests can drive expiry without
+// mutating process-wide config.
+var setupWindowTTL = func() time.Duration { return config.SetupWindowTTL }
+
+func (s *setupService) ensureSetupWindowOpen() error {
+	// ORCHESTRATED instances only.
+	//
+	// The deadline exists because machine-driven setup spans many calls with
+	// nobody watching: if the orchestrator dies halfway, tenant/client/policy
+	// creation stays reachable to anyone holding the bootstrap credential.
+	//
+	// A STANDALONE instance bootstraps through the REST wizard, which is a person
+	// filling in forms. Applying the same deadline there means an operator who
+	// starts the wizard and is interrupted comes back to an instance that has
+	// silently locked itself, recoverable only by restarting the container — a
+	// self-inflicted outage in the one flow every self-hosted install runs. The
+	// wizard's own protection is different and unchanged: it closes the moment the
+	// system tenant is active, and refuseWhenOrchestrated shuts it entirely on an
+	// instance an orchestrator owns.
+	if !bootstrapControlPlaneEnabled() {
+		return nil
+	}
+	ttl := setupWindowTTL()
+	if ttl <= 0 {
+		return nil
+	}
+	if elapsed := time.Since(setupProcessStart); elapsed > ttl {
+		return apperror.NewForbidden(fmt.Sprintf(
+			"the setup window closed %s ago (SETUP_WINDOW_TTL=%s): an unfinished provision fails closed rather than staying open — restart this instance to provision it again",
+			(elapsed - ttl).Truncate(time.Second), ttl))
 	}
 	return nil
 }

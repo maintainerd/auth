@@ -150,7 +150,29 @@ func (s *tenantSettingService) updateConfig(ctx context.Context, tenantID int64,
 		return nil, err
 	}
 
-	configBytes, err := json.Marshal(config)
+	var stored datatypes.JSON
+	switch configType {
+	case "rate_limit":
+		stored = setting.RateLimitConfig
+	case "audit":
+		stored = setting.AuditConfig
+	case "maintenance":
+		stored = setting.MaintenanceConfig
+	default:
+		return nil, apperror.NewValidation("invalid config type")
+	}
+
+	// Merge the incoming keys over the stored config rather than replacing the
+	// whole JSONB column. Each console form posts only the fields it renders, so
+	// a whole-column replace silently deleted the rest: saving the audit form
+	// dropped event_types, saving rate limits dropped exempt_ips and
+	// endpoint_overrides.
+	merged := jsonutil.JSONToMap(stored)
+	for key, value := range config {
+		merged[key] = value
+	}
+
+	configBytes, err := json.Marshal(merged)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "marshal config failed")
@@ -165,8 +187,6 @@ func (s *tenantSettingService) updateConfig(ctx context.Context, tenantID int64,
 		setting.AuditConfig = jsonData
 	case "maintenance":
 		setting.MaintenanceConfig = jsonData
-	default:
-		return nil, apperror.NewValidation("invalid config type")
 	}
 
 	updated, err := s.tenantSettingRepo.CreateOrUpdate(setting)

@@ -65,6 +65,11 @@ type Role struct {
 	IsSystem  bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	// DeletedAt is REQUIRED on this projection, not decorative: GORM applies
+	// the soft-delete scope only when the scanned struct declares it. Without
+	// it, preloading this table returned rows that had been deleted — so
+	// revoking a role or permission granted it forever.
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (Role) TableName() string { return "roles" }

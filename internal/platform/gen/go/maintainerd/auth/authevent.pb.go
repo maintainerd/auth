@@ -565,11 +565,7 @@ const file_maintainerd_auth_v1_authevent_proto_rawDesc = "" +
 	"\n" +
 	"event_type\x18\x02 \x01(\tR\teventType\"5\n" +
 	"\x1dCountAuthEventsByTypeResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x03R\x05count2\xe2\x02\n" +
-	"\x10AuthEventService\x12i\n" +
-	"\x0eListAuthEvents\x12*.maintainerd.auth.v1.ListAuthEventsRequest\x1a+.maintainerd.auth.v1.ListAuthEventsResponse\x12c\n" +
-	"\fGetAuthEvent\x12(.maintainerd.auth.v1.GetAuthEventRequest\x1a).maintainerd.auth.v1.GetAuthEventResponse\x12~\n" +
-	"\x15CountAuthEventsByType\x121.maintainerd.auth.v1.CountAuthEventsByTypeRequest\x1a2.maintainerd.auth.v1.CountAuthEventsByTypeResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x05count\x18\x01 \x01(\x03R\x05countBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_authevent_proto_rawDescOnce sync.Once
@@ -606,14 +602,8 @@ var file_maintainerd_auth_v1_authevent_proto_depIdxs = []int32{
 	0,  // 5: maintainerd.auth.v1.ListAuthEventsResponse.events:type_name -> maintainerd.auth.v1.AuthEvent
 	10, // 6: maintainerd.auth.v1.ListAuthEventsResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
 	0,  // 7: maintainerd.auth.v1.GetAuthEventResponse.event:type_name -> maintainerd.auth.v1.AuthEvent
-	1,  // 8: maintainerd.auth.v1.AuthEventService.ListAuthEvents:input_type -> maintainerd.auth.v1.ListAuthEventsRequest
-	3,  // 9: maintainerd.auth.v1.AuthEventService.GetAuthEvent:input_type -> maintainerd.auth.v1.GetAuthEventRequest
-	5,  // 10: maintainerd.auth.v1.AuthEventService.CountAuthEventsByType:input_type -> maintainerd.auth.v1.CountAuthEventsByTypeRequest
-	2,  // 11: maintainerd.auth.v1.AuthEventService.ListAuthEvents:output_type -> maintainerd.auth.v1.ListAuthEventsResponse
-	4,  // 12: maintainerd.auth.v1.AuthEventService.GetAuthEvent:output_type -> maintainerd.auth.v1.GetAuthEventResponse
-	6,  // 13: maintainerd.auth.v1.AuthEventService.CountAuthEventsByType:output_type -> maintainerd.auth.v1.CountAuthEventsByTypeResponse
-	11, // [11:14] is the sub-list for method output_type
-	8,  // [8:11] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -635,7 +625,7 @@ func file_maintainerd_auth_v1_authevent_proto_init() {
 			NumEnums:      0,
 			NumMessages:   7,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_maintainerd_auth_v1_authevent_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_authevent_proto_depIdxs,

@@ -29,10 +29,8 @@ type PolicyRepository interface {
 	FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) (*Policy, error)
 	FindByName(policyName string, tenantID int64) (*Policy, error)
 	FindByNameAndVersion(policyName string, version string, tenantID int64) (*Policy, error)
-	FindSystemPolicies(tenantID int64) ([]Policy, error)
 	FindPaginated(filter PolicyRepositoryGetFilter) (*PaginationResult[Policy], error)
 	SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) error
-	SetSystemStatusByUUID(policyUUID uuid.UUID, tenantID int64, isSystem bool) error
 	DeleteByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) error
 }
 
@@ -94,22 +92,13 @@ func (r *policyRepository) FindByNameAndVersion(policyName string, version strin
 	return &policy, nil
 }
 
-func (r *policyRepository) FindSystemPolicies(tenantID int64) ([]Policy, error) {
-	var policies []Policy
-	err := r.DB().Where("is_system = ? AND tenant_id = ?", true, tenantID).Find(&policies).Error
-	return policies, err
-}
-
+// FindSystemPolicies and SetSystemStatusByUUID are gone: both were zero-caller.
+// is_system decides whether a policy can be edited or deleted at all, so a setter
+// for it should not sit in the interface until something actually needs one.
 func (r *policyRepository) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) error {
 	return r.DB().Model(&Policy{}).
 		Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).
 		Update("status", status).Error
-}
-
-func (r *policyRepository) SetSystemStatusByUUID(policyUUID uuid.UUID, tenantID int64, isSystem bool) error {
-	return r.DB().Model(&Policy{}).
-		Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).
-		Update("is_system", isSystem).Error
 }
 
 // policySortColumns is this table's own sort allowlist. The global set in

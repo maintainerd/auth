@@ -101,41 +101,6 @@ func TestSMSLoginHandler_SendOTPPublic(t *testing.T) {
 	})
 }
 
-func TestSMSLoginHandler_SendOTPInternal(t *testing.T) {
-	t.Run("invalid JSON returns 400", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/sms-login/send?tenant_id=acme",
-			bytes.NewBufferString(`{bad`))
-		r.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		NewSMSLoginHandler(&mockSMSLoginService{}).SendOTPInternal(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("missing tenant_id returns 400", func(t *testing.T) {
-		r := smsJSONReq(t, http.MethodPost, "/sms-login/send",
-			map[string]string{"phone": "+1234567890"})
-		w := httptest.NewRecorder()
-		NewSMSLoginHandler(&mockSMSLoginService{}).SendOTPInternal(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("client_id present on internal returns 400", func(t *testing.T) {
-		r := smsJSONReq(t, http.MethodPost, "/sms-login/send?tenant_id=acme&client_id=app",
-			map[string]string{"phone": "+1234567890"})
-		w := httptest.NewRecorder()
-		NewSMSLoginHandler(&mockSMSLoginService{}).SendOTPInternal(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("success returns 200", func(t *testing.T) {
-		r := smsJSONReq(t, http.MethodPost, "/sms-login/send?tenant_id=acme",
-			map[string]string{"phone": "+1234567890"})
-		w := httptest.NewRecorder()
-		NewSMSLoginHandler(&mockSMSLoginService{}).SendOTPInternal(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-}
-
 func TestSMSLoginHandler_VerifyOTPPublic(t *testing.T) {
 	t.Run("invalid JSON returns 400", func(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/sms-login/verify?client_id=app",
@@ -193,46 +158,6 @@ func TestSMSLoginHandler_VerifyOTPPublic(t *testing.T) {
 			map[string]string{"phone": "+1234567890", "otp": "123456"})
 		w := httptest.NewRecorder()
 		NewSMSLoginHandler(svc).VerifyOTPPublic(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-}
-
-func TestSMSLoginHandler_VerifyOTPInternal(t *testing.T) {
-	t.Run("invalid JSON returns 400", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/sms-login/verify?tenant_id=acme",
-			bytes.NewBufferString(`{bad`))
-		r.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		NewSMSLoginHandler(&mockSMSLoginService{}).VerifyOTPInternal(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("missing tenant_id returns 400", func(t *testing.T) {
-		r := smsJSONReq(t, http.MethodPost, "/sms-login/verify",
-			map[string]string{"phone": "+1234567890", "otp": "123456"})
-		w := httptest.NewRecorder()
-		NewSMSLoginHandler(&mockSMSLoginService{}).VerifyOTPInternal(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("client_id present on internal returns 400", func(t *testing.T) {
-		r := smsJSONReq(t, http.MethodPost, "/sms-login/verify?tenant_id=acme&client_id=app",
-			map[string]string{"phone": "+1234567890", "otp": "123456"})
-		w := httptest.NewRecorder()
-		NewSMSLoginHandler(&mockSMSLoginService{}).VerifyOTPInternal(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockSMSLoginService{
-			verifyOTPFn: func(ctx context.Context, phone, otp string, clientID, tenantID *string) (*LoginResponseDTO, error) {
-				return &LoginResponseDTO{AccessToken: "at"}, nil
-			},
-		}
-		r := smsJSONReq(t, http.MethodPost, "/sms-login/verify?tenant_id=acme",
-			map[string]string{"phone": "+1234567890", "otp": "123456"})
-		w := httptest.NewRecorder()
-		NewSMSLoginHandler(svc).VerifyOTPInternal(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }

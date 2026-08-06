@@ -217,6 +217,10 @@ func (r AddClientAPIPermissionsRequestDTO) Validate() error {
 // maxSecretGracePeriodHours caps how long a rotated-out client secret stays
 // valid. It was unbounded, so a value like 876000 would keep a compromised
 // secret working for a century — which defeats the point of rotating.
+//
+// clientService.RotateSecret is the enforcement point, because every transport
+// reaches it and the gRPC handler does not go through this DTO. The rule below
+// is kept so an HTTP caller still gets a field-level 400.
 const maxSecretGracePeriodHours = 168 // 7 days
 
 func (r RotateSecretRequestDTO) Validate() error {

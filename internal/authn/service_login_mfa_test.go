@@ -165,9 +165,9 @@ func TestCompleteMFALogin_CreatesMaintainerdIdentityWhenMissing(t *testing.T) {
 	require.NotNil(t, created)
 	assert.Equal(t, int64(1), created.TenantID)
 	assert.Equal(t, user.UserID, created.UserID)
-	assert.Equal(t, client.ClientID, created.ClientID)
-	require.NotNil(t, created.IdentityProviderID)
-	assert.Equal(t, int64(7), *created.IdentityProviderID)
+	// The identity is created against the client's connected identity provider,
+	// never against the client itself — user_identities has no client_id.
+	assert.Equal(t, int64(7), created.IdentityProviderID)
 	assert.Equal(t, shared.ProviderMaintainerd, created.Provider)
 	assert.NotEmpty(t, created.Sub)
 	claims, err := platformjwt.ValidateToken(resp.AccessToken)

@@ -225,12 +225,6 @@ func (h *ClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Auth client fetched successfully")
 }
 
-// GetSecretByUUID is intentionally disabled — secrets are hashed at rest and
-// cannot be recovered. Clients should rotate their secret to obtain a new one.
-func (h *ClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) {
-	resp.Error(w, http.StatusGone, "Client secrets cannot be retrieved after creation. Use POST /{client_uuid}/rotate-secret to issue a new secret.")
-}
-
 // Get Auth client config by UUID
 func (h *ClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
@@ -283,7 +277,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.ClientService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, parseOptionalUUID(req.BrandingUUID), boolValue(req.AllowRegistration, true), req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ServiceUUID)
+	result, err := h.ClientService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, req.IdentityProviderUUID, parseOptionalUUID(req.BrandingUUID), boolValue(req.AllowRegistration, true), req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create auth client", err)
 		return
@@ -342,7 +336,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.AllowMagicLink, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ExpectedUpdatedAt, req.ServiceUUID)
+	Client, err := h.ClientService.Update(r.Context(), ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, parseOptionalUUID(req.BrandingUUID), req.AllowRegistration, req.AllowMagicLink, req.BackchannelLogoutURI, req.FrontchannelLogoutURI, req.BackchannelLogoutSessionRequired, req.DPoPRequired, user.UserUUID, req.ExpectedUpdatedAt, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update auth client", err)
 		return

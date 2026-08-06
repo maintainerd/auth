@@ -1,7 +1,6 @@
 package mfa
 
 import (
-	"errors"
 	"time"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
@@ -14,7 +13,12 @@ type UserMFABackupCodeRepository interface {
 	WithTx(tx *gorm.DB) UserMFABackupCodeRepository
 	CreateBulk(codes []*UserMFABackupCode) error
 	FindUnusedByUserID(userID int64) ([]UserMFABackupCode, error)
-	FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserMFABackupCode, error)
+	// FindByUserIDAndCodeHash is gone. Backup codes are stored bcrypt-hashed, so
+	// an equality lookup on a digest can never match a row — the only correct
+	// redemption path is FindUnusedByUserID + bcrypt.CompareHashAndPassword.
+	// Keeping the method invited a caller to hash the submitted code with
+	// SHA-256 and look it up, which is exactly the split-hash bug that made
+	// account recovery permanently impossible.
 	MarkUsed(id int64) error
 	DeleteAllByUserID(userID int64) error
 }
@@ -45,20 +49,6 @@ func (r *userMFABackupCodeRepository) FindUnusedByUserID(userID int64) ([]UserMF
 		Where("user_id = ? AND used = false", userID).
 		Find(&codes).Error
 	return codes, err
-}
-
-func (r *userMFABackupCodeRepository) FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserMFABackupCode, error) {
-	var code UserMFABackupCode
-	err := r.DB().
-		Where("user_id = ? AND code_hash = ? AND used = false", userID, codeHash).
-		First(&code).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &code, nil
 }
 
 func (r *userMFABackupCodeRepository) MarkUsed(id int64) error {

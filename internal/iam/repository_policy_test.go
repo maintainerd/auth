@@ -56,20 +56,11 @@ func TestPolicyRepository(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("FindSystemPolicies returns rows", func(t *testing.T) {
+	// The FindSystemPolicies and SetSystemStatusByUUID cases went with the methods
+	// themselves — both were zero-caller (see repository_policy.go).
+	t.Run("status mutation and delete", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
-		expectAnySelect(mock, "policies").WillReturnRows(policyRows())
-
-		got, err := NewPolicyRepository(db).FindSystemPolicies(tenantID)
-
-		require.NoError(t, err)
-		assert.Len(t, got, 1)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("status mutations and delete", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		for i := 0; i < 3; i++ {
+		for i := 0; i < 2; i++ {
 			mock.ExpectBegin()
 			expectAnyUpdate(mock, "policies").WillReturnResult(sqlmock.NewResult(0, 1))
 			mock.ExpectCommit()
@@ -77,7 +68,6 @@ func TestPolicyRepository(t *testing.T) {
 		repo := NewPolicyRepository(db)
 
 		require.NoError(t, repo.SetStatusByUUID(testResourceUUID, tenantID, "active"))
-		require.NoError(t, repo.SetSystemStatusByUUID(testResourceUUID, tenantID, true))
 		require.NoError(t, repo.DeleteByUUIDAndTenantID(testResourceUUID, tenantID))
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})

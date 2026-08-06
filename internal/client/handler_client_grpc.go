@@ -7,6 +7,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/datatypes"
@@ -84,10 +87,16 @@ func (h *ClientGRPCHandler) GetClient(ctx context.Context, req *authv1.GetClient
 	return &authv1.GetClientResponse{Client: toClientProto(result)}, nil
 }
 
+// GetClientSecret exists only because the generated ClientServiceServer
+// interface requires it; the HTTP twin has been removed outright. Secrets are
+// bcrypt hashed at rest, so there is nothing to return.
+//
+// It answers UNIMPLEMENTED rather than OK-with-a-message: the old response was a
+// success, so a generated client would hand its caller an empty ClientSecret and
+// no error, which reads as "this client has no secret".
 func (h *ClientGRPCHandler) GetClientSecret(ctx context.Context, req *authv1.GetClientSecretRequest) (*authv1.GetClientSecretResponse, error) {
-	return &authv1.GetClientSecretResponse{
-		Message: "Client secrets cannot be retrieved after creation. Use RotateSecret to obtain a new secret.",
-	}, nil
+	return nil, status.Error(codes.Unimplemented,
+		"client secrets cannot be retrieved after creation; use RotateClientSecret to issue a new one")
 }
 
 func (h *ClientGRPCHandler) RotateClientSecret(ctx context.Context, req *authv1.RotateClientSecretRequest) (*authv1.RotateClientSecretResponse, error) {
@@ -99,12 +108,9 @@ func (h *ClientGRPCHandler) RotateClientSecret(ctx context.Context, req *authv1.
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := clientActorUserUUID(ctx)
+	if err != nil {
+		return nil, err
 	}
 	newSecret, err := h.clientService.RotateSecret(ctx, clientUUID, tenant.TenantID, actorUUID, int(req.GetGracePeriodHours()))
 	if err != nil {
@@ -139,17 +145,18 @@ func (h *ClientGRPCHandler) GetClientConfig(ctx context.Context, req *authv1.Get
 	return &authv1.GetClientConfigResponse{Config: configProto}, nil
 }
 
+// CreateClient is replay-guarded: the response carries a client secret that
+// exists in plaintext exactly once, so an un-de-duplicated retry does not just
+// create a spare client — it strands a live credential the caller never sees
+// again and cannot rotate, because it does not know the client is there.
 func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.CreateClientRequest) (*authv1.CreateClientResponse, error) {
 	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := clientActorUserUUID(ctx)
+	if err != nil {
+		return nil, err
 	}
 	config := structProtoToMap(req.GetConfig())
 	configJSON, err := mapToJSON(config)
@@ -181,7 +188,7 @@ func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.Create
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
 
-	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, req.GetIdentityProviderUuid(), nil, allowReg, nil, nil, nil, nil, actorUUID, nil)
+	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), req.GetIdentityProviderUuid(), nil, allowReg, nil, nil, nil, nil, actorUUID, nil)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -204,12 +211,9 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := clientActorUserUUID(ctx)
+	if err != nil {
+		return nil, err
 	}
 	config := structProtoToMap(req.GetConfig())
 	configJSON, err := mapToJSON(config)
@@ -240,7 +244,7 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 		configJSON = nil
 	}
 
-	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), false, nil, req.AllowRegistration, nil, nil, nil, nil, nil, actorUUID, nil, nil)
+	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), nil, req.AllowRegistration, nil, nil, nil, nil, nil, actorUUID, nil, nil)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -256,12 +260,9 @@ func (h *ClientGRPCHandler) SetClientStatus(ctx context.Context, req *authv1.Set
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := clientActorUserUUID(ctx)
+	if err != nil {
+		return nil, err
 	}
 	result, err := h.clientService.SetStatusByUUID(ctx, clientUUID, tenant.TenantID, req.GetStatus(), actorUUID)
 	if err != nil {
@@ -279,12 +280,9 @@ func (h *ClientGRPCHandler) DeleteClient(ctx context.Context, req *authv1.Delete
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := clientActorUserUUID(ctx)
+	if err != nil {
+		return nil, err
 	}
 	result, err := h.clientService.DeleteByUUID(ctx, clientUUID, tenant.TenantID, actorUUID)
 	if err != nil {
@@ -315,6 +313,10 @@ func (h *ClientGRPCHandler) ListClientURIs(ctx context.Context, req *authv1.List
 	return &authv1.ListClientURIsResponse{Uris: uris}, nil
 }
 
+// CreateClientURI is replay-guarded for the same reason as CreateClient: the
+// unique index on (client_id, type, uri) stops a duplicate row, but it answers a
+// retry with a conflict that core cannot distinguish from "another operator
+// registered this redirect URI".
 func (h *ClientGRPCHandler) CreateClientURI(ctx context.Context, req *authv1.CreateClientURIRequest) (*authv1.CreateClientURIResponse, error) {
 	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
 	if err != nil {
@@ -324,12 +326,9 @@ func (h *ClientGRPCHandler) CreateClientURI(ctx context.Context, req *authv1.Cre
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := clientActorUserUUID(ctx)
+	if err != nil {
+		return nil, err
 	}
 	result, err := h.clientService.CreateURI(ctx, clientUUID, tenant.TenantID, req.GetUri(), req.GetType(), actorUUID)
 	if err != nil {
@@ -354,12 +353,9 @@ func (h *ClientGRPCHandler) UpdateClientURI(ctx context.Context, req *authv1.Upd
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := clientActorUserUUID(ctx)
+	if err != nil {
+		return nil, err
 	}
 	result, err := h.clientService.UpdateURI(ctx, clientUUID, tenant.TenantID, uriUUID, req.GetUri(), req.GetType(), actorUUID)
 	if err != nil {
@@ -388,12 +384,9 @@ func (h *ClientGRPCHandler) DeleteClientURI(ctx context.Context, req *authv1.Del
 	if err != nil {
 		return nil, err
 	}
-	actorUUID := uuid.Nil
-	if req.GetActorUserUuid() != "" {
-		actorUUID, err = parseUUID(req.GetActorUserUuid(), "Actor user UUID")
-		if err != nil {
-			return nil, err
-		}
+	actorUUID, err := clientActorUserUUID(ctx)
+	if err != nil {
+		return nil, err
 	}
 	result, err := h.clientService.DeleteURI(ctx, clientUUID, tenant.TenantID, uriUUID, actorUUID)
 	if err != nil {
@@ -457,7 +450,7 @@ func (h *ClientGRPCHandler) AddClientAPIs(ctx context.Context, req *authv1.AddCl
 		}
 		apiUUIDs[i] = parsed
 	}
-	actorUUID, err := parseUUID(req.GetActorUserUuid(), "Actor user UUID")
+	actorUUID, err := clientActorUserUUID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +473,7 @@ func (h *ClientGRPCHandler) RemoveClientAPI(ctx context.Context, req *authv1.Rem
 	if err != nil {
 		return nil, err
 	}
-	actorUUID, err := parseUUID(req.GetActorUserUuid(), "Actor user UUID")
+	actorUUID, err := clientActorUserUUID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -535,7 +528,7 @@ func (h *ClientGRPCHandler) AddClientAPIPermissions(ctx context.Context, req *au
 		}
 		permUUIDs[i] = parsed
 	}
-	actorUUID, err := parseUUID(req.GetActorUserUuid(), "Actor user UUID")
+	actorUUID, err := clientActorUserUUID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +555,7 @@ func (h *ClientGRPCHandler) RemoveClientAPIPermission(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	actorUUID, err := parseUUID(req.GetActorUserUuid(), "Actor user UUID")
+	actorUUID, err := clientActorUserUUID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -572,6 +565,15 @@ func (h *ClientGRPCHandler) RemoveClientAPIPermission(ctx context.Context, req *
 	return &authv1.RemoveClientAPIPermissionResponse{Message: "Permission removed from client API successfully"}, nil
 }
 
+// resolveTenant resolves the target tenant from the request AND checks the caller
+// is allowed to act on it.
+//
+// Every RPC on this service takes the target tenant from the request body, and the
+// interceptor authorizes an ACTION only — it never compares the requested tenant
+// against the token. Existence was therefore the only check, so any principal
+// holding `client:*` in its own tenant could pass another tenant's UUID and list,
+// mutate, delete, or rotate the secret of that tenant's OAuth clients. Mirrors
+// iam/grpc_helpers.go resolveIAMTenant.
 func (h *ClientGRPCHandler) resolveTenant(ctx context.Context, tenantUUID string) (*TenantServiceDataResult, error) {
 	parsed, err := parseUUID(tenantUUID, "Tenant UUID")
 	if err != nil {
@@ -581,7 +583,75 @@ func (h *ClientGRPCHandler) resolveTenant(ctx context.Context, tenantUUID string
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
+	if err := h.assertCallerMayActOnTenant(ctx, result.TenantID); err != nil {
+		return nil, err
+	}
 	return result, nil
+}
+
+// assertCallerMayActOnTenant enforces the tenant boundary: a caller may act on its
+// own tenant, and a caller whose token is bound to the SYSTEM tenant may act on any
+// tenant. The latter is what lets the control plane provision clients for a tenant
+// remotely; it is not a blanket grant, because a tenant principal is now pinned to
+// its own tenant.
+func (h *ClientGRPCHandler) assertCallerMayActOnTenant(ctx context.Context, targetTenantID int64) error {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil || claims.TenantID == 0 {
+		// A token with no tenant cannot prove it may act anywhere.
+		return status.Error(codes.PermissionDenied, "this token is not bound to a tenant")
+	}
+	if claims.TenantID == targetTenantID {
+		return nil
+	}
+	callerIsSystem, err := h.callerTenantIsSystem(ctx, claims.TenantID)
+	if err != nil {
+		return err
+	}
+	if !callerIsSystem {
+		return status.Error(codes.PermissionDenied, "this token may only act on its own tenant")
+	}
+	return nil
+}
+
+// callerTenantIsSystem reports whether the caller's own tenant is the system tenant.
+// GetSystem is reached through an optional interface rather than TenantResolver so
+// the resolver wired in internal/server keeps satisfying the declared interface; a
+// resolver that cannot answer means cross-tenant access cannot be justified, so it
+// is refused.
+func (h *ClientGRPCHandler) callerTenantIsSystem(ctx context.Context, callerTenantID int64) (bool, error) {
+	resolver, ok := h.tenantResolver.(interface {
+		GetSystem(ctx context.Context) (*TenantServiceDataResult, error)
+	})
+	if !ok {
+		return false, status.Error(codes.PermissionDenied, "cross-tenant access cannot be verified")
+	}
+	systemTenant, err := resolver.GetSystem(ctx)
+	if err != nil || systemTenant == nil {
+		return false, status.Error(codes.PermissionDenied, "cross-tenant access cannot be verified")
+	}
+	return systemTenant.TenantID == callerTenantID, nil
+}
+
+// clientActorUserUUID resolves the acting user from the VERIFIED token.
+//
+// Every mutating RPC here took the actor from req.GetActorUserUuid(), a request-body
+// field, and defaulted to uuid.Nil when it was absent. That value is both the audit
+// attribution AND the subject of ValidateTenantAccess in the service layer, so a
+// caller could pin a secret rotation or a client deletion on an innocent tenant admin
+// and borrow that admin's membership to clear the boundary check — two holes fed by
+// one unauthenticated string.
+//
+// There is deliberately NO fallback to the body. The gRPC interceptor also admits
+// service principals, which carry no user identity; a token that cannot name a user
+// simply may not mutate clients. Failing closed is the only option that does not
+// reopen the hole.
+// clientActorUserUUID resolves the acting user for a mutating client RPC.
+//
+// Delegates to the one shared definition: this used to be a private copy that
+// also consulted raw JWT claims, making the client surface accept a token the
+// tenant surface refused.
+func clientActorUserUUID(ctx context.Context) (uuid.UUID, error) {
+	return middleware.GRPCActorUUID(ctx, "client changes")
 }
 
 func parseUUID(value string, label string) (uuid.UUID, error) {

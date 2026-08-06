@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,11 +32,22 @@ var secValidatePasswordPolicy = security.ValidatePasswordPolicyWithContext
 var secHashPassword = security.HashPassword
 var secHashPasswordWithPolicy = security.HashPasswordWithPolicy
 
+// A seam, so a test can prove the verifier is never reached when no provider is
+// configured. security.VerifyCaptcha currently returns nil for an unset
+// CAPTCHA_SECRET; that fail-open is scheduled for removal, and registration must
+// not be the thing that discovers it. Only captchaProviderConfigured decides
+// "no provider" here, so the removal is a no-op for this path.
+var secVerifyCaptcha = security.VerifyCaptcha
+
+// RegisterService is the registration surface actually mounted by the router
+// (RegisterPublicRoute). The former internal variants — Register and
+// RegisterInvite, mounted only by a RegisterRoute nothing ever called — are
+// gone: they were unreachable line-for-line duplicates of these two that still
+// had to be kept in sync, so a fix applied to the live path could silently miss
+// the copy.
 type RegisterService interface {
 	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowName string) (*RegisterResponseDTO, error)
 	RegisterInvitePublic(ctx context.Context, username, password, clientID, tenantID, inviteToken string) (*RegisterResponseDTO, error)
-	RegisterInvite(ctx context.Context, username, password string, clientID, tenantID *string, inviteToken string) (*RegisterResponseDTO, error)
-	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, tenantID *string, registrationFlowName string) (*RegisterResponseDTO, error)
 }
 
 type registerService struct {
@@ -140,15 +153,61 @@ func (s *registerService) findDefaultRole(roleRepo RoleRepository, tenantID int6
 	return nil, apperror.NewValidation("registered role not found for tenant")
 }
 
+// captchaProviderConfigured reports whether this deployment has a CAPTCHA
+// verifier wired up. It repeats the platform verifier's own environment lookup
+// because internal/platform/security exposes no predicate for it — a
+// security.CaptchaConfigured() helper there is the DRY home for this, and this
+// copy should collapse into it. It is a variable so a test can pin the
+// "no provider" shape regardless of what the ambient environment holds.
+var captchaProviderConfigured = func() bool {
+	return strings.TrimSpace(os.Getenv("CAPTCHA_SECRET")) != ""
+}
+
+// warnedCaptchaUnenforceableTenants keeps the "policy asks for CAPTCHA,
+// deployment has no provider" notice to one line per tenant per process. It is a
+// standing misconfiguration, not a per-request event, so logging it on every
+// signup would bury real signal under duplicates — but a single process-wide
+// sync.Once would hide every tenant after the first, and this warning is the
+// only signal an operator gets that a tenant's CAPTCHA policy is not being
+// applied.
+var warnedCaptchaUnenforceableTenants sync.Map
+
+func warnCaptchaUnenforceable(tenantID int64) {
+	if _, alreadyWarned := warnedCaptchaUnenforceableTenants.LoadOrStore(tenantID, struct{}{}); alreadyWarned {
+		return
+	}
+	slog.Warn("captcha_on_signup is enabled but no CAPTCHA provider is configured; the signup CAPTCHA check is NOT enforced",
+		"tenant_id", tenantID)
+}
+
 func enforceRegistrationAbuseControls(ctx context.Context, tenantID int64, regPolicy *secpolicy.RegistrationPolicy) error {
 	if regPolicy == nil {
 		return nil
 	}
 	if regPolicy.CaptchaOnSignup {
-		captchaToken := registrationCaptchaTokenFromContext(ctx)
-		clientIP := middleware.ClientIPFromContext(ctx)
-		if err := security.VerifyCaptcha(ctx, captchaToken, clientIP); err != nil {
-			return apperror.NewValidation("captcha verification failed")
+		// The tenant flag alone does not enforce: a CAPTCHA provider must also be
+		// configured for this deployment. CAPTCHA is deferred and has no
+		// client-side half — no first-party signup form emits a captcha_token —
+		// so the flag can be on for a tenant whose deployment has no verifier at
+		// all. Denying there would reject 100% of self-service registration on a
+		// control that could never have been satisfied, and tenants already carry
+		// a persisted captcha_on_signup=true that lowering the seeded default does
+		// not clear (migrations are create-only, so nothing backfills the rows).
+		// This is the single deliberate non-denial in this function, and it is
+		// logged per tenant rather than swallowed; the moment a verifier exists
+		// the branch below denies on anything short of a provider pass.
+		if !captchaProviderConfigured() {
+			warnCaptchaUnenforceable(tenantID)
+		} else {
+			// With a provider configured the check is strict: a missing token, a
+			// provider rejection, and a provider/network error all mean "not
+			// proven human" and all reject.
+			captchaToken := registrationCaptchaTokenFromContext(ctx)
+			clientIP := middleware.ClientIPFromContext(ctx)
+			if err := secVerifyCaptcha(ctx, captchaToken, clientIP); err != nil {
+				slog.Warn("registration rejected: signup CAPTCHA not verified", "tenant_id", tenantID, "err", err)
+				return apperror.NewValidation("captcha verification failed")
+			}
 		}
 	}
 	if regPolicy.RegistrationRateLimitPerIPPerHour > 0 {
@@ -500,11 +559,14 @@ func (s *registerService) RegisterPublic(
 			}
 		}
 
+		identityProviderID, idpErr := clientIdentityProviderID(Client)
+		if idpErr != nil {
+			return idpErr
+		}
 		userIdentity := &UserIdentity{
 			TenantID:           tenantId,
 			UserID:             createdUser.UserID,
-			ClientID:           Client.ClientID,
-			IdentityProviderID: clientIdentityProviderIDPtr(Client),
+			IdentityProviderID: identityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -552,239 +614,6 @@ func (s *registerService) RegisterPublic(
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
-}
-
-// Register registers new users for internal applications.
-// clientID and tenantID are optional (pointer params).  When omitted the
-// system client is used.  Resolution priority: clientID > tenantID > default.
-// Used by internal applications on port 8080.
-func (s *registerService) Register(
-	ctx context.Context,
-	username,
-	fullname,
-	password string,
-	email,
-	phone *string,
-	clientID,
-	tenantID *string,
-	registrationFlowName string,
-) (*RegisterResponseDTO, error) {
-	_, span := otel.Tracer("service").Start(ctx, "register.internal")
-	defer span.End()
-
-	// Rate limiting check to prevent registration abuse
-	if err := security.CheckRateLimit(username); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "register failed")
-		return nil, err
-	}
-
-	var createdUser *User
-	var Client *Client
-	var userIdentitySub string
-	var needEmailVerification bool
-	var registrationFlow *RegistrationFlow
-
-	// All database operations in transaction
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txUserRepo := s.userRepo.WithTx(tx)
-		txClientRepo := s.clientRepo.WithTx(tx)
-		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
-		txRoleRepo := s.roleRepo.WithTx(tx)
-		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
-
-		var txErr error
-		Client, txErr = resolveClient(txClientRepo, clientID, tenantID)
-		if txErr != nil {
-			return txErr
-		}
-
-		if Client == nil ||
-			Client.Status != shared.StatusActive ||
-			Client.Domain == nil || *Client.Domain == "" {
-			return apperror.NewNotFoundWithReason("auth client not found or inactive")
-		}
-
-		tenantId := clientTenantID(Client)
-		if tenantId == 0 {
-			return apperror.NewValidation("auth client tenant could not be resolved")
-		}
-
-		// Enforce tenant registration policy.
-		regPolicy := secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId)
-		if !regPolicy.SelfRegistrationEnabled {
-			return apperror.NewForbidden("self-registration is disabled for this tenant")
-		}
-		if !Client.AllowRegistration {
-			return apperror.NewForbidden("self-registration is disabled for this client")
-		}
-		if err := enforceIdentityProviderRegistrationGate(Client); err != nil {
-			return err
-		}
-		registrationFlow, txErr = s.registrationFlowByName(tx, Client.ClientID, tenantId, registrationFlowName)
-		if txErr != nil {
-			return txErr
-		}
-		if txErr = enforceRequiredRegistrationFields(registrationFlow, fullname, email, phone); txErr != nil {
-			return txErr
-		}
-		regPolicy = effectiveRegistrationPolicy(regPolicy, registrationFlow)
-		needEmailVerification = regPolicy.RequireEmailVerification
-		if registrationFlow != nil && registrationFlow.VerificationRequired && (email == nil || strings.TrimSpace(*email) == "") {
-			return apperror.NewValidation("email is required when signup verification is enabled")
-		}
-		if err := enforceRegistrationAbuseControls(ctx, tenantId, regPolicy); err != nil {
-			return err
-		}
-		if email != nil && *email != "" && !regPolicy.EmailDomainAllowed(*email) {
-			return apperror.NewValidation("email domain is not permitted for registration")
-		}
-		if regPolicy.RequirePhoneVerification && (phone == nil || *phone == "") {
-			return apperror.NewValidation("phone number is required for registration")
-		}
-
-		// Check if user already exists (scoped to this tenant)
-		existingUser, txErr := txUserRepo.FindByUsernameAndTenantID(username, tenantId)
-		if txErr != nil && txErr.Error() != "record not found" {
-			return txErr
-		}
-		if existingUser != nil {
-			return apperror.NewConflict("user already exists")
-		}
-		if email != nil && strings.TrimSpace(*email) != "" {
-			existingEmailUser, lookupErr := txUserRepo.FindByEmailAndTenantID(*email, tenantId)
-			if lookupErr != nil {
-				return lookupErr
-			}
-			if existingEmailUser != nil {
-				return apperror.NewConflict("email already registered")
-			}
-		}
-		if phone != nil && strings.TrimSpace(*phone) != "" {
-			existingPhoneUser, lookupErr := txUserRepo.FindByPhoneAndTenantID(*phone, tenantId)
-			if lookupErr != nil {
-				return lookupErr
-			}
-			if existingPhoneUser != nil {
-				return apperror.NewConflict("phone already registered")
-			}
-		}
-
-		// Validate password against tenant policy
-		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = secValidatePasswordPolicy(ctx, password, policy); txErr != nil {
-			return apperror.NewValidation(txErr.Error())
-		}
-
-		// Hash password
-		hashed, txErr := secHashPasswordWithPolicy(ctx, []byte(password), policy)
-		if txErr != nil {
-			return txErr
-		}
-
-		now := time.Now()
-		// Email-verified state follows the tenant registration policy.
-		newUser := &User{
-			TenantID: tenantId,
-			Username: username,
-			Fullname: fullname,
-			Password: ptr.Ptr(string(hashed)),
-			Status:   registrationInitialStatus(regPolicy, email),
-			// email_verified reflects PROVEN control, never policy. A tenant that
-			// auto-confirms or does not require verification still has an
-			// unproven address, so this stays false until the address is actually
-			// confirmed via the verification flow (OIDC Core §5.1). Account
-			// activation is handled separately by registrationInitialStatus above.
-			IsEmailVerified:   false,
-			IsPhoneVerified:   false,
-			PasswordChangedAt: &now,
-		}
-
-		// Set email if provided
-		if email != nil && *email != "" {
-			newUser.Email = *email
-		}
-
-		// Set phone if provided
-		if phone != nil && *phone != "" {
-			newUser.Phone = *phone
-		}
-
-		createdUser, txErr = txUserRepo.Create(newUser)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Record password history
-		// Use the transaction-scoped repo: the base repo writes on a separate
-		// connection where the user row is not yet committed, so the
-		// user_password_history FK fails and the entry is lost. Returning the
-		// error rolls the whole registration back rather than creating a user
-		// whose first password is not in their reuse history.
-		if s.passwordHistoryRepo != nil {
-			if txErr = secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), createdUser.UserID, policy.HistoryCount, string(hashed)); txErr != nil {
-				return apperror.NewInternal("failed to record password history", txErr)
-			}
-		}
-
-		// Create user identity
-		userIdentity := &UserIdentity{
-			TenantID:           tenantId,
-			UserID:             createdUser.UserID,
-			ClientID:           Client.ClientID,
-			IdentityProviderID: clientIdentityProviderIDPtr(Client),
-			Provider:           shared.ProviderMaintainerd,
-			Sub:                uuid.New().String(),
-			Metadata:           datatypes.JSON([]byte(`{}`)),
-		}
-
-		_, txErr = txUserIdentityRepo.Create(userIdentity)
-		if txErr != nil {
-			return txErr
-		}
-		userIdentitySub = userIdentity.Sub
-
-		// Assign the system default registration role.
-		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Assign default role to user
-		userRole := &UserRole{
-			UserID: createdUser.UserID,
-			RoleID: defaultRole.RoleID,
-		}
-		_, txErr = txUserRoleRepo.Create(userRole)
-		if txErr != nil {
-			return txErr
-		}
-		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, registrationFlow); txErr != nil {
-			return txErr
-		}
-		if s.consentRecorder != nil {
-			_ = s.consentRecorder.Record(ctx, tx, createdUser.UserID, tenantId, "terms_of_service", "1.0", middleware.ClientIPFromContext(ctx), "")
-		}
-
-		return nil // commit transaction
-	})
-
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "register failed")
-		return nil, err
-	}
-
-	// Trigger email verification if the tenant policy requires it.
-	if email != nil && *email != "" && needEmailVerification && s.emailVerificationSvc != nil {
-		if _, err := s.emailVerificationSvc.SendVerificationEmail(ctx, *email, clientID, tenantID); err != nil {
-			slog.Warn("failed to send verification email during registration", "email", *email, "err", err)
-		}
-	}
-
-	span.SetStatus(codes.Ok, "")
-	// Return token response
 	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 
@@ -932,11 +761,14 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Create user identity
+		identityProviderID, idpErr := clientIdentityProviderID(Client)
+		if idpErr != nil {
+			return idpErr
+		}
 		userIdentity := &UserIdentity{
 			TenantID:           tenantId,
 			UserID:             createdUser.UserID,
-			ClientID:           Client.ClientID,
-			IdentityProviderID: clientIdentityProviderIDPtr(Client),
+			IdentityProviderID: identityProviderID,
 			Provider:           shared.ProviderMaintainerd,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
@@ -988,189 +820,6 @@ func (s *registerService) RegisterInvitePublic(
 
 	span.SetStatus(codes.Ok, "")
 	// Return token response
-	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
-}
-
-// RegisterInvite registers new users via invite token for internal applications.
-// Unlike RegisterInvitePublic, clientID and tenantID are optional (pointer params).
-// When nil, the system client is resolved from the invite's tenant.
-// Used by internal applications on port 8080.
-func (s *registerService) RegisterInvite(
-	ctx context.Context,
-	username,
-	password string,
-	clientID,
-	tenantID *string,
-	inviteToken string,
-) (*RegisterResponseDTO, error) {
-	_, span := otel.Tracer("service").Start(ctx, "register.invite")
-	defer span.End()
-
-	var createdUser *User
-	var Client *Client
-	var userIdentitySub string
-
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txUserRepo := s.userRepo.WithTx(tx)
-		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
-		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
-		txInviteRepo := s.inviteRepo.WithTx(tx)
-		txClientRepo := s.clientRepo.WithTx(tx)
-		txRoleRepo := s.roleRepo.WithTx(tx)
-
-		invite, txErr := txInviteRepo.FindByTokenForUpdate(inviteToken)
-		if txErr != nil {
-			return apperror.NewUnauthorized("invalid invite token")
-		}
-		if invite == nil {
-			return apperror.NewNotFound("invite not found")
-		}
-
-		if invite.Status != shared.StatusPending {
-			return apperror.NewUnauthorized("invite has already been used or is no longer valid")
-		}
-		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
-			return apperror.NewUnauthorized("invite has expired")
-		}
-
-		if clientID != nil || tenantID != nil {
-			Client, txErr = resolveClient(txClientRepo, clientID, tenantID)
-			if txErr != nil {
-				return txErr
-			}
-		} else {
-			Client, txErr = txClientRepo.FindSystem()
-			if txErr != nil {
-				return txErr
-			}
-		}
-
-		if Client == nil ||
-			Client.Status != shared.StatusActive ||
-			Client.Domain == nil || *Client.Domain == "" {
-			return apperror.NewValidation("invalid or inactive auth client")
-		}
-		if invite.TenantID == 0 || clientTenantID(Client) != invite.TenantID {
-			return apperror.NewUnauthorized("invite does not belong to the auth client tenant")
-		}
-		inviteFlow, txErr := s.validateInviteRegistrationFlow(tx, invite)
-		if txErr != nil {
-			return txErr
-		}
-
-		tenantId := invite.TenantID
-
-		existingUser, txErr := txUserRepo.FindByUsernameAndTenantID(username, tenantId)
-		if txErr != nil {
-			return txErr
-		}
-		if existingUser != nil {
-			return apperror.NewConflict("username already taken")
-		}
-
-		// blocked_email_domains is a hard org policy enforced on every
-		// provisioning path, invites included (see RegisterInvitePublic).
-		if secpolicy.LoadRegistrationPolicy(s.securitySettingRepo, tenantId).EmailDomainBlocked(invite.InvitedEmail) {
-			return apperror.NewValidation("email domain is not permitted")
-		}
-
-		existingEmailUser, txErr := txUserRepo.FindByEmailAndTenantID(invite.InvitedEmail, tenantId)
-		if txErr != nil {
-			return txErr
-		}
-		if existingEmailUser != nil {
-			return apperror.NewConflict("invited email already registered")
-		}
-
-		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = secValidatePasswordPolicy(ctx, password, policy); txErr != nil {
-			return apperror.NewValidation(txErr.Error())
-		}
-
-		hashed, txErr := secHashPasswordWithPolicy(ctx, []byte(password), policy)
-		if txErr != nil {
-			return txErr
-		}
-
-		now := time.Now()
-		newUser := &User{
-			TenantID:          tenantId,
-			Username:          username,
-			Email:             invite.InvitedEmail,
-			Password:          ptr.Ptr(string(hashed)),
-			Status:            shared.StatusActive,
-			IsEmailVerified:   true,
-			PasswordChangedAt: &now,
-		}
-
-		createdUser, txErr = txUserRepo.Create(newUser)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Use the transaction-scoped repo: the base repo writes on a separate
-		// connection where the user row is not yet committed, so the
-		// user_password_history FK fails and the entry is lost. Returning the
-		// error rolls the whole registration back rather than creating a user
-		// whose first password is not in their reuse history.
-		if s.passwordHistoryRepo != nil {
-			if txErr = secpolicy.RecordPasswordHistory(s.passwordHistoryRepo.WithTx(tx), createdUser.UserID, policy.HistoryCount, string(hashed)); txErr != nil {
-				return apperror.NewInternal("failed to record password history", txErr)
-			}
-		}
-
-		userIdentity := &UserIdentity{
-			TenantID:           tenantId,
-			UserID:             createdUser.UserID,
-			ClientID:           Client.ClientID,
-			IdentityProviderID: clientIdentityProviderIDPtr(Client),
-			Provider:           shared.ProviderMaintainerd,
-			Sub:                uuid.New().String(),
-			Metadata:           datatypes.JSON([]byte(`{}`)),
-		}
-
-		_, txErr = txUserIdentityRepo.Create(userIdentity)
-		if txErr != nil {
-			return txErr
-		}
-		userIdentitySub = userIdentity.Sub
-
-		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
-		if txErr != nil {
-			return txErr
-		}
-
-		defaultUserRole := &UserRole{
-			UserID: createdUser.UserID,
-			RoleID: defaultRole.RoleID,
-		}
-		_, txErr = txUserRoleRepo.Create(defaultUserRole)
-		if txErr != nil {
-			return txErr
-		}
-
-		if txErr = s.assignRegistrationFlowRoles(tx, txUserRoleRepo, createdUser.UserID, defaultRole.RoleID, inviteFlow); txErr != nil {
-			return txErr
-		}
-		if s.consentRecorder != nil {
-			_ = s.consentRecorder.Record(ctx, tx, createdUser.UserID, tenantId, "terms_of_service", "1.0", middleware.ClientIPFromContext(ctx), "")
-		}
-
-		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)
-		if txErr != nil {
-			return txErr
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "register invite failed")
-		return nil, err
-	}
-
-	span.SetStatus(codes.Ok, "")
 	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 

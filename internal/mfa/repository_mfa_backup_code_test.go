@@ -1,13 +1,13 @@
 package mfa
 
 import (
-	"errors"
+	"reflect"
+	"strings"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestUserMFABackupCodeRepository(t *testing.T) {
@@ -41,23 +41,19 @@ func TestUserMFABackupCodeRepository(t *testing.T) {
 		assertExpectationsMet(t, mock)
 	})
 
-	t.Run("FindByUserIDAndCodeHash success not found and error", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		expectMFASelect(mock, "user_mfa_backup_codes").WillReturnRows(userBackupCodeRows())
-		expectMFASelect(mock, "user_mfa_backup_codes").WillReturnError(gorm.ErrRecordNotFound)
-		expectMFASelect(mock, "user_mfa_backup_codes").WillReturnError(errors.New("db error"))
-		repo := NewUserMFABackupCodeRepository(db)
-
-		got, err := repo.FindByUserIDAndCodeHash(mfaTestUserID, "hash")
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		got, err = repo.FindByUserIDAndCodeHash(mfaTestUserID, "hash")
-		require.NoError(t, err)
-		assert.Nil(t, got)
-		got, err = repo.FindByUserIDAndCodeHash(mfaTestUserID, "hash")
-		require.Error(t, err)
-		assert.Nil(t, got)
-		assertExpectationsMet(t, mock)
+	// Inverted from "FindByUserIDAndCodeHash success not found and error", which
+	// asserted that a `code_hash = ?` equality lookup worked. Backup codes are
+	// stored bcrypt-hashed, so that lookup can never match a row — the old test
+	// was encoding the split-hash scheme that made recovery permanently
+	// impossible. Redemption goes through FindUnusedByUserID +
+	// bcrypt.CompareHashAndPassword, so the equality lookup must stay gone.
+	t.Run("no code-hash equality lookup is exposed", func(t *testing.T) {
+		repoType := reflect.TypeOf((*UserMFABackupCodeRepository)(nil)).Elem()
+		for i := range repoType.NumMethod() {
+			name := repoType.Method(i).Name
+			assert.False(t, strings.Contains(name, "CodeHash"),
+				"%s reintroduces hash-equality redemption; use FindUnusedByUserID + bcrypt compare", name)
+		}
 	})
 
 	t.Run("MarkUsed and DeleteAllByUserID mutate rows", func(t *testing.T) {

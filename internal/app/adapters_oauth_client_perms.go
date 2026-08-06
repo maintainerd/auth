@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -24,12 +25,13 @@ func (r *clientPermissionResolver) ResolvePermissions(ctx context.Context, clien
 		Select("DISTINCT p.name").
 		Joins("JOIN permissions p ON client_permissions.permission_id = p.permission_id").
 		Joins("JOIN client_apis ca ON client_permissions.client_api_id = ca.client_api_id").
-		// p.deleted_at IS NULL is REQUIRED: this is a raw Table() join, so GORM's
-		// soft-delete scope does not apply. Without it a deleted permission kept
-		// being written into every access token — deleting a permission did not
-		// revoke it. The sibling resolvers in adapters_idp.go:268 and
-		// adapters_authn_invite.go:94 already filter; this path did not.
-		Where("ca.client_id = ? AND p.deleted_at IS NULL", clientID).
+		// The permission-status filters are REQUIRED: this is a raw Table() join,
+		// so GORM's soft-delete scope does not apply. Without them a deleted or
+		// deactivated permission kept being written into every machine token —
+		// deleting or deactivating a permission did not revoke it. The sibling
+		// resolvers in adapters_idp.go and adapters_authn_invite.go already
+		// filter; this path did not.
+		Where("ca.client_id = ? AND p.deleted_at IS NULL AND p.status = ?", clientID, shared.StatusActive).
 		Rows()
 	if err != nil {
 		return nil, err
@@ -43,13 +45,25 @@ func (r *clientPermissionResolver) ResolvePermissions(ctx context.Context, clien
 		names = append(names, name)
 	}
 
-	// Role-inherited permissions via client_roles → role_permissions → permissions
+	// Role-inherited permissions via client_roles → role_permissions → permissions.
+	//
+	// The roles table has to be joined even though role_id is already on
+	// client_roles: without it nothing filters roles.deleted_at / roles.status,
+	// so a soft-deleted or deactivated role kept granting every permission it
+	// carried in every client_credentials token. client_roles has no deleted_at
+	// of its own, so deleting the role IS the only way to revoke the grant —
+	// which made this the whole revocation path for machine clients. The user
+	// path (iamUserRepo.EffectivePermissionNames) filters exactly these columns;
+	// the machine path must match it or the two disagree about what a role means.
 	roleRows, err := r.db.WithContext(ctx).
 		Table("client_roles").
 		Select("DISTINCT p.name").
-		Joins("JOIN role_permissions rp ON client_roles.role_id = rp.role_id").
+		Joins("JOIN roles r ON client_roles.role_id = r.role_id").
+		Joins("JOIN role_permissions rp ON r.role_id = rp.role_id").
 		Joins("JOIN permissions p ON rp.permission_id = p.permission_id").
-		Where("client_roles.client_id = ? AND p.deleted_at IS NULL", clientID).
+		Where("client_roles.client_id = ?", clientID).
+		Where("r.deleted_at IS NULL AND r.status = ?", shared.StatusActive).
+		Where("p.deleted_at IS NULL AND p.status = ?", shared.StatusActive).
 		Rows()
 	if err != nil {
 		return nil, err

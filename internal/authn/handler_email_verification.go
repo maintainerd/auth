@@ -45,19 +45,6 @@ func (h *EmailVerificationHandler) SendVerificationEmailPublic(w http.ResponseWr
 	h.handleSendVerification(w, r, clientID, tenantID, startTime, sc)
 }
 
-// SendVerificationEmail handles tenant-scoped internal resend requests.
-func (h *EmailVerificationHandler) SendVerificationEmail(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-	sc := extractSecurityContext(r)
-
-	tenantID := r.URL.Query().Get("tenant_id")
-	if tenantID == "" || r.URL.Query().Get("client_id") != "" {
-		resp.Error(w, http.StatusBadRequest, "Internal email verification requires tenant_id and does not accept client_id")
-		return
-	}
-	h.handleSendVerification(w, r, nil, &tenantID, startTime, sc)
-}
-
 func (h *EmailVerificationHandler) handleSendVerification(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -159,15 +146,6 @@ func (h *EmailVerificationHandler) VerifyEmailPublic(w http.ResponseWriter, r *h
 		return
 	}
 	h.verifyEmail(w, r, clientID, tenantID)
-}
-
-func (h *EmailVerificationHandler) VerifyEmailInternal(w http.ResponseWriter, r *http.Request) {
-	clientID, tenantID := optionalClientQuery(r)
-	if tenantID == nil || clientID != nil {
-		resp.Error(w, http.StatusBadRequest, "Internal email verification requires tenant_id and does not accept client_id")
-		return
-	}
-	h.verifyEmail(w, r, nil, tenantID)
 }
 
 func (h *EmailVerificationHandler) verifyEmail(w http.ResponseWriter, r *http.Request, clientID, tenantID *string) {

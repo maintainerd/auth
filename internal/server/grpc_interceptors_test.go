@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -25,6 +26,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
@@ -308,7 +310,7 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		assert.Equal(t, "svc:svc", grpcPrincipalKey(nilClaims("subj", "svc", "client")))
 
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer invalid"))
-		_, err := grpcJWTClaims(ctx)
+		_, err := grpcVerifiedCaller(ctx)
 		assert.Equal(t, codes.Unauthenticated, status.Code(err))
 
 		logGRPC(peer.NewContext(context.Background(), &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1")}}), "/svc/Ok", time.Now(), nil)
@@ -414,6 +416,10 @@ func TestGRPCTLSConfig(t *testing.T) {
 		config.GRPCClientCAFile = origCA
 		config.GRPCRequireMTLS = origMTLS
 	})
+	// These cover the NON-control-plane listener, where GRPC_REQUIRE_MTLS is still
+	// the operator's choice. The control-plane cases, where it is not, are in
+	// TestControlPlaneRequiresMutualTLS.
+	withControlPlaneConfig(t, false, config.InstanceRoleRegular)
 
 	t.Run("development without cert allows plaintext", func(t *testing.T) {
 		config.AppEnv = "development"
@@ -516,6 +522,7 @@ func TestGRPCServerOptions(t *testing.T) {
 		config.GRPCTLSCertFile = origCert
 		config.GRPCTLSKeyFile = origKey
 	})
+	withControlPlaneConfig(t, false, config.InstanceRoleRegular)
 
 	config.AppEnv = "development"
 	config.GRPCTLSCertFile = ""
@@ -540,7 +547,15 @@ func TestGRPCServerOptions(t *testing.T) {
 	require.Error(t, err)
 }
 
+// Both of these used to run with gRPC bound unconditionally and served in the
+// clear. Inverted: the listener now exists only with the control plane enabled,
+// and enabling it makes mutual TLS mandatory, so the setup each test needs is
+// itself the assertion that the default posture changed.
 func TestStartGRPCServer_ListenError(t *testing.T) {
+	withSystemControlPlane(t)
+	material := writeMTLSMaterial(t)
+	withTLSConfig(t, material.serverCertFile, material.serverKeyFile, material.caFile, true)
+
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		t.Skipf("default gRPC port already unavailable: %v", err)
@@ -553,17 +568,10 @@ func TestStartGRPCServer_ListenError(t *testing.T) {
 }
 
 func TestStartGRPCServer_Success(t *testing.T) {
-	origEnv := config.AppEnv
-	origCert := config.GRPCTLSCertFile
-	origKey := config.GRPCTLSKeyFile
-	t.Cleanup(func() {
-		config.AppEnv = origEnv
-		config.GRPCTLSCertFile = origCert
-		config.GRPCTLSKeyFile = origKey
-	})
+	withSystemControlPlane(t)
+	material := writeMTLSMaterial(t)
+	withTLSConfig(t, material.serverCertFile, material.serverKeyFile, material.caFile, true)
 	config.AppEnv = "development"
-	config.GRPCTLSCertFile = ""
-	config.GRPCTLSKeyFile = ""
 
 	conn, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -575,8 +583,14 @@ func TestStartGRPCServer_Success(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- StartGRPCServer(ctx, &Application{}) }()
 
+	clientCreds := credentials.NewTLS(&tls.Config{
+		RootCAs:      material.caPool,
+		Certificates: []tls.Certificate{material.clientCert},
+		ServerName:   "localhost",
+		MinVersion:   tls.VersionTLS12,
+	})
 	require.Eventually(t, func() bool {
-		c, err := grpc.NewClient("127.0.0.1:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+		c, err := grpc.NewClient("127.0.0.1:50051", grpc.WithTransportCredentials(clientCreds))
 		if err != nil {
 			return false
 		}
@@ -724,10 +738,17 @@ func initServerTestJWTKeys(t *testing.T) {
 		config.JWTPrivateKey = origPriv
 		config.JWTPublicKey = origPub
 		jwt.ResetJWTKeys()
+		jwt.ResetAcceptedIssuers()
 	})
 	config.JWTPrivateKey = privPEM
 	config.JWTPublicKey = pubPEM
 	require.NoError(t, jwt.InitJWTKeys())
+
+	// jwt.validateIssuerClaim fails CLOSED on an empty allowlist — it then
+	// accepts only APP_PUBLIC_HOSTNAME, which is unset in a test binary — so the
+	// issuer these tests mint tokens under has to be registered the way a
+	// deployment registers its client domains at boot.
+	jwt.SetAcceptedIssuers([]string{"https://auth.example.com"})
 }
 
 type mockGRPCAuthz struct {

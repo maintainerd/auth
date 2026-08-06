@@ -129,10 +129,18 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 }
 
 func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+	// Required, exactly as in FindPaginated: this query had no tenant predicate at
+	// all, so GET /policies/{uuid}/services returned another tenant's service
+	// names, UUIDs and descriptions whenever the policy UUID reached it.
+	if filter.TenantID == nil || *filter.TenantID == 0 {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
 	query := r.DB().Model(&Service{}).
 		Joins("INNER JOIN service_policies ON services.service_id = service_policies.service_id").
 		Joins("INNER JOIN policies ON service_policies.policy_id = policies.policy_id").
-		Where("policies.policy_uuid = ?", policyUUID)
+		Where("policies.policy_uuid = ?", policyUUID).
+		Where("services.tenant_id = ?", *filter.TenantID)
 
 	// Apply filters with LIKE
 	query = database.ApplyILike(query, "services.name", filter.Name)

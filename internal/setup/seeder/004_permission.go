@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	clientmodel "github.com/maintainerd/maintainerd-auth/internal/client"
 	model "github.com/maintainerd/maintainerd-auth/internal/iam"
 	"gorm.io/gorm"
 )
@@ -15,6 +16,11 @@ import (
 var systemOnlyPermissions = []string{
 	"tenant:create",
 	"tenant:delete",
+	// The signing-key surface is deployment-global, not tenant-scoped: Rotate
+	// mints the tenant_id IS NULL key, and Retire/MarkCompromised resolve a bare
+	// kid with no tenant predicate. Seeding this into an ordinary tenant would let
+	// its admin disown the key every other tenant's tokens verify against.
+	"security:rotate-keys",
 }
 
 func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
@@ -22,7 +28,7 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 	permissions := defaultPermissions(tenantID, apiID)
 
 	for _, perm := range permissions {
-		if !sysCheck && slices.Contains(systemOnlyPermissions, perm.Name) {
+		if !isSeedableForTenant(perm.Name, sysCheck) {
 			slog.Info("Skipping system-only permission for non-system tenant", "name", perm.Name, "tenant_id", tenantID)
 			continue
 		}
@@ -43,6 +49,84 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 		slog.Info("Permission seeded", "name", perm.Name)
 	}
 
+	return pruneRetiredPermissions(db, tenantID, sysCheck)
+}
+
+// isSeedableForTenant reports whether this tenant is entitled to the name.
+// Seeding and pruning both route through it so the two cannot drift: a name the
+// seeder refuses to create for a tenant is a name the prune must remove from it,
+// not one the prune quietly treats as legitimate.
+func isSeedableForTenant(name string, systemTenant bool) bool {
+	return systemTenant || !slices.Contains(systemOnlyPermissions, name)
+}
+
+// retainedPermissionNames is the catalog as it applies to one tenant: exactly
+// the names SeedPermissions would create for it, and therefore exactly the names
+// pruneRetiredPermissions must leave alone. The tenant/api IDs are irrelevant
+// here — only the names are.
+func retainedPermissionNames(systemTenant bool) []string {
+	catalog := defaultPermissions(0, 0)
+	names := make([]string, 0, len(catalog))
+	for _, perm := range catalog {
+		if !isSeedableForTenant(perm.Name, systemTenant) {
+			continue
+		}
+		names = append(names, perm.Name)
+	}
+	return names
+}
+
+// pruneRetiredPermissions soft-deletes the seeded permissions a tenant still
+// holds that defaultPermissions no longer defines, after detaching them from
+// every role and client grant.
+//
+// The catalog is not append-only — names are retired whenever the guard they
+// described is deleted, renamed, or folded into a coarser one — but creation
+// alone never converges: a tenant bootstrapped by an older build keeps the
+// retired rows forever. That is the same false-assurance failure the catalog
+// shrink was meant to fix, only invisible: the console still lists
+// root:impersonate or audit:export, an administrator still composes a role out
+// of them, and the grant still authorises nothing. Seeding without pruning fixes
+// only databases that do not exist yet.
+//
+// Scope is deliberately narrow and one-directional. Only is_system rows are
+// touched, so permissions an operator minted through permission:create survive;
+// and the step only ever removes access, so a partial run cannot widen anyone's
+// authority.
+func pruneRetiredPermissions(db *gorm.DB, tenantID int64, systemTenant bool) error {
+	var retired []model.Permission
+	if err := db.
+		Where("tenant_id = ? AND is_system = ? AND name NOT IN ?", tenantID, true, retainedPermissionNames(systemTenant)).
+		Find(&retired).Error; err != nil {
+		return fmt.Errorf("failed to list retired permissions: %w", err)
+	}
+	if len(retired) == 0 {
+		return nil
+	}
+
+	ids := make([]int64, 0, len(retired))
+	names := make([]string, 0, len(retired))
+	for _, perm := range retired {
+		ids = append(ids, perm.PermissionID)
+		names = append(names, perm.Name)
+	}
+
+	// Detach before deleting. The permission row is soft-deleted, so the
+	// ON DELETE CASCADE on role_permissions.permission_id and
+	// client_permissions.permission_id never fires; leaving the join rows behind
+	// would keep a retired name inside a role's membership and inside a client's
+	// granted API permissions, which is exactly the grant being withdrawn.
+	if err := db.Where("permission_id IN ?", ids).Delete(&model.RolePermission{}).Error; err != nil {
+		return fmt.Errorf("failed to detach retired permissions from roles: %w", err)
+	}
+	if err := db.Where("permission_id IN ?", ids).Delete(&clientmodel.ClientPermission{}).Error; err != nil {
+		return fmt.Errorf("failed to detach retired permissions from clients: %w", err)
+	}
+	if err := db.Where("permission_id IN ?", ids).Delete(&model.Permission{}).Error; err != nil {
+		return fmt.Errorf("failed to prune retired permissions: %w", err)
+	}
+
+	slog.Warn("Retired permissions pruned", "tenant_id", tenantID, "count", len(names), "names", names)
 	return nil
 }
 
@@ -54,44 +138,34 @@ func isSystemTenant(db *gorm.DB, tenantID int64) bool {
 	return result.IsSystem
 }
 
+// defaultPermissions is the seeded permission catalog.
+//
+// INVARIANT: every name here is enforced by a real guard — a
+// PermissionMiddleware on an HTTP route or an entry in
+// internal/server/grpc_permissions.go — and every guarded name is listed here.
+// TestSeededPermissionsMatchEnforcedPermissions holds both directions.
+//
+// The catalog used to carry ~73 aspirational names (root:impersonate,
+// user:disable, user:role:assign, security:session:terminate:any, audit:export,
+// the whole notification:*/system:*/settings:{read,update,*:any}/public:*
+// families …) for endpoints that were never built or that are actually guarded
+// by a different name. Nothing rejected them, so an administrator could compose
+// a role out of them, hand it to an operator, and ship a permission grant that
+// authorised exactly nothing — the catalog was reporting an access-control
+// surface the server did not have. A permission an auditor can read but the
+// server never checks is worse than a missing one: it manufactures false
+// assurance. Names are added here only once something enforces them.
+//
+// This list is authoritative in both directions: SeedPermissions creates what is
+// missing and pruneRetiredPermissions withdraws what is no longer here, so a
+// tenant's seeded catalog converges on it rather than accumulating whatever
+// every past build once shipped.
 func defaultPermissions(tenantID, apiID int64) []model.Permission {
 	return []model.Permission{
-		// PUBLIC
-		// All public permissions are automatically assigned to all users.
-		// There may be changes on spefific routes that may no longer available a public in the future
-		// Like an organization may no longer accept any more registration and etc.
-		// Register
-		newPermission("public:register", "Register new user", tenantID, apiID),
-		newPermission("public:register:pre-check", "Check email/username availability", tenantID, apiID),
-
-		// Login
-		newPermission("public:login", "Login with username/email and password", tenantID, apiID),
-		newPermission("public:login:mfa-challenge", "Submit MFA code (TOTP, WebAuthn)", tenantID, apiID),
-
-		// Reset password
-		newPermission("public:request-password-reset", "Send password reset link", tenantID, apiID),
-		newPermission("public:reset-password", "Reset password using token", tenantID, apiID),
-
-		// Oauth2
-		newPermission("public:oauth2:redirect", "Redirect to identity provider (SSO login)", tenantID, apiID),
-		newPermission("public:oauth2:callback", "Handle OAuth2/OIDC callback", tenantID, apiID),
-		newPermission("public:oauth2:signup", "Auto-register via SSO", tenantID, apiID),
-
-		// Captcha
-		newPermission("public:captcha", "Get CAPTCHA token or image", tenantID, apiID),
-
-		// Configs
-		newPermission("public:config", "Return non-sensitive app config (branding, providers, etc.)", tenantID, apiID),
-		newPermission("public:health", "Public service health check", tenantID, apiID),
-
 		// PERSONAL PERMISSIONS
-		// All personal permissions are automatically assigned to all users.
-		// These permissions are for the users to be able to manage their own data
-		// Account Permission
-		newPermission("account:request-verify-email:self", "Request email verification", tenantID, apiID),
-		newPermission("account:verify-email:self", "Verify email", tenantID, apiID),
-		newPermission("account:request-verify-phone:self", "Request phone verification", tenantID, apiID),
-		newPermission("account:verify-phone:self", "Verify phone", tenantID, apiID),
+		// These permissions let a user manage their own data. They are granted to
+		// the "registered" role every user holds (see 009_role_permission.go).
+		// Account
 		newPermission("account:change-password:self", "Change password (requires old password)", tenantID, apiID),
 		newPermission("account:mfa:read:self", "Read own MFA status and factors", tenantID, apiID),
 		newPermission("account:mfa:enroll:self", "Enroll in MFA (TOTP/WebAuthn)", tenantID, apiID),
@@ -99,9 +173,7 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("account:mfa:verify:self", "Verify MFA challenge", tenantID, apiID),
 		newPermission("account:mfa:reset:self", "Reset own MFA (clear all own factors)", tenantID, apiID),
 
-		// Authentication
-		newPermission("account:auth:logout:self", "Logout from current session", tenantID, apiID),
-		newPermission("account:auth:refresh-token:self", "Refresh JWT using refresh token", tenantID, apiID),
+		// Sessions
 		newPermission("account:session:read:self", "List own active sessions", tenantID, apiID),
 		newPermission("account:session:terminate:self", "End own active sessions", tenantID, apiID),
 
@@ -110,33 +182,33 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("account:identity:link:self", "Link a new identity to own account", tenantID, apiID),
 		newPermission("account:identity:unlink:self", "Unlink an identity from own account", tenantID, apiID),
 
-		// Token Permissions
-		newPermission("account:token:create:self", "Create API or personal access token", tenantID, apiID),
-		newPermission("account:token:read:self", "List own tokens", tenantID, apiID),
-		newPermission("account:token:revoke:self", "Revoke own token", tenantID, apiID),
-
-		// User data Permissions
+		// User data
 		newPermission("account:user:read:self", "Get own user data", tenantID, apiID),
 		newPermission("account:user:update:self", "Update user info", tenantID, apiID),
 		newPermission("account:user:delete:self", "Delete own account", tenantID, apiID),
-		newPermission("account:user:disable:self", "Temporarily disable own account", tenantID, apiID),
 
-		// Profile permissions
+		// Profile
 		newPermission("account:profile:read:self", "Get own profile data", tenantID, apiID),
 		newPermission("account:profile:update:self", "Update profile info", tenantID, apiID),
 		newPermission("account:profile:delete:self", "Delete own profile", tenantID, apiID),
 
-		// Activity Logs
-		newPermission("account:audit:read:self", "View own activity logs", tenantID, apiID),
+		// Personal settings
+		newPermission("settings:read:self", "Read personal settings (e.g., theme, language, layout)", tenantID, apiID),
+		newPermission("settings:update:self", "Update personal preferences", tenantID, apiID),
 
 		// STRICT PERMISSIONS
-		// These are permissions are assigned only to speicif users that have elevated access
+		// Management-plane access, assigned only to elevated roles.
 		// TENANT LEVEL ACCESS
 		// Tenants
 		newPermission("tenant:read", "Read tenants", tenantID, apiID),
 		newPermission("tenant:create", "Create tenant", tenantID, apiID),
 		newPermission("tenant:update", "Update tenant", tenantID, apiID),
 		newPermission("tenant:delete", "Delete tenant", tenantID, apiID),
+
+		// Tenant members
+		// Gates the membership-candidate picker the console reads before adding a
+		// member; the write itself is a tenant:update.
+		newPermission("tenant:member:create", "Browse candidates for tenant membership", tenantID, apiID),
 
 		// SERVICE LEVEL ACCESS
 		// Services
@@ -171,10 +243,8 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("role:create", "Create a new role", tenantID, apiID),
 		newPermission("role:update", "Update role", tenantID, apiID),
 		newPermission("role:delete", "Delete a role", tenantID, apiID),
-		newPermission("role:assign", "Assign roles to users", tenantID, apiID),
 		newPermission("role:permission:create", "Add permissions to role", tenantID, apiID),
 		newPermission("role:permission:delete", "Remove permissions from role", tenantID, apiID),
-		newPermission("role:restrict-super-admin", "Prevent elevation to critical roles", tenantID, apiID),
 
 		// Identity Providers
 		newPermission("idp:read", "Read identity providers", tenantID, apiID),
@@ -216,23 +286,22 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("client:role:create", "Assign a role to a client", tenantID, apiID),
 		newPermission("client:role:delete", "Remove a role from a client", tenantID, apiID),
 
-		// User Pools
-
 		// User Administration
+		// Enabling/disabling a user, assigning roles, revoking sessions, resetting
+		// lockouts and unlinking identities are all guarded by user:update — there
+		// is deliberately no finer-grained name for them, because none is enforced.
 		newPermission("user:read", "Read users", tenantID, apiID),
 		newPermission("user:create", "Create user", tenantID, apiID),
-		newPermission("user:update", "Update user", tenantID, apiID),
+		newPermission("user:update", "Update user (status, roles, sessions, devices, identities)", tenantID, apiID),
 		newPermission("user:delete", "Delete user", tenantID, apiID),
-		newPermission("user:disable", "Disable user", tenantID, apiID),
-		newPermission("user:enable", "Re-enable user", tenantID, apiID),
-		newPermission("user:role:assign", "Assign role to a user", tenantID, apiID),
-		newPermission("user:role:remove", "Remove role from a user", tenantID, apiID),
 		newPermission("user:invite", "Invite user via email", tenantID, apiID),
 		newPermission("user:mfa:reset", "Reset a user's MFA (all factors or a single method)", tenantID, apiID),
 
 		// Auth Events (OWASP-compliant security event log)
-		newPermission("auth_event:read", "Read auth events", tenantID, apiID),
-		newPermission("auth_event:delete", "Delete auth events (retention)", tenantID, apiID),
+		newPermission("auth_event:read", "Read and export auth events", tenantID, apiID),
+
+		// Audit Logs
+		newPermission("audit:read", "Read management audit logs", tenantID, apiID),
 
 		// Registration flows (specialized registration presets)
 		newPermission("registration-flow:read", "Read registration flows", tenantID, apiID),
@@ -240,9 +309,15 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("registration-flow:update", "Update registration flow", tenantID, apiID),
 		newPermission("registration-flow:delete", "Delete registration flow", tenantID, apiID),
 
-		// Security Settings
+		// Security Settings (password, MFA, lockout, session, token, threat policy)
 		newPermission("security-setting:read", "Read security settings", tenantID, apiID),
 		newPermission("security-setting:update", "Update security settings", tenantID, apiID),
+
+		// Signing keys. Listed here only because the lifecycle endpoints now exist
+		// and guard on this name (oauth.OAuthInternalRouteWithKeys); while the
+		// guard existed and the row did not, list/rotate/retire/compromise 403'd
+		// every role including super-admin.
+		newPermission("security:rotate-keys", "List, rotate, retire and disown OAuth signing keys", tenantID, apiID),
 
 		// IP Restriction Rules
 		newPermission("ip-restriction-rule:read", "Read IP restriction rules", tenantID, apiID),
@@ -257,8 +332,6 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		// SMS Templates
 		newPermission("sms-template:read", "Read SMS templates", tenantID, apiID),
 		newPermission("sms-template:update", "Update SMS template", tenantID, apiID),
-
-		// Login Templates
 
 		// Branding
 		newPermission("branding:read", "Read tenant branding", tenantID, apiID),
@@ -290,69 +363,6 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("workload-identity-federation:create", "Create workload identity federation", tenantID, apiID),
 		newPermission("workload-identity-federation:update", "Update workload identity federation", tenantID, apiID),
 		newPermission("workload-identity-federation:delete", "Delete workload identity federation", tenantID, apiID),
-
-		// OTHER PERMISSIONS
-		// Email
-		newPermission("email:read-config", "View email delivery config", tenantID, apiID),
-		newPermission("email:update-config", "Edit SMTP/provider settings", tenantID, apiID),
-		newPermission("email:template:update", "Customize templates", tenantID, apiID),
-		newPermission("email:send-verification", "Trigger email verification", tenantID, apiID),
-		newPermission("email:send-reset-password", "Trigger password reset email", tenantID, apiID),
-
-		// Notifications
-		newPermission("notification:read-settings", "Read user notification settings (e.g., enabled types, channels)", tenantID, apiID),
-		newPermission("notification:update-settings", "Update preferences (e.g., disable email for logins)", tenantID, apiID),
-		newPermission("notification:read-templates", "Read notification templates (admin only)", tenantID, apiID),
-		newPermission("notification:update-templates", "Update notification templates and content (admin only)", tenantID, apiID),
-		newPermission("notification:send:test", "Send a test notification (email, SMS, in-app)", tenantID, apiID),
-		newPermission("notification:send:custom", "Trigger custom or manual notifications (e.g., broadcast, maintenance notice)", tenantID, apiID),
-		newPermission("notification:read-log:self", "View notification history (e.g., email sent logs)", tenantID, apiID),
-		newPermission("notification:read-log:any", "View notifications sent to other users (admin only)", tenantID, apiID),
-		newPermission("notification:disable-channel", "Temporarily suppress delivery channels (e.g., pause email)", tenantID, apiID),
-		newPermission("notification:unsubscribe", "Allow user to unsubscribe from optional comms (e.g., marketing)", tenantID, apiID),
-
-		// User Settings
-		newPermission("settings:read:self", "Read personal settings (e.g., theme, language, layout)", tenantID, apiID),
-		newPermission("settings:update:self", "Update personal preferences", tenantID, apiID),
-		newPermission("settings:read:default", "Read system defaults or fallbacks", tenantID, apiID),
-		newPermission("settings:update-preferences", "Update stored preferences (e.g., time zone, date format)", tenantID, apiID),
-		newPermission("settings:update-theme", "Change visual theme (e.g., dark/light)", tenantID, apiID),
-		newPermission("settings:update-language", "Change language or locale", tenantID, apiID),
-		newPermission("settings:reset-self", "Reset user settings to defaults", tenantID, apiID),
-
-		// Settings (Admin)
-		newPermission("settings:read:any", "View another user's settings (for support tools)", tenantID, apiID),
-		newPermission("settings:update:any", "Edit another user's preferences (admin)", tenantID, apiID),
-		newPermission("settings:reset:any", "Reset settings for another user", tenantID, apiID),
-		newPermission("notification:reset-templates", "Revert templates to default", tenantID, apiID),
-		newPermission("notification:disable-system-wide", "Mute system-wide notifications (e.g., maintenance window)", tenantID, apiID),
-
-		// Audit Logs & Monitoring
-		newPermission("audit:read", "Read management audit logs", tenantID, apiID),
-		newPermission("audit:read:any", "View audit logs for all users", tenantID, apiID),
-		newPermission("audit:export", "Export logs for compliance", tenantID, apiID),
-		newPermission("system:health-check", "System health metrics", tenantID, apiID),
-		newPermission("system:metrics", "Service-level metrics", tenantID, apiID),
-		newPermission("system:trace-events", "Debug/trace-level logs (dev only)", tenantID, apiID),
-
-		// Security Policies
-		newPermission("security:policy:read", "View MFA, password, session policies", tenantID, apiID),
-		newPermission("security:policy:update", "Edit password rules, timeouts, etc.", tenantID, apiID),
-		newPermission("security:rotate-keys", "Rotate signing/encryption keys", tenantID, apiID),
-		newPermission("security:session:terminate:any", "Kill another user's session", tenantID, apiID),
-
-		// System / Developer Tools
-		newPermission("settings:read", "View system settings", tenantID, apiID),
-		newPermission("settings:update", "Update runtime settings", tenantID, apiID),
-		newPermission("system:reload-config", "Reload config files/env variables", tenantID, apiID),
-		newPermission("system:run-migrations", "Apply database migrations", tenantID, apiID),
-		newPermission("system:access-db-console", "DB shell/CLI access (dangerous)", tenantID, apiID),
-
-		// Root-Level (Super Admin Only)
-		newPermission("root:debug-mode", "Enable/disable debug mode", tenantID, apiID),
-		newPermission("root:access-env", "View environment variables", tenantID, apiID),
-		newPermission("root:impersonate", "Impersonate any user", tenantID, apiID),
-		newPermission("root:hard-delete-user", "Irrecoverably delete user & data", tenantID, apiID),
 	}
 }
 

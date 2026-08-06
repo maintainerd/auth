@@ -921,14 +921,7 @@ const file_maintainerd_auth_v1_webhook_proto_rawDesc = "" +
 	"tenantUuid\x122\n" +
 	"\x15webhook_endpoint_uuid\x18\x02 \x01(\tR\x13webhookEndpointUuid\"a\n" +
 	"\x1dDeleteWebhookEndpointResponse\x12@\n" +
-	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint2\x96\x06\n" +
-	"\x16WebhookEndpointService\x12{\n" +
-	"\x14ListWebhookEndpoints\x120.maintainerd.auth.v1.ListWebhookEndpointsRequest\x1a1.maintainerd.auth.v1.ListWebhookEndpointsResponse\x12u\n" +
-	"\x12GetWebhookEndpoint\x12..maintainerd.auth.v1.GetWebhookEndpointRequest\x1a/.maintainerd.auth.v1.GetWebhookEndpointResponse\x12~\n" +
-	"\x15CreateWebhookEndpoint\x121.maintainerd.auth.v1.CreateWebhookEndpointRequest\x1a2.maintainerd.auth.v1.CreateWebhookEndpointResponse\x12~\n" +
-	"\x15UpdateWebhookEndpoint\x121.maintainerd.auth.v1.UpdateWebhookEndpointRequest\x1a2.maintainerd.auth.v1.UpdateWebhookEndpointResponse\x12\x87\x01\n" +
-	"\x18SetWebhookEndpointStatus\x124.maintainerd.auth.v1.SetWebhookEndpointStatusRequest\x1a5.maintainerd.auth.v1.SetWebhookEndpointStatusResponse\x12~\n" +
-	"\x15DeleteWebhookEndpoint\x121.maintainerd.auth.v1.DeleteWebhookEndpointRequest\x1a2.maintainerd.auth.v1.DeleteWebhookEndpointResponseBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpointBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_webhook_proto_rawDescOnce sync.Once
@@ -973,20 +966,8 @@ var file_maintainerd_auth_v1_webhook_proto_depIdxs = []int32{
 	0,  // 8: maintainerd.auth.v1.UpdateWebhookEndpointResponse.endpoint:type_name -> maintainerd.auth.v1.WebhookEndpoint
 	0,  // 9: maintainerd.auth.v1.SetWebhookEndpointStatusResponse.endpoint:type_name -> maintainerd.auth.v1.WebhookEndpoint
 	0,  // 10: maintainerd.auth.v1.DeleteWebhookEndpointResponse.endpoint:type_name -> maintainerd.auth.v1.WebhookEndpoint
-	1,  // 11: maintainerd.auth.v1.WebhookEndpointService.ListWebhookEndpoints:input_type -> maintainerd.auth.v1.ListWebhookEndpointsRequest
-	3,  // 12: maintainerd.auth.v1.WebhookEndpointService.GetWebhookEndpoint:input_type -> maintainerd.auth.v1.GetWebhookEndpointRequest
-	5,  // 13: maintainerd.auth.v1.WebhookEndpointService.CreateWebhookEndpoint:input_type -> maintainerd.auth.v1.CreateWebhookEndpointRequest
-	7,  // 14: maintainerd.auth.v1.WebhookEndpointService.UpdateWebhookEndpoint:input_type -> maintainerd.auth.v1.UpdateWebhookEndpointRequest
-	9,  // 15: maintainerd.auth.v1.WebhookEndpointService.SetWebhookEndpointStatus:input_type -> maintainerd.auth.v1.SetWebhookEndpointStatusRequest
-	11, // 16: maintainerd.auth.v1.WebhookEndpointService.DeleteWebhookEndpoint:input_type -> maintainerd.auth.v1.DeleteWebhookEndpointRequest
-	2,  // 17: maintainerd.auth.v1.WebhookEndpointService.ListWebhookEndpoints:output_type -> maintainerd.auth.v1.ListWebhookEndpointsResponse
-	4,  // 18: maintainerd.auth.v1.WebhookEndpointService.GetWebhookEndpoint:output_type -> maintainerd.auth.v1.GetWebhookEndpointResponse
-	6,  // 19: maintainerd.auth.v1.WebhookEndpointService.CreateWebhookEndpoint:output_type -> maintainerd.auth.v1.CreateWebhookEndpointResponse
-	8,  // 20: maintainerd.auth.v1.WebhookEndpointService.UpdateWebhookEndpoint:output_type -> maintainerd.auth.v1.UpdateWebhookEndpointResponse
-	10, // 21: maintainerd.auth.v1.WebhookEndpointService.SetWebhookEndpointStatus:output_type -> maintainerd.auth.v1.SetWebhookEndpointStatusResponse
-	12, // 22: maintainerd.auth.v1.WebhookEndpointService.DeleteWebhookEndpoint:output_type -> maintainerd.auth.v1.DeleteWebhookEndpointResponse
-	17, // [17:23] is the sub-list for method output_type
-	11, // [11:17] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name
@@ -1008,7 +989,7 @@ func file_maintainerd_auth_v1_webhook_proto_init() {
 			NumEnums:      0,
 			NumMessages:   13,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_maintainerd_auth_v1_webhook_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_webhook_proto_depIdxs,

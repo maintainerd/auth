@@ -12,6 +12,17 @@ service SetupService {
   rpc CreateAdmin(CreateAdminRequest) returns (CreateAdminResponse);
   rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse);
   rpc RegisterControlService(RegisterControlServiceRequest) returns (RegisterControlServiceResponse);
+
+  // The Ensure* RPCs below configure everything an orchestrator (core) needs to
+  // control this instance permanently, and are reachable ONLY while setup is
+  // open. They are declarative get-or-create rather than Create*: a retry after
+  // a lost response re-sends the same request and gets the same object back, so
+  // an interrupted provision is resumable without a server-side replay ledger.
+  rpc EnsureControlClient(EnsureControlClientRequest) returns (EnsureControlClientResponse);
+  rpc EnsureResourceAPI(EnsureResourceAPIRequest) returns (EnsureResourceAPIResponse);
+  rpc EnsureRole(EnsureRoleRequest) returns (EnsureRoleResponse);
+  rpc EnsureConsoleClient(EnsureConsoleClientRequest) returns (EnsureConsoleClientResponse);
+
   rpc CompleteSetup(CompleteSetupRequest) returns (CompleteSetupResponse);
 }
 
@@ -96,6 +107,20 @@ message RegisterControlServiceRequest {
   string display_name = 2;
   string description = 3;
   string version = 4;
+
+  // allowed_actions is the control policy, supplied explicitly instead of read
+  // from a seeded row.
+  //
+  // It was a preseeded wildcard covering permission families that did not exist,
+  // which is a standing pre-authorisation: the day anyone added a guard in one of
+  // those families, every holder of the policy passed it without review. Supplied
+  // here, it is validated against the permissions that actually exist and is
+  // visible in the provisioning request that grants it.
+  //
+  // Empty means "the documented default control set", which excludes user:* and
+  // account:*:self — an orchestrator provisions tenants and their configuration
+  // and has no reason to hold every user in every tenant.
+  repeated string allowed_actions = 5;
 }
 
 message RegisterControlServiceResponse {
@@ -112,4 +137,120 @@ message CompleteSetupRequest {}
 
 message CompleteSetupResponse {
   bool is_setup_complete = 1;
+}
+
+// EnsureControlClient registers the machine client core authenticates as for
+// every call it makes after setup closes.
+//
+// Authentication is private_key_jwt (RFC 7523): core generates the keypair and
+// sends only its PUBLIC JWKS, so this service never holds a credential that
+// could impersonate core, and a dump of its database yields nothing usable.
+// It is also what makes this RPC safely retryable — there is no
+// returned-exactly-once secret to lose when a response goes missing.
+message EnsureControlClientRequest {
+  string name = 1;
+  string display_name = 2;
+
+  // service_name binds this client to the service principal registered by
+  // RegisterControlService, and is REQUIRED.
+  //
+  // The binding is what makes the client's tokens carry the `svc` claim, and the
+  // authorization interceptor resolves policies by that claim. Without it the
+  // orchestrator authenticates successfully and is then denied every
+  // permission-gated method, because its token names no principal the control
+  // policy is attached to.
+  string service_name = 6;
+
+  // jwks is core's PUBLIC JWK Set, serialized. Required: this service issues no
+  // secret, so a client with no verification key could never authenticate.
+  string jwks = 3;
+  // jwks_uri may be sent instead of jwks when core serves its keys over HTTPS,
+  // which lets core rotate keys without re-entering setup.
+  string jwks_uri = 4;
+
+  // audience is the API identifier tokens for this client are minted for. Empty
+  // means this instance's own management audience.
+  string audience = 5;
+}
+
+message EnsureControlClientResponse {
+  string client_uuid = 1;
+  string client_id = 2;
+  string token_endpoint_auth_method = 3;
+  string service_uuid = 4;
+  bool already_existed = 5;
+}
+
+// EnsureResourceAPI registers an API this instance protects on the orchestrator's
+// behalf, together with the permissions that API defines.
+//
+// Core is not only a client of this service, it is also a resource server: its
+// own users are authorized by permissions that live here. Registering the API at
+// setup is what lets core issue tokens whose audience is its own API and have
+// them carry meaningful scopes.
+message EnsureResourceAPIRequest {
+  string service_name = 1;
+  string service_display_name = 2;
+  string name = 3;
+  string display_name = 4;
+  // identifier is the API's audience value (aud) in issued tokens.
+  string identifier = 5;
+  repeated EnsureResourceAPIPermission permissions = 6;
+}
+
+message EnsureResourceAPIPermission {
+  string name = 1;
+  string description = 2;
+}
+
+message EnsureResourceAPIResponse {
+  string service_uuid = 1;
+  string api_uuid = 2;
+  string identifier = 3;
+  repeated string permission_names = 4;
+  bool already_existed = 5;
+}
+
+// EnsureRole creates a role carrying the given permissions and optionally grants
+// it to a user — how core gives its first administrator full access to itself.
+//
+// assign_to_user_uuid is a UUID rather than a username so it can only name a
+// principal the caller already created in this same setup window.
+message EnsureRoleRequest {
+  string name = 1;
+  string description = 2;
+  repeated string permission_names = 3;
+  string assign_to_user_uuid = 4;
+}
+
+message EnsureRoleResponse {
+  string role_uuid = 1;
+  string name = 2;
+  repeated string permission_names = 3;
+  bool assigned = 4;
+  bool already_existed = 5;
+}
+
+// EnsureConsoleClient registers the browser application core's operators sign in
+// to, which authenticates against this service over OIDC.
+//
+// It is a PUBLIC client: a single-page app cannot keep a secret, so it uses
+// authorization_code with PKCE (S256) and no credential at all. Issuing a secret
+// here would be worse than useless — it would ship in the bundle.
+message EnsureConsoleClientRequest {
+  string name = 1;
+  string display_name = 2;
+  // domain is the site the app is served from; it also decides first-party
+  // status, which is registrable-domain based.
+  string domain = 3;
+  repeated string redirect_uris = 4;
+  repeated string post_logout_redirect_uris = 5;
+}
+
+message EnsureConsoleClientResponse {
+  string client_uuid = 1;
+  string client_id = 2;
+  repeated string redirect_uris = 3;
+  repeated string post_logout_redirect_uris = 4;
+  bool already_existed = 5;
 }
