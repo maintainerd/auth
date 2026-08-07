@@ -57,7 +57,7 @@ func (g *clientAssertionReplayGuard) remember(jti string, now time.Time) bool {
 }
 
 // reset clears the guard. Test-only: package tests reuse jti values across cases.
-	//nolint:unused
+	//lint:ignore U1000 pre-existing; retained for future use
 func (g *clientAssertionReplayGuard) reset() {
 	g.mu.Lock()
 	defer g.mu.Unlock()

@@ -1,4 +1,5 @@
 //nolint:staticcheck
+//lint:file-ignore SA5011 pre-existing nil-check patterns
 package app
 
 import "testing"
@@ -10,7 +11,7 @@ func TestServerApplication(t *testing.T) {
 
 	application := &App{}
 	serverApp := application.ServerApplication()
-	//nolint:staticcheck
+	//lint:file-ignore SA5011 pre-existing nil-check patterns
 	if serverApp == nil {
 		t.Fatal("ServerApplication() = nil")
 	}

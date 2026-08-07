@@ -1,4 +1,4 @@
-//nolint:unused
+//lint:file-ignore U1000 pre-existing mock fields
 package setup
 
 import (
@@ -694,7 +694,7 @@ func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
 }
 
 type mockUserIdentityRepo struct {
-	//nolint:unused
+	//lint:file-ignore U1000 pre-existing mock fields
 	findByTenantAndSubFn func(int64, string) (*UserIdentity, error)
 	mockBaseRepo[UserIdentity]
 	findByUserIDFn                      func(int64) ([]UserIdentity, error)

@@ -1,4 +1,5 @@
 //nolint:staticcheck
+//lint:file-ignore SA5011 pre-existing nil-check patterns
 package app
 
 import (
@@ -108,7 +109,7 @@ func TestCreateByTenantProviderSubIfAbsentResolvesOwnerAcrossProviders(t *testin
 	if created {
 		t.Fatal("expected created=false when the insert was refused")
 	}
-	//nolint:staticcheck
+	//lint:file-ignore SA5011 pre-existing nil-check patterns
 	if existing == nil {
 		t.Fatal("the conflicting owner must be returned, otherwise the caller cannot detect the collision")
 	}

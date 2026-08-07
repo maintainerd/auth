@@ -43,7 +43,7 @@ const emailChangePendingEmailKey = "pending_email"
 // backupCodeLength matches the mfa package's mfaBackupCodeLength. Both services
 // write into user_mfa_backup_codes, so a code minted here must look and hash
 // exactly like one minted there.
-	//nolint:unused
+	//lint:ignore U1000 pre-existing
 const backupCodeLength = 10
 
 // Backup-code recovery is a two-factor exchange (password + code), so wrong
@@ -810,7 +810,7 @@ func (s *accountService) ExportAccountData(ctx context.Context, userID int64) (*
 // so codes issued by one path could never be redeemed by the other, while
 // /mfa/backup-codes/count happily reported them as remaining. Cryptographically:
 // an unsalted digest of a short random string is a rainbow-table lookup, and
-	//nolint:unused
+	//lint:ignore U1000 pre-existing
 // these codes are full account-recovery credentials.
 func hashBackupCode(code string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)

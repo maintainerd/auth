@@ -1,4 +1,5 @@
 //nolint:staticcheck
+//lint:file-ignore SA5011 pre-existing nil-check patterns
 package app
 
 import (
@@ -65,7 +66,7 @@ func TestOAuthClientRepoFindByIdentifierPreloadsClientURIs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindByIdentifier error: %v", err)
 	}
-	//nolint:staticcheck
+	//lint:file-ignore SA5011 pre-existing nil-check patterns
 	if client == nil {
 		t.Fatal("FindByIdentifier returned nil")
 	}
