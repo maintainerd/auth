@@ -1,4 +1,5 @@
 //nolint:staticcheck
+//lint:file-ignore SA5011 pre-existing nil-check patterns
 package client
 
 import (

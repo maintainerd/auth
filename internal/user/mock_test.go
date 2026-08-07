@@ -1,4 +1,4 @@
-//nolint:unused
+//lint:file-ignore U1000 pre-existing mock helpers and struct fields
 package user
 
 import (
@@ -621,7 +621,6 @@ func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tenantID int64) (*Ident
 
 type mockUserIdentityRepo struct {
 	findByTenantAndSubFn func(int64, string) (*UserIdentity, error)
-	//nolint:unused
 	mockBaseRepo[UserIdentity]
 	findByUserIDFn                func(int64) ([]UserIdentity, error)
 	findUserIdentitiesPaginatedFn func(GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)

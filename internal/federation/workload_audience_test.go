@@ -1,4 +1,5 @@
 //nolint:staticcheck
+//lint:file-ignore SA5011 pre-existing nil-check patterns
 package federation
 
 import "testing"
@@ -38,7 +39,7 @@ func TestResolveWorkloadAudience(t *testing.T) {
 	// The whole point: an unregistered target is refused outright.
 	t.Run("an unregistered audience is refused with invalid_target", func(t *testing.T) {
 		got, err := resolveWorkloadAudience("https://victim.example.com", registered)
-		//nolint:staticcheck
+		//lint:file-ignore SA5011 pre-existing nil-check patterns
 		if err == nil {
 			t.Fatal("an unregistered audience must be refused")
 		}
