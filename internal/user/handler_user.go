@@ -746,16 +746,7 @@ func (h *UserHandler) ForcePasswordChange(w http.ResponseWriter, r *http.Request
 
 // toUserResponseDTO converts a service result to a user response DTO.
 func toUserIdentityResponseDTO(i UserIdentityServiceDataResult) UserIdentityResponseDTO {
-	return UserIdentityResponseDTO{
-		UserIdentityUUID:     i.UserIdentityUUID,
-		Provider:             i.Provider,
-		Sub:                  i.Sub,
-		Metadata:             i.Metadata,
-		IdentityProviderUUID: i.IdentityProviderUUID,
-		IdentityProviderName: i.IdentityProviderName,
-		CreatedAt:            i.CreatedAt,
-		UpdatedAt:            i.UpdatedAt,
-	}
+	return UserIdentityResponseDTO(i)
 }
 
 func toUserResponseDTO(u UserServiceDataResult) UserResponseDTO {

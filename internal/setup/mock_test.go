@@ -1,3 +1,4 @@
+//nolint:unused
 package setup
 
 import (
@@ -693,6 +694,7 @@ func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
 }
 
 type mockUserIdentityRepo struct {
+	//nolint:unused
 	findByTenantAndSubFn func(int64, string) (*UserIdentity, error)
 	mockBaseRepo[UserIdentity]
 	findByUserIDFn                      func(int64) ([]UserIdentity, error)

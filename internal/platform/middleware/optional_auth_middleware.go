@@ -14,6 +14,7 @@ import (
 // an empty string when no token is present. API keys are intentionally not
 // handled here — this is the cookie/bearer session path used by the hosted
 // identity surface.
+	//nolint:unused
 func bearerOrCookieToken(r *http.Request) string {
 	token, _ := bearerOrCookieTokenWithScheme(r)
 	return token

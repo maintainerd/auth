@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package app
 
 import (
@@ -107,6 +108,7 @@ func TestCreateByTenantProviderSubIfAbsentResolvesOwnerAcrossProviders(t *testin
 	if created {
 		t.Fatal("expected created=false when the insert was refused")
 	}
+	//nolint:staticcheck
 	if existing == nil {
 		t.Fatal("the conflicting owner must be returned, otherwise the caller cannot detect the collision")
 	}

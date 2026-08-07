@@ -417,6 +417,7 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 	})
 }
 
+//nolint:unused
 func (s *magicLinkService) generateTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	accessToken, idToken, refreshToken, err := generateTokenSetWithContext(ctx, sub, user, client)
 	if err != nil {

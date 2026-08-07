@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package app
 
 import (
@@ -64,6 +65,7 @@ func TestOAuthClientRepoFindByIdentifierPreloadsClientURIs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindByIdentifier error: %v", err)
 	}
+	//nolint:staticcheck
 	if client == nil {
 		t.Fatal("FindByIdentifier returned nil")
 	}

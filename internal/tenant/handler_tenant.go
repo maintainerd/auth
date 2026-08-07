@@ -302,14 +302,7 @@ func (h *TenantHandler) surfaceLoginMethods(ctx context.Context, clientIdentifie
 	}
 	out.MagicLinkEnabled = methods.MagicLinkEnabled
 	for _, c := range methods.Connections {
-		out.Connections = append(out.Connections, TenantBootstrapConnectionDTO{
-			Identifier:   c.Identifier,
-			DisplayName:  c.DisplayName,
-			Provider:     c.Provider,
-			ProviderType: c.ProviderType,
-			IsDefault:    c.IsDefault,
-			DisplayOrder: c.DisplayOrder,
-		})
+		out.Connections = append(out.Connections, TenantBootstrapConnectionDTO(c))
 	}
 	return out
 }

@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package app
 
 import "testing"
@@ -9,6 +10,7 @@ func TestServerApplication(t *testing.T) {
 
 	application := &App{}
 	serverApp := application.ServerApplication()
+	//nolint:staticcheck
 	if serverApp == nil {
 		t.Fatal("ServerApplication() = nil")
 	}

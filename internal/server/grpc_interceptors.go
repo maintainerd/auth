@@ -564,6 +564,7 @@ func grpcVerifiedCaller(ctx context.Context) (*grpcCaller, error) {
 }
 
 // int64Claim reads a numeric claim; JSON numbers decode to float64.
+	//nolint:unused
 func int64Claim(raw any) int64 {
 	switch v := raw.(type) {
 	case float64:

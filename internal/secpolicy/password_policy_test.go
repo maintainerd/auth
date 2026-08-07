@@ -82,7 +82,7 @@ func TestLoadPasswordPolicy(t *testing.T) {
 
 func TestRecordPasswordHistory(t *testing.T) {
 	t.Run("nil repo is no-op", func(t *testing.T) {
-		RecordPasswordHistory(nil, 1, 5, "hash")
+		_ = RecordPasswordHistory(nil, 1, 5, "hash")
 	})
 
 	t.Run("historyCount <= 0 is no-op", func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestRecordPasswordHistory(t *testing.T) {
 				return nil
 			},
 		}
-		RecordPasswordHistory(recorder, 1, 0, "hash")
+		_ = RecordPasswordHistory(recorder, 1, 0, "hash")
 	})
 
 	t.Run("negative historyCount is no-op", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestRecordPasswordHistory(t *testing.T) {
 				return nil
 			},
 		}
-		RecordPasswordHistory(recorder, 1, -1, "hash")
+		_ = RecordPasswordHistory(recorder, 1, -1, "hash")
 	})
 
 	t.Run("success calls add and prune", func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestRecordPasswordHistory(t *testing.T) {
 				return nil
 			},
 		}
-		RecordPasswordHistory(recorder, 1, 5, "hash")
+		_ = RecordPasswordHistory(recorder, 1, 5, "hash")
 		assert.True(t, addCalled)
 		assert.True(t, pruneCalled)
 	})
