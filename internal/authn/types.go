@@ -75,24 +75,32 @@ type RefreshTokenRequestDTO struct {
 
 // LoginResponseDTO is the response structure for login operations
 type LoginResponseDTO struct {
-	AccessToken             string   `json:"access_token,omitempty"`
-	IDToken                 string   `json:"id_token,omitempty"`
-	RefreshToken            string   `json:"refresh_token,omitempty"`
-	ExpiresIn               int64    `json:"expires_in,omitempty"`
-	TokenType               string   `json:"token_type,omitempty"`
-	IssuedAt                int64    `json:"issued_at,omitempty"`
-	RequirePasswordChange   bool     `json:"require_password_change,omitempty"`
-	SessionID               *string  `json:"session_id,omitempty"`
-	MFARequired             bool     `json:"mfa_required,omitempty"`
-	MFAChallengeToken       *string  `json:"mfa_challenge_token,omitempty"`
-	MFAAllowedMethods       []string `json:"mfa_allowed_methods,omitempty"`
-	TrustedDeviceToken      string   `json:"trusted_device_token,omitempty"`
-	TrustedDeviceMaxAge     int      `json:"-"`
-	CookieSecure            *bool    `json:"-"`
-	CookieHTTPOnly          *bool    `json:"-"`
-	CookieSameSite          string   `json:"-"`
-	RefreshTokenMaxAge      int      `json:"-"`
-	AccessTokenCookieMaxAge int64    `json:"-"`
+	AccessToken           string   `json:"access_token,omitempty"`
+	IDToken               string   `json:"id_token,omitempty"`
+	RefreshToken          string   `json:"refresh_token,omitempty"`
+	ExpiresIn             int64    `json:"expires_in,omitempty"`
+	TokenType             string   `json:"token_type,omitempty"`
+	IssuedAt              int64    `json:"issued_at,omitempty"`
+	RequirePasswordChange bool     `json:"require_password_change,omitempty"`
+	SessionID             *string  `json:"session_id,omitempty"`
+	MFARequired           bool     `json:"mfa_required,omitempty"`
+	MFAChallengeToken     *string  `json:"mfa_challenge_token,omitempty"`
+	MFAAllowedMethods     []string `json:"mfa_allowed_methods,omitempty"`
+	// MFATOTPDigits is the authenticator code length this tenant uses, 6 or 8.
+	//
+	// The second login step has to size its code input, and at that point the
+	// user is not authenticated, so it cannot read the MFA policy any other way.
+	// A client that assumes 6 leaves a totp_digits=8 tenant unable to log in at
+	// all: the input caps below the code length. Not sensitive — the user's own
+	// authenticator already displays it.
+	MFATOTPDigits           int    `json:"mfa_totp_digits,omitempty"`
+	TrustedDeviceToken      string `json:"trusted_device_token,omitempty"`
+	TrustedDeviceMaxAge     int    `json:"-"`
+	CookieSecure            *bool  `json:"-"`
+	CookieHTTPOnly          *bool  `json:"-"`
+	CookieSameSite          string `json:"-"`
+	RefreshTokenMaxAge      int    `json:"-"`
+	AccessTokenCookieMaxAge int64  `json:"-"`
 }
 
 // SendMagicLinkRequestDTO represents the request payload to send a passwordless

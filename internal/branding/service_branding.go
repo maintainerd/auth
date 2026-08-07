@@ -343,7 +343,10 @@ func (s *brandingService) GetPublicByID(ctx context.Context, tenantID, brandingI
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.Int64("branding.id", brandingID))
 
-	b, err := s.brandingRepo.FindByID(brandingID)
+	// Public/theming read: deliberately excludes the logo bytes. The response
+	// carries logo_url and the browser fetches the image separately, so pulling
+	// 256 KB here would be read and discarded on every login page render.
+	b, err := s.brandingRepo.FindPublicByID(brandingID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "get branding by id failed")

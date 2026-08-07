@@ -12,11 +12,20 @@ import "encoding/json"
 type TOTPEnrollResponseDTO struct {
 	Secret    string `json:"secret"`      // Base32 TOTP secret for manual entry
 	QRCodeURL string `json:"qr_code_url"` // otpauth:// URI for QR code rendering
+	// Digits is how long the generated codes are — 6 or 8, per the tenant's
+	// totp_digits policy, which the key above was generated with.
+	//
+	// The client cannot assume 6. A tenant on 8 gets an authenticator showing 8
+	// digits, and a UI that caps its input at 6 makes the code impossible to type
+	// and enrolment impossible to complete.
+	Digits int `json:"digits"`
+	// PeriodSeconds is the code rotation window, for "expires in" hints.
+	PeriodSeconds int `json:"period_seconds"`
 }
 
 // TOTPVerifyRequestDTO confirms TOTP enrollment or validates a TOTP code.
 type TOTPVerifyRequestDTO struct {
-	Code string `json:"code"` // 6-digit TOTP code
+	Code string `json:"code"` // TOTP code; 6 or 8 digits per the tenant's policy
 }
 
 // TOTPStatusResponseDTO reports the user's current TOTP state.
@@ -53,6 +62,24 @@ type MFAStatusResponseDTO struct {
 	BackupCodesCount   int                            `json:"backup_codes_count"`
 	WebAuthnKeys       []WebAuthnCredentialSummaryDTO `json:"webauthn_keys,omitempty"`
 	FirstMFAEnrolledAt *string                        `json:"mfa_enabled_at,omitempty"`
+
+	// AllowedMethods is the tenant's POLICY: which factors a user may enrol at
+	// all. Everything above it describes what this user has already set up.
+	//
+	// The two are different questions and the UI needs both. Without the policy a
+	// client can only render every factor the product supports, so a tenant that
+	// disabled SMS still shows "Text message" in its enrolment list and a user who
+	// picks it gets refused at the end of the flow. Never empty in practice — a
+	// tenant with no allowed methods cannot enrol anyone.
+	AllowedMethods []string `json:"allowed_methods"`
+	// MFARequired mirrors the policy's enforcement mode so a client can tell
+	// "optional, none set up" from "required, none set up yet".
+	MFARequired bool `json:"mfa_required"`
+	// TOTPDigits is the code length this tenant's authenticator codes use, 6 or
+	// 8. Carried here as well as on enrolment because the LOGIN second step has
+	// to size its input for an already-enrolled user, and never sees the
+	// enrolment response.
+	TOTPDigits int `json:"totp_digits"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -171,15 +171,38 @@ func TestInitControlPlaneDefaults(t *testing.T) {
 	}
 
 	// The default deployment is STANDALONE: no control plane, no system role.
+	// An unconfigured instance is STANDALONE: no gRPC listener, no bootstrap
+	// credential, nothing to reach. A developer running this for their own app
+	// configures none of it.
+	//
+	// The role defaults to "system" rather than "regular" and that is deliberate.
+	// It is not the security boundary — ControlPlaneEnabled is, and with no
+	// listener bound the role decides nothing. The role only means anything to a
+	// multi-instance ecosystem, whose operator is the one explicitly marking
+	// disposable instances "regular"; defaulting to "regular" would instead make
+	// every single-instance deployment enable the control plane and then be
+	// refused every provisioning RPC with no obvious cause.
 	t.Run("defaults are standalone and closed", func(t *testing.T) {
 		saveControlPlaneGlobals(t)
 		setRequiredEnv(t)
 
 		require.NoError(t, Init())
-		assert.False(t, ControlPlaneEnabled)
-		assert.Equal(t, InstanceRoleRegular, InstanceRole)
-		assert.False(t, IsSystemInstance())
-		assert.Equal(t, "", SetupBootstrapToken)
+		assert.False(t, ControlPlaneEnabled, "no listener without an explicit opt-in")
+		assert.Equal(t, "", SetupBootstrapToken, "no bootstrap credential by default")
+		assert.Equal(t, InstanceRoleSystem, InstanceRole)
+		assert.True(t, IsSystemInstance())
+	})
+
+	// The role is inert while the control plane is off: being "system" grants
+	// nothing when there is no socket to serve it on.
+	t.Run("the default role exposes nothing while the control plane is off", func(t *testing.T) {
+		saveControlPlaneGlobals(t)
+		setRequiredEnv(t)
+
+		require.NoError(t, Init())
+		require.True(t, IsSystemInstance())
+		assert.False(t, ControlPlaneEnabled,
+			"a system role must not imply a listener; the two are independent switches")
 	})
 
 	// GRPC_REQUIRE_MTLS is not an escape hatch: with the control plane on it is

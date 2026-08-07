@@ -122,6 +122,7 @@ var migrations = []migrationEntry{
 	{"077_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
 	{"078_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
 	{"079_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
+	{"080_create_profile_pictures_table", migration.CreateProfilePicturesTable},
 	// Block 16: Control plane — ecosystem provisioning state (core-facing gRPC)
 }
 

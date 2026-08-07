@@ -53,11 +53,13 @@ func StartGRPCServer(ctx context.Context, application *Application) error {
 // bound means observing that an already-occupied address produces no error, and
 // that is only deterministic on an address the test owns.
 func startGRPCServerOn(ctx context.Context, application *Application, addr string) error {
-	if !config.ControlPlaneEnabled {
-		// Said once, at startup, because the other way an operator learns this is
-		// core failing with connection refused against a healthy instance.
-		slog.Info("gRPC control plane disabled; no listener bound (standalone deployment)",
-			"addr", addr, "enable_with", "CONTROL_PLANE_ENABLED=true")
+	if !config.GRPCEnabled {
+		// Said once, at startup, because the other way an operator learns this is a
+		// caller failing with connection refused against a healthy instance.
+		slog.Info("gRPC disabled; no listener bound (standalone deployment)",
+			"addr", addr,
+			"enable_runtime_services_with", "GRPC_ENABLED=true",
+			"enable_provisioning_with", "CONTROL_PLANE_ENABLED=true")
 		return nil
 	}
 	lis, err := net.Listen("tcp", addr)
@@ -96,7 +98,11 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 		s.GracefulStop()
 	}()
 
-	slog.Info("gRPC server starting", "addr", shared.DefaultGRPCAddr)
+	slog.Info("gRPC server starting",
+		"addr", shared.DefaultGRPCAddr,
+		"services", len(services),
+		"control_plane", config.ControlPlaneEnabled,
+		"instance_role", config.InstanceRole)
 	if err := s.Serve(lis); err != nil {
 		return fmt.Errorf("gRPC server failed: %w", err)
 	}
@@ -132,6 +138,47 @@ type grpcService struct {
 // TenantSettingService was registered but never health-advertised, so a caller
 // probing that service got SERVICE_UNKNOWN from a service that was serving.
 func grpcServices(application *Application) []grpcService {
+	services := allGRPCServices(application)
+	if config.ControlPlaneEnabled {
+		return services
+	}
+
+	// Runtime-only: serve the PDP, introspection and peer reads, and register
+	// nothing administrative. Registering a provisioning service and relying on
+	// the interceptor to refuse it would still advertise it in reflection and in
+	// the health surface, which tells a caller the instance has an orchestrator
+	// API it does not have.
+	runtime := make([]grpcService, 0, len(services))
+	for _, svc := range services {
+		if _, administrative := grpcAdministrativeServices[svc.name]; administrative {
+			continue
+		}
+		runtime = append(runtime, svc)
+	}
+	return runtime
+}
+
+// grpcAdministrativeServices are the services that exist to CONFIGURE this
+// instance. They are registered only when the control plane is on.
+//
+// The rest — the authorization PDP, token introspection, and the user/profile
+// reads a peer service makes to run itself — are runtime data-plane calls that
+// any deployment with more than one service needs, and are served whenever gRPC
+// is enabled at all.
+var grpcAdministrativeServices = map[string]struct{}{
+	authv1.SetupService_ServiceDesc.ServiceName:                      {},
+	authv1.TenantService_ServiceDesc.ServiceName:                     {},
+	authv1.TenantSettingService_ServiceDesc.ServiceName:              {},
+	authv1.ServiceService_ServiceDesc.ServiceName:                    {},
+	authv1.APIService_ServiceDesc.ServiceName:                        {},
+	authv1.PermissionService_ServiceDesc.ServiceName:                 {},
+	authv1.PolicyService_ServiceDesc.ServiceName:                     {},
+	authv1.RoleService_ServiceDesc.ServiceName:                       {},
+	authv1.ClientService_ServiceDesc.ServiceName:                     {},
+	authv1.WorkloadIdentityFederationService_ServiceDesc.ServiceName: {},
+}
+
+func allGRPCServices(application *Application) []grpcService {
 	return []grpcService{
 		{authv1.SetupService_ServiceDesc.ServiceName, func(s grpc.ServiceRegistrar) {
 			authv1.RegisterSetupServiceServer(s, setup.NewSetupGRPCHandler(application.SetupService))

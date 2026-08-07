@@ -942,6 +942,11 @@ type mockProfileService struct {
 	getAllFn                 func(uuid.UUID, *string, *string, *string, int, int, string, string) (*ProfileServiceListResult, error)
 	setDefaultFn             func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
 	deleteByUUIDFn           func(uuid.UUID, uuid.UUID) (*ProfileServiceDataResult, error)
+	setProfilePictureFn      func(uuid.UUID, int64, *ProfilePicture) (string, error)
+	clearProfilePictureFn    func(uuid.UUID, int64) error
+	getProfilePictureFn      func(uuid.UUID) (*ProfilePicture, error)
+	getProfilePictureETagFn  func(uuid.UUID) (string, error)
+	ensureProfileOwnedByFn   func(uuid.UUID, int64) error
 }
 
 func (m *mockProfileService) CreateOrUpdateProfile(_ context.Context, userUUID uuid.UUID, firstName string, middleName, lastName, displayName *string, birthdate *time.Time, gender *string, email *string, timezone, language *string, profileURL *string, metadata map[string]any) (*ProfileServiceDataResult, error) {
@@ -1168,4 +1173,42 @@ func (m *mockUserRepo) EffectivePermissionNames(userID, tenantID int64) ([]strin
 		return m.effectivePermissionNamesFn(userID, tenantID)
 	}
 	return nil, nil
+}
+
+// Avatar handling. Inert defaults so a test that does not exercise pictures
+// still satisfies ProfileService.
+
+func (m *mockProfileService) SetProfilePicture(_ context.Context, profileUUID uuid.UUID, userID int64, picture *ProfilePicture) (string, error) {
+	if m.setProfilePictureFn != nil {
+		return m.setProfilePictureFn(profileUUID, userID, picture)
+	}
+	return ProfilePictureURL(profileUUID), nil
+}
+
+func (m *mockProfileService) ClearProfilePicture(_ context.Context, profileUUID uuid.UUID, userID int64) error {
+	if m.clearProfilePictureFn != nil {
+		return m.clearProfilePictureFn(profileUUID, userID)
+	}
+	return nil
+}
+
+func (m *mockProfileService) GetProfilePicture(_ context.Context, profileUUID uuid.UUID) (*ProfilePicture, error) {
+	if m.getProfilePictureFn != nil {
+		return m.getProfilePictureFn(profileUUID)
+	}
+	return nil, apperror.NewNotFound("profile picture")
+}
+
+func (m *mockProfileService) GetProfilePictureETag(_ context.Context, profileUUID uuid.UUID) (string, error) {
+	if m.getProfilePictureETagFn != nil {
+		return m.getProfilePictureETagFn(profileUUID)
+	}
+	return "", apperror.NewNotFound("profile picture")
+}
+
+func (m *mockProfileService) EnsureProfileOwnedBy(_ context.Context, profileUUID uuid.UUID, userID int64) error {
+	if m.ensureProfileOwnedByFn != nil {
+		return m.ensureProfileOwnedByFn(profileUUID, userID)
+	}
+	return nil
 }

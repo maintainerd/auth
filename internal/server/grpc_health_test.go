@@ -113,7 +113,7 @@ func TestRefreshGRPCOverallHealth(t *testing.T) {
 
 func TestSetGRPCServiceHealth(t *testing.T) {
 	healthServer := health.NewServer()
-	services := grpcServices(&Application{})
+	services := allGRPCServices(&Application{})
 
 	setGRPCServiceHealth(healthServer, services, healthpb.HealthCheckResponse_SERVING)
 

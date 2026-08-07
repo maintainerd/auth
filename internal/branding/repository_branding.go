@@ -11,6 +11,15 @@ import (
 type BrandingRepository interface {
 	BaseRepositoryMethods[Branding]
 	FindByID(id any, preloads ...string) (*Branding, error)
+	// FindPublicByID returns branding WITHOUT the logo bytes.
+	//
+	// The theming payload a login page fetches carries logo_url, and the browser
+	// then requests the image from the logo endpoint (which is Redis-cached). The
+	// bytes are therefore never used by this read — but the ORM's default
+	// SELECT * fetched them anyway, so every login page render pulled up to
+	// 256 KB out of Postgres and discarded it. Naming the columns is what keeps
+	// that off the hottest unauthenticated path.
+	FindPublicByID(id int64) (*Branding, error)
 	FindByUUID(uuid any, preloads ...string) (*Branding, error)
 	DeleteByUUID(uuid any) error
 	WithTx(tx *gorm.DB) BrandingRepository
@@ -43,6 +52,26 @@ func (r *brandingRepository) WithTx(tx *gorm.DB) BrandingRepository {
 
 // FindByTenantID retrieves the FIRST branding record for a tenant. Returns
 // nil, nil when no record exists.
+// brandingPublicColumns is every column except logo_data — the theming read
+// needs all of them and none of the bytes.
+var brandingPublicColumns = []string{
+	"branding_id", "branding_uuid", "tenant_id", "name", "logo_url",
+	"logo_content_type", "favicon_url", "settings", "is_active", "is_system",
+	"created_at", "updated_at",
+}
+
+func (r *brandingRepository) FindPublicByID(id int64) (*Branding, error) {
+	var b Branding
+	err := r.DB().Select(brandingPublicColumns).Where("branding_id = ?", id).First(&b).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
 func (r *brandingRepository) FindByTenantID(tenantID int64) (*Branding, error) {
 	var branding Branding
 	err := r.DB().Where("tenant_id = ?", tenantID).First(&branding).Error

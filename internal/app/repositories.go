@@ -43,6 +43,7 @@ type repos struct {
 	userRoleRepo              user.UserRoleRepository
 	userTokenRepo             user.UserTokenRepository
 	profileRepo               user.ProfileRepository
+	profilePictureRepo        user.ProfilePictureRepository
 	userSettingRepo           user.UserSettingRepository
 	inviteRepo                invite.InviteRepository
 	emailTemplateRepo         branding.EmailTemplateRepository
@@ -117,6 +118,7 @@ func initRepos(db *gorm.DB) *repos {
 		userRoleRepo:              user.NewUserRoleRepository(db),
 		userTokenRepo:             user.NewUserTokenRepository(db),
 		profileRepo:               user.NewProfileRepository(db),
+		profilePictureRepo:        user.NewProfilePictureRepository(db),
 		userSettingRepo:           user.NewUserSettingRepository(db),
 		inviteRepo:                invite.NewInviteRepository(db),
 		emailTemplateRepo:         branding.NewEmailTemplateRepository(db),

@@ -121,6 +121,18 @@ message RegisterControlServiceRequest {
   // account:*:self — an orchestrator provisions tenants and their configuration
   // and has no reason to hold every user in every tenant.
   repeated string allowed_actions = 5;
+
+  // policy_name lets an ecosystem name its own control policy. Empty means the
+  // default ("auth-control").
+  //
+  // It matters because this software is deployed by organisations running their
+  // OWN orchestrator, not only the maintainerd one, and an instance can serve
+  // more than one. An existing policy is returned unchanged rather than widened,
+  // so with a single shared name a second orchestrator would silently inherit
+  // the first one's action set — quietly getting broader or narrower rights than
+  // the ones it asked for, with nothing in the response to say so. Distinct
+  // names keep each orchestrator's grant its own.
+  string policy_name = 6;
 }
 
 message RegisterControlServiceResponse {

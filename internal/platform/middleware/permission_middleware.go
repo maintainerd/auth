@@ -49,6 +49,15 @@ func PermissionMiddleware(requiredPermissions []string) func(http.Handler) http.
 	}
 }
 
+// UserHasPermission reports whether the resolved principal holds a permission.
+//
+// Exported for handlers that authorize per-RESOURCE rather than per-route: a
+// route permission is all-or-nothing, but "your own profile, or anyone's if you
+// administer users" cannot be expressed as a route gate.
+func UserHasPermission(user *authctx.AuthUser, permission string) bool {
+	return hasAnyPermission(user, []string{permission})
+}
+
 // hasAnyPermission checks if the user has at least one of the required permissions
 func hasAnyPermission(user *authctx.AuthUser, required []string) bool {
 	userPerms := make(map[string]bool)

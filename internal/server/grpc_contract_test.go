@@ -39,7 +39,7 @@ func grpcRegisteredServiceNames(t *testing.T) []string {
 	t.Helper()
 	s := grpc.NewServer()
 	defer s.Stop()
-	for _, svc := range grpcServices(&Application{}) {
+	for _, svc := range allGRPCServices(&Application{}) {
 		svc.register(s)
 	}
 	var names []string
@@ -55,7 +55,7 @@ func grpcRegisteredServiceNames(t *testing.T) []string {
 // UNIMPLEMENTED while health still reports the service SERVING.
 func TestGRPCServicesRegisterWhatTheyName(t *testing.T) {
 	declared := make([]string, 0)
-	for _, svc := range grpcServices(&Application{}) {
+	for _, svc := range allGRPCServices(&Application{}) {
 		declared = append(declared, svc.name)
 	}
 	sort.Strings(declared)

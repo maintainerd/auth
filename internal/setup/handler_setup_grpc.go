@@ -133,6 +133,7 @@ func (h *SetupGRPCHandler) RegisterControlService(ctx context.Context, req *auth
 		Description:    optionalString(req.GetDescription()),
 		Version:        req.GetVersion(),
 		AllowedActions: req.GetAllowedActions(),
+		PolicyName:     req.GetPolicyName(),
 	})
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)

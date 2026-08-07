@@ -15,12 +15,27 @@ import (
 const (
 	// InstanceRoleSystem is the ecosystem's system IAM.
 	InstanceRoleSystem = "system"
-	// InstanceRoleRegular is an ordinary, application-scoped instance. This is the
-	// default: an instance is only the system IAM if the operator/core says so.
+	// InstanceRoleRegular is an ordinary, application-scoped instance — one of the
+	// many an orchestrator provisions alongside the single control IAM. It must be
+	// set EXPLICITLY.
 	InstanceRoleRegular = "regular"
 )
 
 var (
+	// GRPCEnabled (GRPC_ENABLED) binds the gRPC listener and serves the RUNTIME
+	// services: the authorization PDP, token introspection, and the user/profile
+	// reads a peer service makes to run itself.
+	//
+	// It is separate from ControlPlaneEnabled because those two surfaces have
+	// nothing in common but a socket. A PDP is what any organisation with more
+	// than one service needs, and gating it behind "control plane" would force
+	// them to expose tenant, client and policy provisioning to get an
+	// authorization check — taking the dangerous surface to obtain the safe one.
+	//
+	// Default false: a single-service deployment needs no gRPC at all, and a port
+	// nobody asked for is still a port.
+	GRPCEnabled bool
+
 	// ControlPlaneEnabled (CONTROL_PLANE_ENABLED) opts this deployment into the
 	// machine control plane — the gRPC surface core drives. Default FALSE, because
 	// the default deployment is STANDALONE: an organisation dropping this in as
@@ -29,7 +44,20 @@ var (
 	ControlPlaneEnabled bool
 
 	// InstanceRole (INSTANCE_ROLE) is InstanceRoleSystem or InstanceRoleRegular,
-	// defaulting to InstanceRoleRegular.
+	// defaulting to InstanceRoleSystem.
+	//
+	// The default is "system" because the role only means anything to a
+	// multi-instance ecosystem, and the party running one is the party explicitly
+	// marking its disposable instances "regular". Everyone else — a standalone
+	// deployment, or an organisation running its own single orchestrator — is the
+	// control IAM by definition, and defaulting to "regular" would leave them
+	// switching the control plane on and then being refused every provisioning RPC
+	// with no obvious cause.
+	//
+	// This is not the security boundary; CONTROL_PLANE_ENABLED is. With that off
+	// (the default) the role is inert because no listener exists. Turning it on is
+	// an explicit statement that an orchestrator surface is wanted, and "system" is
+	// the only reading of that statement that does anything useful.
 	//
 	// The role is CONFIGURATION fixed at provision time, not a value in the
 	// database and not anything a call can carry. That is what makes it

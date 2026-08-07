@@ -85,6 +85,16 @@ func (m *mockBrandingRepo) FindByID(id any, p ...string) (*Branding, error) {
 	}
 	return nil, nil
 }
+
+// FindPublicByID shares findByIDFn: the mock has no columns, so the only thing
+// the two differ in — whether logo bytes come back — is not observable here.
+// The exclusion is a property of the real SQL, asserted separately.
+func (m *mockBrandingRepo) FindPublicByID(id int64) (*Branding, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id)
+	}
+	return nil, nil
+}
 func (m *mockBrandingRepo) UpdateByUUID(id, data any) (*Branding, error) { return nil, nil }
 func (m *mockBrandingRepo) UpdateByID(id, data any) (*Branding, error)   { return nil, nil }
 func (m *mockBrandingRepo) DeleteByUUID(id any) error                    { return nil }

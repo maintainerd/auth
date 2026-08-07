@@ -658,6 +658,10 @@ type loginMFAPolicy struct {
 	GracePeriodDays      int      `json:"grace_period_days"`
 	PreferredMethod      string   `json:"preferred_method"`
 	AdminGracePeriodDays int      `json:"admin_grace_period_days"`
+	// TOTPDigits is the authenticator code length, 6 or 8. Read here so the login
+	// challenge can tell the client how long a code to expect; see
+	// LoginResponseDTO.MFATOTPDigits.
+	TOTPDigits int `json:"totp_digits"`
 }
 
 func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User, tenantID int64, forceStepUp bool) (*LoginResponseDTO, error) {
@@ -797,6 +801,7 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 		MFARequired:       true,
 		MFAChallengeToken: &challengeToken,
 		MFAAllowedMethods: allowedMethods,
+		MFATOTPDigits:     totpDigitsFromPolicy(policy),
 	}, nil
 }
 
@@ -879,6 +884,7 @@ func (s *loginService) passwordlessMFAChallenge(ctx context.Context, user *User,
 		MFARequired:       true,
 		MFAChallengeToken: &challengeToken,
 		MFAAllowedMethods: allowedMethods,
+		MFATOTPDigits:     totpDigitsFromSecPolicy(policy),
 	}, nil
 }
 
@@ -1526,3 +1532,32 @@ func loginRateLimitError(err error, policy *security.RateLimitConfig) error {
 	}
 	return apperror.NewTooManyRequestsAfter(err.Error(), retryAfter)
 }
+
+// totpDigitsFromPolicy reports the tenant's authenticator code length for the
+// login second step, defaulting to 6 when unset.
+//
+// The step cannot look this up itself: the user has not authenticated yet, so
+// the MFA status endpoint is closed to them. Sending it with the challenge is
+// what lets the input match the code the authenticator shows.
+func totpDigitsFromPolicy(policy loginMFAPolicy) int {
+	return totpDigitsOrDefault(policy.TOTPDigits)
+}
+
+// totpDigitsFromSecPolicy is the same question asked of the secpolicy shape, the
+// other type that reaches an MFA challenge on this path.
+func totpDigitsFromSecPolicy(policy *secpolicy.MFAPolicy) int {
+	if policy == nil {
+		return loginTOTPDigitsDefault
+	}
+	return totpDigitsOrDefault(policy.TOTPDigits)
+}
+
+func totpDigitsOrDefault(digits int) int {
+	if digits > 0 {
+		return digits
+	}
+	return loginTOTPDigitsDefault
+}
+
+// loginTOTPDigitsDefault matches the seeded totp_digits policy.
+const loginTOTPDigitsDefault = 6

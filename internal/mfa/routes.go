@@ -7,8 +7,15 @@ import (
 )
 
 // MFAInternalRoute mounts MFA endpoints for the internal console surface
-// (port 8080). It includes both authenticated self-service MFA and admin
-// remediation endpoints because this surface is private/VPN-scoped.
+// (port 8080): the step-up ceremony plus admin remediation.
+//
+// Self-service ENROLLMENT is deliberately absent. Managing your own factors
+// belongs to the identity app, which owns every account-management flow; the
+// console duplicated those screens and so duplicated their routes. Two mounts
+// of the same enrollment surface means two places a policy or step-up guard has
+// to be kept correct, and only one of them is exercised. The step-up routes
+// stay because the console needs them to satisfy its OWN sensitive actions
+// (an admin elevating to acr=2), not to manage factors.
 func MFAInternalRoute(
 	r chi.Router,
 	mfaHandler *MFAHandler,
@@ -21,7 +28,7 @@ func MFAInternalRoute(
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
-		mountSelfMFARoutes(r, mfaHandler)
+		mountStepUpMFARoutes(r, mfaHandler)
 		mountAdminMFARoutes(r, mfaHandler)
 	})
 }
@@ -40,10 +47,43 @@ func MFAPublicRoute(
 		r.Use(middleware.UserContextMiddleware(userService, appCache))
 		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
 
+		mountStepUpMFARoutes(r, mfaHandler)
 		mountSelfMFARoutes(r, mfaHandler)
 	})
 }
 
+// mountStepUpMFARoutes mounts the step-up ceremony: reading which factors the
+// caller holds, and using one to prove possession right now.
+//
+// Split out from enrollment because both surfaces need it. Any authenticated
+// UI has to be able to answer a 403 step_up_required, whether or not it also
+// lets you manage factors.
+func mountStepUpMFARoutes(r chi.Router, mfaHandler *MFAHandler) {
+	// Overall MFA status — which methods are enrolled and allowed, so a client
+	// can present the right challenge.
+	r.With(middleware.PermissionMiddleware([]string{"account:mfa:read:self"})).
+		Get("/status", mfaHandler.GetStatus)
+
+	// WebAuthn passkey authentication (assertion ceremony for step-up).
+	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
+		Post("/webauthn/auth/begin", mfaHandler.WebAuthnBeginAuthentication)
+	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
+		Post("/webauthn/auth/finish", mfaHandler.WebAuthnFinishAuthentication)
+
+	// Step-up authentication.
+	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
+		Post("/step-up/challenge", mfaHandler.IssueStepUpChallenge)
+	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
+		Post("/step-up/send-sms", mfaHandler.SendStepUpSMS)
+	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
+		Post("/step-up/send-email-otp", mfaHandler.SendStepUpEmailOTP)
+	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
+		Post("/step-up/verify", mfaHandler.VerifyStepUp)
+}
+
+// mountSelfMFARoutes mounts self-service factor MANAGEMENT — enrolling,
+// disabling and recovering the caller's own factors. Public surface only; see
+// MFAInternalRoute for why the console does not get these.
 func mountSelfMFARoutes(r chi.Router, mfaHandler *MFAHandler) {
 	// All routes below are self-service: they act only on the authenticated
 	// user's own MFA, so each is gated by an "account:mfa:*:self" permission
@@ -56,9 +96,7 @@ func mountSelfMFARoutes(r chi.Router, mfaHandler *MFAHandler) {
 	// it and clear every gate above, so the additive side has to be shut too. The
 	// first-ever enrollment stays open — there is nothing to step up with yet.
 
-	// Overall MFA status
-	r.With(middleware.PermissionMiddleware([]string{"account:mfa:read:self"})).
-		Get("/status", mfaHandler.GetStatus)
+	// GET /status lives in mountStepUpMFARoutes — both surfaces need it.
 
 	// TOTP
 	r.With(middleware.PermissionMiddleware([]string{"account:mfa:enroll:self"}), mfaHandler.RequireStepUpForNewFactor).
@@ -80,11 +118,7 @@ func mountSelfMFARoutes(r chi.Router, mfaHandler *MFAHandler) {
 	r.With(middleware.PermissionMiddleware([]string{"account:mfa:enroll:self"}), mfaHandler.RequireStepUpForNewFactor).
 		Post("/webauthn/register/finish", mfaHandler.WebAuthnFinishRegistration)
 
-	// WebAuthn passkey authentication (assertion ceremony for step-up)
-	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
-		Post("/webauthn/auth/begin", mfaHandler.WebAuthnBeginAuthentication)
-	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
-		Post("/webauthn/auth/finish", mfaHandler.WebAuthnFinishAuthentication)
+	// The WebAuthn assertion ceremony lives in mountStepUpMFARoutes.
 
 	// WebAuthn credential management
 	r.With(middleware.PermissionMiddleware([]string{"account:mfa:disable:self"}), mfaHandler.RequireFreshStepUp).
@@ -92,15 +126,7 @@ func mountSelfMFARoutes(r chi.Router, mfaHandler *MFAHandler) {
 	r.With(middleware.PermissionMiddleware([]string{"account:mfa:read:self"}), mfaHandler.RequireFreshStepUp).
 		Get("/webauthn/{credential_uuid}/download", mfaHandler.WebAuthnDownloadCredential)
 
-	// Step-up authentication
-	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
-		Post("/step-up/challenge", mfaHandler.IssueStepUpChallenge)
-	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
-		Post("/step-up/send-sms", mfaHandler.SendStepUpSMS)
-	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
-		Post("/step-up/send-email-otp", mfaHandler.SendStepUpEmailOTP)
-	r.With(middleware.PermissionMiddleware([]string{"account:mfa:verify:self"})).
-		Post("/step-up/verify", mfaHandler.VerifyStepUp)
+	// The step-up endpoints live in mountStepUpMFARoutes.
 
 	// SMS MFA enrollment
 	r.With(middleware.PermissionMiddleware([]string{"account:mfa:enroll:self"}), mfaHandler.RequireStepUpForNewFactor).
