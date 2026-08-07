@@ -71,7 +71,7 @@ func (h *ProfileHandler) UploadPicture(w http.ResponseWriter, r *http.Request) {
 		resp.Error(w, http.StatusBadRequest, "No file was uploaded in the \""+uploadFormField+"\" field")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	data, err := io.ReadAll(io.LimitReader(file, MaxProfilePictureBytes+1))
 	if err != nil {
