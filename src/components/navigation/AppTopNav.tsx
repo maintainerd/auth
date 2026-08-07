@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { TenantSwitcher } from "@/components/navigation/TenantSwitcher"
+import { FeatureSearch } from "@/components/navigation/FeatureSearch"
 import { CreateMenu } from "@/components/navigation/CreateMenu"
 import { useAppSelector } from "@/store/hooks"
 import { logout } from "@/services/api/auth"
@@ -56,7 +57,7 @@ export function AppTopNav() {
         />
         <img src={logoSrc} alt={logoLabel} className="h-7 w-auto shrink-0" />
         {showLogoLabel && (
-          <span className="min-w-0">
+          <span className="min-w-0 hidden md:inline">
             <div
               data-console-top-logo-label
               className={`font-semibold leading-none text-white ${logoDetail ? "text-sm" : "text-lg"}`}
@@ -70,7 +71,10 @@ export function AppTopNav() {
             )}
           </span>
         )}
-        <TenantSwitcher className="ml-4 hidden w-56 sm:block" />
+        <div className="hidden items-center gap-2 sm:flex ml-6">
+          <TenantSwitcher />
+          <FeatureSearch className="w-80" />
+        </div>
       </div>
 
       <div className="ml-3 flex shrink-0 items-center gap-1.5">

@@ -50,6 +50,7 @@ const DIRECT_TOKEN_VARS: Record<string, string> = {
 const COMPONENT_PREFIXES: Record<string, string> = {
   topPanelControl: "--md-top-control",
   topPanelDropdownTrigger: "--md-top-dropdown",
+  topPanelSearchTrigger: "--md-top-search",
   topPanelProfileTrigger: "--md-top-profile",
   topPanelCreateButton: "--md-top-create",
   sidePanelSectionLabel: "--md-sidebar-section",

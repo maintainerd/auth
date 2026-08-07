@@ -4,7 +4,7 @@
  * branding metadata and stays additive so older themes fall back to defaults.
  */
 
-export type ThemeTokenKind = "color" | "text" | "select"
+export type ThemeTokenKind = "color" | "text" | "select" | "heading"
 
 export type ThemeToken = {
   section: string
@@ -92,6 +92,12 @@ const badgeTokens = (group: string): ThemeToken[] =>
  *  merged Buttons section can render each button's preview and rows together. */
 const buttonTokens = (component: string, label: string): ThemeToken[] =>
   componentTokens("buttons", component, label).map((t) => ({ ...t, group: component }))
+
+const topPanelComponentTokens = (component: string, label: string): ThemeToken[] =>
+  componentTokens("top-panel", component, label).map((t) => ({ ...t, group: component }))
+
+const sidePanelComponentTokens = (component: string, label: string, group: string): ThemeToken[] =>
+  componentTokens("side-panel", component, label).map((t) => ({ ...t, group }))
 
 /** Square or round icon wells used beside resources in listings, detail
  *  headers, empty states, and setup blocks. */
@@ -230,13 +236,13 @@ export const THEME_SECTIONS: ThemeSection[] = [
     title: "App foundation",
     description: "Global palette, text, borders, and typography used as the fallback when component tokens are not set.",
     tokens: [
-      { section: "app-foundation", path: ["colors", "primary"], label: "Primary", kind: "color" },
-      { section: "app-foundation", path: ["colors", "secondary"], label: "Secondary", kind: "color" },
-      { section: "app-foundation", path: ["colors", "accent"], label: "Accent", kind: "color" },
-      { section: "app-foundation", path: ["colors", "appBackground"], label: "App background", kind: "color" },
-      { section: "app-foundation", path: ["colors", "textPrimary"], label: "Primary text", kind: "color" },
-      { section: "app-foundation", path: ["colors", "textMuted"], label: "Muted text", kind: "color" },
-      { section: "app-foundation", path: ["colors", "border"], label: "Border", kind: "color" },
+      { section: "app-foundation", path: ["colors", "primary"], label: "Primary", kind:  "color", group: "colors" },
+      { section: "app-foundation", path: ["colors", "secondary"], label: "Secondary", kind:  "color", group: "colors" },
+      { section: "app-foundation", path: ["colors", "accent"], label: "Accent", kind:  "color", group: "colors" },
+      { section: "app-foundation", path: ["colors", "appBackground"], label: "App background", kind:  "color", group: "colors" },
+      { section: "app-foundation", path: ["colors", "textPrimary"], label: "Primary text", kind:  "color", group: "colors" },
+      { section: "app-foundation", path: ["colors", "textMuted"], label: "Muted text", kind:  "color", group: "colors" },
+      { section: "app-foundation", path: ["colors", "border"], label: "Border", kind:  "color", group: "colors" },
       { section: "app-foundation", path: ["font", "family"], label: "Font family", kind: "text" },
     ],
   },
@@ -245,18 +251,18 @@ export const THEME_SECTIONS: ThemeSection[] = [
     title: "Login template",
     description: "Hosted-auth layout surfaces that change between centered, split, full-page, modal, guided, and security templates.",
     tokens: [
-      { section: "login-template", path: ["colors", "authPageBackground"], label: "Page background", kind: "color" },
-      { section: "login-template", path: ["colors", "authFormPanelBackground"], label: "Form panel background", kind: "color" },
-      { section: "login-template", path: ["colors", "authFormPanelBorder"], label: "Form panel border", kind: "color" },
-      { section: "login-template", path: ["colors", "authFormPanelText"], label: "Form panel text", kind: "color" },
+      { section: "login-template", path: ["colors", "authPageBackground"], label: "Page background", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authFormPanelBackground"], label: "Form panel background", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authFormPanelBorder"], label: "Form panel border", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authFormPanelText"], label: "Form panel text", kind:  "color", group: "colors" },
       { section: "login-template", path: ["effects", "authFormPanelShadow"], label: "Form panel shadow", kind: "text" },
-      { section: "login-template", path: ["colors", "authVisualPanelBackground"], label: "Visual panel background", kind: "color" },
-      { section: "login-template", path: ["colors", "authVisualPanelText"], label: "Visual panel text", kind: "color" },
-      { section: "login-template", path: ["colors", "authVisualPanelOverlay"], label: "Visual panel overlay", kind: "color" },
-      { section: "login-template", path: ["colors", "authDecorativeLight"], label: "Decorative light shape", kind: "color" },
-      { section: "login-template", path: ["colors", "authDecorativeDark"], label: "Decorative dark shape", kind: "color" },
-      { section: "login-template", path: ["colors", "authProgressPanelBackground"], label: "Progress panel background", kind: "color" },
-      { section: "login-template", path: ["colors", "authSecurityPanelBackground"], label: "Security panel background", kind: "color" },
+      { section: "login-template", path: ["colors", "authVisualPanelBackground"], label: "Visual panel background", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authVisualPanelText"], label: "Visual panel text", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authVisualPanelOverlay"], label: "Visual panel overlay", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authDecorativeLight"], label: "Decorative light shape", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authDecorativeDark"], label: "Decorative dark shape", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authProgressPanelBackground"], label: "Progress panel background", kind:  "color", group: "colors" },
+      { section: "login-template", path: ["colors", "authSecurityPanelBackground"], label: "Security panel background", kind:  "color", group: "colors" },
     ],
   },
   {
@@ -264,13 +270,14 @@ export const THEME_SECTIONS: ThemeSection[] = [
     title: "Top panel",
     description: "Top navigation surface plus hamburger, tenant dropdown, and profile controls.",
     tokens: [
-      { section: "top-panel", path: ["colors", "topPanelBackground"], label: "Top panel background", kind: "color" },
-      { section: "top-panel", path: ["colors", "topPanelBorder"], label: "Top panel border", kind: "color" },
-      { section: "top-panel", path: ["colors", "topPanelText"], label: "Top panel text", kind: "color" },
-      ...componentTokens("top-panel", "topPanelControl", "Icon control"),
-      ...componentTokens("top-panel", "topPanelDropdownTrigger", "Tenant dropdown trigger"),
-      ...componentTokens("top-panel", "topPanelProfileTrigger", "Profile trigger"),
-      ...componentTokens("top-panel", "topPanelCreateButton", "Create button"),
+      { section: "top-panel", path: ["colors", "topPanelBackground"], label: "Top panel background", kind: "color", group: "colors" },
+      { section: "top-panel", path: ["colors", "topPanelBorder"], label: "Top panel border", kind: "color", group: "colors" },
+      { section: "top-panel", path: ["colors", "topPanelText"], label: "Top panel text", kind: "color", group: "colors" },
+      ...topPanelComponentTokens("topPanelControl", "Icon control"),
+      ...topPanelComponentTokens("topPanelDropdownTrigger", "Tenant dropdown trigger"),
+      ...topPanelComponentTokens("topPanelSearchTrigger", "Search trigger"),
+      ...topPanelComponentTokens("topPanelProfileTrigger", "Profile trigger"),
+      ...topPanelComponentTokens("topPanelCreateButton", "Create button"),
     ],
   },
   {
@@ -278,19 +285,19 @@ export const THEME_SECTIONS: ThemeSection[] = [
     title: "Side panel",
     description: "Side navigation surface, labels, parent rows, active rows, and sub-items.",
     tokens: [
-      { section: "side-panel", path: ["colors", "sidePanelBackground"], label: "Side panel background", kind: "color" },
-      { section: "side-panel", path: ["colors", "sidePanelBorder"], label: "Side panel border", kind: "color" },
-      { section: "side-panel", path: ["colors", "sidePanelSectionText"], label: "Section label text", kind: "color" },
-      { section: "side-panel", path: ["colors", "sidePanelItemIcon"], label: "Item icon", kind: "color" },
-      { section: "side-panel", path: ["colors", "sidePanelItemIconHover"], label: "Item icon hover", kind: "color" },
-      { section: "side-panel", path: ["colors", "sidePanelItemActiveIcon"], label: "Active item icon", kind: "color" },
-      { section: "side-panel", path: ["colors", "sidePanelItemHoverText"], label: "Hover item text", kind: "color" },
-      { section: "side-panel", path: ["colors", "sidePanelChevron"], label: "Chevron", kind: "color" },
-      ...componentTokens("side-panel", "sidePanelSectionLabel", "Section label"),
-      ...componentTokens("side-panel", "sidePanelItem", "Parent item"),
-      ...componentTokens("side-panel", "sidePanelItemActive", "Active parent item"),
-      ...componentTokens("side-panel", "sidePanelSubItem", "Sub-item"),
-      ...componentTokens("side-panel", "sidePanelSubItemActive", "Active sub-item"),
+      { section: "side-panel", path: ["colors", "sidePanelBackground"], label: "Side panel background", kind:  "color", group: "colors" },
+      { section: "side-panel", path: ["colors", "sidePanelBorder"], label: "Side panel border", kind:  "color", group: "colors" },
+      { section: "side-panel", path: ["colors", "sidePanelSectionText"], label: "Section label text", kind:  "color", group: "colors" },
+      { section: "side-panel", path: ["colors", "sidePanelItemIcon"], label: "Item icon", kind:  "color", group: "colors" },
+      { section: "side-panel", path: ["colors", "sidePanelItemIconHover"], label: "Item icon hover", kind:  "color", group: "colors" },
+      { section: "side-panel", path: ["colors", "sidePanelItemActiveIcon"], label: "Active item icon", kind:  "color", group: "colors" },
+      { section: "side-panel", path: ["colors", "sidePanelItemHoverText"], label: "Hover item text", kind:  "color", group: "colors" },
+      { section: "side-panel", path: ["colors", "sidePanelChevron"], label: "Chevron", kind:  "color", group: "colors" },
+      ...sidePanelComponentTokens("sidePanelSectionLabel", "Section label", "sidePanelSectionLabel"),
+      ...sidePanelComponentTokens("sidePanelItem", "Parent item", "parent-item"),
+      ...sidePanelComponentTokens("sidePanelItemActive", "Active parent item", "parent-item"),
+      ...sidePanelComponentTokens("sidePanelSubItem", "Sub-item", "sub-item"),
+      ...sidePanelComponentTokens("sidePanelSubItemActive", "Active sub-item", "sub-item"),
     ],
   },
   {
@@ -407,6 +414,14 @@ export const DEFAULT_TOKENS: Record<string, string> = {
   "components.topPanelDropdownTrigger.borderRadius": "3px",
   "components.topPanelDropdownTrigger.textColor": "#cbd5e1",
   "components.topPanelDropdownTrigger.size": "md",
+
+  "components.topPanelSearchTrigger.background": "rgba(255,255,255,0.05)",
+  "components.topPanelSearchTrigger.hoverColor": "rgba(255,255,255,0.10)",
+  "components.topPanelSearchTrigger.borderColor": "#334155",
+  "components.topPanelSearchTrigger.borderThickness": "1px",
+  "components.topPanelSearchTrigger.borderRadius": "3px",
+  "components.topPanelSearchTrigger.textColor": "#cbd5e1",
+  "components.topPanelSearchTrigger.size": "md",
 
   "components.topPanelProfileTrigger.background": "rgba(255,255,255,0.05)",
   "components.topPanelProfileTrigger.hoverColor": "rgba(255,255,255,0.10)",

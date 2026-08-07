@@ -232,7 +232,75 @@ const INPUT_GROUPS: readonly ThemeSectionGroup[] = [
   },
 ] as const
 
+const TOP_PANEL_GROUPS: readonly ThemeSectionGroup[] = [
+  {
+    component: "colors",
+    label: "Colors",
+    title: "Colors",
+    description: "Top panel surface, border and text.",
+  },
+  {
+    component: "topPanelControl",
+    label: "Icon control",
+    title: "Icon control",
+    description: "Sidebar toggle, help, and other icon-only buttons.",
+  },
+  {
+    component: "topPanelDropdownTrigger",
+    label: "Tenant dropdown",
+    title: "Tenant dropdown",
+    description: "The tenant switcher trigger.",
+  },
+  {
+    component: "topPanelSearchTrigger",
+    label: "Search",
+    title: "Search",
+    description: "Feature search trigger beside the tenant dropdown.",
+  },
+  {
+    component: "topPanelProfileTrigger",
+    label: "Profile",
+    title: "Profile trigger",
+    description: "User avatar and name dropdown trigger.",
+  },
+  {
+    component: "topPanelCreateButton",
+    label: "Create",
+    title: "Create button",
+    description: "The primary create/resource button.",
+  },
+] as const
+
+const SIDE_PANEL_GROUPS: readonly ThemeSectionGroup[] = [
+  {
+    component: "colors",
+    label: "Colors",
+    title: "Colors",
+    description: "Side panel surface, border, and decorative tokens.",
+  },
+  {
+    component: "sidePanelSectionLabel",
+    label: "Section label",
+    title: "Section label",
+    description: "Category headings in the side navigation.",
+  },
+  {
+    component: "parent-item",
+    label: "Parent items",
+    title: "Parent items",
+    description: "Top-level navigation rows and their active state.",
+  },
+  {
+    component: "sub-item",
+    label: "Sub-items",
+    title: "Sub-items",
+    description: "Nested rows under a parent item and their active state.",
+  },
+] as const
+
 const SECTION_GROUPS: Record<string, readonly ThemeSectionGroup[]> = {
+  "top-panel": TOP_PANEL_GROUPS,
+  "side-panel": SIDE_PANEL_GROUPS,
   buttons: BUTTON_GROUPS,
   badges: BADGE_GROUPS,
   card: CARD_GROUPS,
@@ -1032,8 +1100,30 @@ function ThemeSectionEditor({
         </span>
       </button>
       {isOpen &&
-        (groups ? (
+         (groups ? (
           <CardContent id={sectionContentId} className="space-y-10 border-t py-6">
+            {section.id === "top-panel" && (
+              <ThemeSectionPreview
+                sectionId={section.id}
+                tokens={tokens}
+                previewBranding={previewBranding}
+                loginPreviewBranding={loginPreviewBranding}
+                selectedTemplate={selectedTemplate}
+                selectedLoginPage={selectedLoginPage}
+                loginTemplatePresentation={loginTemplatePresentation}
+              />
+            )}
+            {section.id === "side-panel" && (
+              <ThemeSectionPreview
+                sectionId={section.id}
+                tokens={tokens}
+                previewBranding={previewBranding}
+                loginPreviewBranding={loginPreviewBranding}
+                selectedTemplate={selectedTemplate}
+                selectedLoginPage={selectedLoginPage}
+                loginTemplatePresentation={loginTemplatePresentation}
+              />
+            )}
             {groups.map((group) => {
               const groupTokens = section.tokens.filter((t) => t.group === group.component)
               return (
@@ -1049,7 +1139,7 @@ function ThemeSectionEditor({
                   </div>
                   {section.id === "badges" ? (
                     <BadgeGroupPreview group={group.component} tokens={tokens} />
-                  ) : section.id === "card" ? (
+                  ) : section.id === "top-panel" || section.id === "side-panel" ? null : section.id === "card" ? (
                     group.component === "listing-card" ? (
                       <ListingPreview tokens={tokens} />
                     ) : group.component === "sub-container" ? (
@@ -1149,6 +1239,14 @@ function ThemeTokenRow({
   disabled?: boolean
   onChange: (v: string) => void
 }) {
+  if (token.kind === "heading") {
+    return (
+      <div className="py-2 first:pt-0">
+        <h4 className="text-sm font-semibold">{token.label}</h4>
+      </div>
+    )
+  }
+
   const isColor = token.kind === "color"
 
   return (
@@ -1308,6 +1406,7 @@ function TopPanelPreview({
   }
   const topControlStyle = styleForComponent(tokens, "topPanelControl")
   const topDropdownStyle = styleForComponent(tokens, "topPanelDropdownTrigger")
+  const topSearchStyle = styleForComponent(tokens, "topPanelSearchTrigger")
   const topProfileStyle = styleForComponent(tokens, "topPanelProfileTrigger")
   const topCreateStyle = styleForComponent(tokens, "topPanelCreateButton")
   const logoSrc = resolveBrandingLogoUrl(branding.logoUrl) ?? "/logo.png"
@@ -1337,6 +1436,15 @@ function TopPanelPreview({
             System
           </span>
           <ChevronsUpDown className="size-4 shrink-0 opacity-75" />
+        </span>
+        <span className="hidden h-10 flex-1 items-center gap-2 px-3 text-sm sm:flex" style={topSearchStyle}>
+          <Search className="size-4 shrink-0 opacity-60" />
+          <span className="hidden min-w-0 flex-1 truncate text-left font-medium md:inline">
+            Search features
+          </span>
+          <span className="hidden h-5 items-center gap-0.5 rounded border bg-[var(--md-top-search-hover)] px-1.5 font-sans text-[10px] opacity-60 md:inline-flex">
+            ⌘K
+          </span>
         </span>
         <span className="ml-auto flex h-10 items-center gap-2 px-5 text-sm font-medium" style={topCreateStyle}>
           <Plus className="size-4" />
@@ -1378,6 +1486,15 @@ function TopPanelPreview({
             System
           </span>
           <ChevronsUpDown className="size-4 shrink-0 opacity-75" />
+        </span>
+        <span className="hidden h-10 flex-1 items-center gap-2 px-3 text-sm sm:flex" style={{ ...topSearchStyle, backgroundColor: componentValue(tokens, "topPanelSearchTrigger", "hoverColor") }}>
+          <Search className="size-4 shrink-0 opacity-60" />
+          <span className="hidden min-w-0 flex-1 truncate text-left font-medium md:inline">
+            Search features
+          </span>
+          <span className="hidden h-5 items-center gap-0.5 rounded border bg-[var(--md-top-search-hover)] px-1.5 font-sans text-[10px] opacity-60 md:inline-flex">
+            ⌘K
+          </span>
         </span>
         <span className="ml-auto flex h-10 items-center gap-2 px-5 text-sm font-medium" style={{ ...topCreateStyle, backgroundColor: componentValue(tokens, "topPanelCreateButton", "hoverColor") }}>
           <Plus className="size-4" />
