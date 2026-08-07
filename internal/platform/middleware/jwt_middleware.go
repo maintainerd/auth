@@ -180,6 +180,7 @@ func buildJWTClaims(ctx context.Context, rawClaims map[string]any) *JWTClaims {
 
 // int64Claim reads a numeric claim. JSON numbers decode to float64, but a claim
 // may also arrive as json.Number or an integer depending on the decoder.
+	//nolint:unused
 func int64Claim(raw any) int64 {
 	switch v := raw.(type) {
 	case float64:

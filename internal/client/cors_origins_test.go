@@ -109,7 +109,7 @@ func corsStack(t *testing.T, mountRequestTenant bool, rows ...[3]any) (http.Hand
 	middleware.SetCORSOriginResolver(NewCORSOriginResolver(gormDB))
 	t.Cleanup(func() { middleware.SetCORSOriginResolver(nil) })
 
-	var h http.Handler = middleware.CORSMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	h := middleware.CORSMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	if mountRequestTenant {

@@ -38,6 +38,7 @@ var clientJWKSCache = struct {
 var clientJWKSHTTPClient = &http.Client{Timeout: clientJWKSTimeout}
 
 // resetClientJWKSCache clears the fetched-JWKS cache. Test-only.
+	//nolint:unused
 func resetClientJWKSCache() {
 	clientJWKSCache.mu.Lock()
 	defer clientJWKSCache.mu.Unlock()

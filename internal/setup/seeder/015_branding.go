@@ -38,6 +38,7 @@ func (Branding) TableName() string { return "branding" }
 // the hardcoded app design remains the fallback when no custom theme metadata is
 // applied.
 var (
+	//nolint:unused
 	defaultBrandingMetadata = mustBrandingMetadata(themePalette{
 		Primary:             "#2563eb",
 		PrimaryHover:        "#1d4ed8",

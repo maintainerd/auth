@@ -184,11 +184,11 @@ func TestCheckPasswordHistory(t *testing.T) {
 
 func TestRecordPasswordHistory(t *testing.T) {
 	t.Run("nil repo is no-op", func(t *testing.T) {
-		secpolicy.RecordPasswordHistory(nil, 1, 5, "hash")
+		_ = secpolicy.RecordPasswordHistory(nil, 1, 5, "hash")
 	})
 
 	t.Run("history count 0 is no-op", func(t *testing.T) {
-		secpolicy.RecordPasswordHistory(&mockPasswordHistoryRepo{}, 1, 0, "hash")
+		_ = secpolicy.RecordPasswordHistory(&mockPasswordHistoryRepo{}, 1, 0, "hash")
 	})
 }
 

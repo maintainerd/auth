@@ -92,7 +92,7 @@ func MultiIssuerAuthMiddleware(
 			parts := strings.SplitN(authHeader, " ", 2)
 			// "DPoP" is recognized alongside "Bearer" so a sender-constrained token
 			// reaches the binding check below instead of falling through unvalidated.
-			if len(parts) != 2 || !(strings.EqualFold(parts[0], "bearer") || strings.EqualFold(parts[0], "dpop")) {
+			if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") && !strings.EqualFold(parts[0], "dpop") {
 				next.ServeHTTP(w, r)
 				return
 			}
