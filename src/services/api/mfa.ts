@@ -1,8 +1,20 @@
 /**
- * MFA API Service — self-service enrollment endpoints
+ * MFA API service — step-up only.
+ *
+ * The console does not manage anyone's own MFA factors. Enrolling, disabling
+ * and recovering your own factors lives in the identity app, which owns every
+ * account-management flow; the console links out to it. The internal API mounts
+ * only the step-up ceremony to match, so the enrollment client that used to
+ * live here had no screens left to serve and no routes left to call.
+ *
+ * What remains is what the console needs to satisfy its OWN sensitive actions:
+ * read which factors the admin holds, then use one to reach acr=2.
+ *
+ * Admin remediation (resetting somebody ELSE's MFA) is a user-management
+ * concern and lives with the other user endpoints, not here.
  */
 
-import { get, post, deleteRequest } from "./client"
+import { get, post } from "./client"
 import { unwrap, assertSuccess } from "./_lib/unwrap"
 import type { ApiResponse } from "./types"
 import type { WebAuthnAssertionOptions } from "@/lib/webauthn"
@@ -17,6 +29,18 @@ export interface MFAStatusResponse {
   backup_codes_count: number
   webauthn_keys: MFAWebAuthnKey[]
   mfa_enabled_at?: string | null
+  /**
+   * The tenant's POLICY: which factors a user may enrol at all. Distinct from
+   * the is_*_enabled flags, which say what they have already set up.
+   *
+   * The step-up dialog filters on this — offering a factor the tenant disabled
+   * presents a challenge the server will refuse.
+   */
+  allowed_methods: string[]
+  /** True when the tenant requires at least one factor. */
+  mfa_required: boolean
+  /** Authenticator code length for this tenant — 6 or 8. Never assume 6. */
+  totp_digits?: number
 }
 
 export interface MFAWebAuthnKey {
@@ -24,38 +48,6 @@ export interface MFAWebAuthnKey {
   name: string
   transport: string
   last_used_at?: string | null
-  created_at: string
-}
-
-export interface WebAuthnCredentialDownload {
-  credential_uuid: string
-  name: string
-  credential_key_id: string
-  public_key_base64: string
-  aaguid?: string
-  transport?: string
-  is_backup_eligible: boolean
-  is_backup_state: boolean
-  created_at: string
-}
-
-export interface TOTPEnrollResponse {
-  secret: string
-  qr_code_url: string
-}
-
-export interface TOTPVerifyRequest {
-  code: string
-}
-
-export interface BackupCodesResponse {
-  codes: string[]
-}
-
-export interface WebAuthnCredentialSummary {
-  credential_uuid: string
-  name: string
-  transport: string
   created_at: string
 }
 
@@ -68,58 +60,6 @@ export async function fetchMFAStatus(): Promise<MFAStatusResponse> {
   return unwrap(r, "fetch MFA status")
 }
 
-export async function beginTOTPEnrollment(): Promise<TOTPEnrollResponse> {
-  const r: ApiResponse<TOTPEnrollResponse> = await post<ApiResponse<TOTPEnrollResponse>>(`${BASE}/totp/enroll`)
-  return unwrap(r, "begin TOTP enrollment")
-}
-
-export async function finishTOTPEnrollment(data: TOTPVerifyRequest): Promise<BackupCodesResponse> {
-  const r: ApiResponse<BackupCodesResponse> = await post<ApiResponse<BackupCodesResponse>>(`${BASE}/totp/verify`, data)
-  return unwrap(r, "finish TOTP enrollment")
-}
-
-export async function disableTOTP(): Promise<void> {
-  const r: ApiResponse<void> = await deleteRequest<ApiResponse<void>>(`${BASE}/totp`)
-  assertSuccess(r, "disable TOTP")
-}
-
-export async function getBackupCodesCount(): Promise<{ remaining: number }> {
-  const r: ApiResponse<{ remaining: number }> = await get<ApiResponse<{ remaining: number }>>(`${BASE}/backup-codes/count`)
-  return unwrap(r, "get backup codes count")
-}
-
-export async function regenerateBackupCodes(): Promise<BackupCodesResponse> {
-  const r: ApiResponse<BackupCodesResponse> = await post<ApiResponse<BackupCodesResponse>>(`${BASE}/backup-codes/regenerate`)
-  return unwrap(r, "regenerate backup codes")
-}
-
-export interface WebAuthnCreationOptions {
-  publicKey: {
-    rp: { name: string; id: string }
-    user: { name: string; displayName: string; id: string }
-    challenge: string
-    pubKeyCredParams: Array<{ type: string; alg: number }>
-    timeout: number
-    authenticatorSelection?: Record<string, unknown>
-  }
-}
-
-export async function beginWebAuthnRegistration(): Promise<WebAuthnCreationOptions> {
-  const r: ApiResponse<WebAuthnCreationOptions> = await post<ApiResponse<WebAuthnCreationOptions>>(`${BASE}/webauthn/register/begin`)
-  return unwrap(r, "begin WebAuthn registration")
-}
-
-export async function finishWebAuthnRegistration(
-  name: string,
-  credential: unknown,
-): Promise<WebAuthnCredentialSummary> {
-  const r: ApiResponse<WebAuthnCredentialSummary> = await post<ApiResponse<WebAuthnCredentialSummary>>(
-    `${BASE}/webauthn/register/finish?name=${encodeURIComponent(name)}`,
-    credential,
-  )
-  return unwrap(r, "finish WebAuthn registration")
-}
-
 // Starts a passkey assertion ceremony (step-up). The returned challenge is
 // consumed by navigator.credentials.get; the assertion is then sent to
 // /step-up/verify. The matching server-side session is keyed to the user.
@@ -128,62 +68,9 @@ export async function beginWebAuthnAuthentication(): Promise<WebAuthnAssertionOp
   return unwrap(r, "begin WebAuthn authentication")
 }
 
-export async function deleteWebAuthnCredential(credentialUuid: string): Promise<void> {
-  const r: ApiResponse<void> = await deleteRequest<ApiResponse<void>>(`${BASE}/webauthn/${credentialUuid}`)
-  assertSuccess(r, "delete WebAuthn credential")
-}
-
-export async function downloadWebAuthnCredential(credentialUuid: string): Promise<WebAuthnCredentialDownload> {
-  const r: ApiResponse<WebAuthnCredentialDownload> = await get<ApiResponse<WebAuthnCredentialDownload>>(`${BASE}/webauthn/${credentialUuid}/download`)
-  return unwrap(r, "download WebAuthn credential")
-}
-
-// ── SMS MFA ──────────────────────────────────────────────────────────────────
-
-export async function beginSMSEnrollment(phone: string): Promise<void> {
-  const r = await post<ApiResponse<void>>(`${BASE}/sms/enroll`, { phone })
-  assertSuccess(r, "begin SMS enrollment")
-}
-
-export async function verifySMSEnrollment(phone: string, code: string): Promise<void> {
-  const r = await post<ApiResponse<void>>(`${BASE}/sms/verify`, { phone, code })
-  assertSuccess(r, "verify SMS enrollment")
-}
-
-export async function disableSMS(): Promise<void> {
-  const r = await deleteRequest<ApiResponse<void>>(`${BASE}/sms`)
-  assertSuccess(r, "disable SMS")
-}
-
-// ── Email OTP MFA ────────────────────────────────────────────────────────────
-
-export async function beginEmailOtpEnrollment(email: string): Promise<void> {
-  const r = await post<ApiResponse<void>>(`${BASE}/email-otp/enroll`, { email })
-  assertSuccess(r, "begin Email OTP enrollment")
-}
-
-export async function verifyEmailOtpEnrollment(email: string, code: string): Promise<void> {
-  const r = await post<ApiResponse<void>>(`${BASE}/email-otp/verify`, { email, code })
-  assertSuccess(r, "verify Email OTP enrollment")
-}
-
-export async function disableEmailOtp(): Promise<void> {
-  const r = await deleteRequest<ApiResponse<void>>(`${BASE}/email-otp`)
-  assertSuccess(r, "disable Email OTP")
-}
-
-// ── Reset all (self-service) ──────────────────────────────────────────────────
-// Clears every MFA factor for the signed-in user. The server scopes this to the
-// session identity (no target param), so it can only ever reset your own MFA.
-export async function resetAllMFA(): Promise<void> {
-  const r = await post<ApiResponse<void>>(`${BASE}/reset`)
-  assertSuccess(r, "reset MFA")
-}
-
 // ── Step-up authentication ─────────────────────────────────────────────────────
-// Used to elevate a session (acr=2) before a sensitive action such as deleting
-// the account or revoking all sessions. The verified token is then passed as a
-// Bearer header on the gated request.
+// Elevates a session (acr=2) before a sensitive action. The verified token is
+// then passed as a Bearer header on the gated request.
 
 export interface StepUpChallenge {
   challenge_token: string

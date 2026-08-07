@@ -22,6 +22,8 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { useAppSelector } from "@/store/hooks"
+import { openIdentityAccount } from "@/lib/identityAccountUrl"
 import { useQuery } from "@tanstack/react-query"
 import { fetchMFAStatus } from "@/services/api/mfa"
 import { DetailsContainer } from "@/components/container"
@@ -131,6 +133,7 @@ const DashboardPage = () => {
   const { data: summary, isLoading, isError } = useDashboardSummary()
 
   const to = (path: string) => navigate(`${path}`)
+  const tenantIdentityUrl = useAppSelector((state) => state.tenant.identityUrl)
 
   const stats = [
     {
@@ -171,7 +174,9 @@ const DashboardPage = () => {
       </div>
 
       {/* MFA status — amber prompt until a factor is enrolled, then a quiet green confirmation */}
-      <MfaStatusBanner onSetup={() => to("/account/mfa?from=dashboard")} />
+      {/* MFA enrolment lives in the identity app; this banner sends the admin
+          there rather than to a second copy of the same screens. */}
+      <MfaStatusBanner onSetup={() => openIdentityAccount(tenantIdentityUrl, "mfa")} />
 
       {/* KPI stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

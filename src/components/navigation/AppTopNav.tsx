@@ -14,17 +14,17 @@ import { CreateMenu } from "@/components/navigation/CreateMenu"
 import { useAppSelector } from "@/store/hooks"
 import { logout } from "@/services/api/auth"
 import { resolveBrandingLogoUrl } from "@/utils/branding"
+import { openIdentityAccount } from "@/lib/identityAccountUrl"
 import {
   BookOpen,
   ChevronDown,
   Code2,
+  ExternalLink,
   HelpCircle,
   LogOut,
   MessageSquare,
-  Settings,
   User,
 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
 
 const resourceLinks = [
   { title: "Documentation", icon: BookOpen, href: "#" },
@@ -33,9 +33,9 @@ const resourceLinks = [
 ]
 
 export function AppTopNav() {
-  const navigate = useNavigate()
   const profile = useAppSelector((state) => state.auth.profile)
   const branding = useAppSelector((state) => state.tenant.currentTenant?.branding)
+  const tenantIdentityUrl = useAppSelector((state) => state.tenant.identityUrl)
 
   const displayName = profile?.display_name || profile?.email || "User"
   const initials = displayName.slice(0, 2).toUpperCase()
@@ -131,19 +131,15 @@ export function AppTopNav() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {/* Self-service lives in the identity app, not here. One
+                implementation instead of two that drift. */}
             <DropdownMenuItem
               className="cursor-pointer"
-              onClick={() => navigate(`/account/profile`)}
+              onClick={() => openIdentityAccount(tenantIdentityUrl)}
             >
               <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={() => navigate(`/account/settings`)}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
+              My account
+              <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer" onClick={() => logout()}>

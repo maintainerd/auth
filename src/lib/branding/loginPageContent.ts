@@ -205,8 +205,8 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     subtitle: "Confirm your second factor to finish signing in.",
     elements: [
       { type: "tile-list", items: [
-        { title: "Authenticator app", description: "Use a six-digit code." },
-        { title: "Passkey", description: "Use Face ID, Touch ID, Windows Hello, or your security key." },
+        { title: "Authenticator app", description: "Use the code from your authenticator app." },
+        { title: "Passkey", description: "Use your passkey." },
         { title: "Text message", description: "Send code to my phone." },
         { title: "Email OTP", description: "Send code to my email." },
         { title: "Backup code", description: "Enter one saved recovery code." },
@@ -222,9 +222,9 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     label: "Login MFA: Passkey",
     group: "Sign-in",
     title: "Two-step verification",
-    subtitle: "Confirm your identity with a second factor.",
+    subtitle: "Confirm with your passkey to finish signing in.",
     elements: [
-      { type: "section", title: "Passkey", description: "Use Face ID, Touch ID, Windows Hello, or your security key to confirm." },
+      { type: "section", title: "Passkey", description: "Use your passkey to continue." },
       { type: "checkbox", label: "Trust this device — skip verification here next time" },
       { type: "button", label: "Use passkey" },
       { type: "button", label: "Cancel", variant: "ghost" },
@@ -280,8 +280,8 @@ export const DEFAULT_LOGIN_PAGE_PREVIEWS: Record<LoginPagePreviewId, LoginPagePr
     subtitle: "Your magic link was accepted. Confirm a different factor to finish signing in.",
     elements: [
       { type: "tile-list", items: [
-        { title: "Authenticator app", description: "Use a six-digit code." },
-        { title: "Passkey", description: "Use Face ID, Touch ID, Windows Hello, or your security key." },
+        { title: "Authenticator app", description: "Use the code from your authenticator app." },
+        { title: "Passkey", description: "Use your passkey." },
         { title: "Text message", description: "Send code to my phone." },
         { title: "Backup code", description: "Enter one saved recovery code." },
       ], columns: 1 },

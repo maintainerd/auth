@@ -76,14 +76,6 @@ const SmsTemplateForm = lazy(() => import('./pages/branding/sms-templates/form')
 const EmailConfigPage = lazy(() => import('./pages/messaging/email/EmailConfigPage'))
 const SMSConfigPage = lazy(() => import('./pages/messaging/sms/SMSConfigPage'))
 const MessagingPage = lazy(() => import('./pages/messaging/MessagingPage'))
-const MFAPage = lazy(() => import('./pages/account/MFAPage'))
-const MFAIndex = lazy(() => import('./pages/account/MFAPage').then(m => ({ default: m.MFAIndex })))
-const TOTPSetupPage = lazy(() => import('./pages/account/TOTPSetupPage'))
-const PasskeySetupPage = lazy(() => import('./pages/account/PasskeySetupPage'))
-const SMSSetupPage = lazy(() => import('./pages/account/SMSSetupPage'))
-const EmailOtpSetupPage = lazy(() => import('./pages/account/EmailOtpSetupPage'))
-const ProfilePage = lazy(() => import('./pages/account/ProfilePage'))
-const SettingsPage = lazy(() => import('./pages/account/SettingsPage'))
 const NotFoundPage = lazy(() => import('./pages/not-found/NotFoundPage'))
 
 function App() {
@@ -185,15 +177,9 @@ function App() {
           <Route path="messaging" element={<MessagingPage />} />
           <Route path="messaging/email/configure" element={<EmailConfigPage />} />
           <Route path="messaging/sms/configure" element={<SMSConfigPage />} />
-          <Route path="account/profile" element={<ProfilePage />} />
-          <Route path="account/settings" element={<SettingsPage />} />
-          <Route path="account/mfa" element={<MFAPage />}>
-            <Route index element={<MFAIndex />} />
-            <Route path="totp" element={<TOTPSetupPage />} />
-            <Route path="passkeys" element={<PasskeySetupPage />} />
-            <Route path="sms" element={<SMSSetupPage />} />
-            <Route path="email-otp" element={<EmailOtpSetupPage />} />
-          </Route>
+          {/* Self-service (profile, settings, MFA, sessions) lives in the
+              identity app. Keeping a second copy here meant every change had to
+              be made twice, and the two drifted. See lib/identityAccountUrl. */}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />

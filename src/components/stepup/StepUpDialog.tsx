@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils"
 import { getAssertion } from "@/lib/webauthn"
 import { MFA_METHOD_META as METHOD_META, extractMFACode } from "@/lib/mfaMethods"
 import { useToast } from "@/hooks/useToast"
-import { beginWebAuthnAuthentication, issueStepUpChallenge, sendStepUpSMS, sendStepUpEmailOtp, verifyStepUp } from "@/services/api/mfa"
-import { useMutation } from "@tanstack/react-query"
+import { beginWebAuthnAuthentication, issueStepUpChallenge, sendStepUpSMS, sendStepUpEmailOtp, verifyStepUp, fetchMFAStatus } from "@/services/api/mfa"
+import { useMutation, useQuery } from "@tanstack/react-query"
 
 interface StepUpDialogProps {
   open: boolean
@@ -89,12 +89,26 @@ export function StepUpDialog({ open, onOpenChange, onVerified, onCancel, title, 
     onOpenChange(next)
   }
 
+  // The tenant's authenticator code length. This dialog runs for an
+  // authenticated user, so the policy is readable here — unlike the login second
+  // step, which has to be told. Assuming 6 would make step-up impossible on a
+  // totp_digits=8 tenant: the submit button never enables.
+  const { data: mfaStatus } = useQuery({
+    queryKey: ["mfa", "status"],
+    queryFn: fetchMFAStatus,
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  })
+  // Only the authenticator honours the digit policy; SMS and email OTP are
+  // always 6, set by the sender's own format.
+  const codeLength = method === "totp" ? (mfaStatus?.totp_digits ?? 6) : 6
+
   const meta = METHOD_META[method]
   const isWebAuthn = meta?.webauthn ?? false
   const numeric = meta?.numeric ?? false
   const canSubmit = isWebAuthn
     ? !verifyMutation.isPending
-    : Boolean(method) && Boolean(code.trim()) && !verifyMutation.isPending && (!numeric || code.length === 6)
+    : Boolean(method) && Boolean(code.trim()) && !verifyMutation.isPending && (!numeric || code.length === codeLength)
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -145,7 +159,7 @@ export function StepUpDialog({ open, onOpenChange, onVerified, onCancel, title, 
 
             {isWebAuthn ? (
               <p className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-                Use Face ID, Touch ID, Windows Hello, or your security key to confirm.
+                Use your passkey to continue.
               </p>
             ) : (
               <>
@@ -169,7 +183,7 @@ export function StepUpDialog({ open, onOpenChange, onVerified, onCancel, title, 
                     placeholder={numeric ? "000000" : "Enter one backup code"}
                     className={numeric ? "font-mono tracking-[0.4em] text-center" : "font-mono"}
                     value={code}
-                    onChange={(e) => setCode(numeric ? e.target.value.replace(/\D/g, "").slice(0, 6) : e.target.value)}
+                    onChange={(e) => setCode(numeric ? e.target.value.replace(/\D/g, "").slice(0, codeLength) : e.target.value)}
                   />
                   {method === "backup_code" && (
                     <p className="text-xs text-muted-foreground">
