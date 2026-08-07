@@ -46,6 +46,53 @@ func TestProfileRoute(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
+// mountedRoutes enumerates the routes a router actually registered, as
+// "METHOD /path" strings.
+//
+// Walk rather than Match or a served request. A served request is useless here:
+// every one of these paths sits under a chi group carrying JWTAuthMiddleware,
+// so it answers 401 whether or not the route exists. And Match reports true for
+// ANY method on a group's own mount point — chi registers that node for all
+// methods — so it cannot tell a removed "PUT /profile" from a live one. Walk
+// reads the route table itself, which is the thing under test.
+func mountedRoutes(t *testing.T, r chi.Routes) map[string]bool {
+	t.Helper()
+	got := map[string]bool{}
+	require.NoError(t, chi.Walk(r, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		got[method+" "+strings.TrimSuffix(route, "/")] = true
+		return nil
+	}))
+	return got
+}
+
+// The internal console surface displays people; it does not let anyone manage
+// their own account. Those flows live in the identity app, and mounting a
+// second copy here would mean two sets of the same step-up and policy guards,
+// only one of which anything exercises.
+func TestAccountSelfReadRoute_MountsOnlyTheSignedInAsRead(t *testing.T) {
+	r := chi.NewRouter()
+	AccountSelfReadRoute(r, NewAccountHandler(&mockAccountService{}, &mockSessionService{}, nil), nil, nil)
+
+	// Exhaustive, not a spot-check: anything added to this surface later has to
+	// be justified against the comment above rather than slipping in.
+	assert.Equal(t, map[string]bool{"GET /account": true}, mountedRoutes(t, r),
+		`the console needs GET /account for "signed in as" and nothing else`)
+}
+
+func TestProfileSelfReadRoute_MountsOnlyTheDisplayReads(t *testing.T) {
+	r := chi.NewRouter()
+	ProfileSelfReadRoute(r, NewProfileHandler(&mockProfileService{}), nil, nil)
+
+	assert.Equal(t, map[string]bool{
+		// The signed-in admin's own profile — name and avatar in the top nav.
+		"GET /profile": true,
+		// Where an uploaded avatar is actually served from. Every profile_url the
+		// console renders points here, including on the admin user-management
+		// screens, so losing it would break other users' avatars too.
+		"GET /profiles/{profile_uuid}/picture": true,
+	}, mountedRoutes(t, r), "profile EDITING belongs to the identity app (self) or UserRoute (admin)")
+}
+
 func TestUserRoute(t *testing.T) {
 	r := chi.NewRouter()
 	h := NewUserHandler(&mockUserService{})

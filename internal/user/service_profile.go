@@ -49,6 +49,17 @@ type ProfileServiceListResult struct {
 }
 
 type ProfileService interface {
+	// Avatar handling. Set/Clear take the caller's user id and refuse a profile
+	// belonging to anyone else, so a UUID alone is not authority to change
+	// someone's picture. SetProfilePicture returns the URL the profile now
+	// points at.
+	SetProfilePicture(ctx context.Context, profileUUID uuid.UUID, userID int64, picture *ProfilePicture) (string, error)
+	ClearProfilePicture(ctx context.Context, profileUUID uuid.UUID, userID int64) error
+	GetProfilePicture(ctx context.Context, profileUUID uuid.UUID) (*ProfilePicture, error)
+	GetProfilePictureETag(ctx context.Context, profileUUID uuid.UUID) (string, error)
+	// EnsureProfileOwnedBy gates the avatar READ for callers who do not
+	// administer users.
+	EnsureProfileOwnedBy(ctx context.Context, profileUUID uuid.UUID, userID int64) error
 	CreateOrUpdateProfile(
 		ctx context.Context,
 		userUUID uuid.UUID,
@@ -85,18 +96,35 @@ type profileService struct {
 	db          *gorm.DB
 	profileRepo ProfileRepository
 	userRepo    UserRepository
+	// profilePictureRepo is the ONLY route to avatar bytes. Optional so a caller
+	// that does not serve avatars need not wire it; the picture methods refuse
+	// rather than panic when it is absent.
+	profilePictureRepo ProfilePictureRepository
 }
 
 func NewProfileService(
 	db *gorm.DB,
 	profileRepo ProfileRepository,
 	userRepo UserRepository,
+	opts ...ProfileServiceOption,
 ) ProfileService {
-	return &profileService{
+	s := &profileService{
 		db:          db,
 		profileRepo: profileRepo,
 		userRepo:    userRepo,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+// ProfileServiceOption configures optional collaborators.
+type ProfileServiceOption func(*profileService)
+
+// WithProfilePictureRepository enables avatar upload and serving.
+func WithProfilePictureRepository(repo ProfilePictureRepository) ProfileServiceOption {
+	return func(s *profileService) { s.profilePictureRepo = repo }
 }
 
 // applyProfileFields copies the optional fields onto profile, skipping the ones

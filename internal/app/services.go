@@ -315,7 +315,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		),
 		loginService:             authn.NewLoginService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo, appCache),
 		sessionService:           sessionSvc,
-		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo),
+		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo, user.WithProfilePictureRepository(r.profilePictureRepo)),
 		profileRepo:              r.profileRepo,
 		userSettingService:       user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
 		userConsentService:       user.NewUserConsentService(r.userConsentRepo),

@@ -319,6 +319,10 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TO
 	return &TOTPEnrollResponseDTO{
 		Secret:    key.Secret(),
 		QRCodeURL: key.URL(),
+		// Report the values the key was actually generated with, so the client
+		// sizes its input to the codes the authenticator will show.
+		Digits:        digitsToInt(digits),
+		PeriodSeconds: period,
 	}, nil
 }
 
@@ -651,11 +655,38 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 		credSummaries = append(credSummaries, summary)
 	}
 
+	// The tenant's policy, so a client can offer only the factors this tenant
+	// permits rather than every factor the product implements.
+	//
+	// A policy read failure yields no allowed methods, not all of them: showing a
+	// factor the tenant disabled invites a user through an enrolment that is
+	// refused at the last step, which reads as a broken product rather than a
+	// policy decision.
+	var allowedMethods []string
+	mfaRequired := false
+	if policy, err := s.GetMFAPolicy(ctx, user.TenantID); err == nil && policy != nil {
+		allowedMethods = policy.AllowedMethods
+		mfaRequired = policy.Required
+	}
+	// The code length an already-enrolled user's authenticator produces. The
+	// login second step has to size its input from this; it never sees the
+	// enrolment response.
+	totpDigits := totpDigitsDefault
+	if p := secpolicy.LoadMFAPolicy(s.secSettingRepo, user.TenantID); p != nil && p.TOTPDigits > 0 {
+		totpDigits = p.TOTPDigits
+	}
+	if allowedMethods == nil {
+		allowedMethods = []string{}
+	}
+
 	resp := &MFAStatusResponseDTO{
 		IsTOTPEnabled:     user.IsTOTPEnabled,
 		IsWebAuthnEnabled: user.IsWebAuthnEnabled,
 		IsSMSEnabled:      s.isSMSEnabled(ctx, userID),
 		IsEmailOTPEnabled: s.isEmailOTPEnabled(ctx, userID),
+		AllowedMethods:    allowedMethods,
+		MFARequired:       mfaRequired,
+		TOTPDigits:        totpDigits,
 		BackupCodesCount:  backupCount,
 		WebAuthnKeys:      credSummaries,
 	}
@@ -2050,5 +2081,20 @@ func digitsFromInt(d int) otp.Digits {
 		return otp.DigitsEight
 	default:
 		return otp.DigitsSix
+	}
+}
+
+// totpDigitsDefault matches the seeded totp_digits policy and RFC 6238's common
+// case. Used when no tenant policy is readable.
+const totpDigitsDefault = 6
+
+// digitsToInt converts the otp library's Digits enum back to a plain count for
+// the API, so a client never has to know that type.
+func digitsToInt(d otp.Digits) int {
+	switch d {
+	case otp.DigitsEight:
+		return 8
+	default:
+		return 6
 	}
 }

@@ -176,6 +176,36 @@ func TestSetupService_RegisterControlService(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	// A second orchestrator gets its OWN policy. This software is deployed by
+	// organisations running their own orchestrator, and an instance can serve more
+	// than one; because an existing policy is returned unchanged, a shared name
+	// would silently hand the second one the first one's action set.
+	t.Run("a named policy is separate from the default", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		policyRepo := &mockPolicyRepo{
+			findByNameAndVersionFn: func(name string, _ string, _ int64) (*Policy, error) {
+				// The default already exists; the named one does not.
+				if name == DefaultControlPolicyName {
+					return &Policy{PolicyID: 88, Name: name}, nil
+				}
+				return nil, nil
+			},
+		}
+		svc := newService(db, &mockServiceRepo{}, policyRepo, &mockServicePolicyRepo{}, nil)
+
+		req := validReq
+		req.PolicyName = "acme-control"
+		req.AllowedActions = []string{"tenant:*"}
+		_, err := svc.RegisterControlService(context.Background(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, policyRepo.created, "a distinct name must not reuse the default policy")
+		assert.Equal(t, "acme-control", policyRepo.created.Name)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	// An existing policy is returned unchanged. Setup is reachable with only the
 	// bootstrap credential, so letting a re-run rewrite the policy would make
 	// "register again" a way to widen an already-registered principal.

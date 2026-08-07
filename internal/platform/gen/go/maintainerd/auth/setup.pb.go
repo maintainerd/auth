@@ -765,8 +765,19 @@ type RegisterControlServiceRequest struct {
 	// account:*:self — an orchestrator provisions tenants and their configuration
 	// and has no reason to hold every user in every tenant.
 	AllowedActions []string `protobuf:"bytes,5,rep,name=allowed_actions,json=allowedActions,proto3" json:"allowed_actions,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// policy_name lets an ecosystem name its own control policy. Empty means the
+	// default ("auth-control").
+	//
+	// It matters because this software is deployed by organisations running their
+	// OWN orchestrator, not only the maintainerd one, and an instance can serve
+	// more than one. An existing policy is returned unchanged rather than widened,
+	// so with a single shared name a second orchestrator would silently inherit
+	// the first one's action set — quietly getting broader or narrower rights than
+	// the ones it asked for, with nothing in the response to say so. Distinct
+	// names keep each orchestrator's grant its own.
+	PolicyName    string `protobuf:"bytes,6,opt,name=policy_name,json=policyName,proto3" json:"policy_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RegisterControlServiceRequest) Reset() {
@@ -832,6 +843,13 @@ func (x *RegisterControlServiceRequest) GetAllowedActions() []string {
 		return x.AllowedActions
 	}
 	return nil
+}
+
+func (x *RegisterControlServiceRequest) GetPolicyName() string {
+	if x != nil {
+		return x.PolicyName
+	}
+	return ""
 }
 
 type RegisterControlServiceResponse struct {
@@ -1789,13 +1807,15 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\fprofile_uuid\x18\x01 \x01(\tR\vprofileUuid\x12\x1d\n" +
 	"\n" +
 	"first_name\x18\x02 \x01(\tR\tfirstName\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\xbb\x01\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\xdc\x01\n" +
 	"\x1dRegisterControlServiceRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12'\n" +
-	"\x0fallowed_actions\x18\x05 \x03(\tR\x0eallowedActions\"\x95\x02\n" +
+	"\x0fallowed_actions\x18\x05 \x03(\tR\x0eallowedActions\x12\x1f\n" +
+	"\vpolicy_name\x18\x06 \x01(\tR\n" +
+	"policyName\"\x95\x02\n" +
 	"\x1eRegisterControlServiceResponse\x12!\n" +
 	"\fservice_uuid\x18\x01 \x01(\tR\vserviceUuid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +

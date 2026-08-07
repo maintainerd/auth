@@ -129,6 +129,71 @@ func AccountRoute(
 	})
 }
 
+// AccountSelfReadRoute mounts the read-only slice of AccountRoute for the
+// internal console surface.
+//
+// GET /account is what renders "signed in as", so it has to stay. The other
+// thirteen endpoints on AccountRoute — email/phone/username/password changes,
+// deletion, export, session management, consent — are account MANAGEMENT, and
+// the identity app is the single place that does that now. Mounting them here
+// as well would leave a second, unexercised copy of every one of those guards.
+func AccountSelfReadRoute(
+	r chi.Router,
+	accountHandler *AccountHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Route("/account", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		r.Get("/", accountHandler.GetAccount)
+	})
+}
+
+// ProfileSelfReadRoute mounts the read-only slice of ProfileRoute for the
+// internal console surface.
+//
+// Two endpoints, both of which the console needs to DISPLAY people:
+//
+//   - GET /profile — the signed-in admin's own profile (name and avatar in the
+//     top nav).
+//   - GET /profiles/{uuid}/picture — where an uploaded avatar is actually
+//     served from. Every profile_url the console renders points here, including
+//     on the admin user-management screens, so dropping it would break avatars
+//     for other users too. The handler's own owner-or-user:read check is what
+//     keeps that from becoming a way to enumerate profiles.
+//
+// Profile EDITING is absent: self-editing belongs to the identity app, and an
+// admin editing someone else goes through /users/{uuid}/profiles on UserRoute.
+func ProfileSelfReadRoute(
+	r chi.Router,
+	profileHandler *ProfileHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+	rateLimitMiddleware ...middleware.Middleware,
+) {
+	r.Route("/profile", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
+			Get("/", profileHandler.Get)
+	})
+
+	r.Route("/profiles", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+		r.Use(middleware.OptionalMiddleware(rateLimitMiddleware...))
+
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
+			Get("/{profile_uuid}/picture", profileHandler.GetPicture)
+	})
+}
+
 // RecoveryRoute mounts unauthenticated account recovery endpoints.
 func RecoveryRoute(
 	r chi.Router,
@@ -199,6 +264,21 @@ func ProfileRoute(
 		// Delete specific profile by UUID
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:delete:self"})).
 			Delete("/{profile_uuid}", profileHandler.DeleteByUUID)
+
+		// Avatar upload/removal. Both write the caller's OWN profile — the service
+		// refuses a UUID belonging to another user — so they need no permission
+		// beyond the one that already governs editing a profile.
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Post("/{profile_uuid}/picture", profileHandler.UploadPicture)
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Delete("/{profile_uuid}/picture", profileHandler.DeletePicture)
+
+		// Serving the image is a READ of profile data these endpoints already
+		// return, so it carries the profile read permission and stays inside this
+		// authenticated group: an open avatar endpoint would let anyone holding a
+		// profile UUID confirm which ones exist.
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
+			Get("/{profile_uuid}/picture", profileHandler.GetPicture)
 	})
 }
 

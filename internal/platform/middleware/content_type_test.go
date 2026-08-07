@@ -108,6 +108,39 @@ func TestEnforceJSONContentType_OAuthFormEncodedPathsExempt(t *testing.T) {
 	}
 }
 
+func TestEnforceJSONContentType_MultipartUploadExempt(t *testing.T) {
+	paths := []string{
+		"/profiles/6d9d9050-14c1-4ea4-8ed4-79ce4ee39422/picture",
+		"/api/v1/profiles/6d9d9050-14c1-4ea4-8ed4-79ce4ee39422/picture",
+		"/users/7ee70b88-ebc9-425c-946a-c96acafaf400/profiles/6d9d9050-14c1-4ea4-8ed4-79ce4ee39422/picture",
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			handler := EnforceJSONContentType(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}))
+			r := httptest.NewRequest(http.MethodPost, path, nil)
+			// Multipart Content-Type — should still pass.
+			r.Header.Set("Content-Type", "multipart/form-data; boundary=test-boundary")
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			assert.Equal(t, http.StatusOK, w.Code)
+		})
+	}
+}
+
+func TestEnforceJSONContentType_MultipartUploadNoContentType(t *testing.T) {
+	handler := EnforceJSONContentType(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	r := httptest.NewRequest(http.MethodPost, "/profiles/6d9d9050-14c1-4ea4-8ed4-79ce4ee39422/picture", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestEnforceJSONContentType_PutJSONPasses(t *testing.T) {
 	handler := EnforceJSONContentType(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -137,4 +170,12 @@ func TestEnforceJSONContentType_PatchJSONPasses(t *testing.T) {
 func TestIsFormEncodedPath_NonOAuthPath(t *testing.T) {
 	assert.False(t, isFormEncodedPath("/tenants"))
 	assert.False(t, isFormEncodedPath("/login"))
+}
+
+func TestIsMultipartPath(t *testing.T) {
+	assert.True(t, isMultipartPath("/profiles/6d9d9050-14c1-4ea4-8ed4-79ce4ee39422/picture"))
+	assert.True(t, isMultipartPath("/api/v1/profiles/6d9d9050-14c1-4ea4-8ed4-79ce4ee39422/picture"))
+	assert.False(t, isMultipartPath("/profiles/6d9d9050-14c1-4ea4-8ed4-79ce4ee39422"))
+	assert.False(t, isMultipartPath("/users/7ee70b88-ebc9-425c-946a-c96acafaf400/picture"))
+	assert.False(t, isMultipartPath("/tenants"))
 }

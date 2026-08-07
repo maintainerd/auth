@@ -65,8 +65,12 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		// Interactive authentication is public-only. The console now starts an
 		// OAuth flow through the hosted identity app instead of posting
 		// credentials to the internal API.
-		user.ProfileRoute(api, h.profile, userProvider, application.Cache, tenantRateLimit)
-		user.UserSettingRoute(api, h.userSetting, userProvider, application.Cache, tenantRateLimit)
+		//
+		// Read-only: the console displays the signed-in admin and other users'
+		// avatars, but it does not manage anyone's own account — that lives
+		// entirely in the identity app. UserSettingRoute is gone from this
+		// surface for the same reason; nothing on the console called it.
+		user.ProfileSelfReadRoute(api, h.profile, userProvider, application.Cache, tenantRateLimit)
 
 		// Management Routes (internal access only)
 		tenant.TenantRoute(api, h.tenant, userProvider, application.Cache, tenantRateLimit)
@@ -79,8 +83,9 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		iam.RoleRoute(api, h.role, userProvider, application.Cache, tenantRateLimit)
 		user.UserRoute(api, h.user, h.profile, h.userTrustedDevice, h.userConsent, userProvider, application.Cache, tenantRateLimit)
 		user.UserTrustedDeviceRoute(api, h.userTrustedDevice, userProvider, application.Cache, tenantRateLimit)
+		// Admin erasure only. Erasing your OWN account is self-service and is
+		// mounted on the public surface for the identity app.
 		user.DataErasureAdminRoute(api, h.dataErasure, userProvider, application.Cache, tenantRateLimit)
-		user.DataErasureSelfRoute(api, h.dataErasure, userProvider, application.Cache, tenantRateLimit)
 		invite.InviteRoute(api, h.invite, userProvider, application.Cache, tenantRateLimit)
 		idp.RegistrationFlowRoute(api, h.registrationFlow, userProvider, application.Cache, tenantRateLimit)
 		secpolicy.SecuritySettingRoute(api, h.securitySetting, userProvider, application.Cache, tenantRateLimit)
@@ -109,26 +114,29 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		federation.WorkloadIdentityFederationRoute(api, h.wif, userProvider, application.Cache, tenantRateLimit)
 		dashboard.DashboardRoute(api, h.dashboard, userProvider, application.Cache, tenantRateLimit)
 
-		// Account self-service routes (authenticated)
-		user.AccountRoute(api, h.account, h.userConsent, userProvider, application.Cache, h.mfa.RequirePolicyStepUp, tenantRateLimit)
-		// Internal MFA routes (authenticated): self-service plus admin remediation.
+		// "Signed in as" only. Account MANAGEMENT — email, phone, username,
+		// password, deletion, export, sessions, consent — is the identity app's,
+		// and the console links out to it rather than carrying its own copy.
+		user.AccountSelfReadRoute(api, h.account, userProvider, application.Cache, tenantRateLimit)
+		// Internal MFA routes (authenticated): the step-up ceremony the console
+		// needs to satisfy its own sensitive actions, plus admin remediation.
+		// Self-service factor enrollment is the identity app's.
 		mfa.MFAInternalRoute(api, h.mfa, userProvider, application.Cache, tenantRateLimit)
-		// Identity link/unlink for the console operator's OWN account. This is
-		// self-service (all permissions are :self-scoped) and belongs here for the
-		// same reason AccountRoute does — the console manages its user's account
-		// over the control plane.
 		//
-		// FederationPublicRoute is deliberately NOT mounted here. It carries
-		// interactive authentication and TOKEN ISSUANCE — /federation/token,
-		// /federation/oauth2/callback and /federation/saml/exchange all mint an
-		// end-user JWT from an upstream credential — which is data-plane work, not
-		// management. Two reasons it must not sit on the control plane: minting
-		// user sessions is a privilege boundary the management surface should not
+		// FederationIdentityRoute (self-service identity link/unlink) is NOT
+		// mounted here: linking your own upstream identity is account management,
+		// so it lives on the public surface with the rest of it. The console never
+		// called it.
+		//
+		// FederationPublicRoute is likewise absent, for a different and stronger
+		// reason. It carries interactive authentication and TOKEN ISSUANCE —
+		// /federation/token, /federation/oauth2/callback and
+		// /federation/saml/exchange all mint an end-user JWT from an upstream
+		// credential — which is data-plane work, not management. Minting user
+		// sessions is a privilege boundary the management surface should not
 		// cross, and the callers are browsers and upstream IdPs (a SAML ACS POST
 		// arrives from the IdP) which can neither present a management client nor
-		// reach this port once it is VPN-only. It is mounted on the public router,
-		// which is the only place it works.
-		idp.FederationIdentityRoute(api, h.federation, userProvider, application.Cache, tenantRateLimit)
+		// reach this port once it is VPN-only.
 	})
 	return r
 }

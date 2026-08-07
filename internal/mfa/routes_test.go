@@ -5,46 +5,58 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/maintainerd-auth/internal/authctx"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestMFAInternalRouteMountsSelfServiceAndAdminEndpoints(t *testing.T) {
+// The internal surface serves the admin console, which does NOT manage anyone's
+// own MFA factors — that is the identity app's job. It needs exactly two things:
+// the step-up ceremony (to satisfy its own sensitive actions) and admin
+// remediation (to reset somebody else's factors).
+func TestMFAInternalRouteMountsStepUpAndAdminOnly(t *testing.T) {
 	router := chi.NewRouter()
 	MFAInternalRoute(router, NewMFAHandler(&mockMFAService{}, &mockWebAuthnService{}), nil, nil)
 
-	tests := []struct {
-		method string
-		path   string
-	}{
-		{http.MethodGet, "/mfa/status"},
-		{http.MethodPost, "/mfa/totp/enroll"},
-		{http.MethodPost, "/mfa/totp/verify"},
-		{http.MethodDelete, "/mfa/totp"},
-		{http.MethodGet, "/mfa/backup-codes/count"},
-		{http.MethodPost, "/mfa/backup-codes/regenerate"},
-		{http.MethodPost, "/mfa/webauthn/register/begin"},
-		{http.MethodPost, "/mfa/webauthn/register/finish"},
-		{http.MethodPost, "/mfa/webauthn/auth/begin"},
-		{http.MethodPost, "/mfa/webauthn/auth/finish"},
-		{http.MethodDelete, "/mfa/webauthn/" + mfaTestCredentialUUID.String()},
-		{http.MethodPost, "/mfa/step-up/challenge"},
-		{http.MethodPost, "/mfa/step-up/verify"},
-		{http.MethodPost, "/mfa/reset"},
-		{http.MethodPost, "/mfa/admin/users/" + mfaTestUserUUID.String() + "/reset"},
-		{http.MethodPost, "/mfa/admin/users/" + mfaTestUserUUID.String() + "/reset/totp"},
-	}
+	// Exhaustive, not a spot-check against a hand-maintained deny-list: the
+	// point of the split is that self-service factor management cannot come
+	// back to this surface by accident, and only an exact route table says so.
+	//
+	// Walk rather than Match — chi registers a group's own mount point for ALL
+	// methods, so Match reports true for "DELETE /mfa" whether or not anything
+	// is bound there.
+	assert.Equal(t, map[string]bool{
+		// Step-up: read which factors the caller holds, then use one to prove
+		// possession right now.
+		"GET /mfa/status":                  true,
+		"POST /mfa/webauthn/auth/begin":    true,
+		"POST /mfa/webauthn/auth/finish":   true,
+		"POST /mfa/step-up/challenge":      true,
+		"POST /mfa/step-up/send-sms":       true,
+		"POST /mfa/step-up/send-email-otp": true,
+		"POST /mfa/step-up/verify":         true,
+		// Admin remediation: resetting somebody ELSE's factors.
+		"POST /mfa/admin/users/{user_uuid}/reset":          true,
+		"POST /mfa/admin/users/{user_uuid}/reset/{method}": true,
+	}, mountedRoutes(t, router),
+		"self-service factor enrollment belongs to the identity app, not the console")
+}
 
-	for _, tt := range tests {
-		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
-			match := chi.NewRouteContext()
-			assert.True(t, router.Match(match, tt.method, tt.path))
-		})
-	}
+// mountedRoutes enumerates the routes a router actually registered, as
+// "METHOD /path" strings.
+func mountedRoutes(t *testing.T, r chi.Routes) map[string]bool {
+	t.Helper()
+	got := map[string]bool{}
+	require.NoError(t, chi.Walk(r, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		got[method+" "+strings.TrimSuffix(route, "/")] = true
+		return nil
+	}))
+	return got
 }
 
 func TestMFAPublicRouteMountsOnlySelfServiceEndpoints(t *testing.T) {

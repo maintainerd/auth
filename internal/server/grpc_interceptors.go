@@ -210,6 +210,15 @@ func authenticateAndAuthorizeGRPC(ctx context.Context, application *Application,
 		return ctx, err
 	}
 
+	// A write method on a mixed service. Its service is registered because the
+	// same service carries reads a peer needs; the method itself is orchestration
+	// and belongs to the control plane.
+	if _, administrative := grpcAdministrativeMethods[method]; administrative && !config.ControlPlaneEnabled {
+		return ctx, status.Errorf(codes.FailedPrecondition,
+			"%s modifies users and belongs to the control plane, which is disabled on this instance (CONTROL_PLANE_ENABLED is not true); gRPC here serves runtime calls only — authorization, introspection and reads. Administer users through the console/REST surface",
+			method)
+	}
+
 	// Bootstrap/setup RPCs authenticate with a pre-shared token rather than a JWT:
 	// at first boot no accounts or service principals exist yet. Core presents
 	// SETUP_BOOTSTRAP_TOKEN to provision a system auth (system tenant + admin +
@@ -408,7 +417,7 @@ func authorizeInstanceRole(method string) error {
 	}
 	if !config.IsSystemInstance() {
 		return status.Errorf(codes.FailedPrecondition,
-			"%s is a core-provisioning RPC and is served only by the maintainerd ecosystem's SYSTEM auth instance; this instance declares INSTANCE_ROLE=%q (an unset or unrecognised role is treated as %q). Direct this call at the auth instance provisioned with INSTANCE_ROLE=%q, or administer this instance through its console/REST surface",
+			"%s is an orchestrator-provisioning RPC and is served only by an instance declared as its ecosystem's SYSTEM auth instance; this instance declares INSTANCE_ROLE=%q (an unset or unrecognised role is treated as %q). Direct this call at the instance provisioned with INSTANCE_ROLE=%q, or administer this instance through its console/REST surface",
 			method, config.InstanceRole, config.InstanceRoleRegular, config.InstanceRoleSystem)
 	}
 	return nil

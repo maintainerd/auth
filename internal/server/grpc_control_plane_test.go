@@ -33,12 +33,18 @@ func withControlPlaneConfig(t *testing.T, enabled bool, role string) {
 	t.Helper()
 	origEnabled := config.ControlPlaneEnabled
 	origRole := config.InstanceRole
+	origGRPC := config.GRPCEnabled
 	t.Cleanup(func() {
 		config.ControlPlaneEnabled = origEnabled
 		config.InstanceRole = origRole
+		config.GRPCEnabled = origGRPC
 	})
 	config.ControlPlaneEnabled = enabled
 	config.InstanceRole = role
+	// Init derives this: the control plane needs a listener, so enabling it
+	// implies GRPC_ENABLED. Mirror that here rather than leaving the two to
+	// disagree in a way no real configuration can produce.
+	config.GRPCEnabled = enabled
 }
 
 // withSystemControlPlane configures the instance the way core provisions the

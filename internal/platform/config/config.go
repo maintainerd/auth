@@ -168,6 +168,10 @@ func Init() error {
 	// Control plane. Off by default: the default deployment is STANDALONE, and a
 	// standalone IAM must not expose the machine surface an orchestrator drives.
 	ControlPlaneEnabled = strings.EqualFold(GetEnvOrDefault("CONTROL_PLANE_ENABLED", "false"), "true")
+	// The control plane needs a listener, so enabling it implies the listener.
+	// Requiring both to be set would make "I enabled the control plane and nothing
+	// listens" a supported state, which is only ever a misconfiguration.
+	GRPCEnabled = ControlPlaneEnabled || strings.EqualFold(GetEnvOrDefault("GRPC_ENABLED", "false"), "true")
 	if SetupWindowTTL, err = time.ParseDuration(GetEnvOrDefault("SETUP_WINDOW_TTL", "30m")); err != nil {
 		return fmt.Errorf("SETUP_WINDOW_TTL is not a valid duration: %w", err)
 	}
@@ -185,7 +189,7 @@ func Init() error {
 		// posture this removes.
 		GRPCRequireMTLS = true
 	}
-	if InstanceRole, err = resolveInstanceRole(GetEnvOrDefault("INSTANCE_ROLE", InstanceRoleRegular)); err != nil {
+	if InstanceRole, err = resolveInstanceRole(GetEnvOrDefault("INSTANCE_ROLE", InstanceRoleSystem)); err != nil {
 		return err
 	}
 	if err := validateControlPlaneTLS(); err != nil {

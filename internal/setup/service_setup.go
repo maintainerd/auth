@@ -519,7 +519,7 @@ func (s *setupService) RegisterControlService(ctx context.Context, req RegisterC
 		// every holder passed it without anyone reviewing the widening. Constructing
 		// it at registration puts the grant in the same request as the principal
 		// receiving it, and validates it against permissions that actually exist.
-		policy, err := s.ensureControlPolicy(txPolicyRepo, sysTenant.TenantID, req.AllowedActions)
+		policy, err := s.ensureControlPolicy(txPolicyRepo, sysTenant.TenantID, req.PolicyName, req.AllowedActions)
 		if err != nil {
 			return err
 		}

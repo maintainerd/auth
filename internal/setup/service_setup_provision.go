@@ -687,8 +687,12 @@ func boolPtr(v bool) *bool { return &v }
 // later call rewrite the policy would make "re-run registration" a way to
 // escalate an already-registered principal without going through the reviewed
 // policy-management path.
-func (s *setupService) ensureControlPolicy(repo PolicyRepository, tenantID int64, allowedActions []string) (*Policy, error) {
-	existing, err := repo.FindByNameAndVersion(DefaultControlPolicyName, "v1", tenantID)
+func (s *setupService) ensureControlPolicy(repo PolicyRepository, tenantID int64, policyName string, allowedActions []string) (*Policy, error) {
+	name := strings.TrimSpace(policyName)
+	if name == "" {
+		name = DefaultControlPolicyName
+	}
+	existing, err := repo.FindByNameAndVersion(name, "v1", tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -711,7 +715,7 @@ func (s *setupService) ensureControlPolicy(repo PolicyRepository, tenantID int64
 	return repo.Create(&Policy{
 		PolicyUUID:  uuid.New(),
 		TenantID:    tenantID,
-		Name:        DefaultControlPolicyName,
+		Name:        name,
 		Description: ptr.Ptr("Service-to-service control policy for orchestrator-managed auth administration."),
 		Document:    datatypes.JSON(raw),
 		Version:     "v1",

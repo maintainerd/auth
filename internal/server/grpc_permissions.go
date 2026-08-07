@@ -190,6 +190,35 @@ var grpcBootstrapMethods = map[string]struct{}{
 	grpcMethod(authv1.SetupService_ServiceDesc.ServiceName, "CompleteSetup"):          {},
 }
 
+// grpcAdministrativeMethods are the WRITE methods that live on an otherwise
+// runtime service, and are refused when the control plane is off.
+//
+// UserService and UserProfileService are mixed: a peer service legitimately
+// needs GetUser/ListUserProfiles to run itself, but the same services also
+// create, delete and re-role users. gRPC registers whole services, so these two
+// cannot be withheld by not registering them the way a pure administrative
+// service is — the method has to be refused instead.
+//
+// Without this, turning on gRPC to obtain an authorization PDP would also expose
+// user creation, deletion and role assignment, which is exactly the "take the
+// dangerous surface to get the safe one" trade the split exists to remove.
+var grpcAdministrativeMethods = map[string]struct{}{
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "CreateUser"):                   {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "UpdateUser"):                   {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "DeleteUser"):                   {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "SetUserStatus"):                {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "VerifyUserEmail"):              {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "VerifyUserPhone"):              {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "CompleteUserAccount"):          {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "ForceUserPasswordChange"):      {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "AssignUserRoles"):              {},
+	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "RemoveUserRole"):               {},
+	grpcMethod(authv1.UserProfileService_ServiceDesc.ServiceName, "CreateUserProfile"):     {},
+	grpcMethod(authv1.UserProfileService_ServiceDesc.ServiceName, "UpdateUserProfile"):     {},
+	grpcMethod(authv1.UserProfileService_ServiceDesc.ServiceName, "SetDefaultUserProfile"): {},
+	grpcMethod(authv1.UserProfileService_ServiceDesc.ServiceName, "DeleteUserProfile"):     {},
+}
+
 // grpcCoreProvisioningServices are the gRPC services that exist so CORE can
 // provision the maintainerd ecosystem: tenant records and their operational
 // settings, the IAM primitives (service/api/permission/policy/role) and clients.

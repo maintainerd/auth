@@ -45,10 +45,14 @@ type RegisterControlServiceRequestDTO struct {
 	// the documented default set (see seeder.DefaultControlActions), which excludes
 	// user:* and account:*:self.
 	AllowedActions []string
-	Name           string  `json:"name"`
-	DisplayName    string  `json:"display_name"`
-	Description    *string `json:"description,omitempty"`
-	Version        string  `json:"version,omitempty"`
+	// PolicyName names this orchestrator's control policy. Empty means the
+	// default. Distinct names let an instance serve more than one orchestrator
+	// without them silently sharing a grant.
+	PolicyName  string
+	Name        string  `json:"name"`
+	DisplayName string  `json:"display_name"`
+	Description *string `json:"description,omitempty"`
+	Version     string  `json:"version,omitempty"`
 }
 
 type RegisterControlServiceResponseDTO struct {

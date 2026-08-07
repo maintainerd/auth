@@ -11,8 +11,9 @@ import (
 // Content-Type is not application/json. This blocks accidental form submissions
 // and provides defence against content-type confusion attacks.
 //
-// Excluded paths (uses application/x-www-form-urlencoded per RFC):
-//   - /oauth/token, /oauth/revoke, /oauth/introspect, /oauth/par
+// Excluded paths:
+//   - /oauth/* endpoints that use application/x-www-form-urlencoded per RFC 6749
+//   - multipart uploads (profile pictures), which must carry their own boundary
 //
 // GET/HEAD/DELETE/OPTIONS are not checked since they carry no body.
 func EnforceJSONContentType(next http.Handler) http.Handler {
@@ -20,7 +21,7 @@ func EnforceJSONContentType(next http.Handler) http.Handler {
 		switch r.Method {
 		case http.MethodPost, http.MethodPut, http.MethodPatch:
 			// OAuth form-encoded endpoints are exempt (RFC 6749).
-			if isFormEncodedPath(r.URL.Path) {
+			if isFormEncodedPath(r.URL.Path) || isMultipartPath(r.URL.Path) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -59,4 +60,16 @@ func isFormEncodedPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// isMultipartPath lists endpoints whose handlers read r.ParseMultipartForm().
+// They are exempt from the JSON content-type gate for the same reason as the
+// form-encoded paths: a multipart body must be labelled with its own boundary,
+// and a JSON Content-Type makes it unparseable — the handler would reject the
+// upload it was built to accept.
+func isMultipartPath(path string) bool {
+	// POST /profiles/{profile_uuid}/picture — the avatar upload. The suffix
+	// check tolerates the /api/v1 route prefix and any future admin nesting
+	// (/users/{uuid}/profiles/{uuid}/picture) under the same rule.
+	return strings.HasSuffix(path, "/picture") && strings.Contains(path, "/profiles/")
 }
