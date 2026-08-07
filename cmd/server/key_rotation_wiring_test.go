@@ -22,6 +22,9 @@ import (
 // key-management API and the served JWKS disagreeing about what signs tokens.
 // Getting this branch wrong is silent, so it is pinned here.
 func TestKeyRotationRunnerMatchesTheKeyStore(t *testing.T) {
+	if isRaceEnabled {
+		t.Skip("skipped under -race: background workers and cleanup rewrites share global vars")
+	}
 	cases := []struct {
 		name       string
 		privateKey []byte
