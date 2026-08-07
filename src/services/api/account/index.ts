@@ -59,6 +59,34 @@ export const updateProfile = (uuid: string, data: ProfileRequest): Promise<UserP
 export const deleteProfile = (uuid: string): Promise<void> =>
   deleteRequest<ApiResponse<void>>(`/profiles/${uuid}`).then(r => assertSuccess(r, 'delete profile'))
 
+/**
+ * Uploads an avatar and returns the URL the profile now points at.
+ *
+ * Sent as multipart rather than base64 JSON: base64 inflates the payload by a
+ * third and forces the whole image through a JSON parser on both ends.
+ *
+ * Content-Type is left unset on purpose — the browser must add the multipart
+ * boundary, and providing the header manually omits it, which makes the body
+ * unparseable server-side.
+ */
+export const uploadProfilePicture = (uuid: string, file: File): Promise<{ profile_url: string }> => {
+  const form = new FormData()
+  form.append('file', file)
+  // Content-Type must be UNSET, not set: the axios instance defaults every
+  // request to application/json, and axios only computes the
+  // multipart/form-data boundary when the header is absent. Leaving the default
+  // in place sends a multipart body labelled JSON with no boundary, which the
+  // server cannot parse.
+  return post<ApiResponse<{ profile_url: string }>>(`/profiles/${uuid}/picture`, form, {
+    headers: { 'Content-Type': undefined },
+  })
+    .then(r => unwrap(r, 'upload profile picture') as { profile_url: string })
+}
+
+/** Removes an uploaded avatar. A linked URL is unaffected. */
+export const deleteProfilePicture = (uuid: string): Promise<void> =>
+  deleteRequest<ApiResponse<void>>(`/profiles/${uuid}/picture`).then(r => assertSuccess(r, 'delete profile picture'))
+
 export const setDefaultProfile = (uuid: string): Promise<UserProfile> =>
   put<ApiResponse<UserProfile>>(`/profiles/${uuid}/set-default`, {}).then(r => unwrap(r, 'set default profile') as UserProfile)
 

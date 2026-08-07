@@ -17,6 +17,24 @@ export interface MFAStatusResponse {
   backup_codes_count: number
   webauthn_keys: MFAWebAuthnKey[]
   mfa_enabled_at?: string | null
+  /**
+   * The tenant's POLICY: which factors this user may enrol at all. Distinct from
+   * the is_*_enabled flags above, which say what they have already set up.
+   *
+   * Enrolment UIs must filter on this. Offering a factor the tenant disabled
+   * walks the user through a setup flow that is refused at the final step, which
+   * reads as a broken product rather than a policy decision.
+   */
+  allowed_methods: string[]
+  /** True when the tenant requires at least one factor. */
+  mfa_required: boolean
+  /**
+   * Authenticator code length for this tenant — 6 or 8.
+   *
+   * Never assume 6. A tenant on 8 gets an authenticator showing 8 digits, and an
+   * input capped at 6 makes the code impossible to type.
+   */
+  totp_digits?: number
 }
 
 export interface MFAWebAuthnKey {
@@ -30,6 +48,10 @@ export interface MFAWebAuthnKey {
 export interface TOTPEnrollResponse {
   secret: string
   qr_code_url: string
+  /** Code length the generated key uses — 6 or 8, per the tenant's policy. */
+  digits?: number
+  /** Code rotation window in seconds. */
+  period_seconds?: number
 }
 
 export interface TOTPVerifyRequest {

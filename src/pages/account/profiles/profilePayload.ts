@@ -4,7 +4,10 @@ import type { ProfileRequest } from '@/services/api/account'
 export interface ProfileFormValues {
   display_name: string
   first_name: string
+  middle_name: string
   last_name: string
+  gender: string
+  birthdate: string
   profile_url: string
 }
 
@@ -30,11 +33,11 @@ function optional(value?: string | null): string | undefined {
  *
  * On an edit only the fields the user actually changed are sent.
  * applyProfileFields (internal/user/service_profile.go) skips every nil pointer,
- * so an omitted key means "leave this alone" and the fields this form cannot
- * even display — gender, middle name, birthdate, the OIDC address claim in
- * metadata — survive untouched. Echoing the loaded profile back instead would
- * also work, but it silently reverts anything changed on another device between
- * the read and the write; not sending a field cannot lose that race.
+ * so an omitted key means "leave this alone" and an untouched field — including
+ * the OIDC address claim in metadata, which no form renders — survives.
+ * Echoing the loaded profile back instead would also work, but it silently
+ * reverts anything changed on another device between the read and the write;
+ * not sending a field cannot lose that race.
  *
  * first_name is always sent: the DTO marks it Required, so it is not omissible.
  *
@@ -49,7 +52,10 @@ export function buildProfilePayload(
 
   const payload: ProfileRequest = { first_name: values.first_name.trim() }
   if (changed('display_name')) payload.display_name = optional(values.display_name)
+  if (changed('middle_name')) payload.middle_name = optional(values.middle_name)
   if (changed('last_name')) payload.last_name = optional(values.last_name)
+  if (changed('gender')) payload.gender = optional(values.gender)
+  if (changed('birthdate')) payload.birthdate = optional(values.birthdate)
   if (changed('profile_url')) payload.profile_url = optional(values.profile_url)
   return payload
 }

@@ -4,7 +4,10 @@ import { buildProfilePayload, validateNotCleared } from './profilePayload'
 const values = {
   display_name: 'Ada L',
   first_name: 'Ada',
+  middle_name: 'Augusta',
   last_name: 'Lovelace',
+  gender: 'female',
+  birthdate: '1815-12-10',
   profile_url: 'https://cdn.example.com/ada.png',
 }
 
@@ -13,7 +16,10 @@ describe('buildProfilePayload', () => {
     expect(buildProfilePayload(values)).toEqual({
       first_name: 'Ada',
       display_name: 'Ada L',
+      middle_name: 'Augusta',
       last_name: 'Lovelace',
+      gender: 'female',
+      birthdate: '1815-12-10',
       profile_url: 'https://cdn.example.com/ada.png',
     })
   })
@@ -22,7 +28,10 @@ describe('buildProfilePayload', () => {
     const payload = buildProfilePayload({
       display_name: '',
       first_name: 'Ada',
+      middle_name: '',
       last_name: '   ',
+      gender: '',
+      birthdate: '',
       profile_url: '',
     })
 
@@ -34,13 +43,19 @@ describe('buildProfilePayload', () => {
     const payload = buildProfilePayload({
       display_name: '  Ada L  ',
       first_name: '  Ada  ',
+      middle_name: '  Augusta  ',
       last_name: '  Lovelace  ',
+      gender: '  female  ',
+      birthdate: '  1815-12-10  ',
       profile_url: '  https://cdn.example.com/ada.png  ',
     })
 
     expect(payload.first_name).toBe('Ada')
     expect(payload.display_name).toBe('Ada L')
+    expect(payload.middle_name).toBe('Augusta')
     expect(payload.last_name).toBe('Lovelace')
+    expect(payload.gender).toBe('female')
+    expect(payload.birthdate).toBe('1815-12-10')
     expect(payload.profile_url).toBe('https://cdn.example.com/ada.png')
   })
 
@@ -48,18 +63,27 @@ describe('buildProfilePayload', () => {
     const payload = buildProfilePayload(values, { display_name: true })
 
     expect(payload).toEqual({ first_name: 'Ada', display_name: 'Ada L' })
+    expect('middle_name' in payload).toBe(false)
     expect('last_name' in payload).toBe(false)
+    expect('gender' in payload).toBe(false)
+    expect('birthdate' in payload).toBe(false)
     expect('profile_url' in payload).toBe(false)
+  })
+
+  it('sends middle_name, gender and birthdate once the user changed them', () => {
+    const payload = buildProfilePayload(values, { middle_name: true, gender: true, birthdate: true })
+
+    expect(payload).toEqual({ first_name: 'Ada', middle_name: 'Augusta', gender: 'female', birthdate: '1815-12-10' })
   })
 
   it('always sends first_name, which the DTO marks Required', () => {
     expect(buildProfilePayload(values, {})).toEqual({ first_name: 'Ada' })
   })
 
-  it('never sends the fields this form cannot show, so the server keeps them', () => {
+  it('never sends fields outside this form, so the server keeps them', () => {
     const payload = buildProfilePayload(values, { display_name: true, last_name: true })
 
-    for (const field of ['middle_name', 'birthdate', 'gender', 'email', 'timezone', 'language', 'metadata']) {
+    for (const field of ['email', 'timezone', 'language', 'metadata']) {
       expect(field in payload).toBe(false)
     }
   })

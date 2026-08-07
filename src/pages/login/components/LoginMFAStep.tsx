@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { FormCodeField } from "@/components/inputs"
@@ -21,6 +20,12 @@ interface LoginMFAStepProps {
   onVerified: (result: { account: AccountEntity | null }) => void
   /** Return to the username/password form. */
   onCancel: () => void
+  /**
+   * Authenticator code length for this tenant, 6 or 8, from the login
+   * challenge. Assuming 6 makes a totp_digits=8 tenant impossible to log into:
+   * the input caps below the length of the code the authenticator shows.
+   */
+  totpDigits?: number
 }
 
 /**
@@ -28,7 +33,7 @@ interface LoginMFAStepProps {
  * a factor (TOTP/SMS/backup code/passkey); on success the backend issues an
  * acr=2 session so every step-up-gated action works for the whole session.
  */
-export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientId, onVerified, onCancel }: LoginMFAStepProps) {
+export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientId, onVerified, onCancel, totpDigits = 6 }: LoginMFAStepProps) {
   const { showError } = useToast()
   const { completeMFALogin } = useAuth()
 
@@ -69,12 +74,15 @@ export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientI
     onError: (e) => showError(e),
   })
 
+  // Only the authenticator honours the tenant's digit policy; SMS and email OTP
+  // are always 6, set by the sender's own format.
+  const codeLength = method === "totp" ? totpDigits : 6
   const meta = METHOD_META[method]
   const isWebAuthn = meta?.webauthn ?? false
   const numeric = meta?.numeric ?? false
   const canSubmit = isWebAuthn
     ? !verifyMutation.isPending
-    : Boolean(method) && Boolean(code.trim()) && !verifyMutation.isPending && (!numeric || code.length === 6)
+    : Boolean(method) && Boolean(code.trim()) && !verifyMutation.isPending && (!numeric || code.length === codeLength)
 
   if (methods.length === 0) {
     return (
@@ -89,14 +97,6 @@ export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientI
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <ShieldCheck className="size-5 text-muted-foreground" />
-        <div>
-          <p className="font-medium">Two-step verification</p>
-          <p className="text-sm text-muted-foreground">Confirm your identity with a second factor.</p>
-        </div>
-      </div>
-
       {methods.length > 1 && (
         <div className="space-y-2">
           <Label>Verification method</Label>
@@ -128,7 +128,7 @@ export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientI
 
       {isWebAuthn ? (
               <p className="auth-security-panel rounded-lg border p-3 text-sm text-muted-foreground">
-          Use Face ID, Touch ID, Windows Hello, or your security key to confirm.
+          Use your passkey to continue.
         </p>
       ) : (
         <>
@@ -147,9 +147,9 @@ export function LoginMFAStep({ challengeToken, allowedMethods, tenantId, clientI
               id="login-mfa-code"
               label={numeric ? `${meta?.label} code` : (meta?.label ?? "Code")}
               numeric={numeric}
-              placeholder={numeric ? "000000" : "Enter one backup code"}
+              placeholder={numeric ? "0".repeat(codeLength) : "Enter one backup code"}
               value={code}
-              onChange={(e) => setCode(numeric ? e.target.value.replace(/\D/g, "").slice(0, 6) : e.target.value)}
+              onChange={(e) => setCode(numeric ? e.target.value.replace(/\D/g, "").slice(0, codeLength) : e.target.value)}
             />
             {method === "backup_code" && (
               <p className="text-xs text-muted-foreground">

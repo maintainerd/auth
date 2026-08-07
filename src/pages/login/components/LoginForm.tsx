@@ -55,7 +55,7 @@ const LoginForm = () => {
   const { getCurrentTenant, bootstrap } = useTenant()
   const { showSuccess } = useToast()
   const [loginError, setLoginError] = useState<string | null>(null)
-  const [mfaChallenge, setMfaChallenge] = useState<{ token: string; methods: string[] } | null>(null)
+  const [mfaChallenge, setMfaChallenge] = useState<{ token: string; methods: string[]; totpDigits: number } | null>(null)
   const [isSendingMagicLink, setIsSendingMagicLink] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [connections, setConnections] = useState<OAuthConnections | null>(null)
@@ -173,7 +173,7 @@ const LoginForm = () => {
       const response = await login(data.email, data.password)
       // MFA enrolled — show the second step; the session is issued there.
       if (response.mfaRequired) {
-        setMfaChallenge({ token: response.challengeToken ?? '', methods: response.allowedMethods ?? [] })
+        setMfaChallenge({ token: response.challengeToken ?? '', methods: response.allowedMethods ?? [], totpDigits: response.totpDigits ?? 6 })
         return
       }
       finishLogin(response.account)
@@ -274,6 +274,7 @@ const LoginForm = () => {
         <LoginMFAStep
           challengeToken={mfaChallenge.token}
           allowedMethods={mfaChallenge.methods}
+          totpDigits={mfaChallenge.totpDigits}
           clientId={clientId}
           tenantId={tenantId}
           onVerified={(result) => finishLogin(result.account)}

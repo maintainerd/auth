@@ -99,7 +99,7 @@ export const DEFAULT_LOGIN_PAGE_COPY: Record<LoginPageId, LoginPageCopy> = {
   "login-error": { title: "Welcome back", subtitle: "Sign in to your account to continue." },
   "login-magic-link-sent": { title: "Check your email", subtitle: "A secure sign-in link will arrive shortly." },
   "login-mfa-code": { title: "Two-step verification", subtitle: "Confirm your second factor to finish signing in." },
-  "login-mfa-passkey": { title: "Two-step verification", subtitle: "Confirm your identity with a second factor." },
+  "login-mfa-passkey": { title: "Two-step verification", subtitle: "Confirm with your passkey to finish signing in." },
   "login-mfa-backup-code": { title: "Two-step verification", subtitle: "Enter one backup code to finish signing in." },
   "login-mfa-no-methods": { title: "Two-step verification", subtitle: "MFA is required but no supported factor is available. Contact your administrator." },
   "magic-link-verifying": { title: "Signing you in", subtitle: "We're securely verifying your magic link." },

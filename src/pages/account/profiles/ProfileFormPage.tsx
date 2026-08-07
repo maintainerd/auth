@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,9 +8,12 @@ import { SettingsCard } from '@/components/card'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { FormInputField } from '@/components/form'
+import { FormSelectField } from '@/components/form'
 import { FormUrlField } from '@/components/inputs'
 import { useToast } from '@/hooks/useToast'
-import { fetchProfiles, createProfile, updateProfile, type UserProfile } from '@/services/api/account'
+import { genderOptions } from '@/lib/constants'
+import { fetchProfiles, createProfile, updateProfile, uploadProfilePicture, deleteProfilePicture, type UserProfile } from '@/services/api/account'
+import { AvatarField, type AvatarMode } from './AvatarField'
 import { buildProfilePayload, validateNotCleared, type ProfileFormValues } from './profilePayload'
 
 // Mirrors the backend RuneLength rules on user.ProfileRequestDTO so the user is
@@ -50,7 +53,7 @@ export default function ProfileFormPage() {
   const editing = isEdit ? profiles.find((p: UserProfile) => p.profile_id === profileId) : undefined
 
   const form = useForm<ProfileFormValues>({
-    defaultValues: { display_name: '', first_name: '', last_name: '', profile_url: '' },
+    defaultValues: { display_name: '', first_name: '', middle_name: '', last_name: '', gender: '', birthdate: '', profile_url: '' },
   })
 
   useEffect(() => {
@@ -58,16 +61,50 @@ export default function ProfileFormPage() {
       form.reset({
         display_name: editing.display_name ?? '',
         first_name: editing.first_name ?? '',
+        middle_name: editing.middle_name ?? '',
         last_name: editing.last_name ?? '',
-        profile_url: editing.profile_url ?? '',
+        gender: editing.gender ?? '',
+        birthdate: editing.birthdate ?? '',
+        profile_url: isUploadedAvatar(editing.profile_url) ? '' : (editing.profile_url ?? ''),
       })
+      setAvatarMode(isUploadedAvatar(editing.profile_url) ? 'upload' : 'url')
     }
   }, [editing, form])
 
+  // Which source the user is editing. Seeded from the saved profile: an avatar
+  // already served by this API is an upload, anything else is a link.
+  const [avatarMode, setAvatarMode] = useState<AvatarMode>('url')
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [removePicture, setRemovePicture] = useState(false)
+
   const invalidate = () => qc.invalidateQueries({ queryKey: ['account', 'profiles'] })
 
+  /**
+   * Applies the avatar after the profile itself is saved.
+   *
+   * Ordered this way because both upload and removal address the profile by
+   * UUID, which does not exist until a create has returned. Failures here are
+   * surfaced but do not fail the save — the profile edit already succeeded, and
+   * reporting it as failed would invite the user to redo work that landed.
+   */
+  const applyAvatar = async (uuid: string) => {
+    try {
+      if (pendingFile) await uploadProfilePicture(uuid, pendingFile)
+      else if (removePicture) await deleteProfilePicture(uuid)
+    } catch (err) {
+      showError(err, 'Profile saved, but the avatar could not be updated')
+      return
+    }
+    setPendingFile(null)
+    setRemovePicture(false)
+  }
+
   const createMutation = useMutation({
-    mutationFn: (data: ProfileFormValues) => createProfile(buildProfilePayload(data)),
+    mutationFn: async (data: ProfileFormValues) => {
+      const created = await createProfile(buildProfilePayload(data))
+      await applyAvatar(created.profile_id)
+      return created
+    },
     onSuccess: () => { showSuccess('Profile created'); invalidate(); navigate('/account/profile') },
     onError: (err) => showError(err, 'Could not create profile'),
   })
@@ -75,8 +112,11 @@ export default function ProfileFormPage() {
   const updateMutation = useMutation({
     // Only the fields the user touched are sent, so a concurrent edit from
     // another device is not reverted — see buildProfilePayload.
-    mutationFn: (data: ProfileFormValues) =>
-      updateProfile(profileId!, buildProfilePayload(data, form.formState.dirtyFields)),
+    mutationFn: async (data: ProfileFormValues) => {
+      const updated = await updateProfile(profileId!, buildProfilePayload(data, form.formState.dirtyFields))
+      await applyAvatar(profileId!)
+      return updated
+    },
     onSuccess: () => { showSuccess('Profile updated'); invalidate(); navigate('/account/profile') },
     onError: (err) => showError(err, 'Could not update profile'),
   })
@@ -114,17 +154,37 @@ export default function ProfileFormPage() {
           contentClassName="space-y-6"
         >
           <form onSubmit={onSubmit} className="space-y-4">
+            <AvatarField
+              mode={avatarMode}
+              onModeChange={(next) => {
+                setAvatarMode(next)
+                // Switching source abandons the other one's pending edit, so the
+                // form never holds a link and a file that disagree.
+                if (next === 'url') setPendingFile(null)
+                else form.setValue('profile_url', '', { shouldDirty: true })
+              }}
+              previewUrl={editing?.profile_url}
+              pendingFile={pendingFile}
+              onFileChange={(file) => { setPendingFile(file); setRemovePicture(false) }}
+              onRemove={() => { setPendingFile(null); setRemovePicture(true) }}
+              disabled={createMutation.isPending || updateMutation.isPending}
+              urlField={
+                <FormUrlField
+                  label="Avatar URL"
+                  placeholder="https://..."
+                  error={form.formState.errors.profile_url?.message}
+                  {...form.register('profile_url', {
+                    validate: {
+                      notCleared: validateNotCleared('Avatar URL', editing?.profile_url),
+                      httpUrl: validateProfileUrl,
+                    },
+                    maxLength: { value: PROFILE_URL_MAX_LENGTH, message: `Avatar URL must be at most ${PROFILE_URL_MAX_LENGTH} characters.` },
+                  })}
+                />
+              }
+            />
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormInputField
-                label="Display name"
-                placeholder="Display name"
-                containerClassName="sm:col-span-2"
-                error={form.formState.errors.display_name?.message}
-                {...form.register('display_name', {
-                  validate: validateNotCleared('Display name', editing?.display_name),
-                  maxLength: { value: NAME_MAX_LENGTH, message: `Display name must be at most ${NAME_MAX_LENGTH} characters.` },
-                })}
-              />
               <FormInputField
                 label="First name"
                 placeholder="First name"
@@ -138,6 +198,15 @@ export default function ProfileFormPage() {
                 })}
               />
               <FormInputField
+                label="Middle name"
+                placeholder="Middle name"
+                error={form.formState.errors.middle_name?.message}
+                {...form.register('middle_name', {
+                  validate: validateNotCleared('Middle name', editing?.middle_name),
+                  maxLength: { value: NAME_MAX_LENGTH, message: `Middle name must be at most ${NAME_MAX_LENGTH} characters.` },
+                })}
+              />
+              <FormInputField
                 label="Last name"
                 placeholder="Last name"
                 error={form.formState.errors.last_name?.message}
@@ -146,17 +215,32 @@ export default function ProfileFormPage() {
                   maxLength: { value: NAME_MAX_LENGTH, message: `Last name must be at most ${NAME_MAX_LENGTH} characters.` },
                 })}
               />
-              <FormUrlField
-                label="Avatar URL"
-                placeholder="https://..."
-                containerClassName="sm:col-span-2"
-                error={form.formState.errors.profile_url?.message}
-                {...form.register('profile_url', {
-                  validate: {
-                    notCleared: validateNotCleared('Avatar URL', editing?.profile_url),
-                    httpUrl: validateProfileUrl,
-                  },
-                  maxLength: { value: PROFILE_URL_MAX_LENGTH, message: `Avatar URL must be at most ${PROFILE_URL_MAX_LENGTH} characters.` },
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormInputField
+                label="Display name"
+                placeholder="Display name"
+                error={form.formState.errors.display_name?.message}
+                {...form.register('display_name', {
+                  validate: validateNotCleared('Display name', editing?.display_name),
+                  maxLength: { value: NAME_MAX_LENGTH, message: `Display name must be at most ${NAME_MAX_LENGTH} characters.` },
+                })}
+              />
+              <FormSelectField
+                label="Gender"
+                placeholder="Select gender"
+                options={genderOptions}
+                value={form.watch('gender') || ''}
+                onValueChange={(v) => form.setValue('gender', v, { shouldDirty: true })}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormInputField
+                type="date"
+                label="Birthdate"
+                error={form.formState.errors.birthdate?.message}
+                {...form.register('birthdate', {
+                  validate: validateNotCleared('Birthdate', editing?.birthdate),
                 })}
               />
             </div>
@@ -180,4 +264,13 @@ export default function ProfileFormPage() {
       )}
     </AccountLayout>
   )
+}
+
+/**
+ * An avatar served by this API is an upload; anything else is a link the user
+ * supplied. Derived from the URL rather than a separate flag so there is one
+ * source of truth — the same reason the API returns only profile_url.
+ */
+function isUploadedAvatar(url?: string | null): boolean {
+  return Boolean(url && url.startsWith('/api/v1/profiles/'))
 }

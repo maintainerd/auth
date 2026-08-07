@@ -67,6 +67,7 @@ export type LoginResponse = ApiResponse<{
   mfa_required?: boolean
   mfa_challenge_token?: string
   mfa_allowed_methods?: string[]
+  mfa_totp_digits?: number
 }>
 
 // MFALoginVerifyRequest completes the login MFA second step. Exactly one proof

@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Smartphone, ShieldCheck, RefreshCw, Copy, Check, Trash2 } from "lucide-react"
+import QRCode from "qrcode"
+import { Smartphone, ShieldCheck, RefreshCw, Copy, Check, Trash2, Download, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { FormCodeField } from "@/components/inputs"
@@ -16,6 +17,42 @@ import {
 } from "@/services/api/mfa"
 import { MFASetupShell, ConfirmRemoveDialog, MfaSetupSkeleton, MFA_HUB_ROUTE } from "./MfaShell"
 
+/**
+ * Renders the enrolment QR from the otpauth:// URI the server returns.
+ *
+ * The URI is a DEEP LINK, not an image: `qr_code_url` carries
+ * `otpauth://totp/...`, which a browser cannot load as an <img> source — it
+ * silently renders a broken image, leaving manual key entry as the only way to
+ * enrol. The QR has to be drawn client-side from that URI, which is what the
+ * console has always done.
+ */
+function QRCodeImage({ url }: { url: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (!canvasRef.current || !url) return
+    setFailed(false)
+    QRCode.toCanvas(canvasRef.current, url, { width: 200, margin: 2 }, (err) => {
+      if (err) {
+        // Say so rather than leaving a blank square: the manual key below still
+        // works, and a user staring at nothing has no way to know that.
+        console.warn("QR render failed:", err)
+        setFailed(true)
+      }
+    })
+  }, [url])
+
+  if (failed) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Could not draw the QR code — use the manual entry key below.
+      </p>
+    )
+  }
+  return <canvas ref={canvasRef} aria-label="Authenticator QR code" role="img" />
+}
+
 export default function TOTPSetupPage() {
   const navigate = useNavigate()
   const { showSuccess, showError } = useToast()
@@ -28,8 +65,16 @@ export default function TOTPSetupPage() {
   const [step, setStep] = useState<"idle" | "scan" | "verify">("idle")
   const [secret, setSecret] = useState("")
   const [qrUrl, setQrUrl] = useState("")
+  // Sized from the server, never assumed. A tenant on totp_digits=8 gets an
+  // authenticator showing 8 digits; hardcoding 6 caps the input below the code
+  // length and makes enrolment impossible to complete.
+  const [digits, setDigits] = useState(6)
   const [code, setCode] = useState("")
   const [backupCodes, setBackupCodes] = useState<string[]>([])
+  // Codes start hidden. They are shown on a page the user may have open in a
+  // shared or screen-shared window, and unlike a password they cannot be
+  // re-displayed later — so revealing is a deliberate act, matching the console.
+  const [codesRevealed, setCodesRevealed] = useState(false)
   const [showCodes, setShowCodes] = useState(false)
   const [returnToHub, setReturnToHub] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -37,7 +82,12 @@ export default function TOTPSetupPage() {
 
   const enrollMutation = useMutation({
     mutationFn: beginTOTPEnrollment,
-    onSuccess: (res) => { setSecret(res.secret); setQrUrl(res.qr_code_url); setStep("scan") },
+    onSuccess: (res) => {
+      setSecret(res.secret)
+      setQrUrl(res.qr_code_url)
+      setDigits(res.digits ?? 6)
+      setStep("scan")
+    },
     onError: (e) => showError(e),
   })
 
@@ -47,6 +97,7 @@ export default function TOTPSetupPage() {
       queryClient.invalidateQueries({ queryKey: ["mfa", "status"] })
       if (res.codes?.length) {
         setBackupCodes(res.codes)
+        setCodesRevealed(false)
         setReturnToHub(true)
         setShowCodes(true)
       } else {
@@ -71,6 +122,8 @@ export default function TOTPSetupPage() {
     mutationFn: regenerateBackupCodes,
     onSuccess: (res) => {
       setBackupCodes(res.codes)
+      // Regenerated codes are just as sensitive as the first set.
+      setCodesRevealed(false)
       setReturnToHub(false)
       setShowCodes(true)
       queryClient.invalidateQueries({ queryKey: ["mfa", "status"] })
@@ -86,6 +139,18 @@ export default function TOTPSetupPage() {
     } catch {
       showError(new Error("Couldn't copy codes to clipboard"))
     }
+  }
+
+  const downloadCodes = () => {
+    const blob = new Blob([backupCodes.join("\n")], { type: "text/plain" })
+    const href = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = href
+    a.download = "backup-codes.txt"
+    a.click()
+    // Release the blob: without this the codes stay reachable through a live
+    // object URL for the lifetime of the document.
+    URL.revokeObjectURL(href)
   }
 
   const closeCodes = (open: boolean) => {
@@ -105,16 +170,33 @@ export default function TOTPSetupPage() {
             Store these somewhere safe. Each code works once, and you won&apos;t be able to see them again.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto rounded-lg bg-muted p-4 font-mono text-sm">
-          {backupCodes.map((c, i) => <span key={i}>{c}</span>)}
-        </div>
-        <DialogFooter className="sm:justify-between">
-          <Button variant="outline" size="sm" onClick={copyCodes}>
-            {copied ? <Check className="mr-2 size-4" /> : <Copy className="mr-2 size-4" />}
-            {copied ? "Copied!" : "Copy all"}
-          </Button>
-          <Button size="sm" onClick={() => closeCodes(false)}>Done</Button>
-        </DialogFooter>
+        {!codesRevealed ? (
+          <div className="flex flex-col items-center gap-4 py-6">
+            <EyeOff className="size-12 text-muted-foreground" />
+            <p className="text-center text-sm text-muted-foreground">
+              Backup codes are hidden for security. Reveal them only when you&apos;re ready to save them.
+            </p>
+            <Button onClick={() => setCodesRevealed(true)}>Reveal codes</Button>
+          </div>
+        ) : (
+          <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto rounded-lg bg-muted p-4 font-mono text-sm">
+            {backupCodes.map((c, i) => <span key={i}>{c}</span>)}
+          </div>
+        )}
+        {codesRevealed && (
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={copyCodes}>
+                {copied ? <Check className="mr-2 size-4" /> : <Copy className="mr-2 size-4" />}
+                {copied ? "Copied!" : "Copy all"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={downloadCodes}>
+                <Download className="mr-2 size-4" />Download
+              </Button>
+            </div>
+            <Button size="sm" onClick={() => closeCodes(false)}>Done</Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -207,7 +289,7 @@ export default function TOTPSetupPage() {
             <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
               <li>Install an authenticator app on your phone if you don&apos;t have one.</li>
               <li>Scan the QR code we&apos;ll show you on the next step.</li>
-              <li>Enter the 6-digit code from the app to confirm.</li>
+              <li>Enter the {digits}-digit code from the app to confirm.</li>
             </ol>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => navigate(MFA_HUB_ROUTE)}>Cancel</Button>
@@ -227,7 +309,9 @@ export default function TOTPSetupPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-center">
-              <img src={qrUrl} alt="Authenticator QR code" className="size-48 rounded-lg border bg-white p-3" />
+              <div className="rounded-lg border bg-white p-4">
+                <QRCodeImage url={qrUrl} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Manual entry key</Label>
@@ -245,7 +329,7 @@ export default function TOTPSetupPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Enter verification code</CardTitle>
-          <CardDescription>Enter the 6-digit code from your authenticator app.</CardDescription>
+          <CardDescription>Enter the {digits}-digit code from your authenticator app.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <FormCodeField
@@ -253,13 +337,13 @@ export default function TOTPSetupPage() {
               label="Verification code"
               numeric
               placeholder="000000"
-              maxLength={6}
+              maxLength={digits}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
             />
             <div className="flex justify-between gap-2">
               <Button variant="ghost" onClick={() => { setStep("scan"); setCode("") }}>Back</Button>
-              <Button disabled={code.length !== 6 || verifyMutation.isPending} onClick={() => verifyMutation.mutate(code)}>
+              <Button disabled={code.length !== digits || verifyMutation.isPending} onClick={() => verifyMutation.mutate(code)}>
                 {verifyMutation.isPending ? "Verifying…" : "Verify & enable"}
               </Button>
             </div>

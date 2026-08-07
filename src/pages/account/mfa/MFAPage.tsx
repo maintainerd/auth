@@ -49,6 +49,16 @@ export default function MFAPage() {
   const isProtected = activeCount > 0
   const backupCount = data?.backup_codes_count ?? 0
 
+  // Which factors this tenant permits. A method the tenant disabled is hidden
+  // rather than shown-and-refused: walking someone through an enrolment that
+  // fails at the last step reads as a bug, not a policy.
+  //
+  // A factor the user has ALREADY enrolled stays visible even if the tenant has
+  // since disabled it — otherwise the row they need in order to remove it
+  // disappears, stranding a credential on their account with no way to reach it.
+  const allowed = new Set(data?.allowed_methods ?? [])
+  const canShow = (method: string, enrolled: boolean) => allowed.has(method) || enrolled
+
   return (
     <AccountLayout title="Two-Factor Authentication">
       <p className="-mt-4 mb-6 text-muted-foreground">
@@ -82,6 +92,7 @@ export default function MFAPage() {
           <h2 className="mb-2 px-1 text-sm font-medium text-muted-foreground">Authentication methods</h2>
           <Card className="overflow-hidden py-0">
             <CardContent className="p-0">
+              {canShow("totp", totpOn) && (
               <MethodRow
                 icon={Smartphone}
                 title="Authenticator app"
@@ -89,6 +100,8 @@ export default function MFAPage() {
                 active={totpOn}
                 onClick={() => navigate("/account/mfa/totp")}
               />
+              )}
+              {canShow("sms", smsOn) && (<>
               <Separator />
               <MethodRow
                 icon={MessageSquare}
@@ -97,6 +110,8 @@ export default function MFAPage() {
                 active={smsOn}
                 onClick={() => navigate("/account/mfa/sms")}
               />
+              </>)}
+              {canShow("email_otp", emailOn) && (<>
               <Separator />
               <MethodRow
                 icon={Mail}
@@ -105,6 +120,8 @@ export default function MFAPage() {
                 active={emailOn}
                 onClick={() => navigate("/account/mfa/email-otp")}
               />
+              </>)}
+              {canShow("webauthn", passkeyOn) && (<>
               <Separator />
               <MethodRow
                 icon={Key}
@@ -114,12 +131,13 @@ export default function MFAPage() {
                 activeLabel={passkeyOn ? `${passkeyCount} registered` : undefined}
                 onClick={() => navigate("/account/mfa/passkeys")}
               />
+              </>)}
             </CardContent>
           </Card>
         </div>
 
         {/* Recovery */}
-        {totpOn && (
+        {totpOn && canShow("backup_code", backupCount > 0) && (
           <div>
             <h2 className="mb-2 px-1 text-sm font-medium text-muted-foreground">Recovery</h2>
             <Card className="overflow-hidden py-0">

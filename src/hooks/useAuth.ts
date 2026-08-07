@@ -52,6 +52,7 @@ export function useAuth() {
         mfaRequired: true,
         challengeToken: result.mfaChallengeToken ?? '',
         allowedMethods: result.mfaAllowedMethods ?? [],
+        totpDigits: result.mfaTotpDigits ?? 6,
       }
     }
 

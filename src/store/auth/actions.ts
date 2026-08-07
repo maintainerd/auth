@@ -36,6 +36,14 @@ export interface LoginThunkResult {
   mfaRequired?: boolean
   mfaChallengeToken?: string
   mfaAllowedMethods?: string[]
+  /**
+   * Authenticator code length for this tenant, 6 or 8.
+   *
+   * Carried through the challenge because the second step cannot read the MFA
+   * policy — the user is not authenticated yet. A client that assumes 6 leaves a
+   * totp_digits=8 tenant unable to log in: the input caps below the code length.
+   */
+  mfaTotpDigits?: number
 }
 
 export const loginAsync = createAsyncThunk<LoginThunkResult, LoginRequest>(
@@ -52,6 +60,7 @@ export const loginAsync = createAsyncThunk<LoginThunkResult, LoginRequest>(
 					mfaRequired: true,
 					mfaChallengeToken: response.data.mfa_challenge_token,
 					mfaAllowedMethods: response.data.mfa_allowed_methods ?? [],
+					mfaTotpDigits: response.data.mfa_totp_digits ?? 6,
 				}
 			}
 			const account = await fetchAccount()
