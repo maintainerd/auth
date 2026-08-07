@@ -63,6 +63,10 @@ var (
 		TopDropdownHover:    "rgba(255,255,255,0.10)",
 		TopDropdownBorder:   "#334155",
 		TopDropdownText:     "#cbd5e1",
+		TopSearchBg:         "rgba(255,255,255,0.05)",
+		TopSearchHover:      "rgba(255,255,255,0.10)",
+		TopSearchBorder:     "#334155",
+		TopSearchText:       "#cbd5e1",
 		TopProfileBg:        "rgba(255,255,255,0.05)",
 		TopProfileHover:     "rgba(255,255,255,0.10)",
 		TopProfileText:      "#ffffff",
@@ -115,6 +119,10 @@ var (
 		TopDropdownHover:    "rgba(15,23,42,0.08)",
 		TopDropdownBorder:   "#e2e8f0",
 		TopDropdownText:     "#334155",
+		TopSearchBg:         "rgba(15,23,42,0.04)",
+		TopSearchHover:      "rgba(15,23,42,0.08)",
+		TopSearchBorder:     "#e2e8f0",
+		TopSearchText:       "#334155",
 		TopProfileBg:        "rgba(15,23,42,0.04)",
 		TopProfileHover:     "rgba(15,23,42,0.08)",
 		TopProfileText:      "#0f172a",
@@ -167,6 +175,10 @@ var (
 		TopDropdownHover:    "rgba(255,255,255,0.10)",
 		TopDropdownBorder:   "#334155",
 		TopDropdownText:     "#cbd5e1",
+		TopSearchBg:         "rgba(255,255,255,0.05)",
+		TopSearchHover:      "rgba(255,255,255,0.10)",
+		TopSearchBorder:     "#374151",
+		TopSearchText:       "#cbd5e1",
 		TopProfileBg:        "rgba(255,255,255,0.05)",
 		TopProfileHover:     "rgba(255,255,255,0.10)",
 		TopProfileText:      "#ffffff",
@@ -221,6 +233,10 @@ type themePalette struct {
 	TopDropdownHover    string
 	TopDropdownBorder   string
 	TopDropdownText     string
+	TopSearchBg         string
+	TopSearchHover      string
+	TopSearchBorder     string
+	TopSearchText       string
 	TopProfileBg        string
 	TopProfileHover     string
 	TopProfileText      string
@@ -286,6 +302,7 @@ func mustBrandingMetadata(p themePalette) string {
 		"components": map[string]any{
 			"topPanelControl":         componentTheme(p.TopControlBg, p.TopControlHover, p.TopControlBorder, "0px", "3px", p.TopControlText, "md"),
 			"topPanelDropdownTrigger": componentTheme(p.TopDropdownBg, p.TopDropdownHover, p.TopDropdownBorder, "1px", "3px", p.TopDropdownText, "md"),
+			"topPanelSearchTrigger":   componentTheme(p.TopSearchBg, p.TopSearchHover, p.TopSearchBorder, "1px", "3px", p.TopSearchText, "md"),
 			"topPanelProfileTrigger":  componentTheme(p.TopProfileBg, p.TopProfileHover, "transparent", "0px", "3px", p.TopProfileText, "md"),
 			"topPanelCreateButton":    componentTheme(p.Primary, p.PrimaryHover, "transparent", "0px", "3px", "#ffffff", "md"),
 			"sidePanelSectionLabel":   componentTheme("transparent", "transparent", "transparent", "0px", "3px", p.SideSectionText, "sm"),
