@@ -52,6 +52,33 @@ jobs:
           category: "/language:go"
 
   # ─────────────────────────────────────────────────────────────────────────────
+  # CodeQL (JS/TS) — the console + identity SPAs (web/) are TypeScript/React.
+  # CodeQL extracts straight from source; no build step needed for JS/TS.
+  # ─────────────────────────────────────────────────────────────────────────────
+  codeql-js:
+    name: CodeQL (JS/TS)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          languages: javascript-typescript
+          queries: security-extended,security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+        with:
+          category: "/language:javascript-typescript"
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Semgrep — SAST via the connected Semgrep Cloud rule board. Reports findings to
   # the Semgrep dashboard ONLY. GitHub Code Scanning is owned by CodeQL, so Semgrep
   # does not dual-report — one finding lives in one place.
