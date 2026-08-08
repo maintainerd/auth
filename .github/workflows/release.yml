@@ -6,7 +6,11 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_ORG || 'maintainerd' }}/maintainerd-auth  # nosemgrep
+  # Publishes to <namespace>/maintainerd-auth on Docker Hub. Namespace is the
+  # org if DOCKERHUB_ORG is set, otherwise the account username — so with no org
+  # the image is <DOCKERHUB_USERNAME>/maintainerd-auth (Docker Hub requires a
+  # namespace; there is no un-namespaced top-level repo for non-official images).
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_ORG || secrets.DOCKERHUB_USERNAME }}/maintainerd-auth  # nosemgrep
 
 # Minimal default token scope; each job escalates only what it needs.
 permissions:
