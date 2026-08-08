@@ -84,53 +84,6 @@ jobs:
           sarif_file: semgrep.sarif
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Snyk — dependency vulnerability scanning for npm packages.
-  # Requires: SNYK_TOKEN secret (free tier at https://app.snyk.io). Non-blocking
-  # so the pipeline stays green before the token is configured; SARIF still uploads.
-  # ─────────────────────────────────────────────────────────────────────────────
-  snyk:
-    name: Snyk
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Snyk (dependency scan)
-        uses: snyk/actions/node@12140f4059e244892ae643824a95459a102120dd # master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          # Fail only on high/critical; tighten to 'medium' for a stricter posture
-          args: --severity-threshold=high --sarif-file-output=snyk.sarif
-
-      - name: Ensure Snyk SARIF file exists
-        if: always()
-        run: |
-          if [ ! -f snyk.sarif ]; then
-            echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Snyk","rules":[]}},"results":[]}]}' > snyk.sarif
-          fi
-
-      - name: Upload Snyk results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
-        if: always()
-        with:
-          sarif_file: snyk.sarif
-
-  # ─────────────────────────────────────────────────────────────────────────────
   # npm audit — fast, token-free dependency check on production dependencies.
   # ─────────────────────────────────────────────────────────────────────────────
   npm-audit:
