@@ -26,8 +26,7 @@ export function EmailTemplatePreview({ template }: EmailTemplatePreviewProps) {
         <div className="border rounded-md p-4 bg-white">
           <div
             className="prose max-w-none"
-            // nosemgrep: react-dangerouslysetinnerhtml -- content sanitized with DOMPurify above
-            dangerouslySetInnerHTML={{ __html: safeHtml }}
+            dangerouslySetInnerHTML={{ __html: safeHtml }} // nosemgrep: react-dangerouslysetinnerhtml -- content sanitized with DOMPurify above
           />
         </div>
       </CardContent>

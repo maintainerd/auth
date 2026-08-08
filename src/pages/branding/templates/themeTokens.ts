@@ -725,6 +725,8 @@ export function valueAtPath(obj: unknown, path: string[]): unknown {
 function setValueAtPath(obj: Record<string, unknown>, path: string[], value: string) {
   let current = obj
   path.forEach((part, index) => {
+    // Guard against prototype-pollution keys before any assignment.
+    if (part === "__proto__" || part === "constructor" || part === "prototype") return
     if (index === path.length - 1) {
       current[part] = value
       return
@@ -732,7 +734,7 @@ function setValueAtPath(obj: Record<string, unknown>, path: string[], value: str
     if (!current[part] || typeof current[part] !== "object") {
       current[part] = {}
     }
-    current = current[part] as Record<string, unknown>
+    current = current[part] as Record<string, unknown> // nosemgrep: prototype-pollution-loop -- keys guarded above
   })
 }
 
