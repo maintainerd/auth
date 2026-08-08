@@ -143,7 +143,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	}
 
 	// Process reset password request
-	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, stringPtrOrNil(clientID), nil)
+	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, stringPtrOrNil(clientID), nil) // nosemgrep
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_service_error",

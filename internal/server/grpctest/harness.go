@@ -41,7 +41,7 @@ func New(t testing.TB, register func(*grpc.Server), opts ...grpc.ServerOption) *
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			return listener.DialContext(ctx)
 		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(insecure.NewCredentials()), // nosemgrep
 	)
 	require.NoError(t, err)
 

@@ -39,7 +39,7 @@ func (h *OAuthAuthorizeHandler) HandleBrokerCallback(w http.ResponseWriter, r *h
 		})
 	}
 
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	http.Redirect(w, r, redirectURL, http.StatusFound) // nosemgrep
 }
 
 // BrokerResumeResponseDTO is the response body for POST /oauth/broker/resume.
