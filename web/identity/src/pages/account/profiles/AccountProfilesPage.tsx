@@ -1,0 +1,291 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { User, Plus, Star, Trash2, Pencil, MoreHorizontal } from 'lucide-react'
+import AccountLayout from '@/components/layout/AccountLayout'
+import { SettingsCard } from '@/components/card'
+import { Button } from '@/components/ui/button'
+import { ListingItemCard, ListingItemIcon, ListingItemMeta } from '@/components/details'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useToast } from '@/hooks/useToast'
+import {
+  fetchProfiles,
+  setDefaultProfile,
+  deleteProfile,
+  type UserProfile,
+} from '@/services/api/account'
+
+function profileName(p: UserProfile): string {
+  return (
+    p.display_name ||
+    [p.first_name, p.last_name].filter(Boolean).join(' ') ||
+    'Unnamed profile'
+  )
+}
+
+function fmtDate(value?: string | null): string | undefined {
+  if (!value) return undefined
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? undefined : d.toLocaleDateString()
+}
+
+/**
+ * Formats a bare "YYYY-MM-DD" (the shape ProfileResponseDTO sends for
+ * birthdate) as a local calendar date.
+ *
+ * `new Date("1990-01-25")` is specified to parse as UTC midnight, so
+ * toLocaleDateString() renders the 24th for anyone west of Greenwich — the user
+ * sees a birthday one day earlier than the one they entered. Splitting the parts
+ * and building a local date keeps the calendar day the user typed.
+ */
+function fmtCalendarDate(value?: string | null): string | undefined {
+  if (!value) return undefined
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim())
+  if (!match) return fmtDate(value)
+  const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  return Number.isNaN(d.getTime()) ? undefined : d.toLocaleDateString()
+}
+
+function ViewField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="min-w-0 space-y-1 rounded-md px-3 py-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="truncate text-sm font-medium">{value || <span className="font-normal text-muted-foreground">Not set</span>}</p>
+    </div>
+  )
+}
+
+function ProfileActions({
+  profile, onEdit, onSetDefault, onDelete,
+}: {
+  profile: UserProfile
+  onEdit: () => void
+  onSetDefault: () => void
+  onDelete: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="size-10 p-0 sm:size-8">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onEdit}>
+          <Pencil className="mr-2 size-4" /> Edit
+        </DropdownMenuItem>
+        {!profile.is_default && (
+          <DropdownMenuItem onClick={onSetDefault}>
+            <Star className="mr-2 size-4" /> Set as default
+          </DropdownMenuItem>
+        )}
+        {!profile.is_default && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 className="mr-2 size-4" /> Delete
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+export default function AccountProfilesPage() {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const { showError, showSuccess } = useToast()
+  const [pendingDelete, setPendingDelete] = useState<UserProfile | null>(null)
+
+  const { data: profiles = [], isLoading } = useQuery({
+    queryKey: ['account', 'profiles'],
+    queryFn: fetchProfiles,
+  })
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['account', 'profiles'] })
+
+  const setDefaultMutation = useMutation({
+    mutationFn: (id: string) => setDefaultProfile(id),
+    onSuccess: () => { showSuccess('Default profile updated'); invalidate() },
+    onError: (err) => showError(err, 'Could not set default profile'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteProfile(id),
+    onSuccess: () => {
+      showSuccess('Profile deleted')
+      setPendingDelete(null)
+      invalidate()
+    },
+    onError: (err) => { showError(err, 'Could not delete profile'); setPendingDelete(null) },
+  })
+
+  // Feature the default profile on top; if the account has no profile flagged
+  // as default yet, fall back to the first one so the summary card still shows.
+  const defaultProfile = profiles.find((p: UserProfile) => p.is_default) ?? profiles[0]
+
+  return (
+    <AccountLayout title="Profile">
+      <div className="space-y-6">
+        {/* Default profile — full details */}
+        {!isLoading && defaultProfile && (
+          <SettingsCard
+            title="Default profile"
+            description="The profile used first across identity flows."
+            icon={User}
+            contentClassName="space-y-6"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border">
+                  {defaultProfile.profile_url ? (
+                    <img src={defaultProfile.profile_url} alt="" className="size-16 rounded-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-semibold text-muted-foreground">
+                      {profileName(defaultProfile).slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="truncate text-lg font-semibold tracking-tight">{profileName(defaultProfile)}</h2>
+                    {defaultProfile.is_default && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {defaultProfile.is_default ? 'Your default profile' : 'Your profile'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full shrink-0 gap-1.5 sm:w-auto"
+                onClick={() => navigate(`/account/profile/${defaultProfile.profile_id}/edit`)}
+              >
+                <Pencil className="size-3.5" /> Edit
+              </Button>
+            </div>
+            <div data-md-listing-nested className="grid gap-2 rounded-md bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3">
+              <ViewField label="Display name" value={defaultProfile.display_name} />
+              <ViewField label="First name" value={defaultProfile.first_name} />
+              <ViewField label="Middle name" value={defaultProfile.middle_name} />
+              <ViewField label="Last name" value={defaultProfile.last_name} />
+              <ViewField label="Email" value={defaultProfile.email} />
+              <ViewField label="Gender" value={defaultProfile.gender} />
+              <ViewField label="Date of birth" value={fmtCalendarDate(defaultProfile.birthdate)} />
+              <ViewField label="Timezone" value={defaultProfile.timezone} />
+              <ViewField label="Language" value={defaultProfile.language} />
+              <ViewField label="Added" value={fmtDate(defaultProfile.created_at)} />
+            </div>
+          </SettingsCard>
+        )}
+
+        {/* All profiles */}
+        <SettingsCard
+          title="Profiles"
+          description="Manage the profiles available to your account."
+          icon={User}
+          action={(
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full gap-1.5 sm:w-auto"
+              onClick={() => navigate('/account/profile/new')}
+            >
+              <Plus className="size-3.5" /> Add profile
+            </Button>
+          )}
+          contentClassName="space-y-4"
+        >
+          {isLoading && <p className="text-sm text-muted-foreground">Loading profiles…</p>}
+          {!isLoading && profiles.length === 0 && (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <User className="size-8 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">No profiles yet</p>
+            </div>
+          )}
+
+          {!isLoading && profiles.length > 0 && (
+            <div className="space-y-2">
+              {profiles.map((profile: UserProfile) => (
+                <ListingItemCard
+                  key={profile.profile_id}
+                  className="items-center p-3"
+                  contentClassName="items-center"
+                  action={(
+                    <ProfileActions
+                      profile={profile}
+                      onEdit={() => navigate(`/account/profile/${profile.profile_id}/edit`)}
+                      onSetDefault={() => setDefaultMutation.mutate(profile.profile_id)}
+                      onDelete={() => setPendingDelete(profile)}
+                    />
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <ListingItemIcon className="overflow-hidden rounded-full">
+                      {profile.profile_url ? (
+                        <img src={profile.profile_url} alt="" className="size-9 rounded-full object-cover" />
+                      ) : (
+                        <User className="size-4 text-muted-foreground" />
+                      )}
+                    </ListingItemIcon>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-medium">{profileName(profile)}</p>
+                          {profile.is_default && (
+                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <ListingItemMeta>
+                          {profile.email && <span>{profile.email}</span>}
+                          {profile.created_at && <span>Added {fmtDate(profile.created_at)}</span>}
+                        </ListingItemMeta>
+                      </div>
+                    </div>
+                  </div>
+                </ListingItemCard>
+              ))}
+            </div>
+          )}
+        </SettingsCard>
+      </div>
+
+      <Dialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete profile</DialogTitle>
+            <DialogDescription>
+              {pendingDelete
+                ? `"${profileName(pendingDelete)}" will be permanently removed. This can't be undone.`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => pendingDelete && deleteMutation.mutate(pendingDelete.profile_id)}
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AccountLayout>
+  )
+}

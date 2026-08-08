@@ -1,0 +1,26 @@
+coverage:
+  status:
+    # Overall project coverage — informational, does not block PRs.
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+
+    # Patch coverage — lines changed/added in the PR must be ≥ 80% covered.
+    # This is the gate that enforces "each PR has at least 80% test coverage."
+    patch:
+      default:
+        target: 80%
+
+ignore:
+  - "src/components/ui/**"
+  - "src/test/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.d.ts"
+  - "src/main.tsx"
+  - "src/index.css"
+  - "src/styles/**"
+  - "src/assets/**"
+  - "src/types/**"
