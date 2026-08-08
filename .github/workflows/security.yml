@@ -234,5 +234,5 @@ jobs:
         # graph but are unreachable do not block, which keeps the gate actionable
         # rather than something people learn to ignore.
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+          go install golang.org/x/vuln/cmd/govulncheck@19b0bb6a272792b9afa8a6983c3e9b9a1816947f # v1.6.0
           govulncheck ./...
