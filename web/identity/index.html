@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>m9d-identity</title>
+    <!-- Runtime config (window.__ENV__). Loaded before the app bundle so
+         config.ts can read deploy-time API origins. Regenerated per container
+         start by docker-entrypoint.sh; a placeholder ships for local dev. -->
+    <script src="/config.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

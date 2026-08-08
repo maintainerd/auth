@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.env*
+coverage
+.agents/
+.claude/
+graphify-out/
+*.log
+.codex
+.opencode
+CLAUDE.md
+AGENTS.md

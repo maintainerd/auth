@@ -1,0 +1,177 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* Flat design: everything settles at a 3px radius (no big rounded edges).
+     rounded-full / pill shapes are unaffected (they don't derive from --radius). */
+  --radius-sm: 3px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/*
+ * Maintainerd console theme. The supporting palette stays neutral, with only a
+ * slight cool cast so shared surfaces sit comfortably beside the blue primary.
+ */
+:root {
+  --radius: 3px;
+  --background: #f6f7f9;
+  --foreground: #1f252e;
+  --card: #ffffff;
+  --card-foreground: #1f252e;
+  --popover: #ffffff;
+  --popover-foreground: #1f252e;
+  --primary: oklch(0.546 0.245 262.881); /* blue-600 */
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: #eef1f5;
+  --secondary-foreground: #2d3748;
+  --muted: #f0f2f5;
+  --muted-foreground: #647084;
+  --accent: #e9edf3;
+  --accent-foreground: #1f2937;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #dce1e8;
+  --input: #d1d8e2;
+  --ring: oklch(0.546 0.245 262.881); /* blue focus ring */
+  --chart-1: oklch(0.546 0.245 262.881); /* blue ramp: blue-600 → blue-200 */
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.707 0.165 254.624);
+  --chart-4: oklch(0.809 0.105 251.813);
+  --chart-5: oklch(0.882 0.059 254.128);
+  --sidebar: #f6f7f9;
+  --sidebar-foreground: #1f252e;
+  --sidebar-primary: oklch(0.546 0.245 262.881); /* blue-600 */
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: #eef2f7;
+  --sidebar-accent-foreground: #1f2937;
+  --sidebar-border: #cfd6e0;
+  --sidebar-ring: oklch(0.546 0.245 262.881); /* blue-600 */
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);         /* slate-950 */
+  --foreground: oklch(0.984 0.003 247.858);         /* slate-50 */
+  --card: oklch(0.208 0.042 264.695);               /* slate-900 */
+  --card-foreground: oklch(0.984 0.003 247.858);    /* slate-50 */
+  --popover: oklch(0.208 0.042 264.695);            /* slate-900 */
+  --popover-foreground: oklch(0.984 0.003 247.858); /* slate-50 */
+  --primary: oklch(0.623 0.214 259.815); /* blue-500 */
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.279 0.041 260.031);          /* slate-800 */
+  --secondary-foreground: oklch(0.984 0.003 247.858); /* slate-50 */
+  --muted: oklch(0.279 0.041 260.031);              /* slate-800 */
+  --muted-foreground: oklch(0.704 0.04 264.052);   /* slate-400 */
+  --accent: oklch(0.279 0.041 260.031);             /* slate-800 */
+  --accent-foreground: oklch(0.984 0.003 247.858);  /* slate-50 */
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.623 0.214 259.815); /* blue focus ring */
+  --chart-1: oklch(0.623 0.214 259.815); /* blue ramp: blue-500 → blue-100 */
+  --chart-2: oklch(0.707 0.165 254.624);
+  --chart-3: oklch(0.809 0.105 251.813);
+  --chart-4: oklch(0.882 0.059 254.128);
+  --chart-5: oklch(0.932 0.032 255.585);
+  --sidebar: oklch(0.208 0.042 264.695);            /* slate-900 */
+  --sidebar-foreground: oklch(0.984 0.003 247.858); /* slate-50 */
+  --sidebar-primary: oklch(0.623 0.214 259.815); /* blue-500 */
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.279 0.041 260.031);     /* slate-800 */
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858); /* slate-50 */
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.623 0.214 259.815); /* blue-500 */
+}
+
+@layer base {
+  /* Global scale: Tailwind sizes text and spacing in rem, so raising the root
+     font size scales the whole app up proportionally. 16px is the browser
+     default; bump this single value to scale everything (e.g. 16.5 / 17 / 18). */
+  html {
+    font-size: 17px;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--card) inset !important;
+  box-shadow: 0 0 0 1000px var(--card) inset !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+html[data-console-theme="active"] input:-webkit-autofill,
+html[data-console-theme="active"] input:-webkit-autofill:hover,
+html[data-console-theme="active"] input:-webkit-autofill:focus,
+html[data-console-theme="active"] input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--md-input-bg, var(--card)) inset !important;
+  box-shadow: 0 0 0 1000px var(--md-input-bg, var(--card)) inset !important;
+  -webkit-text-fill-color: var(--md-input-text, var(--foreground)) !important;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px oklch(0.141 0.005 285.823) inset !important;
+  box-shadow: 0 0 0 1000px oklch(0.141 0.005 285.823) inset !important;
+  -webkit-text-fill-color: oklch(0.985 0 0) !important;
+}
+
+/* Native color inputs draw the swatch with browser pseudo-elements that ignore
+   the input's own border-radius. Flatten the wrapper and swatch so the picker
+   stays square like the rest of the console. */
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 0;
+}
+
+input[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 0;
+}
