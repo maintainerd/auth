@@ -72,21 +72,11 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Run Semgrep CI
-        # `semgrep ci` pulls rules from your Semgrep Cloud org and reports back.
-        # Local --config flags guarantee these rulesets run regardless of cloud config.
-        run: |
-          semgrep ci \
-            --config p/golang \
-            --config p/owasp-top-ten \
-            --config p/secrets \
-            --config p/sql-injection \
-            --config p/xss \
-            --config p/command-injection \
-            --config p/insecure-transport \
-            --config p/jwt \
-            --config p/docker \
-            --sarif \
-            --output semgrep.sarif
+        # Connected scan: `semgrep ci` runs the rules configured on the Semgrep
+        # Cloud org (rule board) and reports findings to the dashboard. `--config`
+        # cannot be combined with a logged-in run, so rulesets are managed in the
+        # cloud policy; `--sarif-output` also writes SARIF for GitHub Code Scanning.
+        run: semgrep ci --sarif-output=semgrep.sarif
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
