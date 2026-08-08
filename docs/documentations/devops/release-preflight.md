@@ -35,4 +35,15 @@ Attach evidence for each before tagging:
 - [ ] **J5 manual abuse pass:** attempted enumeration (register generic message confirmed), brute-force → lockout/429, IDOR (cross-tenant UUID → 404), open-redirect (return_to/callback rejected), CSRF on cookie endpoints, refresh-token reuse → family revoked.
 - [ ] **J6 OIDC conformance:** `/.well-known/openid-configuration` matches actual capabilities; authorize/token/PKCE/refresh/revoke/introspect/userinfo/JWKS return spec-compliant responses (see `docs/documentations/oauth2/`).
 
+## K8 — Edge & runtime hardening
+
+The production edge and container runtime must be configured for an auth service.
+See [Production Edge & Security Hardening](edge-and-security-hardening.md).
+
+- [ ] **Proxy header buffers ≥ 16k** at the edge (ingress `proxy-buffer-size: "16k"` or nginx `proxy_buffer_size 16k`). Verify a real `POST /api/v1/login` **through the production-shaped edge** returns `200` with `Set-Cookie` — not `502 upstream sent too big header`.
+- [ ] **Non-root secrets readable:** container runs as uid 65532 and boots clean; mounted Secret/cert volumes use `defaultMode: 0440` (or secrets come from env / a secret manager). No `permission denied` on gRPC/TLS material.
+- [ ] **Forwarded headers trusted from the edge only:** `X-Forwarded-Proto`/`-For` forwarded by the edge; `TRUSTED_PROXY_CIDRS` set to the edge range; `TRUST_ALL_PROXIES` is **not** set in prod.
+- [ ] **Port exposure split:** only `:8081` (data API) and `:3001` (identity) are internet-facing; `:8080` (control), `:3000` (console), `:8082` (metrics), `:50051` (gRPC) are private/VPN-only.
+- [ ] **Hardened securityContext** applied (`runAsNonRoot`, `readOnlyRootFilesystem` + `/tmp` emptyDir, drop `ALL` caps, `seccompProfile: RuntimeDefault`), `DB_SSLMODE=require`, `REDIS_TLS=true`.
+
 Sign-off: _name / date / commit SHA_ recorded in the GitHub release notes. Only tag `v0.1.0` once every box above is checked.
