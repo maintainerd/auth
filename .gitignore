@@ -77,3 +77,8 @@ tmp/
 # Anchored to the repo root: this is the compiled binary Air builds. Unanchored,
 # it also matched internal/server/, silently ignoring real source files there.
 /server
+
+# SPA dist embedded into the release binary at Docker build time (go:embed under
+# -tags embedassets). Populated only inside the image build — never committed.
+/internal/webui/console/
+/internal/webui/identity/
