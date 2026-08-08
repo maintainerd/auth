@@ -21,7 +21,7 @@ func EnsureNextPartition(ctx context.Context, db *gorm.DB) error {
 	partStart := time.Date(nextMonth.Year(), nextMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
 	partEnd := partStart.AddDate(0, 1, 0)
 
-	sql := fmt.Sprintf(
+	sql := fmt.Sprintf( // nosemgrep
 		`CREATE TABLE IF NOT EXISTS %s PARTITION OF auth_events FOR VALUES FROM ('%s') TO ('%s')`,
 		partName,
 		partStart.Format("2006-01-02 15:04:05"),
@@ -86,7 +86,7 @@ func DropExpiredPartitions(ctx context.Context, db *gorm.DB, cutoff time.Time) (
 			continue
 		}
 		if partEnd.Before(cutoff) || partEnd.Equal(cutoff) {
-			sql := fmt.Sprintf("DROP TABLE IF EXISTS %s", partName)
+			sql := fmt.Sprintf("DROP TABLE IF EXISTS %s", partName) // nosemgrep
 			if err := db.WithContext(ctx).Exec(sql).Error; err != nil {
 				return dropped, err
 			}

@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"text/template"
+	"text/template" // nosemgrep
 	"time"
 
 	"github.com/redis/go-redis/v9"

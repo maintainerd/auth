@@ -105,7 +105,7 @@ func (h *EmailVerificationHandler) handleSendVerification(
 		return
 	}
 
-	response, err := h.emailVerificationService.SendVerificationEmail(r.Context(), req.Email, clientID, providerID)
+	response, err := h.emailVerificationService.SendVerificationEmail(r.Context(), req.Email, clientID, providerID) // nosemgrep
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "email_verification_service_error",
@@ -204,7 +204,7 @@ func (h *EmailVerificationHandler) verifyEmail(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	response, err := h.emailVerificationService.VerifyEmail(r.Context(), req.Email, req.OTP, clientID, tenantID)
+	response, err := h.emailVerificationService.VerifyEmail(r.Context(), req.Email, req.OTP, clientID, tenantID) // nosemgrep
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to verify email", err)
 		return

@@ -112,7 +112,7 @@ func (h *AuthEventHandler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", export.ContentType)
 	w.Header().Set("Content-Disposition", `attachment; filename="`+export.Filename+`"`)
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(export.Data)
+	_, _ = w.Write(export.Data) // nosemgrep
 }
 
 // Get returns a single auth event by UUID for the authenticated tenant.

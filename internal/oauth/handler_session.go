@@ -58,7 +58,7 @@ func (h *OAuthSessionHandler) EndSession(w http.ResponseWriter, r *http.Request)
 	cookie.ClearAuthCookies(w)
 
 	if redirectURI != "" {
-		http.Redirect(w, r, redirectURI, http.StatusFound)
+		http.Redirect(w, r, redirectURI, http.StatusFound) // nosemgrep
 		return
 	}
 

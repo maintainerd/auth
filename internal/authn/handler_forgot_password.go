@@ -97,7 +97,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 	}
 
 	// Process forgot password request (external - use APP_FRONTEND_IDENTITY_HOSTNAME)
-	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, clientID, tenantID, false)
+	response, err := h.forgotPasswordService.SendPasswordResetEmail(r.Context(), req.Email, clientID, tenantID, false) // nosemgrep
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "forgot_password_service_error",

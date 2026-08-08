@@ -8,6 +8,8 @@ version: 2
 updates:
   - package-ecosystem: gomod
     directory: /
+    cooldown:
+      default-days: 7
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -28,6 +30,8 @@ updates:
   # which that tag will never deliver on its own.
   - package-ecosystem: docker
     directory: /
+    cooldown:
+      default-days: 7
     schedule:
       interval: weekly
     commit-message:
@@ -37,6 +41,8 @@ updates:
   # surface — a compromised action runs with repository credentials.
   - package-ecosystem: github-actions
     directory: /
+    cooldown:
+      default-days: 7
     schedule:
       interval: weekly
     commit-message:

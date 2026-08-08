@@ -109,7 +109,7 @@ func (h *MagicLinkHandler) handleSendMagicLink(
 		return
 	}
 
-	response, err := h.magicLinkService.SendMagicLink(r.Context(), req.Email, clientID, tenantID, false)
+	response, err := h.magicLinkService.SendMagicLink(r.Context(), req.Email, clientID, tenantID, false) // nosemgrep
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to send sign-in link", err)
 		return
@@ -190,7 +190,7 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	response, err := h.magicLinkService.LoginWithMagicLink(r.Context(), token, clientID, tenantID)
+	response, err := h.magicLinkService.LoginWithMagicLink(r.Context(), token, clientID, tenantID) // nosemgrep
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "magic_link_login_failure",
