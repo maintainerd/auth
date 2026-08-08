@@ -62,17 +62,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Semgrep CI
-        run: |
-          semgrep ci \
-            --config p/javascript \
-            --config p/typescript \
-            --config p/react \
-            --config p/owasp-top-ten \
-            --config p/secrets \
-            --config p/xss \
-            --config p/jwt \
-            --sarif \
-            --output semgrep.sarif
+        # Connected scan: `semgrep ci` runs the rules configured on the Semgrep
+        # Cloud org (rule board) and reports findings to the dashboard. `--config`
+        # cannot be combined with a logged-in run, so rulesets are managed in the
+        # cloud policy; `--sarif-output` also writes SARIF for GitHub Code Scanning.
+        run: semgrep ci --sarif-output=semgrep.sarif
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
