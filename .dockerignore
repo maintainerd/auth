@@ -42,3 +42,10 @@ scripts/
 
 # Nginx config (not needed in app container)
 nginx/
+
+# Frontend deps / build output / secrets — rebuilt inside the image, never
+# copied from the host (would bloat context and leak local env).
+**/node_modules/
+**/dist/
+**/.env
+web/**/coverage/
