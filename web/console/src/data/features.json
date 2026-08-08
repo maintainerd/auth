@@ -1,0 +1,209 @@
+{
+  "categories": [
+    {
+      "name": "Dashboard",
+      "features": [
+        {
+          "label": "Dashboard",
+          "path": "/dashboard",
+          "keywords": ["home", "overview", "start"]
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "features": [
+        {
+          "label": "Users",
+          "path": "/users",
+          "keywords": ["people", "members", "accounts", "user list", "directory"]
+        },
+        {
+          "label": "Invitations",
+          "path": "/invites",
+          "keywords": ["invite", "pending", "signup", "send invite"]
+        },
+        {
+          "label": "Roles",
+          "path": "/roles",
+          "keywords": ["role", "rbac", "permission groups"]
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "features": [
+        {
+          "label": "Authentication",
+          "path": "/authentication",
+          "keywords": ["login", "auth", "overview"]
+        },
+        {
+          "label": "Identity Providers",
+          "path": "/providers/identity",
+          "keywords": ["idp", "oidc", "saml", "google", "github", "sso", "federation"]
+        },
+        {
+          "label": "Registration Flows",
+          "path": "/registration-flows",
+          "keywords": ["signup", "register", "flows", "user onboarding"]
+        }
+      ]
+    },
+    {
+      "name": "Applications",
+      "features": [
+        {
+          "label": "Applications",
+          "path": "/applications",
+          "keywords": ["apps", "overview"]
+        },
+        {
+          "label": "Clients",
+          "path": "/clients",
+          "keywords": ["oauth", "client", "credentials", "secrets"]
+        },
+        {
+          "label": "Workload Identity",
+          "path": "/workload-identity",
+          "keywords": ["wif", "federation", "kubernetes", "service account", "token"]
+        }
+      ]
+    },
+    {
+      "name": "APIs & Resources",
+      "features": [
+        {
+          "label": "Services",
+          "path": "/services",
+          "keywords": ["api", "services", "resources"]
+        },
+        {
+          "label": "APIs",
+          "path": "/apis",
+          "keywords": ["api", "endpoints", "resources"]
+        },
+        {
+          "label": "Permissions",
+          "path": "/permissions",
+          "keywords": ["permission", "scopes", "actions"]
+        },
+        {
+          "label": "Policies",
+          "path": "/policies",
+          "keywords": ["policy", "statements", "iam", "access control"]
+        }
+      ]
+    },
+    {
+      "name": "Security",
+      "features": [
+        {
+          "label": "Security",
+          "path": "/security",
+          "keywords": ["overview", "protection"]
+        },
+        {
+          "label": "MFA Configuration",
+          "path": "/security/mfa/configure",
+          "keywords": ["multi-factor", "totp", "authenticator", "2fa", "webauthn", "passkey", "sms"]
+        },
+        {
+          "label": "Password Policies",
+          "path": "/security/password/configure",
+          "keywords": ["password", "strength", "complexity", "expiry"]
+        },
+        {
+          "label": "Session Management",
+          "path": "/security/session/configure",
+          "keywords": ["session", "timeout", "idle", "absolute", "renewal"]
+        },
+        {
+          "label": "Token Configuration",
+          "path": "/security/token/configure",
+          "keywords": ["token", "jwt", "lifetime", "expiry", "refresh"]
+        },
+        {
+          "label": "Lockout Policy",
+          "path": "/security/lockout/configure",
+          "keywords": ["lockout", "brute force", "attempts", "block"]
+        },
+        {
+          "label": "Registration Configuration",
+          "path": "/security/registration/configure",
+          "keywords": ["registration", "signup", "allowlist", "domains"]
+        },
+        {
+          "label": "Threat Detection",
+          "path": "/security/threat/configure",
+          "keywords": ["threat", "anomaly", "suspicious", "detection", "security events"]
+        }
+      ]
+    },
+    {
+      "name": "Branding",
+      "features": [
+        {
+          "label": "Branding",
+          "path": "/branding",
+          "keywords": ["look", "theme", "logo", "colors", "templates", "email template", "sms template"]
+        }
+      ]
+    },
+    {
+      "name": "Messaging",
+      "features": [
+        {
+          "label": "Messaging",
+          "path": "/messaging",
+          "keywords": ["email", "sms", "provider", "overview"]
+        },
+        {
+          "label": "Email Configuration",
+          "path": "/messaging/email/configure",
+          "keywords": ["smtp", "mail", "sender", "from address"]
+        },
+        {
+          "label": "SMS Configuration",
+          "path": "/messaging/sms/configure",
+          "keywords": ["sms", "twilio", "phone", "gateway"]
+        }
+      ]
+    },
+    {
+      "name": "Monitoring",
+      "features": [
+        {
+          "label": "Monitoring",
+          "path": "/monitoring",
+          "keywords": ["overview", "analytics", "audit", "logs"]
+        },
+        {
+          "label": "Events & Webhooks",
+          "path": "/events",
+          "keywords": ["events", "webhook", "subscriptions", "deliveries"]
+        }
+      ]
+    },
+    {
+      "name": "Tenants",
+      "features": [
+        {
+          "label": "Tenants",
+          "path": "/tenants",
+          "keywords": ["tenant", "organizations", "multi-tenant"]
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "features": [
+        {
+          "label": "Tenant Settings",
+          "path": "/settings",
+          "keywords": ["settings", "preferences", "general"]
+        }
+      ]
+    }
+  ]
+}
