@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/email"
 	securityMiddleware "github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/sms"
+	"github.com/maintainerd/maintainerd-auth/internal/webui"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -21,7 +23,31 @@ const (
 	defaultInternalPort = ":8080"
 	defaultPublicPort   = ":8081"
 	defaultMgmtPort     = ":8082"
+	defaultConsolePort  = ":3000"
+	defaultIdentityPort = ":3001"
 )
+
+// portOrDefault normalizes an env-provided port, accepting either ":3000" or
+// "3000" and falling back to def when empty.
+func portOrDefault(v, def string) string {
+	if v == "" {
+		return def
+	}
+	if !strings.HasPrefix(v, ":") {
+		return ":" + v
+	}
+	return v
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:         addr,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+}
 
 // StartRESTServer launches the internal and public HTTP servers, blocks until
 // a termination signal is received, then drains connections gracefully.
@@ -33,59 +59,61 @@ func StartRESTServer(application *Application) error {
 	email.RedisClient = application.RedisClient
 	sms.RedisClient = application.RedisClient
 
-	internalSrv := &http.Server{
-		Addr:         defaultInternalPort,
-		Handler:      otelhttp.NewHandler(buildInternalRouter(h, application), "internal"),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
+	// Build the routers once. The API servers wrap them in OTel instrumentation;
+	// the SPA servers (release image only) mount the SAME raw routers same-origin
+	// behind the bundled frontends, so the console/identity apps reach their APIs
+	// in-process without a separate proxy.
+	internalRouter := buildInternalRouter(h, application)
+	publicRouter := buildPublicRouter(h, application)
 
-	publicSrv := &http.Server{
-		Addr:         defaultPublicPort,
-		Handler:      otelhttp.NewHandler(buildPublicRouter(h, application), "public"),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
+	internalSrv := newHTTPServer(defaultInternalPort, otelhttp.NewHandler(internalRouter, "internal"))
+	publicSrv := newHTTPServer(defaultPublicPort, otelhttp.NewHandler(publicRouter, "public"))
 
 	managementAddr := config.ManagementPort
 	if managementAddr == "" {
 		managementAddr = defaultMgmtPort
 	}
-	managementSrv := &http.Server{
-		Addr:         managementAddr,
-		Handler:      otelhttp.NewHandler(buildManagementRouter(application), "management"),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  120 * time.Second,
+	managementSrv := newHTTPServer(managementAddr, otelhttp.NewHandler(buildManagementRouter(application), "management"))
+
+	// Servers to run and drain. The two SPA servers are appended only in the
+	// embed (release) build; in dev they are absent and the frontends run under
+	// vite, so nothing here changes for local development.
+	type namedServer struct {
+		name string
+		srv  *http.Server
+	}
+	servers := []namedServer{
+		{"internal", internalSrv},
+		{"public", publicSrv},
+		{"management", managementSrv},
 	}
 
-	listenErr := make(chan error, 3)
+	if webui.Enabled {
+		consoleSrv := newHTTPServer(
+			portOrDefault(os.Getenv("APP_CONSOLE_PORT"), defaultConsolePort),
+			webui.Console(internalRouter, publicRouter, os.Getenv("APP_FRONTEND_IDENTITY_HOSTNAME")),
+		)
+		identitySrv := newHTTPServer(
+			portOrDefault(os.Getenv("APP_IDENTITY_PORT"), defaultIdentityPort),
+			webui.Identity(publicRouter),
+		)
+		servers = append(servers,
+			namedServer{"console", consoleSrv},
+			namedServer{"identity", identitySrv},
+		)
+	}
 
-	go func() {
-		slog.Info("Internal REST server starting", "addr", internalSrv.Addr)
-		if err := internalSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Internal REST server error", "error", err)
-			listenErr <- err
-		}
-	}()
-
-	go func() {
-		slog.Info("Public REST server starting", "addr", publicSrv.Addr)
-		if err := publicSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Public REST server error", "error", err)
-			listenErr <- err
-		}
-	}()
-
-	go func() {
-		slog.Info("Management REST server starting", "addr", managementSrv.Addr)
-		if err := managementSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Management REST server error", "error", err)
-			listenErr <- err
-		}
-	}()
+	listenErr := make(chan error, len(servers))
+	for _, s := range servers {
+		s := s
+		go func() {
+			slog.Info("REST server starting", "name", s.name, "addr", s.srv.Addr)
+			if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				slog.Error("REST server error", "name", s.name, "error", err)
+				listenErr <- err
+			}
+		}()
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -101,17 +129,11 @@ func StartRESTServer(application *Application) error {
 	defer cancel()
 
 	var shutdownErr error
-	if err := internalSrv.Shutdown(ctx); err != nil {
-		shutdownErr = err
-		slog.Error("Internal server shutdown error", "error", err)
-	}
-	if err := publicSrv.Shutdown(ctx); err != nil {
-		shutdownErr = err
-		slog.Error("Public server shutdown error", "error", err)
-	}
-	if err := managementSrv.Shutdown(ctx); err != nil {
-		shutdownErr = err
-		slog.Error("Management server shutdown error", "error", err)
+	for _, s := range servers {
+		if err := s.srv.Shutdown(ctx); err != nil {
+			shutdownErr = err
+			slog.Error("Server shutdown error", "name", s.name, "error", err)
+		}
 	}
 
 	if shutdownErr != nil {
