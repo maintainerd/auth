@@ -20,7 +20,10 @@ func TestNeutralizeLogString(t *testing.T) {
 	})
 
 	t.Run("strips C0/C1 control characters", func(t *testing.T) {
-		if got := neutralizeLogString("val\x00\x07\x1b[31m"); got != "val[31m" {
+		// The C1 control (U+009B) is built at runtime so the source file holds
+		// no literal control character (staticcheck ST1018).
+		in := "val\x00\x07\x1b[31m" + string(rune(0x9b))
+		if got := neutralizeLogString(in); got != "val[31m" {
 			t.Fatalf("control chars not stripped: %q", got)
 		}
 	})
@@ -58,7 +61,7 @@ func TestPIIRedactHandler_NeutralizesInjection(t *testing.T) {
 	if path, _ := rec["path"].(string); strings.ContainsAny(path, "\r\n") {
 		t.Fatalf("attribute value not neutralised: %q", path)
 	}
-	// A forged newline would have produced a second JSON object; exactly one line.
+	// A forged newline would have produced a second JSON object; expect one line.
 	if lines := bytes.Count(bytes.TrimSpace(buf.Bytes()), []byte("\n")); lines != 0 {
 		t.Fatalf("expected a single log line, found %d extra newlines", lines)
 	}
