@@ -30,8 +30,8 @@ Thumbs.db
 # Dependencies (will be downloaded in container)
 vendor/
 
-# Generated files
-internal/gen/
+# NOTE: generated protobuf code lives in internal/platform/gen/ and MUST be
+# included — the build depends on it, so it is intentionally not ignored here.
 
 # Test files
 *_test.go
