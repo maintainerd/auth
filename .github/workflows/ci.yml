@@ -198,3 +198,45 @@ jobs:
             VERSION=ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Frontend — the CI the console + identity repos carried before they were
+  # consolidated into web/: lint, unit tests (vitest) with coverage, a
+  # production-dependency audit, and a type-check + build. One matrix over both.
+  # ─────────────────────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [console, identity]
+    defaults:
+      run:
+        working-directory: web/${{ matrix.app }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (coverage)
+        run: npm run test:cov
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Type-check and build
+        run: npm run build
