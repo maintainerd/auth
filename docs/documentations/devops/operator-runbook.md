@@ -1,6 +1,19 @@
 # Operator Runbook
 
+> **Before deploying behind a reverse proxy / ingress, read
+> [Production Edge & Security Hardening](edge-and-security-hardening.md).** It
+> covers the two edge settings an auth service must get right — proxy header
+> buffers (or login 502s on the `Set-Cookie` JWTs) and trusted forwarded headers
+> — plus non-root secret/cert readability. Each is easy to miss and each breaks
+> production on its own.
+
 ## Deployment
+
+The all-in-one image serves four HTTP ports — `:8080` control API, `:8081` public
+data API (OAuth2/OIDC), `:3000` console SPA, `:3001` identity SPA — plus `:8082`
+metrics and `:50051` gRPC. It serves plain HTTP; terminate TLS at the edge, and
+expose only the **public** ports (`:8081`, `:3001`) to the internet while keeping
+the **private** ports (`:8080`, `:3000`, `:8082`) internal/VPN-only.
 
 ### Docker
 
@@ -8,10 +21,13 @@
 docker build -t maintainerd-auth .
 docker run -d \
   --name auth \
-  -p 8080:8080 -p 8081:8081 -p 8082:8082 \
+  -p 8080:8080 -p 8081:8081 -p 3000:3000 -p 3001:3001 -p 8082:8082 \
   --env-file .env \
   maintainerd-auth
 ```
+
+The image runs as non-root (uid 65532); any bind-mounted secret/cert must be
+readable by that uid — prefer `--env-file` / a secret manager over bind mounts.
 
 ### Docker Compose
 
@@ -23,6 +39,8 @@ services:
     ports:
       - "8080:8080"
       - "8081:8081"
+      - "3000:3000"
+      - "3001:3001"
       - "8082:8082"
     env_file: .env
     depends_on:
@@ -59,6 +77,22 @@ Key considerations:
 - Use readiness probes: `GET /readyz` (checks DB + Redis + JWKS)
 - Use liveness probes: `GET /livez` (process-level only)
 - Set resource limits: recommend 256Mi memory, 0.5 CPU minimum
+- **Run non-root with a hardened `securityContext`** (`runAsNonRoot: true`,
+  `runAsUser`/`runAsGroup`/`fsGroup: 65532`, `readOnlyRootFilesystem: true` with a
+  writable `/tmp` emptyDir, drop `ALL` capabilities, `seccompProfile:
+  RuntimeDefault`). The image is already uid 65532.
+- **Mounted Secret/ConfigMap volumes need `defaultMode: 0440`** so the non-root
+  uid can read them — `fsGroup` alone does not (they are read-only projected
+  volumes). Applies to any mounted gRPC/TLS certs or key files.
+- **Ingress must set `nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"`** (or
+  raise your edge's response-header buffer) — login/refresh set the JWTs as
+  `Set-Cookie` headers that overflow the default buffer and 502 otherwise.
+- **Trust forwarded headers from the edge only** — set `TRUSTED_PROXY_CIDRS` to
+  the ingress/LB range; never `TRUST_ALL_PROXIES=true` in production.
+
+See **[Production Edge & Security Hardening](edge-and-security-hardening.md)** for
+the full securityContext, Secret `defaultMode`, ingress annotations, and a sample
+hardened edge config.
 
 ## Key Rotation
 
