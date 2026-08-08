@@ -324,7 +324,10 @@ func optionalClientQuery(r *http.Request) (clientID, tenantID *string) {
 
 func authenticationContextQuery(r *http.Request) (clientID, tenantID *string, ok bool) {
 	clientID, tenantID = optionalClientQuery(r)
-	return clientID, nil, clientID != nil && tenantID == nil
+	// Public surface: authorize only when a client_id is present and no tenant_id
+	// was supplied. tenantID itself is never propagated to callers (always nil).
+	ok = clientID != nil && tenantID == nil
+	return clientID, nil, ok
 }
 
 func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
