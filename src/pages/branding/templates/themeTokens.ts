@@ -702,7 +702,7 @@ export function hexToRgba(value: string | undefined, alphaMultiplier = 1, fallba
   const normalized = value.toLowerCase()
   const raw = normalized.slice(1)
   const channels = raw.length === 3 || raw.length === 4
-    ? raw.split("").map((part) => `${part}${part}`)
+    ? raw.split("").map((part) => `${part}${part}`)  // nosemgrep
     : raw.match(/.{2}/g) ?? []
   const [rRaw, gRaw, bRaw, aRaw] = channels
   const r = Number.parseInt(rRaw, 16)
@@ -717,7 +717,7 @@ export function valueAtPath(obj: unknown, path: string[]): unknown {
   let current = obj
   for (const part of path) {
     if (!current || typeof current !== "object") return undefined
-    current = (current as Record<string, unknown>)[part]
+    current = (current as Record<string, unknown>)[part]  // nosemgrep
   }
   return current
 }

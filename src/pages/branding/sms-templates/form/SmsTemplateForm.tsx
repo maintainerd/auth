@@ -152,7 +152,9 @@ export default function SmsTemplateForm() {
     )
   }
 
-  if (!isFetchingTemplate && !templateData) {
+  // isFetchingTemplate is already handled by the early return above, so only
+  // the missing-data case remains here.
+  if (!templateData) {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">

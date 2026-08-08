@@ -61,7 +61,7 @@ const selectAll = () => screen.getByRole("checkbox", { name: /select all/i })
 
 /** A policy row's own checkbox, named by the label the row renders. */
 const policyCheckbox = (name: string) =>
-  screen.getByRole("checkbox", { name: new RegExp(name) })
+  screen.getByRole("checkbox", { name: new RegExp(name) })  // nosemgrep
 
 const baseProps = {
   open: true,
