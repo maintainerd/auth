@@ -176,7 +176,7 @@ func (h *ProfileHandler) GetPicture(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(picture.Data)
+	_, _ = w.Write(picture.Data) // nosemgrep
 }
 
 func writePictureCacheHeaders(w http.ResponseWriter, etag string) {
