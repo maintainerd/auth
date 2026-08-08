@@ -2,6 +2,19 @@ import { API_CONFIG } from '@/services/api/config'
 
 export const OAUTH_CALLBACK_ROUTE = '/auth/callback'
 
+/**
+ * Constrain a stored return-to to a same-origin path before it drives a
+ * post-login redirect. Only an absolute local path (`/foo`) is allowed —
+ * protocol-relative (`//host`), backslash tricks (`/\host`), and absolute URLs
+ * are rejected so a crafted `returnTo` cannot become an open redirect. Returns
+ * `null` when unsafe; callers fall back to the default post-auth route.
+ */
+export function safeReturnTo(value: string | null | undefined): string | null {
+  if (!value || !value.startsWith('/')) return null
+  if (value.startsWith('//') || value.startsWith('/\\')) return null
+  return value
+}
+
 interface PendingOAuthFlow {
   state: string
   codeVerifier: string
