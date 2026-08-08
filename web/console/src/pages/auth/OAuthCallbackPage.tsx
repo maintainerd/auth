@@ -4,7 +4,7 @@ import AppLoadingScreen from '@/components/layout/AppLoadingScreen'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenant } from '@/hooks/useTenant'
 import { exchangeAuthorizationCode } from '@/services/api/oauth'
-import { consumePendingOAuthFlow } from '@/utils/oauthFlow'
+import { consumePendingOAuthFlow, safeReturnTo } from '@/utils/oauthFlow'
 import { resolvePostAuthRoute } from '@/utils/postAuthRoute'
 
 const OAuthCallbackPage = () => {
@@ -45,7 +45,7 @@ const OAuthCallbackPage = () => {
       })
 
       await refreshAccount()
-      navigate(flow.returnTo || resolvePostAuthRoute(), { replace: true })
+      navigate(safeReturnTo(flow.returnTo) || resolvePostAuthRoute(), { replace: true })
     }
 
     run().catch((error) => {
