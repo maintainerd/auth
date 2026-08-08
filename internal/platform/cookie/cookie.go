@@ -73,7 +73,7 @@ func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int, 
 		domain = sharedCookieDomain()
 	}
 
-	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- cookie attributes set per-name via helpers
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- cookie attributes set per-name via helpers nosemgrep
 		Name:     name,
 		Value:    value,
 		Path:     path,

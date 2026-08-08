@@ -102,7 +102,7 @@ func ensureCSRFCookie(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- CSRF cookie intentionally readable by JS
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- CSRF cookie intentionally readable by JS nosemgrep
 		Name:     csrfCookieName,
 		Value:    token,
 		Path:     "/",

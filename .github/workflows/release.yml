@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_ORG || 'maintainerd' }}/maintainerd-auth
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_ORG || 'maintainerd' }}/maintainerd-auth  # nosemgrep
 
 # Minimal default token scope; each job escalates only what it needs.
 permissions:

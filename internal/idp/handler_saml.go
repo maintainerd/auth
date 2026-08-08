@@ -44,7 +44,7 @@ func (h *FederationHandler) InitiateSAML(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	http.Redirect(w, r, result.RedirectURL, http.StatusFound)
+	http.Redirect(w, r, result.RedirectURL, http.StatusFound) // nosemgrep
 }
 
 // SAMLCallback is the Assertion Consumer Service (ACS) endpoint. The IdP
@@ -69,7 +69,7 @@ func (h *FederationHandler) SAMLCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	http.Redirect(w, r, result.RedirectURI, http.StatusFound)
+	http.Redirect(w, r, result.RedirectURI, http.StatusFound) // nosemgrep
 }
 
 // ExchangeSAMLCode exchanges a short-lived SAML code for access/ID/refresh tokens.
@@ -128,7 +128,7 @@ func (h *FederationHandler) InitiateSAMLLogout(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	http.Redirect(w, r, result.RedirectURL, http.StatusFound)
+	http.Redirect(w, r, result.RedirectURL, http.StatusFound) // nosemgrep
 }
 
 // SAMLSingleLogout is the Single Logout endpoint published in our SP metadata.

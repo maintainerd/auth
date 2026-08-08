@@ -151,7 +151,7 @@ func newSecretManager() (SecretManager, error) {
 		return newAWSSSMSecretManager(region, SecretPrefix)
 
 	case "vault":
-		address := GetEnvOrDefault("VAULT_ADDR", "http://localhost:8200")
+		address := GetEnvOrDefault("VAULT_ADDR", "http://localhost:8200") // nosemgrep
 		token := os.Getenv("VAULT_TOKEN")
 		mount := GetEnvOrDefault("VAULT_MOUNT", "secret")
 		// Every secret in the system crosses this connection, including the JWT

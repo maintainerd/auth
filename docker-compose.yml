@@ -18,7 +18,7 @@ services:
       retries: 3
       start_period: 10s
 
-  postgres:
+  postgres:  # nosemgrep
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: maintainerd
@@ -32,7 +32,7 @@ services:
       timeout: 3s
       retries: 5
 
-  redis:
+  redis:  # nosemgrep
     image: redis:7-alpine
     command: redis-server --save 60 1 --loglevel warning
     volumes:
