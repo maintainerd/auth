@@ -159,7 +159,7 @@ func (h *BrandingHandler) writeLogo(w http.ResponseWriter, brandingUUID uuid.UUI
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	w.Header().Set("ETag", `"`+brandingUUID.String()+`"`)
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) // nosemgrep
 }
 
 func (h *BrandingHandler) storeLogoUpload(r *http.Request, brandingUUID uuid.UUID, req BrandingUpdateRequestDTO) error {

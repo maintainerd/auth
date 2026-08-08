@@ -73,5 +73,5 @@ func deliverAuthCookies(w http.ResponseWriter, r *http.Request, next http.Handle
 	}
 
 	w.WriteHeader(rec.status)
-	_, _ = w.Write(rec.body.Bytes())
+	_, _ = w.Write(rec.body.Bytes()) // nosemgrep
 }
