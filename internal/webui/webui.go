@@ -1,3 +1,5 @@
+//go:build embedassets
+
 // Package webui serves the bundled admin console + hosted identity SPAs from the
 // Go process itself, so the all-in-one release image is a single binary with no
 // nginx and no process supervisor.
