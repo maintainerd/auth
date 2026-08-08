@@ -59,7 +59,7 @@ func (h *PIIRedactHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *PIIRedactHandler) Handle(ctx context.Context, r slog.Record) error {
-	sanitised := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
+	sanitised := slog.NewRecord(r.Time, r.Level, neutralizeLogString(r.Message), r.PC)
 	r.Attrs(func(a slog.Attr) bool {
 		sanitised.AddAttrs(redactAttr(a))
 		return true
@@ -90,6 +90,14 @@ func redactAttr(a slog.Attr) slog.Attr {
 			cleaned = append(cleaned, redactAttr(sa))
 		}
 		return slog.Group(a.Key, cleaned...)
+	}
+	// Neutralise CR/LF and control characters in string values so untrusted
+	// input cannot forge log lines (CWE-117). Non-string values are unaffected.
+	if a.Value.Kind() == slog.KindString {
+		s := a.Value.String()
+		if cleaned := neutralizeLogString(s); cleaned != s {
+			return slog.String(a.Key, cleaned)
+		}
 	}
 	return a
 }
