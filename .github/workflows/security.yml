@@ -9,9 +9,9 @@ on:
     # Runs every day at 02:00 UTC — catches newly published CVEs even without a push
     - cron: "0 2 * * *"
 
+# Minimal default token scope; each job escalates security-events: write itself.
 permissions:
   contents: read
-  security-events: write # needed to upload SARIF to Code Scanning
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
@@ -29,17 +29,17 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         with:
           languages: javascript-typescript
           # security-extended adds CWE coverage beyond the default query suite
           queries: security-extended,security-and-quality
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         with:
           category: "/language:javascript-typescript"
 
@@ -59,7 +59,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Run Semgrep CI
         run: |
@@ -84,7 +84,7 @@ jobs:
           fi
 
       - name: Upload Semgrep results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         if: always()
         with:
           sarif_file: semgrep.sarif
@@ -103,10 +103,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
@@ -115,7 +115,7 @@ jobs:
         run: npm ci
 
       - name: Run Snyk (dependency scan)
-        uses: snyk/actions/node@master
+        uses: snyk/actions/node@12140f4059e244892ae643824a95459a102120dd # master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -131,7 +131,7 @@ jobs:
           fi
 
       - name: Upload Snyk results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         if: always()
         with:
           sarif_file: snyk.sarif
@@ -145,10 +145,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
@@ -171,7 +171,7 @@ jobs:
 
     steps:
       - name: Checkout code (full history)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # Full depth so Gitleaks can audit every commit, not just the latest snapshot
           fetch-depth: 0
@@ -203,7 +203,7 @@ jobs:
           EOF
 
       - name: Upload Gitleaks results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         if: always()
         with:
           sarif_file: gitleaks.sarif

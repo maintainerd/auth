@@ -5,6 +5,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Wait before adopting freshly published releases, reducing exposure to a
+    # compromised or yanked version being pulled the moment it ships.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -20,6 +24,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "ci"
