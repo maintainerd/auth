@@ -24,10 +24,9 @@ export function EmailTemplatePreview({ template }: EmailTemplatePreviewProps) {
       </CardHeader>
       <CardContent>
         <div className="border rounded-md p-4 bg-white">
-          {/* Content is DOMPurify-sanitized above; suppress the dangerouslySetInnerHTML rule. */}
-          <div
-            className="prose max-w-none"
-            dangerouslySetInnerHTML={{ __html: safeHtml }} // nosemgrep
+          <div // nosemgrep
+            className="prose max-w-none" // nosemgrep
+            dangerouslySetInnerHTML={{ __html: safeHtml }} // nosemgrep -- content DOMPurify-sanitized above
           />
         </div>
       </CardContent>
