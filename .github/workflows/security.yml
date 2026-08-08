@@ -44,15 +44,16 @@ jobs:
           category: "/language:javascript-typescript"
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Semgrep — open-source SAST (JS/TS + React + OWASP Top-Ten + secrets rulesets).
-  # Requires: SEMGREP_APP_TOKEN secret. Results upload to Code Scanning via SARIF.
+  # Semgrep — SAST via the connected Semgrep Cloud rule board. Reports findings to
+  # the Semgrep dashboard ONLY. GitHub Code Scanning is owned by CodeQL, so Semgrep
+  # does not dual-report — one finding lives in one place.
+  # Requires: SEMGREP_APP_TOKEN secret.
   # ─────────────────────────────────────────────────────────────────────────────
   semgrep:
     name: Semgrep
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
 
     container:
       image: semgrep/semgrep
@@ -62,26 +63,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Semgrep CI
-        # Connected scan: `semgrep ci` runs the rules configured on the Semgrep
-        # Cloud org (rule board) and reports findings to the dashboard. `--config`
-        # cannot be combined with a logged-in run, so rulesets are managed in the
-        # cloud policy; `--sarif-output` also writes SARIF for GitHub Code Scanning.
-        run: semgrep ci --sarif-output=semgrep.sarif
+        run: semgrep ci
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-
-      - name: Ensure SARIF file exists
-        if: always()
-        run: |
-          if [ ! -f semgrep.sarif ]; then
-            echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Semgrep","rules":[]}},"results":[]}]}' > semgrep.sarif
-          fi
-
-      - name: Upload Semgrep results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
-        if: always()
-        with:
-          sarif_file: semgrep.sarif
 
   # ─────────────────────────────────────────────────────────────────────────────
   # npm audit — fast, token-free dependency check on production dependencies.
