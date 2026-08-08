@@ -9,11 +9,8 @@ on:
     - .github/workflows/semgrep.yml
   schedule:
   # random HH:MM to avoid a load spike on GitHub Actions at 00:00
-  - cron: 14 15 * * *
+  - cron: 18 6 * * *
 name: Semgrep
-# Minimal default token scope; the job re-declares what it needs.
-permissions:
-  contents: read
 jobs:
   semgrep:
     name: semgrep/ci
@@ -25,5 +22,5 @@ jobs:
     container:
       image: semgrep/semgrep
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/checkout@v6
     - run: semgrep ci
