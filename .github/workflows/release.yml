@@ -16,7 +16,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write        # create the GitHub Release + attach the SBOM asset
       packages: write
       id-token: write
       security-events: write  # upload the Trivy SARIF to Code Scanning
