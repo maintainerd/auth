@@ -521,6 +521,7 @@ type mockOAuthAuthorizeService struct {
 	authorizeFn           func(context.Context, OAuthAuthorizeRequestDTO, int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
 	startBrokerFn         func(context.Context, OAuthAuthorizeRequestDTO) (*OAuthAuthorizeResult, *apperror.OAuthError)
 	handleCallbackFn      func(context.Context, string, string, string) (string, string, *apperror.OAuthError)
+	resolveBrokerErrFn    func(context.Context, string, string, string, string) string
 	prepareAuthorizeFn    func(context.Context, OAuthAuthorizeRequestDTO) *apperror.OAuthError
 	prepareAuthSignupFn   func(context.Context, OAuthAuthorizeRequestDTO) (string, string, *apperror.OAuthError)
 	continueAuthorizeFn   func(context.Context, string, string, int64, int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
@@ -545,6 +546,12 @@ func (m *mockOAuthAuthorizeService) HandleCallback(ctx context.Context, idpIdent
 		return m.handleCallbackFn(ctx, idpIdentifier, code, state)
 	}
 	return "https://app.example.com/cb?code=maintainerd-code&state=abc", "", nil
+}
+func (m *mockOAuthAuthorizeService) ResolveBrokerErrorRedirect(ctx context.Context, idpIdentifier, state, errCode, errDesc string) string {
+	if m.resolveBrokerErrFn != nil {
+		return m.resolveBrokerErrFn(ctx, idpIdentifier, state, errCode, errDesc)
+	}
+	return "https://identity.example.com/login?error=" + errCode
 }
 func (m *mockOAuthAuthorizeService) PrepareAuthorize(ctx context.Context, req OAuthAuthorizeRequestDTO) *apperror.OAuthError {
 	if m.prepareAuthorizeFn != nil {
