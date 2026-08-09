@@ -195,6 +195,44 @@ func buildBrokerCallbackURL(idpIdentifier string) string {
 	return strings.TrimRight(config.AppPublicHostname, "/") + "/api/v1/oauth/callback/" + url.PathEscape(idpIdentifier)
 }
 
+// ResolveBrokerErrorRedirect returns a URL back into the identity login UI for a
+// failed brokered login (an `error` from the upstream IdP, a missing code, or a
+// failed exchange), so the browser is never left on the API callback endpoint.
+// It resolves the tenant's identity host from the broker session when possible
+// (and consumes that session so it can't be replayed); on any miss it falls back
+// to the system-tenant login. It never returns an error.
+func (s *oauthAuthorizeService) ResolveBrokerErrorRedirect(ctx context.Context, idpIdentifier, state, errCode, errDesc string) string {
+	_ = ctx
+	_ = idpIdentifier
+
+	tenantName := ""
+	tenantIsSystem := true
+
+	if st := strings.TrimSpace(state); st != "" {
+		sessionRepo := NewOAuthBrokerSessionRepository(s.db)
+		if session, err := sessionRepo.FindByIdpState(st); err == nil && session != nil {
+			_ = sessionRepo.Consume(session.OAuthBrokerSessionID, time.Now())
+			var t Tenant
+			if e := s.db.Select("name", "is_system").Where("tenant_id = ?", session.TenantID).First(&t).Error; e == nil {
+				tenantName = t.Name
+				tenantIsSystem = t.IsSystem
+			}
+		}
+	}
+
+	if strings.TrimSpace(errCode) == "" {
+		errCode = "access_denied"
+	}
+
+	loginURL := shared.FrontendURL(shared.FrontendSurfaceIdentity, tenantName, tenantIsSystem, "/login")
+	q := url.Values{}
+	q.Set("error", errCode)
+	if strings.TrimSpace(errDesc) != "" {
+		q.Set("error_description", errDesc)
+	}
+	return loginURL + "?" + q.Encode()
+}
+
 // HandleCallback implements OAuthAuthorizeService.
 func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifier, code, state string) (string, string, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.handle_broker_callback")
