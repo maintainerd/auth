@@ -386,7 +386,7 @@ export default function BrandingForm() {
       layout: "centered",
       ui_template: "centered-card",
       company_name: "",
-      logo_label: "Maintainerd-IAM",
+      logo_label: "Maintainerd-Auth",
       logo_detail: "Identity and Access Management",
       show_logo_label: true,
       identity_logo_label: "Maintainerd",
@@ -408,7 +408,7 @@ export default function BrandingForm() {
         layout: branding.layout ?? "centered",
         ui_template: authUiTemplateIdFromMetadata(branding.metadata, branding.layout),
         company_name: branding.company_name ?? "",
-        logo_label: branding.logo_label ?? branding.company_name ?? "Maintainerd-IAM",
+        logo_label: branding.logo_label ?? branding.company_name ?? "Maintainerd-Auth",
         logo_detail: branding.logo_detail ?? "Identity and Access Management",
         show_logo_label: branding.show_logo_label ?? true,
         identity_logo_label: branding.identity_logo_label ?? "Maintainerd",
@@ -485,7 +485,7 @@ export default function BrandingForm() {
     savedLoginTemplatePresentation.splitShowcaseTitle !== loginTemplatePresentation.splitShowcaseTitle ||
     savedLoginTemplatePresentation.splitShowcaseSubtitle !== loginTemplatePresentation.splitShowcaseSubtitle ||
     savedLoginTemplatePresentation.splitShowcaseImageUrl !== loginTemplatePresentation.splitShowcaseImageUrl
-  const logoLabel = watch("logo_label") || "Maintainerd-IAM"
+  const logoLabel = watch("logo_label") || "Maintainerd-Auth"
   const showLogoLabel = watch("show_logo_label") ?? true
   const logoDetail = watch("logo_detail") || ""
   const logoUrl = watch("logo_url") || ""
@@ -890,7 +890,7 @@ export default function BrandingForm() {
                   <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                     <FormInputField
                       label="Logo label"
-                      placeholder="Maintainerd-IAM"
+                      placeholder="Maintainerd-Auth"
                       disabled={isLoading}
                       error={errors.logo_label?.message}
                       description="Shown beside the logo in the console top panel."
@@ -1374,7 +1374,7 @@ function CorePalettePreview({ tokens }: { tokens: Record<string, string> }) {
           borderColor: tokens["colors.border"],
         }}
       >
-        <p className="text-sm font-semibold">Maintainerd-IAM</p>
+        <p className="text-sm font-semibold">{logoLabel}</p>
         <p className="mt-1 text-xs" style={{ color: tokens["colors.textMuted"] }}>
           Tenant administration console
         </p>
@@ -1410,7 +1410,7 @@ function TopPanelPreview({
   const topProfileStyle = styleForComponent(tokens, "topPanelProfileTrigger")
   const topCreateStyle = styleForComponent(tokens, "topPanelCreateButton")
   const logoSrc = resolveBrandingLogoUrl(branding.logoUrl) ?? "/logo.png"
-  const logoLabel = branding.logoLabel || "Maintainerd-IAM"
+  const logoLabel = branding.logoLabel || "Maintainerd-Auth"
 
   return (
     <div className="overflow-x-auto rounded-md border" style={{ borderColor: tokens["colors.topPanelBorder"] }}>
@@ -2381,7 +2381,7 @@ function BrandPreviewLockup({
   centered?: boolean
 }) {
   const logoSrc = resolveBrandingLogoUrl(branding.logoUrl) ?? "/logo.png"
-  const label = branding.logoLabel || "Maintainerd-IAM"
+  const label = branding.logoLabel || "Maintainerd-Auth"
   const detail = logoDetail?.trim()
 
   return (

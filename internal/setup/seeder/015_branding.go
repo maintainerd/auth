@@ -254,7 +254,7 @@ func mustBrandingMetadata(p themePalette) string {
 	payload := map[string]any{
 		// Branding preferences (no dedicated columns — metadata owns them).
 		"layout":                   "centered",
-		"logo_label":               "Maintainerd-IAM",
+		"logo_label":               "Maintainerd-Auth",
 		"logo_detail":              "Identity and Access Management",
 		"show_logo_label":          true,
 		"identity_logo_label":      "Maintainerd",
@@ -477,7 +477,7 @@ func SeedBranding(db *gorm.DB, tenantID int64) error {
 			BrandingUUID: uuid.New(),
 			TenantID:     tenantID,
 			Name:         t.name,
-			CompanyName:  "Maintainerd-Auth",
+			CompanyName:  "Maintainerd",
 			IsSystem:     true,
 			IsActive:     isActive,
 			Metadata:     datatypes.JSON([]byte(t.metadata)),

@@ -303,8 +303,8 @@ func TestBrandingService_RestoreSystem(t *testing.T) {
 			},
 			createOrUpdateFn: func(e *Branding) (*Branding, error) {
 				assert.Equal(t, "centered", metadataString(e.Metadata, BrandingMetadataLayout))
-				assert.Equal(t, "Maintainerd-Auth", e.CompanyName)
-				assert.Equal(t, "Maintainerd-IAM", metadataString(e.Metadata, BrandingMetadataLogoLabel))
+				assert.Equal(t, "Maintainerd", e.CompanyName)
+				assert.Equal(t, "Maintainerd-Auth", metadataString(e.Metadata, BrandingMetadataLogoLabel))
 				assert.Equal(t, "Identity and Access Management", metadataString(e.Metadata, BrandingMetadataLogoDetail))
 				assert.Equal(t, "Maintainerd", metadataString(e.Metadata, BrandingMetadataIdentityLogoLabel))
 				assert.True(t, metadataBool(e.Metadata, BrandingMetadataShowLogoLabel, false))
@@ -325,7 +325,7 @@ func TestBrandingService_RestoreSystem(t *testing.T) {
 		res, err := svc.RestoreSystem(context.Background(), id, 1)
 		require.NoError(t, err)
 		assert.Equal(t, "centered", res.Layout)
-		assert.Equal(t, "Maintainerd-Auth", res.CompanyName)
+		assert.Equal(t, "Maintainerd", res.CompanyName)
 		assert.True(t, res.IsActive)
 		assert.Contains(t, string(res.Metadata), `"authPageBackground"`)
 	})

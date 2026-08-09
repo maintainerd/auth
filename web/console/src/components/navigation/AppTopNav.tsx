@@ -40,7 +40,7 @@ export function AppTopNav() {
 
   const displayName = profile?.display_name || profile?.email || "User"
   const initials = displayName.slice(0, 2).toUpperCase()
-  const logoLabel = branding?.logo_label || branding?.company_name || "Maintainerd-IAM"
+  const logoLabel = branding?.logo_label || branding?.company_name || "Maintainerd-Auth"
   const logoDetail = branding?.logo_detail
   const showLogoLabel = branding?.show_logo_label ?? true
   const logoSrc = resolveBrandingLogoUrl(branding?.logo_url) ?? "/logo.png"

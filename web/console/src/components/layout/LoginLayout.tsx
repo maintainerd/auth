@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 import { ExternalLink } from 'lucide-react'
+import { BrandLockup } from '@/components/brand/BrandLockup'
 import { Card, CardContent } from '@/components/ui/card'
 import type { BrandingPublic } from '@/services/api/tenants/types'
 import { resolveBrandingLogoUrl } from '@/utils/branding'
-import MaintainedAuthIcon from "../icon/MaintainedAuthIcon"
 
 type Props = {
   children: React.ReactNode
@@ -11,7 +11,7 @@ type Props = {
 }
 
 const LoginLayout = ({ children, branding }: Props) => {
-  const companyName = branding?.company_name || 'Maintainerd IAM'
+  const companyName = branding?.company_name || 'Maintainerd'
   const logoLabel = branding?.logo_label || companyName
   const logoDetail = branding?.logo_detail
   const showLogoLabel = branding?.show_logo_label ?? true
@@ -39,20 +39,16 @@ const LoginLayout = ({ children, branding }: Props) => {
     >
       <div className="w-full max-w-md">
         {/* Brand mark */}
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          {logoUrl ? (
-            <img src={logoUrl} alt={logoLabel || 'Logo'} className="h-11 w-auto" />
-          ) : (
-            <MaintainedAuthIcon width={48} height={48} />
-          )}
-          {showLogoLabel && logoLabel && (
-            <span className="text-center">
-              <span className={`block font-semibold tracking-tight text-foreground ${logoDetail ? "text-sm" : "text-lg"}`}>{logoLabel}</span>
-              {logoDetail && (
-                <span className="mt-1 block text-xs text-muted-foreground">{logoDetail}</span>
-              )}
-            </span>
-          )}
+        <div className="mb-8">
+          <BrandLockup
+            logoLabel={logoLabel}
+            companyName={companyName}
+            showLogoLabel={showLogoLabel}
+            logoUrl={logoUrl}
+            logoDetail={logoDetail}
+            iconSize={48}
+            imgClassName="h-11 w-auto"
+          />
         </div>
 
         {/* Form card */}
