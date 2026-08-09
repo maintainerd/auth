@@ -1,5 +1,6 @@
 import { Info, KeyRound } from "lucide-react"
 import { InformationCard } from "@/components/card"
+import { CopyableCode } from "@/components/inputs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getProviderConnectionSchema, PROVIDER_LABELS } from "@/components/provider-config"
 import type { IdentityProviderDetail } from "@/services/api/identity-providers/types"
@@ -67,6 +68,19 @@ export function IdentityProviderConnectionTab({ provider }: IdentityProviderConn
         icon={KeyRound}
       >
         <div className="space-y-6">
+          {connectionSchema && provider.callback_url && (
+            <div className="space-y-2">
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-semibold">Redirect / Callback URL</h4>
+                <p className="text-sm text-muted-foreground">
+                  Register this exact URL as an allowed callback (redirect) URL in {providerLabel}.
+                  After a user authenticates there, the brokered sign-in returns them here.
+                </p>
+              </div>
+              <CopyableCode value={provider.callback_url} label="callback URL" variant="block" />
+            </div>
+          )}
+
           {connectionSchema && (
             <div className="space-y-4">
               <div className="space-y-0.5">
