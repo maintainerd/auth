@@ -35,6 +35,11 @@ export type IdentityProviderConfig = Record<string, unknown>
 export type IdentityProviderConnectionFields = {
   issuer: string | null
   provider_client_id: string | null
+  /**
+   * The OAuth2/OIDC redirect URI to register in the upstream provider (e.g.
+   * Cognito "Allowed callback URLs"). Computed by the backend; absent for SAML.
+   */
+  callback_url?: string | null
   allow_jit_provisioning: boolean
   allow_registration: boolean
   allow_token_federation: boolean

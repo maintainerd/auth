@@ -3,17 +3,32 @@ package idp
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/pagination"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 )
+
+// idpCallbackURL returns the OAuth2/OIDC redirect URI to register in the upstream
+// provider for this IdP. It MUST match the URL the broker actually sends
+// (internal/oauth buildBrokerCallbackURL): APP_PUBLIC_HOSTNAME +
+// /api/v1/oauth/callback/{identifier}. Empty for SAML (which uses an ACS URL,
+// not this OAuth callback) or when the identifier is unknown.
+func idpCallbackURL(providerType, identifier string) string {
+	if identifier == "" || providerType == shared.IDPTypeSAML {
+		return ""
+	}
+	return strings.TrimRight(config.AppPublicHostname, "/") + "/api/v1/oauth/callback/" + url.PathEscape(identifier)
+}
 
 type IdentityProviderHandler struct {
 	idpService  IdentityProviderService
@@ -403,6 +418,7 @@ func toIdpListResponseDTO(r IdentityProviderServiceDataResult) IdentityProviderR
 		Provider:             r.Provider,
 		ProviderType:         r.ProviderType,
 		Identifier:           r.Identifier,
+		CallbackURL:          idpCallbackURL(r.ProviderType, r.Identifier),
 		Issuer:               r.Issuer,
 		ProviderClientID:     r.ProviderClientID,
 		AllowJITProvisioning: r.AllowJITProvisioning,
@@ -427,6 +443,7 @@ func toIdpDetailResponseDTO(r IdentityProviderServiceDataResult) IdentityProvide
 		Provider:             r.Provider,
 		ProviderType:         r.ProviderType,
 		Identifier:           r.Identifier,
+		CallbackURL:          idpCallbackURL(r.ProviderType, r.Identifier),
 		Issuer:               r.Issuer,
 		ProviderClientID:     r.ProviderClientID,
 		AllowJITProvisioning: r.AllowJITProvisioning,
