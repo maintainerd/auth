@@ -252,7 +252,7 @@ func mustBrandingMetadata(p themePalette) string {
 	payload := map[string]any{
 		// Branding preferences (no dedicated columns — metadata owns them).
 		"layout":                   "centered",
-		"logo_label":               "Maintainerd-IAM",
+		"logo_label":               "Maintainerd-Auth",
 		"logo_detail":              "Identity and Access Management",
 		"show_logo_label":          true,
 		"identity_logo_label":      "Maintainerd",

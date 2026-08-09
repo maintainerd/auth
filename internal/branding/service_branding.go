@@ -143,7 +143,7 @@ func brandingLogoLabelOrDefault(label, companyName, name string) string {
 	if name != "" {
 		return name
 	}
-	return "Maintainerd-IAM"
+	return "Maintainerd-Auth"
 }
 
 func brandingLayoutOrDefault(layout string) string {
@@ -280,7 +280,7 @@ func (s *brandingService) RestoreSystem(ctx context.Context, brandingUUID uuid.U
 		return nil, apperror.NewValidation("system branding theme does not have a seeded default")
 	}
 
-	b.CompanyName = "Maintainerd-Auth"
+	b.CompanyName = "Maintainerd"
 	b.LogoURL = ""
 	b.LogoData = nil
 	b.LogoContentType = ""

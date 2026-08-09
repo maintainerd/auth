@@ -248,7 +248,7 @@ export function clearConsoleTheme(root: HTMLElement = document.documentElement) 
     }
   }
   document.body.style.fontFamily = ""
-  document.title = "Maintainerd IAM"
+  document.title = "Maintainerd"
 }
 
 export function applyConsoleTheme(branding?: BrandingPublic | null, root: HTMLElement = document.documentElement) {

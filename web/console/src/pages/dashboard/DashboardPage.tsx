@@ -169,7 +169,7 @@ const DashboardPage = () => {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-sm text-muted-foreground">
-          Monitor tenant identity posture, application access, and authentication activity for Maintainerd IAM.
+          Monitor tenant identity posture, application access, and authentication activity for Maintainerd.
         </p>
       </div>
 
@@ -241,7 +241,7 @@ const DashboardPage = () => {
             Application Access
           </CardTitle>
           <CardDescription>
-            Connect applications to Maintainerd IAM using standard protocols
+            Connect applications to Maintainerd using standard protocols
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
