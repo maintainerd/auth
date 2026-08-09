@@ -27,7 +27,7 @@ func TestSystemBrandingThemes(t *testing.T) {
 		assert.Contains(t, metadata, "font")
 		assert.Contains(t, metadata, "components")
 		assert.Equal(t, "centered", metadata["layout"])
-		assert.Equal(t, "Maintainerd-IAM", metadata["logo_label"])
+		assert.Equal(t, "Maintainerd-Auth", metadata["logo_label"])
 		assert.Equal(t, "Identity and Access Management", metadata["logo_detail"])
 		assert.Equal(t, true, metadata["show_logo_label"])
 		assert.Equal(t, "Maintainerd", metadata["identity_logo_label"])

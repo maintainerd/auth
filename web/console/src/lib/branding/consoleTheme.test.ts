@@ -290,6 +290,6 @@ describe("console theme runtime", () => {
 
     expect(document.documentElement.hasAttribute("data-console-theme")).toBe(false)
     expect(document.documentElement.style.getPropertyValue("--md-top-panel-bg")).toBe("")
-    expect(document.title).toBe("Maintainerd IAM")
+    expect(document.title).toBe("Maintainerd")
   })
 })
