@@ -1298,7 +1298,7 @@ func (s *federationService) provisionUser(
 
 		// Assign default role if available.
 		if defaultRole, _ := s.findDefaultRole(s.roleRepo.WithTx(tx), idp.TenantID); defaultRole != nil {
-			if err := tx.Create(&UserRole{UserID: user.UserID, RoleID: defaultRole.RoleID}).Error; err != nil {
+			if err := tx.Create(&UserRole{UserRoleUUID: uuid.New(), UserID: user.UserID, RoleID: defaultRole.RoleID}).Error; err != nil {
 				return nil, false, apperror.NewInternal("failed to assign default role", err)
 			}
 		}
