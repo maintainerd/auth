@@ -1374,7 +1374,7 @@ function CorePalettePreview({ tokens }: { tokens: Record<string, string> }) {
           borderColor: tokens["colors.border"],
         }}
       >
-        <p className="text-sm font-semibold">{logoLabel}</p>
+        <p className="text-sm font-semibold">Maintainerd-Auth</p>
         <p className="mt-1 text-xs" style={{ color: tokens["colors.textMuted"] }}>
           Tenant administration console
         </p>
