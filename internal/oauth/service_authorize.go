@@ -142,6 +142,12 @@ type OAuthAuthorizeService interface {
 	// maintainerd authorization code back to the downstream app.
 	HandleCallback(ctx context.Context, idpIdentifier, code, state string) (redirectURL string, accessToken string, oerr *apperror.OAuthError)
 
+	// ResolveBrokerErrorRedirect maps a failed brokered login — an `error` from
+	// the upstream IdP, a missing authorization code, or a failed exchange — to a
+	// URL back into the identity login UI, so the browser is never left stranded
+	// on the API callback endpoint. Best-effort; it always returns a URL.
+	ResolveBrokerErrorRedirect(ctx context.Context, idpIdentifier, state, errCode, errDesc string) string
+
 	// GetConsentChallenge retrieves a pending consent challenge by its UUID.
 	GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*OAuthConsentChallengeResponseDTO, error)
 

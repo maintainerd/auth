@@ -130,6 +130,17 @@ const LoginForm = () => {
     }
   }, [screenHint, showSignUp, navigate, searchParams])
 
+  // A brokered (external IdP) sign-in can bounce back to the login page with an
+  // OAuth error (e.g. the provider rejected the requested scopes, or the code
+  // exchange failed). Surface it in the login banner rather than dropping the
+  // user here with no explanation.
+  useEffect(() => {
+    const err = searchParams.get('error')
+    if (!err) return
+    const desc = searchParams.get('error_description')?.trim()
+    setLoginError(desc || `Sign-in with the identity provider failed (${err}).`)
+  }, [searchParams])
+
   const {
     register,
     handleSubmit,

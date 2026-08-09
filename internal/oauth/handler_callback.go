@@ -17,17 +17,28 @@ import (
 // SSO cookie so the user has a maintainerd session.
 func (h *OAuthAuthorizeHandler) HandleBrokerCallback(w http.ResponseWriter, r *http.Request) {
 	idpIdentifier := chi.URLParam(r, "idp_identifier")
-	code := r.URL.Query().Get("code")
-	state := r.URL.Query().Get("state")
+	q := r.URL.Query()
+	code := q.Get("code")
+	state := q.Get("state")
 
+	// This endpoint is only ever reached by a browser redirect from the upstream
+	// IdP, so on ANY failure send the user back to the identity login UI with the
+	// error — never a bare JSON/API dead-end. Three failure cases:
+	//   1. the IdP redirected back with an OAuth error (e.g. invalid_scope),
+	//   2. no authorization code arrived, or
+	//   3. the server-side code exchange failed.
+	if upErr := q.Get("error"); upErr != "" {
+		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, upErr, q.Get("error_description")), http.StatusFound)
+		return
+	}
 	if code == "" || state == "" {
-		resp.Error(w, http.StatusBadRequest, "code and state are required")
+		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, "invalid_request", "the identity provider did not return an authorization code"), http.StatusFound)
 		return
 	}
 
 	redirectURL, accessToken, oerr := h.authorizeService.HandleCallback(r.Context(), idpIdentifier, code, state)
 	if oerr != nil {
-		oerr.WriteJSON(w)
+		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, "access_denied", "sign-in with the identity provider could not be completed"), http.StatusFound)
 		return
 	}
 
