@@ -37,7 +37,7 @@ type TenantServiceDataResult struct {
 }
 
 type UserIdentity struct {
-	UserIdentityID     int64
+	UserIdentityID     int64 `gorm:"column:user_identity_id;primaryKey"`
 	UserIdentityUUID   uuid.UUID
 	TenantID           int64
 	UserID             int64
@@ -56,7 +56,7 @@ type UserIdentity struct {
 func (UserIdentity) TableName() string { return "user_identities" }
 
 type User struct {
-	UserID          int64
+	UserID          int64 `gorm:"column:user_id;primaryKey"`
 	UserUUID        uuid.UUID
 	TenantID        int64
 	Username        string
@@ -156,10 +156,11 @@ type RoleRepositoryGetFilter struct {
 }
 
 type UserRole struct {
-	UserRoleID int64
-	UserID     int64
-	RoleID     int64
-	CreatedAt  time.Time
+	UserRoleID   int64     `gorm:"column:user_role_id;primaryKey"`
+	UserRoleUUID uuid.UUID `gorm:"column:user_role_uuid"`
+	UserID       int64
+	RoleID       int64
+	CreatedAt    time.Time
 }
 
 func (UserRole) TableName() string { return "user_roles" }
