@@ -1273,13 +1273,21 @@ func (s *federationService) provisionUser(
 			}
 		}
 
-		// Create a new user from the external profile.
+		// Create a new user from the external profile. Unlike user.User, this
+		// package's User struct has no BeforeCreate hook and no column defaults,
+		// so the NOT NULL columns (user_uuid, status, metadata) must be set here
+		// explicitly — otherwise the insert writes a zero UUID / empty status /
+		// NULL metadata and fails the metadata NOT NULL constraint. A user vouched
+		// for by a configured, admin-enabled IdP is provisioned active.
 		username := deriveUsername(meta, email)
 		newUser := &User{
+			UserUUID:        uuid.New(),
 			TenantID:        idp.TenantID,
 			Email:           email,
 			Username:        username,
 			IsEmailVerified: meta.EmailVerified,
+			Status:          shared.StatusActive,
+			Metadata:        datatypes.JSON([]byte("{}")),
 		}
 		created, err := txUserRepo.Create(newUser)
 		if err != nil || created == nil {
