@@ -64,6 +64,9 @@ type IdentityProviderResponseDTO struct {
 	Provider             string    `json:"provider"`
 	ProviderType         string    `json:"provider_type"`
 	Identifier           string    `json:"identifier"`
+	// CallbackURL is the OAuth2/OIDC redirect URI to register in the upstream
+	// provider (e.g. Cognito "Allowed callback URLs"). Empty for SAML providers.
+	CallbackURL          string    `json:"callback_url,omitempty"`
 	Issuer               string    `json:"issuer,omitempty"`
 	ProviderClientID     string    `json:"provider_client_id,omitempty"`
 	AllowJITProvisioning bool      `json:"allow_jit_provisioning"`
@@ -204,12 +207,15 @@ type IdentityMetadata struct {
 
 // Identity provider detail response structure (with config and tenant)
 type IdentityProviderDetailResponseDTO struct {
-	IdentityProviderUUID uuid.UUID          `json:"identity_provider_id"`
-	Name                 string             `json:"name"`
-	DisplayName          string             `json:"display_name"`
-	Provider             string             `json:"provider"`
-	ProviderType         string             `json:"provider_type"`
-	Identifier           string             `json:"identifier"`
+	IdentityProviderUUID uuid.UUID `json:"identity_provider_id"`
+	Name                 string    `json:"name"`
+	DisplayName          string    `json:"display_name"`
+	Provider             string    `json:"provider"`
+	ProviderType         string    `json:"provider_type"`
+	Identifier           string    `json:"identifier"`
+	// CallbackURL is the OAuth2/OIDC redirect URI to register in the upstream
+	// provider (e.g. Cognito "Allowed callback URLs"). Empty for SAML providers.
+	CallbackURL          string             `json:"callback_url,omitempty"`
 	Issuer               string             `json:"issuer,omitempty"`
 	ProviderClientID     string             `json:"provider_client_id,omitempty"`
 	AllowJITProvisioning bool               `json:"allow_jit_provisioning"`
