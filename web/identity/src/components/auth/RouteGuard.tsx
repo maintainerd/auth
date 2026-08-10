@@ -18,13 +18,23 @@ import { useOAuthConnections } from '@/hooks/useOAuthConnections'
  */
 export function RouteGuard({ children }: { children: ReactNode }) {
   const location = useLocation()
-  const { isAuthenticated, account } = useAuth()
+  const { isAuthenticated, account, status } = useAuth()
   const { currentTenant } = useTenant()
   const registrationEntry = !isAuthenticated && location.pathname === '/register'
   const connections = useOAuthConnections(registrationEntry)
 
   if (registrationEntry && connections.isPending && connections.fetchStatus !== 'idle') {
     return <AppLoadingScreen branding={currentTenant?.branding} />
+  }
+
+  // status === 'error' means we could NOT determine auth (a transient 429/5xx on
+  // /account), NOT that the user is logged out (that would be 'anonymous' from a
+  // 401/403). Treating it as anonymous here bounced a still-valid session to
+  // /login and fed the logout/login churn. Hold the current route on a transient
+  // error; the next successful /account resolves the real state and re-runs the
+  // guard. A definitive 'anonymous' still falls through to the redirect below.
+  if (status === 'error') {
+    return <>{children}</>
   }
 
   // A pending continuation means a finished user finishing a registration detour

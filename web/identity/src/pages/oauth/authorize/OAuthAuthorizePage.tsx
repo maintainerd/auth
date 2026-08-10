@@ -5,26 +5,45 @@ import LoginLayout from '@/components/layout/LoginLayout'
 import { Button } from '@/components/ui/button'
 import { authorizeOAuth } from '@/services/api/oauth'
 import { useTenant } from '@/hooks/useTenant'
-import { normalizeOAuthAuthorizeSearch, oauthLoginRoute, withRequestId } from '@/utils/oauthRedirect'
+import { brokerHintFromParams, normalizeOAuthAuthorizeSearch, oauthLoginRoute, withRequestId } from '@/utils/oauthRedirect'
+import { buildFirstPartyBrokerAuthorizeUrl } from '@/utils/oauthFlow'
 import { ApiError } from '@/services/api/client'
 import AuthPageHeading from '@/components/auth/AuthPageHeading'
 import { useLoginPageCopy } from '@/hooks/useLoginPageCopy'
 
+// Query keys carrying an external-provider hint; stripped when we continue the
+// downstream authorize after the identity session exists (so it is not re-brokered).
+const BROKER_HINT_PARAMS = ['idp_hint', 'provider_hint', 'identity_provider', 'connection']
+
 export default function OAuthAuthorizePage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { currentTenant } = useTenant()
+  const { currentTenant, defaultClient, isLoading: tenantLoading } = useTenant()
   const [error, setError] = useState<string | null>(null)
-  const startedRef = useRef(false)
+  // Guard keyed on the processed query, NOT a one-shot boolean. This page can
+  // navigate to ITSELF with a new query (the downstream broker orchestration
+  // redirects /oauth/authorize?client_id=console&idp_hint=… →
+  // /authorize?client_id=<surface>&idp_hint=…), and React keeps the same
+  // component instance across that same-route navigation. A one-shot boolean
+  // would run only for the first query and leave the second stuck on the
+  // spinner. Keying on the query re-runs for a genuinely new request while
+  // still de-duping React 18 StrictMode's double-invoke (identical query).
+  const processedSearchRef = useRef<string | null>(null)
   const loadingCopy = useLoginPageCopy('oauth-authorize-loading')
   const errorCopy = useLoginPageCopy('oauth-authorize-error')
 
   useEffect(() => {
-    if (startedRef.current) return
-    startedRef.current = true
+    // Wait for the tenant bootstrap before running: we must know our own surface
+    // client id to tell a downstream broker request (console → identity) apart
+    // from a first-party one, and acting before it resolves would misroute the
+    // very case this page needs to special-case.
+    if (tenantLoading) return
+    const currentSearch = searchParams.toString()
+    if (processedSearchRef.current === currentSearch) return
+    processedSearchRef.current = currentSearch
 
-    // Defined inside the effect so it closes over the current searchParams
-    // without needing to be an effect dependency (the effect runs once).
+    // Defined inside the effect so it closes over the query for THIS run (the
+    // effect may run again if the page navigates to itself with a new query).
     const postSilentResult = (message: { redirect_uri?: string; error?: string }): boolean => {
       if (searchParams.get('prompt') !== 'none' || window.parent === window) return false
       const redirectURI = searchParams.get('redirect_uri')
@@ -42,8 +61,65 @@ export default function OAuthAuthorizePage() {
       }
     }
 
+    // Strip external-provider hints from a query string. Used to continue the
+    // downstream authorize once the identity session exists, so the backend
+    // issues the code from that session instead of starting a fresh broker leg.
+    const withoutBrokerHints = (search: string): string => {
+      const params = new URLSearchParams(search)
+      for (const key of BROKER_HINT_PARAMS) params.delete(key)
+      return params.toString()
+    }
+
     async function run() {
       try {
+        const brokerHint = brokerHintFromParams(searchParams)
+        const requestedClient = searchParams.get('client_id') || ''
+        const surfaceClient = defaultClient?.client_id || ''
+        // prompt=none is a SILENT check (hidden iframe): it must never trigger
+        // interactive UI. The normal path below already handles idp_hint+prompt=none
+        // correctly (backend returns interaction_required, delivered to the parent
+        // via postSilentResult), so the orchestration — which would redirect the
+        // iframe to the external provider — must not run for it.
+        const isSilent = searchParams.get('prompt') === 'none'
+        // A DOWNSTREAM app (e.g. the console) sent the user here to authenticate
+        // via an external provider. Brokering directly for that client only
+        // authenticates the downstream app — the identity app (the IdP) is left
+        // without a session on its own host, so SSO to the next app would prompt
+        // again. Instead: ensure the identity session first (via our OWN
+        // first-party broker login), THEN resume this authorize from that session
+        // — mirroring how password login already establishes the IdP session
+        // before issuing the downstream code. Flow B (this IS the surface client)
+        // and non-broker requests fall through to the normal path unchanged.
+        if (!isSilent && brokerHint && surfaceClient && requestedClient && requestedClient !== surfaceClient) {
+          // Same-origin authorize URL to resume afterwards, with the hint removed.
+          const continueTo = `${window.location.pathname}?${withoutBrokerHints(window.location.search)}`
+          // If the user already has an identity session, the hint-stripped
+          // authorize issues the downstream code straight away (no external
+          // round-trip). Otherwise it reports login_required and we broker.
+          try {
+            const direct = await authorizeOAuth(withoutBrokerHints(searchParams.toString()))
+            if (direct.redirect_uri) {
+              if (postSilentResult({ redirect_uri: direct.redirect_uri })) return
+              window.location.assign(direct.redirect_uri)
+              return
+            }
+            if (direct.consent_challenge) {
+              if (postSilentResult({ error: 'consent_required' })) return
+              navigate(`/oauth/consent/${encodeURIComponent(direct.consent_challenge)}`, { replace: true })
+              return
+            }
+          } catch (probeErr) {
+            if (!(probeErr instanceof Error) || probeErr.message !== 'login_required') throw probeErr
+            const authorizeURL = await buildFirstPartyBrokerAuthorizeUrl({
+              clientId: surfaceClient,
+              idpHint: brokerHint,
+              continueTo,
+            })
+            navigate(authorizeURL, { replace: true })
+            return
+          }
+        }
+
         const result = await authorizeOAuth(normalizeOAuthAuthorizeSearch(searchParams.toString()))
         if (result.redirect_uri) {
           if (postSilentResult({ redirect_uri: result.redirect_uri })) return
@@ -83,7 +159,7 @@ export default function OAuthAuthorizePage() {
     }
 
     run()
-  }, [navigate, searchParams])
+  }, [navigate, searchParams, tenantLoading, defaultClient])
 
   return (
     <LoginLayout branding={currentTenant?.branding}>

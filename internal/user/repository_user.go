@@ -323,18 +323,23 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	// column was removed; without this the derived name is always empty.
 	query = query.Preload("Profile", "is_default = ?", true)
 
-	// Filter by user_identities fields (tenant, client) — join once to avoid duplicates.
+	// Filter by user_identities fields (tenant, client). The join produces one
+	// row PER IDENTITY, and a user legitimately holds several (the system
+	// maintainerd identity plus each linked social/enterprise provider), so
+	// DISTINCT is required on EVERY identity-joined listing — not only the
+	// client filter. Without it, linking a provider makes the user appear once
+	// per identity in the listing.
 	if filter.TenantID != nil || filter.ClientID != nil {
-		query = query.Joins("JOIN user_identities ON users.user_id = user_identities.user_id")
+		query = query.Distinct("users.*").
+			Joins("JOIN user_identities ON users.user_id = user_identities.user_id")
 		if filter.TenantID != nil {
 			query = query.Where("user_identities.tenant_id = ?", *filter.TenantID)
 		}
 		if filter.ClientID != nil {
 			// "Users of this client" = users holding an identity from a provider the
 			// client has an enabled connection to. Identities are not owned by a
-			// client, so there is no column to compare against. DISTINCT because a
-			// user may reach one client through several providers.
-			query = query.Distinct("users.*").
+			// client, so there is no column to compare against.
+			query = query.
 				Joins(`JOIN client_identity_providers cip
 					ON cip.identity_provider_id = user_identities.identity_provider_id
 					AND cip.tenant_id = user_identities.tenant_id

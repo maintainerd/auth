@@ -56,6 +56,8 @@ func newAccountSvc(repos ...interface{}) *accountService {
 			svc.identityProviderRepo = v
 		case notifier.UserOTPRepository:
 			svc.smsOtpRepo = v
+		case UserAnonymizer:
+			svc.anonymizer = v
 		}
 	}
 	return svc
@@ -65,7 +67,7 @@ func TestNewAccountService(t *testing.T) {
 	db, _ := newMockGormDB(t)
 	svc := NewAccountService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockProfileRepo{},
 		&mockUserSettingRepo{}, &mockRoleRepo{}, &mockClientRepo{}, &mockUserMFABackupCodeRepo{},
-		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService(), nil, &mockUserOTPRepo{}, nil, nil)
+		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService(), nil, &mockUserOTPRepo{}, nil, nil, nil)
 	assert.NotNil(t, svc)
 }
 
@@ -548,7 +550,35 @@ func TestAccountService_DeleteAccount(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid current password")
 	})
 
-	t.Run("UpdateByID error", func(t *testing.T) {
+	// Self-service deletion now routes through the canonical anonymization
+	// cascade (UserAnonymizer) instead of clearing a partial subset inline, so a
+	// missing anonymizer fails closed and a failed anonymize aborts the deletion.
+	t.Run("anonymizer unavailable", func(t *testing.T) {
+		svc := newAccountSvc(&mockUserRepo{
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
+			},
+		})
+		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "account deletion is unavailable")
+	})
+
+	t.Run("anonymize error", func(t *testing.T) {
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
+				},
+			},
+			&mockAnonymizer{fn: func(int64) error { return errors.New("anon err") }},
+		)
+		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "anon err")
+	})
+
+	t.Run("deactivate (UpdateByID) error", func(t *testing.T) {
 		svc := newAccountSvc(
 			&mockUserRepo{
 				findByIDFn: func(_ any, _ ...string) (*User, error) {
@@ -556,104 +586,15 @@ func TestAccountService_DeleteAccount(t *testing.T) {
 				},
 				updateByIDFn: func(_, _ any) (*User, error) { return nil, errors.New("db error") },
 			},
+			&mockAnonymizer{},
 		)
 		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to delete account")
-	})
-
-	t.Run("RevokeAllByUserID error", func(t *testing.T) {
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
-				},
-				updateByIDFn: func(_, _ any) (*User, error) { return &User{}, nil },
-			},
-			&mockUserTokenRepo{
-				revokeAllByUserIDFn: func(int64) error { return errors.New("db error") },
-			},
-		)
-		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to revoke account tokens")
-	})
-
-	t.Run("DeleteByUserID (token) error", func(t *testing.T) {
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
-				},
-				updateByIDFn: func(_, _ any) (*User, error) { return &User{}, nil },
-			},
-			&mockUserTokenRepo{
-				deleteByUserIDFn: func(int64) error { return errors.New("db error") },
-			},
-		)
-		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to remove account tokens")
-	})
-
-	t.Run("profile DeleteByUserID error", func(t *testing.T) {
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
-				},
-				updateByIDFn: func(_, _ any) (*User, error) { return &User{}, nil },
-			},
-			&mockUserTokenRepo{},
-			&mockProfileRepo{
-				deleteByUserIDFn: func(int64) error { return errors.New("db error") },
-			},
-		)
-		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to remove profile data")
-	})
-
-	t.Run("userSetting DeleteByUserID error", func(t *testing.T) {
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
-				},
-				updateByIDFn: func(_, _ any) (*User, error) { return &User{}, nil },
-			},
-			&mockUserTokenRepo{},
-			&mockProfileRepo{},
-			&mockUserSettingRepo{
-				deleteByUserIDFn: func(int64) error { return errors.New("db error") },
-			},
-		)
-		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to remove user settings")
-	})
-
-	t.Run("identity DeleteByUserID error", func(t *testing.T) {
-		svc := newAccountSvc(
-			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*User, error) {
-					return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
-				},
-				updateByIDFn: func(_, _ any) (*User, error) { return &User{}, nil },
-			},
-			&mockUserTokenRepo{},
-			&mockProfileRepo{},
-			&mockUserSettingRepo{},
-			&mockUserIdentityRepo{
-				deleteByUserIDFn: func(int64) error { return errors.New("db error") },
-			},
-		)
-		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to remove linked identities")
+		assert.Contains(t, err.Error(), "failed to deactivate account")
 	})
 
 	t.Run("success", func(t *testing.T) {
+		anonymized := int64(0)
 		svc := newAccountSvc(
 			&mockUserRepo{
 				findByIDFn: func(_ any, _ ...string) (*User, error) {
@@ -661,13 +602,11 @@ func TestAccountService_DeleteAccount(t *testing.T) {
 				},
 				updateByIDFn: func(_, _ any) (*User, error) { return &User{}, nil },
 			},
-			&mockUserTokenRepo{},
-			&mockProfileRepo{},
-			&mockUserSettingRepo{},
-			&mockUserIdentityRepo{},
+			&mockAnonymizer{fn: func(uid int64) error { anonymized = uid; return nil }},
 		)
 		err := svc.DeleteAccount(context.Background(), userID, "correctpass")
 		require.NoError(t, err)
+		assert.Equal(t, userID, anonymized)
 	})
 }
 

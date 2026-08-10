@@ -28,6 +28,7 @@ import {
   PROVIDER_SELECT_OPTIONS,
   getProviderConnectionSchema,
   getProviderKind,
+  getPrefillIssuer,
   isOAuth2OnlyProvider,
 } from "@/components/provider-config"
 import { identityProviderSchema, type IdentityProviderFormData } from "@/lib/validations"
@@ -95,6 +96,7 @@ export default function IdentityProviderAddOrUpdateForm() {
     reset,
     watch,
     getValues,
+    setValue,
     setError,
     formState: { errors, isSubmitting, isDirty }
   } = useForm<IdentityProviderFormData>({
@@ -107,7 +109,10 @@ export default function IdentityProviderAddOrUpdateForm() {
       issuer: "",
       clientId: "",
       clientSecret: "",
-      allowJITProvisioning: false,
+      // New providers default JIT ON: a fresh external connection auto-provisions
+      // accounts on first login unless the admin unchecks it. (Edit mode below
+      // always shows the provider's stored value, never this default.)
+      allowJITProvisioning: true,
       allowRegistration: true,
       allowTokenFederation: false,
       allowedAudiences: "",
@@ -137,6 +142,13 @@ export default function IdentityProviderAddOrUpdateForm() {
   // JWKS, so it's only meaningful for OIDC providers. OAuth2-only providers
   // (github/facebook/x) publish no discovery document, so the probe can't apply.
   const canTestConnection = showConnection && !isOAuth2OnlyProvider(selectedProvider)
+  // Token federation accepts foreign OIDC ID tokens from this issuer, so it only
+  // makes sense for OIDC providers — the ones that have an issuer. OAuth2-only
+  // providers (github/facebook/x) issue no OIDC ID token and expose no issuer,
+  // and SAML/system have no OIDC connection, so the toggle is hidden for them.
+  // (Left visible it would demand an issuer the form correctly hides → an
+  // unfillable "issuer required" error.)
+  const supportsTokenFederation = showConnection && !isOAuth2OnlyProvider(selectedProvider)
 
   // Load existing provider data if editing
   useEffect(() => {
@@ -161,6 +173,26 @@ export default function IdentityProviderAddOrUpdateForm() {
     // providerConfig.load is stable; intentionally keyed to the fetched record
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, providerData, reset])
+
+  // On create, pre-fill the Issuer URL with the provider's well-known constant
+  // (e.g. https://gitlab.com) so the operator doesn't retype a fixed value.
+  // Providers with a per-install issuer (Cognito/Auth0/Microsoft/Maintainerd)
+  // resolve to "" and keep their placeholder. Editable; re-applied on switch.
+  // Never runs in edit mode — the reset() above restores the saved issuer.
+  useEffect(() => {
+    if (isEditing) return
+    setValue("issuer", getPrefillIssuer(selectedProvider))
+  }, [selectedProvider, isEditing, setValue])
+
+  // Token federation is invalid for providers with no OIDC issuer. Force it off
+  // whenever it isn't supported so a stale `true` (e.g. left over from switching
+  // away from an OIDC provider) can't require an issuer the form hides — the
+  // "issuer required" trap on OAuth2-only providers.
+  useEffect(() => {
+    if (!supportsTokenFederation) {
+      setValue("allowTokenFederation", false)
+    }
+  }, [supportsTokenFederation, setValue])
 
   // Warn before discarding unsaved edits (browser close/refresh + guarded exits).
   const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
@@ -450,22 +482,24 @@ export default function IdentityProviderAddOrUpdateForm() {
                 )}
               />
 
-              <Controller
-                name="allowTokenFederation"
-                control={control}
-                render={({ field }) => (
-                  <FormSwitchSubContainer
-                    id="allow-token-federation"
-                    label="Allow token federation"
-                    description="Accept foreign OIDC ID tokens from this issuer (Mode B / PDP). Requires issuer URL and at least one allowed audience."
-                    checked={Boolean(field.value)}
-                    onCheckedChange={field.onChange}
-                    disabled={fieldsDisabled}
-                  />
-                )}
-              />
+              {supportsTokenFederation && (
+                <Controller
+                  name="allowTokenFederation"
+                  control={control}
+                  render={({ field }) => (
+                    <FormSwitchSubContainer
+                      id="allow-token-federation"
+                      label="Allow token federation"
+                      description="Accept foreign OIDC ID tokens from this issuer (Mode B / PDP). Requires issuer URL and at least one allowed audience."
+                      checked={Boolean(field.value)}
+                      onCheckedChange={field.onChange}
+                      disabled={fieldsDisabled}
+                    />
+                  )}
+                />
+              )}
 
-              {allowTokenFederation && (
+              {supportsTokenFederation && allowTokenFederation && (
                 <Controller
                   name="allowedAudiences"
                   control={control}

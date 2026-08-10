@@ -55,10 +55,19 @@ var restrictedCIDRs = []string{
 	"fe80::/10",      // IPv6 link-local
 }
 
+// maxUpstreamResponseBytes caps how much is read from an upstream provider
+// response (userinfo, OIDC discovery, GitHub /user/emails). These are small JSON
+// documents; the cap stops a hostile or compromised upstream from returning a
+// multi-gigabyte body and exhausting memory on the login/callback path. Mirrors
+// the JWKS cap in internal/oauth.
+const maxUpstreamResponseBytes = 1 << 20 // 1 MiB
+
 func resolveAndValidate(ctx context.Context, network, addr string) (net.Conn, error) {
-	host, _, err := net.SplitHostPort(addr)
+	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		host = addr
+		// The transport always dials host:port; a missing port means a malformed
+		// target, so fail closed rather than guess.
+		return nil, fmt.Errorf("idp validated transport: invalid dial address %q: %w", addr, err)
 	}
 	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
@@ -69,17 +78,35 @@ func resolveAndValidate(ctx context.Context, network, addr string) (net.Conn, er
 	}
 	for _, ipAddr := range ips {
 		for _, cidr := range restrictedCIDRs {
-			_, network, err := net.ParseCIDR(cidr)
-			if err != nil {
+			_, ipNet, perr := net.ParseCIDR(cidr)
+			if perr != nil {
 				continue
 			}
-			if network.Contains(ipAddr.IP) {
+			if ipNet.Contains(ipAddr.IP) {
 				return nil, fmt.Errorf("idp validated transport: %s resolves to restricted address %s (blocked range %s)", host, ipAddr.IP, cidr)
 			}
 		}
 	}
+	// Dial the exact IP(s) we just validated — NEVER the hostname. Handing the
+	// hostname to the dialer lets it run its own second DNS lookup, so a
+	// rebinding record (public IP at validation, internal IP at dial) could
+	// point the connection at an address the checks above never saw. The
+	// transport still derives TLS ServerName from the URL host, so certificate
+	// verification is unaffected.
 	dialer := &net.Dialer{Timeout: 10 * time.Second}
-	return dialer.DialContext(ctx, network, addr)
+	var lastErr error
+	for _, ipAddr := range ips {
+		conn, derr := dialer.DialContext(ctx, network, net.JoinHostPort(ipAddr.IP.String(), port))
+		if derr != nil {
+			lastErr = derr
+			continue
+		}
+		return conn, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("idp validated transport: no usable address for %s", host)
+	}
+	return nil, lastErr
 }
 
 func (t *idpValidatedTransport) RoundTrip(req *http.Request) (*http.Response, error) {

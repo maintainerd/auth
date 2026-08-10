@@ -63,9 +63,9 @@ func federationIsRestricted(ip net.IP) (string, bool) {
 }
 
 func federationResolveAndValidate(ctx context.Context, network, addr string) (net.Conn, error) {
-	host, _, err := net.SplitHostPort(addr)
+	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		host = addr
+		return nil, fmt.Errorf("federation validated transport: invalid dial address %q: %w", addr, err)
 	}
 	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
@@ -79,8 +79,23 @@ func federationResolveAndValidate(ctx context.Context, network, addr string) (ne
 			return nil, fmt.Errorf("federation validated transport: %s resolves to restricted address %s (blocked range %s)", host, ipAddr.IP, cidr)
 		}
 	}
+	// Dial the validated IP(s), never the hostname, to close the DNS-rebinding
+	// window between validation and connect. The transport still sets TLS
+	// ServerName from the URL host, so certificate verification is unaffected.
 	dialer := &net.Dialer{Timeout: 10 * time.Second}
-	return dialer.DialContext(ctx, network, addr)
+	var lastErr error
+	for _, ipAddr := range ips {
+		conn, derr := dialer.DialContext(ctx, network, net.JoinHostPort(ipAddr.IP.String(), port))
+		if derr != nil {
+			lastErr = derr
+			continue
+		}
+		return conn, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("federation validated transport: no usable address for %s", host)
+	}
+	return nil, lastErr
 }
 
 func (t *federationValidatedTransport) RoundTrip(req *http.Request) (*http.Response, error) {

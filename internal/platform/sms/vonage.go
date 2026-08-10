@@ -46,7 +46,7 @@ func (p *vonageProvider) Send(ctx context.Context, to, body string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "vonage send failed")

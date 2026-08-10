@@ -50,8 +50,10 @@ func TestCreateByTenantProviderSubIfAbsentTargetsTheRealUniqueIndex(t *testing.T
 	defer closeDB()
 
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta(`ON CONFLICT ("tenant_id","sub") DO NOTHING`)).
-		WillReturnResult(sqlmock.NewResult(1, 1))
+	// UserIdentity carries a primaryKey tag, so gorm issues the INSERT as a
+	// Query with RETURNING "user_identity_id"; a returned row = row inserted.
+	mock.ExpectQuery(regexp.QuoteMeta(`ON CONFLICT ("tenant_id","sub") DO NOTHING`)).
+		WillReturnRows(sqlmock.NewRows([]string{"user_identity_id"}).AddRow(int64(1)))
 	mock.ExpectCommit()
 
 	repo := newIdpUserIdentityRepo(db)
@@ -85,8 +87,9 @@ func TestCreateByTenantProviderSubIfAbsentResolvesOwnerAcrossProviders(t *testin
 	ownerUUID := uuid.New()
 
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta(`ON CONFLICT ("tenant_id","sub") DO NOTHING`)).
-		WillReturnResult(sqlmock.NewResult(0, 0))
+	// RETURNING with no rows = the insert was refused by the conflict target.
+	mock.ExpectQuery(regexp.QuoteMeta(`ON CONFLICT ("tenant_id","sub") DO NOTHING`)).
+		WillReturnRows(sqlmock.NewRows([]string{"user_identity_id"}))
 	mock.ExpectCommit()
 
 	// Keyed on (tenant_id, sub) only — no provider predicate.

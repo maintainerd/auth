@@ -2,10 +2,12 @@ package authn
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/cookie"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
@@ -406,7 +408,15 @@ func (h *LoginHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		refreshToken = extractRefreshToken(r)
 		fromCookie = refreshToken != ""
 	}
+	cookieClient := r.Header.Get("X-Token-Delivery") == "cookie" || extractRefreshToken(r) != "" || extractAccessToken(r) != ""
 	if refreshToken == "" {
+		// A cookie-based client with no spendable refresh token can't renew and
+		// can't drop its own httpOnly cookies. Clear them so a stale access cookie
+		// doesn't trap the browser in an endless /account 401 → /refresh-token 401
+		// loop — it falls cleanly to login instead.
+		if cookieClient {
+			cookie.ClearAuthCookies(w)
+		}
 		resp.Error(w, http.StatusUnauthorized, "Refresh token is required")
 		return
 	}
@@ -430,6 +440,15 @@ func (h *LoginHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 			Details:   "Refresh token rejected",
 			Severity:  "MEDIUM",
 		})
+		// The refresh token or its session is dead (revoked, rotated, expired). For
+		// a cookie client, clear the auth cookies so the browser stops re-sending
+		// the dead credentials and escapes the 401 loop — otherwise it can never
+		// recover without the user manually clearing cookies. Transient/internal
+		// (5xx) errors leave cookies intact so a blip doesn't force a re-login.
+		var unauth *apperror.UnauthorizedError
+		if cookieClient && errors.As(err, &unauth) {
+			cookie.ClearAuthCookies(w)
+		}
 		resp.HandleServiceError(w, r, "Token refresh failed", err)
 		return
 	}

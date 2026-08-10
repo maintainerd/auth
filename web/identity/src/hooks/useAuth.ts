@@ -23,6 +23,8 @@ import {
   setProfile
 } from '@/store/auth/reducers'
 import { clearTenant } from '@/store/tenant/reducers'
+import { clearOAuthReturnTo, clearInviteCallback } from '@/utils/oauthRedirect'
+import { clearPendingOAuthFlow } from '@/utils/oauthFlow'
 
 // RegisterInput is the signup payload the form collects. fullname and phone are
 // present only when the resolved registration context requires them.
@@ -135,15 +137,34 @@ export function useAuth() {
     return { data: result.data }
   }, [dispatch, searchParams])
 
+  // clearAuthContinuationState drops every client-side marker that could survive
+  // a logout and hijack the NEXT session's landing: the OAuth return-to / invite
+  // callback / pending broker-flow records, plus the register/verify hints. Left
+  // behind, a stale return-to would throw the next login into an abandoned
+  // /authorize flow instead of the account.
+  const clearAuthContinuationState = () => {
+    clearOAuthReturnTo()
+    clearInviteCallback()
+    clearPendingOAuthFlow()
+    try {
+      window.sessionStorage.removeItem('register_email')
+      window.sessionStorage.removeItem('phone_verification_required')
+    } catch {
+      // sessionStorage may be unavailable (privacy mode); nothing to clear then.
+    }
+  }
+
   const logout = useCallback(async () => {
     try {
       await dispatch(logoutAsync()).unwrap()
       dispatch(clearTenant())
       queryClient.clear()
+      clearAuthContinuationState()
     } catch (error) {
       showError('Logout failed')
       dispatch(clearTenant())
       queryClient.clear()
+      clearAuthContinuationState()
       throw error
     }
   }, [dispatch, queryClient, showError])

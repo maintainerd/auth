@@ -1334,6 +1334,11 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectQuery(`SELECT .+ FROM "tenant_members"`).WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "is_system"}))
 		mock.ExpectBegin()
+		// The delete cascade hard-deletes identities and revokes sessions/refresh
+		// tokens inside the tx, before the (mocked) user soft-delete returns its error.
+		mock.ExpectExec(`DELETE FROM user_identities`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`UPDATE user_sessions`).WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectExec(`UPDATE oauth_refresh_tokens`).WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectRollback()
 		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
@@ -1353,6 +1358,11 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr)
 		mock.ExpectQuery(`SELECT .+ FROM "tenant_members"`).WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "is_system"}))
 		mock.ExpectBegin()
+		// Delete cascade: hard-delete identities, revoke sessions + refresh tokens,
+		// then soft-delete the user (mocked), then commit.
+		mock.ExpectExec(`DELETE FROM user_identities`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`UPDATE user_sessions`).WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectExec(`UPDATE oauth_refresh_tokens`).WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectCommit()
 		res, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.NoError(t, err)

@@ -203,6 +203,11 @@ type IdentityMetadata struct {
 	FamilyName    string `json:"family_name,omitempty"`
 	Picture       string `json:"picture,omitempty"`
 	Locale        string `json:"locale,omitempty"`
+	// EmailVerifiedPresent records whether the upstream token actually carried an
+	// email_verified claim, so provisioning can tell "explicitly unverified"
+	// (respect it) from "omitted" (Entra/Okta/SAML don't send it → trust the
+	// enterprise IdP's email). Transient — never persisted to the identity JSON.
+	EmailVerifiedPresent bool `json:"-"`
 }
 
 // Identity provider detail response structure (with config and tenant)

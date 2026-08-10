@@ -174,11 +174,10 @@ func isSAMLProviderType(providerType string) bool {
 // isOAuth2OnlyProvider reports whether the provider is an OAuth2-only provider
 // that has NO OIDC discovery document. These providers cannot derive endpoints
 // from an issuer, so they must ship explicit authorization/token/userinfo
-// endpoints in their config instead of an issuer.
+// endpoints in their config instead of an issuer. The set is defined once in the
+// provider registry (provider_profiles.go).
 func isOAuth2OnlyProvider(provider string) bool {
-	return provider == shared.IDPProviderGitHub ||
-		provider == shared.IDPProviderFacebook ||
-		provider == shared.IDPProviderTwitter
+	return profileFor(provider).oauth2Only
 }
 
 // attribute_mapping maps between our known IdentityMetadata targets and the
@@ -414,6 +413,21 @@ func validateProviderTypeConsistency(provider string) validation.RuleFunc {
 	}
 }
 
+// tokenFederationRejectedForOAuth2Only errors when token federation is enabled
+// on an OAuth2-only provider. Those providers (github/facebook/twitter) issue no
+// OIDC ID token and expose no issuer, so federating foreign OIDC tokens "from
+// this issuer" is meaningless — rejecting it here gives a clear message instead
+// of the confusing "Issuer is required".
+func tokenFederationRejectedForOAuth2Only(oauth2Only, enabled bool) validation.RuleFunc {
+	return func(interface{}) error {
+		if oauth2Only && enabled {
+			return validation.NewError("validation_token_federation",
+				"Token federation is not available for GitHub, Facebook or X — these providers issue no OIDC ID token")
+		}
+		return nil
+	}
+}
+
 // Validation for create request
 func (r IdentityProviderCreateRequestDTO) Validate() error {
 	requireExternalCreds := isExternalProviderType(r.ProviderType) && r.Status == shared.StatusActive
@@ -464,6 +478,9 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 			// a client secret. On update the secret is write-only (blank keeps the
 			// stored value), so it is only required in the create path.
 			validation.When(requireExternalCreds, validation.Required.Error("Provider client secret is required for active social/enterprise providers")),
+		),
+		validation.Field(&r.AllowTokenFederation,
+			validation.By(tokenFederationRejectedForOAuth2Only(oauth2Only, r.AllowTokenFederation)),
 		),
 		validation.Field(&r.AllowedAudiences,
 			validation.When(requireTokenFederation,
@@ -529,6 +546,9 @@ func (r IdentityProviderUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.ProviderClientID,
 			validation.When(requireExternalCreds, validation.Required.Error("Provider client ID is required for active social/enterprise providers")),
+		),
+		validation.Field(&r.AllowTokenFederation,
+			validation.By(tokenFederationRejectedForOAuth2Only(oauth2Only, r.AllowTokenFederation)),
 		),
 		validation.Field(&r.AllowedAudiences,
 			validation.When(requireTokenFederation,

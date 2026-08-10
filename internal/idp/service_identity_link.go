@@ -11,6 +11,7 @@ import (
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
 )
 
@@ -110,9 +111,16 @@ func (s *federationService) StartIdentityLink(
 	if err != nil {
 		return nil, apperror.NewInternal("failed to generate link nonce", err)
 	}
-	verifier, err := randomURLToken(48)
-	if err != nil {
-		return nil, apperror.NewInternal("failed to generate PKCE verifier", err)
+	// LinkedIn rejects a code_challenge/verifier presented with the client_secret
+	// (invalid_client), so its leg runs without PKCE — an empty verifier makes the
+	// callback exchange omit code_verifier. Every other provider keeps PKCE.
+	usePKCE := idp.Provider != shared.IDPProviderLinkedIn
+	verifier := ""
+	if usePKCE {
+		verifier, err = randomURLToken(48)
+		if err != nil {
+			return nil, apperror.NewInternal("failed to generate PKCE verifier", err)
+		}
 	}
 
 	if err := s.linkStore.Create(ctx, &IdentityLinkRequest{
@@ -129,7 +137,7 @@ func (s *federationService) StartIdentityLink(
 		return nil, err
 	}
 
-	authorizeURL, err := buildProviderAuthorizeURL(info, redirectURI, state, nonce, verifier)
+	authorizeURL, err := buildProviderAuthorizeURL(info, redirectURI, state, nonce, verifier, usePKCE)
 	if err != nil {
 		return nil, err
 	}
@@ -192,8 +200,16 @@ func (s *federationService) CompleteIdentityLink(
 		return nil, apperror.NewInternal("provider client secret unavailable", err)
 	}
 
-	// Server-side exchange: the client secret never reaches the browser, and the
-	// id_token is validated (issuer, audience, nonce) before we trust its sub.
+	// OAuth2-only providers (github/facebook/twitter) issue no id_token, so link
+	// them from their userinfo profile instead of the OIDC token path. Attaches
+	// through the same guarded helper LinkIdentity uses.
+	if profileFor(idp.Provider).oauth2Only {
+		return s.linkOAuth2OnlyIdentity(ctx, userID, idp, cfg, clientSecret, code, req.PKCEVerifier, redirectURI)
+	}
+
+	// OIDC providers: server-side exchange, then validate the id_token (issuer,
+	// audience, nonce) before we trust its sub. The client secret never reaches
+	// the browser.
 	rawIDToken, _, err := s.exchangeUpstreamCode(ctx, idp, cfg, clientSecret, code, req.PKCEVerifier, req.Nonce, redirectURI)
 	if err != nil {
 		return nil, err
@@ -208,7 +224,7 @@ func (s *federationService) CompleteIdentityLink(
 }
 
 // buildProviderAuthorizeURL assembles the upstream authorization request.
-func buildProviderAuthorizeURL(info *BrokerProviderInfo, redirectURI, state, nonce, verifier string) (string, error) {
+func buildProviderAuthorizeURL(info *BrokerProviderInfo, redirectURI, state, nonce, verifier string, usePKCE bool) (string, error) {
 	u, err := url.Parse(info.AuthorizationEndpoint)
 	if err != nil {
 		return "", apperror.NewValidation("identity provider has an invalid authorization endpoint")
@@ -226,8 +242,10 @@ func buildProviderAuthorizeURL(info *BrokerProviderInfo, redirectURI, state, non
 	q.Set("scope", strings.Join(scopes, " "))
 	q.Set("state", state)
 	q.Set("nonce", nonce)
-	q.Set("code_challenge", crypto.GeneratePKCEChallenge(verifier))
-	q.Set("code_challenge_method", "S256")
+	if usePKCE {
+		q.Set("code_challenge", crypto.GeneratePKCEChallenge(verifier))
+		q.Set("code_challenge_method", "S256")
+	}
 	u.RawQuery = q.Encode()
 	return u.String(), nil
 }

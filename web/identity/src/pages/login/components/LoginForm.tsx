@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import {
   normalizeOAuthAuthorizeSearch,
   getRequestId,
+  safeAccountLinkReturnTo,
   safeOAuthReturnTo,
 } from '@/utils/oauthRedirect'
 import { finishAuthStep } from '@/utils/oauthContinuation'
@@ -23,6 +24,7 @@ import type { OAuthConnection, OAuthConnections } from '@/services/api/oauth/typ
 import { buildFirstPartyBrokerAuthorizeUrl } from '@/utils/oauthFlow'
 import AuthDivider from '@/components/auth/AuthDivider'
 import AuthPageHeading from '@/components/auth/AuthPageHeading'
+import ProviderIcon from '@/components/icon/ProviderIcon'
 import { useLoginPageCopy } from '@/hooks/useLoginPageCopy'
 
 type OAuthAuthorizeTarget = {
@@ -74,7 +76,26 @@ const LoginForm = () => {
   // Tenant comes from the domain bootstrap (its slug), never from a query param.
   const tenantId = currentTenant?.name ?? undefined
   const screenHint = searchParams.get('screen_hint') || undefined
+  // A failed brokered login redirects here with error/error_description (see
+  // the backend's ResolveBrokerErrorRedirect). Rendering them is what turns
+  // "silently bounced back to login" into an actionable message — e.g. "user
+  // not found and JIT provisioning is disabled for this provider".
+  const brokerError = searchParams.get('error')
+  const brokerErrorDescription = searchParams.get('error_description')
   const oauthAuthorizeTarget = useMemo(() => oauthAuthorizeTargetFromLoginParams(searchParams), [searchParams])
+  // Account-link continuation: this sign-in exists to prove ownership of the
+  // EXISTING account before its identity is linked to a federated one. Only the
+  // existing credential (password) can prove that — offering the federated
+  // buttons here just restarts the broker, hits the same email collision, and
+  // loops back to /account-link forever.
+  const accountLinkReturnTo = useMemo(() => safeAccountLinkReturnTo(searchParams.get('return_to')), [searchParams])
+  const accountLinkProvider = useMemo(() => {
+    if (!accountLinkReturnTo) return null
+    const query = accountLinkReturnTo.split('?')[1] ?? ''
+    const provider = new URLSearchParams(query).get('provider')
+    if (!provider) return null
+    return provider.charAt(0).toUpperCase() + provider.slice(1)
+  }, [accountLinkReturnTo])
   const shouldLoadConnections = Boolean(clientId && oauthAuthorizeTarget)
   const loginSchema = buildLoginSchema()
   const showSignUp = shouldLoadConnections ? connections?.registration_enabled !== false : currentTenant?.registration_config?.self_registration_enabled !== false
@@ -83,14 +104,18 @@ const LoginForm = () => {
   // the provider list and we fetch it for that client_id. Visited directly, the
   // tenant bootstrap already carried the surface client's providers, so they
   // render on first paint with no extra round trip.
-  const providerConnections = shouldLoadConnections
-    ? connections?.connections ?? []
-    : bootstrap?.connections ?? []
+  const providerConnections = accountLinkReturnTo
+    ? []
+    : shouldLoadConnections
+      ? connections?.connections ?? []
+      : bootstrap?.connections ?? []
   // Passwordless email sign-in is opt-in per client and off by default, so an
   // absent value means "don't offer it" — same source split as the providers.
-  const magicLinkEnabled = shouldLoadConnections
+  // Suppressed mid-account-link too: the magic-link landing page cannot carry
+  // the /account-link return_to, so it would strand the link flow.
+  const magicLinkEnabled = !accountLinkReturnTo && (shouldLoadConnections
     ? connections?.magic_link_enabled === true
-    : bootstrap?.magic_link_enabled === true
+    : bootstrap?.magic_link_enabled === true)
   const isLoadingConnections = shouldLoadConnections && !connections && !connectionsError
 
   useEffect(() => {
@@ -129,17 +154,6 @@ const LoginForm = () => {
       }
     }
   }, [screenHint, showSignUp, navigate, searchParams])
-
-  // A brokered (external IdP) sign-in can bounce back to the login page with an
-  // OAuth error (e.g. the provider rejected the requested scopes, or the code
-  // exchange failed). Surface it in the login banner rather than dropping the
-  // user here with no explanation.
-  useEffect(() => {
-    const err = searchParams.get('error')
-    if (!err) return
-    const desc = searchParams.get('error_description')?.trim()
-    setLoginError(desc || `Sign-in with the identity provider failed (${err}).`)
-  }, [searchParams])
 
   const {
     register,
@@ -324,6 +338,26 @@ const LoginForm = () => {
           preview: identity providers first, then the email/password form, then
           the secondary actions. */}
       <div className="space-y-4">
+        {brokerError && (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+          >
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            <span>{brokerErrorDescription || 'Sign-in with the identity provider could not be completed.'}</span>
+          </div>
+        )}
+
+        {accountLinkReturnTo && (
+          <div className="flex items-start gap-2.5 rounded-md border p-3 text-sm text-muted-foreground">
+            <KeyRound className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Sign in with your email and password to confirm linking your{' '}
+              {accountLinkProvider ?? 'external'} account.
+            </span>
+          </div>
+        )}
+
         {connectionsError && (
           <div
             role="alert"
@@ -355,7 +389,7 @@ const LoginForm = () => {
                 {startingProvider === connection.identifier ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 ) : (
-                  <KeyRound className="mr-2 size-4" />
+                  <ProviderIcon provider={connection.provider} className="mr-2 size-4" />
                 )}
                 {startingProvider === connection.identifier ? 'Redirecting...' : providerButtonLabel(connection)}
               </Button>

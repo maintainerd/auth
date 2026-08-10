@@ -1052,11 +1052,39 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 		return nil, apperror.NewValidation("cannot delete a user who is a tenant owner — remove their ownership first")
 	}
 
-	// Invalidate cache before deletion (identities will be gone after)
+	// Invalidate cache before deletion (identities are removed below).
 	s.invalidateUserCache(ctx, user.UserIdentities)
 
-	// Delete user (cascade will handle related records)
 	err = s.db.Transaction(func(tx *gorm.DB) error {
+		// The user row is SOFT-deleted (deleted_at) for audit/compliance
+		// retention, but user_identities has no soft-delete and its (tenant, sub)
+		// uniqueness is NOT partial. A lingering identity would therefore (a) still
+		// resolve a federated re-login to the now-deleted user — the OAuth token
+		// exchange then fails loading that user (500 / server_error) — and (b)
+		// block re-provisioning under the same sub. So hard-delete the identities:
+		// a deleted user's federated re-login then cleanly provisions a fresh
+		// account (matching Keycloak's post-delete behaviour), while the user row
+		// is retained for audit. Nothing references user_identity_id, so this is safe.
+		if e := tx.Exec("DELETE FROM user_identities WHERE user_id = ?", user.UserID).Error; e != nil {
+			return apperror.NewInternal("delete user identities", e)
+		}
+		// Revoke active sessions + refresh tokens so already-issued credentials stop
+		// working immediately (Keycloak revokes on delete). The FK ON DELETE CASCADE
+		// only fires on a HARD delete; this is a soft delete, so revoke explicitly.
+		// (Access-token JWTs stay valid until they expire — short-lived — but every
+		// session/refresh lookup for a deleted user fails regardless.)
+		if e := tx.Exec(
+			"UPDATE user_sessions SET revoked_at = now(), revoked_reason = 'user_deleted' WHERE user_id = ? AND revoked_at IS NULL",
+			user.UserID,
+		).Error; e != nil {
+			return apperror.NewInternal("revoke user sessions", e)
+		}
+		if e := tx.Exec(
+			"UPDATE oauth_refresh_tokens SET is_revoked = true, revoked_at = now() WHERE user_id = ? AND is_revoked = false",
+			user.UserID,
+		).Error; e != nil {
+			return apperror.NewInternal("revoke user refresh tokens", e)
+		}
 		if e := s.userRepo.WithTx(tx).DeleteByUUID(userUUID); e != nil {
 			return e
 		}
@@ -1110,12 +1138,17 @@ func (s *userService) AnonymizeUser(ctx context.Context, userID int64) error {
 	placeholder := fmt.Sprintf("deleted_%s@erased", uuid.NewString())
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		// users: scrub the sign-in identity + credential.
+		// users: scrub the sign-in identity + credential, and clear the MFA /
+		// verification flags so nothing implies a usable factor survives.
 		if e := tx.Model(&User{}).Where("user_id = ?", userID).Updates(map[string]any{
-			"email":    placeholder,
-			"username": placeholder,
-			"phone":    nil,
-			"password": nil,
+			"email":               placeholder,
+			"username":            placeholder,
+			"phone":               nil,
+			"password":            nil,
+			"is_email_verified":   false,
+			"is_phone_verified":   false,
+			"is_totp_enabled":     false,
+			"is_webauthn_enabled": false,
 		}).Error; e != nil {
 			return e
 		}
@@ -1131,15 +1164,60 @@ func (s *userService) AnonymizeUser(ctx context.Context, userID int64) error {
 			return e
 		}
 
-		// user_sessions: scrub network PII (table-scoped to avoid importing authn).
-		if e := tx.Table("user_sessions").Where("user_id = ?", userID).Updates(map[string]any{
-			"ip_address": nil,
-			"user_agent": nil,
-		}).Error; e != nil {
+		// profile_pictures: remove stored avatar blobs (keyed by profile, not user).
+		if e := tx.Exec(
+			"DELETE FROM profile_pictures WHERE profile_id IN (SELECT profile_id FROM profiles WHERE user_id = ?)",
+			userID,
+		).Error; e != nil {
 			return e
 		}
 
-		// user_consents: scrub network PII on the consent ledger.
+		// Federated linkages, MFA factors, trusted devices and one-time
+		// credentials all carry PII (external subject ids, phone numbers, emails,
+		// public keys, device names, OTP codes) and must be removed outright.
+		// Deleting user_identities also stops a federated re-login from resolving
+		// the erased user — it re-provisions a fresh account instead — and frees
+		// the (tenant, sub) uniqueness so re-provisioning can't collide.
+		for _, table := range []string{
+			"user_identities",
+			"user_mfa_emails",
+			"user_mfa_phones",
+			"user_mfa_totp_secrets",
+			"user_mfa_webauthn_credentials",
+			"user_mfa_backup_codes",
+			"webauthn_challenges",
+			"user_trusted_devices",
+			"user_tokens",
+			"user_otps",
+			"user_password_history",
+			"user_settings",
+		} {
+			if e := tx.Exec("DELETE FROM "+table+" WHERE user_id = ?", userID).Error; e != nil {
+				return e
+			}
+		}
+
+		// user_sessions: scrub network PII AND revoke every active session, so no
+		// login survives erasure. COALESCE preserves an existing revocation.
+		if e := tx.Exec(
+			"UPDATE user_sessions SET ip_address = NULL, user_agent = NULL, "+
+				"revoked_at = COALESCE(revoked_at, now()), revoked_reason = COALESCE(revoked_reason, ?) "+
+				"WHERE user_id = ?",
+			shared.SessionRevokeUserRevoke, userID,
+		).Error; e != nil {
+			return e
+		}
+
+		// oauth_refresh_tokens: revoke every outstanding refresh token.
+		if e := tx.Exec(
+			"UPDATE oauth_refresh_tokens SET is_revoked = true, revoked_at = now() WHERE user_id = ? AND is_revoked = false",
+			userID,
+		).Error; e != nil {
+			return e
+		}
+
+		// user_consents: keep the consent ledger (legal proof of consent) but
+		// scrub the network PII recorded alongside it.
 		if e := tx.Table("user_consents").Where("user_id = ?", userID).Updates(map[string]any{
 			"ip_address": nil,
 			"user_agent": nil,

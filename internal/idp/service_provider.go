@@ -263,7 +263,7 @@ func (s *identityProviderService) Create(ctx context.Context, in IdentityProvide
 	}
 
 	// Enforce the active-gated structural rule on every surface (HTTP + gRPC).
-	if err := validateExternalProviderColumns(in.ProviderType, in.Status, in.Issuer, in.ProviderClientID); err != nil {
+	if err := validateExternalProviderColumns(in.Provider, in.ProviderType, in.Status, in.Issuer, in.ProviderClientID); err != nil {
 		return nil, err
 	}
 
@@ -404,7 +404,7 @@ func (s *identityProviderService) Update(ctx context.Context, in IdentityProvide
 	}
 
 	// Enforce the active-gated structural rule on every surface (HTTP + gRPC).
-	if err := validateExternalProviderColumns(in.ProviderType, in.Status, in.Issuer, in.ProviderClientID); err != nil {
+	if err := validateExternalProviderColumns(in.Provider, in.ProviderType, in.Status, in.Issuer, in.ProviderClientID); err != nil {
 		return nil, err
 	}
 
@@ -690,14 +690,18 @@ func (s *identityProviderService) DeleteByUUID(ctx context.Context, idpUUID uuid
 // issuer and provider_client_id columns. Inactive/draft providers are intentionally not
 // constrained so they can be created before being fully configured. The DB does
 // not enforce this (drafts are common); validation lives here and in the DTO.
-func validateExternalProviderColumns(providerType, status, issuer, clientID string) error {
+func validateExternalProviderColumns(provider, providerType, status, issuer, clientID string) error {
 	if status != shared.StatusActive {
 		return nil
 	}
 	if providerType != shared.IDPTypeSocial && providerType != shared.IDPTypeEnterprise {
 		return nil
 	}
-	if strings.TrimSpace(issuer) == "" {
+	// OAuth2-only providers (github/facebook/twitter) publish no OIDC discovery
+	// and have no issuer — they carry explicit endpoints in config instead — so
+	// the issuer column is required only for OIDC providers. Every active external
+	// provider still needs a provider_client_id. Mirrors the DTO's requireIssuer.
+	if !isOAuth2OnlyProvider(provider) && strings.TrimSpace(issuer) == "" {
 		return apperror.NewValidation("issuer is required for active social/enterprise identity providers")
 	}
 	if strings.TrimSpace(clientID) == "" {
@@ -714,7 +718,7 @@ func validateExternalProviderColumns(providerType, status, issuer, clientID stri
 // (social/enterprise providers). Config rule errors are ozzo validation errors, so
 // they are wrapped in apperror.NewValidation to map to HTTP 400 at the service edge.
 func validateStoredProviderForActivation(idp *IdentityProvider) error {
-	if err := validateExternalProviderColumns(idp.ProviderType, shared.StatusActive, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty()); err != nil {
+	if err := validateExternalProviderColumns(idp.Provider, idp.ProviderType, shared.StatusActive, idp.IssuerOrEmpty(), idp.ProviderClientIDOrEmpty()); err != nil {
 		return err
 	}
 	switch {

@@ -62,7 +62,9 @@ func (r *oauthClientRepo) FindSystemByTenantIdentifierAndName(tenantIdentifier, 
 		Joins("JOIN tenants ON tenants.tenant_id = clients.tenant_id").
 		Where("clients.is_system = ? AND clients.status = ?", true, shared.StatusActive).
 		Where("clients.name = ?", name).
-		Where("tenants.identifier = ?", tenantIdentifier).
+		// The tenants.identifier COLUMN was dropped — the tenant name IS the
+		// slug now. Must mirror client.clientRepository.FindSystemByTenantIdentifierAndName.
+		Where("tenants.name = ?", tenantIdentifier).
 		Preload("Tenant").
 		First(&c).Error
 	if err != nil {

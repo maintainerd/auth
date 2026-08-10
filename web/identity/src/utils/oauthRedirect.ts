@@ -88,6 +88,52 @@ export function safeOAuthReturnTo(value: string | null | undefined): string | nu
   }
 }
 
+/**
+ * Guard for the downstream-app broker `continueTo` (see PendingOAuthFlow): the
+ * SAME-ORIGIN `/oauth/authorize` URL to resume after the identity session is
+ * established. Deliberately NARROWER than safeOAuthReturnTo — it accepts only
+ * the authorize route and REJECTS any residual broker hint, so navigating to it
+ * cannot (a) redirect off-origin, (b) land on a non-authorize interaction route,
+ * or (c) restart a broker leg (which would loop / spam broker sessions). Returns
+ * a path-only value for react-router navigation — never pass it to
+ * location.assign, and never construct it from a raw caller-supplied parameter.
+ */
+export function safeAuthorizeContinuation(value: string | null | undefined): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+  try {
+    const url = new URL(value, window.location.origin)
+    if (url.origin !== window.location.origin) return null
+    if (!isOAuthAuthorizeRoute(url.pathname)) return null
+    if (brokerHintFromParams(new URLSearchParams(url.search)) !== null) return null
+    return `${url.pathname}${url.search}`
+  } catch {
+    return null
+  }
+}
+
+const ACCOUNT_LINK_PATH = '/account-link'
+
+/**
+ * Shape guard for the account-link continuation. The broker's email-collision
+ * page sends an unauthenticated user to /login with `return_to` pointing back
+ * at /account-link — its confirmation token and broker_session live ONLY in
+ * that query string, so dropping the return_to (as safeOAuthReturnTo does:
+ * /account-link is not an OAuth interaction route) strands the link flow on
+ * the account profile and the accounts are never linked. Same-origin and
+ * path-anchored, mirroring safeOAuthReturnTo.
+ */
+export function safeAccountLinkReturnTo(value: string | null | undefined): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+  try {
+    const url = new URL(value, window.location.origin)
+    if (url.origin !== window.location.origin) return null
+    if (url.pathname !== ACCOUNT_LINK_PATH) return null
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return null
+  }
+}
+
 export function rememberOAuthReturnTo(value: string | null | undefined): string | null {
   const safe = safeOAuthReturnTo(value)
   if (safe) sessionStorage.setItem(OAUTH_RETURN_KEY, safe)

@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -115,7 +118,7 @@ var (
 	// discovery. It is a var so tests can stub it without network access.
 	idpOIDCDiscover = func(ctx context.Context, issuer string) (authorize, token string, err error) {
 		octx := oidclib.ClientContext(ctx, idpHTTPClientFactory())
-		provider, perr := oidclib.NewProvider(octx, issuer)
+		provider, perr := newOIDCProviderTolerant(octx, issuer)
 		if perr != nil {
 			return "", "", perr
 		}
@@ -416,9 +419,12 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 			}
 			_ = s.refreshMetadata(tx, existing, meta)
 		} else {
-			if !idp.AllowJITProvisioning {
-				return apperror.NewUnauthorized("user not found and JIT provisioning is disabled for this provider")
-			}
+			// JIT is NOT gated here. provisionUser enforces it in ONE place, and
+			// crucially it checks the email collision FIRST — so an existing account
+			// reached by a new provider's email is routed to account-linking (see
+			// handleEmailCollision below) rather than being refused by a premature
+			// JIT check. Gating here pre-empted that and blocked existing users from
+			// linking whenever JIT was off.
 			resolvedClient, clientErr := resolveClient()
 			if clientErr != nil {
 				return clientErr
@@ -542,7 +548,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		RedirectURL:  req.RedirectURI,
 		Endpoint: oauth2.Endpoint{
 			TokenURL:  resolveTokenEndpoint(ctx, idp.IssuerOrEmpty(), cfg),
-			AuthStyle: oauth2.AuthStyleAutoDetect,
+			AuthStyle: profileFor(idp.Provider).tokenAuthStyle,
 		},
 		Scopes: cfg.Scopes,
 	}
@@ -551,6 +557,11 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "oauth2 code exchange failed")
+		// Surface the upstream provider's actual error (oauth2.RetrieveError
+		// carries the token endpoint's status + response body) — an opaque
+		// "failed to exchange" is undiagnosable in production.
+		slog.Warn("idp code exchange failed",
+			"provider", idp.Provider, "token_url", oauth2Cfg.Endpoint.TokenURL, "err", err.Error())
 		return nil, apperror.NewUnauthorized("failed to exchange authorization code")
 	}
 
@@ -562,7 +573,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamResponseBytes))
 	if err != nil {
 		return nil, apperror.NewUnauthorized("failed to read user info response")
 	}
@@ -669,6 +680,21 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		return nil, apperror.NewValidation("external token missing 'sub' claim")
 	}
 
+	meta := extractMetadata(claims, cfg.AttributeMapping)
+	span.SetStatus(codes.Ok, "")
+	return s.attachResolvedIdentity(ctx, userID, idp, externalSub, meta)
+}
+
+// attachResolvedIdentity attaches an already-resolved external identity
+// (provider + sub + metadata) to userID, enforcing the "already linked to a
+// different account" guard and emitting the link events. Shared by OIDC token
+// linking (LinkIdentity) and OAuth2-only broker linking (linkOAuth2OnlyIdentity)
+// so both paths behave identically and neither can silently steal an identity
+// already claimed by another account.
+func (s *federationService) attachResolvedIdentity(ctx context.Context, userID int64, idp *IdentityProvider, externalSub string, meta IdentityMetadata) (*IdentityDTO, error) {
+	if strings.TrimSpace(externalSub) == "" {
+		return nil, apperror.NewValidation("provider did not return a subject identifier")
+	}
 	// Ensure this external identity isn't already claimed by another user.
 	existing, err := s.userIdentityRepo.FindByTenantProviderAndSub(idp.TenantID, idp.Provider, externalSub)
 	if err != nil {
@@ -682,14 +708,11 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		return identityToDTO(existing), nil
 	}
 
-	meta := extractMetadata(claims, cfg.AttributeMapping)
 	metaJSON, _ := json.Marshal(meta)
-	idpID := idp.IdentityProviderID
-
 	identity := &UserIdentity{
 		UserID:             userID,
 		TenantID:           idp.TenantID,
-		IdentityProviderID: idpID,
+		IdentityProviderID: idp.IdentityProviderID,
 		Provider:           idp.Provider,
 		Sub:                externalSub,
 		Metadata:           datatypes.JSON(metaJSON),
@@ -712,7 +735,6 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		return nil
 	})
 	if err != nil {
-		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to link identity", err)
 	}
 
@@ -726,9 +748,40 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("linked external identity: %s", idp.Provider)),
 	})
-
-	span.SetStatus(codes.Ok, "")
 	return identityToDTO(created), nil
+}
+
+// linkOAuth2OnlyIdentity completes a settings-initiated link for a pure-OAuth2
+// provider (github/facebook/twitter) that issues no id_token: it exchanges the
+// code, reads the profile from the userinfo endpoint (the same resolver the
+// sign-in broker uses), and attaches the identity to the already-signed-in user.
+func (s *federationService) linkOAuth2OnlyIdentity(ctx context.Context, userID int64, idp *IdentityProvider, cfg OIDCProviderConfig, clientSecret, code, pkceVerifier, redirectURI string) (*IdentityDTO, error) {
+	oauth2Cfg := &oauth2.Config{
+		ClientID:     idp.ProviderClientIDOrEmpty(),
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURI,
+		Endpoint: oauth2.Endpoint{
+			TokenURL:  resolveTokenEndpoint(ctx, idp.IssuerOrEmpty(), cfg),
+			AuthStyle: profileFor(idp.Provider).tokenAuthStyle,
+		},
+		Scopes: cfg.Scopes,
+	}
+	// An empty verifier means this provider's leg ran without PKCE (LinkedIn is
+	// OIDC so it never reaches here, but keep the same rule as the sign-in path).
+	tok, err := func() (*oauth2.Token, error) {
+		if pkceVerifier == "" {
+			return idpOAuth2Exchange(ctx, oauth2Cfg, code)
+		}
+		return idpOAuth2ExchangeWithPKCE(ctx, oauth2Cfg, code, pkceVerifier)
+	}()
+	if err != nil {
+		return nil, apperror.NewUnauthorized("failed to exchange authorization code")
+	}
+	claims, err := s.fetchUserinfoClaims(ctx, idp, cfg, oauth2Cfg, tok)
+	if err != nil {
+		return nil, err
+	}
+	return s.attachResolvedIdentity(ctx, userID, idp, stringClaim(claims, "sub"), extractMetadata(claims, cfg.AttributeMapping))
 }
 
 func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, identityUUIDStr string) error {
@@ -983,8 +1036,33 @@ func (s *federationService) ResolveBrokerProvider(ctx context.Context, idpIdenti
 	return &BrokerProviderInfo{
 		AuthorizationEndpoint: authorize,
 		ClientID:              idp.ProviderClientIDOrEmpty(),
-		Scopes:                cfg.Scopes,
+		Scopes:                brokerScopesOrDefault(idp.Provider, cfg.Scopes),
 	}, nil
+}
+
+// brokerScopesOrDefault resolves the scopes sent to the upstream authorize URL.
+//
+// oauth2-only providers (github/facebook/twitter) do NOT understand the OIDC
+// scopes (openid/profile/email) — GitHub in particular treats `openid`/`profile`
+// as unknown and `email` is not even a valid GitHub scope (it is `user:email`).
+// So for these providers we use their REQUIRED provider-specific scopes verbatim,
+// ignoring whatever OIDC-style scopes the form saved — otherwise the token has no
+// access to the user's email and the login yields an emailless account. OIDC
+// providers keep their configured scopes (or the openid minimum when empty), so
+// the id_token is issued.
+func brokerScopesOrDefault(provider string, scopes []string) []string {
+	if p := profileFor(provider); p.oauth2Only {
+		// oauth2-only providers use their registry scopes verbatim (OIDC scopes
+		// don't apply). Fall back to a minimal email read if a profile omits them.
+		if len(p.brokerScopes) > 0 {
+			return p.brokerScopes
+		}
+		return []string{"email"}
+	}
+	if len(scopes) > 0 {
+		return scopes
+	}
+	return []string{"openid", "profile", "email"}
 }
 
 // exchangeUpstreamCode performs the provider leg of an OAuth2/OIDC round trip:
@@ -1007,13 +1085,39 @@ func (s *federationService) exchangeUpstreamCode(
 		RedirectURL:  redirectURI,
 		Endpoint: oauth2.Endpoint{
 			TokenURL:  resolveTokenEndpoint(ctx, idp.IssuerOrEmpty(), cfg),
-			AuthStyle: oauth2.AuthStyleAutoDetect,
+			AuthStyle: profileFor(idp.Provider).tokenAuthStyle,
 		},
 	}
 
-	tok, err := idpOAuth2ExchangeWithPKCE(ctx, oauth2Cfg, code, pkceVerifier)
+	// An empty verifier means the broker ran this provider's leg WITHOUT PKCE
+	// (e.g. LinkedIn, which rejects PKCE + client_secret): omit code_verifier and
+	// do a plain confidential-client exchange. Otherwise complete PKCE.
+	tok, err := func() (*oauth2.Token, error) {
+		if pkceVerifier == "" {
+			return idpOAuth2Exchange(ctx, oauth2Cfg, code)
+		}
+		return idpOAuth2ExchangeWithPKCE(ctx, oauth2Cfg, code, pkceVerifier)
+	}()
 	if err != nil {
+		// Surface the upstream provider's actual error (oauth2.RetrieveError
+		// carries the token endpoint's status + response body) so a broker
+		// exchange failure is diagnosable instead of an opaque 401.
+		slog.Warn("idp code exchange failed",
+			"provider", idp.Provider, "token_url", oauth2Cfg.Endpoint.TokenURL, "err", err.Error())
 		return "", nil, apperror.NewUnauthorized("failed to exchange authorization code")
+	}
+
+	// Pure-OAuth2 providers (github/facebook/twitter) never return an id_token —
+	// there is nothing to validate a nonce against. The code itself is already
+	// bound to this browser by PKCE (S256) and to this flow by the single-use
+	// broker session/state, which is the same protection the OIDC path relies on
+	// beyond the id_token. Identity therefore comes from the userinfo endpoint.
+	if isOAuth2OnlyProvider(idp.Provider) {
+		claims, uerr := s.fetchUserinfoClaims(ctx, idp, cfg, oauth2Cfg, tok)
+		if uerr != nil {
+			return "", nil, uerr
+		}
+		return "", claims, nil
 	}
 
 	rawIDTok, ok := tok.Extra("id_token").(string)
@@ -1030,10 +1134,71 @@ func (s *federationService) exchangeUpstreamCode(
 	if nonce == "" {
 		return "", nil, apperror.NewUnauthorized("missing nonce for provider token validation")
 	}
-	if tokNonce, _ := claims["nonce"].(string); tokNonce != nonce {
+	// Nonce is verified when the provider echoes it. LinkedIn's OIDC does NOT
+	// return the nonce claim; requiring it unconditionally made every LinkedIn
+	// login fail. When the claim is ABSENT we accept (PKCE + single-use broker
+	// session still bind the exchange); when it is PRESENT it MUST match, so a
+	// provider that does echo it cannot have a replayed/forged value slip past.
+	tokNonce, hasNonce := claims["nonce"].(string)
+	if hasNonce && strings.TrimSpace(tokNonce) != "" && tokNonce != nonce {
 		return "", nil, apperror.NewUnauthorized("provider token nonce mismatch")
 	}
 	return rawIDTok, claims, nil
+}
+
+// fetchUserinfoClaims retrieves the profile of a pure-OAuth2 provider from its
+// userinfo endpoint, normalizing the subject: GitHub/Twitter return a numeric
+// `id` rather than `sub`, and stringClaim now formats those. Returns a claims
+// map shaped like an OIDC id_token so the rest of the pipeline is unchanged.
+func (s *federationService) fetchUserinfoClaims(
+	ctx context.Context,
+	idp *IdentityProvider,
+	cfg OIDCProviderConfig,
+	oauth2Cfg *oauth2.Config,
+	tok *oauth2.Token,
+) (map[string]any, error) {
+	userinfoURL := strings.TrimSpace(cfg.UserinfoEndpoint)
+	if userinfoURL == "" {
+		// Validation requires an explicit userinfo endpoint for active oauth2-only
+		// providers, so this is a misconfiguration rather than a user error.
+		return nil, apperror.NewValidation("identity provider missing userinfo endpoint")
+	}
+	// X only returns the email when confirmed_email is explicitly requested on the
+	// /2/users/me call (in addition to the users.email scope + the app's email
+	// permission). Add it here so a provider configured with the bare endpoint
+	// still gets the address, without the operator editing the userinfo URL.
+	if idp.Provider == shared.IDPProviderTwitter && !strings.Contains(userinfoURL, "user.fields=") {
+		sep := "?"
+		if strings.Contains(userinfoURL, "?") {
+			sep = "&"
+		}
+		userinfoURL += sep + "user.fields=confirmed_email"
+	}
+	resp, err := idpOAuth2GetUserinfo(ctx, oauth2Cfg, tok, userinfoURL)
+	if err != nil {
+		return nil, apperror.NewUnauthorized("failed to fetch user info from provider")
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamResponseBytes))
+	if err != nil {
+		return nil, apperror.NewUnauthorized("failed to read user info response")
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(body, &claims); err != nil {
+		return nil, apperror.NewUnauthorized("failed to parse user info response")
+	}
+	// Apply this provider's registry quirks: claim normalization (numeric id →
+	// sub, provider-specific avatar/data-envelope) then any second-fetch
+	// augmentation (GitHub /user/emails for the verified email). See profileFor
+	// in provider_profiles.go — the one place a provider's uniqueness lives.
+	profile := profileFor(idp.Provider)
+	if profile.normalizeClaims != nil {
+		profile.normalizeClaims(claims)
+	}
+	if profile.augmentClaims != nil {
+		profile.augmentClaims(ctx, oauth2Cfg, tok, userinfoURL, claims)
+	}
+	return claims, nil
 }
 
 // ResolveBrokerUser implements FederationService.
@@ -1066,13 +1231,18 @@ func (s *federationService) ResolveBrokerUser(ctx context.Context, idpID int64, 
 	}
 	_ = rawIDTok
 
-	externalSub, ok := claims["sub"].(string)
-	if !ok || externalSub == "" {
+	// stringClaim (not a bare type assertion): GitHub/Twitter subjects arrive as
+	// JSON numbers, which would otherwise read as "" and fail here.
+	externalSub := stringClaim(claims, "sub")
+	if externalSub == "" {
 		return nil, apperror.NewUnauthorized("provider returned no subject claim")
 	}
 
-	email, _ := claims["email"].(string)
 	meta := extractMetadata(claims, cfg.AttributeMapping)
+	email := meta.Email
+	if email == "" {
+		email = stringClaim(claims, "email")
+	}
 
 	var user *User
 	var identitySub string
@@ -1174,7 +1344,12 @@ func (s *federationService) validateOIDCToken(ctx context.Context, issuer, clien
 	if clientID == "" {
 		return nil, fmt.Errorf("OIDC client_id is required")
 	}
-	verifierCfg := &oidclib.Config{ClientID: clientID, Now: oidcSkewedNow()}
+	// For Azure AD multi-tenant, go-oidc cannot check `iss` against the
+	// "{tenantid}" template it discovered, so we skip its issuer check and
+	// re-impose it manually below against the token's concrete `tid`. Every
+	// other provider keeps go-oidc's standard issuer verification.
+	msMultiTenant := isMicrosoftMultiTenantIssuer(issuer)
+	verifierCfg := &oidclib.Config{ClientID: clientID, Now: oidcSkewedNow(), SkipIssuerCheck: msMultiTenant}
 	verifier := provider.Verifier(verifierCfg)
 
 	idToken, verr := verifier.Verify(ctx, rawToken)
@@ -1193,19 +1368,130 @@ func (s *federationService) validateOIDCToken(ctx context.Context, issuer, clien
 
 	var claims map[string]interface{}
 	_ = idToken.Claims(&claims)
+
+	if msMultiTenant {
+		if err := validateMicrosoftMultiTenantIssuer(issuer, idToken.Issuer, claims); err != nil {
+			return nil, err
+		}
+	}
 	return claims, nil
+}
+
+// validateMicrosoftMultiTenantIssuer re-imposes issuer validation that go-oidc
+// skipped for an Azure multi-tenant authority. The rule (Microsoft identity
+// platform docs): the id_token's `iss` MUST equal
+// "https://login.microsoftonline.com/{tid}/v2.0" where {tid} is the token's own
+// `tid` claim — a GUID. This confirms the token was minted by the SAME
+// authority host we discovered against and that its issuer path segment is the
+// tenant the token itself declares (so a token cannot claim one tenant in `tid`
+// while being issued by another).
+func validateMicrosoftMultiTenantIssuer(configuredIssuer, tokenIssuer string, claims map[string]any) error {
+	tid := stringClaim(claims, "tid")
+	if tid == "" || !microsoftTenantIDPattern.MatchString(tid) {
+		return apperror.NewUnauthorized("Microsoft token missing a valid tenant id (tid) claim")
+	}
+	// Rebuild the expected issuer on the SAME authority host the operator
+	// configured (common/organizations/consumers → concrete tenant).
+	authority := strings.SplitN(strings.TrimPrefix(configuredIssuer, "https://"), "/", 2)[0]
+	expected := "https://" + authority + "/" + tid + "/v2.0"
+	if strings.TrimRight(tokenIssuer, "/") != expected {
+		return apperror.NewUnauthorized("Microsoft token issuer does not match its tenant id")
+	}
+	return nil
+}
+
+// microsoftMultiTenantIssuer matches the Azure AD v2 "shared" authorities
+// (common / organizations / consumers). Their discovery document declares a
+// LITERAL "{tenantid}" template as the issuer, so go-oidc's byte-for-byte
+// issuer check rejects it. Host is pinned to the Microsoft login authorities,
+// including the US-gov and China clouds.
+var microsoftMultiTenantIssuer = regexp.MustCompile(
+	`^https://login\.(microsoftonline\.com|microsoftonline\.us|partner\.microsoftonline\.cn)/(common|organizations|consumers)/v2\.0/?$`)
+
+// microsoftTenantIDPattern matches an Azure tenant GUID, so a token's `tid`
+// claim cannot smuggle path segments into the reconstructed issuer.
+var microsoftTenantIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func isMicrosoftMultiTenantIssuer(issuer string) bool {
+	return microsoftMultiTenantIssuer.MatchString(strings.TrimSpace(issuer))
+}
+
+// newOIDCProviderTolerant performs OIDC discovery, absorbing two provider
+// quirks that otherwise fail go-oidc's strict issuer match:
+//
+//   - Trailing-slash disagreement: Auth0 declares "https://tenant.auth0.com/"
+//     (slash) while its dashboard shows the bare domain; Cognito declares no
+//     slash. An operator pasting the console value can be off by one character.
+//     Retried with the alternate slash form. The Provider carries the DISCOVERED
+//     issuer, so id_token `iss`/JWKS verification is unchanged — only the lookup
+//     key is relaxed, both forms targeting the same operator-configured host.
+//   - Azure AD multi-tenant: the "{tenantid}" template issuer is accepted via
+//     InsecureIssuerURLContext, and issuer validation is re-imposed MANUALLY at
+//     token-verify time against the token's own `tid` (see validateOIDCToken),
+//     so this does not weaken the issuer boundary — it moves it to where the
+//     concrete tenant id is known.
+func newOIDCProviderTolerant(ctx context.Context, issuer string) (*oidclib.Provider, error) {
+	if isMicrosoftMultiTenantIssuer(issuer) {
+		ictx := oidclib.InsecureIssuerURLContext(ctx, strings.TrimRight(issuer, "/"))
+		if p, perr := oidclib.NewProvider(ictx, strings.TrimRight(issuer, "/")); perr == nil {
+			return p, nil
+		}
+	}
+	provider, err := oidclib.NewProvider(ctx, issuer)
+	if err == nil {
+		return provider, nil
+	}
+	alt := strings.TrimSuffix(issuer, "/")
+	if alt == issuer {
+		alt = issuer + "/"
+	}
+	if altProvider, altErr := oidclib.NewProvider(ctx, alt); altErr == nil {
+		return altProvider, nil
+	}
+	// Report the error for the value the operator actually configured.
+	return nil, err
 }
 
 func (s *federationService) getOrDiscoverProvider(ctx context.Context, issuer string) (*oidclib.Provider, error) {
 	if cached, ok := s.providerCache.Load(issuer); ok {
 		return cached.(*oidclib.Provider), nil
 	}
-	provider, err := oidclib.NewProvider(ctx, issuer)
+	provider, err := newOIDCProviderTolerant(ctx, issuer)
 	if err != nil {
 		return nil, err
 	}
+	// Cached under the CONFIGURED issuer, so every later lookup with the stored
+	// value hits the cache regardless of which slash form discovery accepted.
 	s.providerCache.Store(issuer, provider)
 	return provider, nil
+}
+
+// resolveFederatedEmailVerified decides the email_verified flag for a
+// JIT-provisioned federated user. A user authenticated by an external IdP should
+// not be forced through maintainerd's OWN email-verification flow (that control
+// is for password self-signup). The rule, matching Keycloak's "Trust Email" and
+// Auth0's email_verified passthrough:
+//   - The upstream explicitly sent email_verified → honor it verbatim (an
+//     explicit false is respected, e.g. an unverified Auth0 database user).
+//   - The upstream OMITTED email_verified (Entra, Okta, most SAML IdPs do) → the
+//     email is trusted only for ENTERPRISE and SAML providers, which are
+//     admin-configured single-organization trust anchors. Social providers are
+//     NOT auto-trusted on omission (anyone can hold such an account).
+// A collision with an existing account never reaches here (it is routed to the
+// account-link flow first), so this only sets the flag for brand-new accounts.
+func resolveFederatedEmailVerified(idp *IdentityProvider, email string, meta IdentityMetadata) bool {
+	if meta.EmailVerifiedPresent {
+		return meta.EmailVerified
+	}
+	if email == "" {
+		return false
+	}
+	switch idp.ProviderType {
+	case shared.IDPTypeEnterprise, shared.IDPTypeSAML:
+		return true
+	default:
+		return false
+	}
 }
 
 // provisionUser creates a new User + default identity + external identity for
@@ -1222,22 +1508,26 @@ func (s *federationService) provisionUser(
 	txUserRepo := s.userRepo.WithTx(tx)
 	txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
-	// Only verified upstream emails may be used to merge identities. An
-	// unverified email claim is profile data, not proof of account ownership.
+	// Email-collision detection uses the upstream email as a DISCOVERY HINT to
+	// find a candidate existing account — NOT as proof of ownership. The upstream
+	// email's verified flag is therefore intentionally NOT required here: the
+	// verified flag would only matter for a silent AUTO-MERGE, which this code
+	// never does. Every collision is surfaced (never merged): the broker flow
+	// turns it into an account-link request that the user can only complete by
+	// authenticating AS the existing account (authn.accountLinkRequestService
+	// .Confirm requires req.ExistingUserID == authenticated user), and the
+	// direct-token flows reject it outright. That interactive re-authentication
+	// is the real ownership proof, so requiring a verified upstream email on top
+	// of it added nothing but blocked legitimate linking for providers (Auth0
+	// database users, etc.) that leave email_verified=false.
 	var user *User
 	var isNew bool
-	if email != "" && meta.EmailVerified {
+	if email != "" {
 		existing, err := txUserRepo.FindByEmailAndTenantID(email, idp.TenantID)
 		if err != nil {
 			return nil, false, apperror.NewInternal("email lookup failed", err)
 		}
 		if existing != nil {
-			// Fail closed: a verified-email match with a pre-existing account must
-			// NEVER be silently merged. Always surface the collision so the caller
-			// resolves it explicitly — the broker flow turns it into a confirmation
-			// request, the direct-token flows reject it. Whether the account-link
-			// service happens to be wired only changes how the caller reacts; it can
-			// never downgrade this into an unconfirmed silent link.
 			return nil, false, &errEmailCollision{
 				tenantID:           idp.TenantID,
 				existingUserID:     existing.UserID,
@@ -1251,6 +1541,16 @@ func (s *federationService) provisionUser(
 	}
 
 	if user == nil {
+		// The per-provider JIT toggle is enforced at the CREATE itself, not only
+		// in (some) callers: the broker flow called provisionUser without any
+		// gate, so disabling allow_jit_provisioning on a provider still let a
+		// brand-new upstream user mint an account through browser login. The
+		// email-collision path above is deliberately NOT gated — attaching an
+		// identity to an EXISTING account (after re-authentication) is not
+		// provisioning a new one.
+		if !idp.AllowJITProvisioning {
+			return nil, false, apperror.NewUnauthorized("user not found and JIT provisioning is disabled for this provider")
+		}
 		// Social/federated JIT provisioning creates a brand-new account, so the
 		// tenant's registration policy applies here exactly as it does to
 		// self-signup — otherwise these controls are trivially bypassed by
@@ -1285,12 +1585,33 @@ func (s *federationService) provisionUser(
 			TenantID:        idp.TenantID,
 			Email:           email,
 			Username:        username,
-			IsEmailVerified: meta.EmailVerified,
+			IsEmailVerified: resolveFederatedEmailVerified(idp, email, meta),
 			Status:          shared.StatusActive,
 			Metadata:        datatypes.JSON([]byte("{}")),
 		}
 		created, err := txUserRepo.Create(newUser)
 		if err != nil || created == nil {
+			// Defense in depth: the collision check above already routes an existing
+			// email to the account-link flow, so reaching a uniqueness violation here
+			// means a concurrent provision of the same email raced between that check
+			// and this insert. Surface it as the same actionable collision rather
+			// than an opaque "failed to provision user" — the caller turns it into an
+			// account-link request / conflict, never a silent merge.
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				existing, lookupErr := txUserRepo.FindByEmailAndTenantID(email, idp.TenantID)
+				if lookupErr == nil && existing != nil {
+					return nil, false, &errEmailCollision{
+						tenantID:           idp.TenantID,
+						existingUserID:     existing.UserID,
+						identityProviderID: idp.IdentityProviderID,
+						providerName:       idp.Provider,
+						providerSub:        externalSub,
+						providerEmail:      email,
+						providerClaims:     func() []byte { b, _ := json.Marshal(meta); return b }(),
+					}
+				}
+				return nil, false, apperror.NewConflict("an account with this email already exists; sign in with it and link this provider from your account settings")
+			}
 			return nil, false, apperror.NewInternal("failed to provision user", err)
 		}
 		user = created
@@ -1666,17 +1987,66 @@ func stringClaim(claims map[string]interface{}, key string) string {
 	if !ok {
 		return ""
 	}
-	s, _ := v.(string)
-	return s
+	switch t := v.(type) {
+	case string:
+		return t
+	case json.Number:
+		return t.String()
+	case float64:
+		// A JSON number decodes to float64; the `sub`/`id` claim of GitHub,
+		// Twitter and other non-OIDC providers is a numeric user id. %v would
+		// print "1.2345e+07" for large ids, so format as a plain integer when
+		// the value is integral (all real user ids are).
+		if t == float64(int64(t)) {
+			return strconv.FormatInt(int64(t), 10)
+		}
+		return strconv.FormatFloat(t, 'f', -1, 64)
+	case int64:
+		return strconv.FormatInt(t, 10)
+	case int:
+		return strconv.Itoa(t)
+	}
+	return ""
 }
 
+// boolClaim reads a claim that SHOULD be a boolean but arrives in inconsistent
+// shapes across providers: a real JSON bool (Google, Cognito, GitLab), the
+// STRING "true"/"false" (Azure AD B2C, several SAML-to-OIDC bridges), or a
+// numeric 1/0. Reading only `v.(bool)` silently treated the string and numeric
+// forms as false — which for `email_verified` disables verified-email account
+// linking for exactly those providers and pushes their users into an opaque
+// provisioning error on an existing email. Parse every common encoding.
 func boolClaim(claims map[string]interface{}, key string) bool {
+	v, _ := boolClaimPresent(claims, key)
+	return v
+}
+
+// boolClaimPresent parses a boolean-ish claim and also reports whether the claim
+// was present at all. The "present" signal lets callers distinguish an explicit
+// false from an omitted claim — which matters for email_verified: enterprise
+// providers (Entra, Okta) and SAML IdPs simply omit it, and their asserted email
+// should be trusted, whereas an explicit false must be respected.
+func boolClaimPresent(claims map[string]interface{}, key string) (value bool, present bool) {
 	v, ok := claims[key]
 	if !ok {
-		return false
+		return false, false
 	}
-	b, _ := v.(bool)
-	return b
+	switch t := v.(type) {
+	case bool:
+		return t, true
+	case string:
+		b, _ := strconv.ParseBool(strings.TrimSpace(t))
+		return b, true
+	case float64:
+		return t != 0, true
+	case json.Number:
+		return t.String() != "0" && t.String() != "", true
+	case int:
+		return t != 0, true
+	case int64:
+		return t != 0, true
+	}
+	return false, true
 }
 
 func extractMetadata(claims map[string]interface{}, mapping map[string]string) IdentityMetadata {
@@ -1688,14 +2058,16 @@ func extractMetadata(claims map[string]interface{}, mapping map[string]string) I
 		}
 		return field
 	}
+	emailVerified, emailVerifiedPresent := boolClaimPresent(claims, claimName("email_verified"))
 	return IdentityMetadata{
-		Email:         stringClaim(claims, claimName("email")),
-		EmailVerified: boolClaim(claims, claimName("email_verified")),
-		Name:          stringClaim(claims, claimName("name")),
-		GivenName:     stringClaim(claims, claimName("given_name")),
-		FamilyName:    stringClaim(claims, claimName("family_name")),
-		Picture:       stringClaim(claims, claimName("picture")),
-		Locale:        stringClaim(claims, claimName("locale")),
+		Email:                stringClaim(claims, claimName("email")),
+		EmailVerified:        emailVerified,
+		EmailVerifiedPresent: emailVerifiedPresent,
+		Name:                 stringClaim(claims, claimName("name")),
+		GivenName:            stringClaim(claims, claimName("given_name")),
+		FamilyName:           stringClaim(claims, claimName("family_name")),
+		Picture:              stringClaim(claims, claimName("picture")),
+		Locale:               stringClaim(claims, claimName("locale")),
 	}
 }
 
