@@ -1,0 +1,31 @@
+name: Docker Hub Description
+
+# Keeps the Docker Hub repository's README + short description in sync with
+# DOCKERHUB.md in this repo, so the image page is version-controlled and always
+# current. Runs when DOCKERHUB.md changes (or on demand). Uses the same
+# DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets as the release push.
+on:
+  push:
+    branches: [main]
+    paths:
+      - DOCKERHUB.md
+      - .github/workflows/dockerhub-description.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dockerhub-description:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Sync README + short description to Docker Hub
+        uses: peter-evans/dockerhub-description@432a30c9e07499fd01da9f8a49f0faf9e0ca5b77 # v4.0.2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_ORG || secrets.DOCKERHUB_USERNAME }}/maintainerd-auth
+          short-description: "Self-hostable OAuth2/OIDC provider & identity broker in one container (backend + console + login UI)."
+          readme-filepath: ./DOCKERHUB.md
