@@ -37,36 +37,35 @@ It ships as **one all-in-one image**: the Go backend plus the admin console and 
 
 ## Quick Start
 
-Run the released image with PostgreSQL + Redis. Download the ready-made sample files from [`examples/quickstart/`](examples/quickstart), generate your own keys, and start — no clone, nothing to write by hand.
+Run the released image locally behind nginx — clean HTTPS hostnames, **no ports** — with PostgreSQL + Redis. For local testing; in production you front it with your own TLS.
+
+**1. Download these four files** into one empty folder:
+
+[`docker-compose.yml`](https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart/docker-compose.yml) · [`.env.example`](https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart/.env.example) · [`nginx.conf`](https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart/nginx.conf) · [`setup.sh`](https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart/setup.sh)
+
+**2. Run:**
 
 ```bash
-# 1. Download the sample compose + env + key generator
-mkdir maintainerd-auth && cd maintainerd-auth
-base=https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart
-curl -O "$base/.env.example" -O "$base/docker-compose.yml" -O "$base/generate-secrets.sh"
 cp .env.example .env
+chmod +x setup.sh && ./setup.sh          # generates your keys + a local TLS cert
 
-# 2. Generate YOUR OWN keys/secrets into .env (runs openssl locally)
-chmod +x generate-secrets.sh && ./generate-secrets.sh
-
-# 3. Map the local hostnames (one time)
 sudo tee -a /etc/hosts >/dev/null <<'EOF'
 127.0.0.1 console.auth.maintainerd.local identity.auth.maintainerd.local console-api.auth.maintainerd.local identity-api.auth.maintainerd.local
 EOF
 
-# 4. Start
 docker compose up -d
 ```
 
-**First run 👉** open **http://console.auth.maintainerd.local:3000** and complete the setup wizard to create your first **tenant** and **admin**.
+**3. Open the setup wizard 👉 https://console.auth.maintainerd.local/setup/tenant** and create your first **tenant** and **admin** (accept the one-time self-signed-cert warning).
 
 | | URL |
 |---|---|
-| Admin console — **setup starts here** | http://console.auth.maintainerd.local:3000 |
-| Hosted login (end users) | http://identity.auth.maintainerd.local:3001 |
-| OIDC discovery | http://identity-api.auth.maintainerd.local:8081/.well-known/openid-configuration |
+| Setup wizard — **start here** | https://console.auth.maintainerd.local/setup/tenant |
+| Admin console | https://console.auth.maintainerd.local |
+| Hosted login (end users) | https://identity.auth.maintainerd.local |
+| OIDC discovery | https://identity-api.auth.maintainerd.local/.well-known/openid-configuration |
 
-> `http` on `.local` is for local trials only. In production use real HTTPS hostnames, `COOKIE_SECURE=true`, `APP_ENV=production`, `DB_SSLMODE=require`, and a managed secret provider. See [Environment Variables](docs/contributing/environment-variables.md).
+> This is a **local** setup for trying it out. In production, front it with your own TLS + real hostnames, keep `APP_ENV=production` and `DB_SSLMODE=require`, and source secrets from a manager. See [Environment Variables](docs/contributing/environment-variables.md).
 
 ---
 
