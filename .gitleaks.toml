@@ -12,8 +12,5 @@ title = "maintainerd/auth gitleaks config"
 [allowlist]
 description = "Sample/example files — placeholder values only, no real secrets."
 paths = [
-  '''examples/quickstart/\.env\.example''',
-  '''examples/quickstart/docker-compose\.yml''',
-  '''examples/quickstart/generate-secrets\.sh''',
-  '''examples/quickstart/README\.md''',
+  '''examples/quickstart/''',
 ]

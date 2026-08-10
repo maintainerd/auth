@@ -1,9 +1,10 @@
 # =============================================================================
-#  maintainerd-auth — SAMPLE quick-start stack (examples/quickstart)
+#  maintainerd-auth — local quick-start stack (released image + nginx TLS edge)
 #
-#  Runs the released image with PostgreSQL + Redis. Config comes from ./.env
-#  (copy .env.example → .env and run ./generate-secrets.sh first).
-#  Full guide: https://github.com/maintainerd/maintainerd-auth#quick-start
+#  nginx terminates HTTPS on the .local hostnames and forwards to the single
+#  released image, so you browse clean URLs with no ports. Config comes from
+#  ./.env and TLS certs from ./certs — run ./setup.sh first.
+#  Guide: https://github.com/maintainerd/maintainerd-auth#quick-start
 # =============================================================================
 services:
   postgres:
@@ -26,13 +27,26 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_started }
-    ports:
-      - "3000:3000"   # admin console
-      - "3001:3001"   # hosted login (identity)
-      - "8081:8081"   # OAuth2/OIDC issuer + public API
-      # 8080 (control plane) and 8082 (metrics) stay internal — do not publish.
     volumes:
-      - ./.env:/.env:ro   # the app reads this at startup (un-escapes the PEM keys)
+      - ./.env:/.env:ro   # the app reads this at startup
+    # No ports published — nginx is the only entry point.
+
+  nginx:
+    image: nginx:latest
+    depends_on: [auth]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      default:
+        aliases:
+          - console.auth.maintainerd.local
+          - identity.auth.maintainerd.local
+          - console-api.auth.maintainerd.local
+          - identity-api.auth.maintainerd.local
 
 volumes:
   pgdata:

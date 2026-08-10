@@ -41,18 +41,14 @@ You provide PostgreSQL and Redis; they are **not** in this image.
 
 ## Quick start
 
-Ready-made sample files (compose + env + key generator) live in the repo. Download them, generate your own keys, and run — full walkthrough in the [repo README](https://github.com/maintainerd/maintainerd-auth#quick-start).
+Run locally behind nginx with clean HTTPS hostnames (no ports), using this image + PostgreSQL + Redis. Full walkthrough: the [repo README](https://github.com/maintainerd/maintainerd-auth#quick-start).
+
+Download these into one folder — [`docker-compose.yml`](https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart/docker-compose.yml), [`.env.example`](https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart/.env.example), [`nginx.conf`](https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart/nginx.conf), [`setup.sh`](https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart/setup.sh) — then:
 
 ```bash
-mkdir maintainerd-auth && cd maintainerd-auth
-base=https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart
-curl -O "$base/.env.example" -O "$base/docker-compose.yml" -O "$base/generate-secrets.sh"
 cp .env.example .env
+chmod +x setup.sh && ./setup.sh          # generates your keys + a local TLS cert
 
-# generate YOUR OWN keys/secrets into .env (runs openssl locally)
-chmod +x generate-secrets.sh && ./generate-secrets.sh
-
-# map the local hostnames (one time)
 sudo tee -a /etc/hosts >/dev/null <<'EOF'
 127.0.0.1 console.auth.maintainerd.local identity.auth.maintainerd.local console-api.auth.maintainerd.local identity-api.auth.maintainerd.local
 EOF
@@ -60,9 +56,7 @@ EOF
 docker compose up -d
 ```
 
-**First run 👉** open **http://console.auth.maintainerd.local:3000** and complete the setup wizard to create your first **tenant** and **admin**. OIDC discovery: **http://identity-api.auth.maintainerd.local:8081/.well-known/openid-configuration**.
-
-> Prefer `docker run`, or a split-host / production layout? See the [full quick-start guide](https://github.com/maintainerd/maintainerd-auth/tree/main/examples/quickstart).
+**First run 👉** open **https://console.auth.maintainerd.local/setup/tenant** and create your first **tenant** and **admin** (accept the one-time self-signed-cert warning).
 
 ---
 
