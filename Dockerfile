@@ -76,10 +76,10 @@ COPY --from=backend /auth /usr/local/bin/auth
 
 # 3000 (console) + 3001 (identity) are the browser-facing ports to publish.
 # 8081 (public data plane) is published where the OIDC issuer must resolve.
-# 8080 (control/management plane) should stay INTERNAL — firewall it; the console
-# reaches it same-origin through the console server, so it never needs public
-# exposure.
-EXPOSE 8080 8081 3000 3001
+# 8080 (control plane) and 8082 (management: /metrics + health) should stay
+# INTERNAL — firewall them; the console reaches the control plane same-origin
+# through the console server, so neither needs public exposure.
+EXPOSE 8080 8081 8082 3000 3001
 
 # Generous start-period: the backend runs schema migrations in-process at boot.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \

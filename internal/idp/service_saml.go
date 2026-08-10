@@ -209,9 +209,12 @@ func (s *federationService) HandleSAMLResponse(ctx context.Context, r *http.Requ
 			}
 			_ = s.refreshMetadata(tx, existing, meta)
 		} else {
-			if !idp.AllowJITProvisioning {
-				return apperror.NewUnauthorized("user not found and JIT provisioning is disabled for this provider")
-			}
+			// JIT is enforced inside provisionUser (single source of truth), which
+			// runs the email-collision check FIRST — so a SAML user whose email
+			// matches an existing account is routed to account-linking
+			// (handleEmailCollision below) instead of being refused by a premature
+			// JIT check when JIT is off. provisionUser still refuses a genuinely new
+			// user when JIT is disabled.
 			user, isNew, txErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, &client.ClientID)
 			if txErr != nil {
 				return txErr

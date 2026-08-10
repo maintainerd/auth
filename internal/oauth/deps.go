@@ -211,6 +211,9 @@ type BrokerResolvedUser struct {
 // the linked user's ID. Satisfied by an adapter over authn.AccountLinkRequestRepository.
 type AccountLinkVerifier interface {
 	FindConfirmedLink(token string) (userID int64, found bool, err error)
+	// ConsumeConfirmedLink marks the confirmed token used (single-use). Returns
+	// true only when this call performed the transition; false = already used.
+	ConsumeConfirmedLink(token string) (consumed bool, err error)
 }
 
 // BrokerCallbackResolver resolves the maintainerd user for the broker callback

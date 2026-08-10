@@ -138,22 +138,13 @@ export function useProviderConfig(provider: string) {
     if (prevProviderRef.current === provider) return
     prevProviderRef.current = provider
 
-    const fields = fieldByKey(provider)
-
-    setValues((prevValues) => {
-      const nextKnown: Record<string, string> = {}
-      // Carry over prior structured values only for keys the new provider defines.
-      Object.entries(prevValues).forEach(([key, value]) => {
-        if (fields.has(key)) nextKnown[key] = value
-      })
-      // Seed defaults for the new provider's fields that ended up empty.
-      fields.forEach((field, key) => {
-        if (field.default !== undefined && !(nextKnown[key] ?? "").trim()) {
-          nextKnown[key] = field.default
-        }
-      })
-      return nextKnown
-    })
+    // Switching providers re-seeds the well-known config fields to the NEW
+    // provider's own defaults. Scopes and OAuth2 endpoints are provider-SPECIFIC
+    // (Facebook = public_profile/email + Graph endpoints; GitHub = read:user/
+    // user:email + github.com endpoints; OIDC providers = openid/profile/email
+    // via discovery), so carrying the previous provider's values over would
+    // prefill values that are invalid for the newly selected provider.
+    setValues(seedDefaults(getProviderConfigSchema(provider)))
 
     setPresetSecrets({})
     setErrors({})

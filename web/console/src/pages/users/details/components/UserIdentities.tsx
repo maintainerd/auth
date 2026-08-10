@@ -1,5 +1,7 @@
 import { useState } from "react"
 import { Key, Calendar, Globe, Unlink } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { getProviderBrand } from "@/components/provider-config/providerBrand"
 import { safeFormat } from "@/lib/formatDate"
 import { InformationCard } from "@/components/card"
 import { EmptyState, ListSkeleton } from "@/components/details"
@@ -91,12 +93,14 @@ export function UserIdentities({ userId }: UserIdentitiesProps) {
           <div className="space-y-3">
             {data.rows.map((identity: UserIdentity) => {
               const actions = identityActions(identity)
+              // Show the actual provider's brand mark rather than a generic key.
+              const { Icon: ProviderIcon, color: providerColor } = getProviderBrand(identity.provider)
               return (
                 <div data-md-listing-item key={identity.user_identity_id} className="rounded-lg border p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
                       <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <Key className="size-4" />
+                        <ProviderIcon className={cn("size-4", providerColor)} />
                       </div>
                       <div className="min-w-0 flex-1 space-y-3">
                         {/* Provider + subject */}

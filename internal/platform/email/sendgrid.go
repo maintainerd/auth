@@ -56,7 +56,7 @@ func (p *sendgridProvider) Send(ctx context.Context, params SendParams) error {
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "sendgrid send failed")

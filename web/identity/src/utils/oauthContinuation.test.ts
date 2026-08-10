@@ -77,6 +77,20 @@ describe('finishAuthStep', () => {
     expect(sessionStorage.getItem('maintainerd_auth_oauth_return_to')).toContain('/authorize')
   })
 
+  // The broker's email-collision page bounces an anonymous user to /login with
+  // return_to pointing back at /account-link — its confirmation token and
+  // broker_session live only in that query string. /account-link is not an
+  // OAuth interaction route, so without the dedicated branch the return_to was
+  // dropped and the accounts were never linked.
+  it('returns to a pending /account-link confirmation after sign-in', () => {
+    const navigate = vi.fn()
+    const returnTo = '/account-link?token=tok-1&provider=cognito&email=a%40b.c&broker_session=bs-1'
+    const outcome = finishAuthStep({ account: complete, returnTo, navigate })
+
+    expect(outcome).toBe('continued')
+    expect(navigate).toHaveBeenCalledWith(returnTo, { replace: true })
+  })
+
   it('ignores an unsafe return_to rather than following it', () => {
     const navigate = vi.fn()
     const outcome = finishAuthStep({

@@ -146,7 +146,7 @@ func TestBuildProviderAuthorizeURL(t *testing.T) {
 		Scopes:                []string{"openid", "email"},
 	}
 
-	raw, err := buildProviderAuthorizeURL(info, "https://app.test/cb", "state-1", "nonce-1", "verifier-1")
+	raw, err := buildProviderAuthorizeURL(info, "https://app.test/cb", "state-1", "nonce-1", "verifier-1", true)
 	require.NoError(t, err)
 
 	assert.Contains(t, raw, "response_type=code")
@@ -159,13 +159,21 @@ func TestBuildProviderAuthorizeURL(t *testing.T) {
 
 	t.Run("falls back to OIDC scopes when the provider configures none", func(t *testing.T) {
 		bare := &BrokerProviderInfo{AuthorizationEndpoint: "https://provider.test/authorize", ClientID: "c"}
-		raw, err := buildProviderAuthorizeURL(bare, "https://app.test/cb", "s", "n", "v")
+		raw, err := buildProviderAuthorizeURL(bare, "https://app.test/cb", "s", "n", "v", true)
 		require.NoError(t, err)
 		assert.Contains(t, raw, "openid")
 	})
 
+	// A provider whose leg runs WITHOUT PKCE (e.g. LinkedIn, which rejects a
+	// code_challenge presented with the client_secret) must not emit one.
+	t.Run("omits PKCE when usePKCE is false", func(t *testing.T) {
+		raw, err := buildProviderAuthorizeURL(info, "https://app.test/cb", "s", "n", "", false)
+		require.NoError(t, err)
+		assert.NotContains(t, raw, "code_challenge")
+	})
+
 	t.Run("an invalid endpoint is rejected", func(t *testing.T) {
-		_, err := buildProviderAuthorizeURL(&BrokerProviderInfo{AuthorizationEndpoint: "://bad"}, "https://app/cb", "s", "n", "v")
+		_, err := buildProviderAuthorizeURL(&BrokerProviderInfo{AuthorizationEndpoint: "://bad"}, "https://app/cb", "s", "n", "v", true)
 		require.Error(t, err)
 	})
 }

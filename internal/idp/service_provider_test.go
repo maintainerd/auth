@@ -1192,19 +1192,25 @@ func TestToIdpServiceDataResult(t *testing.T) {
 func TestValidateExternalProviderColumns(t *testing.T) {
 	// Drafts (inactive) are never constrained — they can be created before being
 	// fully configured.
-	require.NoError(t, validateExternalProviderColumns(shared.IDPTypeSocial, shared.StatusInactive, "", ""))
-	require.NoError(t, validateExternalProviderColumns(shared.IDPTypeEnterprise, shared.StatusInactive, "", ""))
+	require.NoError(t, validateExternalProviderColumns(shared.IDPProviderGoogle, shared.IDPTypeSocial, shared.StatusInactive, "", ""))
+	require.NoError(t, validateExternalProviderColumns(shared.IDPProviderCognito, shared.IDPTypeEnterprise, shared.StatusInactive, "", ""))
 	// System providers never need upstream creds.
-	require.NoError(t, validateExternalProviderColumns(shared.IDPTypeSystem, shared.StatusActive, "", ""))
-	// Active social/enterprise require both issuer and client_id.
-	err := validateExternalProviderColumns(shared.IDPTypeSocial, shared.StatusActive, "", "client")
+	require.NoError(t, validateExternalProviderColumns(shared.IDPProviderMaintainerd, shared.IDPTypeSystem, shared.StatusActive, "", ""))
+	// Active OIDC social/enterprise require both issuer and client_id.
+	err := validateExternalProviderColumns(shared.IDPProviderGoogle, shared.IDPTypeSocial, shared.StatusActive, "", "client")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "issuer is required")
-	err = validateExternalProviderColumns(shared.IDPTypeEnterprise, shared.StatusActive, "https://idp", "")
+	err = validateExternalProviderColumns(shared.IDPProviderCognito, shared.IDPTypeEnterprise, shared.StatusActive, "https://idp", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "client_id is required")
 	// Complete active external config passes.
-	require.NoError(t, validateExternalProviderColumns(shared.IDPTypeSocial, shared.StatusActive, "https://idp", "client"))
+	require.NoError(t, validateExternalProviderColumns(shared.IDPProviderGoogle, shared.IDPTypeSocial, shared.StatusActive, "https://idp", "client"))
+	// OAuth2-only providers (github/facebook/twitter) have no issuer, so an active
+	// one is valid with just a client_id — but still requires that client_id.
+	require.NoError(t, validateExternalProviderColumns(shared.IDPProviderGitHub, shared.IDPTypeSocial, shared.StatusActive, "", "client"))
+	err = validateExternalProviderColumns(shared.IDPProviderGitHub, shared.IDPTypeSocial, shared.StatusActive, "", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client_id is required")
 }
 
 func TestIdentityProviderService_Create_ExternalActiveRejected(t *testing.T) {

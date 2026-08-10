@@ -3,7 +3,6 @@ package oauth
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/config"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/crypto"
-	"github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -90,6 +88,15 @@ func (s *oauthAuthorizeService) StartBroker(ctx context.Context, req OAuthAuthor
 	}
 	idp := conn.IdentityProvider
 
+	// SAML providers do not speak OAuth2 and have no provider_client_id, so the
+	// broker leg cannot start one. Reject with an actionable error instead of
+	// letting it round-trip into an opaque server_error deep in provider
+	// resolution — a SAML connection is reached through the SAML initiate
+	// endpoint, not idp_hint on /authorize.
+	if idp != nil && idp.ProviderType == shared.IDPTypeSAML {
+		return nil, apperror.NewOAuthInvalidRequest("this identity provider uses SAML; start it from the SAML sign-in endpoint, not idp_hint")
+	}
+
 	// Resolve the upstream provider's authorize endpoint + client_id + scopes
 	// (decrypts the provider config — secrets never leave this call).
 	provider, perr := brokerProviderResolver.ResolveBrokerProvider(ctx, req.IdpHint)
@@ -104,15 +111,24 @@ func (s *oauthAuthorizeService) StartBroker(ctx context.Context, req OAuthAuthor
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
-	verifier, err := crypto.GenerateRandomString(48)
-	if err != nil {
-		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
-	}
 	idpNonce, err := crypto.GenerateRandomString(24)
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
-	challenge := crypto.ComputeS256Challenge(verifier)
+	// PKCE for the upstream (OAuth #2) leg — only for providers that support it.
+	// LinkedIn does NOT support PKCE: presenting a code_challenge/verifier together
+	// with the client_secret makes its token endpoint reject the exchange as
+	// invalid_client ("Client authentication failed"). So LinkedIn's broker leg
+	// runs as a plain confidential-client authorization_code flow (no challenge,
+	// no verifier). An empty verifier signals the exchange to omit code_verifier.
+	var verifier, challenge string
+	if upstreamSupportsPKCE(idp.Provider) {
+		verifier, err = crypto.GenerateRandomString(48)
+		if err != nil {
+			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+		}
+		challenge = crypto.ComputeS256Challenge(verifier)
+	}
 
 	// Persist the broker session that correlates OAuth #1 ↔ OAuth #2.
 	session := &OAuthBrokerSession{
@@ -167,9 +183,18 @@ func (s *oauthAuthorizeService) findEnabledConnection(client *Client, idpHint st
 	return nil, apperror.NewOAuthInvalidRequest("the requested identity provider is not enabled for this client")
 }
 
+// upstreamSupportsPKCE reports whether the upstream provider supports the PKCE
+// extension (code_challenge/code_verifier) on its authorization-code flow.
+// LinkedIn does not: it rejects a code_challenge/verifier presented alongside a
+// client_secret with invalid_client. Every other supported provider does.
+func upstreamSupportsPKCE(providerSlug string) bool {
+	return providerSlug != shared.IDPProviderLinkedIn
+}
+
 // buildBrokerAuthorizeURL constructs the upstream provider's authorize URL with
 // the resolved parameters. The callback is /api/v1/oauth/callback/{idp} on the
-// public host — the identity app will mount its handler there (B5).
+// public host — the identity app will mount its handler there (B5). A blank
+// challenge omits PKCE (for providers that don't support it, e.g. LinkedIn).
 func buildBrokerAuthorizeURL(provider *BrokerProvider, idpIdentifier, idpState, challenge, idpNonce string) string {
 	callback := buildBrokerCallbackURL(idpIdentifier)
 	q := url.Values{}
@@ -180,8 +205,10 @@ func buildBrokerAuthorizeURL(provider *BrokerProvider, idpIdentifier, idpState, 
 		q.Set("scope", strings.Join(provider.Scopes, " "))
 	}
 	q.Set("state", idpState)
-	q.Set("code_challenge", challenge)
-	q.Set("code_challenge_method", "S256")
+	if challenge != "" {
+		q.Set("code_challenge", challenge)
+		q.Set("code_challenge_method", "S256")
+	}
 	q.Set("nonce", idpNonce)
 
 	sep := "?"
@@ -220,17 +247,61 @@ func (s *oauthAuthorizeService) ResolveBrokerErrorRedirect(ctx context.Context, 
 		}
 	}
 
-	if strings.TrimSpace(errCode) == "" {
-		errCode = "access_denied"
-	}
+	// Allowlist the error CODE. This endpoint is unauthenticated and the code can
+	// originate from an attacker-crafted callback URL, so an unrecognized value is
+	// collapsed to access_denied rather than reflected back onto the trusted auth
+	// origin. (url.Values.Encode already percent-encodes, so this is defense in
+	// depth against content injection, not the only guard.)
+	errCode = normalizeBrokerErrorCode(errCode)
 
 	loginURL := shared.FrontendURL(shared.FrontendSurfaceIdentity, tenantName, tenantIsSystem, "/login")
 	q := url.Values{}
 	q.Set("error", errCode)
+	// error_description is only ever set by trusted, developer-authored callers
+	// (this file and the handler's canonical upstream-error messages). The raw
+	// upstream error_description is deliberately NOT plumbed here — see
+	// handler_callback.go, which maps the upstream error CODE to a fixed message.
 	if strings.TrimSpace(errDesc) != "" {
 		q.Set("error_description", errDesc)
 	}
 	return loginURL + "?" + q.Encode()
+}
+
+// brokerErrorCodes is the set of OAuth2 error codes (RFC 6749 §4.1.2.1 + OIDC)
+// this server will echo back to the login UI. Anything else becomes
+// access_denied so an attacker cannot reflect arbitrary text into the code slot.
+var brokerErrorCodes = map[string]struct{}{
+	"invalid_request": {}, "unauthorized_client": {}, "access_denied": {},
+	"unsupported_response_type": {}, "invalid_scope": {}, "server_error": {},
+	"temporarily_unavailable": {}, "interaction_required": {}, "login_required": {},
+	"consent_required": {}, "invalid_grant": {},
+}
+
+func normalizeBrokerErrorCode(code string) string {
+	code = strings.TrimSpace(code)
+	if _, ok := brokerErrorCodes[code]; ok {
+		return code
+	}
+	return "access_denied"
+}
+
+// CanonicalUpstreamErrorMessage maps an upstream IdP's OAuth error code to a
+// FIXED, safe, user-facing message. The upstream provider's own
+// error_description is attacker-influenceable on an unauthenticated callback, so
+// it is never forwarded — only this curated text is shown.
+func CanonicalUpstreamErrorMessage(code string) string {
+	switch normalizeBrokerErrorCode(code) {
+	case "access_denied":
+		return "You declined or were denied access at the identity provider."
+	case "invalid_scope":
+		return "The identity provider rejected the requested permissions."
+	case "temporarily_unavailable":
+		return "The identity provider is temporarily unavailable. Please try again."
+	case "interaction_required", "login_required", "consent_required":
+		return "The identity provider needs additional interaction to sign you in."
+	default:
+		return "Sign-in with the identity provider could not be completed."
+	}
 }
 
 // HandleCallback implements OAuthAuthorizeService.
@@ -269,6 +340,22 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 	if perr != nil {
 		span.RecordError(perr)
 		span.SetStatus(codes.Error, "provider user resolution failed")
+		// User-actionable refusals (JIT provisioning disabled, registration
+		// closed, unverifiable identity, already-linked conflicts) surface with
+		// their reason so the login page can say WHY the sign-in was refused —
+		// a bare server_error reads as an outage and gives the user nothing to
+		// act on. Internal failures stay opaque.
+		var unauth *apperror.UnauthorizedError
+		var validation *apperror.ValidationError
+		var conflict *apperror.ConflictError
+		switch {
+		case errors.As(perr, &unauth):
+			return "", "", apperror.NewOAuthAccessDenied(unauth.Reason)
+		case errors.As(perr, &validation):
+			return "", "", apperror.NewOAuthAccessDenied(validation.Reason)
+		case errors.As(perr, &conflict):
+			return "", "", apperror.NewOAuthAccessDenied(conflict.Reason)
+		}
 		return "", "", apperror.NewOAuthServerError("failed to authenticate with identity provider")
 	}
 
@@ -316,6 +403,17 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 		return "", "", apperror.NewOAuthInvalidRequest("broker session tenant does not match the client")
 	}
 
+	// The broker just authenticated this user and created a real user_sessions
+	// row (resolved.SessionID). Bind it to the authorization code explicitly:
+	// this request is a bare redirect from the upstream IdP, so there are no
+	// JWT claims in context for callerSessionUUID to read, and a code without
+	// a session mints `sid`-less tokens that session validation rejects on
+	// every authenticated endpoint ("Token is not bound to a session").
+	var brokerSessionUUID *uuid.UUID
+	if parsed, perr := uuid.Parse(strings.TrimSpace(resolved.SessionID)); perr == nil {
+		brokerSessionUUID = &parsed
+	}
+
 	// Atomically mark the broker session consumed and issue our own authorization
 	// code bound to the app client + resolved user.
 	redirectURL := ""
@@ -327,7 +425,7 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 		txSvc := *s
 		txSvc.authCodeRepo = s.authCodeRepo.WithTx(tx)
 		var oerr *apperror.OAuthError
-		redirectURL, oerr = txSvc.issueAuthorizationCode(ctx, appClient, resolved.UserID, req)
+		redirectURL, oerr = txSvc.issueAuthorizationCode(ctx, appClient, resolved.UserID, req, brokerSessionUUID)
 		if oerr != nil {
 			issueOErr = oerr
 			return oerr
@@ -347,27 +445,23 @@ func (s *oauthAuthorizeService) HandleCallback(ctx context.Context, idpIdentifie
 		return "", "", apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	// Generate a maintainerd session token so the user has an SSO cookie for
-	// subsequent /authorize calls. Soft-fail — the redirect URL always wins.
-	accessToken := ""
-	if tok, gerr := jwt.GenerateAccessTokenWithOptionsContext(ctx,
-		resolved.IdentitySub,
-		"openid",
-		strings.TrimRight(config.AppPublicHostname, "/"),
-		strings.TrimRight(config.AppPublicHostname, "/"),
-		ptrOrEmpty(appClient.Identifier),
-		fmt.Sprintf("tenant:%d", session.TenantID),
-		&jwt.AccessTokenOptions{AccessTokenTTL: 30 * time.Minute, SessionID: resolved.SessionID, ACR: jwt.ACRLevel1},
-	); gerr == nil {
-		accessToken = tok
-	}
-
+	// No SSO cookie is set here. The broker callback runs on the ISSUER host
+	// (APP_PUBLIC_HOSTNAME / identity-api), whereas the hosted identity app reads
+	// its session same-origin on the identity FRONTEND host with host-only
+	// __Host- cookies — a cookie set here could never be read there. The identity
+	// app instead establishes its own session same-origin: a downstream app
+	// (console) that wants an external-provider login is routed by the identity
+	// SPA through the identity app's OWN first-party broker login, whose
+	// /callback exchanges the code on the identity host (see OAuthAuthorizePage /
+	// OAuthCallbackPage). Minting a token here only produced a valid access token
+	// as a cookie on the issuer host that nothing ever read — dead attack surface
+	// — so it is deliberately not done.
 	span.SetStatus(codes.Ok, "")
-	return redirectURL, accessToken, nil
+	return redirectURL, "", nil
 }
 
 // BrokerResume implements OAuthAuthorizeService.
-func (s *oauthAuthorizeService) BrokerResume(ctx context.Context, req BrokerResumeRequestDTO, userID int64) (*BrokerResumeResult, *apperror.OAuthError) {
+func (s *oauthAuthorizeService) BrokerResume(ctx context.Context, req BrokerResumeRequestDTO, userID, authTenantID int64) (*BrokerResumeResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.broker_resume")
 	defer span.End()
 
@@ -404,11 +498,23 @@ func (s *oauthAuthorizeService) BrokerResume(ctx context.Context, req BrokerResu
 	if session == nil || session.IsExpired() || session.IsConsumed() {
 		return nil, apperror.NewOAuthInvalidRequest("broker session is expired, already used, or not found")
 	}
+	// Cross-tenant guard: the broker session UUID is caller-supplied, so bind it
+	// to the authenticated tenant. Without this, an attacker holding a
+	// self-confirmed link token in tenant A who learns a tenant-B broker session
+	// UUID could mint an auth code for their own user against tenant B's client.
+	// Broker session UUIDs are unguessable v4, but that is an accident of
+	// generation, not an authorization check — enforce the boundary explicitly.
+	if session.TenantID != authTenantID {
+		return nil, apperror.NewOAuthInvalidRequest("broker session does not belong to the authenticated tenant")
+	}
 
 	// Load the downstream app client.
 	appClient, cerr := s.clientRepo.FindByID(session.ClientID)
 	if cerr != nil || appClient == nil {
 		return nil, apperror.NewOAuthInvalidRequest("unknown client context")
+	}
+	if appClient.TenantID != authTenantID {
+		return nil, apperror.NewOAuthInvalidRequest("client does not belong to the authenticated tenant")
 	}
 
 	// Reconstruct the original authorize request from the stored session.
@@ -422,7 +528,11 @@ func (s *oauthAuthorizeService) BrokerResume(ctx context.Context, req BrokerResu
 		CodeChallengeMethod: ptrOrEmpty(session.AppCodeChallengeMethod),
 	}
 
-	// Issue auth code and consume broker session atomically.
+	// Issue auth code and consume broker session atomically. BrokerResume runs
+	// on an authenticated route (the user just confirmed the link with their
+	// existing account), so the caller's own browser session is in context and
+	// is exactly the session the code — and every token minted from it — must
+	// be bound to.
 	var redirectURL string
 	var issueOErr *apperror.OAuthError
 	if txErr := s.db.Transaction(func(tx *gorm.DB) error {
@@ -432,7 +542,7 @@ func (s *oauthAuthorizeService) BrokerResume(ctx context.Context, req BrokerResu
 		txSvc := *s
 		txSvc.authCodeRepo = s.authCodeRepo.WithTx(tx)
 		var oerr *apperror.OAuthError
-		redirectURL, oerr = txSvc.issueAuthorizationCode(ctx, appClient, userID, authorizeReq)
+		redirectURL, oerr = txSvc.issueAuthorizationCode(ctx, appClient, userID, authorizeReq, callerSessionUUID(ctx))
 		if oerr != nil {
 			issueOErr = oerr
 			return oerr
@@ -450,22 +560,18 @@ func (s *oauthAuthorizeService) BrokerResume(ctx context.Context, req BrokerResu
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	// Generate SSO cookie token.
-	accessToken := ""
-	if session.IdentityProviderIdentifier != "" {
-		if tok, gerr := jwt.GenerateAccessTokenWithOptionsContext(ctx,
-			fmt.Sprintf("%d", userID),
-			"openid",
-			strings.TrimRight(config.AppPublicHostname, "/"),
-			strings.TrimRight(config.AppPublicHostname, "/"),
-			"",
-			fmt.Sprintf("tenant:%d", session.TenantID),
-			&jwt.AccessTokenOptions{AccessTokenTTL: 30 * time.Minute, ACR: jwt.ACRLevel1},
-		); gerr == nil {
-			accessToken = tok
-		}
-	}
+	// Single-use: retire the confirmed link token now that it has minted a code.
+	// The broker session is already consumed (above), so a replayed token is
+	// inert, but retiring it makes the single-use property explicit rather than
+	// incidental. Best-effort — the redirect has already been produced.
+	_, _ = brokerAccountLinkVerifier.ConsumeConfirmedLink(req.AccountLinkToken)
 
+	// No new SSO cookie is minted here: the resume route is only reachable with
+	// a live first-party session (the user authenticated to confirm the link),
+	// so the browser already holds valid session cookies, and the authorization
+	// code above is bound to that same session. The previous mint here could
+	// never succeed anyway — it passed an empty client_id, which the JWT layer
+	// rejects — so nothing ever consumed the token it pretended to return.
 	span.SetStatus(codes.Ok, "")
-	return &BrokerResumeResult{RedirectURL: redirectURL, AccessToken: accessToken}, nil
+	return &BrokerResumeResult{RedirectURL: redirectURL}, nil
 }

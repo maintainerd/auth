@@ -10,6 +10,8 @@ import {
   oauthLoginRoute,
   rememberInviteCallback,
   rememberOAuthReturnTo,
+  safeAccountLinkReturnTo,
+  safeAuthorizeContinuation,
   safeInviteCallback,
   safeOAuthReturnTo,
 } from './oauthRedirect'
@@ -44,6 +46,34 @@ describe('oauthRedirect', () => {
     expect(safeOAuthReturnTo('/dashboard')).toBeNull()
     expect(safeOAuthReturnTo('//evil.example/authorize')).toBeNull()
     expect(safeOAuthReturnTo('https://evil.example/authorize')).toBeNull()
+  })
+
+  it('accepts only same-origin, hint-free authorize URLs as a broker continuation', () => {
+    // The happy path: a downstream authorize URL with the broker hint stripped.
+    expect(safeAuthorizeContinuation('/oauth/authorize?client_id=console&scope=openid'))
+      .toBe('/oauth/authorize?client_id=console&scope=openid')
+    expect(safeAuthorizeContinuation('/authorize?client_id=console')).toBe('/authorize?client_id=console')
+    // Rejected: a residual broker hint (would restart a broker leg → loop/spam).
+    expect(safeAuthorizeContinuation('/oauth/authorize?client_id=console&idp_hint=google')).toBeNull()
+    expect(safeAuthorizeContinuation('/oauth/authorize?client_id=console&connection=okta')).toBeNull()
+    // Rejected: non-authorize routes (unlike safeOAuthReturnTo, which allows them).
+    expect(safeAuthorizeContinuation('/oauth/consent/challenge-1')).toBeNull()
+    expect(safeAuthorizeContinuation('/device?user_code=X')).toBeNull()
+    // Rejected: off-origin / scheme-relative / absolute — no open redirect.
+    expect(safeAuthorizeContinuation('//evil.example/oauth/authorize')).toBeNull()
+    expect(safeAuthorizeContinuation('https://evil.example/oauth/authorize')).toBeNull()
+    expect(safeAuthorizeContinuation('/dashboard')).toBeNull()
+    expect(safeAuthorizeContinuation(null)).toBeNull()
+  })
+
+  it('accepts only same-origin /account-link return paths', () => {
+    const link = '/account-link?token=tok-1&provider=cognito&broker_session=bs-1'
+    expect(safeAccountLinkReturnTo(link)).toBe(link)
+    // Not an account-link path — and deliberately NOT covered by the OAuth guard either.
+    expect(safeAccountLinkReturnTo('/authorize?client_id=external')).toBeNull()
+    expect(safeOAuthReturnTo(link)).toBeNull()
+    expect(safeAccountLinkReturnTo('//evil.example/account-link')).toBeNull()
+    expect(safeAccountLinkReturnTo('https://evil.example/account-link')).toBeNull()
   })
 
   it('stores and consumes OAuth return targets once', () => {

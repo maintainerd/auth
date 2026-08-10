@@ -416,60 +416,125 @@ func stubOAuth2Userinfo(t *testing.T, body string) {
 	})
 }
 
-func TestFederationServiceProvisionUser_UnverifiedEmailDoesNotMergeExistingAccount(t *testing.T) {
+// An UNVERIFIED upstream email that matches an existing account must surface an
+// email collision — routed to the account-link (re-authenticate as the existing
+// account) flow — NOT create a duplicate account and NOT silently merge. The
+// upstream verified flag is only a discovery hint; the ownership proof is the
+// interactive confirmation the caller enforces.
+func TestFederationServiceProvisionUser_UnverifiedEmailSurfacesCollision(t *testing.T) {
 	gormDB, _ := newMockGormDB(t)
 
-	var emailLookupCalled bool
-	createdUser := &User{UserID: 200, Email: "owner@example.com"}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(string) (*User, error) {
 			t.Fatal("global email lookup must not be used for federation merge")
 			return nil, nil
 		},
 		findByEmailAndTenantIDFn: func(string, int64) (*User, error) {
-			emailLookupCalled = true
 			return &User{UserID: 100, Email: "owner@example.com"}, nil
 		},
-		createFn: func(user *User) (*User, error) {
-			assert.Equal(t, "owner@example.com", user.Email)
-			assert.False(t, user.IsEmailVerified)
-			return createdUser, nil
-		},
-	}
-
-	var externalIdentity *UserIdentity
-	identityRepo := &mockFederationUserIdentityRepo{
-		createFn: func(identity *UserIdentity) (*UserIdentity, error) {
-			if identity.Provider == "google" {
-				externalIdentity = identity
-			}
-			return identity, nil
+		createFn: func(*User) (*User, error) {
+			t.Fatal("must not create a duplicate account on an email collision")
+			return nil, nil
 		},
 	}
 
 	svc := &federationService{
 		userRepo:         userRepo,
-		userIdentityRepo: identityRepo,
+		userIdentityRepo: &mockFederationUserIdentityRepo{},
 		idpRepo:          &mockIdentityProviderRepo{findSystemByTenantIDFn: systemIDPStub},
 		roleRepo:         &mockRoleRepo{},
 	}
 
 	user, isNew, err := svc.provisionUser(context.Background(), gormDB, &IdentityProvider{
-		IdentityProviderID: 10,
-		TenantID:           20,
-		Provider:           "google",
+		IdentityProviderID:   10,
+		TenantID:             20,
+		Provider:             "auth0",
+		AllowJITProvisioning: true,
 	}, "external-sub", "owner@example.com", IdentityMetadata{
 		Email:         "owner@example.com",
-		EmailVerified: false,
+		EmailVerified: false, // Auth0 database users are unverified by default.
 	}, int64Ptr(10))
 
-	require.NoError(t, err)
-	require.NotNil(t, user)
-	assert.True(t, isNew)
-	assert.Equal(t, int64(200), user.UserID)
-	assert.False(t, emailLookupCalled)
-	require.NotNil(t, externalIdentity)
-	assert.Equal(t, int64(200), externalIdentity.UserID)
+	require.Error(t, err)
+	assert.Nil(t, user)
+	assert.False(t, isNew)
+	var collision *errEmailCollision
+	require.ErrorAs(t, err, &collision)
+	assert.Equal(t, int64(100), collision.existingUserID)
+	assert.Equal(t, "owner@example.com", collision.providerEmail)
+}
+
+// The per-provider JIT toggle is enforced at the CREATE itself: a provider with
+// allow_jit_provisioning=false must refuse to mint a brand-new account no matter
+// which flow (broker, token federation, SAML) reached provisionUser.
+func TestFederationServiceProvisionUser_JITDisabledRefusesNewUser(t *testing.T) {
+	gormDB, _ := newMockGormDB(t)
+
+	var createUserCalled bool
+	userRepo := &mockUserRepo{
+		createFn: func(user *User) (*User, error) {
+			createUserCalled = true
+			return user, nil
+		},
+	}
+
+	svc := &federationService{
+		userRepo:         userRepo,
+		userIdentityRepo: &mockFederationUserIdentityRepo{},
+	}
+
+	user, isNew, err := svc.provisionUser(context.Background(), gormDB, &IdentityProvider{
+		IdentityProviderID: 10,
+		TenantID:           20,
+		Provider:           "auth0",
+		// AllowJITProvisioning deliberately false.
+	}, "external-sub", "new-user@example.com", IdentityMetadata{}, int64Ptr(10))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "JIT provisioning is disabled")
+	assert.Nil(t, user)
+	assert.False(t, isNew)
+	assert.False(t, createUserCalled)
+}
+
+// The crux of single-point JIT enforcement: even with JIT DISABLED, an existing
+// account matched by email must surface as a COLLISION (→ account-link), NOT be
+// refused by the JIT gate. provisionUser checks the collision before the JIT
+// gate, so every federation flow (broker, token-exchange, SAML, workload) lets
+// existing users link a new provider regardless of the JIT toggle.
+func TestFederationServiceProvisionUser_JITDisabledStillSurfacesCollision(t *testing.T) {
+	gormDB, _ := newMockGormDB(t)
+
+	userRepo := &mockUserRepo{
+		findByEmailAndTenantIDFn: func(string, int64) (*User, error) {
+			return &User{UserID: 100, Email: "owner@example.com"}, nil
+		},
+		createFn: func(*User) (*User, error) {
+			t.Fatal("must not create a user: an email collision must be surfaced, not provisioned")
+			return nil, nil
+		},
+	}
+
+	svc := &federationService{
+		userRepo:         userRepo,
+		userIdentityRepo: &mockFederationUserIdentityRepo{},
+	}
+
+	user, isNew, err := svc.provisionUser(context.Background(), gormDB, &IdentityProvider{
+		IdentityProviderID: 10,
+		TenantID:           20,
+		Provider:           "auth0",
+		// JIT deliberately OFF — the collision must still win over the JIT refusal.
+		AllowJITProvisioning: false,
+	}, "external-sub", "owner@example.com", IdentityMetadata{Email: "owner@example.com"}, int64Ptr(10))
+
+	require.Error(t, err)
+	var collision *errEmailCollision
+	require.ErrorAs(t, err, &collision, "expected an email collision, not the JIT refusal")
+	assert.Equal(t, int64(100), collision.existingUserID)
+	assert.NotContains(t, err.Error(), "JIT provisioning is disabled")
+	assert.Nil(t, user)
+	assert.False(t, isNew)
 }
 
 // F3: a verified-email collision with a pre-existing account must fail closed —
@@ -676,7 +741,11 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 	})
 
 	t.Run("JIT disabled for unknown identity", func(t *testing.T) {
-		stubOIDCClaims(t, map[string]interface{}{"sub": "external-sub", "email": "user@example.com"})
+		// No email in the token → no collision path, so provisionUser reaches its
+		// JIT gate and refuses the unknown identity. (JIT is now enforced ONCE
+		// inside provisionUser — collision first, then JIT — so the client must
+		// resolve before that gate is reached; hence the clientRepo stub.)
+		stubOIDCClaims(t, map[string]interface{}{"sub": "external-sub"})
 		gdb, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -689,6 +758,11 @@ func TestFederationService_ExchangeExternalToken_Branches(t *testing.T) {
 			},
 			userIdentityRepo: &mockFederationUserIdentityRepo{},
 			userRepo:         &mockUserRepo{},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(string, string) (*Client, error) {
+					return federationClient(), nil
+				},
+			},
 		}
 
 		_, err := svc.ExchangeExternalToken(context.Background(), req)
@@ -2554,7 +2628,10 @@ func TestFederationServiceProvisionUser_ExternalIdentityCreateFails(t *testing.T
 func TestFederationServiceProvisionUser_WithDefaultRole(t *testing.T) {
 	gormDB, mock := newMockGormDBRegex(t)
 	mock.ExpectBegin()
-	mock.ExpectExec(`INSERT INTO "user_roles"`).WillReturnResult(sqlmock.NewResult(1, 1))
+	// UserRole carries a primaryKey tag, so gorm issues the INSERT as a Query
+	// with RETURNING "user_role_id" on Postgres — not an Exec.
+	mock.ExpectQuery(`INSERT INTO "user_roles"`).
+		WillReturnRows(sqlmock.NewRows([]string{"user_role_id"}).AddRow(int64(1)))
 	mock.ExpectCommit()
 
 	createdUser := &User{UserID: 400, Email: "user@example.com"}
@@ -2594,9 +2671,10 @@ func TestFederationServiceProvisionUser_WithDefaultRole(t *testing.T) {
 	}
 
 	user, isNew, err := svc.provisionUser(context.Background(), gormDB, &IdentityProvider{
-		IdentityProviderID: 10,
-		TenantID:           20,
-		Provider:           "google",
+		IdentityProviderID:   10,
+		TenantID:             20,
+		Provider:             "google",
+		AllowJITProvisioning: true,
 	}, "external-sub", "user@example.com", IdentityMetadata{}, int64Ptr(10))
 
 	require.NoError(t, err)
@@ -2771,6 +2849,32 @@ func TestFederationService_GenerateTokens_RefreshTokenError(t *testing.T) {
 // Federation pure helpers
 // ---------------------------------------------------------------------------
 
+func TestResolveFederatedEmailVerified(t *testing.T) {
+	enterprise := &IdentityProvider{ProviderType: shared.IDPTypeEnterprise}
+	saml := &IdentityProvider{ProviderType: shared.IDPTypeSAML}
+	social := &IdentityProvider{ProviderType: shared.IDPTypeSocial}
+
+	// Explicit claim is always honored, regardless of provider type.
+	assert.True(t, resolveFederatedEmailVerified(social, "u@x.com",
+		IdentityMetadata{Email: "u@x.com", EmailVerified: true, EmailVerifiedPresent: true}),
+		"explicit email_verified=true must be honored even for social")
+	assert.False(t, resolveFederatedEmailVerified(enterprise, "u@x.com",
+		IdentityMetadata{Email: "u@x.com", EmailVerified: false, EmailVerifiedPresent: true}),
+		"explicit email_verified=false must be respected even for enterprise")
+
+	// Omitted claim (Entra/Okta/SAML): trust enterprise + SAML, not social.
+	assert.True(t, resolveFederatedEmailVerified(enterprise, "u@x.com",
+		IdentityMetadata{Email: "u@x.com"}), "enterprise provider that omits the claim → trust the email")
+	assert.True(t, resolveFederatedEmailVerified(saml, "u@x.com",
+		IdentityMetadata{Email: "u@x.com"}), "SAML provider that omits the claim → trust the email")
+	assert.False(t, resolveFederatedEmailVerified(social, "u@x.com",
+		IdentityMetadata{Email: "u@x.com"}), "social provider that omits the claim → do NOT auto-trust")
+
+	// No email → never verified, whatever the provider.
+	assert.False(t, resolveFederatedEmailVerified(enterprise, "",
+		IdentityMetadata{}), "no email → not verified")
+}
+
 func TestFederationPureHelpers(t *testing.T) {
 	claims := map[string]interface{}{
 		"email":          "User@Example.COM",
@@ -2786,10 +2890,19 @@ func TestFederationPureHelpers(t *testing.T) {
 
 	assert.Equal(t, "Test User", stringClaim(claims, "name"))
 	assert.Empty(t, stringClaim(claims, "missing"))
-	assert.Empty(t, stringClaim(claims, "non_string"))
+	// A numeric claim (GitHub/Twitter subject) is formatted as a plain integer
+	// string, not dropped — that is what makes those providers' `sub`/`id` usable.
+	assert.Equal(t, "123", stringClaim(claims, "non_string"))
 	assert.True(t, boolClaim(claims, "email_verified"))
 	assert.False(t, boolClaim(claims, "missing"))
+	// "yes" is not a recognized boolean encoding, so it is false; the string
+	// forms boolClaim DOES accept ("true"/"false") are covered below.
 	assert.False(t, boolClaim(claims, "non_bool"))
+	assert.True(t, boolClaim(map[string]interface{}{"v": "true"}, "v"))
+	assert.True(t, boolClaim(map[string]interface{}{"v": "True"}, "v"))
+	assert.False(t, boolClaim(map[string]interface{}{"v": "false"}, "v"))
+	assert.True(t, boolClaim(map[string]interface{}{"v": float64(1)}, "v"))
+	assert.False(t, boolClaim(map[string]interface{}{"v": float64(0)}, "v"))
 
 	meta := extractMetadata(claims, map[string]string{"email": "email", "name": "name"})
 	assert.Equal(t, "User@Example.COM", meta.Email)
@@ -2819,6 +2932,92 @@ func TestFederationPureHelpers(t *testing.T) {
 	hrd := hrdResponseFrom(idp)
 	assert.Equal(t, "google", hrd.ProviderIdentifier)
 	assert.Equal(t, "Google", hrd.DisplayName)
+}
+
+func TestBrokerScopesOrDefault(t *testing.T) {
+	// OIDC providers with no configured scopes get the OIDC minimum.
+	assert.Equal(t, []string{"openid", "profile", "email"}, brokerScopesOrDefault("auth0", nil))
+	assert.Equal(t, []string{"openid", "profile", "email"}, brokerScopesOrDefault("cognito", []string{}))
+	// OIDC providers keep configured scopes.
+	assert.Equal(t, []string{"openid", "custom"}, brokerScopesOrDefault("google", []string{"openid", "custom"}))
+	// oauth2-only providers always use their REQUIRED provider scopes, ignoring
+	// any OIDC-style scopes the form saved (openid/profile/email are meaningless
+	// to GitHub and would leave the token without email access).
+	assert.Equal(t, []string{"read:user", "user:email"}, brokerScopesOrDefault(shared.IDPProviderGitHub, nil))
+	assert.Equal(t, []string{"read:user", "user:email"},
+		brokerScopesOrDefault(shared.IDPProviderGitHub, []string{"openid", "profile", "email"}))
+	assert.Equal(t, []string{"email", "public_profile"}, brokerScopesOrDefault(shared.IDPProviderFacebook, nil))
+	// X/Twitter needs users.email to return the address (plus the confirmed_email
+	// field + the app's "Request email" permission); without it a login can't
+	// match/link by email.
+	assert.Equal(t, []string{"users.read", "tweet.read", "users.email"}, brokerScopesOrDefault(shared.IDPProviderTwitter, nil))
+}
+
+func TestProviderProfiles(t *testing.T) {
+	// oauth2-only providers are flagged and carry their own scopes.
+	for _, p := range []string{shared.IDPProviderGitHub, shared.IDPProviderFacebook, shared.IDPProviderTwitter} {
+		prof := profileFor(p)
+		assert.True(t, prof.oauth2Only, "%s must be oauth2-only", p)
+		assert.NotEmpty(t, prof.brokerScopes, "%s must define broker scopes", p)
+		assert.True(t, isOAuth2OnlyProvider(p), "isOAuth2OnlyProvider must agree with the registry for %s", p)
+	}
+	// OIDC providers return the zero profile and are NOT oauth2-only.
+	for _, p := range []string{shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderMicrosoft, shared.IDPProviderGitLab, shared.IDPProviderLinkedIn, shared.IDPProviderMaintainerd} {
+		assert.False(t, profileFor(p).oauth2Only, "%s must NOT be oauth2-only", p)
+		assert.False(t, isOAuth2OnlyProvider(p), "%s must NOT be oauth2-only", p)
+	}
+
+	// Claim normalization: numeric id → sub, avatar_url → picture (GitHub).
+	gh := map[string]any{"id": float64(1234567), "login": "octocat", "avatar_url": "https://avatars/x.png"}
+	normalizeGitHubClaims(gh)
+	assert.Equal(t, "1234567", stringClaim(gh, "sub"))
+	assert.Equal(t, "https://avatars/x.png", stringClaim(gh, "picture"))
+
+	// Twitter v2 data-envelope is flattened and profile_image_url → picture.
+	tw := map[string]any{"data": map[string]any{"id": "42", "name": "T", "profile_image_url": "https://img/y.png"}}
+	normalizeTwitterClaims(tw)
+	assert.Equal(t, "42", stringClaim(tw, "sub"))
+	assert.Equal(t, "T", stringClaim(tw, "name"))
+	assert.Equal(t, "https://img/y.png", stringClaim(tw, "picture"))
+
+	// An explicit sub is never overwritten by the numeric id.
+	keep := map[string]any{"sub": "abc", "id": float64(9)}
+	normalizeNumericSub(keep)
+	assert.Equal(t, "abc", stringClaim(keep, "sub"))
+}
+
+func TestMicrosoftMultiTenantIssuer(t *testing.T) {
+	assert.True(t, isMicrosoftMultiTenantIssuer("https://login.microsoftonline.com/common/v2.0"))
+	assert.True(t, isMicrosoftMultiTenantIssuer("https://login.microsoftonline.com/organizations/v2.0"))
+	assert.True(t, isMicrosoftMultiTenantIssuer("https://login.microsoftonline.com/consumers/v2.0/"))
+	// A concrete-tenant issuer is single-tenant → NOT multi-tenant (go-oidc's
+	// normal issuer check handles it).
+	assert.False(t, isMicrosoftMultiTenantIssuer("https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0"))
+	// A look-alike host must not match.
+	assert.False(t, isMicrosoftMultiTenantIssuer("https://login.microsoftonline.com.evil.test/common/v2.0"))
+	assert.False(t, isMicrosoftMultiTenantIssuer("https://accounts.google.com"))
+
+	const tid = "9188040d-6c67-4c5b-b112-36a304b66dad"
+	good := map[string]any{"tid": tid}
+	// Token issuer must be the concrete-tenant form on the SAME authority host.
+	assert.NoError(t, validateMicrosoftMultiTenantIssuer(
+		"https://login.microsoftonline.com/common/v2.0",
+		"https://login.microsoftonline.com/"+tid+"/v2.0", good))
+	// tid mismatch between the issuer path and the tid claim is rejected.
+	assert.Error(t, validateMicrosoftMultiTenantIssuer(
+		"https://login.microsoftonline.com/common/v2.0",
+		"https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0", good))
+	// Missing / non-GUID tid is rejected.
+	assert.Error(t, validateMicrosoftMultiTenantIssuer(
+		"https://login.microsoftonline.com/common/v2.0",
+		"https://login.microsoftonline.com/"+tid+"/v2.0", map[string]any{}))
+	assert.Error(t, validateMicrosoftMultiTenantIssuer(
+		"https://login.microsoftonline.com/common/v2.0",
+		"https://login.microsoftonline.com/not-a-guid/v2.0", map[string]any{"tid": "not-a-guid"}))
+	// A token issued by a DIFFERENT authority host is rejected even with a valid tid.
+	assert.Error(t, validateMicrosoftMultiTenantIssuer(
+		"https://login.microsoftonline.com/common/v2.0",
+		"https://login.evil.test/"+tid+"/v2.0", good))
 }
 
 func TestFederationIdentityToDTO_EmptyMetadata(t *testing.T) {

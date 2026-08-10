@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"time"
 
 	"github.com/maintainerd/maintainerd-auth/internal/authn"
 	"github.com/maintainerd/maintainerd-auth/internal/idp"
@@ -59,8 +60,27 @@ func (a *accountLinkVerifierAdapter) FindConfirmedLink(token string) (int64, boo
 	if err != nil || req == nil {
 		return 0, false, err
 	}
-	if req.Status != "confirmed" {
+	// Must be confirmed AND still within its TTL. A confirmed-but-expired token
+	// was previously usable indefinitely; treat an expired confirmation as not
+	// found so a stale capability cannot be redeemed.
+	if req.Status != "confirmed" || req.IsExpired() {
 		return 0, false, nil
 	}
 	return req.ExistingUserID, true, nil
+}
+
+// ConsumeConfirmedLink marks a confirmed link token used so it is single-use at
+// the broker-resume step. Returns true when THIS call performed the transition
+// (RowsAffected 1); false means it was already used/expired — the caller treats
+// that as a replay and refuses.
+func (a *accountLinkVerifierAdapter) ConsumeConfirmedLink(token string) (bool, error) {
+	req, err := a.repo.FindByToken(token)
+	if err != nil || req == nil {
+		return false, err
+	}
+	affected, err := a.repo.MarkUsed(req.AccountLinkRequestID, time.Now())
+	if err != nil {
+		return false, err
+	}
+	return affected == 1, nil
 }

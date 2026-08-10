@@ -188,13 +188,24 @@ describe('useProviderConfig — list tokenizer round-trips space-separated value
 })
 
 describe('useProviderConfig — switching providers', () => {
-  it('carries customized scopes across two providers that both define them', () => {
+  it('re-seeds the new provider\'s own default scopes instead of carrying the previous value over', () => {
     const { result, rerender } = renderHook(({ p }) => useProviderConfig(p), {
       initialProps: { p: 'google' },
     })
     act(() => result.current.setFieldValue('scopes', 'openid, custom:scope'))
     rerender({ p: 'auth0' })
-    expect(result.current.values.scopes).toBe('openid, custom:scope')
+    expect(result.current.values.scopes).toBe('openid, profile, email')
+  })
+
+  it('seeds provider-specific scopes when switching to an OAuth2-only provider (Facebook)', () => {
+    // openid/profile are OIDC scopes that Facebook does not support — switching
+    // must re-seed Facebook's own public_profile/email, never carry OIDC scopes.
+    const { result, rerender } = renderHook(({ p }) => useProviderConfig(p), {
+      initialProps: { p: 'google' },
+    })
+    expect(result.current.values.scopes).toBe('openid, profile, email')
+    rerender({ p: 'facebook' })
+    expect(result.current.values.scopes).toBe('public_profile, email')
   })
 
   it('drops non-shared keys the target provider does not define', () => {

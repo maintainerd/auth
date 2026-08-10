@@ -120,6 +120,12 @@ type accountService struct {
 	// sessionCreator binds recovery logins to a real session. Nil makes those
 	// logins fail closed rather than mint an unusable token.
 	sessionCreator SessionCreator
+	// anonymizer is the canonical multi-table PII/credential erasure cascade
+	// (the same one the GDPR erasure worker uses). Self-service DeleteAccount
+	// routes through it so a self-deletion erases exactly what an admin erasure
+	// does — identities, all MFA factors, trusted devices, tokens, sessions and
+	// refresh tokens — rather than a partial subset.
+	anonymizer UserAnonymizer
 }
 
 // SetSessionCreator wires the session store used to bind recovery logins.
@@ -171,11 +177,13 @@ func NewAccountService(
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	smsOtpRepo notifier.UserOTPRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
+	anonymizer UserAnonymizer,
 	sessionRepo SessionRevoker,
 	refreshRevoker ...RefreshTokenRevoker,
 ) AccountService {
 	svc := &accountService{
 		passwordHistoryRepo:  passwordHistoryRepo,
+		anonymizer:           anonymizer,
 		sessionRepo:          sessionRepo,
 		db:                   db,
 		userRepo:             userRepo,
@@ -732,34 +740,22 @@ func (s *accountService) DeleteAccount(ctx context.Context, userID int64, curren
 		return apperror.NewUnauthorized("invalid current password")
 	}
 
-	anonymized := fmt.Sprintf("deleted-%d-%s", user.UserID, user.UserUUID.String()[:8])
-	if _, err := s.userRepo.UpdateByID(user.UserID, map[string]any{
-		"username":            anonymized,
-		"email":               nil,
-		"phone":               nil,
-		"password":            nil,
-		"is_email_verified":   false,
-		"is_phone_verified":   false,
-		"is_totp_enabled":     false,
-		"is_webauthn_enabled": false,
-		"status":              "deleted",
-	}); err != nil {
-		return apperror.NewInternal("failed to delete account", err)
+	// Route through the canonical anonymization cascade so a self-service deletion
+	// erases exactly the same PII + credentials as an admin GDPR erasure:
+	// identities, all MFA factors, trusted devices, tokens, OTPs, password
+	// history, settings, profile + avatar, plus revocation of every session and
+	// refresh token. Previously this method cleared only a partial subset and
+	// left MFA/device PII behind.
+	if s.anonymizer == nil {
+		return apperror.NewInternal("account deletion is unavailable", nil)
 	}
-	if err := s.userTokenRepo.RevokeAllByUserID(user.UserID); err != nil {
-		return apperror.NewInternal("failed to revoke account tokens", err)
+	if err := s.anonymizer.AnonymizeUser(ctx, user.UserID); err != nil {
+		return err
 	}
-	if err := s.userTokenRepo.DeleteByUserID(user.UserID); err != nil {
-		return apperror.NewInternal("failed to remove account tokens", err)
-	}
-	if err := s.profileRepo.DeleteByUserID(user.UserID); err != nil {
-		return apperror.NewInternal("failed to remove profile data", err)
-	}
-	if err := s.userSettingRepo.DeleteByUserID(user.UserID); err != nil {
-		return apperror.NewInternal("failed to remove user settings", err)
-	}
-	if err := s.userIdentityRepo.DeleteByUserID(user.UserID); err != nil {
-		return apperror.NewInternal("failed to remove linked identities", err)
+	// Deactivate the (now anonymized) account so it also drops out of active
+	// listings; the anonymized credentials already make it unusable for sign-in.
+	if _, err := s.userRepo.UpdateByID(user.UserID, map[string]any{"status": "deleted"}); err != nil {
+		return apperror.NewInternal("failed to deactivate account", err)
 	}
 
 	span.SetStatus(codes.Ok, "")

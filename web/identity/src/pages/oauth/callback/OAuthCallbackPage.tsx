@@ -20,6 +20,7 @@ import { useTenant } from '@/hooks/useTenant'
 import { exchangeAuthorizationCode } from '@/services/api/oauth'
 import { finishAuthStep } from '@/utils/oauthContinuation'
 import { clearPendingOAuthFlow, consumePendingOAuthFlow } from '@/utils/oauthFlow'
+import { safeAuthorizeContinuation } from '@/utils/oauthRedirect'
 import AuthPageHeading from '@/components/auth/AuthPageHeading'
 import { useLoginPageCopy } from '@/hooks/useLoginPageCopy'
 
@@ -74,8 +75,22 @@ export default function OAuthCallbackPage() {
       })
 
       // The session now lives in httpOnly cookies; re-sync so routing sees the
-      // real email_verified / profile state, then apply the shared rule.
+      // real email_verified / profile state.
       const account = await refreshAccount()
+
+      // Downstream-app broker login: a console (or other) authorize request sent
+      // the user here to log into the identity app via an external provider. The
+      // IdP session now exists on this host, so resume that ORIGINAL authorize —
+      // it will issue the downstream code from the session (no second external
+      // round-trip). Only a same-origin OAuth-interaction path is honored, so a
+      // tampered value can never redirect off-origin.
+      const continueTo = safeAuthorizeContinuation(flow.continueTo)
+      if (continueTo) {
+        navigate(continueTo, { replace: true })
+        return
+      }
+
+      // Direct identity-app login: apply the shared post-auth routing rule.
       finishAuthStep({ account, tenant: currentTenant, navigate })
     }
 

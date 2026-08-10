@@ -88,9 +88,10 @@ func (s *federationService) resolveFederatedPrincipal(
 			}
 			_ = s.refreshMetadata(tx, existing, meta)
 		} else {
-			if !idp.AllowJITProvisioning {
-				return apperror.NewUnauthorized("user not provisioned and JIT provisioning is disabled")
-			}
+			// JIT enforcement lives once in provisionUser (collision-checked first),
+			// so an existing account matched by email surfaces as a collision rather
+			// than being blocked by a premature JIT check; provisionUser still
+			// refuses a genuinely new principal when JIT is disabled.
 			var provisionErr error
 			user, isNew, provisionErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta, &clientID)
 			if provisionErr != nil {
@@ -112,6 +113,12 @@ func (s *federationService) resolveFederatedPrincipal(
 		userSub = defaultIdentity.Sub
 		return nil
 	})
+	// A verified-email collision must be surfaced (never silently merged),
+	// consistent with every other federation flow: provisionUser returns it and
+	// handleEmailCollision turns it into an account-link request + conflict.
+	if collisionErr := s.handleEmailCollision(ctx, err); collisionErr != nil {
+		return nil, collisionErr
+	}
 	if err != nil {
 		return nil, err
 	}

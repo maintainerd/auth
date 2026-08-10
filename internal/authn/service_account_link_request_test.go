@@ -16,6 +16,7 @@ type mockAccountLinkRepo struct {
 	findByTokenFn   func(string) (*AccountLinkRequest, error)
 	markConfirmedFn func(int64, time.Time) error
 	markExpiredFn   func(int64, time.Time) error
+	markUsedFn      func(int64, time.Time) (int64, error)
 	expireStaleFn   func(time.Time) (int64, error)
 }
 
@@ -46,6 +47,12 @@ func (m *mockAccountLinkRepo) MarkExpired(id int64, at time.Time) error {
 		return m.markExpiredFn(id, at)
 	}
 	return nil
+}
+func (m *mockAccountLinkRepo) MarkUsed(id int64, at time.Time) (int64, error) {
+	if m.markUsedFn != nil {
+		return m.markUsedFn(id, at)
+	}
+	return 1, nil
 }
 func (m *mockAccountLinkRepo) ExpireStale(now time.Time) (int64, error) {
 	if m.expireStaleFn != nil {

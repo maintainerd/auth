@@ -173,7 +173,7 @@ type OAuthAuthorizeService interface {
 	// account link. It validates the link token, finds the pending broker session,
 	// issues an authorization code for the linked user, and returns the downstream
 	// redirect URL.
-	BrokerResume(ctx context.Context, req BrokerResumeRequestDTO, userID int64) (*BrokerResumeResult, *apperror.OAuthError)
+	BrokerResume(ctx context.Context, req BrokerResumeRequestDTO, userID, authTenantID int64) (*BrokerResumeResult, *apperror.OAuthError)
 }
 
 // BrokerResumeRequestDTO is the request body for POST /oauth/broker/resume.
@@ -376,7 +376,7 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 	}
 
 	// User has already consented — issue authorization code directly.
-	redirectURI, oerr := s.issueAuthorizationCode(ctx, client, userID, req)
+	redirectURI, oerr := s.issueAuthorizationCode(ctx, client, userID, req, callerSessionUUID(ctx))
 	if oerr != nil {
 		span.SetStatus(codes.Error, "authorization code issuance failed")
 		return nil, oerr
@@ -900,7 +900,14 @@ func callerSessionUUID(ctx context.Context) *uuid.UUID {
 
 // issueAuthorizationCode creates an authorization code and returns the full
 // redirect URI with the code and state appended.
-func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, client *Client, userID int64, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
+//
+// sessionUUID is the browser session the code (and every token minted from it)
+// is bound to. Session-cookie flows pass callerSessionUUID(ctx); the broker
+// flow passes the federated session it just created, because its request is a
+// bare redirect from the upstream IdP and carries no claims in context. A nil
+// session mints tokens without a `sid`, which session validation rejects for
+// interactive users — so every interactive path must supply one.
+func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, client *Client, userID int64, req OAuthAuthorizeRequestDTO, sessionUUID *uuid.UUID) (string, *apperror.OAuthError) {
 	rawCode, err := crypto.GenerateRandomString(authorizationCodeLength)
 	if err != nil {
 		return "", apperror.NewOAuthServerError("an unexpected error occurred")
@@ -917,7 +924,7 @@ func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, clie
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(authorizationCodeTTL),
-		UserSessionUUID:     callerSessionUUID(ctx),
+		UserSessionUUID:     sessionUUID,
 	}
 
 	if req.State != "" {

@@ -13,6 +13,7 @@ export {
   getProviderConfigSchema,
   getProviderFieldKeys,
   getProviderKind,
+  getPrefillIssuer,
   isOAuth2OnlyProvider,
   type ProviderConnectionField,
   type ProviderConnectionFieldKey,

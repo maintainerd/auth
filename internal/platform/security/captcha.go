@@ -16,6 +16,11 @@ import (
 const defaultCaptchaVerifyURL = "https://www.google.com/recaptcha/api/siteverify"
 const defaultCaptchaMinScore = 0.5
 
+// captchaHTTPClient carries an explicit client-level timeout so the verify call
+// is bounded even if the per-request context deadline below is ever removed;
+// http.DefaultClient has none of its own.
+var captchaHTTPClient = &http.Client{Timeout: 10 * time.Second}
+
 type captchaVerifyResponse struct {
 	Success bool `json:"success"`
 	// Score is a POINTER because "no score" and "score 0.0" are different
@@ -77,7 +82,7 @@ func VerifyCaptcha(ctx context.Context, responseToken, remoteIP string) error {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := captchaHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}

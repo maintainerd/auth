@@ -45,7 +45,7 @@ func (p *twilioProvider) Send(ctx context.Context, to, body string) error {
 	req.SetBasicAuth(p.accountSID, p.authToken)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "twilio send failed")

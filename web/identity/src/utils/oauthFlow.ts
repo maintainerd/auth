@@ -36,6 +36,16 @@ export interface PendingOAuthFlow {
   redirectUri: string
   /** Provider identifier, kept for error messaging on the callback page. */
   idpHint: string
+  /**
+   * When set, the SAME-ORIGIN in-app URL to continue to after this first-party
+   * login establishes the identity session — used when a DOWNSTREAM app (e.g.
+   * the console) sent the user here to authenticate via an external provider.
+   * We first log the user into the identity app itself (so the IdP holds a
+   * session on its own host), then resume the downstream `/oauth/authorize`.
+   * Only same-origin OAuth-interaction paths are ever honored (see the callback
+   * page's safeOAuthReturnTo check) — never an absolute or external URL.
+   */
+  continueTo?: string
 }
 
 function base64Url(bytes: Uint8Array): string {
@@ -99,6 +109,9 @@ export async function buildFirstPartyBrokerAuthorizeUrl(params: {
   clientId: string
   idpHint: string
   scope?: string
+  /** Same-origin OAuth-interaction URL to resume after the identity session is
+   *  established (downstream-app broker login). */
+  continueTo?: string
 }): Promise<string> {
   const state = randomOAuthValue()
   const codeVerifier = randomOAuthValue(48)
@@ -111,13 +124,23 @@ export async function buildFirstPartyBrokerAuthorizeUrl(params: {
     clientId: params.clientId,
     redirectUri,
     idpHint: params.idpHint,
+    continueTo: params.continueTo,
   })
 
   const query = new URLSearchParams({
     response_type: 'code',
     client_id: params.clientId,
+    // redirect_uri is REQUIRED for response_type=code — its omission here 400'd
+    // every provider login through this broker. It must byte-for-byte match the
+    // value replayed to the token endpoint (see identityRedirectUri).
     redirect_uri: redirectUri,
-    scope: params.scope ?? 'openid profile email',
+    // offline_access requests a refresh token so this FIRST-PARTY identity-app
+    // session renews like a password login. Without it, federated sessions got
+    // no refresh token and died at the access-token TTL — then a failed refresh
+    // trapped the browser (that's why external logins "got stuck" while
+    // username/password worked). Password login issues a refresh token too, so
+    // this brings the two to parity.
+    scope: params.scope ?? 'openid profile email offline_access',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',

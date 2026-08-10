@@ -26,6 +26,7 @@ import {
   consumeInviteCallback,
   consumeOAuthReturnTo,
   rememberOAuthReturnTo,
+  safeAccountLinkReturnTo,
   safeOAuthReturnTo,
   withRequestId,
 } from '@/utils/oauthRedirect'
@@ -66,6 +67,18 @@ export function finishAuthStep(input: FinishAuthStepInput): AuthStepOutcome {
   if (dest !== LOGIN_SUCCESS_ROUTE) {
     navigate(withRequestId(dest, requestId), { replace: true })
     return 'detour'
+  }
+
+  // Account-link continuation: the broker's email-collision page bounced this
+  // sign-in through /login with return_to pointing back at /account-link (its
+  // confirmation token + broker_session live only in that URL). It is not an
+  // OAuth interaction route, so the safeOAuthReturnTo branch below would drop
+  // it and clearOAuthReturnTo would strand the link — return to the pending
+  // confirmation instead.
+  const accountLinkReturnTo = safeAccountLinkReturnTo(returnTo)
+  if (accountLinkReturnTo) {
+    navigate(accountLinkReturnTo, { replace: true })
+    return 'continued'
   }
 
   if (requestId) {

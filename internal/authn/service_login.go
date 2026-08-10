@@ -599,7 +599,19 @@ func (s *loginService) revokeLogoutJTI(ctx context.Context, claims jwtlib.MapCla
 	if expiresAt.IsZero() {
 		return
 	}
-	_ = s.tokenRevoker.Revoke(ctx, 0, jti, "access_token", "logout", expiresAt, nil, nil)
+	// The DB revocation row is tenant-scoped and FK-constrained to tenants, so it
+	// needs the token's REAL tenant — not 0, which violated the foreign key on
+	// every logout (SQLSTATE 23503). The tenant_id claim carries the tenant's
+	// opaque UUID (RFC 9068 least-disclosure); resolve it to the internal PK. If
+	// it can't resolve, skip the DB record — the Redis denylist (denylistLogoutJTI)
+	// already guards token reuse, so this stays best-effort rather than writing an
+	// invalid row.
+	tenantUUID, _ := claims["tenant_id"].(string)
+	tenantID := shared.TenantIDByUUIDString(ctx, tenantUUID)
+	if tenantID == 0 {
+		return
+	}
+	_ = s.tokenRevoker.Revoke(ctx, tenantID, jti, "access_token", "logout", expiresAt, nil, nil)
 }
 
 // checkPasswordExpiry marks ForcePasswordChange on the user if the policy has an

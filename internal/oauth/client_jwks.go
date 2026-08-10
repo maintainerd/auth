@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,8 +35,91 @@ var clientJWKSCache = struct {
 	entries map[string]cachedClientJWKS
 }{entries: map[string]cachedClientJWKS{}}
 
+// clientJWKSRestrictedCIDRs are the ranges the jwks_uri fetch must never reach.
+// Loopback is intentionally omitted: validateClientJWKSURI already permits an
+// http loopback jwks_uri for local development, and a fetch to the server's own
+// localhost is far lower risk than the cloud-metadata / internal-network pivots
+// this list blocks. Everything else — RFC-1918, CGN, link-local (169.254.169.254
+// cloud metadata), multicast, reserved — is denied, INCLUDING when reached via a
+// DNS name that resolves into one of these ranges, and across HTTP redirects.
+var clientJWKSRestrictedCIDRs = []string{
+	"10.0.0.0/8",
+	"100.64.0.0/10",
+	"169.254.0.0/16",
+	"172.16.0.0/12",
+	"192.168.0.0/16",
+	"198.18.0.0/15",
+	"224.0.0.0/4",
+	"240.0.0.0/4",
+	"fc00::/7",
+	"fe80::/10",
+}
+
+// clientJWKSResolveAndValidate resolves the target host, rejects any restricted
+// resolution, and then dials the exact validated IP — never the hostname — so a
+// DNS name cannot rebind to an internal address between the check and the
+// connect. The http.Transport still derives TLS ServerName from the URL host, so
+// certificate verification is unaffected.
+func clientJWKSResolveAndValidate(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("jwks_uri transport: invalid dial address")
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("jwks_uri transport: host resolution failed")
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("jwks_uri transport: no addresses resolved")
+	}
+	for _, ipAddr := range ips {
+		for _, cidr := range clientJWKSRestrictedCIDRs {
+			_, ipNet, perr := net.ParseCIDR(cidr)
+			if perr != nil {
+				continue
+			}
+			if ipNet.Contains(ipAddr.IP) {
+				return nil, fmt.Errorf("jwks_uri resolves to a restricted address")
+			}
+		}
+	}
+	dialer := &net.Dialer{Timeout: clientJWKSTimeout}
+	var lastErr error
+	for _, ipAddr := range ips {
+		conn, derr := dialer.DialContext(ctx, network, net.JoinHostPort(ipAddr.IP.String(), port))
+		if derr != nil {
+			lastErr = derr
+			continue
+		}
+		return conn, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("jwks_uri has no usable address")
+	}
+	return nil, lastErr
+}
+
+func newClientJWKSHTTPClient() *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = clientJWKSResolveAndValidate
+	return &http.Client{
+		Timeout:   clientJWKSTimeout,
+		Transport: transport,
+		// Re-validate every redirect hop: a compliant https jwks_uri must not be
+		// able to bounce the fetch to http or to an IP-literal private/loopback
+		// host, and must not redirect indefinitely. The transport independently
+		// blocks DNS names that resolve into a restricted range on every hop.
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return fmt.Errorf("jwks_uri redirected too many times")
+			}
+			return validateClientJWKSURI(req.URL.String())
+		},
+	}
+}
+
 // clientJWKSHTTPClient is a var so tests can point it at an httptest server.
-var clientJWKSHTTPClient = &http.Client{Timeout: clientJWKSTimeout}
+var clientJWKSHTTPClient = newClientJWKSHTTPClient()
 
 // resetClientJWKSCache clears the fetched-JWKS cache. Test-only.
 	//lint:ignore U1000 pre-existing; retained for future use

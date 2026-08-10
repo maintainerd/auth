@@ -276,6 +276,7 @@ func TestOAuthAuthorizeService_HandleCallback(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 
+		federatedSessionUUID := uuid.New()
 		origResolver := brokerCallbackResolver
 		brokerCallbackResolver = &mockBrokerCallbackResolver{
 			resolveFn: func(_ context.Context, idpID int64, code, pkceVerifier, nonce, redirectURI string, clientID int64) (*BrokerResolvedUser, error) {
@@ -285,7 +286,7 @@ func TestOAuthAuthorizeService_HandleCallback(t *testing.T) {
 				assert.Equal(t, "idp-nonce", nonce)
 				assert.Equal(t, "https://auth.id.app/api/v1/oauth/callback/google", redirectURI)
 				assert.Equal(t, int64(10), clientID)
-				return &BrokerResolvedUser{UserID: 50, UserUUID: uuid.New(), IdentitySub: "internal-sub", SessionID: "session-1"}, nil
+				return &BrokerResolvedUser{UserID: 50, UserUUID: uuid.New(), IdentitySub: "internal-sub", SessionID: federatedSessionUUID.String()}, nil
 			},
 		}
 		t.Cleanup(func() { brokerCallbackResolver = origResolver })
@@ -319,7 +320,66 @@ func TestOAuthAuthorizeService_HandleCallback(t *testing.T) {
 		assert.Equal(t, int64(50), createdCode.UserID)
 		assert.Equal(t, pq.StringArray{"openid", "profile"}, createdCode.Scope)
 		assert.Equal(t, "S256", createdCode.CodeChallengeMethod)
-		assert.NotEmpty(t, accessToken)
+		// The code must be bound to the federated session the broker created, so
+		// tokens minted from it (at the downstream token exchange) carry a `sid`
+		// and survive session validation.
+		require.NotNil(t, createdCode.UserSessionUUID)
+		assert.Equal(t, federatedSessionUUID, *createdCode.UserSessionUUID)
+		// No SSO cookie token is minted at the broker callback anymore: it would
+		// land on the issuer host the identity app never reads. The identity
+		// session is established same-origin by the identity /callback page.
+		assert.Empty(t, accessToken)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("third-party downstream client: SSO cookie binds to the hosted-login client", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		db, mock := newMockDB(t)
+		mock.ExpectQuery(`SELECT \* FROM "oauth_broker_sessions" WHERE idp_state = .*consumed_at IS NULL`).
+			WillReturnRows(sessionRows())
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "oauth_broker_sessions" SET "consumed_at"=.*WHERE oauth_broker_session_id = .* AND consumed_at IS NULL`).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		federatedSessionUUID := uuid.New()
+		origResolver := brokerCallbackResolver
+		brokerCallbackResolver = &mockBrokerCallbackResolver{
+			resolveFn: func(_ context.Context, _ int64, _, _, _, _ string, _ int64) (*BrokerResolvedUser, error) {
+				return &BrokerResolvedUser{UserID: 50, UserUUID: uuid.New(), IdentitySub: "cognito-sub", SessionID: federatedSessionUUID.String()}, nil
+			},
+		}
+		t.Cleanup(func() { brokerCallbackResolver = origResolver })
+
+		externalID := "external-app"
+		externalClient := activeClient()
+		externalClient.Identifier = &externalID
+		var createdCode *OAuthAuthorizationCode
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByIDFn: func(any, ...string) (*Client, error) { return externalClient, nil },
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{
+				createFn: func(code *OAuthAuthorizationCode) (*OAuthAuthorizationCode, error) {
+					createdCode = code
+					return code, nil
+				},
+			},
+			&mockOAuthConsentGrantRepo{}, &mockOAuthConsentChallRepo{}, &mockAuthEventService{})
+
+		redirectURL, accessToken, oerr := svc.HandleCallback(ctx, "google", "provider-code", "state-1")
+		require.Nil(t, oerr)
+		assert.Contains(t, redirectURL, "https://example.com/callback?code=")
+		// The downstream (third-party) client's code is bound to the federated
+		// session so its tokens carry a sid...
+		require.NotNil(t, createdCode)
+		require.NotNil(t, createdCode.UserSessionUUID)
+		assert.Equal(t, federatedSessionUUID, *createdCode.UserSessionUUID)
+		// ...and no SSO token/cookie is minted at the callback (dead issuer-host
+		// surface removed; the identity app logs in same-origin instead).
+		assert.Empty(t, accessToken)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 

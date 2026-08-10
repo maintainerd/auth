@@ -89,20 +89,24 @@ export const PROVIDER_LABELS: Record<string, string> = {
 }
 
 /**
- * Display order for the provider dropdown — identity providers first, then social.
+ * Display order for the provider dropdown — social providers first, then the
+ * enterprise identity providers, then SAML 2.0 last.
  */
 export const PROVIDER_ORDER: ProviderOption[] = [
-  "maintainerd",
-  "saml",
-  "cognito",
-  "auth0",
-  "microsoft",
+  // Social sign-in
   "google",
   "github",
   "gitlab",
   "facebook",
   "linkedin",
   "twitter",
+  // Enterprise identity providers (OIDC federation)
+  "cognito",
+  "auth0",
+  "microsoft",
+  "maintainerd",
+  // SAML 2.0
+  "saml",
 ]
 
 /**
@@ -168,13 +172,37 @@ const DEFAULT_ISSUERS: Partial<Record<ProviderOption, string>> = {
   maintainerd: "https://auth.example-org.com",
   cognito: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_aB12cD34",
   auth0: "https://your-tenant.us.auth0.com/",
-  microsoft: "https://login.microsoftonline.com/common/v2.0",
+  microsoft: "https://login.microsoftonline.com/<tenant-id>/v2.0",
   google: "https://accounts.google.com",
   github: "https://github.com",
   gitlab: "https://gitlab.com",
   facebook: "https://www.facebook.com",
-  linkedin: "https://www.linkedin.com",
+  // LinkedIn's OIDC issuer is /oauth — the bare host 404s on discovery.
+  linkedin: "https://www.linkedin.com/oauth",
   twitter: "https://x.com",
+}
+
+/**
+ * Providers whose issuer is a FIXED, ready-to-use constant (not a per-install
+ * value like a Cognito pool URL or an Auth0 tenant). Their Issuer URL is
+ * pre-filled on create so the operator doesn't retype a well-known value —
+ * still fully editable (e.g. a self-hosted GitLab, or a single Entra tenant).
+ * Cognito / Auth0 / Maintainerd are intentionally excluded: their issuer is
+ * unique per installation and must be entered by hand.
+ */
+const PREFILL_ISSUER_PROVIDERS: ReadonlySet<ProviderOption> = new Set([
+  "google",
+  "gitlab",
+  "linkedin",
+  // Microsoft is intentionally NOT here: its issuer is tenant-specific
+  // (https://login.microsoftonline.com/{tenant-id}/v2.0) and Azure AD tokens
+  // carry a tenant-specific `iss`, so a fixed default would fail validation.
+])
+
+/** Issuer URL to pre-fill on create, or "" when it must be entered by hand. */
+export function getPrefillIssuer(provider: string): string {
+  if (!PREFILL_ISSUER_PROVIDERS.has(provider as ProviderOption)) return ""
+  return DEFAULT_ISSUERS[provider as ProviderOption] ?? ""
 }
 
 const CLIENT_ID_LABELS: Partial<Record<ProviderOption, string>> = {
@@ -195,53 +223,72 @@ export function getProviderConnectionSchema(provider: string): ProviderConnectio
   // issuer + client id/secret, so it must not render the OIDC connection card.
   if (!schema || schema.kind === "system" || schema.kind === "saml") return undefined
 
+  const fields: ProviderConnectionField[] = []
+
+  // The issuer only exists for OIDC providers: the broker discovers the
+  // authorization/token/userinfo endpoints from it. OAuth2-only providers
+  // (github/facebook/twitter) publish no discovery document and have no issuer —
+  // the broker uses the explicit OAuth2 endpoints (collected in the config
+  // section below) instead. So the issuer field is OMITTED for them rather than
+  // shown as an inert, confusing near-duplicate of the authorization endpoint.
+  if (!isOAuth2OnlyProvider(option)) {
+    fields.push({
+      key: "issuer",
+      label: option === "cognito" ? "User Pool Issuer URL" : "Issuer URL",
+      type: "url",
+      required: true,
+      placeholder: DEFAULT_ISSUERS[option] ?? "https://provider.example.com",
+      description:
+        "Issuer or authority URL used by the broker to discover metadata and validate tokens.",
+    })
+  }
+
+  fields.push(
+    {
+      key: "provider_client_id",
+      label: CLIENT_ID_LABELS[option] ?? "OAuth Client ID",
+      type: "text",
+      required: true,
+      placeholder: option === "cognito" ? "your-app-client-id" : "your-oauth-client-id",
+      description: "OAuth application identifier issued by the external provider.",
+    },
+    {
+      key: "provider_client_secret",
+      label: CLIENT_SECRET_LABELS[option] ?? "OAuth Client Secret",
+      type: "password",
+      required: true,
+      placeholder: "••••••••",
+      description:
+        "Stored encrypted by the backend. Leave blank when editing to keep the existing secret.",
+    },
+    {
+      key: "allow_jit_provisioning",
+      label: "Just-in-Time Provisioning",
+      type: "switch",
+      description: "Create a local user automatically on first successful broker sign-in.",
+    },
+  )
+
+  // Email domains drive home-realm discovery — routing a corporate email domain
+  // to the org's identity provider. That is an ENTERPRISE-federation concept:
+  // social sign-in (google/github/gitlab/facebook/linkedin/twitter) is a
+  // user-chosen button, not something an org owns a domain for, so the field is
+  // shown for enterprise providers only. (Google Workspace domain routing, if
+  // ever needed, belongs on a dedicated enterprise provider, not the social one.)
+  if (schema.kind === "enterprise") {
+    fields.push({
+      key: "email_domains",
+      label: "Email Domains",
+      type: "list",
+      placeholder: "example.com, corp.example.com",
+      description: "Domains routed to this provider during home-realm discovery.",
+    })
+  }
+
   return {
     summary:
       "Connection details are stored as dedicated provider fields. Provider-specific options below are saved into config JSON.",
-    fields: [
-      {
-        key: "issuer",
-        label: option === "cognito" ? "User Pool Issuer URL" : "Issuer URL",
-        type: "url",
-        // OIDC providers discover metadata from the issuer, so it is required.
-        // OAuth2-only providers (github/facebook/twitter) have no issuer — the
-        // broker uses the explicit config endpoints instead — so it is optional.
-        required: !isOAuth2OnlyProvider(option),
-        placeholder: DEFAULT_ISSUERS[option] ?? "https://provider.example.com",
-        description:
-          "Issuer or authority URL used by the broker to discover metadata and validate tokens.",
-      },
-      {
-        key: "provider_client_id",
-        label: CLIENT_ID_LABELS[option] ?? "OAuth Client ID",
-        type: "text",
-        required: true,
-        placeholder: option === "cognito" ? "your-app-client-id" : "your-oauth-client-id",
-        description: "OAuth application identifier issued by the external provider.",
-      },
-      {
-        key: "provider_client_secret",
-        label: CLIENT_SECRET_LABELS[option] ?? "OAuth Client Secret",
-        type: "password",
-        required: true,
-        placeholder: "••••••••",
-        description:
-          "Stored encrypted by the backend. Leave blank when editing to keep the existing secret.",
-      },
-      {
-        key: "allow_jit_provisioning",
-        label: "Just-in-Time Provisioning",
-        type: "switch",
-        description: "Create a local user automatically on first successful broker sign-in.",
-      },
-      {
-        key: "email_domains",
-        label: "Email Domains",
-        type: "list",
-        placeholder: "example.com, corp.example.com",
-        description: "Domains routed to this provider during home-realm discovery.",
-      },
-    ],
+    fields,
   }
 }
 
@@ -442,10 +489,10 @@ export const PROVIDER_CONFIG_SCHEMAS: Record<ProviderOption, ProviderConfigSchem
     summary: "Sign in with X (Twitter) using your OAuth 2.0 application credentials. X has no OIDC discovery, so the OAuth2 endpoints below are required (pre-filled with X API defaults).",
     docsLabel: "X OAuth 2.0",
     docsUrl: "https://developer.twitter.com/en/docs/authentication/oauth-2-0",
-    groups: oauth2OnlyGroups("tweet.read, users.read, offline.access", {
+    groups: oauth2OnlyGroups("tweet.read, users.read, offline.access, users.email", {
       authorization_endpoint: "https://x.com/i/oauth2/authorize",
       token_endpoint: "https://api.x.com/2/oauth2/token",
-      userinfo_endpoint: "https://api.x.com/2/users/me",
+      userinfo_endpoint: "https://api.x.com/2/users/me?user.fields=confirmed_email",
     }),
   },
 

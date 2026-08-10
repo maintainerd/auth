@@ -20,6 +20,10 @@ type AccountLinkRequestRepository interface {
 	MarkConfirmed(id int64, at time.Time) error
 	// MarkExpired flips a pending request to expired and records rejected_at.
 	MarkExpired(id int64, at time.Time) error
+	// MarkUsed flips a confirmed request to used so its confirmation token cannot
+	// be redeemed again. The guard is on status = 'confirmed' so it is a no-op
+	// (RowsAffected 0) for a token that was already used or never confirmed.
+	MarkUsed(id int64, at time.Time) (int64, error)
 	// ExpireStale marks pending requests whose expires_at has passed as expired.
 	ExpireStale(now time.Time) (int64, error)
 }
@@ -71,4 +75,13 @@ func (r *accountLinkRequestRepository) MarkExpired(id int64, at time.Time) error
 	return r.DB().Model(&AccountLinkRequest{}).
 		Where("account_link_request_id = ?", id).
 		Updates(map[string]any{"status": "expired", "rejected_at": at}).Error
+}
+
+func (r *accountLinkRequestRepository) MarkUsed(id int64, _ time.Time) (int64, error) {
+	// Only status transitions (there is no used_at column); guard on confirmed so
+	// a replay of an already-used token is a no-op rather than a re-mint.
+	result := r.DB().Model(&AccountLinkRequest{}).
+		Where("account_link_request_id = ? AND status = ?", id, "confirmed").
+		Update("status", "used")
+	return result.RowsAffected, result.Error
 }

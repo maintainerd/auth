@@ -28,7 +28,11 @@ func (h *OAuthAuthorizeHandler) HandleBrokerCallback(w http.ResponseWriter, r *h
 	//   2. no authorization code arrived, or
 	//   3. the server-side code exchange failed.
 	if upErr := q.Get("error"); upErr != "" {
-		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, upErr, q.Get("error_description")), http.StatusFound)
+		// Do NOT forward the upstream provider's free-form error_description: this
+		// endpoint is unauthenticated, so that text is attacker-influenceable and
+		// would be reflected onto the trusted auth origin (phishing content
+		// injection). Map the upstream error CODE to a fixed, curated message.
+		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, upErr, CanonicalUpstreamErrorMessage(upErr)), http.StatusFound)
 		return
 	}
 	if code == "" || state == "" {
@@ -36,18 +40,24 @@ func (h *OAuthAuthorizeHandler) HandleBrokerCallback(w http.ResponseWriter, r *h
 		return
 	}
 
-	redirectURL, accessToken, oerr := h.authorizeService.HandleCallback(r.Context(), idpIdentifier, code, state)
+	// The second return value (SSO access token) is intentionally unused: the
+	// broker callback no longer sets a session cookie here (it would land on the
+	// issuer host, which the identity app never reads). The identity app
+	// establishes its own session same-origin — see service_broker.go HandleCallback.
+	redirectURL, _, oerr := h.authorizeService.HandleCallback(r.Context(), idpIdentifier, code, state)
 	if oerr != nil {
-		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, "access_denied", "sign-in with the identity provider could not be completed"), http.StatusFound)
+		// Carry the service's error code + description into the login redirect
+		// when it produced one: an access_denied with "JIT provisioning is
+		// disabled for this provider" is actionable; a blanket "could not be
+		// completed" is not. Opaque server errors keep the generic text.
+		errCode := oerr.Code
+		errDesc := oerr.Description
+		if errCode == "" || errCode == "server_error" {
+			errCode = "access_denied"
+			errDesc = "sign-in with the identity provider could not be completed"
+		}
+		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, errCode, errDesc), http.StatusFound)
 		return
-	}
-
-	if accessToken != "" {
-		cookie.SetAuthCookies(w, map[string]interface{}{
-			"access_token": accessToken,
-			"token_type":   "Bearer",
-			"expires_in":   1800,
-		})
 	}
 
 	http.Redirect(w, r, redirectURL, http.StatusFound) // nosemgrep
@@ -80,7 +90,7 @@ func (h *OAuthAuthorizeHandler) BrokerResume(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	result, oerr := h.authorizeService.BrokerResume(r.Context(), body, auth.User.UserID)
+	result, oerr := h.authorizeService.BrokerResume(r.Context(), body, auth.User.UserID, auth.Tenant.TenantID)
 	if oerr != nil {
 		oerr.WriteJSON(w)
 		return

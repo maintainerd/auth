@@ -583,7 +583,7 @@ func (m *mockOAuthAuthorizeService) ContinueAuthorize(ctx context.Context, reque
 	}
 	return nil, nil
 }
-func (m *mockOAuthAuthorizeService) BrokerResume(_ context.Context, _ BrokerResumeRequestDTO, _ int64) (*BrokerResumeResult, *apperror.OAuthError) {
+func (m *mockOAuthAuthorizeService) BrokerResume(_ context.Context, _ BrokerResumeRequestDTO, _, _ int64) (*BrokerResumeResult, *apperror.OAuthError) {
 	return nil, nil
 }
 
