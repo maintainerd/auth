@@ -16,6 +16,10 @@
 
 It ships as **one all-in-one image**: the Go backend plus the admin console and hosted login UI, compiled into a single binary (no nginx, no sidecars). Bring your own PostgreSQL and Redis, and you have a full OAuth 2.0 / OpenID Connect provider and identity broker.
 
+</br>
+
+<img width="1914" height="1010" alt="Screenshot from 2026-08-10 19-45-55" src="https://github.com/user-attachments/assets/476b3a33-ef0e-422c-8240-835ed94d9317" />
+
 ---
 
 ## Features
