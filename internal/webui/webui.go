@@ -51,7 +51,9 @@ func buildSPA(static fs.FS, configJS []byte, mounts []mount) http.Handler {
 	mux.HandleFunc("/config.js", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		_, _ = w.Write(configJS)
+		// configJS is built server-side from env (consoleConfigJS/identityConfigJS,
+		// %q-escaped) and served as application/javascript — no user input, no HTML.
+		_, _ = w.Write(configJS) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
 	})
 
 	mux.Handle("/", spaFiles(static))
@@ -66,8 +68,11 @@ func spaFiles(fsys fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setStaticSecurityHeaders(w)
 
-		upath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
-		if upath == "" {
+		// path.Clean on an absolute URL path cannot escape the root, the assets are
+		// a read-only go:embed FS, and fs.ValidPath rejects any non-clean/traversing
+		// path before it is opened — defense in depth.
+		upath := strings.TrimPrefix(path.Clean(r.URL.Path), "/") // nosemgrep: go.lang.security.filepath-clean-misuse.filepath-clean-misuse
+		if upath == "" || !fs.ValidPath(upath) {
 			serveIndex(w, fsys)
 			return
 		}
@@ -94,7 +99,9 @@ func serveIndex(w http.ResponseWriter, fsys fs.FS) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(b)
+	// b is the embedded index.html shell (static, no user input); Content-Type is
+	// text/html as set above.
+	_, _ = w.Write(b) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
 }
 
 // setStaticSecurityHeaders mirrors the CSP + hardening headers the bundled nginx
