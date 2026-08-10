@@ -37,78 +37,36 @@ It ships as **one all-in-one image**: the Go backend plus the admin console and 
 
 ## Quick Start
 
-Run the released image with a PostgreSQL and a Redis. No clone required.
-
-**1. Generate your keys and secrets into a `.env`:**
+Run the released image with PostgreSQL + Redis. Download the ready-made sample files from [`examples/quickstart/`](examples/quickstart), generate your own keys, and start — no clone, nothing to write by hand.
 
 ```bash
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt_private.pem 2>/dev/null
-openssl pkey -in jwt_private.pem -pubout -out jwt_public.pem 2>/dev/null
+# 1. Download the sample compose + env + key generator
+mkdir maintainerd-auth && cd maintainerd-auth
+base=https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart
+curl -O "$base/.env.example" -O "$base/docker-compose.yml" -O "$base/generate-secrets.sh"
+cp .env.example .env
 
-cat > .env <<EOF
-APP_ENV=development
-APP_PUBLIC_HOSTNAME=http://localhost:8081
-APP_PRIVATE_HOSTNAME=http://localhost:8080
-APP_FRONTEND_CONSOLE_HOSTNAME=http://localhost:3000
-APP_FRONTEND_IDENTITY_HOSTNAME=http://localhost:3001
-COOKIE_SECURE=false
-DB_HOST=postgres
-DB_PORT=5432
-DB_USER=maintainerd
-DB_PASSWORD=change-me
-DB_NAME=maintainerd
-REDIS_ADDR=redis:6379
-APP_ENCRYPTION_KEY=base64:$(openssl rand -base64 32)
-HMAC_SECRET_KEY=base64:$(openssl rand -base64 32)
-JWT_PRIVATE_KEY="$(awk '{printf "%s\\n", $0}' jwt_private.pem)"
-JWT_PUBLIC_KEY="$(awk '{printf "%s\\n", $0}' jwt_public.pem)"
+# 2. Generate YOUR OWN keys/secrets into .env (runs openssl locally)
+chmod +x generate-secrets.sh && ./generate-secrets.sh
+
+# 3. Map the local hostnames (one time)
+sudo tee -a /etc/hosts >/dev/null <<'EOF'
+127.0.0.1 console.auth.maintainerd.local identity.auth.maintainerd.local console-api.auth.maintainerd.local identity-api.auth.maintainerd.local
 EOF
-```
 
-**2. Create `docker-compose.yml`:**
-
-```yaml
-services:
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: maintainerd
-      POSTGRES_PASSWORD: change-me
-      POSTGRES_DB: maintainerd
-    volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U maintainerd"]
-      interval: 5s
-      retries: 10
-
-  redis:
-    image: redis:7-alpine
-
-  auth:
-    image: xreyc/maintainerd-auth:0.1.0   # or :latest
-    depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_started }
-    ports:
-      - "3000:3000"   # admin console
-      - "3001:3001"   # hosted login (identity)
-      - "8081:8081"   # data plane — OAuth2/OIDC issuer + public API
-    volumes:
-      - ./.env:/.env:ro   # the app reads this at startup
-
-volumes:
-  pgdata:
-```
-
-**3. Start it:**
-
-```bash
+# 4. Start
 docker compose up -d
 ```
 
-**4. Finish setup:** open **http://localhost:3000** and complete the setup wizard to create your first tenant and admin. Your OIDC discovery document is served at **http://localhost:8081/.well-known/openid-configuration**.
+**First run 👉** open **http://console.auth.maintainerd.local:3000** and complete the setup wizard to create your first **tenant** and **admin**.
 
-> **Production:** set `COOKIE_SECURE=true`, real HTTPS hostnames, `APP_ENV=production`, `DB_SSLMODE=require`, and a managed secret provider. See [Environment Variables](docs/contributing/environment-variables.md).
+| | URL |
+|---|---|
+| Admin console — **setup starts here** | http://console.auth.maintainerd.local:3000 |
+| Hosted login (end users) | http://identity.auth.maintainerd.local:3001 |
+| OIDC discovery | http://identity-api.auth.maintainerd.local:8081/.well-known/openid-configuration |
+
+> `http` on `.local` is for local trials only. In production use real HTTPS hostnames, `COOKIE_SECURE=true`, `APP_ENV=production`, `DB_SSLMODE=require`, and a managed secret provider. See [Environment Variables](docs/contributing/environment-variables.md).
 
 ---
 

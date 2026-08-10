@@ -5,3 +5,15 @@
 # idiomatic place for per-finding ignores in Gitleaks v8+.
 
 title = "maintainerd/auth gitleaks config"
+
+# Path allowlist — these are SAMPLE/EXAMPLE files that contain placeholder values
+# only (e.g. DB_PASSWORD=change-me, `base64:` key format hints). They hold no real
+# credentials, so the secret scanner treats them as safe and skips them.
+[allowlist]
+description = "Sample/example files — placeholder values only, no real secrets."
+paths = [
+  '''examples/quickstart/\.env\.example''',
+  '''examples/quickstart/docker-compose\.yml''',
+  '''examples/quickstart/generate-secrets\.sh''',
+  '''examples/quickstart/README\.md''',
+]
