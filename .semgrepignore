@@ -1,0 +1,6 @@
+# Paths Semgrep should skip.
+# Semgrep reads this file automatically (gitignore-style patterns).
+
+# Sample/example deployment files — placeholder values only, no real secrets
+# and no application code to analyze.
+examples/

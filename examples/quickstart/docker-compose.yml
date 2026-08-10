@@ -1,0 +1,38 @@
+# =============================================================================
+#  maintainerd-auth — SAMPLE quick-start stack (examples/quickstart)
+#
+#  Runs the released image with PostgreSQL + Redis. Config comes from ./.env
+#  (copy .env.example → .env and run ./generate-secrets.sh first).
+#  Full guide: https://github.com/maintainerd/maintainerd-auth#quick-start
+# =============================================================================
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: maintainerd
+      POSTGRES_PASSWORD: change-me
+      POSTGRES_DB: maintainerd
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maintainerd"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  auth:
+    image: xreyc/maintainerd-auth:0.1.0   # or :latest
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+    ports:
+      - "3000:3000"   # admin console
+      - "3001:3001"   # hosted login (identity)
+      - "8081:8081"   # OAuth2/OIDC issuer + public API
+      # 8080 (control plane) and 8082 (metrics) stay internal — do not publish.
+    volumes:
+      - ./.env:/.env:ro   # the app reads this at startup (un-escapes the PEM keys)
+
+volumes:
+  pgdata:

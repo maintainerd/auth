@@ -41,87 +41,28 @@ You provide PostgreSQL and Redis; they are **not** in this image.
 
 ## Quick start
 
-The app reads its config from a `/.env` file at startup, so both methods below mount one in. First, generate your keys and secrets:
+Ready-made sample files (compose + env + key generator) live in the repo. Download them, generate your own keys, and run — full walkthrough in the [repo README](https://github.com/maintainerd/maintainerd-auth#quick-start).
 
 ```bash
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt_private.pem 2>/dev/null
-openssl pkey -in jwt_private.pem -pubout -out jwt_public.pem 2>/dev/null
+mkdir maintainerd-auth && cd maintainerd-auth
+base=https://raw.githubusercontent.com/maintainerd/maintainerd-auth/main/examples/quickstart
+curl -O "$base/.env.example" -O "$base/docker-compose.yml" -O "$base/generate-secrets.sh"
+cp .env.example .env
 
-cat > .env <<EOF
-APP_ENV=development
-APP_PUBLIC_HOSTNAME=http://localhost:8081
-APP_PRIVATE_HOSTNAME=http://localhost:8080
-APP_FRONTEND_CONSOLE_HOSTNAME=http://localhost:3000
-APP_FRONTEND_IDENTITY_HOSTNAME=http://localhost:3001
-COOKIE_SECURE=false
-DB_HOST=postgres
-DB_PORT=5432
-DB_USER=maintainerd
-DB_PASSWORD=change-me
-DB_NAME=maintainerd
-REDIS_ADDR=redis:6379
-APP_ENCRYPTION_KEY=base64:$(openssl rand -base64 32)
-HMAC_SECRET_KEY=base64:$(openssl rand -base64 32)
-JWT_PRIVATE_KEY="$(awk '{printf "%s\\n", $0}' jwt_private.pem)"
-JWT_PUBLIC_KEY="$(awk '{printf "%s\\n", $0}' jwt_public.pem)"
+# generate YOUR OWN keys/secrets into .env (runs openssl locally)
+chmod +x generate-secrets.sh && ./generate-secrets.sh
+
+# map the local hostnames (one time)
+sudo tee -a /etc/hosts >/dev/null <<'EOF'
+127.0.0.1 console.auth.maintainerd.local identity.auth.maintainerd.local console-api.auth.maintainerd.local identity-api.auth.maintainerd.local
 EOF
-```
 
-### Option A — docker compose (recommended: includes Postgres + Redis)
-
-```yaml
-services:
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: maintainerd
-      POSTGRES_PASSWORD: change-me
-      POSTGRES_DB: maintainerd
-    volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U maintainerd"]
-      interval: 5s
-      retries: 10
-
-  redis:
-    image: redis:7-alpine
-
-  auth:
-    image: xreyc/maintainerd-auth:0.1.0   # or :latest
-    depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_started }
-    ports:
-      - "3000:3000"   # admin console
-      - "3001:3001"   # hosted login
-      - "8081:8081"   # OAuth2/OIDC issuer + public API
-    volumes:
-      - ./.env:/.env:ro
-
-volumes:
-  pgdata:
-```
-
-```bash
 docker compose up -d
 ```
 
-### Option B — docker run (you supply Postgres + Redis)
+**First run 👉** open **http://console.auth.maintainerd.local:3000** and complete the setup wizard to create your first **tenant** and **admin**. OIDC discovery: **http://identity-api.auth.maintainerd.local:8081/.well-known/openid-configuration**.
 
-Point `DB_HOST` / `REDIS_ADDR` in your `.env` at reachable instances, then:
-
-```bash
-docker run -d --name maintainerd-auth \
-  -p 3000:3000 -p 3001:3001 -p 8081:8081 \
-  -v "$PWD/.env:/.env:ro" \
-  xreyc/maintainerd-auth:0.1.0
-```
-
-> Mount the `.env` (don't use `--env-file`): the app un-escapes the multi-line PEM keys when it reads the file itself.
-
-### Finish setup
-
-Open **http://localhost:3000** and complete the setup wizard to create your first tenant and admin. Your OIDC discovery document is at **http://localhost:8081/.well-known/openid-configuration**.
+> Prefer `docker run`, or a split-host / production layout? See the [full quick-start guide](https://github.com/maintainerd/maintainerd-auth/tree/main/examples/quickstart).
 
 ---
 
