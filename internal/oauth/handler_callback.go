@@ -32,10 +32,12 @@ func (h *OAuthAuthorizeHandler) HandleBrokerCallback(w http.ResponseWriter, r *h
 		// endpoint is unauthenticated, so that text is attacker-influenceable and
 		// would be reflected onto the trusted auth origin (phishing content
 		// injection). Map the upstream error CODE to a fixed, curated message.
+		// nosemgrep: go.lang.security.injection.open-redirect.open-redirect -- target is a server-built tenant login URL (shared.FrontendURL) with an allowlisted error code; no request-controlled URL is reflected.
 		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, upErr, CanonicalUpstreamErrorMessage(upErr)), http.StatusFound)
 		return
 	}
 	if code == "" || state == "" {
+		// nosemgrep: go.lang.security.injection.open-redirect.open-redirect -- target is a server-built tenant login URL (shared.FrontendURL) with an allowlisted error code; no request-controlled URL is reflected.
 		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, "invalid_request", "the identity provider did not return an authorization code"), http.StatusFound)
 		return
 	}
@@ -56,6 +58,7 @@ func (h *OAuthAuthorizeHandler) HandleBrokerCallback(w http.ResponseWriter, r *h
 			errCode = "access_denied"
 			errDesc = "sign-in with the identity provider could not be completed"
 		}
+		// nosemgrep: go.lang.security.injection.open-redirect.open-redirect -- target is a server-built tenant login URL (shared.FrontendURL) with an allowlisted error code; no request-controlled URL is reflected.
 		http.Redirect(w, r, h.authorizeService.ResolveBrokerErrorRedirect(r.Context(), idpIdentifier, state, errCode, errDesc), http.StatusFound)
 		return
 	}
