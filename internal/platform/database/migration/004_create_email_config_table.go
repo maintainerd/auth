@@ -5,7 +5,8 @@ import (
 )
 
 // CreateEmailConfigTable creates the email_config table for tenant-level
-// SMTP/SES/SendGrid delivery configuration.
+// SMTP delivery configuration. maintainerd sends over SMTP only; any provider
+// (SES, Mailgun, SendGrid, …) is reached through its SMTP relay.
 func CreateEmailConfigTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
@@ -62,7 +63,7 @@ BEGIN
         SELECT 1 FROM pg_constraint WHERE conname = 'chk_email_config_provider'
     ) THEN
         ALTER TABLE email_config
-            ADD CONSTRAINT chk_email_config_provider CHECK (provider IN ('smtp', 'ses', 'sendgrid', 'mailgun', 'postmark', 'resend'));
+            ADD CONSTRAINT chk_email_config_provider CHECK (provider IN ('smtp'));
     END IF;
 END$$;
 

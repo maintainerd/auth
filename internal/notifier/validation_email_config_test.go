@@ -27,11 +27,17 @@ func TestEmailConfigUpdateRequestDTO_Validate(t *testing.T) {
 		assert.NoError(t, validEmailConfigUpdate().Validate())
 	})
 
-	t.Run("valid all providers", func(t *testing.T) {
-		for _, p := range []string{"smtp", "ses", "sendgrid", "mailgun", "postmark", "resend"} {
+	t.Run("smtp is the only valid provider", func(t *testing.T) {
+		d := validEmailConfigUpdate()
+		d.Provider = "smtp"
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("rejects former SaaS providers (SMTP-only now)", func(t *testing.T) {
+		for _, p := range []string{"ses", "sendgrid", "mailgun", "postmark", "resend"} {
 			d := validEmailConfigUpdate()
 			d.Provider = p
-			assert.NoError(t, d.Validate(), "provider: %s", p)
+			assert.Error(t, d.Validate(), "provider: %s", p)
 		}
 	})
 

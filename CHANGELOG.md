@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-11
+
+### Changed — email delivery
+- **Email delivery is now SMTP-only.** Removed the API-based providers (Amazon SES,
+  SendGrid, Mailgun, Postmark, Resend). Their credentials were never persisted — the
+  `email_config` table has no `api_key`/`domain`/`region` columns and the config
+  service never accepted them — so those providers could never actually send. Every
+  provider is now reached through its SMTP relay instead, which is the standard
+  self-hosted IAM approach (e.g. Keycloak is SMTP-only). The email config form,
+  request validation, and the `email_config` provider CHECK constraint now accept
+  `smtp` only. Existing non-smtp rows should be reconfigured as SMTP.
+
 ### Security — clients
 - **Closed an unauthenticated token-minting path.** `token_endpoint_auth_method`
   `none` means "presents no credential" and is now refused for anything other than

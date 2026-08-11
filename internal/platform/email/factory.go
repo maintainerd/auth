@@ -10,7 +10,7 @@ import (
 )
 
 // NewProviderFromDB reads the tenant-scoped email_config row, decrypts the
-// stored password, and returns a Provider. When no config exists for the
+// stored password, and returns an SMTP Provider. When no config exists for the
 // given tenant, it falls back to the system tenant.
 func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provider, error) {
 	var cfg struct {
@@ -21,16 +21,12 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 		PasswordEncrypted string
 		FromAddress       string
 		FromName          string
-		APIKey            string
-		Domain            string
-		Region            string
 		Status            string
 	}
 
 	err := db.WithContext(ctx).
 		Table("email_config").
-		Select("provider, host, port, username, password_encrypted, from_address, from_name, "+
-			"'' AS api_key, '' AS domain, '' AS region, status").
+		Select("provider, host, port, username, password_encrypted, from_address, from_name, status").
 		Where("tenant_id = ? AND status = ? AND deleted_at IS NULL", tenantID, shared.StatusActive).
 		First(&cfg).Error
 
@@ -41,7 +37,7 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 		err = db.WithContext(ctx).
 			Table("email_config ec").
 			Select("ec.provider, ec.host, ec.port, ec.username, ec.password_encrypted, "+
-				"ec.from_address, ec.from_name, '' AS api_key, '' AS domain, '' AS region, ec.status").
+				"ec.from_address, ec.from_name, ec.status").
 			Joins("JOIN tenants t ON ec.tenant_id = t.tenant_id").
 			Where("t.is_system = true AND ec.status = ? AND ec.deleted_at IS NULL", shared.StatusActive).
 			First(&cfg).Error
@@ -73,29 +69,18 @@ func NewProviderFromDB(ctx context.Context, db *gorm.DB, tenantID int64) (Provid
 		Port:        cfg.Port,
 		Username:    cfg.Username,
 		Password:    password,
-		APIKey:      cfg.APIKey,
-		Domain:      cfg.Domain,
-		Region:      cfg.Region,
 	}
 	return NewProvider(ctx, pc)
 }
 
-// NewProvider returns the Provider implementation for cfg.Provider.
-func NewProvider(ctx context.Context, cfg ProviderConfig) (Provider, error) {
+// NewProvider returns the SMTP Provider. maintainerd delivers email over SMTP
+// only; any provider (SES, Mailgun, SendGrid, …) is used via its SMTP relay. An
+// empty provider is treated as smtp for backward compatibility.
+func NewProvider(_ context.Context, cfg ProviderConfig) (Provider, error) {
 	switch cfg.Provider {
 	case "smtp", "":
 		return newSMTPProvider(cfg), nil
-	case "ses":
-		return newSESProvider(ctx, cfg)
-	case "sendgrid":
-		return newSendGridProvider(cfg), nil
-	case "postmark":
-		return newPostmarkProvider(cfg), nil
-	case "mailgun":
-		return newMailgunProvider(cfg), nil
-	case "resend":
-		return newResendProvider(cfg), nil
 	default:
-		return nil, fmt.Errorf("email: unknown provider %q", cfg.Provider)
+		return nil, fmt.Errorf("email: unsupported provider %q (only smtp is supported)", cfg.Provider)
 	}
 }

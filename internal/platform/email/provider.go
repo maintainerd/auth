@@ -18,20 +18,19 @@ type SendParams struct {
 }
 
 // ProviderConfig is a normalised view of tenant or system email config.
+// maintainerd delivers email over SMTP only — any provider (Amazon SES, Mailgun,
+// SendGrid, Postmark, …) is reached through its SMTP relay, so a single transport
+// covers them all.
 type ProviderConfig struct {
-	Provider string // smtp | ses | sendgrid | mailgun | postmark | resend
+	Provider string // smtp (the only supported transport)
 	// Default sender used when a SendParams.From is not supplied.
 	FromAddress string
 	FromName    string
-	// SMTP / SES SMTP
+	// SMTP transport
 	Host     string
 	Port     int
 	Username string
 	Password string
-	// SaaS providers (SendGrid / Postmark / Mailgun / Resend)
-	APIKey string
-	Domain string // Mailgun domain
-	Region string // SES region
 }
 
 // ResolveFrom returns the From header to use: the explicit per-send value when
