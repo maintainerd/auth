@@ -10,7 +10,9 @@ func (r EmailConfigUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Provider,
 			validation.Required.Error("Provider is required"),
-			validation.In("smtp", "ses", "sendgrid", "mailgun", "postmark", "resend").Error("Provider must be one of: smtp, ses, sendgrid, mailgun, postmark, resend"),
+			// maintainerd delivers over SMTP only; any provider (SES, Mailgun,
+			// SendGrid, …) is reached through its SMTP relay.
+			validation.In("smtp").Error("Provider must be smtp"),
 		),
 		validation.Field(&r.FromAddress,
 			validation.Required.Error("From address is required"),

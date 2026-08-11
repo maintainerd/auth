@@ -11,13 +11,9 @@ import { PageHeader } from "@/components/layout"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fetchEmailConfig } from "@/services/api/notifier"
 
+// maintainerd delivers over SMTP only; any provider is reached via its SMTP relay.
 const PROVIDER_LABELS: Record<string, string> = {
   smtp: "SMTP",
-  ses: "Amazon SES",
-  sendgrid: "SendGrid",
-  mailgun: "Mailgun",
-  postmark: "Postmark",
-  resend: "Resend",
 }
 
 export default function EmailDeliveryPage({ standalone = true }: { standalone?: boolean }) {

@@ -81,13 +81,13 @@ func TestEmailConfigService_Update(t *testing.T) {
 			},
 		})
 		res, err := svc.Update(context.Background(), 1,
-			"ses", "smtp.ses.amazonaws.com", 587,
+			"smtp", "smtp.example.com", 587,
 			"key", "secret",
 			"noreply@example.com", "Acme", "support@example.com",
 			"tls", "", boolPtr(true),
 		)
 		require.NoError(t, err)
-		assert.Equal(t, "ses", res.Provider)
+		assert.Equal(t, "smtp", res.Provider)
 		assert.True(t, res.TestMode)
 		assert.Equal(t, shared.StatusActive, res.Status)
 	})
@@ -183,12 +183,12 @@ func TestEmailConfigService_Update(t *testing.T) {
 		assert.Equal(t, "ssl", res.Encryption)
 	})
 
-	t.Run("clears secret when provider changes without a new secret", func(t *testing.T) {
+	t.Run("clears secret when a legacy SaaS provider is switched to smtp", func(t *testing.T) {
 		existing := &EmailConfig{
 			EmailConfigUUID:   uuid.New(),
 			TenantID:          1,
-			Provider:          "smtp",
-			PasswordEncrypted: "old-smtp-secret",
+			Provider:          "sendgrid", // legacy row from before the SMTP-only change
+			PasswordEncrypted: "old-sendgrid-secret",
 			Status:            shared.StatusActive,
 		}
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
@@ -196,14 +196,14 @@ func TestEmailConfigService_Update(t *testing.T) {
 			createOrUpdateFn: func(e *EmailConfig) (*EmailConfig, error) { return e, nil },
 		})
 		res, err := svc.Update(context.Background(), 1,
-			"sendgrid", "", 0,
+			"smtp", "smtp.example.com", 587,
 			"", "", // blank password while switching providers
 			"noreply@example.com", "Acme", "",
-			"", "", nil,
+			"tls", "", nil,
 		)
 		require.NoError(t, err)
-		assert.Equal(t, "sendgrid", res.Provider)
-		// The old SMTP secret must not carry over to the new provider.
+		assert.Equal(t, "smtp", res.Provider)
+		// The old SaaS secret must not carry over to the SMTP config.
 		assert.Empty(t, existing.PasswordEncrypted)
 	})
 

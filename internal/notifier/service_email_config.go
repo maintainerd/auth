@@ -103,8 +103,7 @@ func (s *emailConfigService) Get(ctx context.Context, tenantID int64) (*EmailCon
 }
 
 // GetStatus reports whether email delivery is configured well enough to send:
-// a record exists, is active, has a sender address, and has the transport
-// essentials (SMTP host, or credentials for an API provider).
+// a record exists, is active, has a sender address, and has the SMTP host.
 func (s *emailConfigService) GetStatus(ctx context.Context, tenantID int64) (*ConfigStatusResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "emailConfig.getStatus")
 	defer span.End()
@@ -122,7 +121,7 @@ func (s *emailConfigService) GetStatus(ctx context.Context, tenantID int64) (*Co
 	configured := config.Status == shared.StatusActive &&
 		config.Provider != "" &&
 		config.FromAddress != "" &&
-		(config.Host != "" || config.PasswordEncrypted != "")
+		config.Host != ""
 
 	return &ConfigStatusResult{
 		Configured: configured,

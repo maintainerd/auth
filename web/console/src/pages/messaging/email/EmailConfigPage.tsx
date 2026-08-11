@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react"
+import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useForm, Controller, type Resolver, type SubmitHandler } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
@@ -22,25 +22,9 @@ import { ConfirmationDialog } from "@/components/dialog"
 import { fetchEmailConfig, updateEmailConfig, type EmailConfigUpdate } from "@/services/api/notifier"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
-type EmailProviderMeta = {
-  value: string
-  label: string
-  showServer: boolean
-  usernameLabel?: string
-  secretLabel: string
-}
-
-const EMAIL_PROVIDERS: EmailProviderMeta[] = [
-  { value: "smtp", label: "SMTP", showServer: true, usernameLabel: "Username", secretLabel: "Password" },
-  { value: "ses", label: "Amazon SES", showServer: false, usernameLabel: "Access Key ID", secretLabel: "Secret Access Key" },
-  { value: "sendgrid", label: "SendGrid", showServer: false, secretLabel: "API Key" },
-  { value: "mailgun", label: "Mailgun", showServer: false, secretLabel: "API Key" },
-  { value: "postmark", label: "Postmark", showServer: false, secretLabel: "Server API Token" },
-  { value: "resend", label: "Resend", showServer: false, secretLabel: "API Key" },
-]
-
-const PROVIDER_OPTIONS: SelectOption[] = EMAIL_PROVIDERS.map((p) => ({ value: p.value, label: p.label }))
-
+// maintainerd delivers email over SMTP only. Every provider (Amazon SES, Mailgun,
+// SendGrid, Postmark, Gmail, …) is reached through its SMTP relay, so a single
+// SMTP form covers them all.
 const ENCRYPTION_OPTIONS: SelectOption[] = [
   { value: "tls", label: "TLS" },
   { value: "ssl", label: "SSL" },
@@ -59,7 +43,6 @@ const optionalUrl = (label: string) =>
     .default("")
 
 const schema = yup.object({
-  provider: yup.string().required("Provider is required"),
   host: yup.string(),
   port: yup.number().transform((v) => (isNaN(v) ? undefined : v)).min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535"),
   username: yup.string(),
@@ -91,12 +74,10 @@ export default function EmailConfigPage() {
     handleSubmit,
     control,
     reset,
-    watch,
-    setError,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormData>({
     resolver: yupResolver(schema) as Resolver<FormData>,
-    defaultValues: { provider: "smtp", from_address: "", encryption: "tls", test_mode: false },
+    defaultValues: { from_address: "", encryption: "tls", test_mode: false },
     mode: "onTouched",
     reValidateMode: "onChange",
   })
@@ -104,7 +85,6 @@ export default function EmailConfigPage() {
   useEffect(() => {
     if (!data) return
     reset({
-      provider: data.provider || "smtp",
       host: data.host || "",
       port: data.port || undefined,
       username: data.username || "",
@@ -118,14 +98,7 @@ export default function EmailConfigPage() {
     })
   }, [data, reset])
 
-  const selectedProvider = watch("provider")
-  const meta = useMemo(
-    () => EMAIL_PROVIDERS.find((p) => p.value === selectedProvider) ?? EMAIL_PROVIDERS[0],
-    [selectedProvider],
-  )
-
   const isConfigured = Boolean(data?.provider && data?.from_address)
-  const providerChanged = isConfigured && selectedProvider !== data?.provider
 
   const { guard, isPromptOpen, confirmLeave, cancelLeave } = useUnsavedChangesGuard(isDirty)
 
@@ -134,24 +107,17 @@ export default function EmailConfigPage() {
   })
 
   const onSubmit: SubmitHandler<FormData> = async (formData) => {
-    if (providerChanged && !formData.password) {
-      setError("password", {
-        type: "manual",
-        message: `Enter the ${meta.secretLabel.toLowerCase()} for ${meta.label} — the previous provider's secret can't be reused.`,
-      })
-      return
-    }
     const payload: EmailConfigUpdate = {
-      provider: formData.provider,
+      provider: "smtp",
+      host: formData.host,
+      port: formData.port,
+      encryption: formData.encryption,
+      username: formData.username,
       from_address: formData.from_address,
       from_name: formData.from_name,
       reply_to: formData.reply_to,
       logo_url: formData.logo_url,
       test_mode: formData.test_mode,
-      ...(meta.showServer
-        ? { host: formData.host, port: formData.port, encryption: formData.encryption }
-        : {}),
-      ...(meta.usernameLabel ? { username: formData.username } : {}),
       ...(formData.password ? { password: formData.password } : {}),
     }
     try {
@@ -164,11 +130,9 @@ export default function EmailConfigPage() {
     }
   }
 
-  const secretDescription = providerChanged
-    ? `You switched providers — enter the ${meta.secretLabel.toLowerCase()} for ${meta.label}.`
-    : isConfigured
-      ? "Leave blank to keep the stored value, or enter a new value to replace it."
-      : "Stored encrypted at rest and never shown again after saving."
+  const secretDescription = isConfigured
+    ? "Leave blank to keep the stored value, or enter a new value to replace it."
+    : "Stored encrypted at rest and never shown again after saving."
 
   const isBusy = isSubmitting || mutation.isPending
 
@@ -176,7 +140,7 @@ export default function EmailConfigPage() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Email Delivery" onBack={() => guard(() => navigate(backTo))} title="Configure Email Delivery" description="Connect an email provider to send platform emails." />
+          <FormPageHeader backUrl={backTo} backLabel="Back to Email Delivery" onBack={() => guard(() => navigate(backTo))} title="Configure Email Delivery" description="Connect an SMTP relay to send platform emails." />
           <Card>
             <CardContent className="space-y-4 pt-6">
               <Skeleton className="h-5 w-40" />
@@ -196,7 +160,7 @@ export default function EmailConfigPage() {
     return (
       <DetailsContainer>
         <div className="flex flex-col gap-6">
-          <FormPageHeader backUrl={backTo} backLabel="Back to Email Delivery" onBack={() => guard(() => navigate(backTo))} title="Configure Email Delivery" description="Connect an email provider to send platform emails." />
+          <FormPageHeader backUrl={backTo} backLabel="Back to Email Delivery" onBack={() => guard(() => navigate(backTo))} title="Configure Email Delivery" description="Connect an SMTP relay to send platform emails." />
           <Card>
             <CardContent className="py-12 text-center text-sm text-destructive">
               Failed to load email configuration. {(error as Error)?.message || ""}
@@ -215,72 +179,51 @@ export default function EmailConfigPage() {
           backLabel="Back to Email Delivery"
           onBack={() => guard(() => navigate(backTo))}
           title="Configure Email Delivery"
-          description="Connect an email provider so the platform can send verification, security, and notification emails."
+          description="Connect an SMTP relay so the platform can send verification, security, and notification emails."
         />
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Provider & Credentials</CardTitle>
+              <CardTitle className="text-base">SMTP Connection</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Choose the service that delivers your email and enter its credentials.
+                Enter your SMTP relay's connection details. Any provider — Amazon SES, Mailgun,
+                SendGrid, Postmark, or Gmail — works through its SMTP endpoint (use its SMTP
+                credentials, not an API key).
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
+                <FormInputField label="Host" placeholder="smtp.example.com" disabled={isBusy} error={errors.host?.message} {...register("host")} />
+                <FormInputField label="Port" type="number" placeholder="587" disabled={isBusy} error={errors.port?.message} {...register("port")} />
                 <Controller
-                  name="provider"
+                  name="encryption"
                   control={control}
                   render={({ field }) => (
                     <FormSelectField
-                      label="Email Provider"
-                      options={PROVIDER_OPTIONS}
-                      value={field.value}
+                      label="Encryption"
+                      options={ENCRYPTION_OPTIONS}
+                      value={field.value || ""}
                       onValueChange={field.onChange}
-                      error={errors.provider?.message}
                       disabled={isBusy}
-                      required
+                      error={errors.encryption?.message}
                     />
                   )}
                 />
               </div>
 
-              {meta.showServer && (
-                <div className="grid gap-4 md:grid-cols-3">
-                  <FormInputField label="Host" placeholder="smtp.example.com" disabled={isBusy} error={errors.host?.message} {...register("host")} />
-                  <FormInputField label="Port" type="number" placeholder="587" disabled={isBusy} error={errors.port?.message} {...register("port")} />
-                  <Controller
-                    name="encryption"
-                    control={control}
-                    render={({ field }) => (
-                      <FormSelectField
-                        label="Encryption"
-                        options={ENCRYPTION_OPTIONS}
-                        value={field.value || ""}
-                        onValueChange={field.onChange}
-                        disabled={isBusy}
-                        error={errors.encryption?.message}
-                      />
-                    )}
-                  />
-                </div>
-              )}
-
               <div className="grid gap-4 md:grid-cols-2">
-                {meta.usernameLabel && (
-                  <FormInputField
-                    label={meta.usernameLabel}
-                    placeholder={meta.usernameLabel}
-                    disabled={isBusy}
-                    error={errors.username?.message}
-                    {...register("username")}
-                  />
-                )}
+                <FormInputField
+                  label="Username"
+                  placeholder="Username"
+                  disabled={isBusy}
+                  error={errors.username?.message}
+                  {...register("username")}
+                />
                 <FormPasswordField
-                  label={meta.secretLabel}
-                  placeholder={isConfigured && !providerChanged ? "••••••••  (unchanged)" : `Enter ${meta.secretLabel.toLowerCase()}`}
+                  label="Password"
+                  placeholder={isConfigured ? "••••••••  (unchanged)" : "Enter password"}
                   description={secretDescription}
-                  required={providerChanged}
                   disabled={isBusy}
                   error={errors.password?.message}
                   {...register("password")}

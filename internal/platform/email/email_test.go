@@ -136,115 +136,16 @@ func TestNewProvider_UnknownProvider(t *testing.T) {
 	cfg := ProviderConfig{Provider: "unknown"}
 	_, err := NewProvider(context.Background(), cfg)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown provider")
+	assert.Contains(t, err.Error(), "unsupported provider")
 }
 
-func TestNewProvider_SendGrid(t *testing.T) {
-	cfg := ProviderConfig{Provider: "sendgrid", APIKey: "test-key"}
-	p, err := NewProvider(context.Background(), cfg)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestNewProvider_Postmark(t *testing.T) {
-	cfg := ProviderConfig{Provider: "postmark", APIKey: "test-key"}
-	p, err := NewProvider(context.Background(), cfg)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestNewProvider_Mailgun(t *testing.T) {
-	cfg := ProviderConfig{Provider: "mailgun", APIKey: "test-key", Domain: "example.com"}
-	p, err := NewProvider(context.Background(), cfg)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestNewProvider_Resend(t *testing.T) {
-	cfg := ProviderConfig{Provider: "resend", APIKey: "test-key"}
-	p, err := NewProvider(context.Background(), cfg)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestNewProvider_SES(t *testing.T) {
-	cfg := ProviderConfig{Provider: "ses", Region: "us-east-1"}
-	p, err := NewProvider(context.Background(), cfg)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestNewProvider_SES_DefaultRegion(t *testing.T) {
-	cfg := ProviderConfig{Provider: "ses"}
-	p, err := NewProvider(context.Background(), cfg)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestSendGrid_Send_Success(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "sendgrid", APIKey: "test-key"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "sendgrid:")
-}
-
-func TestSendGrid_Send_Error(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "sendgrid", APIKey: "test-key"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "sendgrid")
-}
-
-func TestSendGrid_Send_BadRequest(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "sendgrid", APIKey: "test-key"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>"})
-	require.Error(t, err)
-}
-
-func TestPostmark_Send_Error(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "postmark", APIKey: "test-key"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "postmark")
-}
-
-func TestPostmark_Send_WithPlainText(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "postmark", APIKey: "test-key"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>", BodyPlain: "Hello"})
-	require.Error(t, err)
-}
-
-func TestMailgun_Send_Error(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "mailgun", APIKey: "test-key", Domain: "example.com"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "mailgun")
-}
-
-func TestMailgun_Send_WithPlainText(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "mailgun", APIKey: "test-key", Domain: "example.com"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>", BodyPlain: "Hello"})
-	require.Error(t, err)
-}
-
-func TestResend_Send_Error(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "resend", APIKey: "test-key"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "resend:")
-}
-
-func TestResend_Send_WithPlainText(t *testing.T) {
-	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "resend", APIKey: "test-key"})
-	require.NoError(t, err)
-	err = p.Send(context.Background(), SendParams{To: "user@example.com", Subject: "Hello", BodyHTML: "<p>Hello</p>", BodyPlain: "Hello"})
-	require.Error(t, err)
+// The SaaS API providers (SES/SendGrid/Mailgun/Postmark/Resend) were removed:
+// maintainerd delivers over SMTP only, so every provider is reached via its SMTP
+// relay. NewProvider now rejects any non-smtp provider.
+func TestNewProvider_SaaSProvidersRejected(t *testing.T) {
+	for _, provider := range []string{"ses", "sendgrid", "mailgun", "postmark", "resend"} {
+		_, err := NewProvider(context.Background(), ProviderConfig{Provider: provider})
+		require.Error(t, err, provider)
+		assert.Contains(t, err.Error(), "unsupported provider", provider)
+	}
 }

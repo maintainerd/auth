@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmailConfig holds tenant-level SMTP/SES/SendGrid delivery configuration.
+// EmailConfig holds tenant-level SMTP delivery configuration.
 type EmailConfig struct {
 	EmailConfigID     int64          `gorm:"column:email_config_id;primaryKey;autoIncrement" json:"email_config_id"`
 	EmailConfigUUID   uuid.UUID      `gorm:"column:email_config_uuid;type:uuid;uniqueIndex;not null" json:"email_config_uuid"`
