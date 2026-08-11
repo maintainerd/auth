@@ -79,17 +79,15 @@ func NewWebAuthnService(
 	challengeRepo WebAuthnChallengeRepository,
 ) (WebAuthnService, error) {
 	rpID := rpIDFromHostname(config.AppPublicHostname)
-	rpOrigins := []string{config.AppPublicHostname}
-	if extraOrigins := config.GetEnvOrDefault("WEBAUTHN_EXTRA_ORIGINS", ""); extraOrigins != "" {
-		for _, o := range strings.Split(extraOrigins, ",") {
-			if o = strings.TrimSpace(o); o != "" {
-				rpOrigins = append(rpOrigins, o)
-			}
-		}
-	}
 	if overrideID := config.GetEnvOrDefault("WEBAUTHN_RP_ID", ""); overrideID != "" {
 		rpID = overrideID
 	}
+	// This instance is used ONLY to start ceremonies (BeginRegistration/BeginLogin),
+	// which don't validate origins. Real origin validation happens per-request in
+	// waForOrigin (any origin under the RP ID — see there), so no static origin list is
+	// needed; RPOrigins just needs one entry for webauthn.New to initialize. (This is
+	// why WEBAUTHN_EXTRA_ORIGINS was removed — it was no longer consulted.)
+	rpOrigins := []string{config.AppPublicHostname}
 
 	if challengeRepo == nil {
 		return nil, fmt.Errorf("webauthn service requires a non-nil challenge repository")
