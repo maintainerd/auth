@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-11
+
+### Fixed — WebAuthn on tenant subdomains
+- **Passkeys now work for every regular tenant.** WebAuthn origin validation used a
+  static `RPOrigins` list (the system surfaces only), so registering/authenticating a
+  passkey from a tenant subdomain (`{tenant}.console.auth…` / `{tenant}.identity.auth…`)
+  failed with "Error validating origin". go-webauthn matches origins exactly (no
+  wildcards), and tenant origins are open-ended, so a static list can't cover them.
+- The RP ID stays constant (a registrable suffix such as `auth.maintainerd.dev` that
+  covers every surface and tenant). At the Finish step the verifier is now built
+  per-request from the ceremony's own (signed) origin, and that origin is accepted
+  **only** when its host is the RP ID or a subdomain of it — so only pages served under
+  our own domain are ever honored, and suffix-confusion lookalikes are refused. The
+  origin is cryptographically bound to the ceremony and the challenge is single-use, so
+  this is the standard spec-compliant pattern for a multi-tenant subdomain RP, not a
+  relaxation of validation.
+
 ## [0.1.1] - 2026-08-11
 
 ### Changed — email delivery

@@ -194,7 +194,12 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		return nil, apperror.NewValidation("WebAuthn challenge invalid, expired, or already used")
 	}
 
-	cred, err := createWebAuthnCredential(s.wa, wu, *session, response)
+	// Validate against the ceremony's actual origin (tenant subdomains are dynamic).
+	wa, err := s.waForOrigin(response.Response.CollectedClientData.Origin)
+	if err != nil {
+		return nil, err
+	}
+	cred, err := createWebAuthnCredential(wa, wu, *session, response)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "credential creation failed")
@@ -321,7 +326,13 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 		return nil, apperror.NewUnauthorized("WebAuthn challenge invalid, expired, or already used")
 	}
 
-	cred, err := validateWebAuthnLogin(s.wa, wu, *session, response)
+	// Validate against the ceremony's actual origin (tenant subdomains are dynamic).
+	wa, err := s.waForOrigin(response.Response.CollectedClientData.Origin)
+	if err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewUnauthorized("WebAuthn authentication failed")
+	}
+	cred, err := validateWebAuthnLogin(wa, wu, *session, response)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "login validation failed")
@@ -517,6 +528,37 @@ func rpIDFromHostname(hostname string) string {
 		host = host[:idx]
 	}
 	return host
+}
+
+// waForOrigin builds a per-request WebAuthn verifier whose single allowed origin is
+// the ceremony's actual origin (taken from the signed clientData). maintainerd is
+// multi-tenant: every regular tenant is served from its own subdomain
+// ({tenant}.console.auth… and {tenant}.identity.auth…), so the set of valid origins is
+// open-ended and cannot be a static list — and go-webauthn matches origins exactly, with
+// no wildcard support. The RP ID stays constant (a registrable suffix such as
+// auth.maintainerd.dev that covers every surface and tenant), and we accept the request
+// origin ONLY when its host is that RP ID or a subdomain of it, so only pages served
+// under our own domain are ever honored. This is safe: the browser already constrains
+// WebAuthn ceremonies to origins under rp.id, the signature covers the clientData origin,
+// and the challenge is single-use and server-issued.
+func (s *webAuthnService) waForOrigin(origin string) (*webauthn.WebAuthn, error) {
+	origin = strings.TrimSpace(origin)
+	if origin == "" {
+		return nil, apperror.NewValidation("WebAuthn origin missing")
+	}
+	host := rpIDFromHostname(origin)
+	if host != s.rpID && !strings.HasSuffix(host, "."+s.rpID) {
+		return nil, apperror.NewValidation(fmt.Sprintf("WebAuthn origin %q is not under relying party %q", origin, s.rpID))
+	}
+	wa, err := webauthn.New(&webauthn.Config{
+		RPDisplayName: "maintainerd",
+		RPID:          s.rpID,
+		RPOrigins:     []string{origin},
+	})
+	if err != nil {
+		return nil, apperror.NewInternal("webauthn init for origin", err)
+	}
+	return wa, nil
 }
 
 func transportArray(ts []protocol.AuthenticatorTransport) pq.StringArray {
