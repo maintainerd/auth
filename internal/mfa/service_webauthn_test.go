@@ -50,6 +50,64 @@ func TestRPIDFromHostname(t *testing.T) {
 	}
 }
 
+const (
+	waTestRPID         = "auth.example.com"
+	waTestTenantOrigin = "https://acme.console.auth.example.com" // a regular-tenant subdomain under the RP ID
+)
+
+func waRegResponse(origin string) *protocol.ParsedCredentialCreationData {
+	return &protocol.ParsedCredentialCreationData{
+		Response: protocol.ParsedAttestationResponse{
+			CollectedClientData: protocol.CollectedClientData{Origin: origin},
+		},
+	}
+}
+
+func waAuthResponse(origin string) *protocol.ParsedCredentialAssertionData {
+	return &protocol.ParsedCredentialAssertionData{
+		Response: protocol.ParsedAssertionResponse{
+			CollectedClientData: protocol.CollectedClientData{Origin: origin},
+		},
+	}
+}
+
+// waForOrigin is the security boundary for multi-tenant subdomains: any origin under
+// the RP ID (the system surfaces AND every regular tenant's subdomain) is honored,
+// while any origin outside the RP domain — including suffix-confusion lookalikes — is
+// refused. The RP ID itself stays constant, so credentials remain bound to our domain.
+func TestWebAuthnService_waForOrigin(t *testing.T) {
+	svc := &webAuthnService{rpID: waTestRPID}
+
+	t.Run("accepts the RP ID and any subdomain (system + tenants)", func(t *testing.T) {
+		for _, origin := range []string{
+			"https://auth.example.com",                  // the RP ID itself
+			"https://console.auth.example.com",          // system console
+			"https://identity.auth.example.com",         // system identity
+			"https://acme.console.auth.example.com",     // regular tenant, console
+			"https://acme.identity.auth.example.com",    // regular tenant, identity
+			"https://any-tenant.console.auth.example.com",
+		} {
+			wa, err := svc.waForOrigin(origin)
+			require.NoError(t, err, origin)
+			assert.Equal(t, waTestRPID, wa.Config.RPID, origin)
+			assert.Equal(t, []string{origin}, wa.Config.RPOrigins, origin)
+		}
+	})
+
+	t.Run("refuses origins outside the RP domain", func(t *testing.T) {
+		for _, origin := range []string{
+			"",                                  // missing
+			"https://evil.com",                  // foreign
+			"https://auth.example.com.evil.com", // RP ID as a left label of an attacker domain
+			"https://notauth.example.com",       // sibling label, not a subdomain
+			"https://fakeauth.example.com",      // bare-suffix lookalike must not match
+		} {
+			_, err := svc.waForOrigin(origin)
+			require.Error(t, err, origin)
+		}
+	})
+}
+
 func TestNewWebAuthnService(t *testing.T) {
 	original := config.AppPublicHostname
 	t.Cleanup(func() { config.AppPublicHostname = original })
@@ -141,14 +199,14 @@ func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore:        &mockWebAuthnSessionStore{getErr: errors.New("missing")},
 		}
-		_, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", nil)
+		_, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", waRegResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "session expired")
 	})
 
 	t.Run("finish registration load user error", func(t *testing.T) {
 		svc := &webAuthnService{userRepo: &mockUserRepo{}, mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{}}
-		_, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", nil)
+		_, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", waRegResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -159,14 +217,14 @@ func TestWebAuthnService_BeginCeremoniesErrorPaths(t *testing.T) {
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
 			sessionStore:        &mockWebAuthnSessionStore{getErr: errors.New("missing")},
 		}
-		_, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		_, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "session expired")
 	})
 
 	t.Run("finish authentication load user error", func(t *testing.T) {
 		svc := &webAuthnService{userRepo: &mockUserRepo{}, mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{}}
-		_, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		_, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -265,6 +323,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		mock.ExpectCommit()
 		events := &mockAuthEventService{}
 		svc := &webAuthnService{
+			rpID:                waTestRPID,
 			db:                  db,
 			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{},
@@ -274,7 +333,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			authEventService: events,
 			challengeRepo:    &mockWebAuthnChallengeRepo{},
 		}
-		got, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", nil)
+		got, err := svc.FinishRegistration(t.Context(), mfaTestUserID, "", waRegResponse(waTestTenantOrigin))
 		require.NoError(t, err)
 		assert.Equal(t, "Security Key", got.Name)
 		assert.Equal(t, pq.StringArray{"usb"}, got.Transport)
@@ -285,7 +344,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		createWebAuthnCredential = func(*webauthn.WebAuthn, webauthn.User, webauthn.SessionData, *protocol.ParsedCredentialCreationData) (*webauthn.Credential, error) {
 			return nil, errors.New("bad attestation")
 		}
-		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", nil)
+		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", waRegResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "WebAuthn registration failed")
 
@@ -294,7 +353,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		}
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "reg", &webauthn.SessionData{Challenge: "challenge"}))
 		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{createErr: errors.New("db down")}
-		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", nil)
+		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", waRegResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to persist")
 
@@ -305,7 +364,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		svc.db = dbErr
 		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{}
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "reg", &webauthn.SessionData{Challenge: "challenge"}))
-		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", nil)
+		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", waRegResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to update user WebAuthn state")
 		assertExpectationsMet(t, mockErr)
@@ -318,7 +377,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		svc.sessionStore = &mockWebAuthnSessionStore{values: map[string]*webauthn.SessionData{
 			"webauthn:session:42:reg": {Challenge: "challenge"},
 		}, delErr: errors.New("cache down")}
-		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", nil)
+		_, err = svc.FinishRegistration(t.Context(), mfaTestUserID, "laptop", waRegResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to clear WebAuthn registration session")
 		assertExpectationsMet(t, mockOK)
@@ -331,6 +390,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		stored := &UserMFAWebAuthnCredential{CredentialID: 1, CredentialUUID: mfaTestCredentialUUID, CredentialKeyID: base64.RawURLEncoding.EncodeToString([]byte("cred-id")), SignCount: 7}
 		events := &mockAuthEventService{}
 		svc := &webAuthnService{
+			rpID:                waTestRPID,
 			userRepo:            &mockUserRepo{findByID: &User{UserID: mfaTestUserID, TenantID: mfaTestTenantID}},
 			mfaWebAuthnCredRepo: &mockMFAWebAuthnCredentialRepo{findByKeyID: stored},
 			sessionStore: &mockWebAuthnSessionStore{values: map[string]*webauthn.SessionData{
@@ -339,7 +399,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			authEventService: events,
 			challengeRepo:    &mockWebAuthnChallengeRepo{},
 		}
-		got, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		got, err := svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.NoError(t, err)
 		assert.Equal(t, stored, got)
 		assert.Len(t, events.inputs, 1)
@@ -349,7 +409,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		validateWebAuthnLogin = func(*webauthn.WebAuthn, webauthn.User, webauthn.SessionData, *protocol.ParsedCredentialAssertionData) (*webauthn.Credential, error) {
 			return nil, errors.New("bad assertion")
 		}
-		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "WebAuthn authentication failed")
 
@@ -358,25 +418,25 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 		}
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
 		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyIDErr: errors.New("db down")}
-		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "credential not found after validation")
 
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
 		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyID: &UserMFAWebAuthnCredential{CredentialID: 1, SignCount: 9}}
-		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "sign count regression")
 
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
 		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyID: stored, signCountErr: errors.New("db down")}
-		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to update WebAuthn sign count")
 
 		require.NoError(t, svc.storeSession(t.Context(), mfaTestUserID, "auth", &webauthn.SessionData{Challenge: "challenge"}))
 		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyID: stored, lastUsedErr: errors.New("db down")}
-		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to update WebAuthn last-used")
 
@@ -384,7 +444,7 @@ func TestWebAuthnService_RegistrationAndAuthenticationCeremonies(t *testing.T) {
 			"webauthn:session:42:auth": {Challenge: "challenge"},
 		}, delErr: errors.New("cache down")}
 		svc.mfaWebAuthnCredRepo = &mockMFAWebAuthnCredentialRepo{findByKeyID: stored}
-		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, nil)
+		_, err = svc.FinishAuthentication(t.Context(), mfaTestUserID, waAuthResponse(waTestTenantOrigin))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to clear WebAuthn authentication session")
 	})
