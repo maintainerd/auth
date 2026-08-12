@@ -143,7 +143,12 @@ func Init() error {
 	}
 
 	// App Config
-	AppEnv = GetEnvOrDefault("APP_ENV", "development")
+	// Secure by default: an unset APP_ENV resolves to "production", so a
+	// production image can never silently run with development-grade security
+	// (no HSTS, DB/gRPC TLS not enforced, plaintext secret stores, gRPC
+	// reflection on). Local work opts into the relaxed posture with
+	// APP_ENV=development, which the dev compose and quickstart .env already set.
+	AppEnv = GetEnvOrDefault("APP_ENV", "production")
 	var err error
 	// AppVersion may be injected at build time via -ldflags -X ...config.AppVersion.
 	// Precedence: APP_VERSION env (operator override) > build-injected value > "dev".

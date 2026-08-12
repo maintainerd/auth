@@ -34,7 +34,7 @@ The process refuses to start (with a clear error) if any of these is missing.
 
 | Variable | Default | Description |
 |---|---|---|
-| `APP_ENV` | `development` | `development` or `production`. In `production`, `DB_SSLMODE=disable` is rejected at startup. |
+| `APP_ENV` | `production` | `production` or `development`. **Defaults to `production` (secure by default)** — an unset value never silently downgrades security. `production` enforces DB SSL, gRPC TLS, and HTTPS secret stores, sends HSTS, and disables gRPC reflection; `DB_SSLMODE=disable` is rejected at startup. Set `development` for local work (the dev compose and quickstart `.env` already do). |
 | `APP_VERSION` | build-injected → `dev` | Overrides the version baked in via `-ldflags`. Not usually set by hand. |
 | `MANAGEMENT_PORT` | `8082` | Management listener (health + `/metrics`). Keep INTERNAL. |
 | `APP_CONSOLE_PORT` | `3000` | Console SPA server port. |

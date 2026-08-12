@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/maintainerd/maintainerd-auth/internal/app"
 	"github.com/maintainerd/maintainerd-auth/internal/oauth"
@@ -35,6 +36,16 @@ func run(ctx context.Context) error {
 
 	// Rebuild the logger once LOG_LEVEL, PII redaction, and OTel logging are known.
 	initConfiguredLogger()
+
+	// Announce the security posture so it is never ambiguous which mode is active.
+	// APP_ENV defaults to "production" (secure by default): production enforces DB
+	// SSL, gRPC TLS, and HTTPS secret stores, sends HSTS, and disables gRPC
+	// reflection. "development" relaxes those for local work.
+	if config.AppEnv == "production" {
+		slog.Info("startup: running in production mode — TLS/SSL enforcement and HSTS active", "app_env", config.AppEnv)
+	} else {
+		slog.Warn("startup: running in development mode — security hardening relaxed (no HSTS; DB/gRPC TLS and HTTPS secret stores not enforced). Set APP_ENV=production for a hardened deployment.", "app_env", config.AppEnv)
+	}
 
 	// Start tracing and metrics before downstream dependencies are initialized
 	// so startup failures are observable too.

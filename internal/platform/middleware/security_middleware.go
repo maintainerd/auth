@@ -330,7 +330,7 @@ func UserAgentFromContext(ctx context.Context) string {
 // downgrade protection the caller documents as SOC2 CC6.1. "ENV" is still
 // honoured so anyone who had discovered and set it does not regress.
 func isProduction() bool {
-	if strings.EqualFold(config.GetEnvOrDefault("APP_ENV", "development"), "production") {
+	if strings.EqualFold(config.GetEnvOrDefault("APP_ENV", "production"), "production") {
 		return true
 	}
 	return strings.EqualFold(config.GetEnvOrDefault("ENV", ""), "production")
