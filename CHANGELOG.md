@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-11
+
+### Fixed — frequent logout from refresh-token rotation
+- **A benign concurrent refresh no longer signs the user out.** Refresh-token reuse
+  detection revoked the entire session family on *any* duplicate refresh, and the
+  `refresh_token_reuse_interval_seconds` "grace window" only changed the error text —
+  the family was revoked regardless. So two tabs, a retry, or parallel requests racing
+  on the shared cookie tore down the whole session, causing repeated logouts during
+  active use.
+- Implemented **idempotent rotation** (OAuth 2.0 Security BCP, RFC 9700 §4.14.2): the
+  first request to consume a refresh token caches the exact token set it minted for the
+  reuse-interval window; an in-window duplicate of that token now gets the **same** set
+  back (a normal 200) instead of a family-revoking 401. Because the same set is returned
+  rather than an independent one, an in-window replay of a stolen token cannot fork a
+  separate session, and reuse **outside** the window still revokes the family
+  (RFC 6819 §5.2.1.1). The overlap window is driven entirely by the existing
+  `refresh_token_reuse_interval_seconds` security setting (0 = strict single-use).
+- **No change to token lifetimes or session limits.** Access-token TTL, refresh-token
+  TTL, idle timeout, absolute timeout, and the rotation flag remain sourced from the
+  security settings (global + per-tenant + per-client) and are untouched.
+
 ## [0.1.2] - 2026-08-11
 
 ### Fixed — WebAuthn on tenant subdomains

@@ -1,7 +1,9 @@
 package authn
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"log/slog"
 	"strings"
 	"time"
@@ -9,6 +11,7 @@ import (
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/cache"
 	platformjwt "github.com/maintainerd/maintainerd-auth/internal/platform/jwt"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/security"
@@ -50,9 +53,15 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 	// Claims are read unverified here purely to look up the jti/family; the
 	// signature is still verified immediately afterwards, before anything is
 	// issued.
-	if err := s.rejectRefreshReuse(ctx, refreshToken); err != nil {
+	if replay, err := s.rejectRefreshReuse(ctx, refreshToken); err != nil {
 		span.SetStatus(codes.Error, "refresh token reuse")
 		return nil, err
+	} else if replay != nil {
+		// Idempotent rotation: a duplicate of a just-consumed token, presented inside
+		// the overlap window, gets back the exact set the original rotation minted, so
+		// racing tabs / retries stay signed in (RFC 9700 §4.14.2).
+		span.SetStatus(codes.Ok, "idempotent refresh replay")
+		return replay, nil
 	}
 
 	// Validate signature, expiry, and denylist via the shared validator.
@@ -156,12 +165,6 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 		return nil, err
 	}
 
-	// Single-use rotation: deny the consumed refresh token so it cannot be replayed.
-	// Skip denylisting when rotation is disabled — the token remains reusable.
-	if policy.RotateRefreshTokens {
-		s.denylistConsumedRefreshToken(ctx, claims, policy)
-	}
-
 	resp := buildLoginTokenResponse(accessToken, idToken, newRefreshToken, time.Now().Unix())
 	applyLoginCookiePolicy(resp, policy)
 	if policy.AccessTokenTTLSeconds > 0 {
@@ -172,8 +175,59 @@ func (s *loginService) RefreshToken(ctx context.Context, refreshToken string, se
 		resp.SessionID = &resolvedSessionID
 	}
 
+	// Single-use rotation: deny the consumed refresh token so it cannot be replayed,
+	// and cache this exact set for the overlap window so an in-window duplicate is
+	// answered idempotently (above) instead of revoking the family. Skipped when
+	// rotation is disabled — the token then remains reusable by design.
+	if policy.RotateRefreshTokens {
+		s.denylistConsumedRefreshToken(ctx, claims, policy)
+		s.cacheRefreshReplay(ctx, claims, resp, policy)
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return resp, nil
+}
+
+// cacheRefreshReplay stores the minted token set keyed by the CONSUMED token's JTI
+// for the rotation-overlap window, enabling idempotent replay. Best-effort.
+func (s *loginService) cacheRefreshReplay(ctx context.Context, consumedClaims jwtlib.MapClaims, resp *LoginResponseDTO, policy secpolicy.EffectiveSessionPolicy) {
+	if resp == nil || policy.RefreshTokenReuseIntervalSeconds <= 0 {
+		return
+	}
+	store, ok := s.jtiDenylist.(cache.RefreshReplayStore)
+	if !ok {
+		return
+	}
+	jti, _ := consumedClaims["jti"].(string)
+	if strings.TrimSpace(jti) == "" {
+		return
+	}
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(resp); err != nil {
+		slog.Error("refresh rotation: failed to encode idempotent replay", "jti", jti, "error", err)
+		return
+	}
+	_ = store.StoreRefreshReplay(ctx, jti, buf.Bytes(), time.Duration(policy.RefreshTokenReuseIntervalSeconds)*time.Second)
+}
+
+// fetchRefreshReplay returns the cached token set for a consumed JTI while it is
+// still inside the overlap window, or nil if none is cached / the backend can't
+// store replays.
+func (s *loginService) fetchRefreshReplay(ctx context.Context, jti string) *LoginResponseDTO {
+	store, ok := s.jtiDenylist.(cache.RefreshReplayStore)
+	if !ok {
+		return nil
+	}
+	payload, found, err := store.GetRefreshReplay(ctx, jti)
+	if err != nil || !found || len(payload) == 0 {
+		return nil
+	}
+	var resp LoginResponseDTO
+	if err := gob.NewDecoder(bytes.NewReader(payload)).Decode(&resp); err != nil {
+		slog.Error("refresh rotation: failed to decode idempotent replay", "jti", jti, "error", err)
+		return nil
+	}
+	return &resp
 }
 
 // resolveRefreshSession reuses the caller's session when a valid session id is
@@ -236,39 +290,56 @@ func (s *loginService) denylistConsumedRefreshToken(ctx context.Context, claims 
 	}
 }
 
-func (s *loginService) rejectRefreshReuse(ctx context.Context, refreshToken string) error {
+// rejectRefreshReuse enforces single-use refresh-token rotation with an idempotent
+// overlap window (RFC 9700 §4.14.2). It returns:
+//
+//   - (nil, err) when the family was already revoked, or when a consumed token is
+//     replayed OUTSIDE the overlap window — genuine reuse, so the family is revoked;
+//   - (cachedResponse, nil) when a consumed token is presented again INSIDE the
+//     window and the set its rotation minted is still cached — the benign
+//     concurrency case (two tabs, a retry, parallel requests racing on the shared
+//     cookie), answered idempotently so the caller returns it verbatim;
+//   - (nil, nil) when the token has not been consumed and the caller should proceed.
+//
+// Returning the SAME set on an in-window duplicate (rather than minting an
+// independent one) means a stolen token replayed inside the window cannot fork a
+// separate, undetectable session; reuse AFTER the window still revokes the family.
+func (s *loginService) rejectRefreshReuse(ctx context.Context, refreshToken string) (*LoginResponseDTO, error) {
 	if s.jtiDenylist == nil {
-		return nil
+		return nil, nil
 	}
 	claims := unverifiedRefreshClaims(refreshToken)
 	if len(claims) == 0 {
-		return nil
+		return nil, nil
 	}
 	jti, _ := claims["jti"].(string)
 	familyID, _ := claims["rfid"].(string)
 	if familyID != "" {
 		if denied, _ := s.jtiDenylist.IsJTIDenied(ctx, refreshFamilyKey(familyID)); denied {
-			return apperror.NewUnauthorized("refresh token family has been revoked")
+			return nil, apperror.NewUnauthorized("refresh token family has been revoked")
 		}
 	}
 	if strings.TrimSpace(jti) == "" {
-		return nil
+		return nil, nil
 	}
 	used, _ := s.jtiDenylist.IsJTIDenied(ctx, refreshUsedKey(jti))
 	if !used {
 		used, _ = s.jtiDenylist.IsJTIDenied(ctx, jti)
 	}
 	if !used {
-		return nil
+		return nil, nil
 	}
 
-	// The grace window may soften the ERROR SHAPE for a client that legitimately
-	// retried, but it must never suppress the RESPONSE TO COMPROMISE. Revoking
-	// the family happens first, unconditionally: an attacker replays a stolen
-	// token immediately, which is squarely inside the window, so returning early
-	// here disabled detection at exactly the highest-risk moment.
-	inGrace, _ := s.jtiDenylist.IsJTIDenied(ctx, refreshGraceKey(jti))
+	// Consumed. If the set its rotation minted is still cached, we are inside the
+	// overlap window: this is a benign concurrent retry — answer idempotently with
+	// that exact set so the client keeps one valid session.
+	if replay := s.fetchRefreshReplay(ctx, jti); replay != nil {
+		return replay, nil
+	}
 
+	// No cached set → the token was consumed OUTSIDE the overlap window (or replay
+	// storage is unavailable). Treat as compromise and revoke the entire token family
+	// (RFC 6819 §5.2.1.1 / OAuth 2.1 §6.1).
 	if familyID != "" {
 		ttl := jwtClaimTTL(claims["exp"])
 		if ttl <= 0 {
@@ -282,16 +353,11 @@ func (s *loginService) rejectRefreshReuse(ctx context.Context, refreshToken stri
 			ClientIP:  middleware.ClientIPFromContext(ctx),
 			UserAgent: middleware.UserAgentFromContext(ctx),
 			Timestamp: time.Now(),
-			Details:   "Refresh token reuse detected; token family revoked",
+			Details:   "Refresh token reuse detected outside the rotation overlap window; token family revoked",
 			Severity:  "HIGH",
 		})
 	}
-	if inGrace {
-		// Distinct message for an in-window replay (most often a client that
-		// retried), but the family is already revoked above either way.
-		return apperror.NewUnauthorized("refresh token was already consumed")
-	}
-	return apperror.NewUnauthorized("refresh token reuse detected")
+	return nil, apperror.NewUnauthorized("refresh token reuse detected")
 }
 
 func unverifiedRefreshClaims(tokenString string) jwtlib.MapClaims {

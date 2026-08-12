@@ -18,12 +18,13 @@ import (
 // which always answers "not denied" and so cannot exercise reuse detection at
 // all. That gap is why the family-revocation path shipped unreachable.
 type stubDenylist struct {
-	mu     sync.Mutex
-	denied map[string]time.Time
+	mu      sync.Mutex
+	denied  map[string]time.Time
+	replays map[string][]byte
 }
 
 func newStubDenylist() *stubDenylist {
-	return &stubDenylist{denied: map[string]time.Time{}}
+	return &stubDenylist{denied: map[string]time.Time{}, replays: map[string][]byte{}}
 }
 
 func (d *stubDenylist) DenyJTI(_ context.Context, jti string, ttl time.Duration) error {
@@ -51,13 +52,38 @@ func (d *stubDenylist) has(prefix string) bool {
 	return false
 }
 
-// Replaying a rotated refresh token must be detected AS REUSE and must revoke
-// the whole family (RFC 6819 §5.2.1.1, OAuth 2.1 §6.1).
-//
-// This previously could not happen: the consumed jti was written to the generic
-// access-token denylist, so the shared validator rejected the replay as merely
-// "invalid" before reuse detection ran — and a stolen sibling token stayed live.
-func TestRefreshToken_ReuseRevokesFamily(t *testing.T) {
+// stubDenylist also implements cache.RefreshReplayStore so the idempotent-rotation
+// path is exercised, exactly as *cache.Cache does in production.
+func (d *stubDenylist) StoreRefreshReplay(_ context.Context, jti string, payload []byte, _ time.Duration) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	cp := make([]byte, len(payload))
+	copy(cp, payload)
+	d.replays[jti] = cp
+	return nil
+}
+
+func (d *stubDenylist) GetRefreshReplay(_ context.Context, jti string) ([]byte, bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	p, ok := d.replays[jti]
+	return p, ok, nil
+}
+
+// expireReplays simulates the rotation-overlap window elapsing (the cached sets are
+// gone) so a later replay is treated as genuine out-of-window reuse.
+func (d *stubDenylist) expireReplays() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.replays = map[string][]byte{}
+}
+
+// Inside the rotation-overlap window (refresh_token_reuse_interval_seconds), a
+// duplicate of a just-consumed refresh token is the benign concurrency case (two
+// tabs, a retry, parallel requests racing on the shared cookie). It MUST be answered
+// idempotently with the SAME token set the rotation minted, and MUST NOT revoke the
+// family — otherwise every in-window race logs the user out (RFC 9700 §4.14.2).
+func TestRefreshToken_InWindowDuplicateIsIdempotent(t *testing.T) {
 	initTestJWTKeysService(t)
 
 	const sub = "user-sub-1"
@@ -76,7 +102,49 @@ func TestRefreshToken_ReuseRevokesFamily(t *testing.T) {
 		jtiDenylist:    denylist,
 	}
 
-	// First use succeeds and rotates.
+	first, err := svc.RefreshToken(context.Background(), parent, "")
+	require.NoError(t, err)
+	require.NotEmpty(t, first.RefreshToken)
+
+	// Immediate duplicate of the consumed parent → same set, success, no revocation.
+	dup, err := svc.RefreshToken(context.Background(), parent, "")
+	require.NoError(t, err, "an in-window duplicate must succeed idempotently, not fail")
+	assert.Equal(t, first.RefreshToken, dup.RefreshToken,
+		"must return the SAME rotated token, not a new independent one")
+	assert.Equal(t, first.AccessToken, dup.AccessToken)
+	assert.False(t, denylist.has("rtfam:"), "an in-window duplicate must NOT revoke the family")
+
+	// The child issued by the first rotation must still be usable.
+	_, err = svc.RefreshToken(context.Background(), first.RefreshToken, "")
+	require.NoError(t, err, "the legitimately-rotated child must survive an in-window duplicate")
+}
+
+// Outside the overlap window (the cached set has expired), replay of a consumed
+// token is genuine reuse and MUST revoke the whole family (RFC 6819 §5.2.1.1,
+// OAuth 2.1 §6.1) — a stolen sibling token must not stay live.
+//
+// This previously could not be detected at all: the consumed jti was written to the
+// generic access-token denylist, so the shared validator rejected the replay as
+// merely "invalid" before reuse detection ran.
+func TestRefreshToken_OutOfWindowReuseRevokesFamily(t *testing.T) {
+	initTestJWTKeysService(t)
+
+	const sub = "user-sub-1"
+	const clientID = "test-client"
+
+	sessionID := uuid.New().String()
+	parent, err := jwt.GenerateRefreshTokenWithOptionsContext(context.Background(), sub,
+		"https://auth.example.com", clientID, "realm", &jwt.RefreshTokenOptions{SessionID: sessionID})
+	require.NoError(t, err)
+
+	denylist := newStubDenylist()
+	svc := &loginService{
+		userRepo:       &mockUserRepo{findBySubAndClientIDFn: func(_, _ string) (*User, error) { return buildActiveUser(t, "pw"), nil }},
+		clientRepo:     &mockClientRepo{findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return buildActiveClient(), nil }},
+		sessionService: &mockSessionService{},
+		jtiDenylist:    denylist,
+	}
+
 	first, err := svc.RefreshToken(context.Background(), parent, "")
 	require.NoError(t, err)
 	require.NotEmpty(t, first.RefreshToken)
@@ -84,10 +152,10 @@ func TestRefreshToken_ReuseRevokesFamily(t *testing.T) {
 	assert.False(t, denylist.has("jti:"),
 		"the refresh jti must NOT enter the generic access-token denylist — that is what made reuse detection unreachable")
 
-	// Replay of the consumed parent is reuse, not a generic validation failure.
-	// Immediately, i.e. INSIDE the grace window — the worst case, and the one an
-	// attacker actually produces. The message may say "already consumed", but the
-	// family must be revoked regardless.
+	// The overlap window elapses: the cached replay is gone.
+	denylist.expireReplays()
+
+	// Replay of the consumed parent is now genuine reuse → revoke the family.
 	_, err = svc.RefreshToken(context.Background(), parent, "")
 	require.Error(t, err)
 
@@ -95,7 +163,7 @@ func TestRefreshToken_ReuseRevokesFamily(t *testing.T) {
 	_, err = svc.RefreshToken(context.Background(), first.RefreshToken, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "family has been revoked",
-		"a stolen sibling must not survive a detected replay")
+		"a stolen sibling must not survive a detected out-of-window replay")
 }
 
 // The realm claim must be identical across rotations. It previously flipped from

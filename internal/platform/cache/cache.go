@@ -133,6 +133,40 @@ func (c *Cache) IsJTIDenied(ctx context.Context, jti string) (bool, error) {
 	return denied, nil
 }
 
+// refreshReplayPrefix keys the token set minted when a refresh JTI was consumed,
+// held only for the rotation-overlap window so an in-window concurrent retry can be
+// answered idempotently (RFC 9700 §4.14.2) instead of being mistaken for a replay.
+const refreshReplayPrefix = "rtreplay:"
+
+func refreshReplayKey(jti string) string { return refreshReplayPrefix + jti }
+
+// StoreRefreshReplay caches the opaque token-set payload for a consumed refresh JTI
+// for the given (short) TTL. Best-effort: an error only means the idempotent replay
+// is unavailable, never a security downgrade — the reuse guard falls back to
+// revoke-on-reuse when no payload is found.
+func (c *Cache) StoreRefreshReplay(ctx context.Context, jti string, payload []byte, ttl time.Duration) error {
+	if c == nil || c.rdb == nil || jti == "" || ttl <= 0 {
+		return nil
+	}
+	return c.rdb.Set(ctx, refreshReplayKey(jti), payload, ttl).Err()
+}
+
+// GetRefreshReplay returns the cached token-set payload for a consumed refresh JTI
+// while it is still inside the overlap window; found is false on miss.
+func (c *Cache) GetRefreshReplay(ctx context.Context, jti string) (payload []byte, found bool, err error) {
+	if c == nil || c.rdb == nil || jti == "" {
+		return nil, false, nil
+	}
+	val, err := c.rdb.Get(ctx, refreshReplayKey(jti)).Bytes()
+	if err == redis.Nil {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return val, true, nil
+}
+
 // ---------------------------------------------------------------------------
 // Invalidation
 // ---------------------------------------------------------------------------
@@ -236,6 +270,19 @@ type NopJTIDenylister struct{}
 
 func (NopJTIDenylister) DenyJTI(context.Context, string, time.Duration) error { return nil }
 func (NopJTIDenylister) IsJTIDenied(context.Context, string) (bool, error)    { return false, nil }
+
+// RefreshReplayStore caches the token set minted for a consumed refresh JTI so an
+// in-window concurrent retry (RFC 9700 §4.14.2) can be answered idempotently rather
+// than being mistaken for a replay attack. *Cache implements it; backends that don't
+// (e.g. NopJTIDenylister) simply skip idempotent replay and fall back to strict
+// revoke-on-reuse.
+type RefreshReplayStore interface {
+	StoreRefreshReplay(ctx context.Context, jti string, payload []byte, ttl time.Duration) error
+	GetRefreshReplay(ctx context.Context, jti string) (payload []byte, found bool, err error)
+}
+
+// Compile-time check that *Cache satisfies RefreshReplayStore.
+var _ RefreshReplayStore = (*Cache)(nil)
 
 // Compile-time check.
 var _ JTIDenylister = NopJTIDenylister{}
