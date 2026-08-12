@@ -24,7 +24,7 @@ func NewOAuthConnectionsHandler(connectionsService OAuthConnectionsService) *OAu
 // It deliberately takes no registration_flow parameter. Flow-derived fields were
 // removed from this response so that adding, removing, activating or
 // deactivating a registration flow can never change the login page's options
-// (docs/planning/registration-flows.md, D1). Signup requirements live on
+// (docs/features/registration-and-invites.md, D1). Signup requirements live on
 // GET /registration_context instead.
 func (h *OAuthConnectionsHandler) ListConnections(w http.ResponseWriter, r *http.Request) {
 	clientID := r.URL.Query().Get("client_id")

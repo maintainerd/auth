@@ -90,10 +90,11 @@ The image serves each surface on its own port so browser origins stay isolated a
 
 | Document | |
 |----------|---|
+| [**Features**](docs/features.md) | The feature map — each links to its implementation doc (flow, files, config, security) |
+| [System Overview](docs/overview.md) | Conceptual model: tenants, clients, identities, the two-plane architecture |
 | [Environment Variables](docs/contributing/environment-variables.md) | Every configuration variable, with defaults |
-| [Operator Runbook](docs/documentations/devops/operator-runbook.md) | Install, first-run bootstrap, backups, and upgrades |
-| [Architecture](docs/documentations/architecture/architecture.md) | System design and data flow |
-| [Service-to-Service Authorization](docs/documentations/service-to-service-authorization/service-to-service-authorization.md) | IAM policy bundles and local authorization |
+| [Operator Runbook](docs/operations/operator-runbook.md) | Install, first-run bootstrap, backups, and upgrades |
+| [Architecture](docs/contributing/system-architecture.md) | System design and data flow |
 | [API Reference](docs/openapi.yaml) | OpenAPI 3.1 spec (also served at `/openapi.json`) |
 | [Getting Started (contributors)](docs/contributing/getting-started.md) | Local development environment |
 

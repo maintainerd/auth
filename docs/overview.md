@@ -18,7 +18,6 @@ This document is the conceptual entry point for **maintainerd-auth**. Read this 
 - [Users and Identities](#users-and-identities)
 - [Services, APIs, and Permissions](#services-apis-and-permissions)
 - [Policies](#policies)
-- [API Keys](#api-keys)
 - [Registration Flows](#registration-flows)
 - [Invites](#invites)
 - [Branding and Templates](#branding-and-templates)
@@ -121,7 +120,6 @@ TENANT  (one record per running instance)
 │       ├── ClientURIs  — redirect, logout, CORS, origin URIs
 │       └── ClientAPIs → ClientPermissions
 │
-├── APIKeys → APIKeyAPIs → APIKeyPermissions
 ├── Roles   → RolePermissions → Permissions
 ├── RegistrationFlows → RegistrationFlowRoles → Roles
 ├── Invites → InviteRoles → Roles
@@ -275,19 +273,7 @@ OAuth `client_credentials` clients can be linked to IAM services through `client
 
 Services evaluate those bundles locally with the shared IAM evaluator, or call `POST /api/v1/authorize/` when they need a central authorization decision. Policy updates and service-policy assignment changes emit IAM webhook events so consumers can refresh cached bundles immediately.
 
-See [docs/apis/iam/authorization.md](./apis/iam/authorization.md) for the integration guide.
-
----
-
-## API Keys
-
-**API keys** provide machine-to-machine access without going through an OAuth flow. They are scoped to the tenant and can be restricted to specific APIs and permissions.
-
-Each key has:
-- A hashed key value (`key_hash`) and a short display prefix (`key_prefix`) — the raw key is only shown once on creation.
-- An optional expiry date.
-- An optional rate limit (requests per time window).
-- Explicit API and permission scopes via `api_key_apis` and `api_key_permissions`.
+See [IAM & Authorization](./features/iam-authorization.md) for the integration guide.
 
 ---
 
@@ -346,7 +332,7 @@ Settings at the tenant level cover concerns shared across the entire instance. T
 
 **`tenant_settings`** — Core operational flags: global rate limits, audit/compliance settings (log retention, GDPR mode, PII masking, data deletion strategy), maintenance mode (with per-IP bypass list), and feature toggles (API keys, invite system, webhooks).
 
-**`email_config`** — Transactional email delivery: provider selection (SMTP, SES, SendGrid, Mailgun, Postmark, Resend), sender identity (from address, from name, reply-to), TLS mode, and test mode.
+**`email_config`** — Transactional email delivery: SMTP relay configuration, sender identity (from address, from name, reply-to), TLS mode, and test mode.
 
 **`sms_config`** — SMS delivery: provider selection (Twilio, SNS, Vonage, MessageBird), sender number, sender ID, and test mode.
 
@@ -392,7 +378,7 @@ All tokens are signed with RSA-256 using a minimum 2048-bit key pair. The key pa
 
 Each access token carries: `sub` (the `UserIdentity.sub`), `scope`, `aud`, `iss`, `jti`, `client_id`, `provider_id`.
 
-The `iss` (issuer) claim is set from the `ISSUER_URL` environment variable and must match the value in the OIDC discovery document.
+The `iss` (issuer) claim is set from the `APP_PUBLIC_HOSTNAME` configuration and must match the value in the OIDC discovery document.
 
 Refresh tokens are hashed before storage in `user_tokens` and are bound to the client and user agent that requested them.
 
@@ -423,8 +409,8 @@ The following are known gaps between the intended design and the current impleme
 | `sms_config` table | Done | Migration 006, model `SMSConfig`. |
 | `branding` table | Done | Migration 003, model `Branding`. Tenant-level admin console branding. |
 | `webhook_endpoints` table | Done | Migration 007, model `WebhookEndpoint`, dispatcher, HMAC delivery, retry, and IAM invalidation events. |
-| OIDC provider (JWKS + discovery) | In progress | `/.well-known/jwks.json` and `/.well-known/openid-configuration` on port 8081. See `docs/v1-features/oidc-provider.md`. |
-| Frontend init endpoint | In progress | `GET /tenant/{identifier}/config` on port 8081. See `docs/v1-features/frontend-initialization.md`. |
+| OIDC provider (JWKS + discovery) | In progress | `/.well-known/jwks.json` and `/.well-known/openid-configuration` on port 8081. See [OAuth 2.0 & OpenID Connect](./features/oauth2-oidc.md). |
+| Frontend init endpoint | In progress | `GET /tenant/{identifier}/config` on port 8081. See [Multi-Tenancy](./features/multi-tenancy.md). |
 | Health and readiness endpoints | Planned | `/healthz` and `/readyz` on both ports. |
 | CORS on public port | Planned | Required for browser-based clients on port 8081. |
 | gRPC layer | Active | Setup and tenant management services are exposed over gRPC for private service-to-service use. |
