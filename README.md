@@ -5,7 +5,6 @@
 <br clear="left">
 
 [![Release](https://img.shields.io/github/v/release/maintainerd/maintainerd-auth?logo=github&label=release&color=blue)](https://github.com/maintainerd/maintainerd-auth/releases/latest)
-[![Docker](https://img.shields.io/docker/v/xreyc/maintainerd-auth?logo=docker&label=docker&sort=semver&color=blue)](https://hub.docker.com/r/xreyc/maintainerd-auth)
 [![CI](https://github.com/maintainerd/maintainerd-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/maintainerd/maintainerd-auth/actions/workflows/ci.yml)
 [![Security](https://github.com/maintainerd/maintainerd-auth/actions/workflows/security.yml/badge.svg)](https://github.com/maintainerd/maintainerd-auth/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/maintainerd/maintainerd-auth/badge)](https://scorecard.dev/viewer/?uri=github.com/maintainerd/maintainerd-auth)
