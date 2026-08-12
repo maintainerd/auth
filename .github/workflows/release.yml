@@ -44,9 +44,11 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ${{ env.IMAGE_NAME }}
+          # Pre-announcement: a single moving version. Publishes only the exact tag
+          # (e.g. 0.1.0) + latest — no {{major}}.{{minor}} alias — so Docker Hub stays
+          # at one version until the public launch locks it.
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
 
       # Build a single-arch (amd64) image locally and SCAN it BEFORE anything is
       # published. A HIGH/CRITICAL fails the release, and nothing gets pushed.

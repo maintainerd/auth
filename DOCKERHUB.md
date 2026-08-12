@@ -15,9 +15,8 @@ One image bundles the Go backend, the admin console, and the hosted login UI (co
 
 | Tag | Meaning |
 |-----|---------|
-| `latest` | Most recent stable release — used by the quick start |
-| `0.1.1` | Exact release — pin this for reproducible/production deploys |
-| `0.1` | Latest patch of the `0.1` line |
+| `latest` | Current build — used by the quick start |
+| `0.1.0` | The pre-release version (moving during testing; pin `latest` for the newest) |
 
 **Architectures:** `linux/amd64`, `linux/arm64`. Each image carries SLSA provenance + an SBOM attestation.
 
