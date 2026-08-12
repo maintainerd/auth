@@ -33,7 +33,7 @@ It ships as **one all-in-one image**: the Go backend plus the admin console and 
 - **Webhook delivery** — auth-event notifications signed with HMAC-SHA256, with replay protection
 - **Audit logging** — structured auth events with retention, per-tenant isolation, and PII redaction
 - **Pluggable secret management** — env vars, AWS Secrets Manager / SSM, HashiCorp Vault, Azure Key Vault, GCP Secret Manager, or mounted files
-- **Pluggable email delivery** — SMTP, SES, SendGrid, Postmark, Mailgun, Resend (configured per tenant)
+- **Email delivery over SMTP** — configured per tenant; works with any relay (SES, SendGrid, Mailgun, Postmark, Resend, or your own server all speak SMTP)
 - **OpenTelemetry** — traces, metrics, and a Prometheus endpoint
 
 ---
