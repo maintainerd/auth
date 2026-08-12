@@ -36,6 +36,10 @@ jobs:
         with:
           results_file: scorecard.sarif
           results_format: sarif
+          # The default GITHUB_TOKEN can't read branch-protection settings, which makes
+          # the Branch-Protection check error (-1). A PAT with repo/administration:read
+          # fixes it. Create a secret named SCORECARD_TOKEN; falls back to github.token.
+          repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
           # Publish results so they appear on https://scorecard.dev
           publish_results: true
 
