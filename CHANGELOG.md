@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-12
+
 ### Security
 - Sanitize the refresh-token `jti` (CR/LF stripped) before it is logged on rotation
   error paths, closing a log-injection sink (CWE-117 / CodeQL `go/log-injection`): the
