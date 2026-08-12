@@ -389,7 +389,7 @@ func requireSecureSecretTransport(name, rawURL string) error {
 	}
 	// Read APP_ENV directly rather than the package var: Init() constructs the
 	// secret manager BEFORE it assigns AppEnv, so the var is still empty here.
-	if strings.EqualFold(GetEnvOrDefault("APP_ENV", "development"), "production") {
+	if strings.EqualFold(GetEnvOrDefault("APP_ENV", "production"), "production") {
 		return fmt.Errorf("%s must use https in production (got %q): secrets would cross the network in cleartext", name, rawURL)
 	}
 	slog.Warn("Secret store reached over plaintext HTTP — this must be https before production", "var", name, "address", rawURL)
