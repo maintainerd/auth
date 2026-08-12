@@ -42,8 +42,7 @@ The process refuses to start (with a clear error) if any of these is missing.
 | `CORS_ALLOWED_ORIGINS` | (empty) | Comma-separated extra allowed origins. Tenant/client origins are always allowed; wildcard is never combined with credentials. |
 | `TRUST_ALL_PROXIES` | (unset) | `true` trusts `X-Forwarded-For` from any hop. Prefer `TRUSTED_PROXY_CIDRS`. |
 | `TRUSTED_PROXY_CIDRS` | (unset) | Comma-separated CIDRs whose `X-Forwarded-For` is trusted for client-IP resolution. |
-| `WEBAUTHN_RP_ID` | (empty) | WebAuthn Relying Party ID (registrable domain). Required only if you enable WebAuthn/passkeys. |
-| `WEBAUTHN_EXTRA_ORIGINS` | (empty) | Additional allowed WebAuthn origins (comma-separated). |
+| `WEBAUTHN_RP_ID` | (empty) | WebAuthn Relying Party ID (registrable domain). Required only if you enable WebAuthn/passkeys. Every origin under it (all surfaces + tenant subdomains) is allowed automatically — each ceremony's origin is validated against this RP ID at runtime. |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error`. |
 
 ## Cookies
