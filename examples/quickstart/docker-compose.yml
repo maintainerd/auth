@@ -23,7 +23,7 @@ services:
     image: redis:7-alpine
 
   auth:
-    image: xreyc/maintainerd-auth:latest   # or pin an exact release, e.g. :0.1.1
+    image: xreyc/maintainerd-auth:latest   # or pin the exact version, :0.1.0
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_started }

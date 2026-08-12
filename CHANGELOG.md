@@ -5,16 +5,16 @@ All notable changes to maintainerd-auth will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] — pre-release (moving until public launch)
 
-## [0.1.4] - 2026-08-12
+> A single moving pre-release during testing — the `v0.1.0` tag is re-pointed and
+> Docker Hub's `0.1.0` + `latest` are rebuilt on each update, until it is locked as
+> the public v0.1.0 at launch. Newest changes first.
 
-### Security
+### Security — logging
 - Sanitize the refresh-token `jti` (CR/LF stripped) before it is logged on rotation
   error paths, closing a log-injection sink (CWE-117 / CodeQL `go/log-injection`): the
   jti can originate from an unverified token in the reuse-detection path.
-
-## [0.1.3] - 2026-08-11
 
 ### Fixed — frequent logout from refresh-token rotation
 - **A benign concurrent refresh no longer signs the user out.** Refresh-token reuse
@@ -35,8 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TTL, idle timeout, absolute timeout, and the rotation flag remain sourced from the
   security settings (global + per-tenant + per-client) and are untouched.
 
-## [0.1.2] - 2026-08-11
-
 ### Fixed — WebAuthn on tenant subdomains
 - **Passkeys now work for every regular tenant.** WebAuthn origin validation used a
   static `RPOrigins` list (the system surfaces only), so registering/authenticating a
@@ -51,8 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   origin is cryptographically bound to the ceremony and the challenge is single-use, so
   this is the standard spec-compliant pattern for a multi-tenant subdomain RP, not a
   relaxation of validation.
-
-## [0.1.1] - 2026-08-11
 
 ### Changed — email delivery
 - **Email delivery is now SMTP-only.** Removed the API-based providers (Amazon SES,
@@ -234,7 +230,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `is_system` filter, and `status` now accepts multiple comma-separated values.
 - Added a unique index on `(tenant_id, name)` for registration flows.
 
-## [0.1.0] - 2026-07-03
+### Baseline — 2026-07-03
 
 ### Added
 - Initial public release of Maintainerd Auth
