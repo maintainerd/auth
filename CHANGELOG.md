@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > Docker Hub's `0.1.0` + `latest` are rebuilt on each update, until it is locked as
 > the public v0.1.0 at launch. Newest changes first.
 
+### Supply chain / hardening (OpenSSF Scorecard)
+- **Signed releases** — release artifacts are now signed with **cosign keyless**
+  (Sigstore/Fulcio/Rekor): a registry signature over the image, plus a detached
+  signature + certificate over the SBOM attached to the GitHub Release.
+- **Fuzzing** — added Go native fuzz tests over the untrusted-input parsers (tenant-host
+  resolver, email/phone validators, WebAuthn RP-ID derivation, log sanitizer).
+- **Branch protection** on `main` (force-push + deletion blocked, linear history).
+
 ### Security — logging
 - Sanitize the refresh-token `jti` (CR/LF stripped) before it is logged on rotation
   error paths, closing a log-injection sink (CWE-117 / CodeQL `go/log-injection`): the

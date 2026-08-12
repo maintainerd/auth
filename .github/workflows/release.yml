@@ -83,6 +83,7 @@ jobs:
       # Reached only if the scan passed: build the multi-arch image and push,
       # with SLSA provenance + an SBOM attestation attached to the image.
       - name: Build and push (multi-arch)
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -110,9 +111,32 @@ jobs:
           # 404 collision when the v0.1.0 tag is moved (single moving pre-release).
           upload-release-assets: false
 
-      - name: Attach SBOM to the GitHub release
+      # Sign the release artifacts with cosign keyless (Sigstore/Fulcio/Rekor) — no
+      # key management; the workflow's OIDC identity is the signer. Produces a registry
+      # signature over the image AND a detached signature + certificate over the SBOM
+      # asset, so the GitHub Release itself carries a verifiable signature
+      # (OpenSSF Scorecard: Signed-Releases).
+      - name: Install cosign
+        uses: sigstore/cosign-installer@1aa8e0f2454b781fbf0fbf306a4c9533a0c57409 # v3.7.0
+
+      - name: Sign the image and SBOM (keyless)
+        env:
+          COSIGN_YES: "true"
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cosign sign --yes "${IMAGE_NAME}@${IMAGE_DIGEST}"
+          cosign sign-blob --yes \
+            --output-signature sbom.spdx.json.sig \
+            --output-certificate sbom.spdx.json.pem \
+            sbom.spdx.json
+
+      - name: Attach SBOM + signatures to the GitHub release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
-          files: sbom.spdx.json
+          files: |
+            sbom.spdx.json
+            sbom.spdx.json.sig
+            sbom.spdx.json.pem
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
