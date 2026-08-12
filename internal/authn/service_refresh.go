@@ -204,7 +204,7 @@ func (s *loginService) cacheRefreshReplay(ctx context.Context, consumedClaims jw
 	}
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(resp); err != nil {
-		slog.Error("refresh rotation: failed to encode idempotent replay", "jti", jti, "error", err)
+		slog.Error("refresh rotation: failed to encode idempotent replay", "jti", logSafe(jti), "error", err)
 		return
 	}
 	_ = store.StoreRefreshReplay(ctx, jti, buf.Bytes(), time.Duration(policy.RefreshTokenReuseIntervalSeconds)*time.Second)
@@ -224,7 +224,7 @@ func (s *loginService) fetchRefreshReplay(ctx context.Context, jti string) *Logi
 	}
 	var resp LoginResponseDTO
 	if err := gob.NewDecoder(bytes.NewReader(payload)).Decode(&resp); err != nil {
-		slog.Error("refresh rotation: failed to decode idempotent replay", "jti", jti, "error", err)
+		slog.Error("refresh rotation: failed to decode idempotent replay", "jti", logSafe(jti), "error", err)
 		return nil
 	}
 	return &resp
@@ -283,7 +283,7 @@ func (s *loginService) denylistConsumedRefreshToken(ctx context.Context, claims 
 	if err := s.jtiDenylist.DenyJTI(ctx, refreshUsedKey(jti), ttl); err != nil {
 		// Fail loudly rather than silently leaving the parent replayable.
 		slog.Error("refresh rotation: failed to mark token consumed",
-			"jti", jti, "error", err)
+			"jti", logSafe(jti), "error", err)
 	}
 	if policy.RefreshTokenReuseIntervalSeconds > 0 {
 		_ = s.jtiDenylist.DenyJTI(ctx, refreshGraceKey(jti), time.Duration(policy.RefreshTokenReuseIntervalSeconds)*time.Second)
@@ -370,6 +370,15 @@ func unverifiedRefreshClaims(tokenString string) jwtlib.MapClaims {
 		return nil
 	}
 	return claims
+}
+
+// logSafe strips CR/LF from a value that may originate from an UNVERIFIED token
+// (e.g. a jti read before signature validation) so it cannot forge or split log
+// lines (CWE-117 / go/log-injection).
+func logSafe(s string) string {
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\r", "")
+	return s
 }
 
 func refreshUsedKey(jti string) string { return "rtused:" + strings.TrimSpace(jti) }

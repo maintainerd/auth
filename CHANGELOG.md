@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Sanitize the refresh-token `jti` (CR/LF stripped) before it is logged on rotation
+  error paths, closing a log-injection sink (CWE-117 / CodeQL `go/log-injection`): the
+  jti can originate from an unverified token in the reuse-detection path.
+
 ## [0.1.3] - 2026-08-11
 
 ### Fixed — frequent logout from refresh-token rotation
