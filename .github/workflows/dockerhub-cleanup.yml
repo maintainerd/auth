@@ -1,0 +1,49 @@
+name: Docker Hub tag cleanup
+
+# Deletes specific tags from the Docker Hub repo using the existing release
+# credentials (DOCKERHUB_USERNAME / DOCKERHUB_TOKEN). Manual only. Never deletes
+# anything unless you pass the exact tags. Handy for the pre-launch single-version
+# scheme (keep 0.1.0 + latest; prune the rest).
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Comma-separated tags to DELETE (e.g. 0.1.1,0.1.2). latest/0.1.0 are refused."
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete tags from Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          IMAGE: ${{ secrets.DOCKERHUB_ORG || secrets.DOCKERHUB_USERNAME }}/maintainerd-auth
+          TAGS: ${{ inputs.tags }}
+        run: |
+          set -euo pipefail
+          NS="${IMAGE%%/*}"; REPO="${IMAGE##*/}"
+          echo "Repository: ${NS}/${REPO}"
+          JWT=$(curl -sf -H "Content-Type: application/json" \
+            -d "{\"username\":\"${DOCKERHUB_USERNAME}\",\"password\":\"${DOCKERHUB_TOKEN}\"}" \
+            https://hub.docker.com/v2/users/login/ | jq -r .token)
+          if [ -z "${JWT}" ] || [ "${JWT}" = "null" ]; then echo "Docker Hub login failed"; exit 1; fi
+          fail=0
+          IFS=',' read -ra LIST <<< "${TAGS}"
+          for raw in "${LIST[@]}"; do
+            tag=$(echo "${raw}" | xargs)
+            [ -n "${tag}" ] || continue
+            if [ "${tag}" = "latest" ] || [ "${tag}" = "0.1.0" ]; then
+              echo "refusing to delete protected tag: ${tag}"; continue
+            fi
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Authorization: JWT ${JWT}" \
+              "https://hub.docker.com/v2/repositories/${NS}/${REPO}/tags/${tag}/")
+            echo "delete ${tag} -> HTTP ${code}"
+            case "${code}" in 204|202|404) ;; *) fail=1 ;; esac
+          done
+          exit ${fail}
