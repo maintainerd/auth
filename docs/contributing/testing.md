@@ -41,7 +41,7 @@ This document describes how to run, write, and organise tests when contributing 
 These standards are **normative**. A test (or test file) is "done" only when it meets the
 standard for its tier. This section defines *what "done" means*; the living checklist of
 *which* tests still need writing (per package, per endpoint, per repository) is tracked in
-[docs/planning/test-coverage.md](../planning/test-coverage.md) — update the boxes
+the test-coverage checklist — update the boxes
 there, keep this file as the standard.
 
 **Coverage targets.** ≥80% per domain package is the CI floor. Security-critical and
@@ -200,7 +200,7 @@ sqlmock or fake structs. Use the real `*Repository` constructors and real models
 
 The concrete, living checklist of **which** unit, e2e, and integration tests still need
 writing — per package, per endpoint, per repository, with priorities — is maintained in
-[docs/planning/test-coverage.md](../planning/test-coverage.md). Update the boxes
+the test-coverage checklist. Update the boxes
 there as you complete work. Keep *this* file as the standard (the "definition of done"
 each of those boxes must satisfy).
 

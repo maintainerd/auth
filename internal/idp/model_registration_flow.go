@@ -17,7 +17,7 @@ type RegistrationFlow struct {
 	// Name doubles as the public selector an external app puts in a registration
 	// link (?registration_flow=<name>), so it is validated as a slug and is
 	// unique per tenant. Renaming a flow therefore changes its link — see
-	// docs/planning/registration-flows.md.
+	// docs/features/registration-and-invites.md.
 	//
 	// It is NOT a secret: it travels in URLs, browser history and referrers.
 	// Authorization lives in the client binding, the flow's own status, the

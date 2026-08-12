@@ -34,7 +34,7 @@ type RegistrationContextResult struct {
 // hosted form never asks for it. This endpoint is deliberately NOT part of
 // /oauth/connections — flow-derived fields were removed from that response so a
 // registration flow can never change the login page's options
-// (docs/planning/registration-flows.md, D1).
+// (docs/features/registration-and-invites.md, D1).
 type RegistrationContextService interface {
 	Get(ctx context.Context, clientID, tenantID *string, registrationFlowName string) (*RegistrationContextResult, error)
 }
