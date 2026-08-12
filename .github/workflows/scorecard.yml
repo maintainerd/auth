@@ -10,6 +10,8 @@ on:
   schedule:
     # Weekly scan — Monday 06:00 UTC
     - cron: "0 6 * * 1"
+  # On-demand re-scan (e.g. right after signing a fresh release).
+  workflow_dispatch:
 
 permissions: read-all
 
