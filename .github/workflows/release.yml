@@ -111,21 +111,22 @@ jobs:
           # 404 collision when the v0.1.0 tag is moved (single moving pre-release).
           upload-release-assets: false
 
-      # Sign the release artifacts with cosign keyless (Sigstore/Fulcio/Rekor) — no
-      # key management; the workflow's OIDC identity is the signer. Produces a registry
-      # signature over the image AND a detached signature + certificate over the SBOM
-      # asset, so the GitHub Release itself carries a verifiable signature
-      # (OpenSSF Scorecard: Signed-Releases).
+      # Sign the SBOM with cosign keyless (Sigstore/Fulcio/Rekor) — no key management;
+      # the workflow's OIDC identity is the signer. Produces a detached signature +
+      # certificate over the SBOM, attached to the GitHub Release, so the release
+      # carries a verifiable signature (OpenSSF Scorecard: Signed-Releases).
+      #
+      # Deliberately NOT signing the image tag: `cosign sign <image>` pushes a
+      # `sha256-<digest>.sig` TAG to the registry, which clutters the Docker Hub tag
+      # list and confuses users about which version to pull. Keeping the signature on
+      # the GitHub Release keeps Docker Hub to just the version tag + latest.
       - name: Install cosign
         uses: sigstore/cosign-installer@1aa8e0f2454b781fbf0fbf306a4c9533a0c57409 # v3.7.0
 
-      - name: Sign the image and SBOM (keyless)
+      - name: Sign the SBOM (keyless)
         env:
           COSIGN_YES: "true"
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          cosign sign --yes "${IMAGE_NAME}@${IMAGE_DIGEST}"
           cosign sign-blob --yes \
             --output-signature sbom.spdx.json.sig \
             --output-certificate sbom.spdx.json.pem \
