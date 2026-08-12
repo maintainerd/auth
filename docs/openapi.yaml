@@ -42,8 +42,6 @@ tags:
     description: Webhook endpoint management
   - name: Auth Events
     description: Audit log of authentication and authorization events (read-only)
-  - name: API Keys
-    description: API key management
   - name: IAM
     description: IAM services, policies, and service-to-service authorization
   - name: Profile
@@ -1968,98 +1966,6 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   # ============================================================
-  # API Keys
-  # ============================================================
-  /api-keys:
-    get:
-      tags: [API Keys]
-      summary: List API keys
-      operationId: listAPIKeys
-      parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/limit'
-        - $ref: '#/components/parameters/sort_by'
-        - $ref: '#/components/parameters/sort_order'
-        - name: name
-          in: query
-          schema:
-            type: string
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [active, inactive]
-      responses:
-        '200':
-          $ref: '#/components/responses/PaginatedSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-    post:
-      tags: [API Keys]
-      summary: Create API key
-      operationId: createAPIKey
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/APIKeyCreateRequest'
-      responses:
-        '200':
-          description: API key created; plaintext key returned once
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/APIKeyCreateResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api-keys/{api_key_uuid}:
-    parameters:
-      - $ref: '#/components/parameters/api_key_uuid'
-
-    get:
-      tags: [API Keys]
-      summary: Get API key by UUID
-      operationId: getAPIKey
-      responses:
-        '200':
-          description: API key details (plaintext key never returned after creation)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/APIKeyResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-    delete:
-      tags: [API Keys]
-      summary: Delete API key
-      operationId: deleteAPIKey
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  # ============================================================
   # Profile (self-service)
   # ============================================================
   /profile:
@@ -2362,15 +2268,6 @@ components:
         type: string
         format: uuid
       description: Webhook endpoint UUID
-
-    api_key_uuid:
-      name: api_key_uuid
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: API key UUID
 
   # ────────────────────────────────────────────────────────────
   # Reusable Responses
@@ -3744,80 +3641,6 @@ components:
         metadata:
           type: object
         created_at:
-          type: string
-          format: date-time
-
-    # ── API Keys ──────────────────────────────────────────────
-    APIKeyCreateRequest:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-        description:
-          type: string
-          maxLength: 500
-        expires_at:
-          type: string
-          format: date-time
-        status:
-          type: string
-          enum: [active, inactive]
-          default: active
-        config:
-          type: object
-
-    APIKeyCreateResponse:
-      type: object
-      properties:
-        api_key_id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        description:
-          type: string
-        key_prefix:
-          type: string
-          description: First few characters of the key for identification
-        key:
-          type: string
-          description: Full plaintext API key — shown once and never retrievable again
-        expires_at:
-          type: string
-          format: date-time
-        status:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    APIKeyResponse:
-      type: object
-      properties:
-        api_key_id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        description:
-          type: string
-        key_prefix:
-          type: string
-        expires_at:
-          type: string
-          format: date-time
-        status:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
           type: string
           format: date-time
 
