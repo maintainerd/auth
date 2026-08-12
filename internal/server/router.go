@@ -55,8 +55,8 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		// Audience guard: the internal API is the first-party management surface.
 		// Reject any presented JWT that wasn't minted for the management
 		// (auth-console) client, so a token issued to some other public client
-		// can't be replayed here. Token-less (setup, public tenant reads) and
-		// API-key requests pass through to their own auth rules.
+		// can't be replayed here. Token-less (setup, public tenant reads)
+		// requests pass through to their own auth rules.
 		api.Use(securityMiddleware.RequireManagementClient(application.ClientService))
 
 		// Setup Routes (no authentication required)
