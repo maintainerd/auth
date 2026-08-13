@@ -18,8 +18,8 @@
 // Integration events carry identifiers and changed field NAMES only — never their
 // values. This is enforced:
 //   - changed_fields contains field names like ["email", "status"], not "new@example.com".
-//   - The payload carries UUIDs (event_id, subject_uuid), tenant_id, actor, and event
-//     metadata — nothing a consumer would need authorization to see.
+//   - The payload carries public UUIDs (event_id, tenant_id, actor_user_id,
+//     subject_uuid) and event metadata — never internal database primary keys.
 //   - A test must assert the outbox payload contains no resource value fields.
 //
 // Consumers MUST re-fetch current state from the authenticated API when they
@@ -34,7 +34,7 @@
 //
 // # Event catalog
 //
-// 48 event types across 5 groups:
+// 42 event types across 5 groups:
 //
 //	Group 1 — User identity (user.created, user.updated, user.status_changed,
 //	  user.deleted, user.role_assigned, user.role_removed)
@@ -50,8 +50,8 @@
 //	  "event_id": "550e8400-e29b-41d4-a716-446655440000",
 //	  "event_type": "user.updated",
 //	  "event_version": 1,
-//	  "tenant_id": 42,
-//	  "actor_user_id": 100,
+//	  "tenant_id": "770e8400-e29b-41d4-a716-446655440001",
+//	  "actor_user_id": "880e8400-e29b-41d4-a716-446655440002",
 //	  "subject_uuid": "660e8400-e29b-41d4-a716-446655440001",
 //	  "subject_type": "user",
 //	  "changed_fields": ["email", "status"],

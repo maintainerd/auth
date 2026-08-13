@@ -56,8 +56,8 @@ Signature = `HMAC_SHA256(secret, "{timestamp}.{raw_body}")`, hex-encoded, prefix
   "event_id":       "9c8e0b3e-...",
   "event_type":     "user.updated",
   "event_version":  1,
-  "tenant_id":      42,
-  "actor_user_id":  17,
+  "tenant_id":      "770e8400-e29b-41d4-a716-446655440001",
+  "actor_user_id":  "880e8400-e29b-41d4-a716-446655440002",
   "subject_uuid":   "1b9d6bcd-...",
   "subject_type":   "user",
   "changed_fields": ["email", "status"],
@@ -68,7 +68,7 @@ Signature = `HMAC_SHA256(secret, "{timestamp}.{raw_body}")`, hex-encoded, prefix
 }
 ```
 
-Shape is `OutboxPayload` (`internal/event/delivery_adapter.go:43`). `payload` is an optional JSON object that must never carry PII/secret values.
+Shape is `OutboxPayload` (`internal/event/delivery_adapter.go:43`). Public ID fields contain UUID strings, never internal integer primary keys. `payload` is an optional JSON object that must never carry PII/secret values.
 
 ## Implementation
 

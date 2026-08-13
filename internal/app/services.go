@@ -157,12 +157,14 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 		return nil, fmt.Errorf("init services: amqp: %w", amqpErr)
 	}
 	brokerPublisher := event.NewRabbitMQPublisher(amqpPublish)
+	tenantRefResolver := newTenantRefResolver(r.tenantRepo)
+	eventPublicIDs := newEventPublicIDResolver(tenantRefResolver, r.userRepo)
 
 	deliveryAdapter := event.NewDeliveryAdapter(
 		func(ctx context.Context, outbox *event.Outbox) error {
-			return deliverToWebhooks(ctx, outbox, r.webhookEndpointRepo, r.deliveryHistoryRepo, r.webhookEndpointEventRepo)
+			return deliverToWebhooks(ctx, outbox, r.webhookEndpointRepo, r.deliveryHistoryRepo, r.webhookEndpointEventRepo, eventPublicIDs)
 		},
-		newBrokerDeliverFn(brokerPublisher, r.eventTypeRepo, r.eventRouteRepo),
+		newBrokerDeliverFn(brokerPublisher, r.eventTypeRepo, r.eventRouteRepo, eventPublicIDs),
 	)
 
 	// Webhook management handlers (subscription + replay) that the REST router
@@ -172,7 +174,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	webhookReplayHandler := webhook.NewReplayHandler(
 		r.deliveryHistoryRepo,
 		r.webhookEndpointRepo,
-		newReplayFn(r.outboxRepo, r.deliveryHistoryRepo, r.webhookEndpointRepo),
+		newReplayFn(r.outboxRepo, r.deliveryHistoryRepo, r.webhookEndpointRepo, eventPublicIDs),
 	)
 
 	relay := event.NewRelay(
@@ -186,7 +188,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// delivery path so state transitions and quarantine stay consistent.
 	retrier := event.NewBackgroundRetrier(
 		&deliveryRetrierAdapter{historyRepo: r.deliveryHistoryRepo, endpointRepo: r.webhookEndpointRepo},
-		newRetryDeliveryFn(r.outboxRepo, r.webhookEndpointRepo, r.deliveryHistoryRepo),
+		newRetryDeliveryFn(r.outboxRepo, r.webhookEndpointRepo, r.deliveryHistoryRepo, eventPublicIDs),
 	)
 
 	// Retention: purge published outbox rows (>7d) and delivery history (>90d).
@@ -254,7 +256,7 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// Tokens carry the tenant's opaque UUID in the `tenant_id` claim (never the
 	// internal PK); this resolver lets the mint layer stamp the UUID and the JWT
 	// parse layer resolve it back to the internal id every scoping check expects.
-	shared.SetTenantRefResolver(newTenantRefResolver(r.tenantRepo))
+	shared.SetTenantRefResolver(tenantRefResolver)
 
 	webAuthnSvc, err := mfa.NewWebAuthnService(db, mfaUserRepo, r.mfaWebAuthnCredRepo, appCache, authEventSvc, r.webauthnChallengeRepo)
 	if err != nil {

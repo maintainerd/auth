@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 )
@@ -36,14 +35,13 @@ func (p *RabbitMQPublisher) IsEnabled() bool {
 
 // Publish delivers an outbox event to the configured RabbitMQ exchange.
 // This satisfies the BrokerDeliveryFunc signature.
-func (p *RabbitMQPublisher) Publish(ctx context.Context, outbox *Outbox) error {
+func (p *RabbitMQPublisher) Publish(ctx context.Context, outbox *Outbox, payload []byte) error {
 	if !p.enabled {
 		return nil
 	}
 
-	payload, err := outboxPayloadToJSON(outbox)
-	if err != nil {
-		return fmt.Errorf("marshal outbox: %w", err)
+	if len(payload) == 0 {
+		return fmt.Errorf("empty outbox payload")
 	}
 
 	return p.publishFunc(
@@ -54,9 +52,4 @@ func (p *RabbitMQPublisher) Publish(ctx context.Context, outbox *Outbox) error {
 		outbox.EventID.String(),
 		outbox.EventType,
 	)
-}
-
-func outboxPayloadToJSON(outbox *Outbox) ([]byte, error) {
-	p := OutboxPayload(outbox)
-	return json.Marshal(p)
 }

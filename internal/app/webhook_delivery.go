@@ -50,20 +50,18 @@ func deliverToWebhooks(
 	endpointRepo webhook.WebhookEndpointRepository,
 	historyRepo webhook.DeliveryHistoryRepository,
 	endpointEventRepo webhook.WebhookEndpointEventRepository,
+	publicIDs event.PublicIDResolver,
 ) error {
 	endpoints, err := endpointRepo.FindActiveByTenantID(outbox.TenantID)
 	if err != nil {
 		return fmt.Errorf("find active endpoints: %w", err)
 	}
 
-	body, err := buildDeliveryBody(outbox)
+	body, err := buildDeliveryBody(ctx, outbox, publicIDs)
 	if err != nil {
-		// A thin payload that cannot be marshalled is a poison message: log and
-		// return nil so the relay marks it published rather than wedging the
-		// queue retrying an un-deliverable row forever.
-		slog.Error("webhook: marshal payload failed (dropping poison event)",
+		slog.Error("webhook: build payload failed",
 			"event_id", outbox.EventID, "event_type", outbox.EventType, "err", err)
-		return nil
+		return err
 	}
 
 	// Create the durable delivery_history row for each subscribed endpoint first
@@ -271,8 +269,12 @@ func computeWebhookSignature(secret string, timestamp int64, body []byte) string
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }
 
-func buildDeliveryBody(outbox *event.Outbox) ([]byte, error) {
-	return json.Marshal(event.OutboxPayload(outbox))
+func buildDeliveryBody(ctx context.Context, outbox *event.Outbox, publicIDs event.PublicIDResolver) ([]byte, error) {
+	payload, err := event.OutboxPayload(ctx, outbox, publicIDs)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(payload)
 }
 
 // newRetryDeliveryFn builds the BackgroundRetrier's delivery function. It
@@ -284,6 +286,7 @@ func newRetryDeliveryFn(
 	outboxRepo event.OutboxRepository,
 	endpointRepo webhook.WebhookEndpointRepository,
 	historyRepo webhook.DeliveryHistoryRepository,
+	publicIDs event.PublicIDResolver,
 ) func(ctx context.Context, rec event.DeliveryRetryRecord) error {
 	return func(ctx context.Context, rec event.DeliveryRetryRecord) error {
 		eventID, err := uuid.Parse(rec.EventID)
@@ -299,7 +302,7 @@ func newRetryDeliveryFn(
 			_ = historyRepo.MoveToDeadLetter(rec.DeliveryHistoryID, "outbox event no longer available")
 			return nil
 		}
-		body, err := buildDeliveryBody(outbox)
+		body, err := buildDeliveryBody(ctx, outbox, publicIDs)
 		if err != nil {
 			_ = historyRepo.MoveToDeadLetter(rec.DeliveryHistoryID, "payload marshal failed")
 			return nil
@@ -330,6 +333,7 @@ func newReplayFn(
 	outboxRepo event.OutboxRepository,
 	historyRepo webhook.DeliveryHistoryRepository,
 	endpointRepo webhook.WebhookEndpointRepository,
+	publicIDs event.PublicIDResolver,
 ) func(ctx context.Context, ep webhook.WebhookEndpoint, eventID uuid.UUID, isReplay bool) error {
 	return func(ctx context.Context, ep webhook.WebhookEndpoint, eventID uuid.UUID, isReplay bool) error {
 		outbox, err := outboxRepo.FindByEventID(eventID)
@@ -345,7 +349,7 @@ func newReplayFn(
 		if outbox.TenantID != ep.TenantID {
 			return fmt.Errorf("event %s not found", eventID)
 		}
-		body, err := buildDeliveryBody(outbox)
+		body, err := buildDeliveryBody(ctx, outbox, publicIDs)
 		if err != nil {
 			return err
 		}
@@ -375,6 +379,7 @@ func newBrokerDeliverFn(
 	publisher *event.RabbitMQPublisher,
 	eventTypeRepo event.EventTypeRepository,
 	eventRouteRepo event.EventRouteRepository,
+	publicIDs event.PublicIDResolver,
 ) func(ctx context.Context, outbox *event.Outbox) error {
 	return func(ctx context.Context, outbox *event.Outbox) error {
 		if !publisher.IsEnabled() {
@@ -394,7 +399,11 @@ func newBrokerDeliverFn(
 		if route == nil || !route.Enabled {
 			return nil // no enabled broker route for this tenant + event type
 		}
-		return publisher.Publish(ctx, outbox)
+		payload, err := buildDeliveryBody(ctx, outbox, publicIDs)
+		if err != nil {
+			return err
+		}
+		return publisher.Publish(ctx, outbox, payload)
 	}
 }
 
