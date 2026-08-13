@@ -94,7 +94,7 @@ func TestManagementAuditLogHandler_ListIncludesActorNames(t *testing.T) {
 	rows := data["rows"].([]any)
 	first := rows[0].(map[string]any)
 	assert.Equal(t, "Jane Admin", first["actor_user_name"])
-	assert.Equal(t, float64(7), first["actor_user_id"])
+	assert.Nil(t, first["actor_user_id"], "internal integer id must never be serialized outbound")
 	assert.Equal(t, float64(1), data["total_pages"])
 }
 
@@ -131,7 +131,7 @@ func TestManagementAuditLogHandler_Get(t *testing.T) {
 		require.Equal(t, http.StatusOK, rec.Code)
 		data := decodeResponseData(t, rec)
 		assert.Equal(t, "Auth Console", data["actor_client_name"])
-		assert.Equal(t, float64(11), data["actor_client_id"])
+		assert.Nil(t, data["actor_client_id"], "internal integer id must never be serialized outbound")
 	})
 
 	t.Run("rejects invalid UUID", func(t *testing.T) {

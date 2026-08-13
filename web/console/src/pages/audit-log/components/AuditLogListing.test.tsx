@@ -68,7 +68,6 @@ describe("AuditLogListing", () => {
     expect(screen.getByPlaceholderText(/search audit entries/i)).toBeInTheDocument()
     expect(screen.getByText("user.updated")).toBeInTheDocument()
     expect(screen.getByText("John Doe")).toBeInTheDocument()
-    expect(screen.getByText("User #1")).toBeInTheDocument()
 
     await u.click(screen.getByText("user.updated"))
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/audit-log/audit-9"))

@@ -82,7 +82,6 @@ describe("AuditLogDetailsPage", () => {
     expect(screen.getByText("audit-9")).toBeInTheDocument()
     expect(screen.getByText("tenant-123")).toBeInTheDocument()
     expect(screen.getByText("Jane Admin")).toBeInTheDocument()
-    expect(screen.getByText("User #1")).toBeInTheDocument()
     expect(screen.getByText(/Maintainerd/)).toBeInTheDocument()
 
     await u.click(screen.getByRole("button", { name: /back to audit log/i }))

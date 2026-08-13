@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -428,13 +427,6 @@ func authEventCSVRow(event AuthEventServiceDataResult) []string {
 		string(event.Metadata),
 		event.CreatedAt.Format(time.RFC3339),
 	}
-}
-
-func int64PtrString(value *int64) string {
-	if value == nil {
-		return ""
-	}
-	return fmt.Sprintf("%d", *value)
 }
 
 func stringPtrValue(value *string) string {
